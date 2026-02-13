@@ -1,20 +1,17 @@
-"""Ollama API client with batching, retry logic, and validation."""
+"""Ollama API client with batching, retry logic, and validation.
 
-import os
+All configuration is loaded from config.py Settings.
+"""
+
 import re
 import time
 import logging
 
 import requests
 
-logger = logging.getLogger(__name__)
+from config import get_settings
 
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://192.168.178.155:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "anime-translator")
-BATCH_SIZE = int(os.environ.get("BATCH_SIZE", "15"))
-REQUEST_TIMEOUT = 90
-MAX_RETRIES = 3
-BACKOFF_BASE = 5  # seconds
+logger = logging.getLogger(__name__)
 
 # CJK Unicode ranges for hallucination detection (Qwen2.5 sometimes drifts into Chinese)
 _CJK_RE = re.compile(
@@ -30,22 +27,15 @@ def _has_cjk_hallucination(text):
     return bool(_CJK_RE.search(text))
 
 
-TRANSLATE_PROMPT = (
-    "Translate these anime subtitle lines from English to German.\n"
-    "Return ONLY the translated lines, one per line, same count.\n"
-    "Preserve \\N exactly as \\N (hard line break).\n"
-    "Do NOT add numbering or prefixes to the output lines.\n\n"
-)
-
-
 def check_ollama_health():
     """Check if Ollama is reachable and the model is available.
 
     Returns:
         tuple: (is_healthy: bool, message: str)
     """
+    settings = get_settings()
     try:
-        resp = requests.get(f"{OLLAMA_URL}/api/tags", timeout=10)
+        resp = requests.get(f"{settings.ollama_url}/api/tags", timeout=10)
         if resp.status_code != 200:
             return False, f"Ollama returned status {resp.status_code}"
         try:
@@ -54,15 +44,15 @@ def check_ollama_health():
             return False, "Ollama returned invalid JSON"
         models = [m["name"] for m in data.get("models", [])]
         model_found = any(
-            OLLAMA_MODEL in name for name in models
+            settings.ollama_model in name for name in models
         )
         if not model_found:
-            return False, f"Model '{OLLAMA_MODEL}' not found. Available: {models}"
+            return False, f"Model '{settings.ollama_model}' not found. Available: {models}"
         return True, "OK"
     except requests.Timeout:
-        return False, f"Ollama health check timed out at {OLLAMA_URL}"
+        return False, f"Ollama health check timed out at {settings.ollama_url}"
     except requests.ConnectionError:
-        return False, f"Cannot connect to Ollama at {OLLAMA_URL}"
+        return False, f"Cannot connect to Ollama at {settings.ollama_url}"
     except Exception as e:
         return False, f"Ollama health check failed: {e}"
 
@@ -77,19 +67,20 @@ def _call_ollama(prompt):
         RuntimeError: On API errors or invalid responses
         requests.RequestException: On network errors
     """
+    settings = get_settings()
     payload = {
-        "model": OLLAMA_MODEL,
+        "model": settings.ollama_model,
         "prompt": prompt,
         "stream": False,
         "options": {
-            "temperature": 0.3,
+            "temperature": settings.temperature,
             "num_predict": 4096,
         },
     }
     resp = requests.post(
-        f"{OLLAMA_URL}/api/generate",
+        f"{settings.ollama_url}/api/generate",
         json=payload,
-        timeout=REQUEST_TIMEOUT,
+        timeout=settings.request_timeout,
     )
     resp.raise_for_status()
 
@@ -136,11 +127,9 @@ def _parse_response(response_text, expected_count):
         )
         merged = []
         for line in cleaned:
-            # If this line starts with a number pattern, it's a new entry
             if re.match(r"^\d+[\.:]\s*", lines[len(merged)] if len(merged) < len(lines) else ""):
                 merged.append(line)
             elif merged:
-                # Merge with previous line
                 merged[-1] = merged[-1] + " " + line
             else:
                 merged.append(line)
@@ -148,7 +137,6 @@ def _parse_response(response_text, expected_count):
         if len(merged) == expected_count:
             return merged
 
-        # Merging didn't help, truncate
         logger.warning("Merge failed (%d lines), truncating to %d", len(merged), expected_count)
         return cleaned[:expected_count]
 
@@ -170,11 +158,14 @@ def translate_batch(lines):
     if not lines:
         return []
 
+    settings = get_settings()
+    prompt_template = settings.get_prompt_template()
+
     numbered = "\n".join(f"{i+1}: {line}" for i, line in enumerate(lines))
-    prompt = TRANSLATE_PROMPT + numbered
+    prompt = prompt_template + numbered
 
     last_error = None
-    for attempt in range(1, MAX_RETRIES + 1):
+    for attempt in range(1, settings.max_retries + 1):
         try:
             response = _call_ollama(prompt)
             parsed = _parse_response(response, len(lines))
@@ -189,7 +180,6 @@ def translate_batch(lines):
                     last_error = ValueError("CJK hallucination detected")
                 else:
                     return parsed
-
             else:
                 logger.warning("Attempt %d: line count mismatch, retrying...", attempt)
                 last_error = ValueError(
@@ -199,8 +189,8 @@ def translate_batch(lines):
             logger.warning("Attempt %d failed: %s", attempt, e)
             last_error = e
 
-        if attempt < MAX_RETRIES:
-            wait = BACKOFF_BASE * (2 ** (attempt - 1))
+        if attempt < settings.max_retries:
+            wait = settings.backoff_base * (2 ** (attempt - 1))
             logger.info("Waiting %ds before retry...", wait)
             time.sleep(wait)
 
@@ -215,12 +205,15 @@ def _translate_singles(lines):
     Returns:
         list: Translated lines (untranslated on failure)
     """
+    settings = get_settings()
+    prompt_template = settings.get_prompt_template()
+
     results = []
     for i, line in enumerate(lines):
-        prompt = TRANSLATE_PROMPT + f"1: {line}"
+        prompt = prompt_template + f"1: {line}"
         last_error = None
 
-        for attempt in range(1, MAX_RETRIES + 1):
+        for attempt in range(1, settings.max_retries + 1):
             try:
                 response = _call_ollama(prompt)
                 translated = re.sub(r"^\d+[\.:]\s*", "", response.strip().split("\n")[0])
@@ -234,12 +227,12 @@ def _translate_singles(lines):
             except (requests.RequestException, RuntimeError) as e:
                 logger.warning("Single line %d, attempt %d failed: %s", i, attempt, e)
                 last_error = e
-            if attempt < MAX_RETRIES:
-                wait = BACKOFF_BASE * (2 ** (attempt - 1))
+            if attempt < settings.max_retries:
+                wait = settings.backoff_base * (2 ** (attempt - 1))
                 time.sleep(wait)
 
         if last_error is not None:
-            logger.error("Failed to translate line %d after %d attempts, keeping original", i, MAX_RETRIES)
+            logger.error("Failed to translate line %d after %d attempts, keeping original", i, settings.max_retries)
             results.append(line)
 
     return results
@@ -252,7 +245,8 @@ def translate_all(lines, batch_size=None):
         list: All translated lines in order
     """
     if batch_size is None:
-        batch_size = BATCH_SIZE
+        settings = get_settings()
+        batch_size = settings.batch_size
 
     total = len(lines)
     if total == 0:

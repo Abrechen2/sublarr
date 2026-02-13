@@ -2,18 +2,18 @@
 
 Provides graceful degradation: if Bazarr is unreachable, operations
 return None/False without blocking the translation pipeline.
+All configuration is loaded from config.py Settings.
 """
 
-import os
 import time
 import logging
 
 import requests
 
+from config import get_settings
+
 logger = logging.getLogger(__name__)
 
-BAZARR_URL = os.environ.get("BAZARR_URL", "")
-BAZARR_API_KEY = os.environ.get("BAZARR_API_KEY", "")
 REQUEST_TIMEOUT = 10
 MAX_RETRIES = 3
 BACKOFF_BASE = 2
@@ -26,10 +26,11 @@ def get_bazarr_client():
     global _client
     if _client is not None:
         return _client
-    if not BAZARR_URL or not BAZARR_API_KEY:
-        logger.debug("Bazarr not configured (BAZARR_URL or BAZARR_API_KEY missing)")
+    settings = get_settings()
+    if not settings.bazarr_url or not settings.bazarr_api_key:
+        logger.debug("Bazarr not configured (bazarr_url or bazarr_api_key missing)")
         return None
-    _client = BazarrClient(BAZARR_URL, BAZARR_API_KEY)
+    _client = BazarrClient(settings.bazarr_url, settings.bazarr_api_key)
     return _client
 
 
@@ -132,7 +133,6 @@ class BazarrClient:
         })
         if not data:
             return 0
-        # Count anime-tagged from total
         total = data.get("total", 0)
         return total
 
@@ -143,14 +143,17 @@ class BazarrClient:
             return None
         return data["data"][0]
 
-    def search_german_ass(self, series_id, episode_id):
-        """Search providers for a German ASS subtitle.
+    def search_target_ass(self, series_id, episode_id):
+        """Search providers for a target language ASS subtitle.
 
         Uses the manual search API to browse results and look for ASS format.
-        Returns True if a German ASS was found and downloaded, False otherwise.
+        Returns True if found and downloaded, False otherwise.
         """
         if not series_id or not episode_id:
             return False
+
+        settings = get_settings()
+        target_lang = settings.target_language
 
         results = self._get(
             "/api/providers/episodes",
@@ -168,7 +171,7 @@ class BazarrClient:
                 lang_code = lang.get("code2", "")
             else:
                 lang_code = str(lang)
-            if lang_code != "de":
+            if lang_code != target_lang:
                 continue
 
             # Check if ASS format (from release info or provider hints)
@@ -177,7 +180,7 @@ class BazarrClient:
                 continue
 
             logger.info(
-                "Found German ASS from provider %s: %s",
+                "Found target ASS from provider %s: %s",
                 sub.get("provider"), release,
             )
 
@@ -198,17 +201,21 @@ class BazarrClient:
                 )
                 return True
             except Exception as e:
-                logger.error("Failed to download German ASS via Bazarr: %s", e)
+                logger.error("Failed to download target ASS via Bazarr: %s", e)
 
         return False
 
-    def fetch_english_srt(self, series_id, episode_id):
-        """Ask Bazarr to download an English SRT for translation.
+    def fetch_source_srt(self, series_id, episode_id):
+        """Ask Bazarr to download a source language SRT for translation.
 
         Returns the path to the downloaded SRT file, or None.
         """
         if not series_id or not episode_id:
             return None
+
+        settings = get_settings()
+        source_lang = settings.source_language
+        source_tags = settings.get_source_lang_tags()
 
         try:
             resp = self.session.patch(
@@ -216,7 +223,7 @@ class BazarrClient:
                 params={
                     "seriesid": series_id,
                     "episodeid": episode_id,
-                    "language": "en",
+                    "language": source_lang,
                     "forced": "False",
                     "hi": "False",
                 },
@@ -227,13 +234,13 @@ class BazarrClient:
                 if ep:
                     for sub in ep.get("subtitles", []):
                         code = sub.get("code2") or sub.get("code3", "")
-                        if code in ("en", "eng"):
+                        if code in source_tags:
                             path = sub.get("path")
                             if path:
-                                logger.info("Bazarr downloaded English SRT: %s", path)
+                                logger.info("Bazarr downloaded source SRT: %s", path)
                                 return path
         except Exception as e:
-            logger.error("Failed to fetch English SRT via Bazarr: %s", e)
+            logger.error("Failed to fetch source SRT via Bazarr: %s", e)
 
         return None
 
