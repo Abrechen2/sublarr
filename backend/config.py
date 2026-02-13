@@ -35,7 +35,19 @@ class Settings(BaseSettings):
     target_language_name: str = "German"
     prompt_template: str = ""  # Empty = auto-generated from languages
 
-    # Bazarr (optional)
+    # Subtitle Providers
+    provider_priorities: str = "animetosho,jimaku,opensubtitles"
+    providers_enabled: str = ""  # Empty = all registered providers enabled
+
+    # OpenSubtitles.com (API v2)
+    opensubtitles_api_key: str = ""
+    opensubtitles_username: str = ""
+    opensubtitles_password: str = ""
+
+    # Jimaku (anime subtitles)
+    jimaku_api_key: str = ""
+
+    # Bazarr (optional — legacy fallback, will be removed in future)
     bazarr_url: str = ""
     bazarr_api_key: str = ""
 

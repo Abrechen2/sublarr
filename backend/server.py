@@ -191,7 +191,17 @@ def health():
     # Check all configured services
     service_status = {"ollama": message}
 
-    # Bazarr
+    # Subtitle Providers
+    try:
+        from providers import get_provider_manager
+        manager = get_provider_manager()
+        provider_statuses = manager.get_provider_status()
+        active_count = sum(1 for p in provider_statuses if p["healthy"])
+        service_status["providers"] = f"{active_count}/{len(provider_statuses)} active"
+    except Exception:
+        service_status["providers"] = "error"
+
+    # Bazarr (legacy)
     try:
         from bazarr_client import get_bazarr_client
         bazarr = get_bazarr_client()
@@ -201,7 +211,7 @@ def health():
         else:
             service_status["bazarr"] = "not configured"
     except Exception:
-        service_status["bazarr"] = "error"
+        service_status["bazarr"] = "not configured"
 
     # Sonarr
     try:
@@ -694,10 +704,12 @@ def update_config():
     from sonarr_client import invalidate_client as _inv_sonarr
     from radarr_client import invalidate_client as _inv_radarr
     from jellyfin_client import invalidate_client as _inv_jellyfin
+    from providers import invalidate_manager as _inv_providers
     _inv_bazarr()
     _inv_sonarr()
     _inv_radarr()
     _inv_jellyfin()
+    _inv_providers()
 
     logger.info("Config updated: %s — settings reloaded", saved_keys)
 
@@ -733,6 +745,102 @@ def get_library():
         logger.warning("Failed to get Radarr library: %s", e)
 
     return jsonify(result)
+
+
+# ─── Provider Endpoints ──────────────────────────────────────────────────────
+
+
+@api.route("/providers", methods=["GET"])
+def list_providers():
+    """Get status of all subtitle providers."""
+    try:
+        from providers import get_provider_manager
+        manager = get_provider_manager()
+        return jsonify({"providers": manager.get_provider_status()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api.route("/providers/test/<provider_name>", methods=["POST"])
+def test_provider(provider_name):
+    """Test a specific provider's connectivity."""
+    try:
+        from providers import get_provider_manager
+        manager = get_provider_manager()
+        provider = manager._providers.get(provider_name)
+        if not provider:
+            return jsonify({"error": f"Provider '{provider_name}' not found or not enabled"}), 404
+
+        healthy, message = provider.health_check()
+        return jsonify({
+            "provider": provider_name,
+            "healthy": healthy,
+            "message": message,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api.route("/providers/search", methods=["POST"])
+def search_providers():
+    """Search subtitle providers for a specific file.
+
+    Body: {
+        "file_path": "/media/anime/...",
+        "series_title": "...",
+        "season": 1,
+        "episode": 1,
+        "language": "en",
+        "format": "ass"  // optional filter
+    }
+    """
+    data = request.get_json() or {}
+
+    from providers import get_provider_manager
+    from providers.base import VideoQuery, SubtitleFormat
+
+    query = VideoQuery(
+        file_path=data.get("file_path", ""),
+        series_title=data.get("series_title", ""),
+        title=data.get("title", ""),
+        season=data.get("season"),
+        episode=data.get("episode"),
+        imdb_id=data.get("imdb_id", ""),
+        anilist_id=data.get("anilist_id"),
+        anidb_id=data.get("anidb_id"),
+        languages=[data.get("language", get_settings().source_language)],
+    )
+
+    format_filter = None
+    if data.get("format"):
+        try:
+            format_filter = SubtitleFormat(data["format"])
+        except ValueError:
+            pass
+
+    try:
+        manager = get_provider_manager()
+        results = manager.search(query, format_filter=format_filter)
+
+        return jsonify({
+            "results": [
+                {
+                    "provider": r.provider_name,
+                    "subtitle_id": r.subtitle_id,
+                    "language": r.language,
+                    "format": r.format.value,
+                    "filename": r.filename,
+                    "release_info": r.release_info,
+                    "score": r.score,
+                    "hearing_impaired": r.hearing_impaired,
+                    "matches": list(r.matches),
+                }
+                for r in results[:50]  # Limit response size
+            ],
+            "total": len(results),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ─── Webhook Endpoints ───────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ pydantic==2.10.6
 pydantic-settings==2.7.1
 python-dotenv==1.0.1
 simple-websocket==1.1.0
+rarfile==4.2
 pytest==8.3.4
 pytest-cov==6.0.0
 pytest-mock==3.14.0

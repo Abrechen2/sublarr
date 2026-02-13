@@ -50,8 +50,31 @@ CREATE TABLE IF NOT EXISTS config_entries (
     updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS provider_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider_name TEXT NOT NULL,
+    query_hash TEXT NOT NULL,
+    results_json TEXT NOT NULL,
+    cached_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS subtitle_downloads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider_name TEXT NOT NULL,
+    subtitle_id TEXT NOT NULL,
+    language TEXT NOT NULL,
+    format TEXT DEFAULT '',
+    file_path TEXT NOT NULL,
+    score INTEGER DEFAULT 0,
+    downloaded_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_jobs_created ON jobs(created_at);
+CREATE INDEX IF NOT EXISTS idx_provider_cache_hash ON provider_cache(provider_name, query_hash);
+CREATE INDEX IF NOT EXISTS idx_provider_cache_expires ON provider_cache(expires_at);
+CREATE INDEX IF NOT EXISTS idx_subtitle_downloads_path ON subtitle_downloads(file_path);
 """
 
 
@@ -361,3 +384,58 @@ def get_all_config_entries() -> dict:
     with _db_lock:
         rows = db.execute("SELECT key, value FROM config_entries").fetchall()
     return {row[0]: row[1] for row in rows}
+
+
+# ─── Provider Cache Operations ───────────────────────────────────────────────
+
+
+def cache_provider_results(provider_name: str, query_hash: str, results_json: str, ttl_hours: int = 6):
+    """Cache provider search results."""
+    now = datetime.utcnow()
+    expires = now + __import__("datetime").timedelta(hours=ttl_hours)
+    db = get_db()
+    with _db_lock:
+        db.execute(
+            """INSERT INTO provider_cache (provider_name, query_hash, results_json, cached_at, expires_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (provider_name, query_hash, results_json, now.isoformat(), expires.isoformat()),
+        )
+        db.commit()
+
+
+def get_cached_results(provider_name: str, query_hash: str) -> Optional[str]:
+    """Get cached provider results if not expired."""
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            """SELECT results_json FROM provider_cache
+               WHERE provider_name=? AND query_hash=? AND expires_at > ?
+               ORDER BY cached_at DESC LIMIT 1""",
+            (provider_name, query_hash, now),
+        ).fetchone()
+    return row[0] if row else None
+
+
+def cleanup_expired_cache():
+    """Remove expired cache entries."""
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    with _db_lock:
+        db.execute("DELETE FROM provider_cache WHERE expires_at < ?", (now,))
+        db.commit()
+
+
+def record_subtitle_download(provider_name: str, subtitle_id: str, language: str,
+                              fmt: str, file_path: str, score: int):
+    """Record a subtitle download for history tracking."""
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    with _db_lock:
+        db.execute(
+            """INSERT INTO subtitle_downloads
+               (provider_name, subtitle_id, language, format, file_path, score, downloaded_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (provider_name, subtitle_id, language, fmt, file_path, score, now),
+        )
+        db.commit()
