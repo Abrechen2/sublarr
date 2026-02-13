@@ -347,6 +347,107 @@ def _translate_srt(srt_path, output_path, source="srt"):
     }
 
 
+def _build_video_query(mkv_path, context=None):
+    """Build a VideoQuery from file path and optional context."""
+    from providers.base import VideoQuery
+
+    settings = get_settings()
+    query = VideoQuery(
+        file_path=mkv_path,
+        languages=[settings.source_language],
+    )
+
+    if context:
+        query.series_title = context.get("series_title", "")
+        query.title = context.get("title", "")
+        if context.get("season") is not None:
+            query.season = context["season"]
+        if context.get("episode") is not None:
+            query.episode = context["episode"]
+        query.imdb_id = context.get("imdb_id", "")
+        query.anidb_id = context.get("anidb_id")
+        query.anilist_id = context.get("anilist_id")
+        query.tvdb_id = context.get("tvdb_id")
+        query.sonarr_series_id = context.get("sonarr_series_id")
+        query.sonarr_episode_id = context.get("sonarr_episode_id")
+
+    return query
+
+
+def _search_providers_for_target_ass(mkv_path, context=None):
+    """Search subtitle providers for a target language ASS file.
+
+    Returns:
+        str or None: path to downloaded ASS file, or None
+    """
+    try:
+        from providers import get_provider_manager
+        from providers.base import VideoQuery, SubtitleFormat
+
+        settings = get_settings()
+        manager = get_provider_manager()
+
+        query = _build_video_query(mkv_path, context)
+        query.languages = [settings.target_language]
+
+        result = manager.search_and_download_best(
+            query, format_filter=SubtitleFormat.ASS
+        )
+        if result and result.content:
+            output_path = get_output_path(mkv_path, "ass")
+            manager.save_subtitle(result, output_path)
+            logger.info("Provider %s delivered target ASS: %s", result.provider_name, output_path)
+            return output_path
+    except Exception as e:
+        logger.warning("Provider search for target ASS failed: %s", e)
+
+    return None
+
+
+def _search_providers_for_source_sub(mkv_path, context=None):
+    """Search subtitle providers for a source language subtitle.
+
+    Tries ASS first, falls back to SRT.
+
+    Returns:
+        tuple: (path, format) or (None, None)
+    """
+    try:
+        from providers import get_provider_manager
+        from providers.base import VideoQuery, SubtitleFormat
+
+        settings = get_settings()
+        manager = get_provider_manager()
+
+        query = _build_video_query(mkv_path, context)
+        query.languages = [settings.source_language]
+
+        # Try ASS first
+        result = manager.search_and_download_best(
+            query, format_filter=SubtitleFormat.ASS
+        )
+        if result and result.content:
+            base = os.path.splitext(mkv_path)[0]
+            tmp_path = f"{base}.{settings.source_language}.ass"
+            manager.save_subtitle(result, tmp_path)
+            logger.info("Provider %s delivered source ASS: %s", result.provider_name, tmp_path)
+            return tmp_path, "ass"
+
+        # Fall back to any format (SRT most likely)
+        result = manager.search_and_download_best(query)
+        if result and result.content:
+            base = os.path.splitext(mkv_path)[0]
+            ext = result.format.value if result.format.value != "unknown" else "srt"
+            tmp_path = f"{base}.{settings.source_language}.{ext}"
+            manager.save_subtitle(result, tmp_path)
+            logger.info("Provider %s delivered source %s: %s", result.provider_name, ext, tmp_path)
+            return tmp_path, ext
+    except Exception as e:
+        logger.warning("Provider search for source subtitle failed: %s", e)
+
+    return None, None
+
+
 def translate_file(mkv_path, force=False, bazarr_context=None):
     """Translate subtitles for a single MKV file.
 
@@ -354,16 +455,16 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
 
     CASE A: Target ASS exists → Skip (goal achieved)
     CASE B: Target SRT exists → Upgrade attempt:
-        B1: Bazarr search for target ASS
+        B1: Provider search for target ASS
         B2: Source ASS embedded → translate to .{lang}.ass
         B3: No upgrade possible → keep SRT
     CASE C: No target subtitle:
         C1: Source ASS embedded → .{lang}.ass
         C2: Source SRT (embedded/external) → .{lang}.srt
-        C3: Bazarr fetch source SRT → .{lang}.srt
+        C3: Provider search for source subtitle → translate
         C4: Nothing → Fail
 
-    After successful translation: notify Bazarr (scan-disk) if context provided.
+    After successful translation: notify integrations if context provided.
     """
     settings = get_settings()
 
@@ -389,21 +490,14 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
     if target_status == "srt":
         logger.info("Case B: Target SRT found, attempting upgrade to ASS")
 
-        # B1: Bazarr search for target ASS
-        if bazarr_context:
-            try:
-                from bazarr_client import get_bazarr_client
-                bazarr = get_bazarr_client()
-                if bazarr:
-                    target_ass = bazarr.search_target_ass(
-                        bazarr_context.get("sonarr_series_id"),
-                        bazarr_context.get("sonarr_episode_id"),
-                    )
-                    if target_ass:
-                        logger.info("Case B1: Bazarr found target ASS (upgrade from SRT)")
-                        return _skip_result(f"{settings.target_language_name} ASS downloaded via Bazarr (upgraded from SRT)")
-            except Exception as e:
-                logger.warning("Bazarr search_target_ass failed: %s", e)
+        # B1: Provider search for target ASS
+        target_ass_path = _search_providers_for_target_ass(mkv_path, bazarr_context)
+        if target_ass_path:
+            logger.info("Case B1: Provider found target ASS (upgrade from SRT)")
+            return _skip_result(
+                f"{settings.target_language_name} ASS downloaded via provider (upgraded from SRT)",
+                output_path=target_ass_path,
+            )
 
         # B2: Source ASS embedded → translate to .{lang}.ass
         best_ass = select_best_subtitle_stream(probe_data, format_filter="ass")
@@ -412,7 +506,7 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
             result = translate_ass(mkv_path, best_ass, probe_data)
             if result["success"]:
                 result["stats"]["upgrade_from_srt"] = True
-                _notify_bazarr(bazarr_context)
+                _notify_integrations(bazarr_context)
                 return result
 
         # B3: No upgrade possible
@@ -427,7 +521,7 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
         logger.info("Case C1: Translating source ASS to target ASS")
         result = translate_ass(mkv_path, best_stream, probe_data)
         if result["success"]:
-            _notify_bazarr(bazarr_context)
+            _notify_integrations(bazarr_context)
         return result
 
     # C2: Source SRT embedded → .{lang}.srt
@@ -435,7 +529,7 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
         logger.info("Case C2: Translating embedded source SRT to target SRT")
         result = translate_srt_from_stream(mkv_path, best_stream)
         if result["success"]:
-            _notify_bazarr(bazarr_context)
+            _notify_integrations(bazarr_context)
         return result
 
     # C2b: External source SRT → .{lang}.srt
@@ -444,16 +538,30 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
         logger.info("Case C2b: Translating external source SRT to target SRT")
         result = translate_srt_from_file(mkv_path, ext_srt)
         if result["success"]:
-            _notify_bazarr(bazarr_context)
+            _notify_integrations(bazarr_context)
         return result
 
-    # C3: Bazarr fetch source SRT → .{lang}.srt
+    # C3: Provider search for source subtitle → translate
+    src_path, src_fmt = _search_providers_for_source_sub(mkv_path, bazarr_context)
+    if src_path:
+        if src_fmt == "ass":
+            logger.info("Case C3: Translating provider source ASS to target ASS")
+            # Load and translate the downloaded ASS
+            result = _translate_external_ass(mkv_path, src_path)
+        else:
+            logger.info("Case C3: Translating provider source SRT to target SRT")
+            result = translate_srt_from_file(mkv_path, src_path, source="provider_source_srt")
+        if result and result["success"]:
+            _notify_integrations(bazarr_context)
+        return result
+
+    # C3b: Bazarr legacy fallback (if still configured)
     if bazarr_context:
         try:
             from bazarr_client import get_bazarr_client
             bazarr = get_bazarr_client()
             if bazarr:
-                logger.info("Case C3: Asking Bazarr to fetch source SRT")
+                logger.info("Case C3b: Trying Bazarr legacy fallback for source SRT")
                 src_srt_path = bazarr.fetch_source_srt(
                     bazarr_context.get("sonarr_series_id"),
                     bazarr_context.get("sonarr_episode_id"),
@@ -463,30 +571,127 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
                         mkv_path, src_srt_path, source="bazarr_source_srt"
                     )
                     if result["success"]:
-                        _notify_bazarr(bazarr_context)
+                        _notify_integrations(bazarr_context)
                     return result
         except Exception as e:
-            logger.warning("Bazarr fetch_source_srt failed: %s", e)
+            logger.warning("Bazarr fallback failed: %s", e)
 
     # C4: Nothing found
     logger.warning("Case C4: No source subtitle found for %s", mkv_path)
     return _fail_result(f"No {settings.source_language_name} subtitle source found")
 
 
-def _notify_bazarr(bazarr_context):
-    """Notify Bazarr about new subtitle files (scan-disk)."""
-    if not bazarr_context:
-        return
-    series_id = bazarr_context.get("sonarr_series_id")
-    if not series_id:
-        return
+def _translate_external_ass(mkv_path, ass_path):
+    """Translate a downloaded external ASS file to target language."""
+    output_path = get_output_path(mkv_path, "ass")
+    check_disk_space(output_path)
+
     try:
-        from bazarr_client import get_bazarr_client
-        bazarr = get_bazarr_client()
-        if bazarr:
-            bazarr.notify_scan_disk(series_id)
+        subs = pysubs2.load(ass_path)
+        logger.info("Loaded external ASS: %d events, %d styles", len(subs.events), len(subs.styles))
+
+        dialog_styles, signs_styles = classify_styles(subs)
+
+        dialog_indices = []
+        dialog_texts = []
+        dialog_tags = []
+        dialog_orig_lengths = []
+
+        for i, event in enumerate(subs.events):
+            if event.is_comment:
+                continue
+            if event.style not in dialog_styles:
+                continue
+            if not event.text.strip():
+                continue
+
+            clean_text, tag_info, orig_len = extract_tags(event.text)
+            if not clean_text.strip():
+                continue
+
+            dialog_indices.append(i)
+            dialog_texts.append(clean_text)
+            dialog_tags.append(tag_info)
+            dialog_orig_lengths.append(orig_len)
+
+        if not dialog_texts:
+            return _fail_result("No dialog lines found in external ASS")
+
+        translated_texts = translate_all(dialog_texts)
+
+        if len(translated_texts) != len(dialog_texts):
+            return _fail_result(
+                f"Translation count mismatch: expected {len(dialog_texts)}, got {len(translated_texts)}"
+            )
+
+        quality_warnings = _check_translation_quality(dialog_texts, translated_texts)
+        for w in quality_warnings:
+            logger.warning("Quality: %s", w)
+
+        translated_count = 0
+        for idx, trans_text, tags, orig_len in zip(
+            dialog_indices, translated_texts, dialog_tags, dialog_orig_lengths
+        ):
+            fixed = fix_line_breaks(trans_text)
+            restored = restore_tags(fixed, tags, orig_len)
+            subs.events[idx].text = restored
+            translated_count += 1
+
+        settings = get_settings()
+        lang_tag = settings.target_language.upper()
+        info_title = subs.info.get("Title", "")
+        if not info_title.startswith(f"[{lang_tag}]"):
+            subs.info["Title"] = f"[{lang_tag}] {info_title}"
+
+        check_disk_space(output_path)
+        subs.save(output_path)
+        logger.info("Saved ASS translation from external source: %s", output_path)
+
+        return {
+            "success": True,
+            "output_path": output_path,
+            "stats": {
+                "total_events": len(subs.events),
+                "translated": translated_count,
+                "signs_kept": len(signs_styles),
+                "dialog_styles": list(dialog_styles),
+                "signs_styles": list(signs_styles),
+                "format": "ass",
+                "source": "provider_source_ass",
+                "quality_warnings": quality_warnings,
+            },
+            "error": None,
+        }
+
     except Exception as e:
-        logger.warning("Bazarr scan-disk notification failed: %s", e)
+        logger.exception("External ASS translation failed for %s", mkv_path)
+        return _fail_result(str(e))
+
+
+def _notify_integrations(context):
+    """Notify external services about new subtitle files."""
+    if not context:
+        return
+
+    # Bazarr scan-disk (legacy, if still configured)
+    series_id = context.get("sonarr_series_id")
+    if series_id:
+        try:
+            from bazarr_client import get_bazarr_client
+            bazarr = get_bazarr_client()
+            if bazarr:
+                bazarr.notify_scan_disk(series_id)
+        except Exception as e:
+            logger.debug("Bazarr notification skipped: %s", e)
+
+    # Jellyfin library refresh
+    try:
+        from jellyfin_client import get_jellyfin_client
+        jellyfin = get_jellyfin_client()
+        if jellyfin:
+            jellyfin.refresh_library()
+    except Exception as e:
+        logger.debug("Jellyfin notification skipped: %s", e)
 
 
 def scan_directory(directory, force=False):
