@@ -1,7 +1,8 @@
 """Core translation orchestration: extract, translate, reassemble subtitles.
 
 Supports ASS (primary) and SRT (fallback) subtitle formats.
-German ASS is always the goal — SRT output only when no ASS source exists.
+Target language ASS is always the goal — SRT output only when no ASS source exists.
+All language-specific logic is parameterized via config.py.
 """
 
 import os
@@ -12,9 +13,10 @@ import logging
 
 import pysubs2
 
+from config import get_settings
 from ass_utils import (
     run_ffprobe,
-    has_german_stream,
+    has_target_language_stream,
     select_best_subtitle_stream,
     extract_subtitle_stream,
     classify_styles,
@@ -28,16 +30,6 @@ logger = logging.getLogger(__name__)
 
 MIN_FREE_SPACE_MB = 100
 
-# Patterns for detecting existing German subtitle files
-GERMAN_ASS_PATTERNS = [".de.ass", ".deu.ass", ".ger.ass", ".german.ass"]
-GERMAN_SRT_PATTERNS = [".de.srt", ".deu.srt", ".ger.srt", ".german.srt"]
-
-# Patterns for detecting existing English subtitle files
-ENGLISH_SUB_PATTERNS = [
-    ".en.srt", ".eng.srt", ".english.srt",
-    ".en.ass", ".eng.ass", ".english.ass",
-]
-
 # Common English words that indicate a subtitle was not actually translated
 ENGLISH_MARKER_WORDS = {
     "the", "and", "that", "have", "for", "not", "with", "you",
@@ -47,33 +39,35 @@ ENGLISH_MARKER_WORDS = {
 
 def get_output_path(mkv_path, fmt="ass"):
     """Get the output path for a translated subtitle file."""
+    settings = get_settings()
     base = os.path.splitext(mkv_path)[0]
-    return f"{base}.de.{fmt}"
+    return f"{base}.{settings.target_language}.{fmt}"
 
 
-def detect_existing_german(mkv_path, probe_data=None):
-    """Detect existing German subtitles (external files and embedded streams).
+def detect_existing_target(mkv_path, probe_data=None):
+    """Detect existing target language subtitles (external files and embedded streams).
 
     Returns:
-        str or None: "ass" if German ASS found, "srt" if only German SRT found,
-        None if no German subtitle exists. ASS takes priority over SRT.
+        str or None: "ass" if target ASS found, "srt" if only target SRT found,
+        None if no target language subtitle exists. ASS takes priority over SRT.
     """
+    settings = get_settings()
     base = os.path.splitext(mkv_path)[0]
 
     # Check external files — ASS first (higher priority)
-    for pattern in GERMAN_ASS_PATTERNS:
+    for pattern in settings.get_target_patterns("ass"):
         if os.path.exists(base + pattern):
             return "ass"
 
     has_srt = False
-    for pattern in GERMAN_SRT_PATTERNS:
+    for pattern in settings.get_target_patterns("srt"):
         if os.path.exists(base + pattern):
             has_srt = True
             break
 
     # Check embedded streams
     if probe_data:
-        embedded = has_german_stream(probe_data)
+        embedded = has_target_language_stream(probe_data)
         if embedded == "ass":
             return "ass"
         if embedded == "srt":
@@ -82,13 +76,17 @@ def detect_existing_german(mkv_path, probe_data=None):
     return "srt" if has_srt else None
 
 
-def find_external_english_srt(mkv_path):
-    """Find an external English subtitle file next to the MKV."""
+def find_external_source_sub(mkv_path):
+    """Find an external source language subtitle file next to the MKV."""
+    settings = get_settings()
     base = os.path.splitext(mkv_path)[0]
-    for pattern in ENGLISH_SUB_PATTERNS:
+
+    # Check both ASS and SRT patterns for the source language
+    all_patterns = settings.get_source_patterns("srt") + settings.get_source_patterns("ass")
+    for pattern in all_patterns:
         path = base + pattern
         if os.path.exists(path):
-            logger.info("Found external English subtitle: %s", path)
+            logger.info("Found external source subtitle: %s", path)
             return path
     return None
 
@@ -153,7 +151,7 @@ def _check_translation_quality(original_texts, translated_texts):
 
 
 def translate_ass(mkv_path, stream_info, probe_data):
-    """Translate an ASS subtitle stream to German .de.ass."""
+    """Translate an ASS subtitle stream to target language .{lang}.ass."""
     output_path = get_output_path(mkv_path, "ass")
     check_disk_space(output_path)
 
@@ -221,9 +219,11 @@ def translate_ass(mkv_path, stream_info, probe_data):
             subs.events[idx].text = restored
             translated_count += 1
 
+        settings = get_settings()
+        lang_tag = settings.target_language.upper()
         info_title = subs.info.get("Title", "")
-        if not info_title.startswith("[DE]"):
-            subs.info["Title"] = f"[DE] {info_title}"
+        if not info_title.startswith(f"[{lang_tag}]"):
+            subs.info["Title"] = f"[{lang_tag}] {info_title}"
 
         check_disk_space(output_path)
         subs.save(output_path)
@@ -254,7 +254,7 @@ def translate_ass(mkv_path, stream_info, probe_data):
 
 
 def translate_srt_from_stream(mkv_path, stream_info):
-    """Translate an embedded SRT subtitle stream to German .de.srt."""
+    """Translate an embedded SRT subtitle stream to target language .{lang}.srt."""
     output_path = get_output_path(mkv_path, "srt")
     check_disk_space(output_path)
 
@@ -273,7 +273,7 @@ def translate_srt_from_stream(mkv_path, stream_info):
 
 
 def translate_srt_from_file(mkv_path, srt_path, source="external_srt"):
-    """Translate an external SRT file to German .de.srt."""
+    """Translate an external SRT file to target language .{lang}.srt."""
     output_path = get_output_path(mkv_path, "srt")
     check_disk_space(output_path)
 
@@ -350,21 +350,23 @@ def _translate_srt(srt_path, output_path, source="srt"):
 def translate_file(mkv_path, force=False, bazarr_context=None):
     """Translate subtitles for a single MKV file.
 
-    Three-case priority chain (German ASS is always the goal):
+    Three-case priority chain (target language ASS is always the goal):
 
-    FALL A: German ASS exists → Skip (goal achieved)
-    FALL B: German SRT exists → Upgrade attempt:
-        B1: Bazarr search for German ASS
-        B2: English ASS embedded → translate to .de.ass
+    CASE A: Target ASS exists → Skip (goal achieved)
+    CASE B: Target SRT exists → Upgrade attempt:
+        B1: Bazarr search for target ASS
+        B2: Source ASS embedded → translate to .{lang}.ass
         B3: No upgrade possible → keep SRT
-    FALL C: No German subtitle:
-        C1: English ASS embedded → .de.ass
-        C2: English SRT (embedded/external) → .de.srt
-        C3: Bazarr fetch English SRT → .de.srt
+    CASE C: No target subtitle:
+        C1: Source ASS embedded → .{lang}.ass
+        C2: Source SRT (embedded/external) → .{lang}.srt
+        C3: Bazarr fetch source SRT → .{lang}.srt
         C4: Nothing → Fail
 
     After successful translation: notify Bazarr (scan-disk) if context provided.
     """
+    settings = get_settings()
+
     if not os.path.exists(mkv_path):
         raise FileNotFoundError(f"File not found: {mkv_path}")
 
@@ -372,41 +374,41 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
     probe_data = run_ffprobe(mkv_path)
 
     if not force:
-        german_status = detect_existing_german(mkv_path, probe_data)
+        target_status = detect_existing_target(mkv_path, probe_data)
     else:
-        german_status = None
+        target_status = None
 
     result = None
 
-    # ═══ FALL A: German ASS exists → Done ═══
-    if german_status == "ass":
-        logger.info("Fall A: German ASS already exists, skipping")
-        return _skip_result("German ASS already exists")
+    # === CASE A: Target ASS exists → Done ===
+    if target_status == "ass":
+        logger.info("Case A: Target ASS already exists, skipping")
+        return _skip_result(f"{settings.target_language_name} ASS already exists")
 
-    # ═══ FALL B: German SRT exists → Upgrade attempt to ASS ═══
-    if german_status == "srt":
-        logger.info("Fall B: German SRT found, attempting upgrade to ASS")
+    # === CASE B: Target SRT exists → Upgrade attempt to ASS ===
+    if target_status == "srt":
+        logger.info("Case B: Target SRT found, attempting upgrade to ASS")
 
-        # B1: Bazarr search for German ASS
+        # B1: Bazarr search for target ASS
         if bazarr_context:
             try:
                 from bazarr_client import get_bazarr_client
                 bazarr = get_bazarr_client()
                 if bazarr:
-                    de_ass = bazarr.search_german_ass(
+                    target_ass = bazarr.search_target_ass(
                         bazarr_context.get("sonarr_series_id"),
                         bazarr_context.get("sonarr_episode_id"),
                     )
-                    if de_ass:
-                        logger.info("Fall B1: Bazarr found German ASS (upgrade from SRT)")
-                        return _skip_result("German ASS downloaded via Bazarr (upgraded from SRT)")
+                    if target_ass:
+                        logger.info("Case B1: Bazarr found target ASS (upgrade from SRT)")
+                        return _skip_result(f"{settings.target_language_name} ASS downloaded via Bazarr (upgraded from SRT)")
             except Exception as e:
-                logger.warning("Bazarr search_german_ass failed: %s", e)
+                logger.warning("Bazarr search_target_ass failed: %s", e)
 
-        # B2: English ASS embedded → translate to .de.ass
+        # B2: Source ASS embedded → translate to .{lang}.ass
         best_ass = select_best_subtitle_stream(probe_data, format_filter="ass")
         if best_ass:
-            logger.info("Fall B2: Upgrading — translating English ASS to German ASS")
+            logger.info("Case B2: Upgrading — translating source ASS to target ASS")
             result = translate_ass(mkv_path, best_ass, probe_data)
             if result["success"]:
                 result["stats"]["upgrade_from_srt"] = True
@@ -414,61 +416,61 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
                 return result
 
         # B3: No upgrade possible
-        logger.info("Fall B3: No ASS upgrade available, keeping German SRT")
-        return _skip_result("German SRT exists, no ASS upgrade available")
+        logger.info("Case B3: No ASS upgrade available, keeping target SRT")
+        return _skip_result(f"{settings.target_language_name} SRT exists, no ASS upgrade available")
 
-    # ═══ FALL C: No German subtitle → Full pipeline ═══
+    # === CASE C: No target subtitle → Full pipeline ===
 
-    # C1: English ASS embedded → .de.ass
+    # C1: Source ASS embedded → .{lang}.ass
     best_stream = select_best_subtitle_stream(probe_data)
     if best_stream and best_stream["format"] == "ass":
-        logger.info("Fall C1: Translating English ASS to German ASS")
+        logger.info("Case C1: Translating source ASS to target ASS")
         result = translate_ass(mkv_path, best_stream, probe_data)
         if result["success"]:
             _notify_bazarr(bazarr_context)
         return result
 
-    # C2: English SRT embedded → .de.srt
+    # C2: Source SRT embedded → .{lang}.srt
     if best_stream and best_stream["format"] == "srt":
-        logger.info("Fall C2: Translating embedded English SRT to German SRT")
+        logger.info("Case C2: Translating embedded source SRT to target SRT")
         result = translate_srt_from_stream(mkv_path, best_stream)
         if result["success"]:
             _notify_bazarr(bazarr_context)
         return result
 
-    # C2b: External English SRT → .de.srt
-    ext_srt = find_external_english_srt(mkv_path)
+    # C2b: External source SRT → .{lang}.srt
+    ext_srt = find_external_source_sub(mkv_path)
     if ext_srt:
-        logger.info("Fall C2b: Translating external English SRT to German SRT")
+        logger.info("Case C2b: Translating external source SRT to target SRT")
         result = translate_srt_from_file(mkv_path, ext_srt)
         if result["success"]:
             _notify_bazarr(bazarr_context)
         return result
 
-    # C3: Bazarr fetch English SRT → .de.srt
+    # C3: Bazarr fetch source SRT → .{lang}.srt
     if bazarr_context:
         try:
             from bazarr_client import get_bazarr_client
             bazarr = get_bazarr_client()
             if bazarr:
-                logger.info("Fall C3: Asking Bazarr to fetch English SRT")
-                eng_srt_path = bazarr.fetch_english_srt(
+                logger.info("Case C3: Asking Bazarr to fetch source SRT")
+                src_srt_path = bazarr.fetch_source_srt(
                     bazarr_context.get("sonarr_series_id"),
                     bazarr_context.get("sonarr_episode_id"),
                 )
-                if eng_srt_path:
+                if src_srt_path:
                     result = translate_srt_from_file(
-                        mkv_path, eng_srt_path, source="bazarr_english_srt"
+                        mkv_path, src_srt_path, source="bazarr_source_srt"
                     )
                     if result["success"]:
                         _notify_bazarr(bazarr_context)
                     return result
         except Exception as e:
-            logger.warning("Bazarr fetch_english_srt failed: %s", e)
+            logger.warning("Bazarr fetch_source_srt failed: %s", e)
 
     # C4: Nothing found
-    logger.warning("Fall C4: No English subtitle source found for %s", mkv_path)
-    return _fail_result("No English subtitle source found")
+    logger.warning("Case C4: No source subtitle found for %s", mkv_path)
+    return _fail_result(f"No {settings.source_language_name} subtitle source found")
 
 
 def _notify_bazarr(bazarr_context):
@@ -491,7 +493,7 @@ def scan_directory(directory, force=False):
     """Scan a directory for MKV files that need translation.
 
     Returns:
-        list: List of dicts with file info including german_status
+        list: List of dicts with file info including target_status
     """
     files = []
     for root, _dirs, filenames in os.walk(directory):
@@ -500,15 +502,15 @@ def scan_directory(directory, force=False):
                 continue
             mkv_path = os.path.join(root, filename)
 
-            # Check external German subs only (no ffprobe — too slow for scan)
-            german_status = detect_existing_german(mkv_path)
+            # Check external target subs only (no ffprobe — too slow for scan)
+            target_status = detect_existing_target(mkv_path)
 
-            if german_status == "ass" and not force:
+            if target_status == "ass" and not force:
                 continue  # Goal achieved, skip
 
             files.append({
                 "path": mkv_path,
-                "german_status": german_status,
+                "target_status": target_status,
                 "size_mb": os.path.getsize(mkv_path) / (1024 * 1024),
             })
     return files

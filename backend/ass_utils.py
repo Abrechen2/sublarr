@@ -1,17 +1,16 @@
-"""ASS/SRT subtitle utilities: style classification, tag handling, stream selection."""
+"""ASS/SRT subtitle utilities: style classification, tag handling, stream selection.
+
+All language-specific logic is parameterized via config.py settings.
+"""
 
 import re
 import json
 import subprocess
 import logging
 
+from config import get_settings
+
 logger = logging.getLogger(__name__)
-
-# German language tags (ISO 639-1, 639-2/B, 639-2/T, full name)
-GERMAN_LANG_TAGS = {"ger", "deu", "de", "german"}
-
-# English language tags
-ENGLISH_LANG_TAGS = {"eng", "enm", "en", "english"}
 
 # Patterns for style classification
 SIGNS_PATTERNS = re.compile(
@@ -30,34 +29,37 @@ OVERRIDE_TAG_RE = re.compile(r"\{[^}]*\}")
 POS_MOVE_RE = re.compile(r"\\(?:pos|move|org)\s*\(")
 
 
-def has_german_stream(ffprobe_data):
-    """Check if the file has an embedded German subtitle stream.
+def has_target_language_stream(ffprobe_data):
+    """Check if the file has an embedded target language subtitle stream.
 
     Args:
         ffprobe_data: dict from ffprobe JSON output
 
     Returns:
-        str or None: "ass" if German ASS found, "srt" if German SRT found, None otherwise.
+        str or None: "ass" if target lang ASS found, "srt" if SRT found, None otherwise.
         ASS takes priority over SRT.
     """
-    german_ass = False
-    german_srt = False
+    settings = get_settings()
+    target_tags = settings.get_target_lang_tags()
+
+    target_ass = False
+    target_srt = False
 
     for stream in ffprobe_data.get("streams", []):
         if stream.get("codec_type") != "subtitle":
             continue
         lang = stream.get("tags", {}).get("language", "").lower()
-        if lang not in GERMAN_LANG_TAGS:
+        if lang not in target_tags:
             continue
         codec = stream.get("codec_name", "").lower()
         if codec in ("ass", "ssa"):
-            german_ass = True
+            target_ass = True
         elif codec in ("subrip", "srt"):
-            german_srt = True
+            target_srt = True
 
-    if german_ass:
+    if target_ass:
         return "ass"
-    if german_srt:
+    if target_srt:
         return "srt"
     return None
 
@@ -214,15 +216,15 @@ def fix_line_breaks(text):
 
 
 def select_best_subtitle_stream(ffprobe_data, format_filter=None):
-    """Select the best English subtitle stream from ffprobe data.
+    """Select the best source language subtitle stream from ffprobe data.
 
     Priority (ASS preferred over SRT):
-    1. English ASS with "Full" in title (not Signs/Songs)
-    2. First English ASS without "sign"/"song"
-    3. First English ASS
-    4. ASS without language tag, not "sign"/"song"
-    5. First English SRT (fallback)
-    6. First SRT without German language tag
+    1. Source lang ASS with "Full" in title (not Signs/Songs)
+    2. First source lang ASS without "sign"/"song"
+    3. First source lang ASS
+    4. ASS without target lang tag, not "sign"/"song"
+    5. First source lang SRT (fallback)
+    6. First SRT without target lang tag
     7. None
 
     Args:
@@ -232,6 +234,10 @@ def select_best_subtitle_stream(ffprobe_data, format_filter=None):
     Returns:
         dict with sub_index, format, language, title — or None
     """
+    settings = get_settings()
+    source_tags = settings.get_source_lang_tags()
+    target_tags = settings.get_target_lang_tags()
+
     streams = ffprobe_data.get("streams", [])
     ass_streams = []
     srt_streams = []
@@ -268,35 +274,35 @@ def select_best_subtitle_stream(ffprobe_data, format_filter=None):
                 logger.info("Selected stream %d: '%s' (Full ASS)", s["sub_index"], s["title"])
                 return s
 
-        # P2: English, non-signs
-        eng = [s for s in ass_streams if s["language"] in ENGLISH_LANG_TAGS]
-        for s in eng:
+        # P2: Source language, non-signs
+        src = [s for s in ass_streams if s["language"] in source_tags]
+        for s in src:
             if "sign" not in s["title"] and "song" not in s["title"]:
-                logger.info("Selected stream %d: '%s' (English ASS, non-signs)", s["sub_index"], s["title"])
+                logger.info("Selected stream %d: '%s' (Source lang ASS, non-signs)", s["sub_index"], s["title"])
                 return s
 
-        # P3: Any English ASS
-        if eng:
-            logger.info("Selected stream %d: '%s' (English ASS)", eng[0]["sub_index"], eng[0]["title"])
-            return eng[0]
+        # P3: Any source language ASS
+        if src:
+            logger.info("Selected stream %d: '%s' (Source lang ASS)", src[0]["sub_index"], src[0]["title"])
+            return src[0]
 
-        # P4: Non-signs ASS without German tag
+        # P4: Non-signs ASS without target lang tag
         for s in ass_streams:
-            if s["language"] not in GERMAN_LANG_TAGS and "sign" not in s["title"] and "song" not in s["title"]:
+            if s["language"] not in target_tags and "sign" not in s["title"] and "song" not in s["title"]:
                 logger.info("Selected stream %d: '%s' (non-signs ASS)", s["sub_index"], s["title"])
                 return s
 
     # --- SRT Fallback ---
     if srt_streams:
-        # P5: English SRT
-        eng_srt = [s for s in srt_streams if s["language"] in ENGLISH_LANG_TAGS]
-        if eng_srt:
-            logger.info("Selected stream %d: '%s' (English SRT fallback)", eng_srt[0]["sub_index"], eng_srt[0]["title"])
-            return eng_srt[0]
+        # P5: Source language SRT
+        src_srt = [s for s in srt_streams if s["language"] in source_tags]
+        if src_srt:
+            logger.info("Selected stream %d: '%s' (Source lang SRT fallback)", src_srt[0]["sub_index"], src_srt[0]["title"])
+            return src_srt[0]
 
-        # P6: Any SRT without German tag
+        # P6: Any SRT without target lang tag
         for s in srt_streams:
-            if s["language"] not in GERMAN_LANG_TAGS:
+            if s["language"] not in target_tags:
                 logger.info("Selected stream %d: '%s' (SRT fallback)", s["sub_index"], s["title"])
                 return s
 

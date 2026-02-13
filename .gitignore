@@ -3,6 +3,28 @@ __pycache__/
 *.pyo
 .env
 .env.*
+!.env.example
 *.egg-info/
 .vscode/
 .idea/
+
+# Frontend
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Database
+*.db
+*.db-journal
+*.db-wal
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config
+/config/
+
+# Build artifacts
+*.tar.gz
