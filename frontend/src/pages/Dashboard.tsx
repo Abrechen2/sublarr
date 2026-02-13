@@ -18,10 +18,22 @@ function StatCard({ icon: Icon, label, value, color }: {
 }) {
   return (
     <div
-      className="rounded-xl p-5 flex items-center gap-4"
-      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      className="rounded-xl p-5 flex items-center gap-4 transition-all duration-200 hover:shadow-md cursor-default"
+      style={{ 
+        backgroundColor: 'var(--bg-surface)', 
+        border: '1px solid var(--border)',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = color
+        e.currentTarget.style.transform = 'translateY(-2px)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = 'var(--border)'
+        e.currentTarget.style.transform = 'translateY(0)'
+      }}
     >
-      <div className="p-3 rounded-lg" style={{ backgroundColor: `${color}15` }}>
+      <div className="p-3 rounded-lg transition-all duration-200" style={{ backgroundColor: `${color}15` }}>
         <Icon size={22} style={{ color }} />
       </div>
       <div>
@@ -43,7 +55,7 @@ export function Dashboard() {
       <h1 className="text-2xl font-bold">Dashboard</h1>
 
       {/* Status Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={Server}
           label="Ollama"
@@ -73,13 +85,13 @@ export function Dashboard() {
       {/* Service Status */}
       {health?.services && (
         <div
-          className="rounded-xl p-5"
+          className="rounded-xl p-5 shadow-sm transition-all duration-200"
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
         >
           <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-secondary)' }}>
             Service Connections
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
             {Object.entries(health.services).map(([name, status]) => (
               <div key={name} className="flex items-center gap-2">
                 <div
@@ -106,7 +118,7 @@ export function Dashboard() {
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div
-            className="rounded-xl p-5"
+            className="rounded-xl p-5 shadow-sm transition-all duration-200 hover:shadow-md"
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
             <div className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>Total Stats</div>
@@ -127,7 +139,7 @@ export function Dashboard() {
           </div>
 
           <div
-            className="rounded-xl p-5"
+            className="rounded-xl p-5 shadow-sm transition-all duration-200 hover:shadow-md"
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
             <div className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>By Format</div>
@@ -145,7 +157,7 @@ export function Dashboard() {
           </div>
 
           <div
-            className="rounded-xl p-5"
+            className="rounded-xl p-5 shadow-sm transition-all duration-200 hover:shadow-md"
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
             <div className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>System</div>
@@ -171,7 +183,7 @@ export function Dashboard() {
 
       {/* Recent Activity */}
       <div
-        className="rounded-xl overflow-hidden"
+        className="rounded-xl overflow-hidden shadow-sm"
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
         <div className="px-5 py-4 flex items-center justify-between"
@@ -182,7 +194,17 @@ export function Dashboard() {
         <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
           {recentJobs?.data?.length ? (
             recentJobs.data.map((job) => (
-              <div key={job.id} className="px-5 py-3 flex items-center gap-3">
+              <div 
+                key={job.id} 
+                className="px-5 py-3 flex items-center gap-3 transition-colors duration-200 hover:bg-opacity-50"
+                style={{ backgroundColor: 'transparent' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(29, 184, 212, 0.05)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                }}
+              >
                 {job.status === 'completed' ? (
                   <CheckCircle2 size={16} style={{ color: 'var(--success)' }} />
                 ) : job.status === 'failed' ? (
@@ -194,7 +216,7 @@ export function Dashboard() {
                   {truncatePath(job.file_path)}
                 </span>
                 <StatusBadge status={job.status} />
-                <span className="text-xs tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+                <span className="text-xs tabular-nums hidden sm:inline" style={{ color: 'var(--text-secondary)' }}>
                   {job.created_at ? formatRelativeTime(job.created_at) : ''}
                 </span>
               </div>

@@ -24,7 +24,7 @@ function App() {
       <BrowserRouter>
         <div className="flex min-h-screen">
           <Sidebar />
-          <main className="flex-1 ml-56 p-8">
+          <main className="flex-1 p-4 md:p-8 pt-16 md:pt-8 transition-all duration-200 min-h-screen">
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/activity" element={<ActivityPage />} />

@@ -117,6 +117,43 @@ class SonarrClient:
         result = self._get("/episode", params={"seriesId": series_id})
         return result or []
 
+    def get_episode_by_id(self, episode_id):
+        """Get a single episode by ID.
+
+        Returns:
+            dict: Episode info including episodeFileId and hasFile
+        """
+        return self._get(f"/episode/{episode_id}")
+
+    def get_episode_file_path(self, episode_id):
+        """Get the file path for a specific episode by episode ID.
+
+        Looks up the episode, then fetches the episode file details.
+
+        Returns:
+            str or None: Full file path, or None if not found
+        """
+        episode = self.get_episode_by_id(episode_id)
+        if not episode:
+            return None
+
+        # Try direct episodeFile.path first (Sonarr v3 often includes it)
+        ep_file = episode.get("episodeFile")
+        if ep_file and ep_file.get("path"):
+            return ep_file["path"]
+
+        # Fallback: get episodeFile separately
+        file_id = episode.get("episodeFileId")
+        if not file_id or file_id == 0:
+            logger.debug("Episode %d has no file", episode_id)
+            return None
+
+        file_info = self.get_episode_file(file_id)
+        if file_info and file_info.get("path"):
+            return file_info["path"]
+
+        return None
+
     def get_episode_file(self, episode_file_id):
         """Get file info for an episode file.
 

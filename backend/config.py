@@ -51,6 +51,11 @@ class Settings(BaseSettings):
     jellyfin_url: str = ""
     jellyfin_api_key: str = ""
 
+    # Path Mapping (remote → local, for when *arr apps run on different host)
+    # Format: "remote_prefix=local_prefix" (semicolon-separated for multiple)
+    # Example: "/data/media=Z:\Media;/anime=Z:\Anime"
+    path_mapping: str = ""
+
     # Webhook
     webhook_delay_minutes: int = 30  # Wait time after Sonarr/Radarr webhook
 
@@ -152,8 +157,42 @@ def get_settings() -> Settings:
     return _settings
 
 
-def reload_settings() -> Settings:
-    """Force reload settings from environment/file."""
+def reload_settings(overrides: dict = None) -> Settings:
+    """Force reload settings from environment/file, with optional DB overrides.
+
+    Args:
+        overrides: Dict of key-value pairs (from DB config_entries) to apply
+                   on top of the env/file settings.
+    """
     global _settings
-    _settings = Settings()
+    base = Settings()
+
+    if overrides:
+        # Build update dict with correct types
+        base_data = base.model_dump()
+        update = {}
+        for key, value in overrides.items():
+            if key not in base_data:
+                continue
+            # Convert string values from DB to the correct field type
+            expected_type = type(base_data[key])
+            try:
+                if expected_type is bool:
+                    update[key] = value.lower() in ("true", "1", "yes") if isinstance(value, str) else bool(value)
+                elif expected_type is int:
+                    update[key] = int(value)
+                elif expected_type is float:
+                    update[key] = float(value)
+                else:
+                    update[key] = str(value)
+            except (ValueError, TypeError):
+                continue  # Skip invalid values
+
+        if update:
+            _settings = base.model_copy(update=update)
+        else:
+            _settings = base
+    else:
+        _settings = base
+
     return _settings

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -6,6 +7,8 @@ import {
   ListOrdered,
   Settings,
   ScrollText,
+  Menu,
+  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useHealth } from '@/hooks/useApi'
@@ -21,34 +24,65 @@ const navItems = [
 
 export function Sidebar() {
   const { data: health } = useHealth()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-56 flex flex-col"
-      style={{ backgroundColor: 'var(--bg-surface)', borderRight: '1px solid var(--border)' }}>
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-5">
-        <img src="/favicon.svg" alt="Sublarr" className="w-9 h-9" />
-        <span className="text-xl font-bold" style={{ color: 'var(--accent)' }}>
-          Sublarr
-        </span>
-      </div>
+    <>
+      {/* Mobile Hamburger Button */}
+      <button
+        onClick={() => setMobileOpen(!mobileOpen)}
+        className="fixed top-4 left-4 z-50 md:hidden p-2 rounded-lg transition-all duration-200 hover:bg-opacity-10"
+        style={{
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          color: 'var(--text-primary)',
+        }}
+        aria-label="Toggle menu"
+      >
+        {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+      </button>
+
+      {/* Mobile Backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "fixed md:sticky left-0 top-0 h-screen w-56 md:w-64 flex flex-col z-40 md:z-auto shrink-0 transition-transform duration-200 shadow-lg",
+          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        )}
+        style={{ backgroundColor: 'var(--bg-surface)', borderRight: '1px solid var(--border)' }}
+      >
+        {/* Logo */}
+        <div className="flex items-center gap-3 px-5 py-5">
+          <img src="/favicon.svg" alt="Sublarr" className="w-9 h-9 md:w-10 md:h-10" />
+          <span className="text-xl md:text-2xl font-bold" style={{ color: 'var(--accent)' }}>
+            Sublarr
+          </span>
+        </div>
 
       {/* Divider */}
       <div className="mx-4 mb-2" style={{ borderTop: '1px solid var(--border)' }} />
 
       {/* Navigation */}
-      <nav className="flex-1 px-3">
+      <nav className="flex-1 px-3 overflow-y-auto">
         {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
             end={to === '/'}
+            onClick={() => setMobileOpen(false)}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors mb-0.5',
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 mb-0.5',
                 isActive
-                  ? 'text-white'
-                  : 'hover:text-white'
+                  ? ''
+                  : 'hover:bg-[rgba(29,184,212,0.05)]'
               )
             }
             style={({ isActive }) => ({
@@ -66,17 +100,18 @@ export function Sidebar() {
       <div className="px-5 py-4" style={{ borderTop: '1px solid var(--border)' }}>
         <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
           <div
-            className="w-2 h-2 rounded-full"
+            className="w-2 h-2 rounded-full animate-pulse"
             style={{
               backgroundColor: health?.status === 'healthy' ? 'var(--success)' : 'var(--error)',
             }}
           />
-          System: {health?.status === 'healthy' ? 'Healthy' : 'Unhealthy'}
+          <span className="truncate">System: {health?.status === 'healthy' ? 'Healthy' : 'Unhealthy'}</span>
         </div>
         <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
           v{health?.version || '0.1.0'}
         </div>
       </div>
     </aside>
+    </>
   )
 }

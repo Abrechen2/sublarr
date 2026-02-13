@@ -42,17 +42,17 @@ export function LogsPage() {
   }
 
   return (
-    <div className="space-y-4 h-full flex flex-col">
+    <div className="space-y-4 h-[calc(100vh-8rem)] flex flex-col">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Logs</h1>
         <div className="flex items-center gap-3">
           {/* Level Filter */}
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             {LOG_LEVELS.map((l) => (
               <button
                 key={l}
                 onClick={() => setLevel(l === 'ALL' ? undefined : l)}
-                className="px-2.5 py-1 rounded text-xs font-medium transition-colors"
+                className="px-2.5 py-1 rounded text-xs font-medium transition-all duration-200 hover:shadow-sm"
                 style={{
                   backgroundColor: (l === 'ALL' && !level) || level === l
                     ? 'rgba(29, 184, 212, 0.15)'
@@ -89,10 +89,11 @@ export function LogsPage() {
           {/* Auto-scroll toggle */}
           <button
             onClick={() => setAutoScroll(!autoScroll)}
-            className="p-1.5 rounded-lg transition-colors"
+            className="p-1.5 rounded-lg transition-all duration-200 hover:shadow-sm"
             style={{
               border: '1px solid var(--border)',
               color: autoScroll ? 'var(--accent)' : 'var(--text-secondary)',
+              backgroundColor: 'var(--bg-surface)',
             }}
             title={autoScroll ? 'Auto-scroll ON' : 'Auto-scroll OFF'}
           >
@@ -104,12 +105,10 @@ export function LogsPage() {
       {/* Log viewer */}
       <div
         ref={logRef}
-        className="flex-1 rounded-xl overflow-auto font-mono text-xs leading-relaxed p-4"
+        className="flex-1 rounded-xl overflow-auto font-mono text-xs leading-relaxed p-4 shadow-sm"
         style={{
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border)',
-          minHeight: '500px',
-          maxHeight: 'calc(100vh - 200px)',
         }}
       >
         {filtered.length > 0 ? (
