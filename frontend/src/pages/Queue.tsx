@@ -16,7 +16,7 @@ export function QueuePage() {
       {/* Batch Status */}
       {batch?.running && (
         <div
-          className="rounded-xl p-5"
+          className="rounded-xl p-5 shadow-sm"
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
         >
           <div className="flex items-center gap-2 mb-3">
@@ -24,7 +24,7 @@ export function QueuePage() {
             <h2 className="text-sm font-semibold">Batch Processing</h2>
           </div>
           <ProgressBar value={batch.processed} max={batch.total} className="mb-3" />
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-sm">
             <div>
               <span style={{ color: 'var(--text-secondary)' }}>Total: </span>
               <span className="font-mono">{batch.total}</span>
@@ -56,7 +56,7 @@ export function QueuePage() {
 
       {/* Active Jobs */}
       <div
-        className="rounded-xl overflow-hidden"
+        className="rounded-xl overflow-hidden shadow-sm"
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
         <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
@@ -85,7 +85,7 @@ export function QueuePage() {
 
       {/* Queued Jobs */}
       <div
-        className="rounded-xl overflow-hidden"
+        className="rounded-xl overflow-hidden shadow-sm"
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
         <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>

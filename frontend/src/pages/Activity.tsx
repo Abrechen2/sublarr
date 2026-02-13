@@ -11,42 +11,45 @@ export function ActivityPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="text-2xl font-bold">Activity</h1>
         <div className="flex gap-2">
-          {['all', 'completed', 'failed', 'running', 'queued'].map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s === 'all' ? undefined : s)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={{
-                backgroundColor: (s === 'all' && !statusFilter) || statusFilter === s
-                  ? 'rgba(29, 184, 212, 0.15)'
-                  : 'transparent',
-                color: (s === 'all' && !statusFilter) || statusFilter === s
-                  ? 'var(--accent)'
-                  : 'var(--text-secondary)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
-            </button>
-          ))}
+          <div className="flex flex-wrap gap-2">
+            {['all', 'completed', 'failed', 'running', 'queued'].map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s === 'all' ? undefined : s)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:shadow-sm"
+                style={{
+                  backgroundColor: (s === 'all' && !statusFilter) || statusFilter === s
+                    ? 'rgba(29, 184, 212, 0.15)'
+                    : 'transparent',
+                  color: (s === 'all' && !statusFilter) || statusFilter === s
+                    ? 'var(--accent)'
+                    : 'var(--text-secondary)',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       <div
-        className="rounded-xl overflow-hidden"
+        className="rounded-xl overflow-hidden shadow-sm"
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
-        <table className="w-full">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px]">
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              <th className="text-left text-xs font-medium px-5 py-3" style={{ color: 'var(--text-secondary)' }}>File</th>
-              <th className="text-left text-xs font-medium px-3 py-3" style={{ color: 'var(--text-secondary)' }}>Status</th>
-              <th className="text-left text-xs font-medium px-3 py-3" style={{ color: 'var(--text-secondary)' }}>Format</th>
-              <th className="text-left text-xs font-medium px-3 py-3" style={{ color: 'var(--text-secondary)' }}>Time</th>
-              <th className="text-left text-xs font-medium px-3 py-3" style={{ color: 'var(--text-secondary)' }}>Error</th>
+            <th className="text-left text-xs font-medium px-5 py-3" style={{ color: 'var(--text-secondary)' }}>File</th>
+            <th className="text-left text-xs font-medium px-3 py-3" style={{ color: 'var(--text-secondary)' }}>Status</th>
+            <th className="text-left text-xs font-medium px-3 py-3 hidden sm:table-cell" style={{ color: 'var(--text-secondary)' }}>Format</th>
+            <th className="text-left text-xs font-medium px-3 py-3 hidden md:table-cell" style={{ color: 'var(--text-secondary)' }}>Time</th>
+            <th className="text-left text-xs font-medium px-3 py-3 hidden lg:table-cell" style={{ color: 'var(--text-secondary)' }}>Error</th>
             </tr>
           </thead>
           <tbody>
@@ -71,13 +74,13 @@ export function ActivityPage() {
                   <td className="px-3 py-3">
                     <StatusBadge status={job.status} />
                   </td>
-                  <td className="px-3 py-3 text-sm uppercase" style={{ color: 'var(--text-secondary)' }}>
+                  <td className="px-3 py-3 text-sm uppercase hidden sm:table-cell" style={{ color: 'var(--text-secondary)' }}>
                     {job.source_format || '—'}
                   </td>
-                  <td className="px-3 py-3 text-xs tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+                  <td className="px-3 py-3 text-xs tabular-nums hidden md:table-cell" style={{ color: 'var(--text-secondary)' }}>
                     {job.created_at ? formatRelativeTime(job.created_at) : ''}
                   </td>
-                  <td className="px-3 py-3 text-xs truncate max-w-xs" style={{ color: 'var(--error)' }}>
+                  <td className="px-3 py-3 text-xs truncate max-w-xs hidden lg:table-cell" style={{ color: 'var(--error)' }}>
                     {job.error || ''}
                   </td>
                 </tr>
@@ -90,7 +93,8 @@ export function ActivityPage() {
               </tr>
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
 
         {/* Pagination */}
         {jobs && jobs.total_pages > 1 && (
@@ -105,16 +109,38 @@ export function ActivityPage() {
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="p-1.5 rounded-lg transition-colors disabled:opacity-30"
-                style={{ border: '1px solid var(--border)' }}
+                className="p-1.5 rounded-lg transition-all duration-200 hover:shadow-sm disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{ 
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--bg-primary)',
+                }}
+                onMouseEnter={(e) => {
+                  if (!e.currentTarget.disabled) {
+                    e.currentTarget.style.borderColor = 'var(--accent)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border)'
+                }}
               >
                 <ChevronLeft size={16} />
               </button>
               <button
                 onClick={() => setPage((p) => Math.min(jobs.total_pages, p + 1))}
                 disabled={page >= jobs.total_pages}
-                className="p-1.5 rounded-lg transition-colors disabled:opacity-30"
-                style={{ border: '1px solid var(--border)' }}
+                className="p-1.5 rounded-lg transition-all duration-200 hover:shadow-sm disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{ 
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--bg-primary)',
+                }}
+                onMouseEnter={(e) => {
+                  if (!e.currentTarget.disabled) {
+                    e.currentTarget.style.borderColor = 'var(--accent)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border)'
+                }}
               >
                 <ChevronRight size={16} />
               </button>

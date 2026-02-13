@@ -14,7 +14,7 @@ import requests
 from flask import Flask, Blueprint, request, jsonify, send_from_directory
 from flask_socketio import SocketIO
 
-from config import get_settings, reload_settings
+from config import Settings, get_settings, reload_settings
 from auth import init_auth
 from database import (
     get_db, create_job, update_job, get_job, get_jobs,
@@ -43,9 +43,52 @@ init_auth(app)
 # Initialize database
 get_db()
 
+# Apply DB config overrides on startup (settings saved via UI take precedence)
+_db_overrides = get_all_config_entries()
+if _db_overrides:
+    logger.info("Applying %d config overrides from database", len(_db_overrides))
+    settings = reload_settings(_db_overrides)
+else:
+    logger.info("No config overrides in database, using env/defaults")
+
 # ─── API Blueprint ────────────────────────────────────────────────────────────
 
 api = Blueprint("api", __name__, url_prefix="/api/v1")
+
+
+def _map_path(path):
+    """Map a remote file path to a local path using configured path mappings.
+
+    Path mapping is configured via the SUBLARR_PATH_MAPPING setting:
+    Format: "remote_prefix=local_prefix" (multiple pairs separated by semicolons)
+    Example: "/data/media=/mnt/media;/anime=/share/anime"
+
+    On Windows, forward slashes in the mapped path are converted to backslashes.
+    """
+    s = get_settings()
+    mapping = getattr(s, 'path_mapping', '')
+    if not mapping:
+        return path
+
+    for pair in mapping.split(";"):
+        pair = pair.strip()
+        if "=" not in pair:
+            continue
+        remote_prefix, local_prefix = pair.split("=", 1)
+        remote_prefix = remote_prefix.strip()
+        local_prefix = local_prefix.strip()
+        if not remote_prefix or not local_prefix:
+            continue
+
+        if path.startswith(remote_prefix):
+            mapped = local_prefix + path[len(remote_prefix):]
+            # On Windows, convert forward slashes to backslashes
+            if os.name == 'nt':
+                mapped = mapped.replace("/", "\\")
+            return mapped
+
+    return path
+
 
 # Batch state (still in-memory for real-time tracking)
 batch_state = {
@@ -273,11 +316,43 @@ def translate_wanted():
     if not episodes:
         return jsonify({"status": "no_wanted", "message": "No anime episodes in wanted list"}), 200
 
+    # Get Sonarr client for path lookup (Bazarr wanted doesn't include file paths)
+    try:
+        from sonarr_client import get_sonarr_client
+        sonarr = get_sonarr_client()
+    except Exception:
+        sonarr = None
+
     job_ids = []
+    skipped_paths = []
     for ep in episodes[:max_episodes]:
         path = ep.get("path")
-        if not path or not os.path.exists(path):
+
+        # Bazarr wanted API doesn't include file paths — look up via Sonarr
+        if not path and sonarr and ep.get("sonarr_episode_id"):
+            logger.info("Wanted: looking up path via Sonarr for episode %s", ep.get("sonarr_episode_id"))
+            path = sonarr.get_episode_file_path(ep["sonarr_episode_id"])
+
+        if not path:
+            reason = "no file path found (Sonarr lookup failed or not configured)"
+            logger.warning("Wanted: %s — %s %s", reason, ep.get("series_title"), ep.get("episode_number"))
+            skipped_paths.append({"episode": f"{ep.get('series_title')} {ep.get('episode_number')}", "reason": reason})
             continue
+
+        # Apply path mapping (remote → local)
+        mapped_path = _map_path(path)
+
+        if not os.path.exists(mapped_path):
+            logger.warning("Wanted: file not found (original: %s, mapped: %s)", path, mapped_path)
+            skipped_paths.append({
+                "episode": f"{ep.get('series_title')} {ep.get('episode_number')}",
+                "sonarr_path": path,
+                "mapped_path": mapped_path,
+                "reason": "file not found — configure path_mapping in Settings",
+            })
+            continue
+
+        path = mapped_path
         bazarr_context = {
             "sonarr_series_id": ep["sonarr_series_id"],
             "sonarr_episode_id": ep["sonarr_episode_id"],
@@ -300,6 +375,7 @@ def translate_wanted():
             }
             for ep in episodes[:max_episodes]
         ],
+        "skipped": skipped_paths if skipped_paths else None,
     }), 202
 
 
@@ -546,15 +622,35 @@ def get_config():
 
 @api.route("/config", methods=["PUT"])
 def update_config():
-    """Update configuration values."""
+    """Update configuration values and reload settings."""
+    global settings
     data = request.get_json() or {}
     if not data:
         return jsonify({"error": "No config values provided"}), 400
 
-    for key, value in data.items():
-        save_config_entry(key, str(value))
+    # Validate that keys exist in Settings
+    valid_keys = set(Settings.model_fields.keys()) if hasattr(Settings, 'model_fields') else set()
+    saved_keys = []
 
-    return jsonify({"status": "saved", "updated_keys": list(data.keys())})
+    for key, value in data.items():
+        # Skip masked password values (user didn't change them)
+        if str(value) == '***configured***':
+            continue
+        # Only save known config keys (or all if we can't determine valid keys)
+        if not valid_keys or key in valid_keys:
+            save_config_entry(key, str(value))
+            saved_keys.append(key)
+
+    # Reload settings with ALL DB overrides applied
+    all_overrides = get_all_config_entries()
+    settings = reload_settings(all_overrides)
+    logger.info("Config updated: %s — settings reloaded", saved_keys)
+
+    return jsonify({
+        "status": "saved",
+        "updated_keys": saved_keys,
+        "config": settings.get_safe_config(),
+    })
 
 
 # ─── Library Endpoint ─────────────────────────────────────────────────────────

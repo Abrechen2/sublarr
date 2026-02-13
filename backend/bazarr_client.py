@@ -114,13 +114,14 @@ class BazarrClient:
             tags = ep.get("tags", [])
             if "anime" not in tags:
                 continue
+
             episodes.append({
                 "series_title": ep.get("seriesTitle"),
                 "episode_number": ep.get("episode_number"),
                 "episode_title": ep.get("episodeTitle"),
                 "sonarr_series_id": ep.get("sonarrSeriesId"),
                 "sonarr_episode_id": ep.get("sonarrEpisodeId"),
-                "path": ep.get("path"),
+                "path": ep.get("path"),  # Note: Bazarr wanted API often doesn't include path
                 "missing_subtitles": ep.get("missing_subtitles", []),
             })
         return episodes

@@ -13,7 +13,7 @@ export function WantedPage() {
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Wanted</h1>
         <div
-          className="rounded-xl p-8 text-center"
+          className="rounded-xl p-8 text-center shadow-sm"
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
         >
           <Search size={48} className="mx-auto mb-4" style={{ color: 'var(--text-secondary)' }} />
@@ -28,7 +28,7 @@ export function WantedPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold">Wanted</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
@@ -55,7 +55,7 @@ export function WantedPage() {
           <button
             onClick={() => translateWanted.mutate(maxEpisodes)}
             disabled={translateWanted.isPending}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-white"
             style={{ backgroundColor: 'var(--accent)' }}
           >
             {translateWanted.isPending ? (
@@ -70,10 +70,10 @@ export function WantedPage() {
 
       {/* Status */}
       <div
-        className="rounded-xl p-5"
+        className="rounded-xl p-5 shadow-sm"
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <div>
             <div className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>Bazarr Status</div>
             <div className="flex items-center gap-2">
