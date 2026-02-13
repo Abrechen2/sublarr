@@ -33,6 +33,12 @@ def get_sonarr_client():
     return _client
 
 
+def invalidate_client():
+    """Reset the singleton so the next call to get_sonarr_client() creates a fresh instance."""
+    global _client
+    _client = None
+
+
 class SonarrClient:
     """Sonarr v3 REST API Client."""
 

@@ -37,47 +37,49 @@ export function LogsPage() {
   const getLevelColor = (line: string) => {
     if (line.includes('[ERROR]')) return 'var(--error)'
     if (line.includes('[WARNING]')) return 'var(--warning)'
-    if (line.includes('[DEBUG]')) return 'var(--text-secondary)'
+    if (line.includes('[DEBUG]')) return 'var(--text-muted)'
     return 'var(--text-primary)'
   }
 
   return (
-    <div className="space-y-4 h-[calc(100vh-8rem)] flex flex-col">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Logs</h1>
-        <div className="flex items-center gap-3">
+    <div className="space-y-4 h-[calc(100vh-7rem)] flex flex-col">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1>Logs</h1>
+        <div className="flex items-center gap-2">
           {/* Level Filter */}
-          <div className="flex flex-wrap gap-1">
-            {LOG_LEVELS.map((l) => (
-              <button
-                key={l}
-                onClick={() => setLevel(l === 'ALL' ? undefined : l)}
-                className="px-2.5 py-1 rounded text-xs font-medium transition-all duration-200 hover:shadow-sm"
-                style={{
-                  backgroundColor: (l === 'ALL' && !level) || level === l
-                    ? 'rgba(29, 184, 212, 0.15)'
-                    : 'transparent',
-                  color: (l === 'ALL' && !level) || level === l
-                    ? 'var(--accent)'
-                    : 'var(--text-secondary)',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                {l}
-              </button>
-            ))}
+          <div className="flex gap-1">
+            {LOG_LEVELS.map((l) => {
+              const isActive = (l === 'ALL' && !level) || level === l
+              return (
+                <button
+                  key={l}
+                  onClick={() => setLevel(l === 'ALL' ? undefined : l)}
+                  className="px-2 py-1 rounded-md text-[11px] font-medium transition-all duration-150"
+                  style={{
+                    backgroundColor: isActive ? 'var(--accent-bg)' : 'var(--bg-surface)',
+                    color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                    border: `1px solid ${isActive ? 'var(--accent-dim)' : 'var(--border)'}`,
+                  }}
+                >
+                  {l}
+                </button>
+              )
+            })}
           </div>
 
           {/* Search */}
           <div className="relative">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2"
-              style={{ color: 'var(--text-secondary)' }} />
+            <Search
+              size={12}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2"
+              style={{ color: 'var(--text-muted)' }}
+            />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search logs..."
-              className="pl-8 pr-3 py-1.5 rounded-lg text-xs w-48 focus:outline-none"
+              placeholder="Search..."
+              className="pl-7 pr-3 py-1.5 rounded-md text-xs w-40 focus:outline-none"
               style={{
                 backgroundColor: 'var(--bg-surface)',
                 border: '1px solid var(--border)',
@@ -86,36 +88,39 @@ export function LogsPage() {
             />
           </div>
 
-          {/* Auto-scroll toggle */}
+          {/* Auto-scroll */}
           <button
             onClick={() => setAutoScroll(!autoScroll)}
-            className="p-1.5 rounded-lg transition-all duration-200 hover:shadow-sm"
+            className="p-1.5 rounded-md transition-all duration-150"
             style={{
               border: '1px solid var(--border)',
-              color: autoScroll ? 'var(--accent)' : 'var(--text-secondary)',
-              backgroundColor: 'var(--bg-surface)',
+              color: autoScroll ? 'var(--accent)' : 'var(--text-muted)',
+              backgroundColor: autoScroll ? 'var(--accent-subtle)' : 'var(--bg-surface)',
             }}
             title={autoScroll ? 'Auto-scroll ON' : 'Auto-scroll OFF'}
           >
-            {autoScroll ? <ArrowDown size={16} /> : <Pause size={16} />}
+            {autoScroll ? <ArrowDown size={14} /> : <Pause size={14} />}
           </button>
         </div>
       </div>
 
-      {/* Log viewer */}
+      {/* Log viewer — terminal style */}
       <div
         ref={logRef}
-        className="flex-1 rounded-xl overflow-auto font-mono text-xs leading-relaxed p-4 shadow-sm"
+        className="flex-1 rounded-lg overflow-auto p-4"
         style={{
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border)',
+          fontFamily: 'var(--font-mono)',
+          fontSize: '12px',
+          lineHeight: '1.6',
         }}
       >
         {filtered.length > 0 ? (
           filtered.map((entry, i) => (
             <div
               key={i}
-              className="py-0.5 hover:opacity-80"
+              className="py-0.5 transition-opacity duration-100 hover:opacity-80"
               style={{ color: getLevelColor(entry) }}
             >
               {entry}

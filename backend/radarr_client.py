@@ -33,6 +33,12 @@ def get_radarr_client():
     return _client
 
 
+def invalidate_client():
+    """Reset the singleton so the next call to get_radarr_client() creates a fresh instance."""
+    global _client
+    _client = None
+
+
 class RadarrClient:
     """Radarr v3 REST API Client."""
 

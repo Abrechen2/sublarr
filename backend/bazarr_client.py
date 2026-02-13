@@ -34,6 +34,12 @@ def get_bazarr_client():
     return _client
 
 
+def invalidate_client():
+    """Reset the singleton so the next call to get_bazarr_client() creates a fresh instance."""
+    global _client
+    _client = None
+
+
 class BazarrClient:
     """Bazarr REST API Client."""
 

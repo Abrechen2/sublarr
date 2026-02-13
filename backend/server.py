@@ -8,6 +8,8 @@ import os
 import time
 import logging
 import threading
+import ipaddress
+from urllib.parse import urlparse
 from collections import OrderedDict
 
 import requests
@@ -301,7 +303,7 @@ def translate_sync():
 def translate_wanted():
     """Translate episodes from Bazarr's wanted list (anime only)."""
     data = request.get_json() or {}
-    max_episodes = data.get("max_episodes", 5)
+    max_episodes = min(data.get("max_episodes", 5), 100)
 
     try:
         from bazarr_client import get_bazarr_client
@@ -395,7 +397,7 @@ def job_status(job_id):
 def list_jobs():
     """Get paginated job history."""
     page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 50, type=int)
+    per_page = min(request.args.get("per_page", 50, type=int), 200)
     status_filter = request.args.get("status")
     result = get_jobs(page=page, per_page=per_page, status=status_filter)
     return jsonify(result)
@@ -442,11 +444,16 @@ def batch_start():
     force = data.get("force", False)
     dry_run = data.get("dry_run", False)
     page = data.get("page", 1)
-    per_page = data.get("per_page", 100)
+    per_page = min(data.get("per_page", 100), 500)
     callback_url = data.get("callback_url")
 
     if not directory:
         return jsonify({"error": "directory is required"}), 400
+
+    if callback_url:
+        valid, err = _validate_callback_url(callback_url)
+        if not valid:
+            return jsonify({"error": f"Invalid callback_url: {err}"}), 400
 
     if not os.path.isdir(directory):
         return jsonify({"error": f"Directory not found: {directory}"}), 404
@@ -547,16 +554,17 @@ def batch_start():
             with batch_lock:
                 batch_state["running"] = False
                 batch_state["current_file"] = None
+                snapshot = dict(batch_state)
 
-            socketio.emit("batch_completed", dict(batch_state))
+            socketio.emit("batch_completed", snapshot)
 
             if callback_url:
                 _send_callback(callback_url, {
                     "event": "batch_completed",
-                    "total": batch_state["total"],
-                    "succeeded": batch_state["succeeded"],
-                    "failed": batch_state["failed"],
-                    "skipped": batch_state["skipped"],
+                    "total": snapshot["total"],
+                    "succeeded": snapshot["succeeded"],
+                    "failed": snapshot["failed"],
+                    "skipped": snapshot["skipped"],
                 })
 
     thread = threading.Thread(target=_run_batch, daemon=True)
@@ -566,6 +574,42 @@ def batch_start():
         "status": "started",
         "total_files": len(files),
     }), 202
+
+
+def _validate_callback_url(url):
+    """Validate callback URL to prevent SSRF attacks.
+
+    Blocks private IPs, localhost, and non-HTTP schemes.
+
+    Returns:
+        tuple: (is_valid: bool, error_message: str or None)
+    """
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return False, "Invalid URL"
+
+    if parsed.scheme not in ("http", "https"):
+        return False, f"Unsupported scheme: {parsed.scheme}"
+
+    hostname = parsed.hostname
+    if not hostname:
+        return False, "No hostname in URL"
+
+    # Block localhost variants
+    if hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+        return False, "Localhost callbacks are not allowed"
+
+    # Block private/reserved IP ranges
+    try:
+        addr = ipaddress.ip_address(hostname)
+        if addr.is_private or addr.is_loopback or addr.is_reserved or addr.is_link_local:
+            return False, f"Private/reserved IP not allowed: {hostname}"
+    except ValueError:
+        # hostname is not an IP — that's fine (it's a domain name)
+        pass
+
+    return True, None
 
 
 def _send_callback(url, data):
@@ -644,6 +688,17 @@ def update_config():
     # Reload settings with ALL DB overrides applied
     all_overrides = get_all_config_entries()
     settings = reload_settings(all_overrides)
+
+    # Invalidate singleton clients so they pick up new URLs/keys
+    from bazarr_client import invalidate_client as _inv_bazarr
+    from sonarr_client import invalidate_client as _inv_sonarr
+    from radarr_client import invalidate_client as _inv_radarr
+    from jellyfin_client import invalidate_client as _inv_jellyfin
+    _inv_bazarr()
+    _inv_sonarr()
+    _inv_radarr()
+    _inv_jellyfin()
+
     logger.info("Config updated: %s — settings reloaded", saved_keys)
 
     return jsonify({
@@ -703,6 +758,9 @@ def webhook_sonarr():
     if not file_path:
         return jsonify({"error": "No file path in webhook payload"}), 400
 
+    # Apply path mapping (Sonarr sends paths from its own perspective)
+    file_path = _map_path(file_path)
+
     logger.info("Sonarr webhook: %s - %s", series.get("title", "Unknown"), file_path)
 
     # Delayed processing (wait for Bazarr to handle first)
@@ -744,6 +802,9 @@ def webhook_radarr():
 
     if not file_path:
         return jsonify({"error": "No file path in webhook payload"}), 400
+
+    # Apply path mapping (Radarr sends paths from its own perspective)
+    file_path = _map_path(file_path)
 
     logger.info("Radarr webhook: %s - %s", movie.get("title", "Unknown"), file_path)
 
@@ -844,4 +905,4 @@ def serve_spa(path):
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=settings.port, debug=True)
+    socketio.run(app, host="0.0.0.0", port=settings.port, debug=True, allow_unsafe_werkzeug=True)

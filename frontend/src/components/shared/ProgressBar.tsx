@@ -11,19 +11,23 @@ export function ProgressBar({ value, max, className = '', showLabel = true }: Pr
   return (
     <div className={`flex items-center gap-3 ${className}`}>
       <div
-        className="flex-1 h-2 rounded-full overflow-hidden"
+        className="flex-1 h-1.5 rounded-full overflow-hidden"
         style={{ backgroundColor: 'var(--border)' }}
       >
         <div
-          className="h-full rounded-full transition-all duration-300"
+          className="h-full rounded-full transition-all duration-500 ease-out"
           style={{
             width: `${percent}%`,
-            backgroundColor: 'var(--accent)',
+            background: 'linear-gradient(90deg, var(--accent-dim), var(--accent))',
+            animation: percent > 0 && percent < 100 ? 'progressPulse 2s ease-in-out infinite' : undefined,
           }}
         />
       </div>
       {showLabel && (
-        <span className="text-xs font-medium tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+        <span
+          className="text-xs font-medium tabular-nums"
+          style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', minWidth: '32px', textAlign: 'right' }}
+        >
           {percent}%
         </span>
       )}

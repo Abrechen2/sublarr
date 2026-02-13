@@ -6,6 +6,7 @@ Health endpoint is exempt.
 """
 
 import functools
+import hmac
 import logging
 
 from flask import request, jsonify
@@ -34,7 +35,7 @@ def require_api_key(f):
             logger.warning("API request without key from %s", request.remote_addr)
             return jsonify({"error": "API key required"}), 401
 
-        if provided_key != settings.api_key:
+        if not hmac.compare_digest(provided_key, settings.api_key):
             logger.warning("Invalid API key from %s", request.remote_addr)
             return jsonify({"error": "Invalid API key"}), 401
 
@@ -81,7 +82,7 @@ def init_auth(app):
         if not provided_key:
             return jsonify({"error": "API key required"}), 401
 
-        if provided_key != settings.api_key:
+        if not hmac.compare_digest(provided_key, settings.api_key):
             return jsonify({"error": "Invalid API key"}), 401
 
         return None

@@ -146,7 +146,8 @@ def update_job(job_id: str, status: str, result: dict = None, error: str = None)
 def get_job(job_id: str) -> Optional[dict]:
     """Get a job by ID."""
     db = get_db()
-    row = db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+    with _db_lock:
+        row = db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
     if not row:
         return None
     return _row_to_job(row)
@@ -157,20 +158,21 @@ def get_jobs(page: int = 1, per_page: int = 50, status: str = None) -> dict:
     db = get_db()
     offset = (page - 1) * per_page
 
-    if status:
-        count = db.execute(
-            "SELECT COUNT(*) FROM jobs WHERE status=?", (status,)
-        ).fetchone()[0]
-        rows = db.execute(
-            "SELECT * FROM jobs WHERE status=? ORDER BY created_at DESC LIMIT ? OFFSET ?",
-            (status, per_page, offset),
-        ).fetchall()
-    else:
-        count = db.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
-        rows = db.execute(
-            "SELECT * FROM jobs ORDER BY created_at DESC LIMIT ? OFFSET ?",
-            (per_page, offset),
-        ).fetchall()
+    with _db_lock:
+        if status:
+            count = db.execute(
+                "SELECT COUNT(*) FROM jobs WHERE status=?", (status,)
+            ).fetchone()[0]
+            rows = db.execute(
+                "SELECT * FROM jobs WHERE status=? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                (status, per_page, offset),
+            ).fetchall()
+        else:
+            count = db.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
+            rows = db.execute(
+                "SELECT * FROM jobs ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                (per_page, offset),
+            ).fetchall()
 
     total_pages = max(1, (count + per_page - 1) // per_page)
     return {
@@ -185,9 +187,10 @@ def get_jobs(page: int = 1, per_page: int = 50, status: str = None) -> dict:
 def get_pending_job_count() -> int:
     """Get count of queued/running jobs."""
     db = get_db()
-    row = db.execute(
-        "SELECT COUNT(*) FROM jobs WHERE status IN ('queued', 'running')"
-    ).fetchone()
+    with _db_lock:
+        row = db.execute(
+            "SELECT COUNT(*) FROM jobs WHERE status IN ('queued', 'running')"
+        ).fetchone()
     return row[0]
 
 
@@ -279,7 +282,8 @@ def record_stat(success: bool, skipped: bool = False, fmt: str = "", source: str
 def get_stats_summary() -> dict:
     """Get aggregated stats summary."""
     db = get_db()
-    rows = db.execute("SELECT * FROM daily_stats ORDER BY date DESC LIMIT 30").fetchall()
+    with _db_lock:
+        rows = db.execute("SELECT * FROM daily_stats ORDER BY date DESC LIMIT 30").fetchall()
 
     total_translated = 0
     total_failed = 0
@@ -310,9 +314,10 @@ def get_stats_summary() -> dict:
         })
 
     # Today's stats
-    today_row = db.execute(
-        "SELECT * FROM daily_stats WHERE date=?", (date.today().isoformat(),)
-    ).fetchone()
+    with _db_lock:
+        today_row = db.execute(
+            "SELECT * FROM daily_stats WHERE date=?", (date.today().isoformat(),)
+        ).fetchone()
     today_translated = dict(today_row)["translated"] if today_row else 0
 
     return {
@@ -345,12 +350,14 @@ def save_config_entry(key: str, value: str):
 def get_config_entry(key: str) -> Optional[str]:
     """Get a config entry from the database."""
     db = get_db()
-    row = db.execute("SELECT value FROM config_entries WHERE key=?", (key,)).fetchone()
+    with _db_lock:
+        row = db.execute("SELECT value FROM config_entries WHERE key=?", (key,)).fetchone()
     return row[0] if row else None
 
 
 def get_all_config_entries() -> dict:
     """Get all config entries."""
     db = get_db()
-    rows = db.execute("SELECT key, value FROM config_entries").fetchall()
+    with _db_lock:
+        rows = db.execute("SELECT key, value FROM config_entries").fetchall()
     return {row[0]: row[1] for row in rows}

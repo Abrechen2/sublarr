@@ -34,6 +34,12 @@ def get_jellyfin_client():
     return _client
 
 
+def invalidate_client():
+    """Reset the singleton so the next call to get_jellyfin_client() creates a fresh instance."""
+    global _client
+    _client = None
+
+
 class JellyfinClient:
     """Jellyfin/Emby REST API Client."""
 

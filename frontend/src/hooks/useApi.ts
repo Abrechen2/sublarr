@@ -51,7 +51,7 @@ export function useBatchStatus() {
   return useQuery({
     queryKey: ['batch-status'],
     queryFn: getBatchStatus,
-    refetchInterval: 3000,
+    refetchInterval: 5000,
   })
 }
 
@@ -127,6 +127,6 @@ export function useLogs(lines = 200, level?: string) {
   return useQuery({
     queryKey: ['logs', lines, level],
     queryFn: () => getLogs(lines, level),
-    refetchInterval: 5000,
+    refetchInterval: 10000,
   })
 }
