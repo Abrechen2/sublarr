@@ -126,8 +126,9 @@ def _parse_response(response_text, expected_count):
             len(cleaned), expected_count,
         )
         merged = []
-        for line in cleaned:
-            if re.match(r"^\d+[\.:]\s*", lines[len(merged)] if len(merged) < len(lines) else ""):
+        for i, line in enumerate(cleaned):
+            original = lines[i] if i < len(lines) else ""
+            if re.match(r"^\d+[\.:]\s*", original):
                 merged.append(line)
             elif merged:
                 merged[-1] = merged[-1] + " " + line

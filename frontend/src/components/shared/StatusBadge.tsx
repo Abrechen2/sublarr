@@ -6,30 +6,35 @@ interface StatusBadgeProps {
 }
 
 const statusStyles: Record<string, { bg: string; text: string; dot: string }> = {
-  healthy: { bg: 'rgba(34, 197, 94, 0.1)', text: '#22c55e', dot: '#22c55e' },
-  completed: { bg: 'rgba(34, 197, 94, 0.1)', text: '#22c55e', dot: '#22c55e' },
-  running: { bg: 'rgba(29, 184, 212, 0.1)', text: '#1DB8D4', dot: '#1DB8D4' },
-  queued: { bg: 'rgba(245, 158, 11, 0.1)', text: '#f59e0b', dot: '#f59e0b' },
-  failed: { bg: 'rgba(239, 68, 68, 0.1)', text: '#ef4444', dot: '#ef4444' },
-  unhealthy: { bg: 'rgba(239, 68, 68, 0.1)', text: '#ef4444', dot: '#ef4444' },
-  'not configured': { bg: 'rgba(139, 143, 150, 0.1)', text: '#8b8f96', dot: '#8b8f96' },
-  skipped: { bg: 'rgba(139, 143, 150, 0.1)', text: '#8b8f96', dot: '#8b8f96' },
+  healthy:          { bg: 'var(--success-bg)', text: 'var(--success)', dot: 'var(--success)' },
+  completed:        { bg: 'var(--success-bg)', text: 'var(--success)', dot: 'var(--success)' },
+  running:          { bg: 'var(--accent-bg)',  text: 'var(--accent)',  dot: 'var(--accent)' },
+  queued:           { bg: 'var(--warning-bg)', text: 'var(--warning)', dot: 'var(--warning)' },
+  failed:           { bg: 'var(--error-bg)',   text: 'var(--error)',   dot: 'var(--error)' },
+  unhealthy:        { bg: 'var(--error-bg)',   text: 'var(--error)',   dot: 'var(--error)' },
+  'not configured': { bg: 'rgba(124,130,147,0.08)', text: 'var(--text-secondary)', dot: 'var(--text-muted)' },
+  skipped:          { bg: 'rgba(124,130,147,0.08)', text: 'var(--text-secondary)', dot: 'var(--text-muted)' },
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
   const style = statusStyles[status.toLowerCase()] || statusStyles['not configured']
+  const isRunning = status.toLowerCase() === 'running'
 
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
+        'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium',
         className
       )}
       style={{ backgroundColor: style.bg, color: style.text }}
     >
       <span
-        className="w-1.5 h-1.5 rounded-full"
-        style={{ backgroundColor: style.dot }}
+        className="w-1.5 h-1.5 rounded-full shrink-0"
+        style={{
+          backgroundColor: style.dot,
+          color: style.dot,
+          animation: isRunning ? 'dotGlow 2s ease-in-out infinite' : undefined,
+        }}
       />
       {status}
     </span>

@@ -41,4 +41,4 @@ VOLUME ["/config", "/media"]
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:5765/api/v1/health || exit 1
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5765", "--workers", "2", "--threads", "4", "--timeout", "300", "server:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5765", "--worker-class", "gthread", "--workers", "2", "--threads", "4", "--timeout", "300", "server:app"]

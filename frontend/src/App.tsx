@@ -1,12 +1,15 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Sidebar } from '@/components/layout/Sidebar'
+import { ToastContainer } from '@/components/shared/Toast'
 import { Dashboard } from '@/pages/Dashboard'
 import { ActivityPage } from '@/pages/Activity'
 import { WantedPage } from '@/pages/Wanted'
 import { QueuePage } from '@/pages/Queue'
 import { SettingsPage } from '@/pages/Settings'
 import { LogsPage } from '@/pages/Logs'
+import { LibraryPage } from '@/pages/Library'
+import { NotFoundPage } from '@/pages/NotFound'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,23 +21,36 @@ const queryClient = new QueryClient({
   },
 })
 
+function AnimatedRoutes() {
+  const location = useLocation()
+
+  return (
+    <div key={location.pathname} className="page-enter">
+      <Routes location={location}>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/library" element={<LibraryPage />} />
+        <Route path="/activity" element={<ActivityPage />} />
+        <Route path="/wanted" element={<WantedPage />} />
+        <Route path="/queue" element={<QueuePage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/logs" element={<LogsPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </div>
+  )
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <div className="flex min-h-screen">
           <Sidebar />
-          <main className="flex-1 p-4 md:p-8 pt-16 md:pt-8 transition-all duration-200 min-h-screen">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/activity" element={<ActivityPage />} />
-              <Route path="/wanted" element={<WantedPage />} />
-              <Route path="/queue" element={<QueuePage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/logs" element={<LogsPage />} />
-            </Routes>
+          <main className="flex-1 p-4 md:p-6 lg:p-8 pt-16 md:pt-6 lg:pt-8 min-h-screen">
+            <AnimatedRoutes />
           </main>
         </div>
+        <ToastContainer />
       </BrowserRouter>
     </QueryClientProvider>
   )

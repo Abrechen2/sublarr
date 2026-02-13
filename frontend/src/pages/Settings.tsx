@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
-import { Save, CheckCircle2, Loader2, TestTube } from 'lucide-react'
+import { Save, Loader2, TestTube } from 'lucide-react'
 import { getHealth } from '@/api/client'
+import { toast } from '@/components/shared/Toast'
 
 const TABS = [
   'General',
@@ -28,7 +29,8 @@ const FIELDS: FieldConfig[] = [
   { key: 'log_level', label: 'Log Level', type: 'text', placeholder: 'INFO', tab: 'General' },
   { key: 'media_path', label: 'Media Path', type: 'text', placeholder: '/media', tab: 'General' },
   { key: 'db_path', label: 'Database Path', type: 'text', placeholder: '/config/sublarr.db', tab: 'General' },
-  { key: 'path_mapping', label: 'Path Mapping (Remote→Local)', type: 'text', placeholder: '/data/media=Z:\\Media', tab: 'General' },
+  { key: 'path_mapping', label: 'Path Mapping (Remote\u2192Local)', type: 'text', placeholder: '/data/media=Z:\\Media', tab: 'General' },
+  { key: 'webhook_delay_minutes', label: 'Webhook Delay (minutes)', type: 'number', placeholder: '5', tab: 'General' },
   // Ollama
   { key: 'ollama_url', label: 'Ollama URL', type: 'text', placeholder: 'http://localhost:11434', tab: 'Ollama' },
   { key: 'ollama_model', label: 'Model', type: 'text', placeholder: 'qwen2.5:14b-instruct', tab: 'Ollama' },
@@ -59,7 +61,6 @@ export function SettingsPage() {
   const updateConfig = useUpdateConfig()
   const [activeTab, setActiveTab] = useState('General')
   const [values, setValues] = useState<Record<string, string>>({})
-  const [saved, setSaved] = useState(false)
   const [testResults, setTestResults] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -82,8 +83,10 @@ export function SettingsPage() {
     if (Object.keys(changed).length > 0) {
       updateConfig.mutate(changed, {
         onSuccess: () => {
-          setSaved(true)
-          setTimeout(() => setSaved(false), 3000)
+          toast('Settings saved successfully')
+        },
+        onError: () => {
+          toast('Failed to save settings', 'error')
         },
       })
     }
@@ -106,97 +109,91 @@ export function SettingsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 size={32} className="animate-spin" style={{ color: 'var(--accent)' }} />
+        <Loader2 size={28} className="animate-spin" style={{ color: 'var(--accent)' }} />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Settings</h1>
+        <h1>Settings</h1>
         <button
           onClick={handleSave}
           disabled={updateConfig.isPending}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all duration-200 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ backgroundColor: saved ? 'var(--success)' : 'var(--accent)' }}
+          className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90"
+          style={{ backgroundColor: 'var(--accent)' }}
         >
-          {saved ? (
+          {updateConfig.isPending ? (
             <>
-              <CheckCircle2 size={16} />
-              Saved!
-            </>
-          ) : updateConfig.isPending ? (
-            <>
-              <Loader2 size={16} className="animate-spin" />
+              <Loader2 size={14} className="animate-spin" />
               Saving...
             </>
           ) : (
             <>
-              <Save size={16} />
+              <Save size={14} />
               Save
             </>
           )}
         </button>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-6">
+      <div className="flex flex-col md:flex-row gap-5">
         {/* Tabs */}
-        <div className="w-full md:w-40 flex-shrink-0 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className="w-full md:w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-opacity-10 whitespace-nowrap"
-              style={{
-                backgroundColor: activeTab === tab ? 'rgba(29, 184, 212, 0.15)' : 'transparent',
-                color: activeTab === tab ? 'var(--accent)' : 'var(--text-secondary)',
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== tab) {
-                  e.currentTarget.style.backgroundColor = 'rgba(29, 184, 212, 0.05)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== tab) {
-                  e.currentTarget.style.backgroundColor = 'transparent'
-                }
-              }}
-            >
-              {tab}
-            </button>
-          ))}
+        <div className="w-full md:w-36 shrink-0 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
+          {TABS.map((tab) => {
+            const isActive = activeTab === tab
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className="text-left px-3 py-2 rounded-md text-[13px] font-medium transition-all duration-150 whitespace-nowrap relative"
+                style={{
+                  backgroundColor: isActive ? 'var(--accent-bg)' : 'transparent',
+                  color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'
+                }}
+              >
+                {isActive && (
+                  <div
+                    className="hidden md:block absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
+                    style={{ backgroundColor: 'var(--accent)' }}
+                  />
+                )}
+                {tab}
+              </button>
+            )
+          })}
         </div>
 
         {/* Fields */}
         <div className="flex-1">
           <div
-            className="rounded-xl p-6 space-y-5 shadow-sm"
+            className="rounded-lg p-5 space-y-4"
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
             {tabFields.map((field) => (
               <div key={field.key} className="space-y-1.5">
-                <label className="block text-sm font-medium whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
+                <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                   {field.label}
                 </label>
                 <input
                   type={field.type}
                   value={values[field.key] === '***configured***' ? '' : (values[field.key] ?? '')}
                   onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
-                  placeholder={values[field.key] === '***configured***' ? '(configured — enter new value to change)' : field.placeholder}
-                  className="w-full px-3 py-2.5 rounded-lg text-sm transition-all duration-200 focus:outline-none"
+                  placeholder={values[field.key] === '***configured***' ? '(configured \u2014 enter new value to change)' : field.placeholder}
+                  className="w-full px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
                   style={{
                     backgroundColor: 'var(--bg-primary)',
                     border: '1px solid var(--border)',
                     color: 'var(--text-primary)',
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = 'var(--accent)'
-                    e.target.style.boxShadow = '0 0 0 2px rgba(29, 184, 212, 0.1)'
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = 'var(--border)'
-                    e.target.style.boxShadow = 'none'
+                    fontFamily: field.type === 'text' ? 'var(--font-mono)' : undefined,
+                    fontSize: '13px',
                   }}
                 />
               </div>
@@ -206,34 +203,37 @@ export function SettingsPage() {
               <div className="pt-3" style={{ borderTop: '1px solid var(--border)' }}>
                 <button
                   onClick={() => handleTestConnection(activeTab)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:shadow-sm"
-                  style={{ 
-                    border: '1px solid var(--border)', 
-                    color: 'var(--text-primary)',
+                  className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
+                  style={{
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-secondary)',
                     backgroundColor: 'var(--bg-primary)',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--accent)'
-                    e.currentTarget.style.backgroundColor = 'rgba(29, 184, 212, 0.05)'
+                    e.currentTarget.style.borderColor = 'var(--accent-dim)'
+                    e.currentTarget.style.color = 'var(--accent)'
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.borderColor = 'var(--border)'
-                    e.currentTarget.style.backgroundColor = 'var(--bg-primary)'
+                    e.currentTarget.style.color = 'var(--text-secondary)'
                   }}
                 >
-                  <TestTube size={16} />
+                  <TestTube size={14} />
                   Test Connection
                 </button>
                 {testResults[activeTab] && (
                   <div className="mt-2 text-sm">
                     Result:{' '}
-                    <span style={{
-                      color: testResults[activeTab] === 'OK'
-                        ? 'var(--success)'
-                        : testResults[activeTab] === 'testing...'
-                          ? 'var(--accent)'
-                          : 'var(--error)',
-                    }}>
+                    <span
+                      className="font-medium"
+                      style={{
+                        color: testResults[activeTab] === 'OK'
+                          ? 'var(--success)'
+                          : testResults[activeTab] === 'testing...'
+                            ? 'var(--accent)'
+                            : 'var(--error)',
+                      }}
+                    >
                       {testResults[activeTab]}
                     </span>
                   </div>
