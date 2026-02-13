@@ -1,0 +1,9 @@
+.git
+__pycache__
+CLAUDE.md
+PLAN.md
+scripts/
+*.md
+.gitignore
+.dockerignore
+Modelfile
