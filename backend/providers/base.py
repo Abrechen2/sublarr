@@ -13,6 +13,21 @@ from enum import Enum
 from typing import Optional
 
 
+class ProviderError(Exception):
+    """Base exception for provider errors (auth, rate-limit, network)."""
+    pass
+
+
+class ProviderAuthError(ProviderError):
+    """Authentication or authorization failed."""
+    pass
+
+
+class ProviderRateLimitError(ProviderError):
+    """Provider rate limit exceeded."""
+    pass
+
+
 class SubtitleFormat(str, Enum):
     ASS = "ass"
     SRT = "srt"

@@ -219,6 +219,9 @@ class JimakuProvider(SubtitleProvider):
                         "entry_id": entry_id,
                         "is_archive": is_archive,
                         "entry_name": entry.get("name", ""),
+                        "query_episode": query.episode,
+                        "query_season": query.season,
+                        "query_series_title": query.series_title,
                     },
                 )
                 results.append(result)
@@ -314,7 +317,8 @@ class JimakuProvider(SubtitleProvider):
             ext = os.path.splitext(result.filename)[1].lower()
             query = VideoQuery(
                 series_title=result.provider_data.get("entry_name", ""),
-                episode=None,  # Will be set from context
+                episode=result.provider_data.get("query_episode"),
+                season=result.provider_data.get("query_season"),
             )
 
             if ext == ".zip":

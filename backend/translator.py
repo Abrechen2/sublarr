@@ -404,7 +404,7 @@ def _search_providers_for_target_ass(mkv_path, context=None, target_language=Non
     """
     try:
         from providers import get_provider_manager
-        from providers.base import VideoQuery, SubtitleFormat
+        from providers.base import VideoQuery, SubtitleFormat, ProviderAuthError, ProviderRateLimitError
 
         settings = get_settings()
         tgt_lang = target_language or settings.target_language
@@ -421,6 +421,10 @@ def _search_providers_for_target_ass(mkv_path, context=None, target_language=Non
             manager.save_subtitle(result, output_path)
             logger.info("Provider %s delivered target ASS: %s", result.provider_name, output_path)
             return output_path
+    except ProviderAuthError as e:
+        logger.error("Provider authentication failed — check API keys: %s", e)
+    except ProviderRateLimitError as e:
+        logger.error("Provider rate limit exceeded — retry later: %s", e)
     except Exception as e:
         logger.warning("Provider search for target ASS failed: %s", e)
 
@@ -437,7 +441,7 @@ def _search_providers_for_source_sub(mkv_path, context=None):
     """
     try:
         from providers import get_provider_manager
-        from providers.base import VideoQuery, SubtitleFormat
+        from providers.base import VideoQuery, SubtitleFormat, ProviderAuthError, ProviderRateLimitError
 
         settings = get_settings()
         manager = get_provider_manager()
@@ -465,6 +469,10 @@ def _search_providers_for_source_sub(mkv_path, context=None):
             manager.save_subtitle(result, tmp_path)
             logger.info("Provider %s delivered source %s: %s", result.provider_name, ext, tmp_path)
             return tmp_path, ext
+    except ProviderAuthError as e:
+        logger.error("Provider authentication failed — check API keys: %s", e)
+    except ProviderRateLimitError as e:
+        logger.error("Provider rate limit exceeded — retry later: %s", e)
     except Exception as e:
         logger.warning("Provider search for source subtitle failed: %s", e)
 
