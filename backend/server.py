@@ -16,12 +16,16 @@ import requests
 from flask import Flask, Blueprint, request, jsonify, send_from_directory
 from flask_socketio import SocketIO
 
-from config import Settings, get_settings, reload_settings
+from config import Settings, get_settings, reload_settings, map_path
 from auth import init_auth
 from database import (
     get_db, create_job, update_job, get_job, get_jobs,
     get_pending_job_count, record_stat, get_stats_summary,
     get_all_config_entries, save_config_entry,
+    get_wanted_items, get_wanted_item, get_wanted_summary,
+    update_wanted_status, delete_wanted_item,
+    get_provider_cache_stats, get_provider_download_stats,
+    clear_provider_cache,
 )
 from translator import translate_file, scan_directory
 from ollama_client import check_ollama_health
@@ -53,43 +57,19 @@ if _db_overrides:
 else:
     logger.info("No config overrides in database, using env/defaults")
 
+# Initialize wanted scanner & scheduler
+from wanted_scanner import get_scanner, invalidate_scanner
+_wanted_scanner = get_scanner()
+_wanted_scanner.start_scheduler()
+
 # ─── API Blueprint ────────────────────────────────────────────────────────────
 
 api = Blueprint("api", __name__, url_prefix="/api/v1")
 
 
 def _map_path(path):
-    """Map a remote file path to a local path using configured path mappings.
-
-    Path mapping is configured via the SUBLARR_PATH_MAPPING setting:
-    Format: "remote_prefix=local_prefix" (multiple pairs separated by semicolons)
-    Example: "/data/media=/mnt/media;/anime=/share/anime"
-
-    On Windows, forward slashes in the mapped path are converted to backslashes.
-    """
-    s = get_settings()
-    mapping = getattr(s, 'path_mapping', '')
-    if not mapping:
-        return path
-
-    for pair in mapping.split(";"):
-        pair = pair.strip()
-        if "=" not in pair:
-            continue
-        remote_prefix, local_prefix = pair.split("=", 1)
-        remote_prefix = remote_prefix.strip()
-        local_prefix = local_prefix.strip()
-        if not remote_prefix or not local_prefix:
-            continue
-
-        if path.startswith(remote_prefix):
-            mapped = local_prefix + path[len(remote_prefix):]
-            # On Windows, convert forward slashes to backslashes
-            if os.name == 'nt':
-                mapped = mapped.replace("/", "\\")
-            return mapped
-
-    return path
+    """Map a remote file path to a local path. Delegates to config.map_path()."""
+    return map_path(path)
 
 
 # Batch state (still in-memory for real-time tracking)
@@ -104,6 +84,18 @@ batch_state = {
     "errors": [],
 }
 batch_lock = threading.Lock()
+
+# Wanted batch state (in-memory for real-time tracking)
+wanted_batch_state = {
+    "running": False,
+    "total": 0,
+    "processed": 0,
+    "found": 0,
+    "failed": 0,
+    "skipped": 0,
+    "current_item": None,
+}
+wanted_batch_lock = threading.Lock()
 
 # In-memory stats for quick access (synced to DB)
 stats_lock = threading.Lock()
@@ -710,6 +702,7 @@ def update_config():
     _inv_radarr()
     _inv_jellyfin()
     _inv_providers()
+    invalidate_scanner()
 
     logger.info("Config updated: %s — settings reloaded", saved_keys)
 
@@ -843,6 +836,216 @@ def search_providers():
         return jsonify({"error": str(e)}), 500
 
 
+@api.route("/providers/stats", methods=["GET"])
+def provider_stats():
+    """Get cache and download statistics for all providers."""
+    cache_stats = get_provider_cache_stats()
+    download_stats = get_provider_download_stats()
+    return jsonify({
+        "cache": cache_stats,
+        "downloads": download_stats,
+    })
+
+
+@api.route("/providers/cache/clear", methods=["POST"])
+def clear_cache():
+    """Clear provider cache. Optional body: {provider_name: "..."}"""
+    data = request.get_json(silent=True) or {}
+    provider_name = data.get("provider_name")
+    clear_provider_cache(provider_name)
+    return jsonify({
+        "status": "cleared",
+        "provider": provider_name or "all",
+    })
+
+
+# ─── Wanted Endpoints ────────────────────────────────────────────────────────
+
+
+@api.route("/wanted", methods=["GET"])
+def list_wanted():
+    """Get paginated wanted items."""
+    page = request.args.get("page", 1, type=int)
+    per_page = min(request.args.get("per_page", 50, type=int), 200)
+    item_type = request.args.get("item_type")
+    status_filter = request.args.get("status")
+    series_id = request.args.get("series_id", type=int)
+
+    result = get_wanted_items(
+        page=page, per_page=per_page,
+        item_type=item_type, status=status_filter,
+        series_id=series_id,
+    )
+    return jsonify(result)
+
+
+@api.route("/wanted/summary", methods=["GET"])
+def wanted_summary():
+    """Get aggregated wanted stats."""
+    scanner = get_scanner()
+    summary = get_wanted_summary()
+    summary["scan_running"] = scanner.is_scanning
+    summary["last_scan_at"] = scanner.last_scan_at
+    return jsonify(summary)
+
+
+@api.route("/wanted/refresh", methods=["POST"])
+def refresh_wanted():
+    """Trigger a wanted scan. Optional body: {series_id: int}"""
+    scanner = get_scanner()
+    if scanner.is_scanning:
+        return jsonify({"error": "Scan already running"}), 409
+
+    data = request.get_json(silent=True) or {}
+    series_id = data.get("series_id")
+
+    def _run_scan():
+        if series_id:
+            result = scanner.scan_series(series_id)
+        else:
+            result = scanner.scan_all()
+        socketio.emit("wanted_scan_completed", result)
+
+    thread = threading.Thread(target=_run_scan, daemon=True)
+    thread.start()
+
+    return jsonify({"status": "scan_started", "series_id": series_id}), 202
+
+
+@api.route("/wanted/<int:item_id>/status", methods=["PUT"])
+def update_wanted_item_status(item_id):
+    """Update a wanted item's status (e.g. ignore/un-ignore)."""
+    data = request.get_json() or {}
+    new_status = data.get("status")
+
+    if new_status not in ("wanted", "ignored", "failed"):
+        return jsonify({"error": "Invalid status. Use: wanted, ignored, failed"}), 400
+
+    item = get_wanted_item(item_id)
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+
+    update_wanted_status(item_id, new_status, error=data.get("error", ""))
+    return jsonify({"status": "updated", "id": item_id, "new_status": new_status})
+
+
+@api.route("/wanted/<int:item_id>", methods=["DELETE"])
+def delete_wanted(item_id):
+    """Remove a wanted item."""
+    item = get_wanted_item(item_id)
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+
+    delete_wanted_item(item_id)
+    return jsonify({"status": "deleted", "id": item_id})
+
+
+# ─── Wanted Search & Process Endpoints ────────────────────────────────────────
+
+
+@api.route("/wanted/<int:item_id>/search", methods=["POST"])
+def search_wanted(item_id):
+    """Search providers for a specific wanted item."""
+    item = get_wanted_item(item_id)
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+
+    from wanted_search import search_wanted_item
+    result = search_wanted_item(item_id)
+
+    if result.get("error"):
+        return jsonify(result), 400
+
+    return jsonify(result)
+
+
+@api.route("/wanted/<int:item_id>/process", methods=["POST"])
+def process_wanted(item_id):
+    """Download + translate for a single wanted item (async)."""
+    item = get_wanted_item(item_id)
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+
+    from wanted_search import process_wanted_item
+
+    def _run():
+        result = process_wanted_item(item_id)
+        socketio.emit("wanted_item_processed", result)
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+
+    return jsonify({"status": "processing", "wanted_id": item_id}), 202
+
+
+@api.route("/wanted/batch-search", methods=["POST"])
+def wanted_batch_search():
+    """Process all wanted items (async with progress tracking)."""
+    with wanted_batch_lock:
+        if wanted_batch_state["running"]:
+            return jsonify({"error": "Wanted batch already running"}), 409
+
+    data = request.get_json(silent=True) or {}
+    item_ids = data.get("item_ids")
+
+    from wanted_search import process_wanted_batch
+
+    # Determine total count upfront
+    if item_ids:
+        total = len(item_ids)
+    else:
+        from database import get_wanted_count
+        total = get_wanted_count(status="wanted")
+
+    with wanted_batch_lock:
+        wanted_batch_state.update({
+            "running": True,
+            "total": total,
+            "processed": 0,
+            "found": 0,
+            "failed": 0,
+            "skipped": 0,
+            "current_item": None,
+        })
+
+    def _run_batch():
+        try:
+            for progress in process_wanted_batch(item_ids):
+                with wanted_batch_lock:
+                    wanted_batch_state["processed"] = progress["processed"]
+                    wanted_batch_state["found"] = progress["found"]
+                    wanted_batch_state["failed"] = progress["failed"]
+                    wanted_batch_state["skipped"] = progress["skipped"]
+                    wanted_batch_state["current_item"] = progress["current_item"]
+
+                socketio.emit("wanted_batch_progress", {
+                    "processed": progress["processed"],
+                    "total": progress["total"],
+                    "found": progress["found"],
+                    "failed": progress["failed"],
+                    "current_item": progress["current_item"],
+                })
+        finally:
+            with wanted_batch_lock:
+                snapshot = dict(wanted_batch_state)
+                wanted_batch_state["running"] = False
+                wanted_batch_state["current_item"] = None
+
+            socketio.emit("wanted_batch_completed", snapshot)
+
+    thread = threading.Thread(target=_run_batch, daemon=True)
+    thread.start()
+
+    return jsonify({"status": "started", "total_items": total}), 202
+
+
+@api.route("/wanted/batch-search/status", methods=["GET"])
+def wanted_batch_status():
+    """Get wanted batch search progress."""
+    with wanted_batch_lock:
+        return jsonify(dict(wanted_batch_state))
+
+
 # ─── Webhook Endpoints ───────────────────────────────────────────────────────
 
 
@@ -875,12 +1078,20 @@ def webhook_sonarr():
     s = get_settings()
     delay = s.webhook_delay_minutes * 60
 
+    series_id = series.get("id")
+
     def _delayed_translate():
         if delay > 0:
             logger.info("Waiting %d minutes before translating (webhook delay)...", s.webhook_delay_minutes)
             time.sleep(delay)
         job = create_job(file_path)
         _run_job(job)
+        # Also refresh wanted list for this series
+        if series_id:
+            try:
+                get_scanner().scan_series(series_id)
+            except Exception as e:
+                logger.debug("Wanted scan after webhook failed: %s", e)
 
     thread = threading.Thread(target=_delayed_translate, daemon=True)
     thread.start()

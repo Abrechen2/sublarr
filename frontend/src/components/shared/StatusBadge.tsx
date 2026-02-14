@@ -12,6 +12,10 @@ const statusStyles: Record<string, { bg: string; text: string; dot: string }> = 
   queued:           { bg: 'var(--warning-bg)', text: 'var(--warning)', dot: 'var(--warning)' },
   failed:           { bg: 'var(--error-bg)',   text: 'var(--error)',   dot: 'var(--error)' },
   unhealthy:        { bg: 'var(--error-bg)',   text: 'var(--error)',   dot: 'var(--error)' },
+  wanted:           { bg: 'var(--warning-bg)', text: 'var(--warning)', dot: 'var(--warning)' },
+  searching:        { bg: 'var(--accent-bg)',  text: 'var(--accent)',  dot: 'var(--accent)' },
+  found:            { bg: 'var(--success-bg)', text: 'var(--success)', dot: 'var(--success)' },
+  ignored:          { bg: 'rgba(124,130,147,0.08)', text: 'var(--text-muted)', dot: 'var(--text-muted)' },
   'not configured': { bg: 'rgba(124,130,147,0.08)', text: 'var(--text-secondary)', dot: 'var(--text-muted)' },
   skipped:          { bg: 'rgba(124,130,147,0.08)', text: 'var(--text-secondary)', dot: 'var(--text-muted)' },
 }

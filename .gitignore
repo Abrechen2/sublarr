@@ -18,10 +18,21 @@ dist/
 *.db
 *.db-journal
 *.db-wal
+*.db-shm
 
 # OS
 .DS_Store
 Thumbs.db
+Desktop.ini
+
+# Windows temp files
+NDH6SA~*
+
+# Claude Code
+.claude/
+
+# Test data
+test-media/
 
 # Config
 /config/

@@ -215,6 +215,29 @@ class SonarrClient:
             return True
         return False
 
+    def get_episode_metadata(self, series_id, episode_id):
+        """Get rich metadata for building a VideoQuery.
+
+        Returns:
+            dict: {series_title, season, episode, year, imdb_id, tvdb_id, title}
+            or None on error
+        """
+        series = self.get_series_by_id(series_id)
+        if not series:
+            return None
+        episode = self.get_episode_by_id(episode_id)
+        if not episode:
+            return None
+        return {
+            "series_title": series.get("title", ""),
+            "year": series.get("year"),
+            "season": episode.get("seasonNumber"),
+            "episode": episode.get("episodeNumber"),
+            "title": episode.get("title", ""),
+            "imdb_id": series.get("imdbId", ""),
+            "tvdb_id": series.get("tvdbId"),
+        }
+
     def get_library_info(self, anime_only=True):
         """Get library overview with subtitle status.
 
