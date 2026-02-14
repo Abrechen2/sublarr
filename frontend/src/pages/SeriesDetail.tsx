@@ -1,0 +1,1122 @@
+import { useState, useMemo, useCallback } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry } from '@/hooks/useApi'
+import {
+  ArrowLeft, Loader2, ChevronDown, ChevronRight,
+  Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search, Clock,
+  Download, X, ChevronUp, BookOpen, Plus, Edit2, Trash2, Check,
+} from 'lucide-react'
+import { formatRelativeTime } from '@/lib/utils'
+import { toast } from '@/components/shared/Toast'
+import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry } from '@/lib/types'
+
+function SubBadge({ lang, format }: { lang: string; format: string }) {
+  const hasFile = format === 'ass' || format === 'srt'
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide"
+      style={{
+        backgroundColor: hasFile ? 'var(--accent-bg)' : 'var(--warning-bg)',
+        color: hasFile ? 'var(--accent)' : 'var(--warning)',
+        border: `1px solid ${hasFile ? 'var(--accent-dim)' : 'rgba(245,158,11,0.3)'}`,
+      }}
+      title={hasFile ? `${lang.toUpperCase()} (${format.toUpperCase()})` : `${lang.toUpperCase()} missing`}
+    >
+      {lang.toUpperCase()}
+      {hasFile && (
+        <span style={{ opacity: 0.6, fontSize: '9px' }}>
+          {format}
+        </span>
+      )}
+    </span>
+  )
+}
+
+function ScoreBadge({ score }: { score: number }) {
+  const color = score >= 300 ? 'var(--success)' : score >= 200 ? 'var(--warning)' : 'var(--text-muted)'
+  return (
+    <span
+      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums"
+      style={{ backgroundColor: `${color}18`, color, fontFamily: 'var(--font-mono)' }}
+    >
+      {score}
+    </span>
+  )
+}
+
+// ─── Search Results Panel ──────────────────────────────────────────────────
+
+function EpisodeSearchPanel({ results, isLoading, onProcess }: {
+  results: WantedSearchResponse | null
+  isLoading: boolean
+  onProcess: (wantedId: number) => void
+}) {
+  if (isLoading) {
+    return (
+      <div
+        className="px-6 py-4 flex items-center gap-2 text-sm"
+        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}
+      >
+        <Loader2 size={14} className="animate-spin" />
+        Searching providers...
+      </div>
+    )
+  }
+
+  if (!results) return null
+
+  const allResults = [
+    ...results.target_results.map((r) => ({ ...r, _type: 'target' as const })),
+    ...results.source_results.map((r) => ({ ...r, _type: 'source' as const })),
+  ]
+
+  if (allResults.length === 0) {
+    return (
+      <div
+        className="px-6 py-4 text-sm"
+        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-muted)' }}
+      >
+        No results found from any provider.
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ backgroundColor: 'var(--bg-primary)' }} className="px-4 py-3">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+          Search Results ({allResults.length})
+        </span>
+        <button
+          onClick={() => onProcess(results.wanted_id)}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-white hover:opacity-90"
+          style={{ backgroundColor: 'var(--accent)' }}
+        >
+          <Download size={11} />
+          Download Best
+        </button>
+      </div>
+      <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+        <table className="w-full">
+          <thead>
+            <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Provider</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Type</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Format</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Score</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Release</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Lang</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allResults.map((r, i) => (
+              <tr
+                key={`${r.provider}-${r.subtitle_id}-${i}`}
+                style={{ borderBottom: i < allResults.length - 1 ? '1px solid var(--border)' : undefined }}
+              >
+                <td className="px-3 py-1.5 text-xs" style={{ fontFamily: 'var(--font-mono)' }}>
+                  {r.provider}
+                </td>
+                <td className="px-3 py-1.5">
+                  <span
+                    className="text-[10px] px-1.5 py-0.5 rounded uppercase font-medium"
+                    style={{
+                      backgroundColor: r._type === 'target' ? 'rgba(16,185,129,0.1)' : 'rgba(29,184,212,0.1)',
+                      color: r._type === 'target' ? 'var(--success)' : 'var(--accent)',
+                    }}
+                  >
+                    {r._type === 'target' ? 'Target' : 'Source'}
+                  </span>
+                </td>
+                <td className="px-3 py-1.5">
+                  <span
+                    className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold"
+                    style={{
+                      backgroundColor: r.format === 'ass' ? 'rgba(16,185,129,0.1)' : 'var(--bg-surface)',
+                      color: r.format === 'ass' ? 'var(--success)' : 'var(--text-secondary)',
+                      fontFamily: 'var(--font-mono)',
+                    }}
+                  >
+                    {r.format}
+                  </span>
+                </td>
+                <td className="px-3 py-1.5">
+                  <ScoreBadge score={r.score} />
+                </td>
+                <td className="px-3 py-1.5 text-xs truncate max-w-[200px]" title={r.release_info || r.filename} style={{ color: 'var(--text-secondary)' }}>
+                  {r.release_info || r.filename || '-'}
+                </td>
+                <td className="px-3 py-1.5 text-xs uppercase" style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+                  {r.language}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// ─── Glossary Panel ────────────────────────────────────────────────────────
+
+function GlossaryPanel({ seriesId }: { seriesId: number }) {
+  const { data, isLoading } = useGlossaryEntries(seriesId)
+  const createEntry = useCreateGlossaryEntry()
+  const updateEntry = useUpdateGlossaryEntry()
+  const deleteEntry = useDeleteGlossaryEntry()
+  const [showAdd, setShowAdd] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [formData, setFormData] = useState({ source_term: '', target_term: '', notes: '' })
+
+  const entries = data?.entries || []
+  const filteredEntries = searchQuery
+    ? entries.filter((e) =>
+        e.source_term.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        e.target_term.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : entries
+
+  const resetForm = () => {
+    setShowAdd(false)
+    setEditingId(null)
+    setFormData({ source_term: '', target_term: '', notes: '' })
+  }
+
+  const startEdit = (entry: { id: number; source_term: string; target_term: string; notes: string }) => {
+    setEditingId(entry.id)
+    setFormData({
+      source_term: entry.source_term,
+      target_term: entry.target_term,
+      notes: entry.notes || '',
+    })
+    setShowAdd(false)
+  }
+
+  const handleSave = () => {
+    if (!formData.source_term.trim() || !formData.target_term.trim()) {
+      toast('Source and target terms are required', 'error')
+      return
+    }
+
+    if (editingId) {
+      updateEntry.mutate(
+        { entryId: editingId, series_id: seriesId, ...formData },
+        {
+          onSuccess: () => {
+            toast('Glossary entry updated')
+            resetForm()
+          },
+          onError: () => toast('Failed to update entry', 'error'),
+        }
+      )
+    } else {
+      createEntry.mutate(
+        { series_id: seriesId, ...formData },
+        {
+          onSuccess: () => {
+            toast('Glossary entry created')
+            resetForm()
+          },
+          onError: () => toast('Failed to create entry', 'error'),
+        }
+      )
+    }
+  }
+
+  const handleDelete = (id: number) => {
+    if (!confirm('Delete this glossary entry?')) return
+    deleteEntry.mutate(
+      { entryId: id, seriesId },
+      {
+        onSuccess: () => toast('Entry deleted'),
+        onError: () => toast('Failed to delete entry', 'error'),
+      }
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div
+        className="px-6 py-4 flex items-center gap-2 text-sm"
+        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}
+      >
+        <Loader2 size={14} className="animate-spin" />
+        Loading glossary...
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ backgroundColor: 'var(--bg-primary)' }} className="px-4 py-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+          Glossary ({entries.length})
+        </span>
+        <button
+          onClick={() => {
+            resetForm()
+            setShowAdd(true)
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-white hover:opacity-90"
+          style={{ backgroundColor: 'var(--accent)' }}
+        >
+          <Plus size={11} />
+          Add Entry
+        </button>
+      </div>
+
+      {/* Search */}
+      <input
+        type="text"
+        placeholder="Search glossary..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="w-full px-3 py-1.5 rounded text-xs"
+        style={{
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          color: 'var(--text-primary)',
+        }}
+      />
+
+      {/* Add/Edit Form */}
+      {(showAdd || editingId !== null) && (
+        <div
+          className="rounded-lg p-3 space-y-2"
+          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--accent-dim)' }}
+        >
+          <div className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {editingId ? 'Edit Entry' : 'New Entry'}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="text"
+              placeholder="Source term"
+              value={formData.source_term}
+              onChange={(e) => setFormData((f) => ({ ...f, source_term: e.target.value }))}
+              className="px-2 py-1.5 rounded text-xs"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+              }}
+            />
+            <input
+              type="text"
+              placeholder="Target term"
+              value={formData.target_term}
+              onChange={(e) => setFormData((f) => ({ ...f, target_term: e.target.value }))}
+              className="px-2 py-1.5 rounded text-xs"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+              }}
+            />
+          </div>
+          <input
+            type="text"
+            placeholder="Notes (optional)"
+            value={formData.notes}
+            onChange={(e) => setFormData((f) => ({ ...f, notes: e.target.value }))}
+            className="w-full px-2 py-1.5 rounded text-xs"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+            }}
+          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSave}
+              disabled={createEntry.isPending || updateEntry.isPending}
+              className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-white"
+              style={{ backgroundColor: 'var(--accent)' }}
+            >
+              {(createEntry.isPending || updateEntry.isPending) ? (
+                <Loader2 size={10} className="animate-spin" />
+              ) : (
+                <Check size={10} />
+              )}
+              Save
+            </button>
+            <button onClick={resetForm} className="flex items-center gap-1 px-2.5 py-1 rounded text-xs" style={{ color: 'var(--text-muted)' }}>
+              <X size={10} /> Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Entries List */}
+      {filteredEntries.length === 0 ? (
+        <div className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>
+          {searchQuery ? 'No entries match your search' : 'No glossary entries yet'}
+        </div>
+      ) : (
+        <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+          <table className="w-full">
+            <thead>
+              <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Source</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Target</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Notes</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredEntries.map((entry, i) => (
+                <tr
+                  key={entry.id}
+                  style={{ borderBottom: i < filteredEntries.length - 1 ? '1px solid var(--border)' : undefined }}
+                >
+                  <td className="px-3 py-1.5 text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {entry.source_term}
+                  </td>
+                  <td className="px-3 py-1.5 text-xs font-medium" style={{ color: 'var(--accent)' }}>
+                    {entry.target_term}
+                  </td>
+                  <td className="px-3 py-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {entry.notes || '-'}
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => startEdit(entry)}
+                        className="p-1 rounded transition-colors"
+                        style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-surface)' }}
+                        title="Edit"
+                      >
+                        <Edit2 size={10} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(entry.id)}
+                        disabled={deleteEntry.isPending}
+                        className="p-1 rounded transition-colors"
+                        style={{ color: 'var(--error)', backgroundColor: 'var(--bg-surface)' }}
+                        title="Delete"
+                      >
+                        <Trash2 size={10} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── History Panel ─────────────────────────────────────────────────────────
+
+function EpisodeHistoryPanel({ entries, isLoading }: {
+  entries: EpisodeHistoryEntry[]
+  isLoading: boolean
+}) {
+  if (isLoading) {
+    return (
+      <div
+        className="px-6 py-4 flex items-center gap-2 text-sm"
+        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}
+      >
+        <Loader2 size={14} className="animate-spin" />
+        Loading history...
+      </div>
+    )
+  }
+
+  if (entries.length === 0) {
+    return (
+      <div
+        className="px-6 py-4 text-sm"
+        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-muted)' }}
+      >
+        No history entries for this episode.
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ backgroundColor: 'var(--bg-primary)' }} className="px-4 py-3">
+      <span className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--text-muted)' }}>
+        History ({entries.length})
+      </span>
+      <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+        <table className="w-full">
+          <thead>
+            <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Date</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Action</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Provider</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Format</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Score</th>
+              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map((entry, i) => (
+              <tr
+                key={i}
+                style={{ borderBottom: i < entries.length - 1 ? '1px solid var(--border)' : undefined }}
+              >
+                <td className="px-3 py-1.5 text-xs tabular-nums" style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+                  {entry.date ? formatRelativeTime(entry.date) : '-'}
+                </td>
+                <td className="px-3 py-1.5">
+                  <span
+                    className="text-[10px] px-1.5 py-0.5 rounded uppercase font-medium"
+                    style={{
+                      backgroundColor: entry.action === 'download' ? 'rgba(29,184,212,0.1)' : 'rgba(16,185,129,0.1)',
+                      color: entry.action === 'download' ? 'var(--accent)' : 'var(--success)',
+                    }}
+                  >
+                    {entry.action}
+                  </span>
+                </td>
+                <td className="px-3 py-1.5 text-xs" style={{ fontFamily: 'var(--font-mono)' }}>
+                  {entry.provider_name || '-'}
+                </td>
+                <td className="px-3 py-1.5">
+                  <span
+                    className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold"
+                    style={{
+                      backgroundColor: entry.format === 'ass' ? 'rgba(16,185,129,0.1)' : 'var(--bg-surface)',
+                      color: entry.format === 'ass' ? 'var(--success)' : 'var(--text-secondary)',
+                      fontFamily: 'var(--font-mono)',
+                    }}
+                  >
+                    {entry.format || '-'}
+                  </span>
+                </td>
+                <td className="px-3 py-1.5">
+                  {entry.score > 0 ? <ScoreBadge score={entry.score} /> : <span className="text-xs" style={{ color: 'var(--text-muted)' }}>-</span>}
+                </td>
+                <td className="px-3 py-1.5 text-xs" style={{ color: entry.status === 'completed' || entry.status === 'downloaded' ? 'var(--success)' : entry.error ? 'var(--error)' : 'var(--text-secondary)' }}>
+                  {entry.error || entry.status || '-'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// ─── Season Group ──────────────────────────────────────────────────────────
+
+function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onHistory, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess }: {
+  season: number
+  episodes: EpisodeInfo[]
+  targetLanguages: string[]
+  expandedEp: { id: number; mode: 'search' | 'history' | 'glossary' } | null
+  onSearch: (ep: EpisodeInfo) => void
+  onHistory: (ep: EpisodeInfo) => void
+  onClose: () => void
+  searchResults: WantedSearchResponse | null
+  searchLoading: boolean
+  historyEntries: EpisodeHistoryEntry[]
+  historyLoading: boolean
+  onProcess: (wantedId: number) => void
+}) {
+  const [expanded, setExpanded] = useState(true)
+
+  return (
+    <div>
+      {/* Season Header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-2 px-4 py-2.5 text-left transition-colors"
+        style={{
+          backgroundColor: 'var(--bg-elevated)',
+          borderBottom: expanded ? '1px solid var(--border)' : 'none',
+        }}
+      >
+        {expanded ? (
+          <ChevronDown size={14} style={{ color: 'var(--accent)' }} />
+        ) : (
+          <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
+        )}
+        <span className="text-sm font-semibold">
+          Season {season}
+        </span>
+        <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>
+          ({episodes.length} episodes)
+        </span>
+      </button>
+
+      {/* Episodes */}
+      {expanded && (
+        <div>
+          {episodes
+            .sort((a, b) => b.episode - a.episode)
+            .map((ep) => {
+              const isExpanded = expandedEp?.id === ep.id
+              const mode = expandedEp?.mode
+
+              return (
+                <div key={ep.id}>
+                  <div
+                    className="flex items-center px-4 py-2 transition-colors"
+                    style={{
+                      borderBottom: isExpanded ? 'none' : '1px solid var(--border)',
+                      backgroundColor: isExpanded ? 'var(--bg-surface-hover)' : '',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isExpanded) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isExpanded) e.currentTarget.style.backgroundColor = ''
+                    }}
+                  >
+                    {/* Monitored indicator */}
+                    <div className="w-5 flex-shrink-0">
+                      {ep.has_file ? (
+                        <div
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: 'var(--success)' }}
+                          title="Has file"
+                        />
+                      ) : (
+                        <div
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: 'var(--text-muted)' }}
+                          title="No file"
+                        />
+                      )}
+                    </div>
+
+                    {/* Episode number */}
+                    <div
+                      className="w-12 flex-shrink-0 text-sm font-medium"
+                      style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}
+                    >
+                      {ep.episode}
+                    </div>
+
+                    {/* Title */}
+                    <div className="flex-1 min-w-0 text-sm truncate" title={ep.title}>
+                      {ep.title || 'TBA'}
+                    </div>
+
+                    {/* Audio */}
+                    <div className="w-24 flex-shrink-0 flex gap-1">
+                      {ep.audio_languages.length > 0 ? (
+                        ep.audio_languages.map((lang, i) => (
+                          <span
+                            key={i}
+                            className="px-1.5 py-0.5 rounded text-[10px] font-medium uppercase"
+                            style={{
+                              backgroundColor: 'rgba(99, 102, 241, 0.12)',
+                              color: '#818cf8',
+                            }}
+                          >
+                            {lang}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>&mdash;</span>
+                      )}
+                    </div>
+
+                    {/* Subtitles */}
+                    <div className="w-40 flex-shrink-0 flex gap-1 flex-wrap">
+                      {ep.has_file && targetLanguages.length > 0 ? (
+                        targetLanguages.map((lang) => (
+                          <SubBadge
+                            key={lang}
+                            lang={lang}
+                            format={ep.subtitles[lang] || ''}
+                          />
+                        ))
+                      ) : (
+                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                          {ep.has_file ? '\u2014' : 'No file'}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="w-20 flex-shrink-0 flex gap-1 justify-end">
+                      {isExpanded && (
+                        <button
+                          onClick={onClose}
+                          className="p-1.5 rounded transition-colors"
+                          style={{ color: 'var(--text-muted)' }}
+                          title="Close"
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = 'var(--error)'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = 'var(--text-muted)'
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onSearch(ep)}
+                        disabled={!ep.has_file}
+                        className="p-1.5 rounded transition-colors"
+                        style={{
+                          color: isExpanded && mode === 'search' ? 'var(--accent)' : 'var(--text-muted)',
+                          opacity: ep.has_file ? 1 : 0.4,
+                        }}
+                        title="Search subtitles"
+                        onMouseEnter={(e) => {
+                          if (ep.has_file) {
+                            e.currentTarget.style.color = 'var(--accent)'
+                            e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = isExpanded && mode === 'search' ? 'var(--accent)' : 'var(--text-muted)'
+                          e.currentTarget.style.backgroundColor = ''
+                        }}
+                      >
+                        {searchLoading && isExpanded && mode === 'search' ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : isExpanded && mode === 'search' ? (
+                          <ChevronUp size={14} />
+                        ) : (
+                          <Search size={14} />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => onHistory(ep)}
+                        disabled={!ep.has_file}
+                        className="p-1.5 rounded transition-colors"
+                        style={{
+                          color: isExpanded && mode === 'history' ? 'var(--accent)' : 'var(--text-muted)',
+                          opacity: ep.has_file ? 1 : 0.4,
+                        }}
+                        title="History"
+                        onMouseEnter={(e) => {
+                          if (ep.has_file) {
+                            e.currentTarget.style.color = 'var(--accent)'
+                            e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = isExpanded && mode === 'history' ? 'var(--accent)' : 'var(--text-muted)'
+                          e.currentTarget.style.backgroundColor = ''
+                        }}
+                      >
+                        {historyLoading && isExpanded && mode === 'history' ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : isExpanded && mode === 'history' ? (
+                          <ChevronUp size={14} />
+                        ) : (
+                          <Clock size={14} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Expanded panel */}
+                  {isExpanded && (
+                    <div style={{ borderBottom: '1px solid var(--border)' }}>
+                      {mode === 'search' && (
+                        <EpisodeSearchPanel
+                          results={searchResults}
+                          isLoading={searchLoading}
+                          onProcess={onProcess}
+                        />
+                      )}
+                      {mode === 'history' && (
+                        <EpisodeHistoryPanel
+                          entries={historyEntries}
+                          isLoading={historyLoading}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Main Page ─────────────────────────────────────────────────────────────
+
+export function SeriesDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const seriesId = Number(id)
+  const { data: series, isLoading, error } = useSeriesDetail(seriesId)
+
+  // Episode action state
+  const [expandedEp, setExpandedEp] = useState<{ id: number; mode: 'search' | 'history' | 'glossary' } | null>(null)
+  const [showGlossary, setShowGlossary] = useState(false)
+  const [searchResults, setSearchResults] = useState<Record<number, WantedSearchResponse>>({})
+  const [historyEntries, setHistoryEntries] = useState<Record<number, EpisodeHistoryEntry[]>>({})
+
+  const episodeSearch = useEpisodeSearch()
+  const episodeHistory = useEpisodeHistory(expandedEp?.mode === 'history' ? expandedEp.id : 0)
+  const processItem = useProcessWantedItem()
+
+  const handleSearch = useCallback((ep: EpisodeInfo) => {
+    if (expandedEp?.id === ep.id && expandedEp?.mode === 'search') {
+      setExpandedEp(null)
+      return
+    }
+    setExpandedEp({ id: ep.id, mode: 'search' })
+    episodeSearch.mutate(ep.id, {
+      onSuccess: (data) => {
+        setSearchResults((prev) => ({ ...prev, [ep.id]: data }))
+      },
+      onError: () => {
+        toast('Search failed', 'error')
+      },
+    })
+  }, [expandedEp, episodeSearch])
+
+  const handleHistory = useCallback((ep: EpisodeInfo) => {
+    if (expandedEp?.id === ep.id && expandedEp?.mode === 'history') {
+      setExpandedEp(null)
+      return
+    }
+    setExpandedEp({ id: ep.id, mode: 'history' })
+    // Fetch history via mutation-style (since the hook is lazy)
+    import('@/api/client').then(({ episodeHistory: fetchHistory }) => {
+      fetchHistory(ep.id).then((data) => {
+        setHistoryEntries((prev) => ({ ...prev, [ep.id]: data.entries }))
+      }).catch(() => {
+        setHistoryEntries((prev) => ({ ...prev, [ep.id]: [] }))
+        toast('Failed to load history', 'error')
+      })
+    })
+  }, [expandedEp])
+
+  const handleProcess = useCallback((wantedId: number) => {
+    processItem.mutate(wantedId, {
+      onSuccess: () => {
+        toast('Download started')
+      },
+      onError: () => {
+        toast('Download failed', 'error')
+      },
+    })
+  }, [processItem])
+
+  const handleClose = useCallback(() => {
+    setExpandedEp(null)
+  }, [])
+
+  // Group episodes by season
+  const seasonGroups = useMemo(() => {
+    if (!series?.episodes) return []
+    const groups = new Map<number, EpisodeInfo[]>()
+    for (const ep of series.episodes) {
+      if (!groups.has(ep.season)) {
+        groups.set(ep.season, [])
+      }
+      groups.get(ep.season)!.push(ep)
+    }
+    return Array.from(groups.entries())
+      .sort((a, b) => b[0] - a[0]) // Latest season first
+  }, [series?.episodes])
+
+  // Count missing subs
+  const missingCount = useMemo(() => {
+    if (!series?.episodes) return 0
+    let count = 0
+    for (const ep of series.episodes) {
+      if (!ep.has_file) continue
+      for (const lang of series.target_languages) {
+        if (!ep.subtitles[lang] || ep.subtitles[lang] === '') {
+          count++
+        }
+      }
+    }
+    return count
+  }, [series])
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 size={28} className="animate-spin" style={{ color: 'var(--accent)' }} />
+      </div>
+    )
+  }
+
+  if (error || !series) {
+    return (
+      <div className="space-y-4">
+        <button
+          onClick={() => navigate('/library')}
+          className="flex items-center gap-2 text-sm transition-colors"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          <ArrowLeft size={14} />
+          Back to Library
+        </button>
+        <div
+          className="rounded-lg p-8 text-center"
+          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+        >
+          <p style={{ color: 'var(--error)' }}>Failed to load series details.</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4 animate-in">
+      {/* Back button */}
+      <button
+        onClick={() => navigate('/library')}
+        className="flex items-center gap-2 text-sm transition-colors hover:opacity-80"
+        style={{ color: 'var(--text-secondary)' }}
+      >
+        <ArrowLeft size={14} />
+        Back to Library
+      </button>
+
+      {/* Hero Header — like Bazarr */}
+      <div
+        className="rounded-lg overflow-hidden relative"
+        style={{ border: '1px solid var(--border)' }}
+      >
+        {/* Fanart background */}
+        {series.fanart && (
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `url(${series.fanart})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              opacity: 0.15,
+              filter: 'blur(2px)',
+            }}
+          />
+        )}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(135deg, rgba(23,25,35,0.95) 0%, rgba(30,33,48,0.85) 100%)',
+          }}
+        />
+
+        <div className="relative flex gap-5 p-5">
+          {/* Poster */}
+          <div
+            className="flex-shrink-0 w-[150px] rounded-lg overflow-hidden shadow-lg"
+            style={{ border: '1px solid var(--border)' }}
+          >
+            {series.poster ? (
+              <img
+                src={series.poster}
+                alt={series.title}
+                className="w-full h-auto"
+              />
+            ) : (
+              <div
+                className="w-full aspect-[2/3] flex items-center justify-center"
+                style={{ backgroundColor: 'var(--bg-surface)' }}
+              >
+                <FileVideo size={32} style={{ color: 'var(--text-muted)' }} />
+              </div>
+            )}
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 min-w-0 flex flex-col gap-3">
+            <h1 className="text-xl font-bold leading-tight">{series.title}</h1>
+
+            {/* Metadata chips */}
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
+                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
+              >
+                <Folder size={11} />
+                {series.path}
+              </span>
+              <span
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
+                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
+              >
+                <FileVideo size={11} />
+                {series.episode_file_count} files
+              </span>
+              <span
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
+                style={{
+                  backgroundColor: missingCount > 0 ? 'var(--warning-bg)' : 'var(--success-bg)',
+                  color: missingCount > 0 ? 'var(--warning)' : 'var(--success)',
+                }}
+              >
+                <AlertTriangle size={11} />
+                {missingCount} missing subtitles
+              </span>
+              <span
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
+                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
+              >
+                <Play size={11} />
+                {series.status === 'continuing' ? 'Continuing' : series.status === 'ended' ? 'Ended' : series.status}
+              </span>
+              {series.tags.length > 0 && (
+                <span
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
+                >
+                  <Tag size={11} />
+                  {series.tags.join(' | ')}
+                </span>
+              )}
+            </div>
+
+            {/* Language info */}
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
+                style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
+              >
+                <Globe size={11} />
+                {series.profile_name}
+              </span>
+              {series.target_language_names.map((name, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded font-medium"
+                  style={{
+                    backgroundColor: 'var(--accent-subtle)',
+                    color: 'var(--accent)',
+                    border: '1px solid var(--accent-dim)',
+                  }}
+                >
+                  {name}
+                </span>
+              ))}
+              <span
+                className="inline-flex items-center gap-1 px-2 py-1 rounded"
+                style={{ backgroundColor: 'rgba(99,102,241,0.1)', color: '#818cf8' }}
+              >
+                {series.source_language_name}
+              </span>
+              <button
+                onClick={() => setShowGlossary(!showGlossary)}
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded transition-colors"
+                style={{
+                  backgroundColor: showGlossary ? 'var(--accent-bg)' : 'rgba(255,255,255,0.06)',
+                  color: showGlossary ? 'var(--accent)' : 'var(--text-secondary)',
+                }}
+                onMouseEnter={(e) => {
+                  if (!showGlossary) {
+                    e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!showGlossary) {
+                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'
+                  }
+                }}
+              >
+                <BookOpen size={11} />
+                Glossary
+              </button>
+            </div>
+
+            {/* Overview */}
+            {series.overview && (
+              <p className="text-xs leading-relaxed line-clamp-3" style={{ color: 'var(--text-secondary)' }}>
+                {series.overview}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Glossary Panel */}
+      {showGlossary && (
+        <div
+          className="rounded-lg overflow-hidden"
+          style={{ border: '1px solid var(--border)' }}
+        >
+          <GlossaryPanel seriesId={seriesId} />
+        </div>
+      )}
+
+      {/* Episode Table */}
+      <div
+        className="rounded-lg overflow-hidden"
+        style={{ border: '1px solid var(--border)' }}
+      >
+        {/* Table Header */}
+        <div
+          className="flex items-center px-4 py-2"
+          style={{
+            backgroundColor: 'var(--bg-elevated)',
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
+          <div className="w-5 flex-shrink-0" />
+          <div
+            className="w-12 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            Ep
+          </div>
+          <div
+            className="flex-1 text-[11px] font-semibold uppercase tracking-wider"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            Title
+          </div>
+          <div
+            className="w-24 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            Audio
+          </div>
+          <div
+            className="w-40 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            Subtitles
+          </div>
+          <div
+            className="w-20 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider text-right"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            Actions
+          </div>
+        </div>
+
+        {/* Season Groups */}
+        {seasonGroups.map(([season, episodes]) => (
+          <SeasonGroup
+            key={season}
+            season={season}
+            episodes={episodes}
+            targetLanguages={series.target_languages}
+            expandedEp={expandedEp as { id: number; mode: 'search' | 'history' | 'glossary' } | null}
+            onSearch={handleSearch}
+            onHistory={handleHistory}
+            onClose={handleClose}
+            searchResults={expandedEp ? searchResults[expandedEp.id] ?? null : null}
+            searchLoading={episodeSearch.isPending}
+            historyEntries={expandedEp ? historyEntries[expandedEp.id] ?? [] : []}
+            historyLoading={expandedEp?.mode === 'history' && !(expandedEp.id in historyEntries)}
+            onProcess={handleProcess}
+          />
+        ))}
+
+        {seasonGroups.length === 0 && (
+          <div className="p-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
+            No episodes found.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

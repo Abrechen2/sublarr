@@ -232,30 +232,43 @@ class AnimeToshoProvider(SubtitleProvider):
     def _detect_language(self, filename: str, release_title: str = "") -> str:
         """Detect language from subtitle filename and release context."""
         name_lower = filename.lower()
+        title_lower = release_title.lower()
 
-        # Explicit language tags in filename
+        # Explicit language tags in filename (check filename first, then title)
         lang_patterns = {
-            "ja": [".ja.", ".jpn.", ".japanese.", "_ja_", "_jpn_"],
-            "en": [".en.", ".eng.", ".english.", "_en_", "_eng_"],
-            "de": [".de.", ".deu.", ".ger.", ".german.", "_de_", "_deu_"],
-            "fr": [".fr.", ".fra.", ".fre.", ".french.", "_fr_"],
-            "es": [".es.", ".spa.", ".spanish.", "_es_"],
-            "zh": [".zh.", ".chi.", ".chinese.", "_zh_"],
+            "ja": [".ja.", ".jpn.", ".japanese.", "_ja_", "_jpn_", "[ja]", "[jpn]"],
+            "en": [".en.", ".eng.", ".english.", "_en_", "_eng_", "[en]", "[eng]"],
+            "de": [".de.", ".deu.", ".ger.", ".german.", "_de_", "_deu_", "[de]", "[deu]", "[ger]", ".german"],
+            "fr": [".fr.", ".fra.", ".fre.", ".french.", "_fr_", "[fr]", "[fra]"],
+            "es": [".es.", ".spa.", ".spanish.", "_es_", "[es]", "[spa]"],
+            "zh": [".zh.", ".chi.", ".chinese.", "_zh_", "[zh]", "[chi]"],
         }
 
+        # Check filename first
         for lang, patterns in lang_patterns.items():
             if any(p in name_lower for p in patterns):
                 return lang
 
-        # AnimeTosho fansub releases are typically English subs on Japanese audio
-        # If no explicit language tag, assume English for ASS/SRT from fansub releases
-        if any(group in release_title.lower() for group in [
+        # Check release title for language tags
+        for lang, patterns in lang_patterns.items():
+            if any(p in title_lower for p in patterns):
+                return lang
+
+        # Check for common German fansub groups
+        german_groups = ["kametsu", "anime4you", "anime-loads", "animebase", "animefreakz"]
+        if any(group in title_lower for group in german_groups):
+            return "de"
+
+        # Check for common English fansub groups
+        english_groups = [
             "subsplease", "erai-raws", "horriblesubs", "judas",
-            "sallysubs", "yameii", "ember", "yor",
-        ]):
+            "sallysubs", "yameii", "ember", "yor", "commie",
+            "gg", "coal", "doki", "fumetsu", "utw", "asenshi"
+        ]
+        if any(group in title_lower for group in english_groups):
             return "en"
 
-        # Default assumption for AnimeTosho
+        # Default assumption for AnimeTosho (most fansubs are English)
         return "en"
 
     def download(self, result: SubtitleResult) -> bytes:

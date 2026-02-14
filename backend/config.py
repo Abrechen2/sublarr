@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     port: int = 5765
     api_key: str = ""  # Empty = no auth required
     log_level: str = "INFO"
+    log_file: str = "/config/sublarr.log"
     media_path: str = "/media"
     db_path: str = "/config/sublarr.db"
 
@@ -41,6 +42,10 @@ class Settings(BaseSettings):
     # Subtitle Providers
     provider_priorities: str = "animetosho,jimaku,opensubtitles,subdl"
     providers_enabled: str = ""  # Empty = all registered providers enabled
+    provider_search_timeout: int = 30  # Global timeout fallback (seconds)
+    provider_cache_ttl_minutes: int = 5  # Cache TTL for provider search results
+    provider_auto_prioritize: bool = True  # Auto-prioritize providers based on success rate
+    provider_rate_limit_enabled: bool = True  # Enable rate limiting per provider
 
     # OpenSubtitles.com (API v2)
     opensubtitles_api_key: str = ""
@@ -56,10 +61,12 @@ class Settings(BaseSettings):
     # Sonarr (optional)
     sonarr_url: str = ""
     sonarr_api_key: str = ""
+    sonarr_instances_json: str = ""  # JSON array of Sonarr instances: [{"name": "Main", "url": "...", "api_key": "...", "path_mapping": "..."}]
 
     # Radarr (optional — for anime movies)
     radarr_url: str = ""
     radarr_api_key: str = ""
+    radarr_instances_json: str = ""  # JSON array of Radarr instances: [{"name": "Main", "url": "...", "api_key": "...", "path_mapping": "..."}]
 
     # Jellyfin/Emby (optional — library refresh)
     jellyfin_url: str = ""
@@ -73,14 +80,19 @@ class Settings(BaseSettings):
     # Wanted System
     wanted_scan_interval_hours: int = 6  # 0 = disabled
     wanted_anime_only: bool = True
+    wanted_anime_movies_only: bool = False  # Filter Radarr movies by anime tag (separate from wanted_anime_only)
     wanted_scan_on_startup: bool = True
     wanted_max_search_attempts: int = 3
+    use_embedded_subs: bool = True  # Check embedded subtitle streams in MKV files
 
     # Upgrade System
     upgrade_enabled: bool = True
     upgrade_min_score_delta: int = 50
     upgrade_window_days: int = 7
     upgrade_prefer_ass: bool = True  # SRT->ASS always upgrade
+
+    # Hearing Impaired
+    hi_removal_enabled: bool = False
 
     # Webhook Automation
     webhook_delay_minutes: int = 5  # Wait time after Sonarr/Radarr webhook
@@ -93,6 +105,20 @@ class Settings(BaseSettings):
     wanted_search_on_startup: bool = False
     wanted_search_max_items_per_run: int = 50
 
+    # Notifications (Apprise)
+    notification_urls_json: str = ""  # JSON array or newline-separated Apprise URLs
+    notify_on_download: bool = True
+    notify_on_upgrade: bool = True
+    notify_on_batch_complete: bool = True
+    notify_on_error: bool = True
+    notify_manual_actions: bool = False
+
+    # AniDB Integration
+    anidb_enabled: bool = True  # Enable AniDB ID resolution
+    anidb_cache_ttl_days: int = 30  # Cache TTL for TVDB → AniDB mappings
+    anidb_custom_field_name: str = "anidb_id"  # Custom field name in Sonarr
+    anidb_fallback_to_mapping: bool = True  # Use cache/mapping as fallback
+
     model_config = {
         "env_prefix": "SUBLARR_",
         "env_file": ".env",
@@ -101,9 +127,28 @@ class Settings(BaseSettings):
     }
 
     def get_prompt_template(self) -> str:
-        """Get the translation prompt template (auto-generated if empty)."""
+        """Get the translation prompt template.
+        
+        Priority:
+        1. Default prompt preset from database (if exists)
+        2. prompt_template setting (if set)
+        3. Auto-generated template
+        """
+        # Try to get default preset from database
+        try:
+            from database import get_default_prompt_preset
+            preset = get_default_prompt_preset()
+            if preset and preset.get("prompt_template"):
+                return preset["prompt_template"]
+        except Exception:
+            # Database might not be initialized yet, fall through
+            pass
+        
+        # Fall back to config setting
         if self.prompt_template:
             return self.prompt_template
+        
+        # Auto-generated template
         return (
             f"Translate these anime subtitle lines from {self.source_language_name} to {self.target_language_name}.\n"
             f"Return ONLY the translated lines, one per line, same count.\n"
@@ -256,7 +301,7 @@ def reload_settings(overrides: dict = None) -> Settings:
                 elif expected_type is float:
                     update[key] = float(value)
                 else:
-                    update[key] = str(value)
+                    update[key] = str(value).strip()
             except (ValueError, TypeError):
                 continue  # Skip invalid values
 
@@ -268,3 +313,61 @@ def reload_settings(overrides: dict = None) -> Settings:
         _settings = base
 
     return _settings
+
+
+def get_sonarr_instances() -> list[dict]:
+    """Get Sonarr instances from config, with fallback to legacy settings.
+    
+    Returns list of instance dicts: [{"name": "...", "url": "...", "api_key": "...", "path_mapping": "..."}]
+    """
+    import json
+    settings = get_settings()
+    
+    # Try new multi-instance config
+    if settings.sonarr_instances_json:
+        try:
+            instances = json.loads(settings.sonarr_instances_json)
+            if isinstance(instances, list) and len(instances) > 0:
+                return instances
+        except (json.JSONDecodeError, TypeError):
+            pass
+    
+    # Fallback to legacy single-instance config
+    if settings.sonarr_url and settings.sonarr_api_key:
+        return [{
+            "name": "Default",
+            "url": settings.sonarr_url,
+            "api_key": settings.sonarr_api_key,
+            "path_mapping": settings.path_mapping,
+        }]
+    
+    return []
+
+
+def get_radarr_instances() -> list[dict]:
+    """Get Radarr instances from config, with fallback to legacy settings.
+    
+    Returns list of instance dicts: [{"name": "...", "url": "...", "api_key": "...", "path_mapping": "..."}]
+    """
+    import json
+    settings = get_settings()
+    
+    # Try new multi-instance config
+    if settings.radarr_instances_json:
+        try:
+            instances = json.loads(settings.radarr_instances_json)
+            if isinstance(instances, list) and len(instances) > 0:
+                return instances
+        except (json.JSONDecodeError, TypeError):
+            pass
+    
+    # Fallback to legacy single-instance config
+    if settings.radarr_url and settings.radarr_api_key:
+        return [{
+            "name": "Default",
+            "url": settings.radarr_url,
+            "api_key": settings.radarr_api_key,
+            "path_mapping": settings.path_mapping,
+        }]
+    
+    return []

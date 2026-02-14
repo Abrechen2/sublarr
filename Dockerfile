@@ -1,11 +1,11 @@
 # ═══════════════════════════════════════════════════════════════
 # Sublarr — Multi-Stage Docker Build
-# Stage 1: Build React Frontend
+# Stage 1: Build React Frontend (native platform for speed)
 # Stage 2: Python Backend + Frontend Bundle
 # ═══════════════════════════════════════════════════════════════
 
 # Stage 1: Build React Frontend
-FROM node:20-alpine AS frontend
+FROM --platform=$BUILDPLATFORM node:20-alpine AS frontend
 WORKDIR /build
 COPY frontend/package*.json ./
 RUN npm ci
@@ -14,6 +14,11 @@ RUN npm run build
 
 # Stage 2: Python Backend + Frontend Bundle
 FROM python:3.11-slim
+
+LABEL org.opencontainers.image.title="Sublarr"
+LABEL org.opencontainers.image.description="Standalone Subtitle Manager & Translator for Anime/Media"
+LABEL org.opencontainers.image.source="https://github.com/denniswittke/sublarr"
+LABEL org.opencontainers.image.licenses="GPL-3.0"
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg curl unrar-free && \

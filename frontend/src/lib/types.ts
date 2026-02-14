@@ -84,6 +84,9 @@ export interface SeriesInfo {
   path: string
   poster: string
   status: string
+  profile_id: number | null
+  profile_name: string
+  missing_count: number
 }
 
 export interface MovieInfo {
@@ -94,6 +97,39 @@ export interface MovieInfo {
   path: string
   poster: string
   status: string
+}
+
+export interface EpisodeInfo {
+  id: number
+  season: number
+  episode: number
+  title: string
+  has_file: boolean
+  file_path: string
+  subtitles: Record<string, string>  // lang -> "ass"|"srt"|""
+  audio_languages: string[]
+  monitored: boolean
+}
+
+export interface SeriesDetail {
+  id: number
+  title: string
+  year: number
+  path: string
+  poster: string
+  fanart: string
+  overview: string
+  status: string
+  season_count: number
+  episode_count: number
+  episode_file_count: number
+  tags: string[]
+  profile_name: string
+  target_languages: string[]
+  target_language_names: string[]
+  source_language: string
+  source_language_name: string
+  episodes: EpisodeInfo[]
 }
 
 export interface WantedItem {
@@ -116,6 +152,7 @@ export interface WantedItem {
   updated_at: string
   upgrade_candidate: number
   current_score: number
+  instance_name?: string
 }
 
 export interface PaginatedWanted {
@@ -202,6 +239,63 @@ export interface LanguageProfile {
   target_languages: string[]
   target_language_names: string[]
   is_default: boolean
+}
+
+export interface BlacklistEntry {
+  id: number
+  provider_name: string
+  subtitle_id: string
+  language: string
+  file_path: string
+  title: string
+  reason: string
+  added_at: string
+}
+
+export interface PaginatedBlacklist {
+  data: BlacklistEntry[]
+  page: number
+  per_page: number
+  total: number
+  total_pages: number
+}
+
+export interface HistoryEntry {
+  id: number
+  provider_name: string
+  subtitle_id: string
+  language: string
+  format: string
+  file_path: string
+  score: number
+  downloaded_at: string
+}
+
+export interface PaginatedHistory {
+  data: HistoryEntry[]
+  page: number
+  per_page: number
+  total: number
+  total_pages: number
+}
+
+export interface HistoryStats {
+  total_downloads: number
+  by_provider: Record<string, number>
+  by_format: Record<string, number>
+  by_language: Record<string, number>
+  last_24h: number
+  last_7d: number
+}
+
+export interface EpisodeHistoryEntry {
+  action: 'download' | 'translate'
+  provider_name: string
+  format: string
+  score: number
+  date: string
+  status: string
+  error: string
 }
 
 export interface AppConfig {

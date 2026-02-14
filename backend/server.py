@@ -21,27 +21,77 @@ from auth import init_auth
 from database import (
     get_db, create_job, update_job, get_job, get_jobs,
     get_pending_job_count, record_stat, get_stats_summary,
-    get_all_config_entries, save_config_entry,
+    get_all_config_entries, get_config_entry, save_config_entry,
     get_wanted_items, get_wanted_item, get_wanted_summary,
     update_wanted_status, delete_wanted_item,
     get_provider_cache_stats, get_provider_download_stats,
     clear_provider_cache,
+    add_blacklist_entry, remove_blacklist_entry, clear_blacklist,
+    get_blacklist_entries, get_blacklist_count,
+    get_download_history, get_download_stats,
+    get_series_profile_map, get_series_missing_counts,
+    find_wanted_by_episode, get_episode_history,
+    add_glossary_entry, get_glossary_entries, get_glossary_entry,
+    update_glossary_entry, delete_glossary_entry, search_glossary_terms,
+    add_prompt_preset, get_prompt_presets, get_prompt_preset,
+    get_default_prompt_preset, update_prompt_preset, delete_prompt_preset,
 )
 from translator import translate_file, scan_directory
 from ollama_client import check_ollama_health
 
 settings = get_settings()
 
-logging.basicConfig(
-    level=getattr(logging, settings.log_level.upper(), logging.INFO),
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
+
+logging.basicConfig(level=log_level, format=LOG_FORMAT)
 logger = logging.getLogger(__name__)
 
 # ─── Flask App Setup ──────────────────────────────────────────────────────────
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+
+
+# ─── File + WebSocket Log Handler ─────────────────────────────────────────────
+
+class SocketIOLogHandler(logging.Handler):
+    """Emits log entries to connected WebSocket clients."""
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            socketio.emit("log_entry", {"message": msg})
+        except Exception:
+            pass  # Never break the app because of log emission
+
+
+def _setup_logging():
+    """Set up file handler and WebSocket handler on the root logger."""
+    root = logging.getLogger()
+
+    # File handler
+    log_file = settings.log_file
+    try:
+        log_dir = os.path.dirname(log_file)
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
+        from logging.handlers import RotatingFileHandler
+        fh = RotatingFileHandler(log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8")
+        fh.setLevel(log_level)
+        fh.setFormatter(logging.Formatter(LOG_FORMAT))
+        root.addHandler(fh)
+    except Exception as e:
+        logger.warning("Could not set up log file %s: %s", log_file, e)
+
+    # WebSocket handler (emits log_entry events to frontend)
+    ws_handler = SocketIOLogHandler()
+    ws_handler.setLevel(log_level)
+    ws_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    root.addHandler(ws_handler)
+
+
+_setup_logging()
 
 # Initialize authentication
 init_auth(app)
@@ -440,6 +490,16 @@ def batch_start():
 
             socketio.emit("batch_completed", snapshot)
 
+            try:
+                from notifier import send_notification
+                send_notification(
+                    title="Sublarr: Batch Complete",
+                    body=f"Batch finished: {snapshot['succeeded']} succeeded, {snapshot['failed']} failed, {snapshot['skipped']} skipped",
+                    event_type="batch_complete",
+                )
+            except Exception:
+                pass
+
             if callback_url:
                 _send_callback(callback_url, {
                     "event": "batch_completed",
@@ -545,6 +605,23 @@ def get_config():
     return jsonify(s.get_safe_config())
 
 
+@api.route("/settings/path-mapping/test", methods=["POST"])
+def test_path_mapping():
+    """Test path mapping by mapping a Sonarr/Radarr path to local path."""
+    data = request.get_json() or {}
+    remote_path = data.get("remote_path", "").strip()
+    
+    if not remote_path:
+        return jsonify({"error": "remote_path is required"}), 400
+    
+    mapped = map_path(remote_path)
+    return jsonify({
+        "remote_path": remote_path,
+        "mapped_path": mapped,
+        "exists": os.path.exists(mapped),
+    })
+
+
 @api.route("/config", methods=["PUT"])
 def update_config():
     """Update configuration values and reload settings."""
@@ -563,7 +640,9 @@ def update_config():
             continue
         # Only save known config keys (or all if we can't determine valid keys)
         if not valid_keys or key in valid_keys:
-            save_config_entry(key, str(value))
+            # Sanitize credentials: strip whitespace from API keys and passwords
+            sanitized_value = str(value).strip() if isinstance(value, str) or 'api_key' in key.lower() or 'password' in key.lower() else str(value)
+            save_config_entry(key, sanitized_value)
             saved_keys.append(key)
 
     # Reload settings with ALL DB overrides applied
@@ -575,10 +654,12 @@ def update_config():
     from radarr_client import invalidate_client as _inv_radarr
     from jellyfin_client import invalidate_client as _inv_jellyfin
     from providers import invalidate_manager as _inv_providers
+    from notifier import invalidate_notifier as _inv_notifier
     _inv_sonarr()
     _inv_radarr()
     _inv_jellyfin()
     _inv_providers()
+    _inv_notifier()
     invalidate_scanner()
 
     logger.info("Config updated: %s — settings reloaded", saved_keys)
@@ -597,14 +678,31 @@ def update_config():
 
 @api.route("/library", methods=["GET"])
 def get_library():
-    """Get series/movies with subtitle status."""
+    """Get series/movies with subtitle status, profile assignments, and missing counts."""
     result = {"series": [], "movies": []}
 
     try:
         from sonarr_client import get_sonarr_client
         sonarr = get_sonarr_client()
         if sonarr:
-            result["series"] = sonarr.get_library_info()
+            series_list = sonarr.get_library_info()
+            # Enrich with profile assignments and missing counts
+            profile_map = get_series_profile_map()
+            missing_map = get_series_missing_counts()
+            default_profile = None
+            for s in series_list:
+                sid = s["id"]
+                if sid in profile_map:
+                    s["profile_id"] = profile_map[sid]["profile_id"]
+                    s["profile_name"] = profile_map[sid]["profile_name"]
+                else:
+                    if default_profile is None:
+                        from database import get_default_profile
+                        default_profile = get_default_profile()
+                    s["profile_id"] = default_profile.get("id", 0) if default_profile else 0
+                    s["profile_name"] = default_profile.get("name", "Default") if default_profile else "Default"
+                s["missing_count"] = missing_map.get(sid, 0)
+            result["series"] = series_list
     except Exception as e:
         logger.warning("Failed to get Sonarr library: %s", e)
 
@@ -617,6 +715,160 @@ def get_library():
         logger.warning("Failed to get Radarr library: %s", e)
 
     return jsonify(result)
+
+
+@api.route("/sonarr/instances", methods=["GET"])
+def get_sonarr_instances():
+    """Get all configured Sonarr instances."""
+    from config import get_sonarr_instances
+    instances = get_sonarr_instances()
+    return jsonify(instances)
+
+
+@api.route("/radarr/instances", methods=["GET"])
+def get_radarr_instances():
+    """Get all configured Radarr instances."""
+    from config import get_radarr_instances
+    instances = get_radarr_instances()
+    return jsonify(instances)
+
+
+@api.route("/sonarr/instances/test", methods=["POST"])
+def test_sonarr_instance():
+    """Test connection to a Sonarr instance."""
+    data = request.get_json() or {}
+    url = data.get("url")
+    api_key = data.get("api_key")
+    
+    if not url or not api_key:
+        return jsonify({"error": "url and api_key required"}), 400
+    
+    try:
+        from sonarr_client import SonarrClient
+        client = SonarrClient(url, api_key)
+        is_healthy, message = client.health_check()
+        return jsonify({"healthy": is_healthy, "message": message})
+    except Exception as e:
+        return jsonify({"healthy": False, "message": str(e)}), 500
+
+
+@api.route("/radarr/instances/test", methods=["POST"])
+def test_radarr_instance():
+    """Test connection to a Radarr instance."""
+    data = request.get_json() or {}
+    url = data.get("url")
+    api_key = data.get("api_key")
+    
+    if not url or not api_key:
+        return jsonify({"error": "url and api_key required"}), 400
+    
+    try:
+        from radarr_client import RadarrClient
+        client = RadarrClient(url, api_key)
+        is_healthy, message = client.health_check()
+        return jsonify({"healthy": is_healthy, "message": message})
+    except Exception as e:
+        return jsonify({"healthy": False, "message": str(e)}), 500
+
+
+@api.route("/library/series/<int:series_id>", methods=["GET"])
+def get_series_detail(series_id):
+    """Get detailed series info with episodes and subtitle status."""
+    from sonarr_client import get_sonarr_client
+    from translator import detect_existing_target_for_lang
+    from database import get_series_profile, get_default_profile
+
+    sonarr = get_sonarr_client()
+    if not sonarr:
+        return jsonify({"error": "Sonarr not configured"}), 503
+
+    series = sonarr.get_series_by_id(series_id)
+    if not series:
+        return jsonify({"error": "Series not found"}), 404
+
+    # Get language profile for this series
+    profile = get_series_profile(series_id)
+    if not profile:
+        profile = get_default_profile()
+    target_languages = profile.get("target_languages", [settings.target_language]) if profile else [settings.target_language]
+    target_language_names = profile.get("target_language_names", [settings.target_language_name]) if profile else [settings.target_language_name]
+    profile_name = profile.get("name", "Default") if profile else "Default"
+
+    # Get all episodes
+    episodes_raw = sonarr.get_episodes(series_id)
+
+    episodes = []
+    for ep in episodes_raw:
+        has_file = ep.get("hasFile", False)
+        file_path = None
+        subtitles = {}
+
+        if has_file:
+            ep_file = ep.get("episodeFile")
+            if ep_file:
+                file_path = ep_file.get("path")
+
+            if file_path:
+                mapped = map_path(file_path)
+                for lang in target_languages:
+                    existing = detect_existing_target_for_lang(mapped, lang)
+                    subtitles[lang] = existing or ""
+
+        # Audio language from episode file
+        audio_languages = []
+        ep_file = ep.get("episodeFile")
+        if ep_file:
+            media_info = ep_file.get("mediaInfo", {})
+            audio_lang = media_info.get("audioLanguages", "")
+            if audio_lang:
+                audio_languages = [a.strip() for a in audio_lang.split("/") if a.strip()]
+
+        episodes.append({
+            "id": ep.get("id"),
+            "season": ep.get("seasonNumber", 0),
+            "episode": ep.get("episodeNumber", 0),
+            "title": ep.get("title", ""),
+            "has_file": has_file,
+            "file_path": file_path or "",
+            "subtitles": subtitles,
+            "audio_languages": audio_languages,
+            "monitored": ep.get("monitored", False),
+        })
+
+    # Get poster and fanart
+    poster = ""
+    fanart = ""
+    for img in series.get("images", []):
+        if img.get("coverType") == "poster":
+            poster = img.get("remoteUrl", "")
+        elif img.get("coverType") == "fanart":
+            fanart = img.get("remoteUrl", "")
+
+    # Get tags
+    tag_list = sonarr.get_tags()
+    tag_map = {t["id"]: t["label"] for t in tag_list}
+    tags = [tag_map.get(tid, str(tid)) for tid in series.get("tags", [])]
+
+    return jsonify({
+        "id": series.get("id"),
+        "title": series.get("title", ""),
+        "year": series.get("year"),
+        "path": series.get("path", ""),
+        "poster": poster,
+        "fanart": fanart,
+        "overview": series.get("overview", ""),
+        "status": series.get("status", ""),
+        "season_count": series.get("seasonCount", 0),
+        "episode_count": series.get("episodeCount", 0),
+        "episode_file_count": series.get("episodeFileCount", 0),
+        "tags": tags,
+        "profile_name": profile_name,
+        "target_languages": target_languages,
+        "target_language_names": target_language_names,
+        "source_language": settings.source_language,
+        "source_language_name": settings.source_language_name,
+        "episodes": episodes,
+    })
 
 
 # ─── Provider Endpoints ──────────────────────────────────────────────────────
@@ -717,12 +969,21 @@ def search_providers():
 
 @api.route("/providers/stats", methods=["GET"])
 def provider_stats():
-    """Get cache and download statistics for all providers."""
+    """Get cache, download, and performance statistics for all providers."""
+    from database import get_provider_cache_stats, get_provider_download_stats, get_provider_stats, get_provider_success_rate
+    
     cache_stats = get_provider_cache_stats()
     download_stats = get_provider_download_stats()
+    performance_stats = get_provider_stats()  # All provider stats
+    
+    # Add success rates to performance stats
+    for provider_name in performance_stats:
+        performance_stats[provider_name]["success_rate"] = get_provider_success_rate(provider_name)
+    
     return jsonify({
         "cache": cache_stats,
         "downloads": download_stats,
+        "performance": performance_stats,
     })
 
 
@@ -736,6 +997,90 @@ def clear_cache():
         "status": "cleared",
         "provider": provider_name or "all",
     })
+
+
+# ─── Blacklist Endpoints ─────────────────────────────────────────────────────
+
+
+@api.route("/blacklist", methods=["GET"])
+def list_blacklist():
+    """Get paginated blacklist entries."""
+    page = request.args.get("page", 1, type=int)
+    per_page = min(request.args.get("per_page", 50, type=int), 200)
+    result = get_blacklist_entries(page=page, per_page=per_page)
+    return jsonify(result)
+
+
+@api.route("/blacklist", methods=["POST"])
+def add_to_blacklist():
+    """Add a subtitle to the blacklist."""
+    data = request.get_json() or {}
+    provider_name = data.get("provider_name", "")
+    subtitle_id = data.get("subtitle_id", "")
+
+    if not provider_name or not subtitle_id:
+        return jsonify({"error": "provider_name and subtitle_id are required"}), 400
+
+    entry_id = add_blacklist_entry(
+        provider_name=provider_name,
+        subtitle_id=subtitle_id,
+        language=data.get("language", ""),
+        file_path=data.get("file_path", ""),
+        title=data.get("title", ""),
+        reason=data.get("reason", ""),
+    )
+
+    return jsonify({"status": "added", "id": entry_id}), 201
+
+
+@api.route("/blacklist/<int:entry_id>", methods=["DELETE"])
+def delete_blacklist_entry(entry_id):
+    """Remove a single blacklist entry."""
+    deleted = remove_blacklist_entry(entry_id)
+    if not deleted:
+        return jsonify({"error": "Entry not found"}), 404
+    return jsonify({"status": "deleted", "id": entry_id})
+
+
+@api.route("/blacklist", methods=["DELETE"])
+def clear_all_blacklist():
+    """Clear all blacklist entries. Requires ?confirm=true."""
+    confirm = request.args.get("confirm", "").lower()
+    if confirm != "true":
+        return jsonify({"error": "Add ?confirm=true to clear all entries"}), 400
+
+    count = clear_blacklist()
+    return jsonify({"status": "cleared", "count": count})
+
+
+@api.route("/blacklist/count", methods=["GET"])
+def blacklist_count():
+    """Get blacklist entry count."""
+    return jsonify({"count": get_blacklist_count()})
+
+
+# ─── History Endpoints ───────────────────────────────────────────────────────
+
+
+@api.route("/history", methods=["GET"])
+def list_history():
+    """Get paginated download history."""
+    page = request.args.get("page", 1, type=int)
+    per_page = min(request.args.get("per_page", 50, type=int), 200)
+    provider = request.args.get("provider")
+    language = request.args.get("language")
+
+    result = get_download_history(
+        page=page, per_page=per_page,
+        provider=provider, language=language,
+    )
+    return jsonify(result)
+
+
+@api.route("/history/stats", methods=["GET"])
+def history_stats():
+    """Get aggregated download statistics."""
+    return jsonify(get_download_stats())
 
 
 # ─── Language Profile Endpoints ──────────────────────────────────────────────
@@ -849,6 +1194,166 @@ def assign_profile():
         return jsonify({"error": "type must be 'series' or 'movie'"}), 400
 
     return jsonify({"status": "assigned", "type": item_type, "arr_id": arr_id, "profile_id": profile_id})
+
+
+# ─── Glossary Endpoints ──────────────────────────────────────────────────────
+
+
+@api.route("/glossary", methods=["GET"])
+def list_glossary():
+    """Get glossary entries for a series."""
+    series_id = request.args.get("series_id", type=int)
+    query = request.args.get("query", "").strip()
+    
+    if not series_id:
+        return jsonify({"error": "series_id is required"}), 400
+    
+    if query:
+        entries = search_glossary_terms(series_id, query)
+    else:
+        entries = get_glossary_entries(series_id)
+    
+    return jsonify({"entries": entries, "series_id": series_id})
+
+
+@api.route("/glossary", methods=["POST"])
+def create_glossary_entry():
+    """Create a new glossary entry."""
+    data = request.get_json() or {}
+    series_id = data.get("series_id")
+    source_term = data.get("source_term", "").strip()
+    target_term = data.get("target_term", "").strip()
+    notes = data.get("notes", "").strip()
+    
+    if not series_id:
+        return jsonify({"error": "series_id is required"}), 400
+    if not source_term or not target_term:
+        return jsonify({"error": "source_term and target_term are required"}), 400
+    
+    entry_id = add_glossary_entry(series_id, source_term, target_term, notes)
+    entry = get_glossary_entry(entry_id)
+    return jsonify(entry), 201
+
+
+@api.route("/glossary/<int:entry_id>", methods=["PUT"])
+def update_glossary_entry_endpoint(entry_id):
+    """Update a glossary entry."""
+    entry = get_glossary_entry(entry_id)
+    if not entry:
+        return jsonify({"error": "Entry not found"}), 404
+    
+    data = request.get_json() or {}
+    source_term = data.get("source_term")
+    target_term = data.get("target_term")
+    notes = data.get("notes")
+    
+    updated = update_glossary_entry(
+        entry_id,
+        source_term=source_term,
+        target_term=target_term,
+        notes=notes,
+    )
+    
+    if not updated:
+        return jsonify({"error": "No fields to update"}), 400
+    
+    updated_entry = get_glossary_entry(entry_id)
+    return jsonify(updated_entry)
+
+
+@api.route("/glossary/<int:entry_id>", methods=["DELETE"])
+def delete_glossary_entry_endpoint(entry_id):
+    """Delete a glossary entry."""
+    deleted = delete_glossary_entry(entry_id)
+    if not deleted:
+        return jsonify({"error": "Entry not found"}), 404
+    return jsonify({"status": "deleted", "id": entry_id})
+
+
+# ─── Prompt Presets Endpoints ────────────────────────────────────────────────
+
+
+@api.route("/prompt-presets", methods=["GET"])
+def list_prompt_presets():
+    """Get all prompt presets."""
+    presets = get_prompt_presets()
+    return jsonify({"presets": presets})
+
+
+@api.route("/prompt-presets/default", methods=["GET"])
+def get_default_preset():
+    """Get the default prompt preset."""
+    preset = get_default_prompt_preset()
+    if not preset:
+        return jsonify({"error": "No default preset found"}), 404
+    return jsonify(preset)
+
+
+@api.route("/prompt-presets", methods=["POST"])
+def create_prompt_preset():
+    """Create a new prompt preset."""
+    data = request.get_json() or {}
+    name = data.get("name", "").strip()
+    prompt_template = data.get("prompt_template", "").strip()
+    is_default = data.get("is_default", False)
+    
+    if not name or not prompt_template:
+        return jsonify({"error": "name and prompt_template are required"}), 400
+    
+    preset_id = add_prompt_preset(name, prompt_template, is_default)
+    preset = get_prompt_preset(preset_id)
+    
+    # Reload settings if default preset was created
+    if is_default:
+        from config import reload_settings
+        from database import get_all_config_entries
+        all_overrides = get_all_config_entries()
+        reload_settings(all_overrides)
+    
+    return jsonify(preset), 201
+
+
+@api.route("/prompt-presets/<int:preset_id>", methods=["PUT"])
+def update_prompt_preset_endpoint(preset_id):
+    """Update a prompt preset."""
+    preset = get_prompt_preset(preset_id)
+    if not preset:
+        return jsonify({"error": "Preset not found"}), 404
+    
+    data = request.get_json() or {}
+    name = data.get("name")
+    prompt_template = data.get("prompt_template")
+    is_default = data.get("is_default")
+    
+    updated = update_prompt_preset(
+        preset_id,
+        name=name,
+        prompt_template=prompt_template,
+        is_default=is_default,
+    )
+    
+    if not updated:
+        return jsonify({"error": "No fields to update"}), 400
+    
+    updated_preset = get_prompt_preset(preset_id)
+    
+    # Reload settings if default preset was updated
+    if is_default or preset.get("is_default"):
+        from config import reload_settings
+        from database import get_all_config_entries
+        all_overrides = get_all_config_entries()
+        reload_settings(all_overrides)
+    
+    return jsonify(updated_preset)
+
+
+@api.route("/prompt-presets/<int:preset_id>", methods=["DELETE"])
+def delete_prompt_preset_endpoint(preset_id):
+    """Delete a prompt preset."""
+    deleted = delete_prompt_preset(preset_id)
+    if not deleted:
+        return jsonify({"error": "Preset not found or cannot delete last preset"}), 404
+    return jsonify({"status": "deleted", "id": preset_id})
 
 
 # ─── Wanted Endpoints ────────────────────────────────────────────────────────
@@ -1030,6 +1535,16 @@ def wanted_batch_search():
 
             socketio.emit("wanted_batch_completed", snapshot)
 
+            try:
+                from notifier import send_notification
+                send_notification(
+                    title="Sublarr: Wanted Batch Complete",
+                    body=f"Wanted batch finished: {snapshot.get('succeeded', 0)} found, {snapshot.get('failed', 0)} failed",
+                    event_type="batch_complete",
+                )
+            except Exception:
+                pass
+
     thread = threading.Thread(target=_run_batch, daemon=True)
     thread.start()
 
@@ -1059,10 +1574,92 @@ def wanted_search_all():
     return jsonify({"status": "search_started"}), 202
 
 
+@api.route("/wanted/<int:item_id>/extract", methods=["POST"])
+def extract_embedded_sub(item_id):
+    """Extract an embedded subtitle stream from an MKV file.
+
+    Body: {
+        "stream_index": int,  // Optional: specific stream index
+        "target_language": "de"  // Optional: target language code
+    }
+    """
+    import os
+    from ass_utils import run_ffprobe, select_best_subtitle_stream, extract_subtitle_stream
+    from translator import get_output_path_for_lang
+
+    item = get_wanted_item(item_id)
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+
+    file_path = item.get("file_path")
+    if not file_path or not os.path.exists(file_path):
+        return jsonify({"error": "File not found"}), 404
+
+    if not file_path.lower().endswith(('.mkv', '.mp4', '.m4v')):
+        return jsonify({"error": "File is not a video container (MKV/MP4)"}), 400
+
+    data = request.get_json(silent=True) or {}
+    target_language = data.get("target_language") or item.get("target_language") or settings.target_language
+
+    try:
+        # Get ffprobe data
+        probe_data = run_ffprobe(file_path, use_cache=True)
+
+        # Select stream
+        stream_info = None
+        if data.get("stream_index") is not None:
+            # Use specific stream index
+            stream_index = data["stream_index"]
+            streams = probe_data.get("streams", [])
+            subtitle_streams = [s for s in streams if s.get("codec_type") == "subtitle"]
+            if stream_index < len(subtitle_streams):
+                stream = subtitle_streams[stream_index]
+                stream_info = {
+                    "sub_index": stream_index,
+                    "stream_index": stream.get("index"),
+                    "format": "ass" if stream.get("codec_name", "").lower() in ("ass", "ssa") else "srt",
+                    "language": stream.get("tags", {}).get("language", ""),
+                }
+        else:
+            # Auto-select best stream for target language
+            stream_info = select_best_subtitle_stream(probe_data)
+
+        if not stream_info:
+            return jsonify({"error": "No suitable subtitle stream found"}), 404
+
+        # Determine output path
+        output_path = get_output_path_for_lang(file_path, stream_info["format"], target_language)
+
+        # Extract
+        extract_subtitle_stream(file_path, stream_info, output_path)
+
+        # Update wanted item if ASS was extracted
+        if stream_info["format"] == "ass":
+            from database import delete_wanted_item
+            delete_wanted_item(item_id)
+            socketio.emit("wanted_item_processed", {
+                "wanted_id": item_id,
+                "status": "found",
+                "output_path": output_path,
+                "source": "embedded",
+            })
+
+        return jsonify({
+            "status": "extracted",
+            "output_path": output_path,
+            "format": stream_info["format"],
+            "language": stream_info.get("language", ""),
+        })
+
+    except Exception as e:
+        logger.exception("Failed to extract embedded subtitle: %s", e)
+        return jsonify({"error": str(e)}), 500
+
+
 # ─── Webhook Endpoints ───────────────────────────────────────────────────────
 
 
-def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None):
+def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None, movie_id: int = None):
     """Full webhook automation pipeline: delay -> scan -> search -> translate.
 
     Each step is individually configurable. Emits WebSocket events at each stage.
@@ -1090,6 +1687,15 @@ def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None):
             scan_result = scanner.scan_series(series_id)
             result_info["steps"].append({"scan": scan_result})
             logger.info("Webhook pipeline: scan complete for series %d", series_id)
+        except Exception as e:
+            logger.warning("Webhook pipeline: scan failed: %s", e)
+            result_info["steps"].append({"scan": {"error": str(e)}})
+    elif s.webhook_auto_scan and movie_id:
+        try:
+            scanner = get_scanner()
+            scan_result = scanner.scan_movie(movie_id)
+            result_info["steps"].append({"scan": scan_result})
+            logger.info("Webhook pipeline: scan complete for movie %d", movie_id)
         except Exception as e:
             logger.warning("Webhook pipeline: scan failed: %s", e)
             result_info["steps"].append({"scan": {"error": str(e)}})
@@ -1123,6 +1729,17 @@ def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None):
 
     socketio.emit("webhook_completed", result_info)
     logger.info("Webhook pipeline completed for: %s", file_path)
+
+    # Send notification
+    try:
+        from notifier import send_notification
+        send_notification(
+            title=f"Sublarr: {title}",
+            body=f"Subtitle pipeline completed for {title}",
+            event_type="download",
+        )
+    except Exception:
+        pass
 
 
 @api.route("/webhook/sonarr", methods=["POST"])
@@ -1168,13 +1785,38 @@ def webhook_sonarr():
 
 @api.route("/webhook/radarr", methods=["POST"])
 def webhook_radarr():
-    """Handle Radarr webhook (OnDownload event)."""
+    """Handle Radarr webhook (OnDownload and MovieFileDelete events)."""
     data = request.get_json() or {}
     event_type = data.get("eventType", "")
 
     if event_type == "Test":
         return jsonify({"status": "ok", "message": "Test received"}), 200
 
+    # Handle MovieFileDelete event
+    if event_type == "MovieFileDelete":
+        movie_file = data.get("movieFile", {})
+        file_path = movie_file.get("path", "")
+        movie = data.get("movie", {})
+        title = movie.get("title", "Unknown")
+
+        if file_path:
+            file_path = _map_path(file_path)
+            logger.info("Radarr webhook MovieFileDelete: %s - %s", title, file_path)
+            
+            # Delete wanted items for this file path
+            from database import delete_wanted_items
+            deleted_count = delete_wanted_items([file_path])
+            logger.info("Deleted %d wanted items for deleted movie file: %s", deleted_count, file_path)
+            
+            return jsonify({
+                "status": "deleted",
+                "file_path": file_path,
+                "wanted_items_removed": deleted_count,
+            }), 200
+        else:
+            return jsonify({"status": "ignored", "reason": "No file path in webhook payload"}), 200
+
+    # Handle Download event
     if event_type != "Download":
         return jsonify({"status": "ignored", "event": event_type}), 200
 
@@ -1187,12 +1829,13 @@ def webhook_radarr():
 
     file_path = _map_path(file_path)
     title = movie.get("title", "Unknown")
+    movie_id = movie.get("id")
 
-    logger.info("Radarr webhook: %s - %s", title, file_path)
+    logger.info("Radarr webhook: %s - %s (movie_id=%s)", title, file_path, movie_id)
 
     thread = threading.Thread(
         target=_webhook_auto_pipeline,
-        args=(file_path, title),
+        args=(file_path, title, None, movie_id),
         daemon=True,
     )
     thread.start()
@@ -1204,6 +1847,29 @@ def webhook_radarr():
         "delay_minutes": s.webhook_delay_minutes,
         "auto_pipeline": s.webhook_auto_search,
     }), 202
+
+
+# ─── Notification Endpoints ──────────────────────────────────────────────────
+
+
+@api.route("/notifications/test", methods=["POST"])
+@require_api_key
+def notification_test():
+    """Send a test notification."""
+    from notifier import test_notification
+    data = request.get_json() or {}
+    url = data.get("url")  # Optional: test a specific URL
+    result = test_notification(url=url)
+    status_code = 200 if result["success"] else 500
+    return jsonify(result), status_code
+
+
+@api.route("/notifications/status", methods=["GET"])
+@require_api_key
+def notification_status():
+    """Get notification configuration status."""
+    from notifier import get_notification_status
+    return jsonify(get_notification_status())
 
 
 # ─── Re-Translation Endpoints ────────────────────────────────────────────────
@@ -1342,21 +2008,214 @@ def retranslate_batch():
     }), 202
 
 
+# ─── Onboarding Endpoints ───────────────────────────────────────────────────
+
+
+@api.route("/onboarding/status", methods=["GET"])
+def onboarding_status():
+    """Check if onboarding has been completed."""
+    completed = get_config_entry("onboarding_completed")
+    return jsonify({
+        "completed": completed == "true",
+        "has_sonarr": bool(settings.sonarr_url and settings.sonarr_api_key),
+        "has_radarr": bool(settings.radarr_url and settings.radarr_api_key),
+        "has_ollama": bool(settings.ollama_url),
+        "has_providers": bool(settings.opensubtitles_api_key or settings.jimaku_api_key or settings.subdl_api_key),
+    })
+
+
+@api.route("/onboarding/complete", methods=["POST"])
+@require_api_key
+def onboarding_complete():
+    """Mark onboarding as completed."""
+    save_config_entry("onboarding_completed", "true")
+    return jsonify({"status": "completed"})
+
+
+# ─── Episode Search & History Endpoints ────────────────────────────────────────
+
+
+@api.route("/episodes/<int:episode_id>/search", methods=["POST"])
+def episode_search(episode_id):
+    """Search providers for a specific episode's subtitles.
+
+    Finds or creates a wanted item, then runs provider search.
+    """
+    from sonarr_client import get_sonarr_client
+    from database import get_series_profile, get_default_profile
+    from wanted_search import search_wanted_item
+
+    sonarr = get_sonarr_client()
+    if not sonarr:
+        return jsonify({"error": "Sonarr not configured"}), 503
+
+    episode = sonarr.get_episode_by_id(episode_id)
+    if not episode:
+        return jsonify({"error": "Episode not found"}), 404
+
+    series_id = episode.get("seriesId")
+    profile = get_series_profile(series_id) if series_id else get_default_profile()
+    target_languages = profile.get("target_languages", [settings.target_language]) if profile else [settings.target_language]
+
+    # Use the first target language (primary)
+    target_lang = target_languages[0] if target_languages else settings.target_language
+
+    # Check if wanted item already exists for this episode
+    wanted = find_wanted_by_episode(episode_id, target_lang)
+
+    if not wanted:
+        # Get file path from episode
+        file_path = sonarr.get_episode_file_path(episode_id)
+        if not file_path:
+            return jsonify({"error": "Episode has no file"}), 404
+
+        file_path = _map_path(file_path)
+        series = sonarr.get_series_by_id(series_id) if series_id else None
+        title = series.get("title", "") if series else ""
+        se = f"S{episode.get('seasonNumber', 0):02d}E{episode.get('episodeNumber', 0):02d}"
+
+        # Create a wanted item
+        from database import upsert_wanted_item
+        item_id = upsert_wanted_item(
+            item_type="episode",
+            file_path=file_path,
+            title=title,
+            season_episode=se,
+            sonarr_series_id=series_id,
+            sonarr_episode_id=episode_id,
+            target_language=target_lang,
+        )
+    else:
+        item_id = wanted["id"]
+
+    result = search_wanted_item(item_id)
+    if result.get("error"):
+        return jsonify(result), 400
+    return jsonify(result)
+
+
+@api.route("/episodes/<int:episode_id>/history", methods=["GET"])
+def episode_history(episode_id):
+    """Get download/translation history for a specific episode."""
+    from sonarr_client import get_sonarr_client
+
+    sonarr = get_sonarr_client()
+    if not sonarr:
+        return jsonify({"error": "Sonarr not configured"}), 503
+
+    file_path = sonarr.get_episode_file_path(episode_id)
+    if not file_path:
+        return jsonify({"entries": []})
+
+    mapped = _map_path(file_path)
+    entries = get_episode_history(mapped)
+    return jsonify({"entries": entries})
+
+
+# ─── Job Retry Endpoint ──────────────────────────────────────────────────────
+
+
+@api.route("/jobs/<job_id>/retry", methods=["POST"])
+def retry_job(job_id):
+    """Retry a failed job by creating a new translation job."""
+    job = get_job(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+
+    if job["status"] != "failed":
+        return jsonify({"error": "Only failed jobs can be retried"}), 400
+
+    file_path = job["file_path"]
+    if not os.path.exists(file_path):
+        return jsonify({"error": f"File not found: {file_path}"}), 404
+
+    new_job = create_job(file_path, force=True, arr_context=job.get("arr_context"))
+    thread = threading.Thread(target=_run_job, args=(new_job,), daemon=True)
+    thread.start()
+
+    return jsonify({
+        "status": "queued",
+        "job_id": new_job["id"],
+        "original_job_id": job_id,
+        "file_path": file_path,
+    }), 202
+
+
+# ─── Config Export/Import Endpoints ──────────────────────────────────────────
+
+
+@api.route("/config/export", methods=["GET"])
+def export_config():
+    """Export current configuration as JSON (without secrets)."""
+    s = get_settings()
+    return jsonify(s.get_safe_config())
+
+
+@api.route("/config/import", methods=["POST"])
+def import_config():
+    """Import configuration from JSON. Secrets are skipped for safety."""
+    global settings
+    data = request.get_json() or {}
+    if not data:
+        return jsonify({"error": "No config data provided"}), 400
+
+    valid_keys = set(Settings.model_fields.keys()) if hasattr(Settings, 'model_fields') else set()
+    secret_keys = {"api_key", "sonarr_api_key", "radarr_api_key", "jellyfin_api_key",
+                   "opensubtitles_api_key", "opensubtitles_password",
+                   "jimaku_api_key", "subdl_api_key"}
+
+    imported = []
+    skipped_secrets = []
+
+    for key, value in data.items():
+        if key in secret_keys:
+            skipped_secrets.append(key)
+            continue
+        if str(value) == '***configured***':
+            continue
+        if not valid_keys or key in valid_keys:
+            save_config_entry(key, str(value))
+            imported.append(key)
+
+    # Reload settings
+    all_overrides = get_all_config_entries()
+    settings = reload_settings(all_overrides)
+
+    # Invalidate caches
+    from sonarr_client import invalidate_client as _inv_sonarr
+    from radarr_client import invalidate_client as _inv_radarr
+    from jellyfin_client import invalidate_client as _inv_jellyfin
+    from providers import invalidate_manager as _inv_providers
+    _inv_sonarr()
+    _inv_radarr()
+    _inv_jellyfin()
+    _inv_providers()
+    invalidate_scanner()
+
+    logger.info("Config imported: %s (skipped secrets: %s)", imported, skipped_secrets)
+
+    return jsonify({
+        "status": "imported",
+        "imported_keys": imported,
+        "skipped_secrets": skipped_secrets,
+        "config": settings.get_safe_config(),
+    })
+
+
 # ─── Logs Endpoint ────────────────────────────────────────────────────────────
 
 
 @api.route("/logs", methods=["GET"])
 def get_logs():
     """Get recent log entries."""
-    # Read from log file if available, otherwise return empty
-    log_file = os.environ.get("SUBLARR_LOG_FILE", "/config/sublarr.log")
+    log_file = settings.log_file
     lines = request.args.get("lines", 200, type=int)
     level = request.args.get("level", "").upper()
 
     log_entries = []
     if os.path.exists(log_file):
         try:
-            with open(log_file, "r") as f:
+            with open(log_file, "r", encoding="utf-8") as f:
                 all_lines = f.readlines()
                 recent = all_lines[-lines:] if len(all_lines) > lines else all_lines
                 for line in recent:

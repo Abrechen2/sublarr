@@ -1,95 +1,265 @@
-import { useState } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useLibrary, useLanguageProfiles, useAssignProfile } from '@/hooks/useApi'
-import { Tv, Film, Loader2, Settings } from 'lucide-react'
+import { Tv, Film, Loader2, Settings, ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { SeriesInfo, MovieInfo, LanguageProfile } from '@/lib/types'
 
 type Tab = 'series' | 'movies'
+type SortKey = 'title' | 'missing' | 'episodes'
+type SortDir = 'asc' | 'desc'
+const PAGE_SIZE = 25
 
-function LibraryCard({ item, type, profiles, onAssign }: {
-  item: SeriesInfo | MovieInfo
+function ProgressBar({ current, total }: { current: number; total: number }) {
+  const pct = total > 0 ? (current / total) * 100 : 0
+  const isComplete = current === total && total > 0
+  const isEmpty = total === 0
+
+  const barColor = isEmpty
+    ? 'var(--text-muted)'
+    : isComplete
+      ? 'var(--success)'
+      : 'var(--warning)'
+
+  return (
+    <div className="flex items-center gap-2.5">
+      <div
+        className="flex-1 h-[18px] rounded-sm overflow-hidden relative"
+        style={{ backgroundColor: 'var(--bg-primary)', minWidth: 80 }}
+      >
+        <div
+          className="h-full rounded-sm transition-all duration-500"
+          style={{ width: `${pct}%`, backgroundColor: barColor }}
+        />
+        <span
+          className="absolute inset-0 flex items-center justify-center text-[11px] font-medium"
+          style={{
+            color: pct > 50 ? '#fff' : 'var(--text-secondary)',
+            fontFamily: 'var(--font-mono)',
+            textShadow: pct > 50 ? '0 1px 2px rgba(0,0,0,0.4)' : 'none',
+          }}
+        >
+          {current}/{total}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function MissingBadge({ count }: { count: number }) {
+  const color = count > 5 ? 'var(--error)' : count > 0 ? 'var(--warning)' : 'var(--success)'
+  const bg = count > 5 ? 'var(--error-bg)' : count > 0 ? 'var(--warning-bg)' : 'var(--success-bg)'
+  return (
+    <span
+      className="inline-flex items-center justify-center min-w-[28px] px-1.5 py-0.5 rounded text-[11px] font-bold tabular-nums"
+      style={{ backgroundColor: bg, color, fontFamily: 'var(--font-mono)' }}
+    >
+      {count}
+    </span>
+  )
+}
+
+function SortIcon({ sortKey, currentSort, currentDir }: { sortKey: SortKey; currentSort: SortKey; currentDir: SortDir }) {
+  if (currentSort !== sortKey) return <ArrowUpDown size={11} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+  return currentDir === 'asc'
+    ? <ArrowUp size={11} style={{ color: 'var(--accent)' }} />
+    : <ArrowDown size={11} style={{ color: 'var(--accent)' }} />
+}
+
+function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sortKey, sortDir, onSort }: {
+  items: (SeriesInfo | MovieInfo)[]
   type: Tab
-  profiles?: LanguageProfile[]
-  onAssign?: (arrId: number, profileId: number) => void
+  profiles: LanguageProfile[]
+  onRowClick: (id: number) => void
+  onProfileChange: (seriesId: number, profileId: number) => void
+  sortKey: SortKey
+  sortDir: SortDir
+  onSort: (key: SortKey) => void
 }) {
   const isSeries = type === 'series'
+
   return (
     <div
-      className="rounded-lg overflow-hidden transition-all duration-200 hover:shadow-lg group"
-      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'var(--border-hover)'
-        e.currentTarget.style.transform = 'translateY(-2px)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'var(--border)'
-        e.currentTarget.style.transform = 'translateY(0)'
-      }}
+      className="rounded-lg overflow-hidden"
+      style={{ border: '1px solid var(--border)' }}
     >
-      <div className="aspect-[2/3] relative overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
-        {item.poster ? (
-          <img
-            src={item.poster}
-            alt={item.title}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            {isSeries ? (
-              <Tv size={28} style={{ color: 'var(--text-muted)' }} />
-            ) : (
-              <Film size={28} style={{ color: 'var(--text-muted)' }} />
+      <table className="w-full">
+        <thead>
+          <tr style={{ backgroundColor: 'var(--bg-elevated)' }}>
+            <th
+              className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 cursor-pointer select-none"
+              style={{ color: 'var(--text-secondary)' }}
+              onClick={() => onSort('title')}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                Name <SortIcon sortKey="title" currentSort={sortKey} currentDir={sortDir} />
+              </span>
+            </th>
+            {isSeries && (
+              <th
+                className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 w-20 cursor-pointer select-none"
+                style={{ color: 'var(--text-secondary)' }}
+                onClick={() => onSort('missing')}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  Missing <SortIcon sortKey="missing" currentSort={sortKey} currentDir={sortDir} />
+                </span>
+              </th>
             )}
-          </div>
-        )}
-      </div>
-      <div className="p-2.5">
-        <div className="text-sm font-medium truncate" title={item.title}>
-          {item.title}
-        </div>
-        <div className="flex items-center justify-between mt-1">
-          <span className="text-xs" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-            {item.year || '\u2014'}
-          </span>
-          {isSeries && 'episodes' in item && (
-            <span className="text-xs" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
-              {(item as SeriesInfo).episodes_with_files || 0}/{(item as SeriesInfo).episodes}
-            </span>
-          )}
-          {!isSeries && 'has_file' in item && (
-            <span
-              className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-              style={{
-                backgroundColor: (item as MovieInfo).has_file ? 'var(--success-bg)' : 'var(--error-bg)',
-                color: (item as MovieInfo).has_file ? 'var(--success)' : 'var(--error)',
+            <th
+              className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 w-40"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              Profile
+            </th>
+            <th
+              className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 w-44 cursor-pointer select-none"
+              style={{ color: 'var(--text-secondary)' }}
+              onClick={() => onSort('episodes')}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                {isSeries ? 'Episodes' : 'Status'} <SortIcon sortKey="episodes" currentSort={sortKey} currentDir={sortDir} />
+              </span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr
+              key={item.id}
+              className="transition-colors duration-100 cursor-pointer"
+              style={{ borderTop: '1px solid var(--border)' }}
+              onClick={() => onRowClick(item.id)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = ''
               }}
             >
-              {(item as MovieInfo).has_file ? 'On Disk' : 'Missing'}
-            </span>
-          )}
-        </div>
-        {profiles && profiles.length > 1 && onAssign && (
-          <select
-            className="mt-1.5 w-full text-[10px] px-1.5 py-1 rounded"
-            style={{
-              backgroundColor: 'var(--bg-primary)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-secondary)',
-            }}
-            defaultValue=""
-            onChange={(e) => {
-              if (e.target.value) onAssign(item.id, Number(e.target.value))
-            }}
-          >
-            <option value="">Default Profile</option>
-            {profiles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.target_languages.join(', ')})
-              </option>
-            ))}
-          </select>
+              <td className="px-4 py-2.5">
+                <span
+                  className="text-sm font-medium hover:underline"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  {item.title}
+                </span>
+              </td>
+              {isSeries && (
+                <td className="px-4 py-2.5">
+                  <MissingBadge count={(item as SeriesInfo).missing_count ?? 0} />
+                </td>
+              )}
+              <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                {isSeries && profiles.length > 0 ? (
+                  <select
+                    value={(item as SeriesInfo).profile_id ?? 0}
+                    onChange={(e) => onProfileChange(item.id, Number(e.target.value))}
+                    className="text-xs px-2 py-1 rounded cursor-pointer"
+                    style={{
+                      backgroundColor: 'var(--bg-primary)',
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    {profiles.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {(item as SeriesInfo).profile_name || 'Default'}
+                  </span>
+                )}
+              </td>
+              <td className="px-4 py-2.5">
+                {isSeries && 'episodes' in item ? (
+                  <ProgressBar
+                    current={(item as SeriesInfo).episodes_with_files || 0}
+                    total={(item as SeriesInfo).episodes}
+                  />
+                ) : (
+                  <span
+                    className="text-[10px] px-2 py-0.5 rounded font-medium inline-block"
+                    style={{
+                      backgroundColor: (item as MovieInfo).has_file ? 'var(--success-bg)' : 'var(--error-bg)',
+                      color: (item as MovieInfo).has_file ? 'var(--success)' : 'var(--error)',
+                    }}
+                  >
+                    {(item as MovieInfo).has_file ? 'On Disk' : 'Missing'}
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function Pagination({ page, totalPages, total, pageSize, onPageChange }: {
+  page: number
+  totalPages: number
+  total: number
+  pageSize: number
+  onPageChange: (p: number) => void
+}) {
+  const start = (page - 1) * pageSize + 1
+  const end = Math.min(page * pageSize, total)
+
+  const pages: (number | '...')[] = []
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i)
+  } else {
+    pages.push(1)
+    if (page > 3) pages.push('...')
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) {
+      pages.push(i)
+    }
+    if (page < totalPages - 2) pages.push('...')
+    pages.push(totalPages)
+  }
+
+  return (
+    <div className="flex items-center justify-between flex-wrap gap-3 mt-3">
+      <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+        Show {start} to {end} of {total} entries
+      </span>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onPageChange(page - 1)}
+          disabled={page <= 1}
+          className="p-1.5 rounded-md transition-colors disabled:opacity-30"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          <ChevronLeft size={14} />
+        </button>
+        {pages.map((p, i) =>
+          p === '...' ? (
+            <span key={`dots-${i}`} className="px-1 text-xs" style={{ color: 'var(--text-muted)' }}>...</span>
+          ) : (
+            <button
+              key={p}
+              onClick={() => onPageChange(p as number)}
+              className="min-w-[28px] h-7 rounded-md text-xs font-medium transition-all"
+              style={{
+                backgroundColor: p === page ? 'var(--accent)' : 'var(--bg-surface)',
+                color: p === page ? '#fff' : 'var(--text-secondary)',
+                border: `1px solid ${p === page ? 'var(--accent)' : 'var(--border)'}`,
+              }}
+            >
+              {p}
+            </button>
+          )
         )}
+        <button
+          onClick={() => onPageChange(page + 1)}
+          disabled={page >= totalPages}
+          className="p-1.5 rounded-md transition-colors disabled:opacity-30"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          <ChevronRight size={14} />
+        </button>
       </div>
     </div>
   )
@@ -100,11 +270,59 @@ export function LibraryPage() {
   const { data: profiles } = useLanguageProfiles()
   const assignProfile = useAssignProfile()
   const [activeTab, setActiveTab] = useState<Tab>('series')
+  const [page, setPage] = useState(1)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey>('title')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
   const navigate = useNavigate()
 
-  const handleAssign = (type: 'series' | 'movie', arrId: number, profileId: number) => {
-    assignProfile.mutate({ type, arrId, profileId })
-  }
+  const handleSort = useCallback((key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(key)
+      setSortDir(key === 'missing' ? 'desc' : 'asc')
+    }
+    setPage(1)
+  }, [sortKey])
+
+  const handleProfileChange = useCallback((seriesId: number, profileId: number) => {
+    assignProfile.mutate({ type: 'series', arrId: seriesId, profileId })
+  }, [assignProfile])
+
+  // Filter + sort
+  const processedItems = useMemo(() => {
+    const series = library?.series || []
+    const movies = library?.movies || []
+    let items: (SeriesInfo | MovieInfo)[] = activeTab === 'series' ? [...series] : [...movies]
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      items = items.filter((item) => item.title.toLowerCase().includes(q))
+    }
+
+    // Sort
+    items.sort((a, b) => {
+      let cmp = 0
+      if (sortKey === 'title') {
+        cmp = a.title.localeCompare(b.title)
+      } else if (sortKey === 'missing' && activeTab === 'series') {
+        cmp = ((a as SeriesInfo).missing_count ?? 0) - ((b as SeriesInfo).missing_count ?? 0)
+      } else if (sortKey === 'episodes' && activeTab === 'series') {
+        const aPct = (a as SeriesInfo).episodes > 0
+          ? (a as SeriesInfo).episodes_with_files / (a as SeriesInfo).episodes
+          : 0
+        const bPct = (b as SeriesInfo).episodes > 0
+          ? (b as SeriesInfo).episodes_with_files / (b as SeriesInfo).episodes
+          : 0
+        cmp = aPct - bPct
+      }
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+
+    return items
+  }, [library, activeTab, searchQuery, sortKey, sortDir])
 
   if (isLoading) {
     return (
@@ -116,8 +334,25 @@ export function LibraryPage() {
 
   const series = library?.series || []
   const movies = library?.movies || []
-  const items = activeTab === 'series' ? series : movies
   const isEmpty = series.length === 0 && movies.length === 0
+
+  // Pagination
+  const totalPages = Math.ceil(processedItems.length / PAGE_SIZE)
+  const currentPage = Math.min(page, totalPages || 1)
+  const paginatedItems = processedItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+
+  // Reset page on tab change
+  const handleTabChange = (tab: Tab) => {
+    setActiveTab(tab)
+    setPage(1)
+    setSearchQuery('')
+  }
+
+  const handleRowClick = (id: number) => {
+    if (activeTab === 'series') {
+      navigate(`/library/series/${id}`)
+    }
+  }
 
   if (isEmpty) {
     return (
@@ -151,68 +386,93 @@ export function LibraryPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h1>Library</h1>
-        <div className="flex gap-1.5">
-          <button
-            onClick={() => setActiveTab('series')}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
-            style={{
-              backgroundColor: activeTab === 'series' ? 'var(--accent-bg)' : 'var(--bg-surface)',
-              color: activeTab === 'series' ? 'var(--accent)' : 'var(--text-secondary)',
-              border: `1px solid ${activeTab === 'series' ? 'var(--accent-dim)' : 'var(--border)'}`,
-            }}
-          >
-            <Tv size={12} />
-            Series ({series.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('movies')}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
-            style={{
-              backgroundColor: activeTab === 'movies' ? 'var(--accent-bg)' : 'var(--bg-surface)',
-              color: activeTab === 'movies' ? 'var(--accent)' : 'var(--text-secondary)',
-              border: `1px solid ${activeTab === 'movies' ? 'var(--accent-dim)' : 'var(--border)'}`,
-            }}
-          >
-            <Film size={12} />
-            Movies ({movies.length})
-          </button>
+        <div className="flex items-center gap-3">
+          {/* Search Input */}
+          <div className="relative">
+            <Search
+              size={14}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: 'var(--text-muted)' }}
+            />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1) }}
+              placeholder="Search..."
+              className="pl-8 pr-3 py-1.5 rounded-md text-xs w-48 focus:outline-none transition-all"
+              style={{
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+              }}
+            />
+          </div>
+          {/* Tabs */}
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => handleTabChange('series')}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
+              style={{
+                backgroundColor: activeTab === 'series' ? 'var(--accent-bg)' : 'var(--bg-surface)',
+                color: activeTab === 'series' ? 'var(--accent)' : 'var(--text-secondary)',
+                border: `1px solid ${activeTab === 'series' ? 'var(--accent-dim)' : 'var(--border)'}`,
+              }}
+            >
+              <Tv size={12} />
+              Series ({series.length})
+            </button>
+            <button
+              onClick={() => handleTabChange('movies')}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
+              style={{
+                backgroundColor: activeTab === 'movies' ? 'var(--accent-bg)' : 'var(--bg-surface)',
+                color: activeTab === 'movies' ? 'var(--accent)' : 'var(--text-secondary)',
+                border: `1px solid ${activeTab === 'movies' ? 'var(--accent-dim)' : 'var(--border)'}`,
+              }}
+            >
+              <Film size={12} />
+              Movies ({movies.length})
+            </button>
+          </div>
         </div>
       </div>
 
-      {items.length === 0 ? (
+      {paginatedItems.length === 0 ? (
         <div
           className="rounded-lg p-8 text-center"
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
         >
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            No {activeTab} found. Configure {activeTab === 'series' ? 'Sonarr' : 'Radarr'} in Settings.
+            {searchQuery
+              ? `No results for "${searchQuery}"`
+              : `No ${activeTab} found. Configure ${activeTab === 'series' ? 'Sonarr' : 'Radarr'} in Settings.`}
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-          {activeTab === 'series'
-            ? series.map((item: SeriesInfo) => (
-                <LibraryCard
-                  key={item.id}
-                  item={item}
-                  type="series"
-                  profiles={profiles}
-                  onAssign={(arrId, profileId) => handleAssign('series', arrId, profileId)}
-                />
-              ))
-            : movies.map((item: MovieInfo) => (
-                <LibraryCard
-                  key={item.id}
-                  item={item}
-                  type="movies"
-                  profiles={profiles}
-                  onAssign={(arrId, profileId) => handleAssign('movie', arrId, profileId)}
-                />
-              ))}
-        </div>
+        <>
+          <LibraryTable
+            items={paginatedItems}
+            type={activeTab}
+            profiles={profiles || []}
+            onRowClick={handleRowClick}
+            onProfileChange={handleProfileChange}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSort={handleSort}
+          />
+          {totalPages > 1 && (
+            <Pagination
+              page={currentPage}
+              totalPages={totalPages}
+              total={processedItems.length}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
+            />
+          )}
+        </>
       )}
     </div>
   )

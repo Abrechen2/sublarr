@@ -3,7 +3,16 @@ import { useLogs } from '@/hooks/useApi'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { Pause, Play, Search, ArrowDown } from 'lucide-react'
 
-const LOG_LEVELS = ['ALL', 'DEBUG', 'INFO', 'WARNING', 'ERROR']
+const LOG_LEVELS = ['ALL', 'DEBUG', 'INFO', 'WARNING', 'ERROR'] as const
+const LEVEL_SEVERITY: Record<string, number> = { DEBUG: 0, INFO: 1, WARNING: 2, ERROR: 3 }
+
+function getLineLevel(line: string): string {
+  if (line.includes('[ERROR]')) return 'ERROR'
+  if (line.includes('[WARNING]')) return 'WARNING'
+  if (line.includes('[INFO]')) return 'INFO'
+  if (line.includes('[DEBUG]')) return 'DEBUG'
+  return 'INFO'
+}
 
 export function LogsPage() {
   const [level, setLevel] = useState<string | undefined>()
@@ -12,7 +21,7 @@ export function LogsPage() {
   const [liveEntries, setLiveEntries] = useState<string[]>([])
   const logRef = useRef<HTMLDivElement>(null)
 
-  const { data: logs } = useLogs(500, level)
+  const { data: logs } = useLogs(500)
 
   useWebSocket({
     onLogEntry: (data: unknown) => {
@@ -24,9 +33,12 @@ export function LogsPage() {
   })
 
   const allEntries = [...(logs?.entries || []), ...liveEntries]
-  const filtered = search
-    ? allEntries.filter((e) => e.toLowerCase().includes(search.toLowerCase()))
-    : allEntries
+  const minSeverity = level ? LEVEL_SEVERITY[level] ?? 0 : -1
+  const filtered = allEntries.filter((e) => {
+    if (level && LEVEL_SEVERITY[getLineLevel(e)] < minSeverity) return false
+    if (search && !e.toLowerCase().includes(search.toLowerCase())) return false
+    return true
+  })
 
   useEffect(() => {
     if (autoScroll && logRef.current) {

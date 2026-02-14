@@ -286,15 +286,21 @@ class JimakuProvider(SubtitleProvider):
         """Detect language from filename patterns."""
         name_lower = filename.lower()
 
-        # Common patterns
-        if any(tag in name_lower for tag in [".ja.", ".jpn.", ".japanese.", "_ja_", "_jpn_"]):
-            return "ja"
-        if any(tag in name_lower for tag in [".en.", ".eng.", ".english.", "_en_", "_eng_"]):
-            return "en"
-        if any(tag in name_lower for tag in [".de.", ".deu.", ".ger.", ".german.", "_de_", "_deu_"]):
-            return "de"
+        # Common patterns (check in order of specificity)
+        lang_patterns = {
+            "ja": [".ja.", ".jpn.", ".japanese.", "_ja_", "_jpn_", "[ja]", "[jpn]"],
+            "en": [".en.", ".eng.", ".english.", "_en_", "_eng_", "[en]", "[eng]"],
+            "de": [".de.", ".deu.", ".ger.", ".german.", "_de_", "_deu_", "[de]", "[deu]", "[ger]", ".german"],
+            "fr": [".fr.", ".fra.", ".fre.", ".french.", "_fr_", "[fr]", "[fra]"],
+            "es": [".es.", ".spa.", ".spanish.", "_es_", "[es]", "[spa]"],
+            "zh": [".zh.", ".chi.", ".chinese.", "_zh_", "[zh]", "[chi]"],
+        }
 
-        # Jimaku defaults to Japanese
+        for lang, patterns in lang_patterns.items():
+            if any(tag in name_lower for tag in patterns):
+                return lang
+
+        # Jimaku defaults to Japanese (most content is Japanese audio with English/Japanese subs)
         return "ja"
 
     def download(self, result: SubtitleResult) -> bytes:

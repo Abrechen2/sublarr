@@ -126,6 +126,20 @@ CREATE TABLE IF NOT EXISTS translation_config_history (
     last_used_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS blacklist_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider_name TEXT NOT NULL,
+    subtitle_id TEXT NOT NULL,
+    language TEXT DEFAULT '',
+    file_path TEXT DEFAULT '',
+    title TEXT DEFAULT '',
+    reason TEXT DEFAULT '',
+    added_at TEXT NOT NULL,
+    UNIQUE(provider_name, subtitle_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_blacklist_provider ON blacklist_entries(provider_name, subtitle_id);
+
 CREATE TABLE IF NOT EXISTS language_profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
@@ -149,6 +163,61 @@ CREATE TABLE IF NOT EXISTS movie_language_profiles (
     profile_id INTEGER NOT NULL,
     FOREIGN KEY (profile_id) REFERENCES language_profiles(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS ffprobe_cache (
+    file_path TEXT PRIMARY KEY,
+    mtime REAL NOT NULL,
+    probe_data_json TEXT NOT NULL,
+    cached_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_ffprobe_cache_mtime ON ffprobe_cache(mtime);
+
+CREATE TABLE IF NOT EXISTS glossary_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    series_id INTEGER NOT NULL,
+    source_term TEXT NOT NULL,
+    target_term TEXT NOT NULL,
+    notes TEXT DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_glossary_series_id ON glossary_entries(series_id);
+CREATE INDEX IF NOT EXISTS idx_glossary_source_term ON glossary_entries(source_term);
+
+CREATE TABLE IF NOT EXISTS prompt_presets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    prompt_template TEXT NOT NULL,
+    is_default INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS provider_stats (
+    provider_name TEXT PRIMARY KEY,
+    total_searches INTEGER DEFAULT 0,
+    successful_downloads INTEGER DEFAULT 0,
+    failed_downloads INTEGER DEFAULT 0,
+    avg_score REAL DEFAULT 0,
+    last_success_at TEXT,
+    last_failure_at TEXT,
+    consecutive_failures INTEGER DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_provider_stats_updated ON provider_stats(updated_at);
+
+CREATE TABLE IF NOT EXISTS anidb_mappings (
+    tvdb_id INTEGER PRIMARY KEY,
+    anidb_id INTEGER NOT NULL,
+    series_title TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_anidb_mappings_anidb_id ON anidb_mappings(anidb_id);
 """
 
 
@@ -210,6 +279,10 @@ def _run_migrations(conn):
     columns = {row[1] for row in cursor.fetchall()}
     if "target_language" not in columns:
         conn.execute("ALTER TABLE wanted_items ADD COLUMN target_language TEXT DEFAULT ''")
+    
+    # Add instance_name to wanted_items (for multi-library support)
+    if "instance_name" not in columns:
+        conn.execute("ALTER TABLE wanted_items ADD COLUMN instance_name TEXT DEFAULT ''")
 
     # Create default language profile if none exists
     row = conn.execute("SELECT COUNT(*) FROM language_profiles").fetchone()
@@ -228,6 +301,72 @@ def _run_migrations(conn):
              json.dumps([s.target_language_name]),
              now, now),
         )
+
+    # Check if glossary_entries table exists (migration for existing DBs)
+    try:
+        conn.execute("SELECT 1 FROM glossary_entries LIMIT 1")
+    except sqlite3.OperationalError:
+        # Table doesn't exist, create it
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS glossary_entries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                series_id INTEGER NOT NULL,
+                source_term TEXT NOT NULL,
+                target_term TEXT NOT NULL,
+                notes TEXT DEFAULT '',
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_glossary_series_id ON glossary_entries(series_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_glossary_source_term ON glossary_entries(source_term)")
+        logger.info("Created glossary_entries table")
+
+    # Check if prompt_presets table exists (migration for existing DBs)
+    try:
+        conn.execute("SELECT 1 FROM prompt_presets LIMIT 1")
+    except sqlite3.OperationalError:
+        # Table doesn't exist, create it
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS prompt_presets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                prompt_template TEXT NOT NULL,
+                is_default INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+        logger.info("Created prompt_presets table")
+        
+        # Create default preset from current config
+        from config import get_settings
+        s = get_settings()
+        default_prompt = s.get_prompt_template()
+        now = datetime.utcnow().isoformat()
+        conn.execute(
+            """INSERT INTO prompt_presets (name, prompt_template, is_default, created_at, updated_at)
+               VALUES (?, ?, 1, ?, ?)""",
+            ("Default", default_prompt, now, now),
+        )
+        logger.info("Created default prompt preset")
+
+    # Check if anidb_mappings table exists (migration for existing DBs)
+    try:
+        conn.execute("SELECT 1 FROM anidb_mappings LIMIT 1")
+    except sqlite3.OperationalError:
+        # Table doesn't exist, create it
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS anidb_mappings (
+                tvdb_id INTEGER PRIMARY KEY,
+                anidb_id INTEGER NOT NULL,
+                series_title TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_anidb_mappings_anidb_id ON anidb_mappings(anidb_id)")
+        logger.info("Created anidb_mappings table")
 
 
 # ─── Job Operations ───────────────────────────────────────────────────────────
@@ -507,8 +646,17 @@ def get_all_config_entries() -> dict:
 # ─── Provider Cache Operations ───────────────────────────────────────────────
 
 
-def cache_provider_results(provider_name: str, query_hash: str, results_json: str, ttl_hours: int = 6):
-    """Cache provider search results."""
+def cache_provider_results(provider_name: str, query_hash: str, results_json: str, 
+                          ttl_hours: int = 6, format_filter: str = None):
+    """Cache provider search results.
+    
+    Args:
+        provider_name: Name of the provider
+        query_hash: Hash of the query (should include format_filter if applicable)
+        results_json: JSON-encoded results
+        ttl_hours: Time-to-live in hours (default: 6, configurable via settings)
+        format_filter: Optional format filter for cache key differentiation
+    """
     now = datetime.utcnow()
     expires = now + __import__("datetime").timedelta(hours=ttl_hours)
     db = get_db()
@@ -521,8 +669,17 @@ def cache_provider_results(provider_name: str, query_hash: str, results_json: st
         db.commit()
 
 
-def get_cached_results(provider_name: str, query_hash: str) -> Optional[str]:
-    """Get cached provider results if not expired."""
+def get_cached_results(provider_name: str, query_hash: str, format_filter: str = None) -> Optional[str]:
+    """Get cached provider results if not expired.
+    
+    Args:
+        provider_name: Name of the provider
+        query_hash: Hash of the query (should include format_filter if applicable)
+        format_filter: Optional format filter (for cache key matching)
+    
+    Returns:
+        Cached results JSON string or None
+    """
     now = datetime.utcnow().isoformat()
     db = get_db()
     with _db_lock:
@@ -605,6 +762,165 @@ def record_subtitle_download(provider_name: str, subtitle_id: str, language: str
         db.commit()
 
 
+# ─── Download History Operations ─────────────────────────────────────────────
+
+
+def get_download_history(page: int = 1, per_page: int = 50,
+                         provider: str = None, language: str = None) -> dict:
+    """Get paginated download history with optional filters."""
+    db = get_db()
+    offset = (page - 1) * per_page
+
+    conditions = []
+    params = []
+    if provider:
+        conditions.append("provider_name=?")
+        params.append(provider)
+    if language:
+        conditions.append("language=?")
+        params.append(language)
+
+    where = " WHERE " + " AND ".join(conditions) if conditions else ""
+
+    with _db_lock:
+        count = db.execute(
+            f"SELECT COUNT(*) FROM subtitle_downloads{where}", params
+        ).fetchone()[0]
+        rows = db.execute(
+            f"SELECT * FROM subtitle_downloads{where} ORDER BY downloaded_at DESC LIMIT ? OFFSET ?",
+            params + [per_page, offset],
+        ).fetchall()
+
+    total_pages = max(1, (count + per_page - 1) // per_page)
+    return {
+        "data": [dict(r) for r in rows],
+        "page": page,
+        "per_page": per_page,
+        "total": count,
+        "total_pages": total_pages,
+    }
+
+
+def get_download_stats() -> dict:
+    """Get aggregated download statistics."""
+    db = get_db()
+    with _db_lock:
+        total = db.execute("SELECT COUNT(*) FROM subtitle_downloads").fetchone()[0]
+
+        by_provider = {}
+        for row in db.execute(
+            "SELECT provider_name, COUNT(*) FROM subtitle_downloads GROUP BY provider_name"
+        ).fetchall():
+            by_provider[row[0]] = row[1]
+
+        by_format = {}
+        for row in db.execute(
+            "SELECT format, COUNT(*) FROM subtitle_downloads GROUP BY format"
+        ).fetchall():
+            by_format[row[0] or "unknown"] = row[1]
+
+        by_language = {}
+        for row in db.execute(
+            "SELECT language, COUNT(*) FROM subtitle_downloads GROUP BY language"
+        ).fetchall():
+            by_language[row[0] or "unknown"] = row[1]
+
+        last_24h = db.execute(
+            "SELECT COUNT(*) FROM subtitle_downloads WHERE downloaded_at > datetime('now', '-1 day')"
+        ).fetchone()[0]
+
+        last_7d = db.execute(
+            "SELECT COUNT(*) FROM subtitle_downloads WHERE downloaded_at > datetime('now', '-7 days')"
+        ).fetchone()[0]
+
+    return {
+        "total_downloads": total,
+        "by_provider": by_provider,
+        "by_format": by_format,
+        "by_language": by_language,
+        "last_24h": last_24h,
+        "last_7d": last_7d,
+    }
+
+
+# ─── Blacklist Operations ────────────────────────────────────────────────────
+
+
+def add_blacklist_entry(provider_name: str, subtitle_id: str,
+                        language: str = "", file_path: str = "",
+                        title: str = "", reason: str = "") -> int:
+    """Add a subtitle to the blacklist. Returns the entry ID."""
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    with _db_lock:
+        cursor = db.execute(
+            """INSERT OR IGNORE INTO blacklist_entries
+               (provider_name, subtitle_id, language, file_path, title, reason, added_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (provider_name, subtitle_id, language, file_path, title, reason, now),
+        )
+        db.commit()
+        return cursor.lastrowid or 0
+
+
+def remove_blacklist_entry(entry_id: int) -> bool:
+    """Remove a blacklist entry by ID. Returns True if deleted."""
+    db = get_db()
+    with _db_lock:
+        cursor = db.execute("DELETE FROM blacklist_entries WHERE id=?", (entry_id,))
+        db.commit()
+    return cursor.rowcount > 0
+
+
+def clear_blacklist() -> int:
+    """Remove all blacklist entries. Returns count deleted."""
+    db = get_db()
+    with _db_lock:
+        cursor = db.execute("DELETE FROM blacklist_entries")
+        db.commit()
+    return cursor.rowcount
+
+
+def is_blacklisted(provider_name: str, subtitle_id: str) -> bool:
+    """Check if a subtitle is blacklisted."""
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            "SELECT 1 FROM blacklist_entries WHERE provider_name=? AND subtitle_id=?",
+            (provider_name, subtitle_id),
+        ).fetchone()
+    return row is not None
+
+
+def get_blacklist_entries(page: int = 1, per_page: int = 50) -> dict:
+    """Get paginated blacklist entries."""
+    db = get_db()
+    offset = (page - 1) * per_page
+
+    with _db_lock:
+        count = db.execute("SELECT COUNT(*) FROM blacklist_entries").fetchone()[0]
+        rows = db.execute(
+            "SELECT * FROM blacklist_entries ORDER BY added_at DESC LIMIT ? OFFSET ?",
+            (per_page, offset),
+        ).fetchall()
+
+    total_pages = max(1, (count + per_page - 1) // per_page)
+    return {
+        "data": [dict(r) for r in rows],
+        "page": page,
+        "per_page": per_page,
+        "total": count,
+        "total_pages": total_pages,
+    }
+
+
+def get_blacklist_count() -> int:
+    """Get total number of blacklisted subtitles."""
+    db = get_db()
+    with _db_lock:
+        return db.execute("SELECT COUNT(*) FROM blacklist_entries").fetchone()[0]
+
+
 # ─── Wanted Operations ──────────────────────────────────────────────────────
 
 
@@ -616,7 +932,8 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                        radarr_movie_id: int = None,
                        upgrade_candidate: bool = False,
                        current_score: int = 0,
-                       target_language: str = "") -> int:
+                       target_language: str = "",
+                       instance_name: str = "") -> int:
     """Insert or update a wanted item (matched on file_path + target_language).
 
     Returns the row id.
@@ -647,11 +964,11 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                     """UPDATE wanted_items SET title=?, season_episode=?, existing_sub=?,
                        missing_languages=?, sonarr_series_id=?, sonarr_episode_id=?,
                        radarr_movie_id=?, upgrade_candidate=?, current_score=?,
-                       target_language=?, updated_at=?
+                       target_language=?, instance_name=?, updated_at=?
                        WHERE id=?""",
                     (title, season_episode, existing_sub, langs_json,
                      sonarr_series_id, sonarr_episode_id, radarr_movie_id,
-                     upgrade_int, current_score, target_language, now, row_id),
+                     upgrade_int, current_score, target_language, instance_name, now, row_id),
                 )
             else:
                 db.execute(
@@ -659,11 +976,11 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                        existing_sub=?, missing_languages=?, status='wanted',
                        sonarr_series_id=?, sonarr_episode_id=?, radarr_movie_id=?,
                        upgrade_candidate=?, current_score=?,
-                       target_language=?, updated_at=?
+                       target_language=?, instance_name=?, updated_at=?
                        WHERE id=?""",
                     (item_type, title, season_episode, existing_sub, langs_json,
                      sonarr_series_id, sonarr_episode_id, radarr_movie_id,
-                     upgrade_int, current_score, target_language, now, row_id),
+                     upgrade_int, current_score, target_language, instance_name, now, row_id),
                 )
         else:
             cursor = db.execute(
@@ -671,12 +988,12 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                    (item_type, file_path, title, season_episode, existing_sub,
                     missing_languages, sonarr_series_id, sonarr_episode_id,
                     radarr_movie_id, upgrade_candidate, current_score,
-                    target_language, status, added_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'wanted', ?, ?)""",
+                    target_language, instance_name, status, added_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'wanted', ?, ?)""",
                 (item_type, file_path, title, season_episode, existing_sub,
                  langs_json, sonarr_series_id, sonarr_episode_id,
                  radarr_movie_id, upgrade_int, current_score,
-                 target_language, now, now),
+                 target_language, instance_name, now, now),
             )
             row_id = cursor.lastrowid
         db.commit()
@@ -1210,3 +1527,627 @@ def get_movie_profile_assignments() -> dict[int, int]:
     with _db_lock:
         rows = db.execute("SELECT radarr_movie_id, profile_id FROM movie_language_profiles").fetchall()
     return {row[0]: row[1] for row in rows}
+
+
+def get_series_profile_map() -> dict:
+    """Get all series -> {profile_id, profile_name} map for library enrichment."""
+    db = get_db()
+    with _db_lock:
+        rows = db.execute(
+            """SELECT slp.sonarr_series_id, lp.id, lp.name
+               FROM series_language_profiles slp
+               JOIN language_profiles lp ON slp.profile_id = lp.id"""
+        ).fetchall()
+    return {row[0]: {"profile_id": row[1], "profile_name": row[2]} for row in rows}
+
+
+def get_series_missing_counts() -> dict:
+    """Get wanted item counts per series: {series_id: count}."""
+    db = get_db()
+    with _db_lock:
+        rows = db.execute(
+            """SELECT sonarr_series_id, COUNT(*) as cnt
+               FROM wanted_items
+               WHERE sonarr_series_id IS NOT NULL AND status='wanted'
+               GROUP BY sonarr_series_id"""
+        ).fetchall()
+    return {row[0]: row[1] for row in rows}
+
+
+def find_wanted_by_episode(sonarr_episode_id: int, target_language: str = "") -> Optional[dict]:
+    """Find a wanted item for a specific episode + language."""
+    db = get_db()
+    with _db_lock:
+        if target_language:
+            row = db.execute(
+                "SELECT * FROM wanted_items WHERE sonarr_episode_id=? AND target_language=? LIMIT 1",
+                (sonarr_episode_id, target_language),
+            ).fetchone()
+        else:
+            row = db.execute(
+                "SELECT * FROM wanted_items WHERE sonarr_episode_id=? LIMIT 1",
+                (sonarr_episode_id,),
+            ).fetchone()
+    if not row:
+        return None
+    return _row_to_wanted(row)
+
+
+# ─── FFprobe Cache Operations ────────────────────────────────────────────────
+
+
+def get_ffprobe_cache(file_path: str, mtime: float) -> Optional[dict]:
+    """Get cached ffprobe data if file hasn't changed (mtime matches)."""
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            "SELECT probe_data_json FROM ffprobe_cache WHERE file_path=? AND mtime=?",
+            (file_path, mtime),
+        ).fetchone()
+    if row:
+        try:
+            return json.loads(row[0])
+        except json.JSONDecodeError:
+            return None
+    return None
+
+
+def set_ffprobe_cache(file_path: str, mtime: float, probe_data: dict):
+    """Cache ffprobe data for a file."""
+    now = datetime.utcnow().isoformat()
+    probe_json = json.dumps(probe_data)
+    db = get_db()
+    with _db_lock:
+        db.execute(
+            """INSERT OR REPLACE INTO ffprobe_cache (file_path, mtime, probe_data_json, cached_at)
+               VALUES (?, ?, ?, ?)""",
+            (file_path, mtime, probe_json, now),
+        )
+        db.commit()
+
+
+def clear_ffprobe_cache(file_path: str = None):
+    """Clear ffprobe cache. If file_path is given, only clear that entry."""
+    db = get_db()
+    with _db_lock:
+        if file_path:
+            db.execute("DELETE FROM ffprobe_cache WHERE file_path=?", (file_path,))
+        else:
+            db.execute("DELETE FROM ffprobe_cache")
+        db.commit()
+
+
+def get_episode_history(file_path: str) -> list:
+    """Get combined download + job history for a file path."""
+    db = get_db()
+    results = []
+
+    # Get subtitle downloads matching the file path (directory-based match)
+    # Match on the directory path since subtitle files share the base name
+    base = file_path.rsplit('.', 1)[0] if '.' in file_path else file_path
+    like_pattern = base + "%"
+
+    with _db_lock:
+        # Subtitle downloads
+        dl_rows = db.execute(
+            """SELECT 'download' as action, provider_name, subtitle_id, language,
+                      format, file_path, score, downloaded_at as date
+               FROM subtitle_downloads
+               WHERE file_path LIKE ?
+               ORDER BY downloaded_at DESC LIMIT 50""",
+            (like_pattern,),
+        ).fetchall()
+        for r in dl_rows:
+            results.append({
+                "action": "download",
+                "provider_name": r[1],
+                "format": r[4],
+                "score": r[6],
+                "date": r[7],
+                "status": "completed",
+                "error": "",
+            })
+
+        # Translation jobs
+        job_rows = db.execute(
+            """SELECT 'translate' as action, file_path, source_format, status,
+                      error, created_at as date, config_hash
+               FROM jobs
+               WHERE file_path LIKE ?
+               ORDER BY created_at DESC LIMIT 50""",
+            (like_pattern,),
+        ).fetchall()
+        for r in job_rows:
+            results.append({
+                "action": "translate",
+                "provider_name": "",
+                "format": r[2] or "",
+                "score": 0,
+                "date": r[5],
+                "status": r[3],
+                "error": r[4] or "",
+            })
+
+    # Sort combined results by date descending
+    results.sort(key=lambda x: x["date"], reverse=True)
+    return results[:50]
+
+
+# ─── Glossary Operations ──────────────────────────────────────────────────────
+
+
+def add_glossary_entry(series_id: int, source_term: str, target_term: str, notes: str = "") -> int:
+    """Add a new glossary entry for a series. Returns the entry ID."""
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    with _db_lock:
+        cursor = db.execute(
+            """INSERT INTO glossary_entries (series_id, source_term, target_term, notes, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (series_id, source_term.strip(), target_term.strip(), notes.strip(), now, now),
+        )
+        db.commit()
+        return cursor.lastrowid
+
+
+def get_glossary_entries(series_id: int) -> list[dict]:
+    """Get all glossary entries for a series."""
+    db = get_db()
+    with _db_lock:
+        rows = db.execute(
+            """SELECT * FROM glossary_entries
+               WHERE series_id=?
+               ORDER BY source_term ASC, created_at ASC""",
+            (series_id,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_glossary_for_series(series_id: int) -> list[dict]:
+    """Get glossary entries for a series, optimized for translation pipeline.
+    
+    Returns list of {source_term, target_term} dicts, limited to 15 most recent entries.
+    """
+    db = get_db()
+    with _db_lock:
+        rows = db.execute(
+            """SELECT source_term, target_term FROM glossary_entries
+               WHERE series_id=?
+               ORDER BY updated_at DESC, created_at DESC
+               LIMIT 15""",
+            (series_id,),
+        ).fetchall()
+    return [{"source_term": r[0], "target_term": r[1]} for r in rows]
+
+
+def get_glossary_entry(entry_id: int) -> Optional[dict]:
+    """Get a single glossary entry by ID."""
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            "SELECT * FROM glossary_entries WHERE id=?", (entry_id,)
+        ).fetchone()
+    if not row:
+        return None
+    return dict(row)
+
+
+def update_glossary_entry(entry_id: int, source_term: str = None, target_term: str = None, notes: str = None) -> bool:
+    """Update a glossary entry. Returns True if updated."""
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    
+    updates = []
+    params = []
+    
+    if source_term is not None:
+        updates.append("source_term=?")
+        params.append(source_term.strip())
+    if target_term is not None:
+        updates.append("target_term=?")
+        params.append(target_term.strip())
+    if notes is not None:
+        updates.append("notes=?")
+        params.append(notes.strip())
+    
+    if not updates:
+        return False
+    
+    updates.append("updated_at=?")
+    params.append(now)
+    params.append(entry_id)
+    
+    with _db_lock:
+        cursor = db.execute(
+            f"UPDATE glossary_entries SET {', '.join(updates)} WHERE id=?",
+            params,
+        )
+        db.commit()
+    return cursor.rowcount > 0
+
+
+def delete_glossary_entry(entry_id: int) -> bool:
+    """Delete a glossary entry. Returns True if deleted."""
+    db = get_db()
+    with _db_lock:
+        cursor = db.execute("DELETE FROM glossary_entries WHERE id=?", (entry_id,))
+        db.commit()
+    return cursor.rowcount > 0
+
+
+def delete_glossary_entries_for_series(series_id: int) -> int:
+    """Delete all glossary entries for a series. Returns count deleted."""
+    db = get_db()
+    with _db_lock:
+        cursor = db.execute("DELETE FROM glossary_entries WHERE series_id=?", (series_id,))
+        db.commit()
+    return cursor.rowcount
+
+
+def search_glossary_terms(series_id: int, query: str) -> list[dict]:
+    """Search glossary entries by source or target term (case-insensitive)."""
+    db = get_db()
+    search_pattern = f"%{query}%"
+    with _db_lock:
+        rows = db.execute(
+            """SELECT * FROM glossary_entries
+               WHERE series_id=? AND (source_term LIKE ? OR target_term LIKE ?)
+               ORDER BY source_term ASC""",
+            (series_id, search_pattern, search_pattern),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ─── Prompt Presets Operations ──────────────────────────────────────────────
+
+
+def add_prompt_preset(name: str, prompt_template: str, is_default: bool = False) -> int:
+    """Add a new prompt preset. Returns the preset ID."""
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    
+    # If this is set as default, unset other defaults
+    if is_default:
+        with _db_lock:
+            db.execute("UPDATE prompt_presets SET is_default=0 WHERE is_default=1")
+            db.commit()
+    
+    with _db_lock:
+        cursor = db.execute(
+            """INSERT INTO prompt_presets (name, prompt_template, is_default, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (name.strip(), prompt_template.strip(), 1 if is_default else 0, now, now),
+        )
+        db.commit()
+        return cursor.lastrowid
+
+
+def get_prompt_presets() -> list[dict]:
+    """Get all prompt presets."""
+    db = get_db()
+    with _db_lock:
+        rows = db.execute(
+            """SELECT * FROM prompt_presets
+               ORDER BY is_default DESC, name ASC"""
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_prompt_preset(preset_id: int) -> Optional[dict]:
+    """Get a single prompt preset by ID."""
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            "SELECT * FROM prompt_presets WHERE id=?", (preset_id,)
+        ).fetchone()
+    if not row:
+        return None
+    return dict(row)
+
+
+def get_default_prompt_preset() -> Optional[dict]:
+    """Get the default prompt preset."""
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            "SELECT * FROM prompt_presets WHERE is_default=1 LIMIT 1"
+        ).fetchone()
+    if not row:
+        return None
+    return dict(row)
+
+
+def update_prompt_preset(preset_id: int, name: str = None, prompt_template: str = None, is_default: bool = None) -> bool:
+    """Update a prompt preset. Returns True if updated."""
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    
+    # If setting as default, unset other defaults
+    if is_default:
+        with _db_lock:
+            db.execute("UPDATE prompt_presets SET is_default=0 WHERE is_default=1 AND id!=?", (preset_id,))
+            db.commit()
+    
+    updates = []
+    params = []
+    
+    if name is not None:
+        updates.append("name=?")
+        params.append(name.strip())
+    if prompt_template is not None:
+        updates.append("prompt_template=?")
+        params.append(prompt_template.strip())
+    if is_default is not None:
+        updates.append("is_default=?")
+        params.append(1 if is_default else 0)
+    
+    if not updates:
+        return False
+    
+    updates.append("updated_at=?")
+    params.append(now)
+    params.append(preset_id)
+    
+    with _db_lock:
+        cursor = db.execute(
+            f"UPDATE prompt_presets SET {', '.join(updates)} WHERE id=?",
+            params,
+        )
+        db.commit()
+    return cursor.rowcount > 0
+
+
+def delete_prompt_preset(preset_id: int) -> bool:
+    """Delete a prompt preset. Returns True if deleted. Cannot delete if it's the only preset."""
+    db = get_db()
+    with _db_lock:
+        # Check if it's the only preset
+        count = db.execute("SELECT COUNT(*) FROM prompt_presets").fetchone()[0]
+        if count <= 1:
+            return False
+        
+        cursor = db.execute("DELETE FROM prompt_presets WHERE id=?", (preset_id,))
+        db.commit()
+    return cursor.rowcount > 0
+
+
+# ─── Provider Statistics Operations ─────────────────────────────────────────────
+
+
+def update_provider_stats(provider_name: str, success: bool, score: int = 0):
+    """Update provider statistics after a search/download attempt.
+    
+    Args:
+        provider_name: Name of the provider
+        success: True if download was successful, False otherwise
+        score: Score of the downloaded subtitle (0 if failed)
+    """
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    with _db_lock:
+        # Get existing stats or create new entry
+        row = db.execute(
+            "SELECT * FROM provider_stats WHERE provider_name=?", (provider_name,)
+        ).fetchone()
+        
+        if row:
+            # Update existing stats
+            stats = dict(row)
+            total_searches = stats["total_searches"] + 1
+            successful_downloads = stats["successful_downloads"] + (1 if success else 0)
+            failed_downloads = stats["failed_downloads"] + (0 if success else 1)
+            consecutive_failures = 0 if success else (stats["consecutive_failures"] + 1)
+            
+            # Calculate new average score
+            if success and score > 0:
+                total_score = stats["avg_score"] * stats["successful_downloads"] + score
+                avg_score = total_score / successful_downloads if successful_downloads > 0 else 0
+            else:
+                avg_score = stats["avg_score"]
+            
+            last_success_at = now if success else stats["last_success_at"]
+            last_failure_at = now if not success else stats["last_failure_at"]
+            
+            db.execute(
+                """UPDATE provider_stats SET
+                   total_searches=?, successful_downloads=?, failed_downloads=?,
+                   avg_score=?, last_success_at=?, last_failure_at=?,
+                   consecutive_failures=?, updated_at=?
+                   WHERE provider_name=?""",
+                (total_searches, successful_downloads, failed_downloads,
+                 avg_score, last_success_at, last_failure_at,
+                 consecutive_failures, now, provider_name),
+            )
+        else:
+            # Create new stats entry
+            successful_downloads = 1 if success else 0
+            failed_downloads = 0 if success else 1
+            avg_score = score if success else 0
+            consecutive_failures = 0 if success else 1
+            
+            db.execute(
+                """INSERT INTO provider_stats
+                   (provider_name, total_searches, successful_downloads, failed_downloads,
+                    avg_score, last_success_at, last_failure_at, consecutive_failures, updated_at)
+                   VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?)""",
+                (provider_name, successful_downloads, failed_downloads,
+                 avg_score, now if success else None, now if not success else None,
+                 consecutive_failures, now),
+            )
+        db.commit()
+
+
+def get_provider_stats(provider_name: str = None) -> dict:
+    """Get provider statistics.
+    
+    Args:
+        provider_name: Optional provider name to get stats for specific provider.
+                      If None, returns stats for all providers.
+    
+    Returns:
+        Dict with provider stats. If provider_name is None, returns dict keyed by provider_name.
+    """
+    db = get_db()
+    with _db_lock:
+        if provider_name:
+            row = db.execute(
+                "SELECT * FROM provider_stats WHERE provider_name=?", (provider_name,)
+            ).fetchone()
+            if not row:
+                return {}
+            return dict(row)
+        else:
+            rows = db.execute("SELECT * FROM provider_stats").fetchall()
+            return {row["provider_name"]: dict(row) for row in rows}
+
+
+def get_provider_success_rate(provider_name: str) -> float:
+    """Get success rate for a provider (0.0 to 1.0).
+    
+    Args:
+        provider_name: Name of the provider
+    
+    Returns:
+        Success rate as float between 0.0 and 1.0, or 0.0 if no stats available
+    """
+    stats = get_provider_stats(provider_name)
+    if not stats or stats.get("total_searches", 0) == 0:
+        return 0.0
+    
+    total = stats["total_searches"]
+    successful = stats.get("successful_downloads", 0)
+    return successful / total if total > 0 else 0.0
+
+
+# ─── AniDB Mapping Operations ──────────────────────────────────────────────────
+
+
+def get_anidb_mapping(tvdb_id: int) -> Optional[int]:
+    """Get cached AniDB ID for a TVDB ID.
+    
+    Args:
+        tvdb_id: TVDB series ID
+    
+    Returns:
+        AniDB ID as int, or None if not found or expired
+    """
+    from config import get_settings
+    settings = get_settings()
+    
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            "SELECT anidb_id, last_used FROM anidb_mappings WHERE tvdb_id=?",
+            (tvdb_id,),
+        ).fetchone()
+    
+    if not row:
+        return None
+    
+    # Check if cache entry is still valid (within TTL)
+    cache_ttl_days = settings.anidb_cache_ttl_days
+    if cache_ttl_days > 0:
+        try:
+            last_used = datetime.fromisoformat(row[1])
+            age_days = (datetime.utcnow() - last_used).days
+            if age_days > cache_ttl_days:
+                logger.debug("AniDB mapping for TVDB %d expired (age: %d days)", tvdb_id, age_days)
+                return None
+        except (ValueError, TypeError):
+            # Invalid timestamp, treat as expired
+            return None
+    
+    # Update last_used timestamp
+    now = datetime.utcnow().isoformat()
+    with _db_lock:
+        db.execute(
+            "UPDATE anidb_mappings SET last_used=? WHERE tvdb_id=?",
+            (now, tvdb_id),
+        )
+        db.commit()
+    
+    return row[0]
+
+
+def save_anidb_mapping(tvdb_id: int, anidb_id: int, series_title: str = ""):
+    """Save or update an AniDB mapping in the cache.
+    
+    Args:
+        tvdb_id: TVDB series ID
+        anidb_id: AniDB series ID
+        series_title: Optional series title for reference
+    """
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    with _db_lock:
+        # Check if mapping already exists
+        existing = db.execute(
+            "SELECT anidb_id FROM anidb_mappings WHERE tvdb_id=?",
+            (tvdb_id,),
+        ).fetchone()
+        
+        if existing:
+            # Update existing mapping
+            db.execute(
+                """UPDATE anidb_mappings 
+                   SET anidb_id=?, series_title=?, last_used=?
+                   WHERE tvdb_id=?""",
+                (anidb_id, series_title, now, tvdb_id),
+            )
+        else:
+            # Insert new mapping
+            db.execute(
+                """INSERT INTO anidb_mappings (tvdb_id, anidb_id, series_title, created_at, last_used)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (tvdb_id, anidb_id, series_title, now, now),
+            )
+        db.commit()
+    logger.debug("Saved AniDB mapping: TVDB %d → AniDB %d", tvdb_id, anidb_id)
+
+
+def cleanup_old_anidb_mappings(days: int = 90):
+    """Remove AniDB mappings older than specified days.
+    
+    Args:
+        days: Number of days to keep (default: 90)
+    
+    Returns:
+        Number of mappings deleted
+    """
+    cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+    db = get_db()
+    with _db_lock:
+        cursor = db.execute(
+            "DELETE FROM anidb_mappings WHERE last_used < ?",
+            (cutoff,),
+        )
+        db.commit()
+    deleted = cursor.rowcount
+    if deleted > 0:
+        logger.info("Cleaned up %d old AniDB mappings (older than %d days)", deleted, days)
+    return deleted
+
+
+def get_anidb_mapping_stats() -> dict:
+    """Get statistics about AniDB mappings cache.
+    
+    Returns:
+        Dict with total mappings, oldest entry, newest entry
+    """
+    db = get_db()
+    with _db_lock:
+        total = db.execute("SELECT COUNT(*) FROM anidb_mappings").fetchone()[0]
+        
+        oldest = db.execute(
+            "SELECT created_at FROM anidb_mappings ORDER BY created_at ASC LIMIT 1"
+        ).fetchone()
+        
+        newest = db.execute(
+            "SELECT created_at FROM anidb_mappings ORDER BY created_at DESC LIMIT 1"
+        ).fetchone()
+    
+    return {
+        "total_mappings": total,
+        "oldest_entry": oldest[0] if oldest else None,
+        "newest_entry": newest[0] if newest else None,
+    }

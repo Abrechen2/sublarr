@@ -49,7 +49,7 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
         if series_id and episode_id:
             try:
                 from sonarr_client import get_sonarr_client
-                sonarr = get_sonarr_client()
+                sonarr = get_sonarr_client(instance_name=wanted_item.get("instance_name"))
                 if sonarr:
                     meta = sonarr.get_episode_metadata(series_id, episode_id)
                     if meta:
@@ -60,6 +60,8 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
                         query.episode = meta.get("episode")
                         query.imdb_id = meta.get("imdb_id", "")
                         query.tvdb_id = meta.get("tvdb_id")
+                        query.anidb_id = meta.get("anidb_id")
+                        query.anilist_id = meta.get("anilist_id")
             except Exception as e:
                 logger.warning("Failed to get Sonarr metadata for wanted %d: %s",
                                wanted_item["id"], e)
@@ -70,13 +72,15 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
         if movie_id:
             try:
                 from radarr_client import get_radarr_client
-                radarr = get_radarr_client()
+                radarr = get_radarr_client(instance_name=wanted_item.get("instance_name"))
                 if radarr:
                     meta = radarr.get_movie_metadata(movie_id)
                     if meta:
                         query.title = meta.get("title", "")
                         query.year = meta.get("year")
                         query.imdb_id = meta.get("imdb_id", "")
+                        query.tmdb_id = meta.get("tmdb_id")
+                        query.genres = meta.get("genres", [])
             except Exception as e:
                 logger.warning("Failed to get Radarr metadata for wanted %d: %s",
                                wanted_item["id"], e)
@@ -84,8 +88,29 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
     return query
 
 
+def _get_priority_key(result, target_lang, source_lang):
+    """Calculate priority: target.ass=0, source.ass=1, target.srt=2, source.srt=3"""
+    is_target = result["language"] == target_lang
+    is_ass = result["format"] == "ass"
+    
+    if is_target and is_ass:
+        return (0, -result["score"])  # Highest priority: target.ass
+    elif not is_target and is_ass:
+        return (1, -result["score"])  # Second priority: source.ass
+    elif is_target and not is_ass:
+        return (2, -result["score"])  # Third priority: target.srt
+    else:
+        return (3, -result["score"])  # Lowest priority: source.srt
+
+
 def search_wanted_item(item_id: int) -> dict:
     """Search providers for a single wanted item.
+
+    Priority order:
+    1. target_language ASS (e.g. de.ass) - absolute priority
+    2. source_language ASS (e.g. en.ass) - for LLM translation
+    3. target_language SRT (e.g. de.srt)
+    4. source_language SRT (e.g. en.srt) - for LLM translation
 
     Returns:
         dict: {wanted_id, target_results, source_results}
@@ -97,28 +122,51 @@ def search_wanted_item(item_id: int) -> dict:
     settings = get_settings()
     manager = get_provider_manager()
     item_lang = item.get("target_language") or settings.target_language
+    source_lang = settings.source_language
 
-    # Build query for target language ASS
-    query = build_query_from_wanted(item)
-    query.languages = [item_lang]
+    # Build queries
+    target_query = build_query_from_wanted(item)
+    target_query.languages = [item_lang]
+    
+    source_query = build_query_from_wanted(item)
+    source_query.languages = [source_lang]
 
-    target_results = []
+    all_results = []
+
+    # Search 1: target_language ASS (Priority 1)
     try:
-        results = manager.search(query, format_filter=SubtitleFormat.ASS)
-        target_results = [_result_to_dict(r) for r in results[:20]]
+        results = manager.search(target_query, format_filter=SubtitleFormat.ASS)
+        all_results.extend([_result_to_dict(r) for r in results[:20]])
     except Exception as e:
         logger.warning("Target ASS search failed for wanted %d: %s", item_id, e)
 
-    # Build query for source language (for translation)
-    source_query = build_query_from_wanted(item)
-    source_query.languages = [settings.source_language]
-
-    source_results = []
+    # Search 2: source_language ASS (Priority 2)
     try:
-        results = manager.search(source_query)
-        source_results = [_result_to_dict(r) for r in results[:20]]
+        results = manager.search(source_query, format_filter=SubtitleFormat.ASS)
+        all_results.extend([_result_to_dict(r) for r in results[:20]])
     except Exception as e:
-        logger.warning("Source sub search failed for wanted %d: %s", item_id, e)
+        logger.warning("Source ASS search failed for wanted %d: %s", item_id, e)
+
+    # Search 3: target_language SRT (Priority 3)
+    try:
+        results = manager.search(target_query, format_filter=SubtitleFormat.SRT)
+        all_results.extend([_result_to_dict(r) for r in results[:20]])
+    except Exception as e:
+        logger.warning("Target SRT search failed for wanted %d: %s", item_id, e)
+
+    # Search 4: source_language SRT (Priority 4)
+    try:
+        results = manager.search(source_query, format_filter=SubtitleFormat.SRT)
+        all_results.extend([_result_to_dict(r) for r in results[:20]])
+    except Exception as e:
+        logger.warning("Source SRT search failed for wanted %d: %s", item_id, e)
+
+    # Sort by priority: target.ass > source.ass > target.srt > source.srt
+    all_results.sort(key=lambda r: _get_priority_key(r, item_lang, source_lang))
+
+    # Split into target_results and source_results for API compatibility
+    target_results = [r for r in all_results if r["language"] == item_lang]
+    source_results = [r for r in all_results if r["language"] == source_lang]
 
     # Track the search attempt
     update_wanted_search(item_id)
@@ -166,9 +214,9 @@ def process_wanted_item(item_id: int) -> dict:
 
     is_upgrade = bool(item.get("upgrade_candidate"))
     current_score = item.get("current_score", 0)
-
-    # Step 1: Try to find target language ASS directly from providers
     manager = get_provider_manager()
+
+    # Step 1: Try to find target language ASS directly from providers (Priority 1)
     query = build_query_from_wanted(item)
     query.languages = [item_lang]
 
@@ -231,10 +279,136 @@ def process_wanted_item(item_id: int) -> dict:
     except Exception as e:
         logger.warning("Wanted %d: Direct target ASS search failed: %s", item_id, e)
 
-    # Step 2: Fall back to translate_file() which handles all cases (B1/C1-C4)
+    # Step 2: Try to find source language ASS for translation (Priority 2)
+    source_query = build_query_from_wanted(item)
+    source_query.languages = [settings.source_language]
+
+    try:
+        result = manager.search_and_download_best(
+            source_query, format_filter=SubtitleFormat.ASS
+        )
+        if result and result.content:
+            # Download source ASS and translate it
+            from translator import get_output_path_for_lang, _translate_external_ass
+            base = os.path.splitext(file_path)[0]
+            tmp_source_path = f"{base}.{settings.source_language}.ass"
+            manager.save_subtitle(result, tmp_source_path)
+            
+            # Build arr_context for glossary lookup
+            arr_context = {}
+            if item.get("sonarr_series_id"):
+                arr_context["sonarr_series_id"] = item["sonarr_series_id"]
+            if item.get("sonarr_episode_id"):
+                arr_context["sonarr_episode_id"] = item["sonarr_episode_id"]
+            if item.get("radarr_movie_id"):
+                arr_context["radarr_movie_id"] = item["radarr_movie_id"]
+
+            translate_result = _translate_external_ass(
+                file_path, tmp_source_path,
+                target_language=item_lang,
+                target_language_name=settings.target_language_name,
+                arr_context=arr_context if arr_context else None
+            )
+            
+            # Clean up temporary source file
+            try:
+                if os.path.exists(tmp_source_path):
+                    os.remove(tmp_source_path)
+            except Exception:
+                pass
+            
+            if translate_result and translate_result.get("success"):
+                logger.info("Wanted %d: Translated source ASS from provider %s",
+                           item_id, result.provider_name)
+                update_wanted_status(item_id, "found")
+                return {
+                    "wanted_id": item_id,
+                    "status": "found",
+                    "output_path": translate_result.get("output_path"),
+                    "provider": f"{result.provider_name} (translated)",
+                }
+    except Exception as e:
+        logger.warning("Wanted %d: Source ASS search/translation failed: %s", item_id, e)
+
+    # Step 3: Try to find target language SRT directly (Priority 3)
+    try:
+        result = manager.search_and_download_best(
+            query, format_filter=SubtitleFormat.SRT
+        )
+        if result and result.content:
+            from translator import get_output_path_for_lang
+            output_path = get_output_path_for_lang(file_path, "srt", item_lang)
+            manager.save_subtitle(result, output_path)
+            logger.info("Wanted %d: Provider %s delivered target SRT directly",
+                         item_id, result.provider_name)
+            update_wanted_status(item_id, "found")
+            return {
+                "wanted_id": item_id,
+                "status": "found",
+                "output_path": output_path,
+                "provider": result.provider_name,
+            }
+    except Exception as e:
+        logger.warning("Wanted %d: Direct target SRT search failed: %s", item_id, e)
+
+    # Step 4: Try to find source language SRT for translation (Priority 4)
+    try:
+        result = manager.search_and_download_best(
+            source_query, format_filter=SubtitleFormat.SRT
+        )
+        if result and result.content:
+            # Download source SRT and translate it
+            from translator import get_output_path_for_lang, translate_srt_from_file
+            base = os.path.splitext(file_path)[0]
+            tmp_source_path = f"{base}.{settings.source_language}.srt"
+            manager.save_subtitle(result, tmp_source_path)
+            
+            # Build arr_context for glossary lookup
+            arr_context = {}
+            if item.get("sonarr_series_id"):
+                arr_context["sonarr_series_id"] = item["sonarr_series_id"]
+            if item.get("sonarr_episode_id"):
+                arr_context["sonarr_episode_id"] = item["sonarr_episode_id"]
+            if item.get("radarr_movie_id"):
+                arr_context["radarr_movie_id"] = item["radarr_movie_id"]
+
+            translate_result = translate_srt_from_file(
+                file_path, tmp_source_path,
+                source="provider_source_srt",
+                target_language=item_lang,
+                arr_context=arr_context if arr_context else None
+            )
+            
+            # Clean up temporary source file
+            try:
+                if os.path.exists(tmp_source_path):
+                    os.remove(tmp_source_path)
+            except Exception:
+                pass
+            
+            if translate_result and translate_result.get("success"):
+                logger.info("Wanted %d: Translated source SRT from provider %s",
+                           item_id, result.provider_name)
+                update_wanted_status(item_id, "found")
+                return {
+                    "wanted_id": item_id,
+                    "status": "found",
+                    "output_path": translate_result.get("output_path"),
+                    "provider": f"{result.provider_name} (translated)",
+                }
+    except Exception as e:
+        logger.warning("Wanted %d: Source SRT search/translation failed: %s", item_id, e)
+
+    # Step 5: Fall back to translate_file() which handles embedded subtitles (B1/C1-C4)
     try:
         from translator import translate_file
-        translate_result = translate_file(file_path, target_language=item_lang)
+        # Build arr_context from wanted_item for glossary lookup
+        arr_context = {}
+        if item.get("sonarr_series_id"):
+            arr_context["sonarr_series_id"] = item["sonarr_series_id"]
+        if item.get("sonarr_episode_id"):
+            arr_context["sonarr_episode_id"] = item["sonarr_episode_id"]
+        translate_result = translate_file(file_path, target_language=item_lang, arr_context=arr_context if arr_context else None)
 
         if translate_result["success"]:
             if translate_result["stats"].get("skipped"):

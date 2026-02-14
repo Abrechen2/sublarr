@@ -1,9 +1,10 @@
 import axios from 'axios'
 import type {
   HealthStatus, Stats, PaginatedJobs, Job, BatchState,
-  LibraryInfo, AppConfig, PaginatedWanted, WantedSummary,
+  LibraryInfo, SeriesDetail, AppConfig, PaginatedWanted, WantedSummary,
   WantedSearchResponse, WantedBatchStatus, ProviderInfo, ProviderStats,
-  RetranslateStatus, LanguageProfile,
+  RetranslateStatus, LanguageProfile, EpisodeHistoryEntry,
+  PaginatedBlacklist, PaginatedHistory, HistoryStats,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -125,6 +126,11 @@ export async function processWantedItem(itemId: number): Promise<{ status: strin
   return data
 }
 
+export async function extractEmbeddedSub(itemId: number, options?: { stream_index?: number; target_language?: string }): Promise<{ status: string; output_path: string; format: string; language: string }> {
+  const { data } = await api.post(`/wanted/${itemId}/extract`, options)
+  return data
+}
+
 export async function startWantedBatchSearch(itemIds?: number[]): Promise<{ status: string; total_items: number }> {
   const body = itemIds ? { item_ids: itemIds } : {}
   const { data } = await api.post('/wanted/batch-search', body)
@@ -206,10 +212,104 @@ export async function retranslateBatch(): Promise<{ status: string; total: numbe
   return data
 }
 
+// ─── Blacklist ────────────────────────────────────────────────────────────────
+
+export async function getBlacklist(page = 1, perPage = 50): Promise<PaginatedBlacklist> {
+  const { data } = await api.get('/blacklist', { params: { page, per_page: perPage } })
+  return data
+}
+
+export async function addToBlacklist(entry: {
+  provider_name: string; subtitle_id: string;
+  language?: string; file_path?: string; title?: string; reason?: string
+}): Promise<{ status: string; id: number }> {
+  const { data } = await api.post('/blacklist', entry)
+  return data
+}
+
+export async function removeFromBlacklist(id: number): Promise<void> {
+  await api.delete(`/blacklist/${id}`)
+}
+
+export async function clearBlacklist(): Promise<{ status: string; count: number }> {
+  const { data } = await api.delete('/blacklist', { params: { confirm: 'true' } })
+  return data
+}
+
+// ─── History ──────────────────────────────────────────────────────────────────
+
+export async function getHistory(
+  page = 1, perPage = 50, provider?: string, language?: string
+): Promise<PaginatedHistory> {
+  const params: Record<string, unknown> = { page, per_page: perPage }
+  if (provider) params.provider = provider
+  if (language) params.language = language
+  const { data } = await api.get('/history', { params })
+  return data
+}
+
+export async function getHistoryStats(): Promise<HistoryStats> {
+  const { data } = await api.get('/history/stats')
+  return data
+}
+
 // ─── Library ─────────────────────────────────────────────────────────────────
 
 export async function getLibrary(): Promise<LibraryInfo> {
   const { data } = await api.get('/library')
+  return data
+}
+
+export async function getSeriesDetail(seriesId: number): Promise<SeriesDetail> {
+  const { data } = await api.get(`/library/series/${seriesId}`)
+  return data
+}
+
+// ─── Episode Search & History ─────────────────────────────────────────────────
+
+export async function episodeSearch(episodeId: number): Promise<WantedSearchResponse> {
+  const { data } = await api.post(`/episodes/${episodeId}/search`)
+  return data
+}
+
+export async function episodeHistory(episodeId: number): Promise<{ entries: EpisodeHistoryEntry[] }> {
+  const { data } = await api.get(`/episodes/${episodeId}/history`)
+  return data
+}
+
+// ─── Job Retry ───────────────────────────────────────────────────────────────
+
+export async function retryJob(jobId: string): Promise<{ status: string; job_id: string }> {
+  const { data } = await api.post(`/jobs/${jobId}/retry`)
+  return data
+}
+
+// ─── Config Export/Import ────────────────────────────────────────────────────
+
+export async function exportConfig(): Promise<AppConfig> {
+  const { data } = await api.get('/config/export')
+  return data
+}
+
+export async function importConfig(config: Record<string, unknown>): Promise<{ status: string; imported_keys: string[]; skipped_secrets: string[] }> {
+  const { data } = await api.post('/config/import', config)
+  return data
+}
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+export async function testNotification(url?: string): Promise<{ success: boolean; message: string }> {
+  const body = url ? { url } : {}
+  const { data } = await api.post('/notifications/test', body)
+  return data
+}
+
+export async function getNotificationStatus(): Promise<{
+  configured: boolean
+  url_count: number
+  events: Record<string, boolean>
+}> {
+  const { data } = await api.get('/notifications/status')
   return data
 }
 
@@ -219,6 +319,121 @@ export async function getLogs(lines = 200, level?: string) {
   const params: Record<string, unknown> = { lines }
   if (level) params.level = level
   const { data } = await api.get('/logs', { params })
+  return data
+}
+
+// ─── Glossary ─────────────────────────────────────────────────────────────────
+
+export interface GlossaryEntry {
+  id: number
+  series_id: number
+  source_term: string
+  target_term: string
+  notes: string
+  created_at: string
+  updated_at: string
+}
+
+export async function getGlossaryEntries(seriesId: number, query?: string): Promise<{ entries: GlossaryEntry[]; series_id: number }> {
+  const params: Record<string, unknown> = { series_id: seriesId }
+  if (query) params.query = query
+  const { data } = await api.get('/glossary', { params })
+  return data
+}
+
+export async function createGlossaryEntry(entry: { series_id: number; source_term: string; target_term: string; notes?: string }): Promise<GlossaryEntry> {
+  const { data } = await api.post('/glossary', entry)
+  return data
+}
+
+export async function updateGlossaryEntry(entryId: number, entry: { source_term?: string; target_term?: string; notes?: string }): Promise<GlossaryEntry> {
+  const { data } = await api.put(`/glossary/${entryId}`, entry)
+  return data
+}
+
+export async function deleteGlossaryEntry(entryId: number): Promise<void> {
+  await api.delete(`/glossary/${entryId}`)
+}
+
+// ─── Prompt Presets ───────────────────────────────────────────────────────────
+
+export interface PromptPreset {
+  id: number
+  name: string
+  prompt_template: string
+  is_default: number
+  created_at: string
+  updated_at: string
+}
+
+export async function getPromptPresets(): Promise<{ presets: PromptPreset[] }> {
+  const { data } = await api.get('/prompt-presets')
+  return data
+}
+
+export async function getDefaultPromptPreset(): Promise<PromptPreset> {
+  const { data } = await api.get('/prompt-presets/default')
+  return data
+}
+
+export async function createPromptPreset(preset: { name: string; prompt_template: string; is_default?: boolean }): Promise<PromptPreset> {
+  const { data } = await api.post('/prompt-presets', preset)
+  return data
+}
+
+export async function updatePromptPreset(presetId: number, preset: { name?: string; prompt_template?: string; is_default?: boolean }): Promise<PromptPreset> {
+  const { data } = await api.put(`/prompt-presets/${presetId}`, preset)
+  return data
+}
+
+export async function deletePromptPreset(presetId: number): Promise<void> {
+  await api.delete(`/prompt-presets/${presetId}`)
+}
+
+// ─── Instances (Multi-Library) ────────────────────────────────────────────────
+
+export interface InstanceConfig {
+  name: string
+  url: string
+  api_key: string
+  path_mapping?: string
+}
+
+export async function getSonarrInstances(): Promise<InstanceConfig[]> {
+  const { data } = await api.get('/sonarr/instances')
+  return data
+}
+
+export async function getRadarrInstances(): Promise<InstanceConfig[]> {
+  const { data } = await api.get('/radarr/instances')
+  return data
+}
+
+export async function testSonarrInstance(config: { url: string; api_key: string }): Promise<{ healthy: boolean; message: string }> {
+  const { data } = await api.post('/sonarr/instances/test', config)
+  return data
+}
+
+export async function testRadarrInstance(config: { url: string; api_key: string }): Promise<{ healthy: boolean; message: string }> {
+  const { data } = await api.post('/radarr/instances/test', config)
+  return data
+}
+
+// ─── Onboarding ──────────────────────────────────────────────────────────────
+
+export async function getOnboardingStatus(): Promise<{
+  completed: boolean
+  has_sonarr: boolean
+  has_radarr: boolean
+  has_ollama: boolean
+  has_providers: boolean
+}> {
+  const { data } = await api.get('/onboarding/status')
+  return data
+}
+
+export async function completeOnboarding(): Promise<{ status: string }> {
+  const { data } = await api.post('/onboarding/complete')
   return data
 }
 

@@ -37,6 +37,27 @@ ENGLISH_MARKER_WORDS = {
 }
 
 
+def _extract_series_id(arr_context):
+    """Extract Sonarr series_id from arr_context.
+    
+    Returns:
+        int or None: Series ID if found, None otherwise
+    """
+    if not arr_context:
+        return None
+    
+    # Try direct series_id field
+    if arr_context.get("sonarr_series_id"):
+        return arr_context["sonarr_series_id"]
+    
+    # Try series.id (from webhook)
+    series = arr_context.get("series", {})
+    if isinstance(series, dict) and series.get("id"):
+        return series["id"]
+    
+    return None
+
+
 def get_output_path(mkv_path, fmt="ass"):
     """Get the output path for a translated subtitle file."""
     settings = get_settings()
@@ -170,8 +191,28 @@ def _check_translation_quality(original_texts, translated_texts):
     return warnings
 
 
+def validate_translation_output(original_texts, translated_texts, format="ass"):
+    """Validate translation output for common issues.
+
+    Returns (is_valid, errors) tuple.
+    """
+    errors = []
+    if len(translated_texts) != len(original_texts):
+        errors.append(f"Line count mismatch: {len(original_texts)} vs {len(translated_texts)}")
+        return False, errors
+    total_orig = sum(len(t) for t in original_texts)
+    total_trans = sum(len(t) for t in translated_texts)
+    if total_orig > 0 and total_trans > total_orig * 1.5:
+        errors.append(f"Output too long: {total_trans/total_orig:.1f}x")
+    empty = sum(1 for t in translated_texts if not t.strip())
+    if empty > len(translated_texts) * 0.3:
+        errors.append(f"Too many empty lines: {empty}/{len(translated_texts)}")
+    return len(errors) == 0, errors
+
+
 def translate_ass(mkv_path, stream_info, probe_data,
-                  target_language=None, target_language_name=None):
+                  target_language=None, target_language_name=None,
+                  arr_context=None):
     """Translate an ASS subtitle stream to target language .{lang}.ass."""
     output_path = get_output_path_for_lang(mkv_path, "ass", target_language)
     check_disk_space(output_path)
@@ -219,7 +260,14 @@ def translate_ass(mkv_path, stream_info, probe_data,
         if not dialog_texts:
             return _fail_result("No dialog lines found to translate")
 
-        translated_texts = translate_all(dialog_texts)
+        # HI-removal before translation
+        settings = get_settings()
+        if settings.hi_removal_enabled:
+            from hi_remover import remove_hi_from_ass_events
+            dialog_texts = remove_hi_from_ass_events(dialog_texts)
+
+        series_id = _extract_series_id(arr_context)
+        translated_texts = translate_all(dialog_texts, series_id=series_id)
 
         if len(translated_texts) != len(dialog_texts):
             return _fail_result(
@@ -240,7 +288,6 @@ def translate_ass(mkv_path, stream_info, probe_data,
             subs.events[idx].text = restored
             translated_count += 1
 
-        settings = get_settings()
         lang_tag = (target_language or settings.target_language).upper()
         info_title = subs.info.get("Title", "")
         if not info_title.startswith(f"[{lang_tag}]"):
@@ -274,7 +321,7 @@ def translate_ass(mkv_path, stream_info, probe_data,
             os.unlink(tmp_path)
 
 
-def translate_srt_from_stream(mkv_path, stream_info, target_language=None):
+def translate_srt_from_stream(mkv_path, stream_info, target_language=None, arr_context=None):
     """Translate an embedded SRT subtitle stream to target language .{lang}.srt."""
     output_path = get_output_path_for_lang(mkv_path, "srt", target_language)
     check_disk_space(output_path)
@@ -284,7 +331,7 @@ def translate_srt_from_stream(mkv_path, stream_info, target_language=None):
 
     try:
         extract_subtitle_stream(mkv_path, stream_info, tmp_path)
-        return _translate_srt(tmp_path, output_path, source="embedded_srt")
+        return _translate_srt(tmp_path, output_path, source="embedded_srt", arr_context=arr_context)
     except Exception as e:
         logger.exception("SRT stream translation failed for %s", mkv_path)
         return _fail_result(str(e))
@@ -294,19 +341,19 @@ def translate_srt_from_stream(mkv_path, stream_info, target_language=None):
 
 
 def translate_srt_from_file(mkv_path, srt_path, source="external_srt",
-                           target_language=None):
+                           target_language=None, arr_context=None):
     """Translate an external SRT file to target language .{lang}.srt."""
     output_path = get_output_path_for_lang(mkv_path, "srt", target_language)
     check_disk_space(output_path)
 
     try:
-        return _translate_srt(srt_path, output_path, source=source)
+        return _translate_srt(srt_path, output_path, source=source, arr_context=arr_context)
     except Exception as e:
         logger.exception("SRT file translation failed for %s", mkv_path)
         return _fail_result(str(e))
 
 
-def _translate_srt(srt_path, output_path, source="srt"):
+def _translate_srt(srt_path, output_path, source="srt", arr_context=None):
     """Internal: translate an SRT file.
 
     SRT is simpler than ASS: no styles to classify, no override tags.
@@ -333,8 +380,29 @@ def _translate_srt(srt_path, output_path, source="srt"):
     if not dialog_texts:
         return _fail_result("No dialog lines found in SRT")
 
+    # HI-removal before translation
+    if get_settings().hi_removal_enabled:
+        from hi_remover import remove_hi_markers
+        dialog_texts = [remove_hi_markers(t) for t in dialog_texts]
+
     logger.info("SRT lines to translate: %d", len(dialog_texts))
-    translated_texts = translate_all(dialog_texts)
+    # Extract series_id for glossary
+    series_id = _extract_series_id(arr_context)
+    translated_texts = translate_all(dialog_texts, series_id=series_id)
+
+    # Validate translation output
+    validation_errors = []
+    is_valid, validation_errors = validate_translation_output(dialog_texts, translated_texts, format="srt")
+    if not is_valid:
+        logger.warning("SRT translation validation failed: %s", validation_errors)
+        # Retry logic: max 2 retries
+        for retry in range(2):
+            logger.info("Retrying SRT translation (attempt %d/2)...", retry + 1)
+            translated_texts = translate_all(dialog_texts, series_id=series_id)
+            is_valid, validation_errors = validate_translation_output(dialog_texts, translated_texts, format="srt")
+            if is_valid:
+                break
+            logger.warning("SRT retry %d validation failed: %s", retry + 1, validation_errors)
 
     if len(translated_texts) != len(dialog_texts):
         return _fail_result(
@@ -343,6 +411,8 @@ def _translate_srt(srt_path, output_path, source="srt"):
 
     # Quality check
     quality_warnings = _check_translation_quality(dialog_texts, translated_texts)
+    if validation_errors:
+        quality_warnings.extend([f"Validation: {e}" for e in validation_errors])
     for w in quality_warnings:
         logger.warning("Quality: %s", w)
 
@@ -567,11 +637,12 @@ def translate_file(mkv_path, force=False, arr_context=None,
         if best_ass:
             logger.info("Case B2: Upgrading — translating source ASS to target ASS")
             result = translate_ass(mkv_path, best_ass, probe_data,
-                                   target_language=tgt_lang, target_language_name=tgt_name)
+                                   target_language=tgt_lang, target_language_name=tgt_name,
+                                   arr_context=arr_context)
             if result["success"]:
                 result["stats"]["upgrade_from_srt"] = True
                 _record_config_hash_for_result(result, mkv_path)
-                _notify_integrations(arr_context)
+                _notify_integrations(arr_context, file_path=mkv_path)
                 return result
 
         # B3: No upgrade possible
@@ -585,20 +656,21 @@ def translate_file(mkv_path, force=False, arr_context=None,
     if best_stream and best_stream["format"] == "ass":
         logger.info("Case C1: Translating source ASS to target ASS")
         result = translate_ass(mkv_path, best_stream, probe_data,
-                               target_language=tgt_lang, target_language_name=tgt_name)
+                               target_language=tgt_lang, target_language_name=tgt_name,
+                               arr_context=arr_context)
         if result["success"]:
             _record_config_hash_for_result(result, mkv_path)
-            _notify_integrations(arr_context)
+            _notify_integrations(arr_context, file_path=mkv_path)
         return result
 
     # C2: Source SRT embedded → .{lang}.srt
     if best_stream and best_stream["format"] == "srt":
         logger.info("Case C2: Translating embedded source SRT to target SRT")
         result = translate_srt_from_stream(mkv_path, best_stream,
-                                           target_language=tgt_lang)
+                                           target_language=tgt_lang, arr_context=arr_context)
         if result["success"]:
             _record_config_hash_for_result(result, mkv_path)
-            _notify_integrations(arr_context)
+            _notify_integrations(arr_context, file_path=mkv_path)
         return result
 
     # C2b: External source SRT → .{lang}.srt
@@ -606,10 +678,10 @@ def translate_file(mkv_path, force=False, arr_context=None,
     if ext_srt:
         logger.info("Case C2b: Translating external source SRT to target SRT")
         result = translate_srt_from_file(mkv_path, ext_srt,
-                                         target_language=tgt_lang)
+                                         target_language=tgt_lang, arr_context=arr_context)
         if result["success"]:
             _record_config_hash_for_result(result, mkv_path)
-            _notify_integrations(arr_context)
+            _notify_integrations(arr_context, file_path=mkv_path)
         return result
 
     # C3: Provider search for source subtitle → translate
@@ -619,15 +691,17 @@ def translate_file(mkv_path, force=False, arr_context=None,
             logger.info("Case C3: Translating provider source ASS to target ASS")
             result = _translate_external_ass(mkv_path, src_path,
                                              target_language=tgt_lang,
-                                             target_language_name=tgt_name)
+                                             target_language_name=tgt_name,
+                                             arr_context=arr_context)
         else:
             logger.info("Case C3: Translating provider source SRT to target SRT")
             result = translate_srt_from_file(mkv_path, src_path,
                                              source="provider_source_srt",
-                                             target_language=tgt_lang)
+                                             target_language=tgt_lang,
+                                             arr_context=arr_context)
         if result and result["success"]:
             _record_config_hash_for_result(result, mkv_path)
-            _notify_integrations(arr_context)
+            _notify_integrations(arr_context, file_path=mkv_path)
         return result
 
     # C4: Nothing found
@@ -636,7 +710,7 @@ def translate_file(mkv_path, force=False, arr_context=None,
 
 
 def _translate_external_ass(mkv_path, ass_path, target_language=None,
-                           target_language_name=None):
+                           target_language_name=None, arr_context=None):
     """Translate a downloaded external ASS file to target language."""
     output_path = get_output_path_for_lang(mkv_path, "ass", target_language)
     check_disk_space(output_path)
@@ -672,7 +746,31 @@ def _translate_external_ass(mkv_path, ass_path, target_language=None,
         if not dialog_texts:
             return _fail_result("No dialog lines found in external ASS")
 
-        translated_texts = translate_all(dialog_texts)
+        # HI-removal before translation
+        if get_settings().hi_removal_enabled:
+            from hi_remover import remove_hi_from_ass_events
+            dialog_texts = remove_hi_from_ass_events(dialog_texts)
+
+        # Extract series_id for glossary
+        series_id = _extract_series_id(arr_context)
+        translated_texts = translate_all(dialog_texts, series_id=series_id)
+
+        # Validate translation output
+        is_valid, validation_errors = validate_translation_output(dialog_texts, translated_texts, format="ass")
+        if not is_valid:
+            logger.warning("Translation validation failed: %s", validation_errors)
+            # Retry logic: max 2 retries
+            for retry in range(2):
+                logger.info("Retrying translation (attempt %d/2)...", retry + 1)
+                translated_texts = translate_all(dialog_texts, series_id=series_id)
+                is_valid, validation_errors = validate_translation_output(dialog_texts, translated_texts, format="ass")
+                if is_valid:
+                    break
+                logger.warning("Retry %d validation failed: %s", retry + 1, validation_errors)
+            
+            if not is_valid:
+                logger.error("Translation validation failed after retries: %s", validation_errors)
+                # Log for manual review but continue (non-fatal)
 
         if len(translated_texts) != len(dialog_texts):
             return _fail_result(
@@ -680,6 +778,8 @@ def _translate_external_ass(mkv_path, ass_path, target_language=None,
             )
 
         quality_warnings = _check_translation_quality(dialog_texts, translated_texts)
+        if validation_errors:
+            quality_warnings.extend([f"Validation: {e}" for e in validation_errors])
         for w in quality_warnings:
             logger.warning("Quality: %s", w)
 
@@ -723,19 +823,39 @@ def _translate_external_ass(mkv_path, ass_path, target_language=None,
         return _fail_result(str(e))
 
 
-def _notify_integrations(context):
-    """Notify external services about new subtitle files."""
+def _notify_integrations(context, file_path=None):
+    """Notify external services about new subtitle files.
+    
+    Args:
+        context: arr_context dict with sonarr_series_id, sonarr_episode_id, or radarr_movie_id
+        file_path: Optional file path for Emby item lookup
+    """
     if not context:
         return
 
-    # Jellyfin library refresh
+    # Emby item refresh (preferred over full library refresh)
     try:
         from jellyfin_client import get_jellyfin_client
         jellyfin = get_jellyfin_client()
-        if jellyfin:
+        if jellyfin and file_path:
+            # Try to find Emby item by file path
+            item_id = jellyfin.search_item_by_path(file_path)
+            if item_id:
+                # Determine item type from context
+                item_type = None
+                if context.get("sonarr_series_id") or context.get("sonarr_episode_id"):
+                    item_type = "Episode"
+                elif context.get("radarr_movie_id"):
+                    item_type = "Movie"
+                
+                if jellyfin.refresh_item(item_id, item_type=item_type):
+                    logger.info("Emby item refresh triggered for %s (%s)", item_id, item_type or "unknown")
+                    return
+            # Fallback to full library refresh if item not found
+            logger.debug("Emby item not found for %s, falling back to library refresh", file_path)
             jellyfin.refresh_library()
     except Exception as e:
-        logger.debug("Jellyfin notification skipped: %s", e)
+        logger.debug("Emby notification skipped: %s", e)
 
 
 def scan_directory(directory, force=False):

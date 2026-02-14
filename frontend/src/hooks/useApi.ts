@@ -1,16 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getHealth, getStats, getJobs,
-  getBatchStatus, getConfig, updateConfig, getLibrary,
+  getBatchStatus, getConfig, updateConfig, getLibrary, getSeriesDetail,
   translateFile, startBatch, getLogs,
   getWantedItems, getWantedSummary, refreshWanted,
   updateWantedItemStatus, deleteWantedItem,
-  searchWantedItem, processWantedItem,
+  searchWantedItem, processWantedItem, extractEmbeddedSub,
   startWantedBatchSearch, getWantedBatchStatus,
   getProviders, testProvider, getProviderStats, clearProviderCache,
   searchAllWanted, getRetranslateStatus, retranslateSingle, retranslateBatch,
   getLanguageProfiles, createLanguageProfile, updateLanguageProfile,
   deleteLanguageProfile, assignProfile,
+  getBlacklist, addToBlacklist, removeFromBlacklist, clearBlacklist,
+  getHistory, getHistoryStats,
+  episodeSearch, episodeHistory, retryJob,
+  exportConfig, importConfig,
+  getGlossaryEntries, createGlossaryEntry, updateGlossaryEntry, deleteGlossaryEntry,
+  getPromptPresets, getDefaultPromptPreset, createPromptPreset, updatePromptPreset, deletePromptPreset,
 } from '@/api/client'
 import type { LanguageProfile } from '@/lib/types'
 
@@ -131,6 +137,18 @@ export function useProcessWantedItem() {
   })
 }
 
+export function useExtractEmbeddedSub() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ itemId, options }: { itemId: number; options?: { stream_index?: number; target_language?: string } }) =>
+      extractEmbeddedSub(itemId, options),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wanted'] })
+      queryClient.invalidateQueries({ queryKey: ['wanted-summary'] })
+    },
+  })
+}
+
 export function useStartWantedBatch() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -240,6 +258,67 @@ export function useAssignProfile() {
   })
 }
 
+// ─── Blacklist ────────────────────────────────────────────────────────────────
+
+export function useBlacklist(page = 1, perPage = 50) {
+  return useQuery({
+    queryKey: ['blacklist', page, perPage],
+    queryFn: () => getBlacklist(page, perPage),
+    refetchInterval: 30000,
+  })
+}
+
+export function useAddToBlacklist() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: {
+      provider_name: string; subtitle_id: string;
+      language?: string; file_path?: string; title?: string; reason?: string
+    }) => addToBlacklist(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['blacklist'] })
+    },
+  })
+}
+
+export function useRemoveFromBlacklist() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => removeFromBlacklist(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['blacklist'] })
+    },
+  })
+}
+
+export function useClearBlacklist() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => clearBlacklist(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['blacklist'] })
+    },
+  })
+}
+
+// ─── History ──────────────────────────────────────────────────────────────────
+
+export function useHistory(page = 1, perPage = 50, provider?: string, language?: string) {
+  return useQuery({
+    queryKey: ['history', page, perPage, provider, language],
+    queryFn: () => getHistory(page, perPage, provider, language),
+    refetchInterval: 30000,
+  })
+}
+
+export function useHistoryStats() {
+  return useQuery({
+    queryKey: ['history-stats'],
+    queryFn: getHistoryStats,
+    refetchInterval: 30000,
+  })
+}
+
 // ─── Search All ──────────────────────────────────────────────────────────────
 
 export function useSearchAllWanted() {
@@ -295,6 +374,14 @@ export function useLibrary() {
   })
 }
 
+export function useSeriesDetail(seriesId: number) {
+  return useQuery({
+    queryKey: ['series', seriesId],
+    queryFn: () => getSeriesDetail(seriesId),
+    enabled: !!seriesId,
+  })
+}
+
 // ─── Mutations ───────────────────────────────────────────────────────────────
 
 export function useTranslateFile() {
@@ -321,6 +408,52 @@ export function useStartBatch() {
   })
 }
 
+// ─── Episode Search & History ─────────────────────────────────────────────────
+
+export function useEpisodeSearch() {
+  return useMutation({
+    mutationFn: (episodeId: number) => episodeSearch(episodeId),
+  })
+}
+
+export function useEpisodeHistory(episodeId: number) {
+  return useQuery({
+    queryKey: ['episode-history', episodeId],
+    queryFn: () => episodeHistory(episodeId),
+    enabled: false,
+  })
+}
+
+// ─── Job Retry ───────────────────────────────────────────────────────────────
+
+export function useRetryJob() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (jobId: string) => retryJob(jobId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+    },
+  })
+}
+
+// ─── Config Export/Import ────────────────────────────────────────────────────
+
+export function useExportConfig() {
+  return useMutation({
+    mutationFn: () => exportConfig(),
+  })
+}
+
+export function useImportConfig() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (config: Record<string, unknown>) => importConfig(config),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['config'] })
+    },
+  })
+}
+
 // ─── Logs ────────────────────────────────────────────────────────────────────
 
 export function useLogs(lines = 200, level?: string) {
@@ -328,5 +461,97 @@ export function useLogs(lines = 200, level?: string) {
     queryKey: ['logs', lines, level],
     queryFn: () => getLogs(lines, level),
     refetchInterval: 10000,
+  })
+}
+
+// ─── Glossary ──────────────────────────────────────────────────────────────────
+
+export function useGlossaryEntries(seriesId: number, query?: string) {
+  return useQuery({
+    queryKey: ['glossary', seriesId, query],
+    queryFn: () => getGlossaryEntries(seriesId, query),
+    enabled: !!seriesId,
+  })
+}
+
+export function useCreateGlossaryEntry() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: createGlossaryEntry,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['glossary', variables.series_id] })
+    },
+  })
+}
+
+export function useUpdateGlossaryEntry() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ entryId, ...data }: { entryId: number; series_id: number; source_term?: string; target_term?: string; notes?: string }) =>
+      updateGlossaryEntry(entryId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['glossary', variables.series_id] })
+    },
+  })
+}
+
+export function useDeleteGlossaryEntry() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ entryId, seriesId }: { entryId: number; seriesId: number }) =>
+      deleteGlossaryEntry(entryId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['glossary', variables.seriesId] })
+    },
+  })
+}
+
+// ─── Prompt Presets ───────────────────────────────────────────────────────────
+
+export function usePromptPresets() {
+  return useQuery({
+    queryKey: ['prompt-presets'],
+    queryFn: () => getPromptPresets(),
+  })
+}
+
+export function useDefaultPromptPreset() {
+  return useQuery({
+    queryKey: ['prompt-presets', 'default'],
+    queryFn: getDefaultPromptPreset,
+  })
+}
+
+export function useCreatePromptPreset() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: createPromptPreset,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prompt-presets'] })
+      queryClient.invalidateQueries({ queryKey: ['config'] })
+    },
+  })
+}
+
+export function useUpdatePromptPreset() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ presetId, ...data }: { presetId: number; name?: string; prompt_template?: string; is_default?: boolean }) =>
+      updatePromptPreset(presetId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prompt-presets'] })
+      queryClient.invalidateQueries({ queryKey: ['config'] })
+    },
+  })
+}
+
+export function useDeletePromptPreset() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: deletePromptPreset,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prompt-presets'] })
+      queryClient.invalidateQueries({ queryKey: ['config'] })
+    },
   })
 }

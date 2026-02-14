@@ -10,7 +10,11 @@ import { QueuePage } from '@/pages/Queue'
 import { SettingsPage } from '@/pages/Settings'
 import { LogsPage } from '@/pages/Logs'
 import { LibraryPage } from '@/pages/Library'
+import { SeriesDetailPage } from '@/pages/SeriesDetail'
+import { HistoryPage } from '@/pages/History'
+import { BlacklistPage } from '@/pages/Blacklist'
 import { NotFoundPage } from '@/pages/NotFound'
+import Onboarding from '@/pages/Onboarding'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,11 +34,15 @@ function AnimatedRoutes() {
       <Routes location={location}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/library" element={<LibraryPage />} />
+        <Route path="/library/series/:id" element={<SeriesDetailPage />} />
         <Route path="/activity" element={<ActivityPage />} />
         <Route path="/wanted" element={<WantedPage />} />
         <Route path="/queue" element={<QueuePage />} />
+        <Route path="/history" element={<HistoryPage />} />
+        <Route path="/blacklist" element={<BlacklistPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/logs" element={<LogsPage />} />
+        <Route path="/onboarding" element={<Onboarding />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </div>
