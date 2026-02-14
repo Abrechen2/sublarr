@@ -5,6 +5,7 @@ with new candidates to determine if an upgrade should proceed.
 """
 
 import os
+import time
 import logging
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,8 @@ def should_upgrade(
     new_score: int,
     upgrade_prefer_ass: bool = True,
     upgrade_min_score_delta: int = 50,
+    upgrade_window_days: int = 7,
+    existing_file_path: str = "",
 ) -> tuple[bool, str]:
     """Decide if a new subtitle is worth upgrading to.
 
@@ -62,6 +65,7 @@ def should_upgrade(
     1. Never downgrade ASS -> SRT
     2. SRT -> ASS: Always upgrade if upgrade_prefer_ass is True
     3. Same format: Only upgrade if score delta >= upgrade_min_score_delta
+    4. Recently downloaded subs (within upgrade_window_days) require 2x the delta
 
     Returns:
         (should_upgrade, reason) tuple.
@@ -74,9 +78,24 @@ def should_upgrade(
     if current_fmt == "srt" and new_fmt == "ass" and upgrade_prefer_ass:
         return (True, f"SRT->ASS format upgrade (score {current_score}->{new_score})")
 
+    # Rule 4: Recently downloaded subs require higher delta
+    effective_delta = upgrade_min_score_delta
+    if existing_file_path and upgrade_window_days > 0:
+        try:
+            mtime = os.path.getmtime(existing_file_path)
+            age_days = (time.time() - mtime) / 86400
+            if age_days < upgrade_window_days:
+                effective_delta = upgrade_min_score_delta * 2
+                logger.debug(
+                    "Sub is %.1f days old (window=%d), requiring 2x delta: %d",
+                    age_days, upgrade_window_days, effective_delta,
+                )
+        except OSError:
+            pass
+
     # Rule 3: Same format — need sufficient score delta
     delta = new_score - current_score
-    if delta >= upgrade_min_score_delta:
-        return (True, f"Score improvement +{delta} (>={upgrade_min_score_delta} threshold)")
+    if delta >= effective_delta:
+        return (True, f"Score improvement +{delta} (>={effective_delta} threshold)")
 
-    return (False, f"Score delta {delta} below threshold {upgrade_min_score_delta}")
+    return (False, f"Score delta {delta} below threshold {effective_delta}")

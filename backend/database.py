@@ -781,6 +781,18 @@ def get_all_wanted_file_paths() -> set:
     return {row[0] for row in rows}
 
 
+def get_wanted_item_by_path(file_path: str) -> Optional[dict]:
+    """Get a wanted item by file path."""
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            "SELECT * FROM wanted_items WHERE file_path=?", (file_path,)
+        ).fetchone()
+    if not row:
+        return None
+    return _row_to_wanted(row)
+
+
 def get_upgradeable_count() -> int:
     """Get count of items marked as upgrade candidates."""
     db = get_db()

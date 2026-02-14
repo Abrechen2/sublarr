@@ -176,10 +176,14 @@ def process_wanted_item(item_id: int) -> dict:
 
             # For upgrade candidates, check if the new sub is actually better
             if is_upgrade and current_score > 0:
+                from translator import get_output_path as _get_out
+                existing_srt = _get_out(file_path, "srt")
                 do_upgrade, reason = should_upgrade(
                     "srt", current_score, "ass", new_score,
                     upgrade_prefer_ass=settings.upgrade_prefer_ass,
                     upgrade_min_score_delta=settings.upgrade_min_score_delta,
+                    upgrade_window_days=settings.upgrade_window_days,
+                    existing_file_path=existing_srt,
                 )
                 if not do_upgrade:
                     logger.info("Wanted %d: Upgrade rejected — %s", item_id, reason)

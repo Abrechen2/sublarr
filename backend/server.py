@@ -1107,14 +1107,8 @@ def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None):
     # Step 3: Auto-search + translate via wanted system
     if s.webhook_auto_search:
         try:
-            from database import get_wanted_items
-            # Find the wanted item for this file
-            wanted_result = get_wanted_items(page=1, per_page=1, status="wanted")
-            wanted_item = None
-            for item in wanted_result.get("data", []):
-                if item["file_path"] == file_path:
-                    wanted_item = item
-                    break
+            from database import get_wanted_item_by_path
+            wanted_item = get_wanted_item_by_path(file_path)
 
             if wanted_item and s.webhook_auto_translate:
                 from wanted_search import process_wanted_item
