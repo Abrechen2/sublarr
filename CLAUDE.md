@@ -18,10 +18,10 @@ Arbeitet mit dem *arr-Oekosystem zusammen: Sonarr, Radarr, Jellyfin/Emby.
 Sublarr entwickelt sich vom reinen Uebersetzer zum vollstaendigen Bazarr-Ersatz:
 
 - **Phase 1 (erledigt):** Eigenes Provider-System (OpenSubtitles, Jimaku, AnimeTosho)
-- **Phase 2 (geplant):** Eigenstaendiges Wanted-System (fehlende Subs selbst erkennen)
-- **Phase 3 (geplant):** Such- und Download-Workflow (End-to-End ohne Bazarr)
-- **Phase 4 (geplant):** Provider-UI (Credentials, Prioritaeten, Test im Frontend)
-- **Phase 5 (geplant):** Upgrade-System + Automatisierung (SRT→ASS, Scheduler)
+- **Phase 2 (erledigt):** Eigenstaendiges Wanted-System (fehlende Subs selbst erkennen)
+- **Phase 3 (erledigt):** Such- und Download-Workflow (End-to-End ohne Bazarr)
+- **Phase 4 (erledigt):** Provider-UI (Credentials, Prioritaeten, Test im Frontend)
+- **Phase 5 (erledigt):** Upgrade-System + Automatisierung (SRT→ASS, Scheduler)
 - **Phase 6 (geplant):** Erweiterte Provider, Language-Profiles, Bazarr entfernen
 
 ### Vorteile gegenueber Bazarr

@@ -9,8 +9,8 @@
 | 1 | ✅ Erledigt | `feature/provider-system` | Provider-System (OpenSubtitles, Jimaku, AnimeTosho) |
 | 2 | ✅ Erledigt | `feature/provider-system` | Eigenstaendiges Wanted-System |
 | 3 | ✅ Erledigt | `feature/provider-system` | Such- und Download-Workflow |
-| 4 | ⬜ Geplant | — | Provider-UI + Management |
-| 5 | ⬜ Geplant | — | Upgrade-System + Automatisierung |
+| 4 | ✅ Erledigt | `feature/provider-system` | Provider-UI + Management |
+| 5 | ✅ Erledigt | `feature/provider-system` | Upgrade-System + Automatisierung |
 | 6 | ⬜ Geplant | — | Erweiterte Provider + Polish |
 
 ---
@@ -79,31 +79,39 @@
 
 ---
 
-## Milestone 4: Provider-UI + Management
+## Milestone 4: Provider-UI + Management ✅
 
 **Ziel:** Provider im Frontend konfigurieren, testen, priorisieren.
 
-**Tasks:**
-- [ ] Settings-Page: Provider-Tab mit Enable/Disable Toggles
-- [ ] Credential-Formulare pro Provider (API-Keys, Login)
-- [ ] Provider-Test-Button (nutzt `/api/v1/providers/test/{name}`)
-- [ ] Priority Drag-Drop Ordering
-- [ ] Provider-Status-Anzeige (letzte Suche, Rate-Limit, Fehler)
-- [ ] Provider-Cache-Statistiken
+**Erledigt:**
+- [x] Settings-Page: Provider-Tab mit Enable/Disable Toggles
+- [x] Credential-Formulare pro Provider (API-Keys, Login)
+- [x] Provider-Test-Button (nutzt `/api/v1/providers/test/{name}`)
+- [x] Priority-Arrows fuer Provider-Reihenfolge
+- [x] Provider-Status-Anzeige (Health, Enabled, letzte Suche)
+- [x] Provider-Cache-Statistiken + Clear Cache Button (pro Provider und global)
+
+**Geaenderte Dateien:** 3 (Settings.tsx, server.py, config.py)
 
 ---
 
-## Milestone 5: Upgrade-System + Automatisierung
+## Milestone 5: Upgrade-System + Automatisierung ✅
 
 **Ziel:** SRT→ASS Upgrade, automatische Verarbeitung neuer Downloads.
 
-**Tasks:**
-- [ ] Upgrade-Logik: Score-Vergleich, Zeitfenster (aus Bazarr adaptiert)
-- [ ] SRT→ASS Upgrade-Path: Besserer ASS-Sub gefunden → ersetzen
-- [ ] Webhook-Enhancement: Download-Event → Auto-Index → Auto-Search → Auto-Translate
-- [ ] Scheduler: Periodisch Wanted-Items durchsuchen
-- [ ] Re-Translation Trigger (neues Ollama-Model, besserer Prompt)
-- [ ] Notification-System (WebSocket Events fuer alle Aktionen)
+**Erledigt:**
+- [x] Upgrade-Logik: Score-Vergleich mit konfigurierbarem Min-Delta (`upgrade_min_score_delta`)
+- [x] Zeitfenster-Schutz: Kuerzlich gedownloadete Subs brauchen 2x Score-Delta (`upgrade_window_days`)
+- [x] SRT→ASS Upgrade-Path: ASS wird automatisch bevorzugt (`upgrade_prefer_ass`)
+- [x] Webhook-Enhancement: Sonarr/Radarr Download → Auto-Scan → Auto-Search → Auto-Translate
+- [x] Webhook Delay konfigurierbar (`webhook_delay_minutes`, Default: 5 Min)
+- [x] Scheduler: Periodisch Wanted-Items durchsuchen (`wanted_search_interval_hours`)
+- [x] Re-Translation Trigger bei Model/Prompt-Aenderung (Config-Hash-Tracking)
+- [x] Notification-System: WebSocket Events fuer alle Aktionen (webhook, upgrade, search, retranslation)
+- [x] GlobalWebSocketListener + Toast-Benachrichtigungen im Frontend
+- [x] Upgrade-History DB-Tabelle + Translation-Config-History
+
+**Neue Dateien:** 1 (`upgrade_scorer.py`) | **Geaenderte Dateien:** 6 | **+800 Zeilen**
 
 ---
 
@@ -131,10 +139,10 @@
 | Milestone | Aufwand | Bazarr-Code gespart |
 |---|---|---|
 | 1 Provider-Fundament | ✅ ~1.5 Wochen | ~70% |
-| 2 Wanted-System | ~1 Woche | ~40% |
-| 3 Such-/Download-Flow | ~1 Woche | ~50% |
-| 4 Provider-UI | ~3-4 Tage | ~20% |
-| 5 Upgrade + Automation | ~3-4 Tage | ~30% |
+| 2 Wanted-System | ✅ ~1 Woche | ~40% |
+| 3 Such-/Download-Flow | ✅ ~1 Woche | ~50% |
+| 4 Provider-UI | ✅ ~3-4 Tage | ~20% |
+| 5 Upgrade + Automation | ✅ ~3-4 Tage | ~30% |
 | 6 Erweiterung + Polish | ~1 Woche | ~20% |
 | **Gesamt** | **~5-6 Wochen** | |
 
