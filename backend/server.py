@@ -60,7 +60,7 @@ else:
 # Initialize wanted scanner & scheduler
 from wanted_scanner import get_scanner, invalidate_scanner
 _wanted_scanner = get_scanner()
-_wanted_scanner.start_scheduler()
+_wanted_scanner.start_scheduler(socketio=socketio)
 
 # ─── API Blueprint ────────────────────────────────────────────────────────────
 
@@ -706,6 +706,8 @@ def update_config():
 
     logger.info("Config updated: %s — settings reloaded", saved_keys)
 
+    socketio.emit("config_updated", {"updated_keys": saved_keys})
+
     return jsonify({
         "status": "saved",
         "updated_keys": saved_keys,
@@ -971,6 +973,11 @@ def process_wanted(item_id):
     def _run():
         result = process_wanted_item(item_id)
         socketio.emit("wanted_item_processed", result)
+        if result.get("upgraded"):
+            socketio.emit("upgrade_completed", {
+                "file_path": result.get("output_path"),
+                "provider": result.get("provider"),
+            })
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
@@ -1046,7 +1053,92 @@ def wanted_batch_status():
         return jsonify(dict(wanted_batch_state))
 
 
+@api.route("/wanted/search-all", methods=["POST"])
+def wanted_search_all():
+    """Trigger a search-all for wanted items (provider search for all pending items)."""
+    scanner = get_scanner()
+    if scanner.is_searching:
+        return jsonify({"error": "Search already running"}), 409
+
+    def _run_search():
+        scanner.search_all(socketio=socketio)
+
+    thread = threading.Thread(target=_run_search, daemon=True)
+    thread.start()
+
+    return jsonify({"status": "search_started"}), 202
+
+
 # ─── Webhook Endpoints ───────────────────────────────────────────────────────
+
+
+def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None):
+    """Full webhook automation pipeline: delay -> scan -> search -> translate.
+
+    Each step is individually configurable. Emits WebSocket events at each stage.
+    """
+    s = get_settings()
+    delay = s.webhook_delay_minutes * 60
+
+    socketio.emit("webhook_received", {
+        "file_path": file_path,
+        "title": title,
+        "delay_minutes": s.webhook_delay_minutes,
+    })
+
+    # Step 1: Configurable delay
+    if delay > 0:
+        logger.info("Webhook pipeline: waiting %d minutes...", s.webhook_delay_minutes)
+        time.sleep(delay)
+
+    result_info = {"file_path": file_path, "title": title, "steps": []}
+
+    # Step 2: Auto-scan
+    if s.webhook_auto_scan and series_id:
+        try:
+            scanner = get_scanner()
+            scan_result = scanner.scan_series(series_id)
+            result_info["steps"].append({"scan": scan_result})
+            logger.info("Webhook pipeline: scan complete for series %d", series_id)
+        except Exception as e:
+            logger.warning("Webhook pipeline: scan failed: %s", e)
+            result_info["steps"].append({"scan": {"error": str(e)}})
+
+    # Step 3: Auto-search + translate via wanted system
+    if s.webhook_auto_search:
+        try:
+            from database import get_wanted_items
+            # Find the wanted item for this file
+            wanted_result = get_wanted_items(page=1, per_page=1, status="wanted")
+            wanted_item = None
+            for item in wanted_result.get("data", []):
+                if item["file_path"] == file_path:
+                    wanted_item = item
+                    break
+
+            if wanted_item and s.webhook_auto_translate:
+                from wanted_search import process_wanted_item
+                process_result = process_wanted_item(wanted_item["id"])
+                result_info["steps"].append({"process": process_result})
+                logger.info("Webhook pipeline: process result: %s", process_result.get("status"))
+            elif wanted_item:
+                from wanted_search import search_wanted_item
+                search_result = search_wanted_item(wanted_item["id"])
+                result_info["steps"].append({"search": search_result})
+            else:
+                result_info["steps"].append({"search": "no wanted item found"})
+        except Exception as e:
+            logger.warning("Webhook pipeline: search/process failed: %s", e)
+            result_info["steps"].append({"search": {"error": str(e)}})
+
+    # Step 4: Fallback — direct translate if auto_search disabled
+    if not s.webhook_auto_search:
+        job = create_job(file_path)
+        _run_job(job)
+        result_info["steps"].append({"translate": "direct"})
+
+    socketio.emit("webhook_completed", result_info)
+    logger.info("Webhook pipeline completed for: %s", file_path)
 
 
 @api.route("/webhook/sonarr", methods=["POST"])
@@ -1061,7 +1153,6 @@ def webhook_sonarr():
     if event_type != "Download":
         return jsonify({"status": "ignored", "event": event_type}), 200
 
-    # Extract file info from Sonarr webhook payload
     episode_file = data.get("episodeFile", {})
     file_path = episode_file.get("path", "")
     series = data.get("series", {})
@@ -1069,37 +1160,25 @@ def webhook_sonarr():
     if not file_path:
         return jsonify({"error": "No file path in webhook payload"}), 400
 
-    # Apply path mapping (Sonarr sends paths from its own perspective)
     file_path = _map_path(file_path)
-
-    logger.info("Sonarr webhook: %s - %s", series.get("title", "Unknown"), file_path)
-
-    # Delayed processing (wait for Bazarr to handle first)
-    s = get_settings()
-    delay = s.webhook_delay_minutes * 60
-
+    title = f"{series.get('title', 'Unknown')} — {file_path}"
     series_id = series.get("id")
 
-    def _delayed_translate():
-        if delay > 0:
-            logger.info("Waiting %d minutes before translating (webhook delay)...", s.webhook_delay_minutes)
-            time.sleep(delay)
-        job = create_job(file_path)
-        _run_job(job)
-        # Also refresh wanted list for this series
-        if series_id:
-            try:
-                get_scanner().scan_series(series_id)
-            except Exception as e:
-                logger.debug("Wanted scan after webhook failed: %s", e)
+    logger.info("Sonarr webhook: %s", title)
 
-    thread = threading.Thread(target=_delayed_translate, daemon=True)
+    thread = threading.Thread(
+        target=_webhook_auto_pipeline,
+        args=(file_path, title, series_id),
+        daemon=True,
+    )
     thread.start()
 
+    s = get_settings()
     return jsonify({
         "status": "queued",
         "file_path": file_path,
         "delay_minutes": s.webhook_delay_minutes,
+        "auto_pipeline": s.webhook_auto_search,
     }), 202
 
 
@@ -1122,28 +1201,160 @@ def webhook_radarr():
     if not file_path:
         return jsonify({"error": "No file path in webhook payload"}), 400
 
-    # Apply path mapping (Radarr sends paths from its own perspective)
     file_path = _map_path(file_path)
+    title = movie.get("title", "Unknown")
 
-    logger.info("Radarr webhook: %s - %s", movie.get("title", "Unknown"), file_path)
+    logger.info("Radarr webhook: %s - %s", title, file_path)
 
-    s = get_settings()
-    delay = s.webhook_delay_minutes * 60
-
-    def _delayed_translate():
-        if delay > 0:
-            logger.info("Waiting %d minutes before translating (webhook delay)...", s.webhook_delay_minutes)
-            time.sleep(delay)
-        job = create_job(file_path)
-        _run_job(job)
-
-    thread = threading.Thread(target=_delayed_translate, daemon=True)
+    thread = threading.Thread(
+        target=_webhook_auto_pipeline,
+        args=(file_path, title),
+        daemon=True,
+    )
     thread.start()
 
+    s = get_settings()
     return jsonify({
         "status": "queued",
         "file_path": file_path,
         "delay_minutes": s.webhook_delay_minutes,
+        "auto_pipeline": s.webhook_auto_search,
+    }), 202
+
+
+# ─── Re-Translation Endpoints ────────────────────────────────────────────────
+
+
+@api.route("/retranslate/status", methods=["GET"])
+def retranslate_status():
+    """Get re-translation status: current config hash and outdated file count."""
+    from database import get_outdated_jobs_count
+    s = get_settings()
+    current_hash = s.get_translation_config_hash()
+    outdated = get_outdated_jobs_count(current_hash)
+
+    return jsonify({
+        "current_hash": current_hash,
+        "outdated_count": outdated,
+        "ollama_model": s.ollama_model,
+        "target_language": s.target_language,
+    })
+
+
+@api.route("/retranslate/<int:job_id>", methods=["POST"])
+def retranslate_single(job_id):
+    """Re-translate a single item (deletes old sub, forces re-translation)."""
+    from database import get_job as get_job_by_id
+
+    job = get_job_by_id(str(job_id))
+    if not job:
+        # Try as wanted item ID
+        item = get_wanted_item(job_id)
+        if not item:
+            return jsonify({"error": "Item not found"}), 404
+        file_path = item["file_path"]
+    else:
+        file_path = job["file_path"]
+
+    if not os.path.exists(file_path):
+        return jsonify({"error": f"File not found: {file_path}"}), 404
+
+    # Delete existing translated subtitle
+    s = get_settings()
+    base = os.path.splitext(file_path)[0]
+    for fmt in ["ass", "srt"]:
+        for pattern in s.get_target_patterns(fmt):
+            target = base + pattern
+            if os.path.exists(target):
+                os.remove(target)
+                logger.info("Re-translate: removed %s", target)
+
+    # Re-translate with force
+    new_job = create_job(file_path, force=True)
+
+    def _run():
+        _run_job(new_job)
+        socketio.emit("retranslation_completed", {
+            "file_path": file_path,
+            "job_id": new_job["id"],
+        })
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+
+    return jsonify({
+        "status": "started",
+        "job_id": new_job["id"],
+        "file_path": file_path,
+    }), 202
+
+
+@api.route("/retranslate/batch", methods=["POST"])
+def retranslate_batch():
+    """Re-translate all outdated items (async with WebSocket progress)."""
+    from database import get_outdated_jobs
+
+    s = get_settings()
+    current_hash = s.get_translation_config_hash()
+    outdated = get_outdated_jobs(current_hash)
+
+    if not outdated:
+        return jsonify({"status": "nothing_to_do", "count": 0})
+
+    total = len(outdated)
+
+    def _run_retranslate():
+        processed = 0
+        succeeded = 0
+        failed = 0
+
+        for job in outdated:
+            file_path = job["file_path"]
+            if not os.path.exists(file_path):
+                processed += 1
+                failed += 1
+                continue
+
+            # Remove existing target subs
+            base = os.path.splitext(file_path)[0]
+            for fmt in ["ass", "srt"]:
+                for pattern in s.get_target_patterns(fmt):
+                    target = base + pattern
+                    if os.path.exists(target):
+                        os.remove(target)
+
+            try:
+                result = translate_file(file_path, force=True)
+                processed += 1
+                if result["success"]:
+                    succeeded += 1
+                else:
+                    failed += 1
+            except Exception as e:
+                processed += 1
+                failed += 1
+                logger.warning("Re-translate batch: error on %s: %s", file_path, e)
+
+            socketio.emit("retranslation_progress", {
+                "processed": processed,
+                "total": total,
+                "succeeded": succeeded,
+                "failed": failed,
+                "current_file": file_path,
+            })
+
+        socketio.emit("retranslation_completed", {
+            "count": processed,
+            "succeeded": succeeded,
+            "failed": failed,
+        })
+
+    thread = threading.Thread(target=_run_retranslate, daemon=True)
+    thread.start()
+
+    return jsonify({
+        "status": "started",
+        "total": total,
     }), 202
 
 

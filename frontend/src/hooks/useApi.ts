@@ -8,6 +8,7 @@ import {
   searchWantedItem, processWantedItem,
   startWantedBatchSearch, getWantedBatchStatus,
   getProviders, testProvider, getProviderStats, clearProviderCache,
+  searchAllWanted, getRetranslateStatus, retranslateSingle, retranslateBatch,
 } from '@/api/client'
 
 // ─── Health ──────────────────────────────────────────────────────────────────
@@ -189,6 +190,51 @@ export function useClearProviderCache() {
     mutationFn: (providerName?: string) => clearProviderCache(providerName),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['provider-stats'] })
+    },
+  })
+}
+
+// ─── Search All ──────────────────────────────────────────────────────────────
+
+export function useSearchAllWanted() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => searchAllWanted(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wanted'] })
+      queryClient.invalidateQueries({ queryKey: ['wanted-summary'] })
+    },
+  })
+}
+
+// ─── Re-Translation ──────────────────────────────────────────────────────────
+
+export function useRetranslateStatus() {
+  return useQuery({
+    queryKey: ['retranslate-status'],
+    queryFn: getRetranslateStatus,
+    refetchInterval: 60000,
+  })
+}
+
+export function useRetranslateSingle() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (itemId: number) => retranslateSingle(itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      queryClient.invalidateQueries({ queryKey: ['retranslate-status'] })
+    },
+  })
+}
+
+export function useRetranslateBatch() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => retranslateBatch(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      queryClient.invalidateQueries({ queryKey: ['retranslate-status'] })
     },
   })
 }

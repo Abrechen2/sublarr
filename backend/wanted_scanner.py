@@ -12,7 +12,8 @@ import threading
 from datetime import datetime
 
 from config import get_settings, map_path
-from translator import detect_existing_target
+from translator import detect_existing_target, get_output_path
+from upgrade_scorer import score_existing_subtitle
 from database import (
     upsert_wanted_item,
     delete_wanted_items,
@@ -50,9 +51,14 @@ class WantedScanner:
 
     def __init__(self):
         self._scan_lock = threading.Lock()
+        self._search_lock = threading.Lock()
         self._scanning = False
+        self._searching = False
         self._timer = None
+        self._search_timer = None
+        self._socketio = None
         self._last_scan_at = ""
+        self._last_search_at = ""
         self._last_summary = {}
 
     @property
@@ -60,8 +66,16 @@ class WantedScanner:
         return self._scanning
 
     @property
+    def is_searching(self):
+        return self._searching
+
+    @property
     def last_scan_at(self):
         return self._last_scan_at
+
+    @property
+    def last_search_at(self):
+        return self._last_search_at
 
     @property
     def last_summary(self):
@@ -241,6 +255,15 @@ class WantedScanner:
             title = f"{series_title} — {season_episode}"
             existing_sub = existing or ""
 
+            # Score existing subtitle for upgrade detection
+            is_upgrade = False
+            cur_score = 0
+            if existing_sub == "srt" and settings.upgrade_enabled:
+                srt_path = get_output_path(mapped_path, "srt")
+                if os.path.exists(srt_path):
+                    _, cur_score = score_existing_subtitle(srt_path)
+                    is_upgrade = True
+
             row_id = upsert_wanted_item(
                 item_type="episode",
                 file_path=mapped_path,
@@ -250,6 +273,8 @@ class WantedScanner:
                 missing_languages=[settings.target_language],
                 sonarr_series_id=series_id,
                 sonarr_episode_id=episode_id,
+                upgrade_candidate=is_upgrade,
+                current_score=cur_score,
             )
 
             if row_id:
@@ -304,6 +329,16 @@ class WantedScanner:
                 continue
 
             existing_sub = existing or ""
+
+            # Score existing subtitle for upgrade detection
+            is_upgrade = False
+            cur_score = 0
+            if existing_sub == "srt" and settings.upgrade_enabled:
+                srt_path = get_output_path(mapped_path, "srt")
+                if os.path.exists(srt_path):
+                    _, cur_score = score_existing_subtitle(srt_path)
+                    is_upgrade = True
+
             row_id = upsert_wanted_item(
                 item_type="movie",
                 file_path=mapped_path,
@@ -311,6 +346,8 @@ class WantedScanner:
                 existing_sub=existing_sub,
                 missing_languages=[settings.target_language],
                 radarr_movie_id=movie_id,
+                upgrade_candidate=is_upgrade,
+                current_score=cur_score,
             )
 
             if row_id:
@@ -346,33 +383,155 @@ class WantedScanner:
 
         return len(to_remove)
 
+    # ─── Search All ────────────────────────────────────────────────────────
+
+    def search_all(self, socketio=None) -> dict:
+        """Search providers for all wanted items (respects max_items_per_run).
+
+        Returns summary dict: {total, processed, found, failed, skipped}
+        """
+        if not self._search_lock.acquire(blocking=False):
+            logger.warning("Wanted search already running, skipping")
+            return {"error": "search_already_running"}
+
+        self._searching = True
+        start = time.time()
+
+        try:
+            settings = get_settings()
+            max_items = settings.wanted_search_max_items_per_run
+
+            from database import get_wanted_items
+            result = get_wanted_items(page=1, per_page=max_items, status="wanted")
+            items = result.get("data", [])
+
+            # Filter out items searched too recently (within last hour)
+            now_ts = time.time()
+            eligible = []
+            for item in items:
+                if item.get("last_search_at"):
+                    try:
+                        from datetime import datetime
+                        last_search = datetime.fromisoformat(item["last_search_at"])
+                        age_hours = (datetime.utcnow() - last_search).total_seconds() / 3600
+                        if age_hours < 1:
+                            continue
+                    except (ValueError, TypeError):
+                        pass
+                if item["search_count"] < settings.wanted_max_search_attempts:
+                    eligible.append(item)
+
+            if not eligible:
+                self._last_search_at = datetime.utcnow().isoformat()
+                return {"total": 0, "processed": 0, "found": 0, "failed": 0, "skipped": 0}
+
+            from wanted_search import process_wanted_item
+
+            total = len(eligible)
+            processed = 0
+            found = 0
+            failed = 0
+            skipped = 0
+
+            for item in eligible:
+                try:
+                    res = process_wanted_item(item["id"])
+                    processed += 1
+                    if res.get("status") == "found":
+                        found += 1
+                    elif res.get("status") == "failed":
+                        failed += 1
+                    else:
+                        skipped += 1
+
+                    if socketio:
+                        socketio.emit("wanted_search_progress", {
+                            "processed": processed,
+                            "total": total,
+                            "found": found,
+                            "failed": failed,
+                            "current_item": item.get("title", str(item["id"])),
+                        })
+                except Exception as e:
+                    processed += 1
+                    failed += 1
+                    logger.warning("Search-all: error on item %d: %s", item["id"], e)
+
+                # Rate limit between items
+                if processed < total:
+                    time.sleep(0.5)
+
+            duration = round(time.time() - start, 1)
+            self._last_search_at = datetime.utcnow().isoformat()
+
+            summary = {
+                "total": total,
+                "processed": processed,
+                "found": found,
+                "failed": failed,
+                "skipped": skipped,
+                "duration_seconds": duration,
+            }
+
+            logger.info(
+                "Wanted search complete: %d/%d processed, %d found, %d failed (%.1fs)",
+                processed, total, found, failed, duration,
+            )
+
+            if socketio:
+                socketio.emit("wanted_search_completed", summary)
+
+            return summary
+
+        except Exception as e:
+            logger.exception("Wanted search failed: %s", e)
+            return {"error": str(e)}
+        finally:
+            self._searching = False
+            self._search_lock.release()
+
     # ─── Scheduler ──────────────────────────────────────────────────────────
 
-    def start_scheduler(self):
-        """Start the periodic scan scheduler."""
+    def start_scheduler(self, socketio=None):
+        """Start the periodic scan and search schedulers."""
+        self._socketio = socketio
         settings = get_settings()
-        interval = settings.wanted_scan_interval_hours
 
-        if interval <= 0:
-            logger.info("Wanted scheduler disabled (interval=0)")
-            return
+        # Scan scheduler
+        scan_interval = settings.wanted_scan_interval_hours
+        if scan_interval > 0:
+            if settings.wanted_scan_on_startup:
+                thread = threading.Thread(target=self.scan_all, daemon=True)
+                thread.start()
+            self._schedule_next_scan(scan_interval)
+            logger.info("Wanted scan scheduler started (every %dh)", scan_interval)
+        else:
+            logger.info("Wanted scan scheduler disabled (interval=0)")
 
-        if settings.wanted_scan_on_startup:
-            # Run initial scan in background thread
-            thread = threading.Thread(target=self.scan_all, daemon=True)
-            thread.start()
-
-        self._schedule_next(interval)
-        logger.info("Wanted scheduler started (every %dh)", interval)
+        # Search scheduler
+        search_interval = settings.wanted_search_interval_hours
+        if search_interval > 0:
+            if settings.wanted_search_on_startup:
+                thread = threading.Thread(
+                    target=self.search_all, args=(socketio,), daemon=True,
+                )
+                thread.start()
+            self._schedule_next_search(search_interval)
+            logger.info("Wanted search scheduler started (every %dh)", search_interval)
+        else:
+            logger.info("Wanted search scheduler disabled (interval=0)")
 
     def stop_scheduler(self):
-        """Cancel the scheduled timer."""
+        """Cancel all scheduled timers."""
         if self._timer:
             self._timer.cancel()
             self._timer = None
-            logger.info("Wanted scheduler stopped")
+        if self._search_timer:
+            self._search_timer.cancel()
+            self._search_timer = None
+        logger.info("Wanted schedulers stopped")
 
-    def _schedule_next(self, interval_hours):
+    def _schedule_next_scan(self, interval_hours):
         """Schedule the next scan."""
         self._timer = threading.Timer(
             interval_hours * 3600,
@@ -386,4 +545,20 @@ class WantedScanner:
         """Execute a scheduled scan and reschedule."""
         logger.info("Wanted scheduled scan starting")
         self.scan_all()
-        self._schedule_next(interval_hours)
+        self._schedule_next_scan(interval_hours)
+
+    def _schedule_next_search(self, interval_hours):
+        """Schedule the next search."""
+        self._search_timer = threading.Timer(
+            interval_hours * 3600,
+            self._scheduled_search,
+            args=(interval_hours,),
+        )
+        self._search_timer.daemon = True
+        self._search_timer.start()
+
+    def _scheduled_search(self, interval_hours):
+        """Execute a scheduled search and reschedule."""
+        logger.info("Wanted scheduled search starting")
+        self.search_all(self._socketio)
+        self._schedule_next_search(interval_hours)

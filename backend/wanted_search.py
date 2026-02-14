@@ -15,7 +15,9 @@ from database import (
     get_wanted_items,
     update_wanted_status,
     update_wanted_search,
+    record_upgrade,
 )
+from upgrade_scorer import should_upgrade
 from providers import get_provider_manager
 from providers.base import VideoQuery, SubtitleFormat
 
@@ -157,6 +159,9 @@ def process_wanted_item(item_id: int) -> dict:
             "error": f"File not found: {file_path}",
         }
 
+    is_upgrade = bool(item.get("upgrade_candidate"))
+    current_score = item.get("current_score", 0)
+
     # Step 1: Try to find target language ASS directly from providers
     manager = get_provider_manager()
     query = build_query_from_wanted(item)
@@ -167,8 +172,42 @@ def process_wanted_item(item_id: int) -> dict:
             query, format_filter=SubtitleFormat.ASS
         )
         if result and result.content:
+            new_score = result.score
+
+            # For upgrade candidates, check if the new sub is actually better
+            if is_upgrade and current_score > 0:
+                do_upgrade, reason = should_upgrade(
+                    "srt", current_score, "ass", new_score,
+                    upgrade_prefer_ass=settings.upgrade_prefer_ass,
+                    upgrade_min_score_delta=settings.upgrade_min_score_delta,
+                )
+                if not do_upgrade:
+                    logger.info("Wanted %d: Upgrade rejected — %s", item_id, reason)
+                    update_wanted_status(item_id, "wanted")
+                    return {
+                        "wanted_id": item_id,
+                        "status": "skipped",
+                        "reason": reason,
+                    }
+                logger.info("Wanted %d: Upgrade approved — %s", item_id, reason)
+
             from translator import get_output_path
             output_path = get_output_path(file_path, "ass")
+
+            # If upgrading from SRT, remove old SRT file
+            if is_upgrade:
+                old_srt = get_output_path(file_path, "srt")
+                if os.path.exists(old_srt):
+                    os.remove(old_srt)
+                    logger.info("Wanted %d: Removed old SRT: %s", item_id, old_srt)
+                record_upgrade(
+                    file_path=file_path,
+                    old_format="srt", old_score=current_score,
+                    new_format="ass", new_score=new_score,
+                    provider_name=result.provider_name,
+                    upgrade_reason=f"SRT->ASS via {result.provider_name}",
+                )
+
             manager.save_subtitle(result, output_path)
             logger.info("Wanted %d: Provider %s delivered target ASS directly",
                          item_id, result.provider_name)
@@ -178,6 +217,7 @@ def process_wanted_item(item_id: int) -> dict:
                 "status": "found",
                 "output_path": output_path,
                 "provider": result.provider_name,
+                "upgraded": is_upgrade,
             }
     except Exception as e:
         logger.warning("Wanted %d: Direct target ASS search failed: %s", item_id, e)

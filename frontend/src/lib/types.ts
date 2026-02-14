@@ -122,6 +122,8 @@ export interface WantedItem {
   error: string
   added_at: string
   updated_at: string
+  upgrade_candidate: number
+  current_score: number
 }
 
 export interface PaginatedWanted {
@@ -137,8 +139,16 @@ export interface WantedSummary {
   by_type: Record<string, number>
   by_status: Record<string, number>
   by_existing: Record<string, number>
+  upgradeable: number
   scan_running: boolean
   last_scan_at: string
+}
+
+export interface RetranslateStatus {
+  current_hash: string
+  outdated_count: number
+  ollama_model: string
+  target_language: string
 }
 
 export interface SearchResult {

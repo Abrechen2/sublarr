@@ -101,6 +101,30 @@ CREATE INDEX IF NOT EXISTS idx_wanted_file_path ON wanted_items(file_path);
 CREATE INDEX IF NOT EXISTS idx_wanted_sonarr_series ON wanted_items(sonarr_series_id);
 CREATE INDEX IF NOT EXISTS idx_wanted_sonarr_episode ON wanted_items(sonarr_episode_id);
 CREATE INDEX IF NOT EXISTS idx_wanted_radarr_movie ON wanted_items(radarr_movie_id);
+
+CREATE TABLE IF NOT EXISTS upgrade_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_path TEXT NOT NULL,
+    old_format TEXT,
+    old_score INTEGER,
+    new_format TEXT,
+    new_score INTEGER,
+    provider_name TEXT,
+    upgrade_reason TEXT,
+    upgraded_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_upgrade_history_path ON upgrade_history(file_path);
+
+CREATE TABLE IF NOT EXISTS translation_config_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    config_hash TEXT NOT NULL UNIQUE,
+    ollama_model TEXT,
+    prompt_template TEXT,
+    target_language TEXT,
+    first_used_at TEXT NOT NULL,
+    last_used_at TEXT NOT NULL
+);
 """
 
 
@@ -128,6 +152,7 @@ def get_db() -> sqlite3.Connection:
         _connection.execute("PRAGMA journal_mode=WAL")
         _connection.execute("PRAGMA busy_timeout=5000")
         _connection.executescript(SCHEMA)
+        _run_migrations(_connection)
         _connection.commit()
         logger.info("Database initialized at %s", settings.db_path)
         return _connection
@@ -139,6 +164,22 @@ def close_db():
     if _connection:
         _connection.close()
         _connection = None
+
+
+def _run_migrations(conn):
+    """Run schema migrations for columns added after initial release."""
+    cursor = conn.execute("PRAGMA table_info(wanted_items)")
+    columns = {row[1] for row in cursor.fetchall()}
+
+    if "upgrade_candidate" not in columns:
+        conn.execute("ALTER TABLE wanted_items ADD COLUMN upgrade_candidate INTEGER DEFAULT 0")
+    if "current_score" not in columns:
+        conn.execute("ALTER TABLE wanted_items ADD COLUMN current_score INTEGER DEFAULT 0")
+
+    cursor = conn.execute("PRAGMA table_info(jobs)")
+    columns = {row[1] for row in cursor.fetchall()}
+    if "config_hash" not in columns:
+        conn.execute("ALTER TABLE jobs ADD COLUMN config_hash TEXT DEFAULT ''")
 
 
 # ─── Job Operations ───────────────────────────────────────────────────────────
@@ -178,16 +219,19 @@ def update_job(job_id: str, status: str, result: dict = None, error: str = None)
     stats_json = json.dumps(result.get("stats", {})) if result else "{}"
     output_path = result.get("output_path", "") if result else ""
     source_format = ""
+    config_hash = ""
     if result and result.get("stats"):
         source_format = result["stats"].get("format", "")
+        config_hash = result["stats"].get("config_hash", "")
 
     db = get_db()
     with _db_lock:
         db.execute(
             """UPDATE jobs SET status=?, stats_json=?, output_path=?,
-               source_format=?, error=?, completed_at=?
+               source_format=?, error=?, completed_at=?, config_hash=?
                WHERE id=?""",
-            (status, stats_json, output_path, source_format, error or "", now, job_id),
+            (status, stats_json, output_path, source_format, error or "", now,
+             config_hash, job_id),
         )
         db.commit()
 
@@ -521,13 +565,16 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                        missing_languages: list = None,
                        sonarr_series_id: int = None,
                        sonarr_episode_id: int = None,
-                       radarr_movie_id: int = None) -> int:
+                       radarr_movie_id: int = None,
+                       upgrade_candidate: bool = False,
+                       current_score: int = 0) -> int:
     """Insert or update a wanted item (matched on file_path).
 
     Returns the row id.
     """
     now = datetime.utcnow().isoformat()
     langs_json = json.dumps(missing_languages or [])
+    upgrade_int = 1 if upgrade_candidate else 0
     db = get_db()
 
     with _db_lock:
@@ -542,33 +589,36 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                 db.execute(
                     """UPDATE wanted_items SET title=?, season_episode=?, existing_sub=?,
                        missing_languages=?, sonarr_series_id=?, sonarr_episode_id=?,
-                       radarr_movie_id=?, updated_at=?
+                       radarr_movie_id=?, upgrade_candidate=?, current_score=?,
+                       updated_at=?
                        WHERE id=?""",
                     (title, season_episode, existing_sub, langs_json,
                      sonarr_series_id, sonarr_episode_id, radarr_movie_id,
-                     now, row_id),
+                     upgrade_int, current_score, now, row_id),
                 )
             else:
                 db.execute(
                     """UPDATE wanted_items SET item_type=?, title=?, season_episode=?,
                        existing_sub=?, missing_languages=?, status='wanted',
                        sonarr_series_id=?, sonarr_episode_id=?, radarr_movie_id=?,
+                       upgrade_candidate=?, current_score=?,
                        updated_at=?
                        WHERE id=?""",
                     (item_type, title, season_episode, existing_sub, langs_json,
                      sonarr_series_id, sonarr_episode_id, radarr_movie_id,
-                     now, row_id),
+                     upgrade_int, current_score, now, row_id),
                 )
         else:
             cursor = db.execute(
                 """INSERT INTO wanted_items
                    (item_type, file_path, title, season_episode, existing_sub,
                     missing_languages, sonarr_series_id, sonarr_episode_id,
-                    radarr_movie_id, status, added_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'wanted', ?, ?)""",
+                    radarr_movie_id, upgrade_candidate, current_score,
+                    status, added_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'wanted', ?, ?)""",
                 (item_type, file_path, title, season_episode, existing_sub,
                  langs_json, sonarr_series_id, sonarr_episode_id,
-                 radarr_movie_id, now, now),
+                 radarr_movie_id, upgrade_int, current_score, now, now),
             )
             row_id = cursor.lastrowid
         db.commit()
@@ -710,11 +760,16 @@ def get_wanted_summary() -> dict:
             key = row[0] if row[0] else "none"
             by_existing[key] = row[1]
 
+        upgradeable = db.execute(
+            "SELECT COUNT(*) FROM wanted_items WHERE upgrade_candidate=1"
+        ).fetchone()[0]
+
     return {
         "total": total,
         "by_type": by_type,
         "by_status": by_status,
         "by_existing": by_existing,
+        "upgradeable": upgradeable,
     }
 
 
@@ -724,6 +779,16 @@ def get_all_wanted_file_paths() -> set:
     with _db_lock:
         rows = db.execute("SELECT file_path FROM wanted_items").fetchall()
     return {row[0] for row in rows}
+
+
+def get_upgradeable_count() -> int:
+    """Get count of items marked as upgrade candidates."""
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            "SELECT COUNT(*) FROM wanted_items WHERE upgrade_candidate=1"
+        ).fetchone()
+    return row[0]
 
 
 def _row_to_wanted(row) -> dict:
@@ -737,3 +802,100 @@ def _row_to_wanted(row) -> dict:
     else:
         d["missing_languages"] = []
     return d
+
+
+# ─── Upgrade History Operations ──────────────────────────────────────────────
+
+
+def record_upgrade(file_path: str, old_format: str, old_score: int,
+                   new_format: str, new_score: int,
+                   provider_name: str = "", upgrade_reason: str = ""):
+    """Record a subtitle upgrade in history."""
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    with _db_lock:
+        db.execute(
+            """INSERT INTO upgrade_history
+               (file_path, old_format, old_score, new_format, new_score,
+                provider_name, upgrade_reason, upgraded_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (file_path, old_format, old_score, new_format, new_score,
+             provider_name, upgrade_reason, now),
+        )
+        db.commit()
+
+
+def get_upgrade_history(limit: int = 50) -> list:
+    """Get recent upgrade history entries."""
+    db = get_db()
+    with _db_lock:
+        rows = db.execute(
+            "SELECT * FROM upgrade_history ORDER BY upgraded_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_upgrade_stats() -> dict:
+    """Get aggregated upgrade statistics."""
+    db = get_db()
+    with _db_lock:
+        total = db.execute("SELECT COUNT(*) FROM upgrade_history").fetchone()[0]
+        srt_to_ass = db.execute(
+            "SELECT COUNT(*) FROM upgrade_history WHERE old_format='srt' AND new_format='ass'"
+        ).fetchone()[0]
+    return {"total": total, "srt_to_ass": srt_to_ass}
+
+
+# ─── Translation Config History Operations ────────────────────────────────────
+
+
+def record_translation_config(config_hash: str, ollama_model: str,
+                               prompt_template: str, target_language: str):
+    """Record or update a translation config hash."""
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    with _db_lock:
+        existing = db.execute(
+            "SELECT id FROM translation_config_history WHERE config_hash=?",
+            (config_hash,),
+        ).fetchone()
+        if existing:
+            db.execute(
+                "UPDATE translation_config_history SET last_used_at=? WHERE config_hash=?",
+                (now, config_hash),
+            )
+        else:
+            db.execute(
+                """INSERT INTO translation_config_history
+                   (config_hash, ollama_model, prompt_template, target_language,
+                    first_used_at, last_used_at)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (config_hash, ollama_model, prompt_template, target_language, now, now),
+            )
+        db.commit()
+
+
+def get_outdated_jobs_count(current_hash: str) -> int:
+    """Get count of completed jobs with a different config hash."""
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            """SELECT COUNT(*) FROM jobs
+               WHERE status='completed' AND config_hash != '' AND config_hash != ?""",
+            (current_hash,),
+        ).fetchone()
+    return row[0]
+
+
+def get_outdated_jobs(current_hash: str, limit: int = 100) -> list:
+    """Get completed jobs with a different config hash (candidates for re-translation)."""
+    db = get_db()
+    with _db_lock:
+        rows = db.execute(
+            """SELECT * FROM jobs
+               WHERE status='completed' AND config_hash != '' AND config_hash != ?
+               ORDER BY completed_at DESC LIMIT ?""",
+            (current_hash, limit),
+        ).fetchall()
+    return [_row_to_job(r) for r in rows]

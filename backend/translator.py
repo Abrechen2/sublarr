@@ -448,6 +448,26 @@ def _search_providers_for_source_sub(mkv_path, context=None):
     return None, None
 
 
+def _record_config_hash_for_result(result, file_path):
+    """Record the translation config hash for a successful translation job."""
+    if not result or not result.get("success") or result.get("stats", {}).get("skipped"):
+        return
+    try:
+        settings = get_settings()
+        config_hash = settings.get_translation_config_hash()
+        from database import record_translation_config
+        record_translation_config(
+            config_hash=config_hash,
+            ollama_model=settings.ollama_model,
+            prompt_template=settings.get_prompt_template()[:200],
+            target_language=settings.target_language,
+        )
+        # Store hash in result stats for job record
+        result.setdefault("stats", {})["config_hash"] = config_hash
+    except Exception as e:
+        logger.debug("Failed to record config hash: %s", e)
+
+
 def translate_file(mkv_path, force=False, bazarr_context=None):
     """Translate subtitles for a single MKV file.
 
@@ -506,6 +526,7 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
             result = translate_ass(mkv_path, best_ass, probe_data)
             if result["success"]:
                 result["stats"]["upgrade_from_srt"] = True
+                _record_config_hash_for_result(result, mkv_path)
                 _notify_integrations(bazarr_context)
                 return result
 
@@ -521,6 +542,7 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
         logger.info("Case C1: Translating source ASS to target ASS")
         result = translate_ass(mkv_path, best_stream, probe_data)
         if result["success"]:
+            _record_config_hash_for_result(result, mkv_path)
             _notify_integrations(bazarr_context)
         return result
 
@@ -529,6 +551,7 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
         logger.info("Case C2: Translating embedded source SRT to target SRT")
         result = translate_srt_from_stream(mkv_path, best_stream)
         if result["success"]:
+            _record_config_hash_for_result(result, mkv_path)
             _notify_integrations(bazarr_context)
         return result
 
@@ -538,6 +561,7 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
         logger.info("Case C2b: Translating external source SRT to target SRT")
         result = translate_srt_from_file(mkv_path, ext_srt)
         if result["success"]:
+            _record_config_hash_for_result(result, mkv_path)
             _notify_integrations(bazarr_context)
         return result
 
@@ -546,12 +570,12 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
     if src_path:
         if src_fmt == "ass":
             logger.info("Case C3: Translating provider source ASS to target ASS")
-            # Load and translate the downloaded ASS
             result = _translate_external_ass(mkv_path, src_path)
         else:
             logger.info("Case C3: Translating provider source SRT to target SRT")
             result = translate_srt_from_file(mkv_path, src_path, source="provider_source_srt")
         if result and result["success"]:
+            _record_config_hash_for_result(result, mkv_path)
             _notify_integrations(bazarr_context)
         return result
 
@@ -571,6 +595,7 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
                         mkv_path, src_srt_path, source="bazarr_source_srt"
                     )
                     if result["success"]:
+                        _record_config_hash_for_result(result, mkv_path)
                         _notify_integrations(bazarr_context)
                     return result
         except Exception as e:

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useConfig, useUpdateConfig, useProviders, useTestProvider, useProviderStats, useClearProviderCache } from '@/hooks/useApi'
-import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Download, Database } from 'lucide-react'
+import { useConfig, useUpdateConfig, useProviders, useTestProvider, useProviderStats, useClearProviderCache, useRetranslateStatus, useRetranslateBatch } from '@/hooks/useApi'
+import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Download, Database, RefreshCw } from 'lucide-react'
 import { getHealth } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 import type { ProviderInfo } from '@/lib/types'
@@ -9,6 +9,7 @@ const TABS = [
   'General',
   'Ollama',
   'Translation',
+  'Automation',
   'Wanted',
   'Providers',
   'Bazarr (Legacy)',
@@ -33,7 +34,6 @@ const FIELDS: FieldConfig[] = [
   { key: 'media_path', label: 'Media Path', type: 'text', placeholder: '/media', tab: 'General' },
   { key: 'db_path', label: 'Database Path', type: 'text', placeholder: '/config/sublarr.db', tab: 'General' },
   { key: 'path_mapping', label: 'Path Mapping (Remote\u2192Local)', type: 'text', placeholder: '/data/media=Z:\\Media', tab: 'General' },
-  { key: 'webhook_delay_minutes', label: 'Webhook Delay (minutes)', type: 'number', placeholder: '5', tab: 'General' },
   // Ollama
   { key: 'ollama_url', label: 'Ollama URL', type: 'text', placeholder: 'http://localhost:11434', tab: 'Ollama' },
   { key: 'ollama_model', label: 'Model', type: 'text', placeholder: 'qwen2.5:14b-instruct', tab: 'Ollama' },
@@ -45,6 +45,20 @@ const FIELDS: FieldConfig[] = [
   { key: 'target_language', label: 'Target Language Code', type: 'text', placeholder: 'de', tab: 'Translation' },
   { key: 'source_language_name', label: 'Source Language Name', type: 'text', placeholder: 'English', tab: 'Translation' },
   { key: 'target_language_name', label: 'Target Language Name', type: 'text', placeholder: 'German', tab: 'Translation' },
+  // Automation — Upgrade
+  { key: 'upgrade_enabled', label: 'Upgrade Enabled', type: 'text', placeholder: 'true', tab: 'Automation' },
+  { key: 'upgrade_prefer_ass', label: 'Prefer ASS over SRT', type: 'text', placeholder: 'true', tab: 'Automation' },
+  { key: 'upgrade_min_score_delta', label: 'Min Score Delta', type: 'number', placeholder: '50', tab: 'Automation' },
+  { key: 'upgrade_window_days', label: 'Upgrade Window (days)', type: 'number', placeholder: '7', tab: 'Automation' },
+  // Automation — Webhook
+  { key: 'webhook_delay_minutes', label: 'Webhook Delay (minutes)', type: 'number', placeholder: '5', tab: 'Automation' },
+  { key: 'webhook_auto_scan', label: 'Auto-Scan after Download', type: 'text', placeholder: 'true', tab: 'Automation' },
+  { key: 'webhook_auto_search', label: 'Auto-Search Providers', type: 'text', placeholder: 'true', tab: 'Automation' },
+  { key: 'webhook_auto_translate', label: 'Auto-Translate Found Subs', type: 'text', placeholder: 'true', tab: 'Automation' },
+  // Automation — Search Scheduler
+  { key: 'wanted_search_interval_hours', label: 'Search Interval (hours, 0=disabled)', type: 'number', placeholder: '24', tab: 'Automation' },
+  { key: 'wanted_search_on_startup', label: 'Search on Startup', type: 'text', placeholder: 'false', tab: 'Automation' },
+  { key: 'wanted_search_max_items_per_run', label: 'Max Items per Search Run', type: 'number', placeholder: '50', tab: 'Automation' },
   // Wanted
   { key: 'wanted_scan_interval_hours', label: 'Scan Interval (hours, 0=disabled)', type: 'number', placeholder: '6', tab: 'Wanted' },
   { key: 'wanted_anime_only', label: 'Anime Only', type: 'text', placeholder: 'true', tab: 'Wanted' },
@@ -457,9 +471,13 @@ export function SettingsPage() {
     }
   }
 
+  const retranslateStatus = useRetranslateStatus()
+  const retranslateBatch = useRetranslateBatch()
+
   const tabFields = FIELDS.filter((f) => f.tab === activeTab)
   const hasTestConnection = ['Ollama', 'Bazarr (Legacy)', 'Sonarr', 'Radarr', 'Jellyfin'].includes(activeTab)
   const isProvidersTab = activeTab === 'Providers'
+  const isTranslationTab = activeTab === 'Translation'
 
   if (isLoading) {
     return (
@@ -599,6 +617,51 @@ export function SettingsPage() {
                         {testResults[activeTab]}
                       </span>
                     </div>
+                  )}
+                </div>
+              )}
+
+              {isTranslationTab && retranslateStatus.data && (
+                <div className="pt-3 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
+                  <div>
+                    <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+                      Re-Translation
+                    </h3>
+                    <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      <span>
+                        Config hash: <code style={{ fontFamily: 'var(--font-mono)' }}>{retranslateStatus.data.current_hash}</code>
+                      </span>
+                      <span>
+                        Model: <code style={{ fontFamily: 'var(--font-mono)' }}>{retranslateStatus.data.ollama_model}</code>
+                      </span>
+                    </div>
+                  </div>
+                  {retranslateStatus.data.outdated_count > 0 ? (
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm" style={{ color: 'var(--warning)' }}>
+                        {retranslateStatus.data.outdated_count} files translated with old config
+                      </span>
+                      <button
+                        onClick={() => retranslateBatch.mutate(undefined, {
+                          onSuccess: () => toast('Re-translation started'),
+                          onError: () => toast('Failed to start re-translation', 'error'),
+                        })}
+                        disabled={retranslateBatch.isPending}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-white hover:opacity-90"
+                        style={{ backgroundColor: 'var(--warning)' }}
+                      >
+                        {retranslateBatch.isPending ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          <RefreshCw size={12} />
+                        )}
+                        Re-translate All
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-xs" style={{ color: 'var(--success)' }}>
+                      All translations are up to date
+                    </span>
                   )}
                 </div>
               )}
