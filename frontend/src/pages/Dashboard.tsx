@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react'
 import {
   Activity,
   CheckCircle2,
@@ -5,10 +6,14 @@ import {
   Clock,
   Zap,
   Server,
+  RefreshCw,
+  Search,
+  Loader2,
 } from 'lucide-react'
-import { useHealth, useStats, useJobs, useWantedSummary } from '@/hooks/useApi'
+import { useHealth, useStats, useJobs, useWantedSummary, useRefreshWanted, useStartWantedBatch, useWantedBatchStatus, useProviders } from '@/hooks/useApi'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatDuration, formatRelativeTime, truncatePath } from '@/lib/utils'
+import { toast } from '@/components/shared/Toast'
 
 function StatCard({ icon: Icon, label, value, color, delay }: {
   icon: typeof Activity
@@ -70,6 +75,42 @@ export function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useStats()
   const { data: wantedSummary } = useWantedSummary()
   const { data: recentJobs } = useJobs(1, 10)
+  const { data: providersData } = useProviders()
+  const { data: batchStatus } = useWantedBatchStatus()
+  const refreshWanted = useRefreshWanted()
+  const startBatch = useStartWantedBatch()
+
+  const providers = providersData?.providers ?? []
+
+  // Live Uptime Counter
+  const [currentUptime, setCurrentUptime] = useState<number | null>(null)
+  const initialUptimeRef = useRef<number | null>(null)
+  const lastUpdateTimeRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (stats?.uptime_seconds !== undefined) {
+      // Wenn sich der initiale Uptime-Wert ändert (z.B. nach Server-Neustart), aktualisiere die Referenzen
+      if (initialUptimeRef.current !== stats.uptime_seconds) {
+        initialUptimeRef.current = stats.uptime_seconds
+        lastUpdateTimeRef.current = Date.now()
+        setCurrentUptime(stats.uptime_seconds)
+      }
+    }
+  }, [stats?.uptime_seconds])
+
+  useEffect(() => {
+    if (initialUptimeRef.current === null || lastUpdateTimeRef.current === null) {
+      return
+    }
+
+    const interval = setInterval(() => {
+      const now = Date.now()
+      const elapsed = (now - lastUpdateTimeRef.current!) / 1000
+      setCurrentUptime(initialUptimeRef.current! + elapsed)
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <div className="space-y-5">
@@ -118,38 +159,137 @@ export function Dashboard() {
         )}
       </div>
 
-      {/* Service Status */}
-      {health?.services && (
-        <div
-          className="rounded-lg p-4"
-          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
-        >
-          <h2 className="text-xs font-semibold mb-3 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-            Service Connections
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-            {Object.entries(health.services).map(([name, status]) => {
-              const isOk = status === 'OK' || status.startsWith('OK')
-              const isNotConfigured = status === 'not configured'
-              return (
-                <div
-                  key={name}
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-md"
-                  style={{ backgroundColor: 'var(--bg-primary)' }}
-                >
-                  <div
-                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{
-                      backgroundColor: isOk ? 'var(--success)' : isNotConfigured ? 'var(--text-muted)' : 'var(--error)',
-                    }}
-                  />
-                  <span className="text-xs capitalize truncate">{name}</span>
-                </div>
-              )
-            })}
-          </div>
+      {/* Quick Actions */}
+      <div
+        className="rounded-lg p-4"
+        style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      >
+        <h2 className="text-xs font-semibold mb-3 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+          Quick Actions
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => {
+              refreshWanted.mutate(undefined, {
+                onSuccess: () => toast('Library scan started'),
+                onError: () => toast('Scan failed', 'error'),
+              })
+            }}
+            disabled={refreshWanted.isPending || wantedSummary?.scan_running}
+            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-150 hover:opacity-90"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+            }}
+          >
+            {refreshWanted.isPending || wantedSummary?.scan_running ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <RefreshCw size={14} />
+            )}
+            {wantedSummary?.scan_running ? 'Scanning...' : 'Scan Library'}
+          </button>
+          <button
+            onClick={() => {
+              startBatch.mutate(undefined, {
+                onSuccess: () => toast('Wanted search started'),
+                onError: () => toast('Search failed', 'error'),
+              })
+            }}
+            disabled={startBatch.isPending || batchStatus?.running}
+            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-150 hover:opacity-90"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+            }}
+          >
+            {startBatch.isPending || batchStatus?.running ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Search size={14} />
+            )}
+            {batchStatus?.running ? 'Searching...' : 'Search Wanted'}
+          </button>
         </div>
-      )}
+      </div>
+
+      {/* Service Status + Provider Health */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {health?.services && (
+          <div
+            className="rounded-lg p-4"
+            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+          >
+            <h2 className="text-xs font-semibold mb-3 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+              Service Connections
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {Object.entries(health.services).map(([name, status]) => {
+                const isOk = status === 'OK' || status.startsWith('OK')
+                const isNotConfigured = status === 'not configured'
+                return (
+                  <div
+                    key={name}
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-md"
+                    style={{ backgroundColor: 'var(--bg-primary)' }}
+                  >
+                    <div
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{
+                        backgroundColor: isOk ? 'var(--success)' : isNotConfigured ? 'var(--text-muted)' : 'var(--error)',
+                      }}
+                    />
+                    <span className="text-xs capitalize truncate">{name}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {providers.length > 0 && (
+          <div
+            className="rounded-lg p-4"
+            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+          >
+            <h2 className="text-xs font-semibold mb-3 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+              Subtitle Providers
+            </h2>
+            <div className="space-y-1.5">
+              {providers.map((p) => {
+                const statusColor = !p.enabled
+                  ? 'var(--text-muted)'
+                  : p.healthy
+                    ? 'var(--success)'
+                    : 'var(--error)'
+                return (
+                  <div
+                    key={p.name}
+                    className="flex items-center justify-between px-2.5 py-1.5 rounded-md"
+                    style={{ backgroundColor: 'var(--bg-primary)' }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: statusColor }}
+                      />
+                      <span className="text-xs capitalize">{p.name}</span>
+                    </div>
+                    <span
+                      className="text-[10px] font-medium"
+                      style={{ color: statusColor }}
+                    >
+                      {!p.enabled ? 'Disabled' : p.healthy ? 'Healthy' : 'Error'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Quick Stats */}
       {stats && (
@@ -207,7 +347,9 @@ export function Dashboard() {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Uptime</span>
-                <span style={{ fontFamily: 'var(--font-mono)' }}>{formatDuration(stats.uptime_seconds)}</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>
+                  {currentUptime !== null ? formatDuration(currentUptime) : stats?.uptime_seconds !== undefined ? formatDuration(stats.uptime_seconds) : '—'}
+                </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>Batch Running</span>

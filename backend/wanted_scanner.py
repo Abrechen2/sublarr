@@ -14,6 +14,7 @@ from datetime import datetime
 from config import get_settings, map_path
 from translator import detect_existing_target_for_lang, get_output_path_for_lang
 from upgrade_scorer import score_existing_subtitle
+from ass_utils import run_ffprobe, has_target_language_stream
 from database import (
     upsert_wanted_item,
     delete_wanted_items,
@@ -102,27 +103,35 @@ class WantedScanner:
         try:
             settings = get_settings()
 
-            # Scan Sonarr episodes
+            # Scan all Sonarr instances
             try:
                 from sonarr_client import get_sonarr_client
-                sonarr = get_sonarr_client()
-                if sonarr:
-                    a, u, paths = self._scan_sonarr(sonarr, settings)
-                    added += a
-                    updated += u
-                    scanned_paths.update(paths)
+                from config import get_sonarr_instances
+                instances = get_sonarr_instances()
+                for inst in instances:
+                    instance_name = inst.get("name", "Default")
+                    sonarr = get_sonarr_client(instance_name=instance_name)
+                    if sonarr:
+                        a, u, paths = self._scan_sonarr(sonarr, settings, instance_name)
+                        added += a
+                        updated += u
+                        scanned_paths.update(paths)
             except Exception as e:
                 logger.error("Wanted scan: Sonarr error: %s", e)
 
-            # Scan Radarr movies
+            # Scan all Radarr instances
             try:
                 from radarr_client import get_radarr_client
-                radarr = get_radarr_client()
-                if radarr:
-                    a, u, paths = self._scan_radarr(radarr, settings)
-                    added += a
-                    updated += u
-                    scanned_paths.update(paths)
+                from config import get_radarr_instances
+                instances = get_radarr_instances()
+                for inst in instances:
+                    instance_name = inst.get("name", "Default")
+                    radarr = get_radarr_client(instance_name=instance_name)
+                    if radarr:
+                        a, u, paths = self._scan_radarr(radarr, settings, instance_name)
+                        added += a
+                        updated += u
+                        scanned_paths.update(paths)
             except Exception as e:
                 logger.error("Wanted scan: Radarr error: %s", e)
 
@@ -188,7 +197,130 @@ class WantedScanner:
             self._scanning = False
             self._scan_lock.release()
 
-    def _scan_sonarr(self, sonarr, settings):
+    def scan_movie(self, movie_id: int) -> dict:
+        """Scan a single Radarr movie."""
+        if not self._scan_lock.acquire(blocking=False):
+            return {"error": "scan_already_running"}
+
+        self._scanning = True
+        start = time.time()
+
+        try:
+            settings = get_settings()
+            from radarr_client import get_radarr_client
+            radarr = get_radarr_client()
+            if not radarr:
+                return {"error": "radarr_not_configured"}
+
+            movie = radarr.get_movie_by_id(movie_id)
+            if not movie:
+                return {"error": f"movie_{movie_id}_not_found"}
+
+            added, updated, _ = self._scan_radarr_movie(radarr, movie, settings)
+            duration = round(time.time() - start, 1)
+
+            return {
+                "added": added,
+                "updated": updated,
+                "movie_id": movie_id,
+                "duration_seconds": duration,
+            }
+        except Exception as e:
+            logger.exception("Wanted scan for movie %d failed: %s", movie_id, e)
+            return {"error": str(e)}
+        finally:
+            self._scanning = False
+            self._scan_lock.release()
+
+    def _scan_radarr_movie(self, radarr, movie, settings, instance_name=None):
+        """Scan a single Radarr movie. Returns (added, updated, scanned_paths)."""
+        added = 0
+        updated = 0
+        scanned_paths = set()
+
+        if not movie.get("hasFile"):
+            return added, updated, scanned_paths
+
+        movie_id = movie.get("id")
+        movie_title = movie.get("title", f"Movie {movie_id}")
+
+        # Get file path
+        file_path = None
+        movie_file = movie.get("movieFile")
+        if movie_file and movie_file.get("path"):
+            file_path = movie_file["path"]
+        else:
+            file_id = movie.get("movieFileId")
+            if file_id and file_id != 0:
+                file_info = radarr.get_movie_file(file_id)
+                if file_info:
+                    file_path = file_info.get("path")
+
+        if not file_path:
+            return added, updated, scanned_paths
+
+        mapped_path = map_path(file_path)
+        if not os.path.exists(mapped_path):
+            return added, updated, scanned_paths
+
+        scanned_paths.add(mapped_path)
+
+        profile = get_movie_profile(movie_id)
+        target_languages = profile.get("target_languages", [settings.target_language])
+        target_language_names = profile.get("target_language_names", [settings.target_language_name])
+
+        probe_data = None
+        if settings.use_embedded_subs and mapped_path.lower().endswith(('.mkv', '.mp4', '.m4v')):
+            try:
+                probe_data = run_ffprobe(mapped_path, use_cache=True)
+            except Exception as e:
+                logger.debug("ffprobe failed for %s: %s", mapped_path, e)
+
+        for target_lang, target_name in zip(target_languages, target_language_names):
+            existing = detect_existing_target_for_lang(mapped_path, target_lang, probe_data)
+            if existing == "ass":
+                continue
+
+            embedded_sub = None
+            if probe_data:
+                embedded_sub = has_target_language_stream(probe_data, target_lang)
+                if embedded_sub == "ass":
+                    existing = "embedded_ass"
+                elif embedded_sub == "srt":
+                    existing = "embedded_srt"
+
+            title = movie_title
+            if len(target_languages) > 1:
+                title = f"{title} [{target_lang.upper()}]"
+            existing_sub = existing or ""
+
+            is_upgrade = False
+            cur_score = 0
+            if existing_sub == "srt" and settings.upgrade_enabled:
+                srt_path = get_output_path_for_lang(mapped_path, "srt", target_lang)
+                if os.path.exists(srt_path):
+                    _, cur_score = score_existing_subtitle(srt_path)
+                    is_upgrade = True
+
+            row_id = upsert_wanted_item(
+                item_type="movie",
+                file_path=mapped_path,
+                title=title,
+                existing_sub=existing_sub,
+                missing_languages=[target_lang],
+                radarr_movie_id=movie_id,
+                upgrade_candidate=is_upgrade,
+                current_score=cur_score,
+                target_language=target_lang,
+                instance_name=instance_name or "",
+            )
+
+            if row_id:
+                added += 1
+
+        return added, updated, scanned_paths
+
+    def _scan_sonarr(self, sonarr, settings, instance_name=None):
         """Scan all Sonarr series. Returns (added, updated, scanned_paths)."""
         if settings.wanted_anime_only:
             series_list = sonarr.get_anime_series()
@@ -203,14 +335,14 @@ class WantedScanner:
             series_id = series.get("id")
             if not series_id:
                 continue
-            a, u, paths = self._scan_sonarr_series(sonarr, series_id, settings, series)
+            a, u, paths = self._scan_sonarr_series(sonarr, series_id, settings, series, instance_name)
             total_added += a
             total_updated += u
             all_paths.update(paths)
 
         return total_added, total_updated, all_paths
 
-    def _scan_sonarr_series(self, sonarr, series_id, settings, series_info=None):
+    def _scan_sonarr_series(self, sonarr, series_id, settings, series_info=None, instance_name=None):
         """Scan a single series. Returns (added, updated, scanned_paths)."""
         if not series_info:
             series_info = sonarr.get_series_by_id(series_id) or {}
@@ -256,11 +388,28 @@ class WantedScanner:
             episode_num = ep.get("episodeNumber", 0)
             season_episode = f"S{season_num:02d}E{episode_num:02d}"
 
+            # Check embedded subtitles if enabled
+            probe_data = None
+            if settings.use_embedded_subs and mapped_path.lower().endswith(('.mkv', '.mp4', '.m4v')):
+                try:
+                    probe_data = run_ffprobe(mapped_path, use_cache=True)
+                except Exception as e:
+                    logger.debug("ffprobe failed for %s: %s", mapped_path, e)
+
             # Check each target language from the profile
             for target_lang, target_name in zip(target_languages, target_language_names):
-                existing = detect_existing_target_for_lang(mapped_path, target_lang)
+                existing = detect_existing_target_for_lang(mapped_path, target_lang, probe_data)
                 if existing == "ass":
                     continue  # Goal achieved for this language
+
+                # Check embedded streams if probe_data available
+                embedded_sub = None
+                if probe_data:
+                    embedded_sub = has_target_language_stream(probe_data, target_lang)
+                    if embedded_sub == "ass":
+                        existing = "embedded_ass"
+                    elif embedded_sub == "srt":
+                        existing = "embedded_srt"
 
                 title = f"{series_title} — {season_episode}"
                 if len(target_languages) > 1:
@@ -288,6 +437,7 @@ class WantedScanner:
                     upgrade_candidate=is_upgrade,
                     current_score=cur_score,
                     target_language=target_lang,
+                    instance_name=instance_name or "",
                 )
 
                 if row_id:
@@ -295,86 +445,24 @@ class WantedScanner:
 
         return added, updated, scanned_paths
 
-    def _scan_radarr(self, radarr, settings):
+    def _scan_radarr(self, radarr, settings, instance_name=None):
         """Scan all Radarr movies. Returns (added, updated, scanned_paths)."""
-        if settings.wanted_anime_only:
+        if settings.wanted_anime_movies_only:
             movies = radarr.get_anime_movies()
         else:
             movies = radarr.get_movies()
 
-        added = 0
-        updated = 0
-        scanned_paths = set()
+        total_added = 0
+        total_updated = 0
+        all_paths = set()
 
         for movie in movies:
-            if not movie.get("hasFile"):
-                continue
+            added, updated, paths = self._scan_radarr_movie(radarr, movie, settings, instance_name)
+            total_added += added
+            total_updated += updated
+            all_paths.update(paths)
 
-            movie_id = movie.get("id")
-            movie_title = movie.get("title", f"Movie {movie_id}")
-
-            # Get file path
-            file_path = None
-            movie_file = movie.get("movieFile")
-            if movie_file and movie_file.get("path"):
-                file_path = movie_file["path"]
-            else:
-                # Fallback: get movie file separately
-                file_id = movie.get("movieFileId")
-                if file_id and file_id != 0:
-                    file_info = radarr.get_movie_file(file_id)
-                    if file_info:
-                        file_path = file_info.get("path")
-
-            if not file_path:
-                continue
-
-            mapped_path = map_path(file_path)
-            if not os.path.exists(mapped_path):
-                continue
-
-            scanned_paths.add(mapped_path)
-
-            # Load language profile for this movie
-            profile = get_movie_profile(movie_id)
-            target_languages = profile.get("target_languages", [settings.target_language])
-            target_language_names = profile.get("target_language_names", [settings.target_language_name])
-
-            for target_lang, target_name in zip(target_languages, target_language_names):
-                existing = detect_existing_target_for_lang(mapped_path, target_lang)
-                if existing == "ass":
-                    continue
-
-                title = movie_title
-                if len(target_languages) > 1:
-                    title = f"{title} [{target_lang.upper()}]"
-                existing_sub = existing or ""
-
-                # Score existing subtitle for upgrade detection
-                is_upgrade = False
-                cur_score = 0
-                if existing_sub == "srt" and settings.upgrade_enabled:
-                    srt_path = get_output_path_for_lang(mapped_path, "srt", target_lang)
-                    if os.path.exists(srt_path):
-                        _, cur_score = score_existing_subtitle(srt_path)
-                        is_upgrade = True
-
-                row_id = upsert_wanted_item(
-                    item_type="movie",
-                    file_path=mapped_path,
-                    title=title,
-                    existing_sub=existing_sub,
-                    missing_languages=[target_lang],
-                    radarr_movie_id=movie_id,
-                    upgrade_candidate=is_upgrade,
-                    current_score=cur_score,
-                    target_language=target_lang,
-                )
-
-                if row_id:
-                    added += 1
-
-        return added, updated, scanned_paths
+        return total_added, total_updated, all_paths
 
     def _cleanup(self, scanned_paths: set) -> int:
         """Remove wanted items whose files no longer exist or whose subs appeared.

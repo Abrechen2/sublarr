@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   useConfig, useUpdateConfig, useProviders, useTestProvider, useProviderStats,
   useClearProviderCache, useRetranslateStatus, useRetranslateBatch,
   useLanguageProfiles, useCreateProfile, useUpdateProfile, useDeleteProfile,
+  useExportConfig, useImportConfig,
+  usePromptPresets, useCreatePromptPreset, useUpdatePromptPreset, useDeletePromptPreset,
 } from '@/hooks/useApi'
-import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Download, Database, RefreshCw, Plus, Edit2, X, Check, Globe } from 'lucide-react'
+import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Download, Database, RefreshCw, Plus, Edit2, X, Check, Globe, Upload, FileDown } from 'lucide-react'
 import { getHealth } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 import type { ProviderInfo, LanguageProfile } from '@/lib/types'
@@ -20,6 +22,8 @@ const TABS = [
   'Sonarr',
   'Radarr',
   'Jellyfin',
+  'Notifications',
+  'Prompt Presets',
 ]
 
 interface FieldConfig {
@@ -37,7 +41,6 @@ const FIELDS: FieldConfig[] = [
   { key: 'log_level', label: 'Log Level', type: 'text', placeholder: 'INFO', tab: 'General' },
   { key: 'media_path', label: 'Media Path', type: 'text', placeholder: '/media', tab: 'General' },
   { key: 'db_path', label: 'Database Path', type: 'text', placeholder: '/config/sublarr.db', tab: 'General' },
-  { key: 'path_mapping', label: 'Path Mapping (Remote\u2192Local)', type: 'text', placeholder: '/data/media=Z:\\Media', tab: 'General' },
   // Ollama
   { key: 'ollama_url', label: 'Ollama URL', type: 'text', placeholder: 'http://localhost:11434', tab: 'Ollama' },
   { key: 'ollama_model', label: 'Model', type: 'text', placeholder: 'qwen2.5:14b-instruct', tab: 'Ollama' },
@@ -49,6 +52,7 @@ const FIELDS: FieldConfig[] = [
   { key: 'target_language', label: 'Target Language Code', type: 'text', placeholder: 'de', tab: 'Translation' },
   { key: 'source_language_name', label: 'Source Language Name', type: 'text', placeholder: 'English', tab: 'Translation' },
   { key: 'target_language_name', label: 'Target Language Name', type: 'text', placeholder: 'German', tab: 'Translation' },
+  { key: 'hi_removal_enabled', label: 'Remove Hearing Impaired Tags', type: 'text', placeholder: 'false', tab: 'Translation' },
   // Automation — Upgrade
   { key: 'upgrade_enabled', label: 'Upgrade Enabled', type: 'text', placeholder: 'true', tab: 'Automation' },
   { key: 'upgrade_prefer_ass', label: 'Prefer ASS over SRT', type: 'text', placeholder: 'true', tab: 'Automation' },
@@ -65,7 +69,8 @@ const FIELDS: FieldConfig[] = [
   { key: 'wanted_search_max_items_per_run', label: 'Max Items per Search Run', type: 'number', placeholder: '50', tab: 'Automation' },
   // Wanted
   { key: 'wanted_scan_interval_hours', label: 'Scan Interval (hours, 0=disabled)', type: 'number', placeholder: '6', tab: 'Wanted' },
-  { key: 'wanted_anime_only', label: 'Anime Only', type: 'text', placeholder: 'true', tab: 'Wanted' },
+  { key: 'wanted_anime_only', label: 'Anime Only (Sonarr)', type: 'text', placeholder: 'true', tab: 'Wanted' },
+  { key: 'wanted_anime_movies_only', label: 'Anime Movies Only (Radarr)', type: 'text', placeholder: 'false', tab: 'Wanted' },
   { key: 'wanted_scan_on_startup', label: 'Scan on Startup', type: 'text', placeholder: 'true', tab: 'Wanted' },
   { key: 'wanted_max_search_attempts', label: 'Max Search Attempts', type: 'number', placeholder: '3', tab: 'Wanted' },
   // Sonarr
@@ -77,7 +82,355 @@ const FIELDS: FieldConfig[] = [
   // Jellyfin
   { key: 'jellyfin_url', label: 'Jellyfin URL', type: 'text', placeholder: 'http://localhost:8096', tab: 'Jellyfin' },
   { key: 'jellyfin_api_key', label: 'Jellyfin API Key', type: 'password', tab: 'Jellyfin' },
+  // Notifications
+  { key: 'notify_on_download', label: 'Notify on Download', type: 'text', placeholder: 'true', tab: 'Notifications' },
+  { key: 'notify_on_upgrade', label: 'Notify on Upgrade', type: 'text', placeholder: 'true', tab: 'Notifications' },
+  { key: 'notify_on_batch_complete', label: 'Notify on Batch Complete', type: 'text', placeholder: 'true', tab: 'Notifications' },
+  { key: 'notify_on_error', label: 'Notify on Error', type: 'text', placeholder: 'true', tab: 'Notifications' },
+  { key: 'notify_manual_actions', label: 'Notify Manual Actions', type: 'text', placeholder: 'false', tab: 'Notifications' },
 ]
+
+// ─── Path Mapping Editor ────────────────────────────────────────────────────
+
+function PathMappingEditor({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (val: string) => void
+}) {
+  const [testPath, setTestPath] = useState('')
+  const [testResult, setTestResult] = useState<{ mapped_path: string; exists: boolean } | null>(null)
+  const [isTesting, setIsTesting] = useState(false)
+
+  const handleTestPath = async () => {
+    if (!testPath.trim()) return
+    setIsTesting(true)
+    try {
+      const response = await fetch('/api/v1/settings/path-mapping/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ remote_path: testPath }),
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setTestResult(data)
+      } else {
+        toast(data.error || 'Path mapping test failed', 'error')
+        setTestResult(null)
+      }
+    } catch (error) {
+      toast('Failed to test path mapping', 'error')
+      setTestResult(null)
+    } finally {
+      setIsTesting(false)
+    }
+  }
+  const parseRows = (val: string): { remote: string; local: string }[] => {
+    if (!val || !val.trim()) return []
+    return val.split(';').filter(Boolean).map((pair) => {
+      const eqIdx = pair.indexOf('=')
+      if (eqIdx === -1) return { remote: pair, local: '' }
+      return { remote: pair.slice(0, eqIdx), local: pair.slice(eqIdx + 1) }
+    })
+  }
+
+  const rows = parseRows(value)
+
+  const serialize = (r: { remote: string; local: string }[]) =>
+    r.filter((x) => x.remote || x.local).map((x) => `${x.remote}=${x.local}`).join(';')
+
+  const updateRow = (index: number, field: 'remote' | 'local', newVal: string) => {
+    const updated = [...rows]
+    updated[index] = { ...updated[index], [field]: newVal }
+    onChange(serialize(updated))
+  }
+
+  const removeRow = (index: number) => {
+    onChange(serialize(rows.filter((_, i) => i !== index)))
+  }
+
+  const addRow = () => {
+    onChange(value ? value + ';=' : '=')
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+        Path Mapping (Remote &rarr; Local)
+      </label>
+      <div className="space-y-2">
+        {rows.length > 0 && (
+          <div
+            className="grid gap-2 text-xs font-medium"
+            style={{ gridTemplateColumns: '1fr 1fr 2rem', color: 'var(--text-muted)' }}
+          >
+            <span>Remote Path</span>
+            <span>Local Path</span>
+            <span />
+          </div>
+        )}
+        {rows.map((row, i) => (
+          <div
+            key={i}
+            className="grid gap-2 items-center"
+            style={{ gridTemplateColumns: '1fr 1fr 2rem' }}
+          >
+            <input
+              type="text"
+              value={row.remote}
+              onChange={(e) => updateRow(i, 'remote', e.target.value)}
+              placeholder="/data/media"
+              className="px-3 py-2 rounded-md text-sm focus:outline-none"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '13px',
+              }}
+            />
+            <input
+              type="text"
+              value={row.local}
+              onChange={(e) => updateRow(i, 'local', e.target.value)}
+              placeholder="Z:\Media"
+              className="px-3 py-2 rounded-md text-sm focus:outline-none"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '13px',
+              }}
+            />
+            <button
+              onClick={() => removeRow(i)}
+              className="p-1.5 rounded transition-all duration-150"
+              style={{ color: 'var(--text-muted)' }}
+              title="Remove mapping"
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--error)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+        <button
+          onClick={addRow}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
+          style={{
+            border: '1px solid var(--border)',
+            color: 'var(--text-secondary)',
+            backgroundColor: 'var(--bg-primary)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--accent-dim)'
+            e.currentTarget.style.color = 'var(--accent)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border)'
+            e.currentTarget.style.color = 'var(--text-secondary)'
+          }}
+        >
+          <Plus size={12} />
+          Add Mapping
+        </button>
+      </div>
+      {/* Test Path Mapping */}
+      <div className="pt-3 space-y-2" style={{ borderTop: '1px solid var(--border)' }}>
+        <label className="block text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+          Test Path Mapping
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={testPath}
+            onChange={(e) => setTestPath(e.target.value)}
+            placeholder="/data/media/anime/Series.mkv"
+            className="flex-1 px-3 py-2 rounded-md text-sm focus:outline-none"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '13px',
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleTestPath()
+            }}
+          />
+          <button
+            onClick={handleTestPath}
+            disabled={isTesting || !testPath.trim()}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
+            style={{
+              border: '1px solid var(--border)',
+              color: 'var(--text-secondary)',
+              backgroundColor: 'var(--bg-primary)',
+            }}
+            onMouseEnter={(e) => {
+              if (!e.currentTarget.disabled) {
+                e.currentTarget.style.borderColor = 'var(--accent-dim)'
+                e.currentTarget.style.color = 'var(--accent)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border)'
+              e.currentTarget.style.color = 'var(--text-secondary)'
+            }}
+          >
+            {isTesting ? <Loader2 size={14} className="animate-spin" /> : <TestTube size={14} />}
+            Test
+          </button>
+        </div>
+        {testResult && (
+          <div className="text-xs space-y-1" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+            <div>
+              <span style={{ color: 'var(--text-muted)' }}>Mapped to:</span>{' '}
+              <span style={{ color: 'var(--accent)' }}>{testResult.mapped_path}</span>
+            </div>
+            <div>
+              <span style={{ color: testResult.exists ? 'var(--success)' : 'var(--error)' }}>
+                {testResult.exists ? '✓ File exists' : '✗ File not found'}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Instance Editor Component ──────────────────────────────────────────────
+
+interface InstanceEntry {
+  name: string
+  url: string
+  api_key: string
+  path_mapping?: string
+}
+
+function InstanceEditor({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (val: string) => void
+}) {
+  const [instances, setInstances] = useState<InstanceEntry[]>(() => {
+    try {
+      const parsed = JSON.parse(value || '[]')
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  })
+
+  const sync = (updated: InstanceEntry[]) => {
+    setInstances(updated)
+    onChange(updated.length > 0 ? JSON.stringify(updated) : '')
+  }
+
+  const addInstance = () => {
+    sync([...instances, { name: '', url: '', api_key: '', path_mapping: '' }])
+  }
+
+  const removeInstance = (idx: number) => {
+    sync(instances.filter((_, i) => i !== idx))
+  }
+
+  const updateField = (idx: number, field: keyof InstanceEntry, val: string) => {
+    const updated = [...instances]
+    updated[idx] = { ...updated[idx], [field]: val }
+    sync(updated)
+  }
+
+  const inputStyle = {
+    backgroundColor: 'var(--bg-primary)',
+    border: '1px solid var(--border)',
+    color: 'var(--text-primary)',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '13px',
+  }
+
+  return (
+    <div className="pt-3 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          {label} Instances
+        </h3>
+        <button
+          onClick={addInstance}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium transition-all duration-150"
+          style={{ color: 'var(--accent)', border: '1px solid var(--accent-dim)' }}
+        >
+          <Plus size={12} />
+          Add Instance
+        </button>
+      </div>
+      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+        Configure multiple {label} instances. If empty, the legacy URL/Key above is used.
+      </p>
+      {instances.map((inst, idx) => (
+        <div
+          key={idx}
+          className="rounded-lg p-3 space-y-2"
+          style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)' }}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+              Instance {idx + 1}
+            </span>
+            <button
+              onClick={() => removeInstance(idx)}
+              className="p-1 rounded transition-colors"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input
+              type="text"
+              placeholder="Name (e.g. Main)"
+              value={inst.name}
+              onChange={(e) => updateField(idx, 'name', e.target.value)}
+              className="w-full px-2.5 py-1.5 rounded text-sm focus:outline-none"
+              style={inputStyle}
+            />
+            <input
+              type="text"
+              placeholder="URL (e.g. http://localhost:8989)"
+              value={inst.url}
+              onChange={(e) => updateField(idx, 'url', e.target.value)}
+              className="w-full px-2.5 py-1.5 rounded text-sm focus:outline-none"
+              style={inputStyle}
+            />
+            <input
+              type="password"
+              placeholder="API Key"
+              value={inst.api_key}
+              onChange={(e) => updateField(idx, 'api_key', e.target.value)}
+              className="w-full px-2.5 py-1.5 rounded text-sm focus:outline-none"
+              style={inputStyle}
+            />
+            <input
+              type="text"
+              placeholder="Path Mapping (optional)"
+              value={inst.path_mapping || ''}
+              onChange={(e) => updateField(idx, 'path_mapping', e.target.value)}
+              className="w-full px-2.5 py-1.5 rounded text-sm focus:outline-none"
+              style={inputStyle}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 // ─── Provider Card Component ────────────────────────────────────────────────
 
@@ -420,6 +773,283 @@ function ProvidersTab({
 
 // ─── Language Profiles Tab ──────────────────────────────────────────────────
 
+// ─── Prompt Presets Tab ────────────────────────────────────────────────────────
+
+function PromptPresetsTab() {
+  const { data, isLoading } = usePromptPresets()
+  const createPreset = useCreatePromptPreset()
+  const updatePreset = useUpdatePromptPreset()
+  const deletePreset = useDeletePromptPreset()
+  const [showAdd, setShowAdd] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [formData, setFormData] = useState({ name: '', prompt_template: '', is_default: false })
+
+  const presets = data?.presets || []
+
+  const resetForm = () => {
+    setShowAdd(false)
+    setEditingId(null)
+    setFormData({ name: '', prompt_template: '', is_default: false })
+  }
+
+  const startEdit = (preset: { id: number; name: string; prompt_template: string; is_default: number }) => {
+    setEditingId(preset.id)
+    setFormData({
+      name: preset.name,
+      prompt_template: preset.prompt_template,
+      is_default: preset.is_default === 1,
+    })
+    setShowAdd(false)
+  }
+
+  const handleSave = () => {
+    if (!formData.name.trim() || !formData.prompt_template.trim()) {
+      toast('Name and prompt template are required', 'error')
+      return
+    }
+
+    if (editingId) {
+      updatePreset.mutate(
+        { presetId: editingId, ...formData },
+        {
+          onSuccess: () => {
+            toast('Preset updated')
+            resetForm()
+          },
+          onError: () => toast('Failed to update preset', 'error'),
+        }
+      )
+    } else {
+      createPreset.mutate(formData, {
+        onSuccess: () => {
+          toast('Preset created')
+          resetForm()
+        },
+        onError: () => toast('Failed to create preset', 'error'),
+      })
+    }
+  }
+
+  const handleDelete = (id: number) => {
+    if (!confirm('Delete this preset? You cannot delete the last preset.')) return
+    deletePreset.mutate(id, {
+      onSuccess: () => toast('Preset deleted'),
+      onError: () => toast('Failed to delete preset', 'error'),
+    })
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 size={28} className="animate-spin" style={{ color: 'var(--accent)' }} />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Prompt Presets
+        </h2>
+        <button
+          onClick={() => {
+            resetForm()
+            setShowAdd(true)
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-white"
+          style={{ backgroundColor: 'var(--accent)' }}
+        >
+          <Plus size={12} />
+          Add Preset
+        </button>
+      </div>
+
+      {showAdd && (
+        <div
+          className="rounded-lg p-4 space-y-3"
+          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--accent-dim)' }}
+        >
+          <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {editingId ? 'Edit Preset' : 'New Preset'}
+          </div>
+          <div className="space-y-2">
+            <input
+              type="text"
+              placeholder="Preset name"
+              value={formData.name}
+              onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
+              className="w-full px-3 py-2 rounded-md text-sm"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+              }}
+            />
+            <textarea
+              placeholder="Prompt template..."
+              value={formData.prompt_template}
+              onChange={(e) => setFormData((f) => ({ ...f, prompt_template: e.target.value }))}
+              rows={8}
+              className="w-full px-3 py-2 rounded-md text-sm font-mono"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '12px',
+              }}
+            />
+            <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <input
+                type="checkbox"
+                checked={formData.is_default}
+                onChange={(e) => setFormData((f) => ({ ...f, is_default: e.target.checked }))}
+              />
+              Set as default
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSave}
+              disabled={createPreset.isPending || updatePreset.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white"
+              style={{ backgroundColor: 'var(--accent)' }}
+            >
+              {(createPreset.isPending || updatePreset.isPending) ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Check size={12} />
+              )}
+              Save
+            </button>
+            <button onClick={resetForm} className="flex items-center gap-1 px-3 py-1.5 rounded text-xs" style={{ color: 'var(--text-muted)' }}>
+              <X size={12} /> Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {presets.map((p) => (
+        <div
+          key={p.id}
+          className="rounded-lg p-4 space-y-2"
+          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{p.name}</span>
+              {p.is_default === 1 && (
+                <span
+                  className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+                  style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
+                >
+                  Default
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => startEdit(p)}
+                className="p-1.5 rounded transition-all duration-150"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+                title="Edit preset"
+              >
+                <Edit2 size={12} />
+              </button>
+              {presets.length > 1 && (
+                <button
+                  onClick={() => handleDelete(p.id)}
+                  disabled={deletePreset.isPending}
+                  className="p-1.5 rounded transition-all duration-150"
+                  style={{ border: '1px solid var(--border)', color: 'var(--error)', backgroundColor: 'var(--bg-primary)' }}
+                  title="Delete preset"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+          {editingId === p.id ? (
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
+                className="w-full px-3 py-2 rounded-md text-sm"
+                style={{
+                  backgroundColor: 'var(--bg-primary)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                }}
+              />
+              <textarea
+                value={formData.prompt_template}
+                onChange={(e) => setFormData((f) => ({ ...f, prompt_template: e.target.value }))}
+                rows={8}
+                className="w-full px-3 py-2 rounded-md text-sm font-mono"
+                style={{
+                  backgroundColor: 'var(--bg-primary)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '12px',
+                }}
+              />
+              <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                <input
+                  type="checkbox"
+                  checked={formData.is_default}
+                  onChange={(e) => setFormData((f) => ({ ...f, is_default: e.target.checked }))}
+                />
+                Set as default
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSave}
+                  disabled={updatePreset.isPending}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white"
+                  style={{ backgroundColor: 'var(--accent)' }}
+                >
+                  {updatePreset.isPending ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <Check size={12} />
+                  )}
+                  Save
+                </button>
+                <button onClick={resetForm} className="flex items-center gap-1 px-3 py-1.5 rounded text-xs" style={{ color: 'var(--text-muted)' }}>
+                  <X size={12} /> Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div
+              className="rounded px-3 py-2 text-xs font-mono max-h-32 overflow-auto"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              {p.prompt_template}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {presets.length === 0 && !showAdd && (
+        <div className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>
+          No prompt presets configured. A default preset will be created automatically.
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Language Profiles Tab ────────────────────────────────────────────────────
+
 function LanguageProfilesTab() {
   const { data: profiles, isLoading } = useLanguageProfiles()
   const createProfile = useCreateProfile()
@@ -724,12 +1354,65 @@ export function SettingsPage() {
 
   const retranslateStatus = useRetranslateStatus()
   const retranslateBatch = useRetranslateBatch()
+  const exportConfig = useExportConfig()
+  const importConfig = useImportConfig()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [importPreview, setImportPreview] = useState<Record<string, unknown> | null>(null)
+
+  const handleExport = () => {
+    exportConfig.mutate(undefined, {
+      onSuccess: (data) => {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `sublarr-config-${new Date().toISOString().slice(0, 10)}.json`
+        a.click()
+        URL.revokeObjectURL(url)
+        toast('Config exported')
+      },
+      onError: () => toast('Export failed', 'error'),
+    })
+  }
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string)
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+          toast('Invalid config file: expected JSON object', 'error')
+          return
+        }
+        setImportPreview(parsed)
+      } catch {
+        toast('Invalid JSON file', 'error')
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
+  const handleImportConfirm = () => {
+    if (!importPreview) return
+    importConfig.mutate(importPreview, {
+      onSuccess: (result) => {
+        setImportPreview(null)
+        toast(`Imported ${result.imported_keys.length} settings` +
+          (result.skipped_secrets.length > 0 ? ` (${result.skipped_secrets.length} secrets skipped)` : ''))
+      },
+      onError: () => toast('Import failed', 'error'),
+    })
+  }
 
   const tabFields = FIELDS.filter((f) => f.tab === activeTab)
   const hasTestConnection = ['Ollama', 'Sonarr', 'Radarr', 'Jellyfin'].includes(activeTab)
   const isProvidersTab = activeTab === 'Providers'
   const isLanguagesTab = activeTab === 'Languages'
   const isTranslationTab = activeTab === 'Translation'
+  const isPromptPresetsTab = activeTab === 'Prompt Presets'
 
   if (isLoading) {
     return (
@@ -806,6 +1489,8 @@ export function SettingsPage() {
             />
           ) : isLanguagesTab ? (
             <LanguageProfilesTab />
+          ) : isPromptPresetsTab ? (
+            <PromptPresetsTab />
           ) : (
             <div
               className="rounded-lg p-5 space-y-4"
@@ -832,6 +1517,14 @@ export function SettingsPage() {
                   />
                 </div>
               ))}
+
+              {/* Path Mapping Table (General tab only) */}
+              {activeTab === 'General' && (
+                <PathMappingEditor
+                  value={values.path_mapping ?? ''}
+                  onChange={(val) => setValues((v) => ({ ...v, path_mapping: val }))}
+                />
+              )}
 
               {hasTestConnection && (
                 <div className="pt-3" style={{ borderTop: '1px solid var(--border)' }}>
@@ -875,6 +1568,89 @@ export function SettingsPage() {
                 </div>
               )}
 
+              {activeTab === 'Notifications' && (
+                <div className="pt-3 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
+                  <div className="space-y-1.5">
+                    <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                      Notification URLs (Apprise)
+                    </label>
+                    <textarea
+                      value={values.notification_urls_json ?? ''}
+                      onChange={(e) => setValues((v) => ({ ...v, notification_urls_json: e.target.value }))}
+                      placeholder={'One URL per line, e.g.:\npushover://user@token\ndiscord://webhook_id/webhook_token\ntgram://bot_token/chat_id'}
+                      rows={4}
+                      className="w-full px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none resize-y"
+                      style={{
+                        backgroundColor: 'var(--bg-primary)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-primary)',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '13px',
+                      }}
+                    />
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      Supports Pushover, Discord, Telegram, Gotify, Email, and many more.{' '}
+                      <a
+                        href="https://github.com/caronc/apprise/wiki"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: 'var(--accent)' }}
+                      >
+                        See Apprise docs
+                      </a>
+                    </p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const { testNotification } = await import('@/api/client')
+                        const result = await testNotification()
+                        if (result.success) {
+                          toast('Test notification sent!')
+                        } else {
+                          toast(result.message || 'Test failed', 'error')
+                        }
+                      } catch {
+                        toast('Failed to send test notification', 'error')
+                      }
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
+                    style={{
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-secondary)',
+                      backgroundColor: 'var(--bg-primary)',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--accent-dim)'
+                      e.currentTarget.style.color = 'var(--accent)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--border)'
+                      e.currentTarget.style.color = 'var(--text-secondary)'
+                    }}
+                  >
+                    <TestTube size={14} />
+                    Send Test Notification
+                  </button>
+                </div>
+              )}
+
+              {activeTab === 'Sonarr' && (
+                <InstanceEditor
+                  label="Sonarr"
+                  value={values.sonarr_instances_json ?? ''}
+                  onChange={(val) => setValues((v) => ({ ...v, sonarr_instances_json: val }))}
+                />
+              )}
+
+              {activeTab === 'Radarr' && (
+                <InstanceEditor
+                  label="Radarr"
+                  value={values.radarr_instances_json ?? ''}
+                  onChange={(val) => setValues((v) => ({ ...v, radarr_instances_json: val }))}
+                />
+              )}
+
               {isTranslationTab && retranslateStatus.data && (
                 <div className="pt-3 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
                   <div>
@@ -916,6 +1692,124 @@ export function SettingsPage() {
                     <span className="text-xs" style={{ color: 'var(--success)' }}>
                       All translations are up to date
                     </span>
+                  )}
+                </div>
+              )}
+
+              {/* Config Export/Import (General tab only) */}
+              {activeTab === 'General' && (
+                <div className="pt-3 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
+                  <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    Config Backup
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={handleExport}
+                      disabled={exportConfig.isPending}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
+                      style={{
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-secondary)',
+                        backgroundColor: 'var(--bg-primary)',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--accent-dim)'
+                        e.currentTarget.style.color = 'var(--accent)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border)'
+                        e.currentTarget.style.color = 'var(--text-secondary)'
+                      }}
+                    >
+                      {exportConfig.isPending ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <FileDown size={14} />
+                      )}
+                      Export Config
+                    </button>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
+                      style={{
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-secondary)',
+                        backgroundColor: 'var(--bg-primary)',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--accent-dim)'
+                        e.currentTarget.style.color = 'var(--accent)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border)'
+                        e.currentTarget.style.color = 'var(--text-secondary)'
+                      }}
+                    >
+                      <Upload size={14} />
+                      Import Config
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".json"
+                      onChange={handleImportFile}
+                      className="hidden"
+                    />
+                  </div>
+                  <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    API keys and secrets are excluded from export/import for security.
+                  </div>
+
+                  {/* Import Preview Modal */}
+                  {importPreview && (
+                    <div
+                      className="rounded-lg p-4 space-y-3"
+                      style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--accent-dim)' }}
+                    >
+                      <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        Import Preview
+                      </div>
+                      <div
+                        className="max-h-48 overflow-auto rounded px-3 py-2 text-xs"
+                        style={{
+                          backgroundColor: 'var(--bg-surface)',
+                          border: '1px solid var(--border)',
+                          fontFamily: 'var(--font-mono)',
+                          color: 'var(--text-secondary)',
+                        }}
+                      >
+                        {Object.entries(importPreview).map(([key, val]) => (
+                          <div key={key} className="py-0.5">
+                            <span style={{ color: 'var(--accent)' }}>{key}</span>
+                            <span style={{ color: 'var(--text-muted)' }}>{': '}</span>
+                            <span>{typeof val === 'string' ? val : JSON.stringify(val)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleImportConfirm}
+                          disabled={importConfig.isPending}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white"
+                          style={{ backgroundColor: 'var(--accent)' }}
+                        >
+                          {importConfig.isPending ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : (
+                            <Check size={12} />
+                          )}
+                          Confirm Import
+                        </button>
+                        <button
+                          onClick={() => setImportPreview(null)}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded text-xs"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          <X size={12} />
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}

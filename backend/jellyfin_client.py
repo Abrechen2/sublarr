@@ -55,6 +55,23 @@ class JellyfinClient:
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 resp = self.session.post(url, json=data, timeout=timeout)
+                # Handle rate limiting (429) before raise_for_status
+                if resp.status_code == 429:
+                    retry_after = resp.headers.get("Retry-After")
+                    if retry_after:
+                        try:
+                            wait_seconds = int(retry_after)
+                        except ValueError:
+                            wait_seconds = 60
+                    else:
+                        wait_seconds = 60
+                    logger.warning("Jellyfin POST %s rate limited (attempt %d), waiting %ds", path, attempt, wait_seconds)
+                    if attempt < MAX_RETRIES:
+                        time.sleep(wait_seconds)
+                        continue
+                    else:
+                        logger.error("Jellyfin POST %s rate limited after %d attempts", path, MAX_RETRIES)
+                        return None
                 resp.raise_for_status()
                 return resp.json() if resp.content else {}
             except requests.ConnectionError as e:
@@ -74,6 +91,23 @@ class JellyfinClient:
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 resp = self.session.get(url, params=params, timeout=timeout)
+                # Handle rate limiting (429) before raise_for_status
+                if resp.status_code == 429:
+                    retry_after = resp.headers.get("Retry-After")
+                    if retry_after:
+                        try:
+                            wait_seconds = int(retry_after)
+                        except ValueError:
+                            wait_seconds = 60
+                    else:
+                        wait_seconds = 60
+                    logger.warning("Jellyfin GET %s rate limited (attempt %d), waiting %ds", path, attempt, wait_seconds)
+                    if attempt < MAX_RETRIES:
+                        time.sleep(wait_seconds)
+                        continue
+                    else:
+                        logger.error("Jellyfin GET %s rate limited after %d attempts", path, MAX_RETRIES)
+                        return None
                 resp.raise_for_status()
                 return resp.json()
             except requests.ConnectionError as e:
@@ -100,11 +134,12 @@ class JellyfinClient:
             return True, f"{server_name} v{version}"
         return False, f"Cannot connect to Jellyfin at {self.url}"
 
-    def refresh_item(self, item_id):
+    def refresh_item(self, item_id, item_type=None):
         """Refresh metadata for a specific item.
 
         Args:
             item_id: Jellyfin/Emby item ID
+            item_type: Optional item type ("Episode" or "Movie") for logging
 
         Returns:
             bool: True if refresh was triggered successfully
@@ -117,7 +152,8 @@ class JellyfinClient:
             "ReplaceAllImages": False,
         })
         if result is not None:
-            logger.info("Triggered Jellyfin item refresh for %s", item_id)
+            type_str = f" ({item_type})" if item_type else ""
+            logger.info("Triggered Emby item refresh for %s%s", item_id, type_str)
             return True
         return False
 

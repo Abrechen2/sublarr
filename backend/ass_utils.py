@@ -29,18 +29,23 @@ OVERRIDE_TAG_RE = re.compile(r"\{[^}]*\}")
 POS_MOVE_RE = re.compile(r"\\(?:pos|move|org)\s*\(")
 
 
-def has_target_language_stream(ffprobe_data):
+def has_target_language_stream(ffprobe_data, target_language=None):
     """Check if the file has an embedded target language subtitle stream.
 
     Args:
         ffprobe_data: dict from ffprobe JSON output
+        target_language: Language code (e.g., "de"). If None, uses default from settings.
 
     Returns:
         str or None: "ass" if target lang ASS found, "srt" if SRT found, None otherwise.
         ASS takes priority over SRT.
     """
-    settings = get_settings()
-    target_tags = settings.get_target_lang_tags()
+    if target_language is None:
+        settings = get_settings()
+        target_tags = settings.get_target_lang_tags()
+    else:
+        from config import _get_language_tags
+        target_tags = _get_language_tags(target_language)
 
     target_ass = False
     target_srt = False
@@ -314,12 +319,36 @@ def select_best_subtitle_stream(ffprobe_data, format_filter=None):
     return None
 
 
-def run_ffprobe(file_path):
+def run_ffprobe(file_path, use_cache=True):
     """Run ffprobe and return parsed JSON data for subtitle streams.
+
+    Uses cache if available and file hasn't changed (mtime check).
+
+    Args:
+        file_path: Path to the video file
+        use_cache: If True, check cache first and store result
+
+    Returns:
+        dict: Parsed ffprobe JSON data
 
     Raises:
         RuntimeError: If ffprobe fails, times out, or returns invalid JSON
     """
+    import os
+    from database import get_ffprobe_cache, set_ffprobe_cache
+
+    # Check cache if enabled
+    if use_cache:
+        try:
+            mtime = os.path.getmtime(file_path)
+            cached = get_ffprobe_cache(file_path, mtime)
+            if cached:
+                logger.debug("Using cached ffprobe data for %s", file_path)
+                return cached
+        except (OSError, Exception) as e:
+            logger.debug("Cache check failed for %s: %s", file_path, e)
+
+    # Run ffprobe
     cmd = [
         "ffprobe", "-v", "quiet",
         "-print_format", "json",
@@ -334,9 +363,19 @@ def run_ffprobe(file_path):
     if result.returncode != 0:
         raise RuntimeError(f"ffprobe failed: {result.stderr}")
     try:
-        return json.loads(result.stdout)
+        probe_data = json.loads(result.stdout)
     except json.JSONDecodeError as e:
         raise RuntimeError(f"ffprobe returned invalid JSON: {e}")
+
+    # Cache the result
+    if use_cache:
+        try:
+            mtime = os.path.getmtime(file_path)
+            set_ffprobe_cache(file_path, mtime, probe_data)
+        except (OSError, Exception) as e:
+            logger.debug("Cache store failed for %s: %s", file_path, e)
+
+    return probe_data
 
 
 def extract_subtitle_stream(mkv_path, stream_info, output_path):

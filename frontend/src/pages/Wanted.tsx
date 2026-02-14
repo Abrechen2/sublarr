@@ -1,20 +1,21 @@
-import { useState, Fragment } from 'react'
+import { useState, useMemo, useCallback, Fragment } from 'react'
 import {
   useWantedItems, useWantedSummary, useRefreshWanted, useUpdateWantedStatus,
   useSearchWantedItem, useProcessWantedItem, useStartWantedBatch, useWantedBatchStatus,
-  useRetranslateSingle,
+  useRetranslateSingle, useAddToBlacklist, useExtractEmbeddedSub,
 } from '@/hooks/useApi'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
+import { toast } from '@/components/shared/Toast'
 import type { WantedSearchResponse } from '@/lib/types'
 import {
   RefreshCw, ChevronLeft, ChevronRight, Search, Film, Tv,
-  ArrowUpCircle, EyeOff, Eye, Play, Loader2, ChevronUp,
+  ArrowUpCircle, EyeOff, Eye, Play, Loader2, ChevronUp, Ban,
+  CheckSquare, Square, MinusSquare, Download,
 } from 'lucide-react'
 
 const STATUS_FILTERS = ['all', 'wanted', 'failed', 'ignored'] as const
 const TYPE_FILTERS = ['all', 'episode', 'movie'] as const
-const UPGRADE_FILTERS = ['all', 'upgrades'] as const
 
 function SummaryCard({ icon: Icon, label, value, color }: {
   icon: typeof Search
@@ -52,14 +53,15 @@ function ScoreBadge({ score }: { score: number }) {
   )
 }
 
-function SearchResultsRow({ results, isLoading }: {
+function SearchResultsRow({ results, isLoading, onBlacklist }: {
   results: WantedSearchResponse | null
   isLoading: boolean
+  onBlacklist: (providerName: string, subtitleId: string, language: string) => void
 }) {
   if (isLoading) {
     return (
       <tr style={{ backgroundColor: 'var(--bg-primary)' }}>
-        <td colSpan={7} className="px-6 py-4">
+        <td colSpan={9} className="px-6 py-4">
           <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
             <Loader2 size={14} className="animate-spin" />
             Searching providers...
@@ -79,7 +81,7 @@ function SearchResultsRow({ results, isLoading }: {
   if (allResults.length === 0) {
     return (
       <tr style={{ backgroundColor: 'var(--bg-primary)' }}>
-        <td colSpan={7} className="px-6 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>
+        <td colSpan={9} className="px-6 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>
           No results found from any provider.
         </td>
       </tr>
@@ -88,7 +90,7 @@ function SearchResultsRow({ results, isLoading }: {
 
   return (
     <tr style={{ backgroundColor: 'var(--bg-primary)' }}>
-      <td colSpan={7} className="px-4 py-2">
+      <td colSpan={9} className="px-4 py-2">
         <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
           <table className="w-full">
             <thead>
@@ -99,6 +101,7 @@ function SearchResultsRow({ results, isLoading }: {
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Score</th>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Release</th>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Lang</th>
+                <th className="text-right text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}></th>
               </tr>
             </thead>
             <tbody>
@@ -114,7 +117,7 @@ function SearchResultsRow({ results, isLoading }: {
                     <span
                       className="text-[10px] px-1.5 py-0.5 rounded uppercase font-medium"
                       style={{
-                        backgroundColor: r._type === 'target' ? 'var(--success)18' : 'var(--accent)18',
+                        backgroundColor: r._type === 'target' ? 'rgba(16,185,129,0.1)' : 'rgba(29,184,212,0.1)',
                         color: r._type === 'target' ? 'var(--success)' : 'var(--accent)',
                       }}
                     >
@@ -125,7 +128,7 @@ function SearchResultsRow({ results, isLoading }: {
                     <span
                       className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold"
                       style={{
-                        backgroundColor: r.format === 'ass' ? 'var(--success)18' : 'var(--bg-surface)',
+                        backgroundColor: r.format === 'ass' ? 'rgba(16,185,129,0.1)' : 'var(--bg-surface)',
                         color: r.format === 'ass' ? 'var(--success)' : 'var(--text-secondary)',
                         fontFamily: 'var(--font-mono)',
                       }}
@@ -142,6 +145,18 @@ function SearchResultsRow({ results, isLoading }: {
                   <td className="px-3 py-1.5 text-xs uppercase" style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
                     {r.language}
                   </td>
+                  <td className="px-3 py-1.5 text-right">
+                    <button
+                      onClick={() => onBlacklist(r.provider, r.subtitle_id, r.language)}
+                      className="p-0.5 rounded transition-colors duration-150"
+                      title="Blacklist this subtitle"
+                      style={{ color: 'var(--text-muted)' }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--error)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                    >
+                      <Ban size={12} />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -157,8 +172,10 @@ export function WantedPage() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const [typeFilter, setTypeFilter] = useState<string | undefined>()
   const [upgradeFilter, setUpgradeFilter] = useState(false)
+  const [languageFilter, setLanguageFilter] = useState<string | undefined>()
   const [expandedItem, setExpandedItem] = useState<number | null>(null)
   const [searchResults, setSearchResults] = useState<Record<number, WantedSearchResponse>>({})
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
   const { data: summary } = useWantedSummary()
   const { data: wanted, isLoading } = useWantedItems(page, 50, typeFilter, statusFilter)
@@ -166,8 +183,10 @@ export function WantedPage() {
   const updateStatus = useUpdateWantedStatus()
   const searchItem = useSearchWantedItem()
   const processItem = useProcessWantedItem()
+  const extractItem = useExtractEmbeddedSub()
   const retranslateItem = useRetranslateSingle()
   const startBatch = useStartWantedBatch()
+  const addBlacklist = useAddToBlacklist()
   const { data: batchStatus } = useWantedBatchStatus()
 
   const totalWanted = summary?.by_status?.wanted ?? 0
@@ -175,10 +194,78 @@ export function WantedPage() {
   const totalMovies = summary?.by_type?.movie ?? 0
   const upgradeable = summary?.upgradeable ?? 0
 
-  // Client-side filter for upgrade candidates
-  const filteredData = upgradeFilter
-    ? wanted?.data?.filter((item) => item.upgrade_candidate === 1)
-    : wanted?.data
+  // Extract unique languages from data
+  const availableLanguages = useMemo(() => {
+    if (!wanted?.data) return []
+    const langs = new Set<string>()
+    for (const item of wanted.data) {
+      if (item.target_language) langs.add(item.target_language)
+    }
+    return Array.from(langs).sort()
+  }, [wanted?.data])
+
+  // Client-side filters
+  const filteredData = useMemo(() => {
+    let data = wanted?.data
+    if (!data) return data
+    if (upgradeFilter) {
+      data = data.filter((item) => item.upgrade_candidate === 1)
+    }
+    if (languageFilter) {
+      data = data.filter((item) => item.target_language === languageFilter)
+    }
+    return data
+  }, [wanted?.data, upgradeFilter, languageFilter])
+
+  // Bulk selection helpers
+  const visibleIds = useMemo(() => filteredData?.map((d) => d.id) ?? [], [filteredData])
+  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id))
+  const someSelected = visibleIds.some((id) => selectedIds.has(id))
+
+  const toggleSelectAll = useCallback(() => {
+    if (allSelected) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(visibleIds))
+    }
+  }, [allSelected, visibleIds])
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }, [])
+
+  const [bulkRunning, setBulkRunning] = useState(false)
+
+  const handleBulkAction = useCallback(async (action: 'ignore' | 'unignore' | 'search') => {
+    const ids = Array.from(selectedIds)
+    if (ids.length === 0) return
+    setBulkRunning(true)
+    try {
+      for (const id of ids) {
+        if (action === 'ignore') {
+          await updateStatus.mutateAsync({ itemId: id, status: 'ignored' })
+        } else if (action === 'unignore') {
+          await updateStatus.mutateAsync({ itemId: id, status: 'wanted' })
+        } else if (action === 'search') {
+          await searchItem.mutateAsync(id)
+        }
+      }
+      toast(`${action === 'search' ? 'Searched' : action === 'ignore' ? 'Ignored' : 'Un-ignored'} ${ids.length} items`)
+      setSelectedIds(new Set())
+    } catch {
+      toast('Bulk action failed', 'error')
+    } finally {
+      setBulkRunning(false)
+    }
+  }, [selectedIds, updateStatus, searchItem])
 
   const handleSearch = (itemId: number) => {
     if (expandedItem === itemId) {
@@ -195,6 +282,20 @@ export function WantedPage() {
 
   const handleProcess = (itemId: number) => {
     processItem.mutate(itemId)
+  }
+
+  const handleExtract = (itemId: number, targetLanguage?: string) => {
+    extractItem.mutate(
+      { itemId, options: { target_language: targetLanguage } },
+      {
+        onSuccess: (data) => {
+          toast(`Extracted ${data.format.toUpperCase()} subtitle to ${data.output_path}`, 'success')
+        },
+        onError: (error: Error) => {
+          toast(`Extraction failed: ${error.message}`, 'error')
+        },
+      }
+    )
   }
 
   const handleBatchSearch = () => {
@@ -320,12 +421,45 @@ export function WantedPage() {
             )
           })}
         </div>
+        {availableLanguages.length > 1 && (
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => { setLanguageFilter(undefined); setPage(1) }}
+              className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
+              style={{
+                backgroundColor: !languageFilter ? 'var(--accent-bg)' : 'var(--bg-surface)',
+                color: !languageFilter ? 'var(--accent)' : 'var(--text-secondary)',
+                border: `1px solid ${!languageFilter ? 'var(--accent-dim)' : 'var(--border)'}`,
+              }}
+            >
+              All Langs
+            </button>
+            {availableLanguages.map((lang) => {
+              const isActive = languageFilter === lang
+              return (
+                <button
+                  key={lang}
+                  onClick={() => { setLanguageFilter(isActive ? undefined : lang); setPage(1) }}
+                  className="px-3 py-1.5 rounded-md text-xs font-medium uppercase transition-all duration-150"
+                  style={{
+                    backgroundColor: isActive ? 'var(--accent-bg)' : 'var(--bg-surface)',
+                    color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                    border: `1px solid ${isActive ? 'var(--accent-dim)' : 'var(--border)'}`,
+                    fontFamily: 'var(--font-mono)',
+                  }}
+                >
+                  {lang}
+                </button>
+              )
+            })}
+          </div>
+        )}
         {upgradeable > 0 && (
           <button
             onClick={() => { setUpgradeFilter(!upgradeFilter); setPage(1) }}
             className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
             style={{
-              backgroundColor: upgradeFilter ? 'var(--success)18' : 'var(--bg-surface)',
+              backgroundColor: upgradeFilter ? 'rgba(16,185,129,0.1)' : 'var(--bg-surface)',
               color: upgradeFilter ? 'var(--success)' : 'var(--text-secondary)',
               border: `1px solid ${upgradeFilter ? 'var(--success)' : 'var(--border)'}`,
             }}
@@ -335,20 +469,80 @@ export function WantedPage() {
         )}
       </div>
 
+      {/* Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div
+          className="rounded-lg p-3 flex items-center justify-between flex-wrap gap-2"
+          style={{ backgroundColor: 'var(--accent-bg)', border: '1px solid var(--accent-dim)' }}
+        >
+          <span className="text-sm font-medium" style={{ color: 'var(--accent)' }}>
+            {selectedIds.size} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleBulkAction('ignore')}
+              disabled={bulkRunning}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150"
+              style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+            >
+              <EyeOff size={12} />
+              Ignore
+            </button>
+            <button
+              onClick={() => handleBulkAction('unignore')}
+              disabled={bulkRunning}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150"
+              style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+            >
+              <Eye size={12} />
+              Un-ignore
+            </button>
+            <button
+              onClick={() => handleBulkAction('search')}
+              disabled={bulkRunning}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150"
+              style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+            >
+              {bulkRunning ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
+              Search
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="px-2 py-1.5 rounded text-xs"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div
         className="rounded-lg overflow-hidden"
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px]">
+          <table className="w-full min-w-[800px]">
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>Title</th>
+                <th className="text-left px-3 py-2.5 w-8">
+                  <button onClick={toggleSelectAll} className="p-0.5" style={{ color: 'var(--text-muted)' }}>
+                    {allSelected ? (
+                      <CheckSquare size={14} style={{ color: 'var(--accent)' }} />
+                    ) : someSelected ? (
+                      <MinusSquare size={14} style={{ color: 'var(--accent)' }} />
+                    ) : (
+                      <Square size={14} />
+                    )}
+                  </button>
+                </th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>Title</th>
                 <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>S/E</th>
                 <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>Status</th>
                 <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>Existing</th>
                 <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>Searches</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>Last Search</th>
                 <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>Added</th>
                 <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>Actions</th>
               </tr>
@@ -357,11 +551,13 @@ export function WantedPage() {
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td className="px-4 py-3"><div className="skeleton h-4 w-48 rounded" /></td>
+                    <td className="px-3 py-3"><div className="skeleton h-4 w-4 rounded" /></td>
+                    <td className="px-3 py-3"><div className="skeleton h-4 w-48 rounded" /></td>
                     <td className="px-3 py-3"><div className="skeleton h-4 w-14 rounded" /></td>
                     <td className="px-3 py-3"><div className="skeleton h-5 w-20 rounded-full" /></td>
                     <td className="px-3 py-3 hidden sm:table-cell"><div className="skeleton h-4 w-10 rounded" /></td>
                     <td className="px-3 py-3 hidden md:table-cell"><div className="skeleton h-4 w-8 rounded" /></td>
+                    <td className="px-3 py-3 hidden lg:table-cell"><div className="skeleton h-4 w-14 rounded" /></td>
                     <td className="px-3 py-3 hidden lg:table-cell"><div className="skeleton h-4 w-14 rounded" /></td>
                     <td className="px-4 py-3"><div className="skeleton h-6 w-6 rounded ml-auto" /></td>
                   </tr>
@@ -375,7 +571,20 @@ export function WantedPage() {
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)')}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >
-                      <td className="px-4 py-2.5" title={item.file_path}>
+                      <td className="px-3 py-2.5 w-8">
+                        <button
+                          onClick={() => toggleSelect(item.id)}
+                          className="p-0.5"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          {selectedIds.has(item.id) ? (
+                            <CheckSquare size={14} style={{ color: 'var(--accent)' }} />
+                          ) : (
+                            <Square size={14} />
+                          )}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2.5" title={item.file_path}>
                         <div className="flex items-center gap-1.5">
                           <span
                             className="truncate max-w-xs text-sm"
@@ -393,6 +602,18 @@ export function WantedPage() {
                               }}
                             >
                               {item.target_language}
+                            </span>
+                          )}
+                          {item.instance_name && (
+                            <span
+                              className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium"
+                              style={{
+                                backgroundColor: 'var(--bg-surface)',
+                                color: 'var(--text-secondary)',
+                                border: '1px solid var(--border)',
+                              }}
+                            >
+                              {item.instance_name}
                             </span>
                           )}
                         </div>
@@ -420,7 +641,7 @@ export function WantedPage() {
                             <span
                               className="text-[9px] px-1 py-0.5 rounded font-bold uppercase"
                               style={{
-                                backgroundColor: 'var(--success)18',
+                                backgroundColor: 'rgba(16,185,129,0.1)',
                                 color: 'var(--success)',
                               }}
                             >
@@ -434,6 +655,12 @@ export function WantedPage() {
                         style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}
                       >
                         {item.search_count}
+                      </td>
+                      <td
+                        className="px-3 py-2.5 text-xs tabular-nums hidden lg:table-cell"
+                        style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}
+                      >
+                        {item.last_search_at ? formatRelativeTime(item.last_search_at) : 'Never'}
                       </td>
                       <td
                         className="px-3 py-2.5 text-xs tabular-nums hidden lg:table-cell"
@@ -459,6 +686,19 @@ export function WantedPage() {
                               : expandedItem === item.id ? <ChevronUp size={14} /> : <Search size={14} />
                             }
                           </button>
+                          {(item.existing_sub === 'embedded_ass' || item.existing_sub === 'embedded_srt') && (
+                            <button
+                              onClick={() => handleExtract(item.id, item.target_language)}
+                              disabled={extractItem.isPending}
+                              className="p-1 rounded transition-colors duration-150"
+                              title="Extract embedded subtitle"
+                              style={{ color: 'var(--text-muted)' }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                            >
+                              {extractItem.isPending ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                            </button>
+                          )}
                           <button
                             onClick={() => handleProcess(item.id)}
                             disabled={processItem.isPending || item.status === 'searching'}
@@ -502,14 +742,24 @@ export function WantedPage() {
                       <SearchResultsRow
                         results={searchResults[item.id] ?? null}
                         isLoading={searchItem.isPending}
+                        onBlacklist={(providerName, subtitleId, language) => {
+                          addBlacklist.mutate({
+                            provider_name: providerName,
+                            subtitle_id: subtitleId,
+                            language,
+                            title: item.title,
+                            file_path: item.file_path,
+                            reason: 'Blacklisted from wanted search',
+                          })
+                        }}
                       />
                     )}
                   </Fragment>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    {statusFilter || typeFilter ? 'No items match the current filters' : 'No wanted items — run a scan to detect missing subtitles'}
+                  <td colSpan={9} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    {statusFilter || typeFilter || languageFilter ? 'No items match the current filters' : 'No wanted items — run a scan to detect missing subtitles'}
                   </td>
                 </tr>
               )}

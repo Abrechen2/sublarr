@@ -10,6 +10,7 @@ import logging
 import requests
 
 from config import get_settings
+from database import get_glossary_for_series
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,20 @@ def _call_ollama(prompt):
         json=payload,
         timeout=settings.request_timeout,
     )
+    
+    # Handle rate limiting (429) before raise_for_status
+    if resp.status_code == 429:
+        retry_after = resp.headers.get("Retry-After")
+        if retry_after:
+            try:
+                wait_seconds = int(retry_after)
+            except ValueError:
+                wait_seconds = 60
+        else:
+            wait_seconds = 60
+        logger.warning("Ollama API rate limited, waiting %ds", wait_seconds)
+        raise RuntimeError(f"Ollama rate limited, retry after {wait_seconds}s")
+    
     resp.raise_for_status()
 
     try:
@@ -147,8 +162,35 @@ def _parse_response(response_text, expected_count):
     return None
 
 
-def translate_batch(lines):
+def build_prompt_with_glossary(prompt_template, glossary_entries, lines):
+    """Build a translation prompt with glossary terms prepended.
+    
+    Args:
+        prompt_template: Base prompt template
+        glossary_entries: List of {source_term, target_term} dicts (max 15)
+        lines: List of subtitle lines to translate
+    
+    Returns:
+        str: Complete prompt with glossary and numbered lines
+    """
+    if not glossary_entries:
+        numbered = "\n".join(f"{i+1}: {line}" for i, line in enumerate(lines))
+        return prompt_template + numbered
+    
+    # Build glossary string (max 15 entries)
+    glossary_parts = [f"{entry['source_term']} → {entry['target_term']}" for entry in glossary_entries[:15]]
+    glossary_str = "Glossary: " + ", ".join(glossary_parts) + "\n\n"
+    
+    numbered = "\n".join(f"{i+1}: {line}" for i, line in enumerate(lines))
+    return glossary_str + prompt_template + numbered
+
+
+def translate_batch(lines, series_id=None):
     """Translate a batch of subtitle lines.
+
+    Args:
+        lines: List of subtitle lines to translate
+        series_id: Optional Sonarr series ID for glossary lookup
 
     Returns:
         list: Translated lines in same order
@@ -161,9 +203,18 @@ def translate_batch(lines):
 
     settings = get_settings()
     prompt_template = settings.get_prompt_template()
-
-    numbered = "\n".join(f"{i+1}: {line}" for i, line in enumerate(lines))
-    prompt = prompt_template + numbered
+    
+    # Load glossary if series_id provided
+    glossary_entries = []
+    if series_id:
+        try:
+            glossary_entries = get_glossary_for_series(series_id)
+            if glossary_entries:
+                logger.debug("Loaded %d glossary entries for series %d", len(glossary_entries), series_id)
+        except Exception as e:
+            logger.debug("Failed to load glossary for series %d: %s", series_id, e)
+    
+    prompt = build_prompt_with_glossary(prompt_template, glossary_entries, lines)
 
     last_error = None
     for attempt in range(1, settings.max_retries + 1):
@@ -197,21 +248,33 @@ def translate_batch(lines):
 
     # Fallback: translate lines individually
     logger.warning("Batch translation failed, falling back to single-line mode")
-    return _translate_singles(lines)
+    return _translate_singles(lines, series_id=series_id)
 
 
-def _translate_singles(lines):
+def _translate_singles(lines, series_id=None):
     """Translate lines one by one as fallback, with retries.
+
+    Args:
+        lines: List of subtitle lines
+        series_id: Optional Sonarr series ID for glossary lookup
 
     Returns:
         list: Translated lines (untranslated on failure)
     """
     settings = get_settings()
     prompt_template = settings.get_prompt_template()
+    
+    # Load glossary if series_id provided
+    glossary_entries = []
+    if series_id:
+        try:
+            glossary_entries = get_glossary_for_series(series_id)
+        except Exception as e:
+            logger.debug("Failed to load glossary for series %d: %s", series_id, e)
 
     results = []
     for i, line in enumerate(lines):
-        prompt = prompt_template + f"1: {line}"
+        prompt = build_prompt_with_glossary(prompt_template, glossary_entries, [line])
         last_error = None
 
         for attempt in range(1, settings.max_retries + 1):
@@ -239,8 +302,13 @@ def _translate_singles(lines):
     return results
 
 
-def translate_all(lines, batch_size=None):
+def translate_all(lines, batch_size=None, series_id=None):
     """Translate all lines in batches.
+
+    Args:
+        lines: List of subtitle lines to translate
+        batch_size: Optional batch size (defaults to config)
+        series_id: Optional Sonarr series ID for glossary lookup
 
     Returns:
         list: All translated lines in order
@@ -253,7 +321,8 @@ def translate_all(lines, batch_size=None):
     if total == 0:
         return []
 
-    logger.info("Translating %d lines in batches of %d", total, batch_size)
+    logger.info("Translating %d lines in batches of %d%s", total, batch_size,
+                f" (series_id: {series_id})" if series_id else "")
     results = []
 
     for start in range(0, total, batch_size):
@@ -263,7 +332,7 @@ def translate_all(lines, batch_size=None):
         total_batches = (total + batch_size - 1) // batch_size
 
         logger.info("Batch %d/%d (%d lines)", batch_num, total_batches, len(batch))
-        translated = translate_batch(batch)
+        translated = translate_batch(batch, series_id=series_id)
         results.extend(translated)
 
     return results

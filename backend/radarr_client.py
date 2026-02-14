@@ -18,13 +18,48 @@ MAX_RETRIES = 3
 BACKOFF_BASE = 2
 
 _client = None
+_clients_cache = {}  # Cache for multi-instance clients: {instance_name: RadarrClient}
 
 
-def get_radarr_client():
-    """Get or create the singleton Radarr client. Returns None if not configured."""
-    global _client
+def get_radarr_client(instance_name=None):
+    """Get or create a Radarr client. Returns None if not configured.
+    
+    Args:
+        instance_name: Optional instance name. If None, uses first available instance or legacy config.
+    
+    Returns:
+        RadarrClient instance or None
+    """
+    global _client, _clients_cache
+    
+    # If instance_name is specified, use multi-instance logic
+    if instance_name is not None:
+        if instance_name in _clients_cache:
+            return _clients_cache[instance_name]
+        
+        from config import get_radarr_instances
+        instances = get_radarr_instances()
+        for inst in instances:
+            if inst.get("name") == instance_name:
+                client = RadarrClient(inst["url"], inst["api_key"])
+                _clients_cache[instance_name] = client
+                return client
+        logger.warning("Radarr instance '%s' not found", instance_name)
+        return None
+    
+    # Legacy singleton behavior (for backward compatibility)
     if _client is not None:
         return _client
+    
+    from config import get_radarr_instances
+    instances = get_radarr_instances()
+    if instances:
+        # Use first instance
+        inst = instances[0]
+        _client = RadarrClient(inst["url"], inst["api_key"])
+        return _client
+    
+    # Fallback to legacy config
     settings = get_settings()
     if not settings.radarr_url or not settings.radarr_api_key:
         logger.debug("Radarr not configured (radarr_url or radarr_api_key missing)")
@@ -34,9 +69,10 @@ def get_radarr_client():
 
 
 def invalidate_client():
-    """Reset the singleton so the next call to get_radarr_client() creates a fresh instance."""
-    global _client
+    """Reset all client caches so the next call creates fresh instances."""
+    global _client, _clients_cache
     _client = None
+    _clients_cache = {}
 
 
 class RadarrClient:
@@ -54,6 +90,23 @@ class RadarrClient:
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 resp = self.session.get(url, params=params, timeout=timeout)
+                # Handle rate limiting (429) before raise_for_status
+                if resp.status_code == 429:
+                    retry_after = resp.headers.get("Retry-After")
+                    if retry_after:
+                        try:
+                            wait_seconds = int(retry_after)
+                        except ValueError:
+                            wait_seconds = 60
+                    else:
+                        wait_seconds = 60
+                    logger.warning("Radarr GET %s rate limited (attempt %d), waiting %ds", path, attempt, wait_seconds)
+                    if attempt < MAX_RETRIES:
+                        time.sleep(wait_seconds)
+                        continue
+                    else:
+                        logger.error("Radarr GET %s rate limited after %d attempts", path, MAX_RETRIES)
+                        return None
                 resp.raise_for_status()
                 return resp.json()
             except requests.ConnectionError as e:
@@ -77,6 +130,23 @@ class RadarrClient:
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 resp = self.session.post(url, json=data, timeout=timeout)
+                # Handle rate limiting (429) before raise_for_status
+                if resp.status_code == 429:
+                    retry_after = resp.headers.get("Retry-After")
+                    if retry_after:
+                        try:
+                            wait_seconds = int(retry_after)
+                        except ValueError:
+                            wait_seconds = 60
+                    else:
+                        wait_seconds = 60
+                    logger.warning("Radarr POST %s rate limited (attempt %d), waiting %ds", path, attempt, wait_seconds)
+                    if attempt < MAX_RETRIES:
+                        time.sleep(wait_seconds)
+                        continue
+                    else:
+                        logger.error("Radarr POST %s rate limited after %d attempts", path, MAX_RETRIES)
+                        return None
                 resp.raise_for_status()
                 return resp.json() if resp.content else {}
             except requests.ConnectionError as e:
@@ -132,26 +202,23 @@ class RadarrClient:
         return result or []
 
     def get_anime_movies(self, anime_tag="anime"):
-        """Get movies filtered by anime tag.
+        """Get movies filtered by anime tag OR 'Anime' genre.
 
         Returns:
             list: List of anime movie dicts
         """
         tags = self.get_tags()
-        anime_tag_ids = [t["id"] for t in tags if t.get("label", "").lower() == anime_tag.lower()]
-
-        if not anime_tag_ids:
-            logger.warning("Radarr: No '%s' tag found", anime_tag)
-            return []
+        anime_tag_ids = set(t["id"] for t in tags if t.get("label", "").lower() == anime_tag.lower())
 
         all_movies = self.get_movies()
         anime_movies = []
         for movie in all_movies:
-            movie_tags = movie.get("tags", [])
-            if any(tag_id in movie_tags for tag_id in anime_tag_ids):
+            has_tag = anime_tag_ids and any(tag_id in anime_tag_ids for tag_id in movie.get("tags", []))
+            has_anime_genre = "anime" in [g.lower() for g in movie.get("genres", [])]
+            if has_tag or has_anime_genre:
                 anime_movies.append(movie)
 
-        logger.info("Found %d anime movies (tag: %s)", len(anime_movies), anime_tag)
+        logger.info("Found %d anime movies (tag + genre)", len(anime_movies))
         return anime_movies
 
     def rescan_movie(self, movie_id):
@@ -173,7 +240,7 @@ class RadarrClient:
         """Get rich metadata for building a VideoQuery.
 
         Returns:
-            dict: {title, year, imdb_id} or None on error
+            dict: {title, year, imdb_id, tmdb_id, genres} or None on error
         """
         movie = self.get_movie_by_id(movie_id)
         if not movie:
@@ -182,6 +249,8 @@ class RadarrClient:
             "title": movie.get("title", ""),
             "year": movie.get("year"),
             "imdb_id": movie.get("imdbId", ""),
+            "tmdb_id": movie.get("tmdbId"),
+            "genres": movie.get("genres", []),
         }
 
     def get_library_info(self, anime_only=True):

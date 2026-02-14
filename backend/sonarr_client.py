@@ -18,13 +18,48 @@ MAX_RETRIES = 3
 BACKOFF_BASE = 2
 
 _client = None
+_clients_cache = {}  # Cache for multi-instance clients: {instance_name: SonarrClient}
 
 
-def get_sonarr_client():
-    """Get or create the singleton Sonarr client. Returns None if not configured."""
-    global _client
+def get_sonarr_client(instance_name=None):
+    """Get or create a Sonarr client. Returns None if not configured.
+    
+    Args:
+        instance_name: Optional instance name. If None, uses first available instance or legacy config.
+    
+    Returns:
+        SonarrClient instance or None
+    """
+    global _client, _clients_cache
+    
+    # If instance_name is specified, use multi-instance logic
+    if instance_name is not None:
+        if instance_name in _clients_cache:
+            return _clients_cache[instance_name]
+        
+        from config import get_sonarr_instances
+        instances = get_sonarr_instances()
+        for inst in instances:
+            if inst.get("name") == instance_name:
+                client = SonarrClient(inst["url"], inst["api_key"])
+                _clients_cache[instance_name] = client
+                return client
+        logger.warning("Sonarr instance '%s' not found", instance_name)
+        return None
+    
+    # Legacy singleton behavior (for backward compatibility)
     if _client is not None:
         return _client
+    
+    from config import get_sonarr_instances
+    instances = get_sonarr_instances()
+    if instances:
+        # Use first instance
+        inst = instances[0]
+        _client = SonarrClient(inst["url"], inst["api_key"])
+        return _client
+    
+    # Fallback to legacy config
     settings = get_settings()
     if not settings.sonarr_url or not settings.sonarr_api_key:
         logger.debug("Sonarr not configured (sonarr_url or sonarr_api_key missing)")
@@ -34,9 +69,10 @@ def get_sonarr_client():
 
 
 def invalidate_client():
-    """Reset the singleton so the next call to get_sonarr_client() creates a fresh instance."""
-    global _client
+    """Reset all client caches so the next call creates fresh instances."""
+    global _client, _clients_cache
     _client = None
+    _clients_cache = {}
 
 
 class SonarrClient:
@@ -54,6 +90,23 @@ class SonarrClient:
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 resp = self.session.get(url, params=params, timeout=timeout)
+                # Handle rate limiting (429) before raise_for_status
+                if resp.status_code == 429:
+                    retry_after = resp.headers.get("Retry-After")
+                    if retry_after:
+                        try:
+                            wait_seconds = int(retry_after)
+                        except ValueError:
+                            wait_seconds = 60
+                    else:
+                        wait_seconds = 60
+                    logger.warning("Sonarr GET %s rate limited (attempt %d), waiting %ds", path, attempt, wait_seconds)
+                    if attempt < MAX_RETRIES:
+                        time.sleep(wait_seconds)
+                        continue
+                    else:
+                        logger.error("Sonarr GET %s rate limited after %d attempts", path, MAX_RETRIES)
+                        return None
                 resp.raise_for_status()
                 return resp.json()
             except requests.ConnectionError as e:
@@ -77,6 +130,23 @@ class SonarrClient:
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 resp = self.session.post(url, json=data, timeout=timeout)
+                # Handle rate limiting (429) before raise_for_status
+                if resp.status_code == 429:
+                    retry_after = resp.headers.get("Retry-After")
+                    if retry_after:
+                        try:
+                            wait_seconds = int(retry_after)
+                        except ValueError:
+                            wait_seconds = 60
+                    else:
+                        wait_seconds = 60
+                    logger.warning("Sonarr POST %s rate limited (attempt %d), waiting %ds", path, attempt, wait_seconds)
+                    if attempt < MAX_RETRIES:
+                        time.sleep(wait_seconds)
+                        continue
+                    else:
+                        logger.error("Sonarr POST %s rate limited after %d attempts", path, MAX_RETRIES)
+                        return None
                 resp.raise_for_status()
                 return resp.json() if resp.content else {}
             except requests.ConnectionError as e:
@@ -178,26 +248,24 @@ class SonarrClient:
         return result or []
 
     def get_anime_series(self, anime_tag="anime"):
-        """Get series filtered by anime tag.
+        """Get series filtered by anime tag, seriesType=anime, or 'Anime' genre.
 
         Returns:
             list: List of anime series dicts
         """
         tags = self.get_tags()
-        anime_tag_ids = [t["id"] for t in tags if t.get("label", "").lower() == anime_tag.lower()]
-
-        if not anime_tag_ids:
-            logger.warning("Sonarr: No '%s' tag found", anime_tag)
-            return []
+        anime_tag_ids = set(t["id"] for t in tags if t.get("label", "").lower() == anime_tag.lower())
 
         all_series = self.get_series()
         anime_series = []
         for series in all_series:
-            series_tags = series.get("tags", [])
-            if any(tag_id in series_tags for tag_id in anime_tag_ids):
+            has_tag = anime_tag_ids and any(tag_id in anime_tag_ids for tag_id in series.get("tags", []))
+            is_anime_type = series.get("seriesType", "").lower() == "anime"
+            has_anime_genre = "anime" in [g.lower() for g in series.get("genres", [])]
+            if has_tag or is_anime_type or has_anime_genre:
                 anime_series.append(series)
 
-        logger.info("Found %d anime series (tag: %s)", len(anime_series), anime_tag)
+        logger.info("Found %d anime series (tag + seriesType + genre)", len(anime_series))
         return anime_series
 
     def rescan_series(self, series_id):
@@ -219,7 +287,8 @@ class SonarrClient:
         """Get rich metadata for building a VideoQuery.
 
         Returns:
-            dict: {series_title, season, episode, year, imdb_id, tvdb_id, title}
+            dict: {series_title, season, episode, year, imdb_id, tvdb_id, 
+                   anidb_id, anilist_id, title}
             or None on error
         """
         series = self.get_series_by_id(series_id)
@@ -228,14 +297,47 @@ class SonarrClient:
         episode = self.get_episode_by_id(episode_id)
         if not episode:
             return None
+        
+        # Extract AniDB ID using mapper service
+        anidb_id = None
+        tvdb_id = series.get("tvdbId")
+        series_title = series.get("title", "")
+        
+        try:
+            from anidb_mapper import get_anidb_id
+            anidb_id = get_anidb_id(
+                tvdb_id=tvdb_id,
+                series_title=series_title,
+                series=series
+            )
+        except Exception as e:
+            logger.debug("Failed to resolve AniDB ID: %s", e)
+        
+        # Extract AniList ID from Custom Fields (if available)
+        anilist_id = None
+        custom_fields = series.get("customFields", {})
+        if custom_fields:
+            # Try various field name variations
+            for field_name in ["anilist_id", "anilistId", "AniList", "AniList ID", "anilist"]:
+                value = custom_fields.get(field_name)
+                if value:
+                    try:
+                        anilist_id = int(value) if isinstance(value, (int, str)) else None
+                        if anilist_id and anilist_id > 0:
+                            break
+                    except (ValueError, TypeError):
+                        continue
+        
         return {
-            "series_title": series.get("title", ""),
+            "series_title": series_title,
             "year": series.get("year"),
             "season": episode.get("seasonNumber"),
             "episode": episode.get("episodeNumber"),
             "title": episode.get("title", ""),
             "imdb_id": series.get("imdbId", ""),
-            "tvdb_id": series.get("tvdbId"),
+            "tvdb_id": tvdb_id,
+            "anidb_id": anidb_id,
+            "anilist_id": anilist_id,
         }
 
     def get_library_info(self, anime_only=True):
@@ -248,13 +350,15 @@ class SonarrClient:
         result = []
 
         for series in series_list:
+            # Sonarr v3 nests counts under "statistics"
+            stats = series.get("statistics", {})
             result.append({
                 "id": series.get("id"),
                 "title": series.get("title"),
                 "year": series.get("year"),
-                "seasons": series.get("seasonCount", 0),
-                "episodes": series.get("episodeCount", 0),
-                "episodes_with_files": series.get("episodeFileCount", 0),
+                "seasons": stats.get("seasonCount", series.get("seasonCount", 0)),
+                "episodes": stats.get("episodeCount", series.get("episodeCount", 0)),
+                "episodes_with_files": stats.get("episodeFileCount", series.get("episodeFileCount", 0)),
                 "path": series.get("path"),
                 "poster": series.get("images", [{}])[0].get("remoteUrl", "") if series.get("images") else "",
                 "status": series.get("status"),

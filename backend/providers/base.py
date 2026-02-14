@@ -49,6 +49,8 @@ class VideoQuery:
     title: str = ""
     year: Optional[int] = None
     imdb_id: str = ""  # e.g. "tt1234567"
+    tmdb_id: Optional[int] = None  # The Movie Database ID
+    genres: list[str] = field(default_factory=list)  # Movie genres
 
     # Episode-specific
     series_title: str = ""

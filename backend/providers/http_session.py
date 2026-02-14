@@ -94,7 +94,24 @@ class RetryingSession(requests.Session):
                 if int(remaining) <= 1:
                     reset_at = resp.headers.get("X-RateLimit-Reset") or resp.headers.get("x-ratelimit-reset")
                     if reset_at:
-                        self._rate_limit_until = float(reset_at)
+                        try:
+                            reset_value = float(reset_at)
+                            current_time = time.time()
+                            # Check if it's a Unix timestamp (seconds or milliseconds)
+                            # Unix timestamps are typically > 1000000000 (year 2001)
+                            if reset_value > 1000000000:
+                                # Could be seconds or milliseconds
+                                if reset_value > 1e12:
+                                    # Likely milliseconds, convert to seconds
+                                    reset_value = reset_value / 1000.0
+                                # Use as absolute timestamp
+                                self._rate_limit_until = reset_value
+                            else:
+                                # Relative seconds from now
+                                self._rate_limit_until = current_time + reset_value
+                        except (ValueError, TypeError):
+                            # Fallback: wait 5 seconds
+                            self._rate_limit_until = time.time() + 5
                     else:
                         self._rate_limit_until = time.time() + 5
             except (ValueError, TypeError):
