@@ -1,9 +1,9 @@
 import axios from 'axios'
 import type {
   HealthStatus, Stats, PaginatedJobs, Job, BatchState,
-  BazarrStatus, LibraryInfo, AppConfig, PaginatedWanted, WantedSummary,
+  LibraryInfo, AppConfig, PaginatedWanted, WantedSummary,
   WantedSearchResponse, WantedBatchStatus, ProviderInfo, ProviderStats,
-  RetranslateStatus,
+  RetranslateStatus, LanguageProfile,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -32,11 +32,6 @@ export async function getStats(): Promise<Stats> {
   return data
 }
 
-export async function getBazarrStatus(): Promise<BazarrStatus> {
-  const { data } = await api.get('/status/bazarr')
-  return data
-}
-
 // ─── Jobs ────────────────────────────────────────────────────────────────────
 
 export async function getJobs(page = 1, perPage = 50, status?: string): Promise<PaginatedJobs> {
@@ -60,11 +55,6 @@ export async function translateFile(filePath: string, force = false) {
 
 export async function translateSync(filePath: string, force = false) {
   const { data } = await api.post('/translate/sync', { file_path: filePath, force })
-  return data
-}
-
-export async function translateWanted(maxEpisodes = 5) {
-  const { data } = await api.post('/translate/wanted', { max_episodes: maxEpisodes })
   return data
 }
 
@@ -172,6 +162,31 @@ export async function clearProviderCache(providerName?: string) {
   const body = providerName ? { provider_name: providerName } : {}
   const { data } = await api.post('/providers/cache/clear', body)
   return data
+}
+
+// ─── Language Profiles ───────────────────────────────────────────────────────
+
+export async function getLanguageProfiles(): Promise<LanguageProfile[]> {
+  const { data } = await api.get('/language-profiles')
+  return data.profiles
+}
+
+export async function createLanguageProfile(profile: Omit<LanguageProfile, 'id' | 'is_default'>): Promise<LanguageProfile> {
+  const { data } = await api.post('/language-profiles', profile)
+  return data
+}
+
+export async function updateLanguageProfile(id: number, profile: Partial<LanguageProfile>): Promise<LanguageProfile> {
+  const { data } = await api.put(`/language-profiles/${id}`, profile)
+  return data
+}
+
+export async function deleteLanguageProfile(id: number): Promise<void> {
+  await api.delete(`/language-profiles/${id}`)
+}
+
+export async function assignProfile(type: 'series' | 'movie', arrId: number, profileId: number): Promise<void> {
+  await api.put('/language-profiles/assign', { type, arr_id: arrId, profile_id: profileId })
 }
 
 // ─── Re-Translation ──────────────────────────────────────────────────────────

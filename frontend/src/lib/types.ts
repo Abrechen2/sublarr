@@ -7,7 +7,7 @@ export interface Job {
   stats: Record<string, unknown>
   error: string
   force: boolean
-  bazarr_context: Record<string, unknown> | null
+  arr_context: Record<string, unknown> | null
   created_at: string
   completed_at: string
 }
@@ -35,7 +35,6 @@ export interface Stats {
   by_source: Record<string, number>
   daily: DailyStat[]
   upgrades: Record<string, number>
-  bazarr_synced: number
   quality_warnings: number
   pending_jobs: number
   uptime_seconds: number
@@ -58,14 +57,6 @@ export interface BatchState {
   skipped: number
   current_file: string | null
   errors: Array<{ file: string; error: string }>
-}
-
-export interface BazarrStatus {
-  configured: boolean
-  reachable?: boolean
-  message: string
-  wanted_anime_count?: number
-  translations_synced?: number
 }
 
 export interface WantedEpisode {
@@ -116,6 +107,7 @@ export interface WantedItem {
   file_path: string
   existing_sub: string
   missing_languages: string[]
+  target_language: string
   status: 'wanted' | 'searching' | 'found' | 'failed' | 'ignored'
   last_search_at: string
   search_count: number
@@ -200,6 +192,16 @@ export interface ProviderInfo {
 export interface ProviderStats {
   cache: Record<string, { total: number; active: number }>
   downloads: Record<string, { total: number; by_format: Record<string, number> }>
+}
+
+export interface LanguageProfile {
+  id: number
+  name: string
+  source_language: string
+  source_language_name: string
+  target_languages: string[]
+  target_language_names: string[]
+  is_default: boolean
 }
 
 export interface AppConfig {

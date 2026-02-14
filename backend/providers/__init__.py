@@ -79,9 +79,13 @@ class ProviderManager:
             from providers import animetosho  # noqa: F401
         except ImportError as e:
             logger.debug("AnimeTosho provider not available: %s", e)
+        try:
+            from providers import subdl  # noqa: F401
+        except ImportError as e:
+            logger.debug("SubDL provider not available: %s", e)
 
         # Get priority order from config
-        priority_str = getattr(self.settings, "provider_priorities", "animetosho,jimaku,opensubtitles")
+        priority_str = getattr(self.settings, "provider_priorities", "animetosho,jimaku,opensubtitles,subdl")
         priority_list = [p.strip() for p in priority_str.split(",") if p.strip()]
 
         # Get enabled providers
@@ -137,6 +141,8 @@ class ProviderManager:
             config["api_key"] = getattr(self.settings, "jimaku_api_key", "")
         elif name == "animetosho":
             pass  # No auth needed
+        elif name == "subdl":
+            config["api_key"] = getattr(self.settings, "subdl_api_key", "")
 
         return config
 
@@ -263,7 +269,7 @@ class ProviderManager:
         from database import get_provider_download_stats
 
         # Build priority order
-        priority_str = getattr(self.settings, "provider_priorities", "animetosho,jimaku,opensubtitles")
+        priority_str = getattr(self.settings, "provider_priorities", "animetosho,jimaku,opensubtitles,subdl")
         priority_list = [p.strip() for p in priority_str.split(",") if p.strip()]
 
         # Get enabled set
@@ -327,6 +333,9 @@ class ProviderManager:
                 {"key": "jimaku_api_key", "label": "API Key", "type": "password", "required": True},
             ],
             "animetosho": [],  # No auth needed
+            "subdl": [
+                {"key": "subdl_api_key", "label": "API Key", "type": "password", "required": True},
+            ],
         }
         return fields_map.get(name, [])
 

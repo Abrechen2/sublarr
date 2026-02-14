@@ -1,15 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  getHealth, getStats, getJobs, getBazarrStatus,
+  getHealth, getStats, getJobs,
   getBatchStatus, getConfig, updateConfig, getLibrary,
-  translateFile, translateWanted, startBatch, getLogs,
+  translateFile, startBatch, getLogs,
   getWantedItems, getWantedSummary, refreshWanted,
   updateWantedItemStatus, deleteWantedItem,
   searchWantedItem, processWantedItem,
   startWantedBatchSearch, getWantedBatchStatus,
   getProviders, testProvider, getProviderStats, clearProviderCache,
   searchAllWanted, getRetranslateStatus, retranslateSingle, retranslateBatch,
+  getLanguageProfiles, createLanguageProfile, updateLanguageProfile,
+  deleteLanguageProfile, assignProfile,
 } from '@/api/client'
+import type { LanguageProfile } from '@/lib/types'
 
 // ─── Health ──────────────────────────────────────────────────────────────────
 
@@ -38,16 +41,6 @@ export function useJobs(page = 1, perPage = 50, status?: string) {
     queryKey: ['jobs', page, perPage, status],
     queryFn: () => getJobs(page, perPage, status),
     refetchInterval: 5000,
-  })
-}
-
-// ─── Bazarr ──────────────────────────────────────────────────────────────────
-
-export function useBazarrStatus() {
-  return useQuery({
-    queryKey: ['bazarr-status'],
-    queryFn: getBazarrStatus,
-    refetchInterval: 60000,
   })
 }
 
@@ -194,6 +187,59 @@ export function useClearProviderCache() {
   })
 }
 
+// ─── Language Profiles ───────────────────────────────────────────────────────
+
+export function useLanguageProfiles() {
+  return useQuery({
+    queryKey: ['language-profiles'],
+    queryFn: getLanguageProfiles,
+    refetchInterval: 60000,
+  })
+}
+
+export function useCreateProfile() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Omit<LanguageProfile, 'id' | 'is_default'>) => createLanguageProfile(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['language-profiles'] })
+    },
+  })
+}
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<LanguageProfile> }) =>
+      updateLanguageProfile(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['language-profiles'] })
+    },
+  })
+}
+
+export function useDeleteProfile() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => deleteLanguageProfile(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['language-profiles'] })
+    },
+  })
+}
+
+export function useAssignProfile() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ type, arrId, profileId }: { type: 'series' | 'movie'; arrId: number; profileId: number }) =>
+      assignProfile(type, arrId, profileId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['library'] })
+      queryClient.invalidateQueries({ queryKey: ['language-profiles'] })
+    },
+  })
+}
+
 // ─── Search All ──────────────────────────────────────────────────────────────
 
 export function useSearchAllWanted() {
@@ -256,17 +302,6 @@ export function useTranslateFile() {
   return useMutation({
     mutationFn: ({ filePath, force }: { filePath: string; force?: boolean }) =>
       translateFile(filePath, force),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['jobs'] })
-      queryClient.invalidateQueries({ queryKey: ['stats'] })
-    },
-  })
-}
-
-export function useTranslateWanted() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (maxEpisodes?: number) => translateWanted(maxEpisodes),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
       queryClient.invalidateQueries({ queryKey: ['stats'] })

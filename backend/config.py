@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     prompt_template: str = ""  # Empty = auto-generated from languages
 
     # Subtitle Providers
-    provider_priorities: str = "animetosho,jimaku,opensubtitles"
+    provider_priorities: str = "animetosho,jimaku,opensubtitles,subdl"
     providers_enabled: str = ""  # Empty = all registered providers enabled
 
     # OpenSubtitles.com (API v2)
@@ -50,9 +50,8 @@ class Settings(BaseSettings):
     # Jimaku (anime subtitles)
     jimaku_api_key: str = ""
 
-    # Bazarr (optional — legacy fallback, will be removed in future)
-    bazarr_url: str = ""
-    bazarr_api_key: str = ""
+    # SubDL (Subscene successor)
+    subdl_api_key: str = ""
 
     # Sonarr (optional)
     sonarr_url: str = ""

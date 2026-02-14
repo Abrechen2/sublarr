@@ -11,7 +11,7 @@
 | 3 | ✅ Erledigt | `feature/provider-system` | Such- und Download-Workflow |
 | 4 | ✅ Erledigt | `feature/provider-system` | Provider-UI + Management |
 | 5 | ✅ Erledigt | `feature/provider-system` | Upgrade-System + Automatisierung |
-| 6 | ⬜ Geplant | — | Erweiterte Provider + Polish |
+| 6 | ✅ Erledigt | `feature/provider-system` | Erweiterte Provider, Language Profiles, Bazarr entfernt |
 
 ---
 
@@ -115,22 +115,25 @@
 
 ---
 
-## Milestone 6: Erweiterte Provider + Polish
+## Milestone 6: Erweiterte Provider, Language Profiles, Bazarr entfernt ✅
 
-**Ziel:** Mehr Provider, Language-Profiles, Bazarr komplett entfernen.
+**Ziel:** Neuer Provider, Multi-Language Support, Bazarr komplett entfernen.
 
-**Tasks:**
-- [ ] SubDL Provider hinzufuegen (Subscene-Nachfolger, REST API)
-- [ ] Language-Profile System:
-  - DB-Tabelle `language_profiles` (Name, Source-Languages, Target-Languages)
-  - DB-Tabelle `series_profiles` / `movie_profiles` (Zuweisung pro Serie/Film)
-  - Multi-Target-Language Support in Translation-Pipeline
-  - Profile-Editor in Settings UI
-- [ ] `bazarr_client.py` endgueltig entfernen
-- [ ] `SUBLARR_BAZARR_*` Config-Variablen deprecaten/entfernen
-- [ ] `.env.example` aktualisieren
-- [ ] Docker-Image optimieren (Dependencies pruefen)
-- [ ] README.md mit Setup-Anleitung
+**Erledigt:**
+- [x] SubDL Provider hinzugefuegt (Subscene-Nachfolger, REST API, ZIP-Download)
+- [x] `bazarr_client.py` endgueltig entfernt, Deprecation-Warning fuer alte Config
+- [x] Language-Profile System:
+  - DB-Tabellen `language_profiles`, `series_language_profiles`, `movie_language_profiles`
+  - CRUD API Endpoints (`/api/v1/language-profiles`)
+  - Multi-Target-Language Support in Wanted-Scanner + Translation-Pipeline
+  - Profile-Editor in Settings UI ("Languages" Tab)
+  - Profile-Zuweisung pro Serie/Film in Library-Page
+  - Target-Language Badge in Wanted-Page
+- [x] `SUBLARR_BAZARR_*` Config-Variablen entfernt
+- [x] `.env.example` aktualisiert (SubDL, Bazarr entfernt)
+- [x] CLAUDE.md + ROADMAP.md aktualisiert
+
+**Neue Dateien:** 1 (`providers/subdl.py`) | **Geloeschte Dateien:** 1 (`bazarr_client.py`) | **Geaenderte Dateien:** 15+
 
 ---
 
@@ -143,7 +146,7 @@
 | 3 Such-/Download-Flow | ✅ ~1 Woche | ~50% |
 | 4 Provider-UI | ✅ ~3-4 Tage | ~20% |
 | 5 Upgrade + Automation | ✅ ~3-4 Tage | ~30% |
-| 6 Erweiterung + Polish | ~1 Woche | ~20% |
+| 6 Provider + Profiles | ✅ ~1 Woche | ~20% |
 | **Gesamt** | **~5-6 Wochen** | |
 
 Ohne Bazarr-Code-Uebernahme waere der Aufwand ~12-16 Wochen.

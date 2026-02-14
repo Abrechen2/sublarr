@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react'
-import { useConfig, useUpdateConfig, useProviders, useTestProvider, useProviderStats, useClearProviderCache, useRetranslateStatus, useRetranslateBatch } from '@/hooks/useApi'
-import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Download, Database, RefreshCw } from 'lucide-react'
+import {
+  useConfig, useUpdateConfig, useProviders, useTestProvider, useProviderStats,
+  useClearProviderCache, useRetranslateStatus, useRetranslateBatch,
+  useLanguageProfiles, useCreateProfile, useUpdateProfile, useDeleteProfile,
+} from '@/hooks/useApi'
+import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Download, Database, RefreshCw, Plus, Edit2, X, Check, Globe } from 'lucide-react'
 import { getHealth } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
-import type { ProviderInfo } from '@/lib/types'
+import type { ProviderInfo, LanguageProfile } from '@/lib/types'
 
 const TABS = [
   'General',
   'Ollama',
   'Translation',
+  'Languages',
   'Automation',
   'Wanted',
   'Providers',
-  'Bazarr (Legacy)',
   'Sonarr',
   'Radarr',
   'Jellyfin',
@@ -64,9 +68,6 @@ const FIELDS: FieldConfig[] = [
   { key: 'wanted_anime_only', label: 'Anime Only', type: 'text', placeholder: 'true', tab: 'Wanted' },
   { key: 'wanted_scan_on_startup', label: 'Scan on Startup', type: 'text', placeholder: 'true', tab: 'Wanted' },
   { key: 'wanted_max_search_attempts', label: 'Max Search Attempts', type: 'number', placeholder: '3', tab: 'Wanted' },
-  // Bazarr (Legacy)
-  { key: 'bazarr_url', label: 'Bazarr URL', type: 'text', placeholder: 'http://localhost:6767', tab: 'Bazarr (Legacy)' },
-  { key: 'bazarr_api_key', label: 'Bazarr API Key', type: 'password', tab: 'Bazarr (Legacy)' },
   // Sonarr
   { key: 'sonarr_url', label: 'Sonarr URL', type: 'text', placeholder: 'http://localhost:8989', tab: 'Sonarr' },
   { key: 'sonarr_api_key', label: 'Sonarr API Key', type: 'password', tab: 'Sonarr' },
@@ -417,6 +418,256 @@ function ProvidersTab({
   )
 }
 
+// ─── Language Profiles Tab ──────────────────────────────────────────────────
+
+function LanguageProfilesTab() {
+  const { data: profiles, isLoading } = useLanguageProfiles()
+  const createProfile = useCreateProfile()
+  const updateProfile = useUpdateProfile()
+  const deleteProfile = useDeleteProfile()
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm] = useState({
+    name: '',
+    source_language: 'en',
+    source_language_name: 'English',
+    target_languages: '',
+    target_language_names: '',
+  })
+
+  const resetForm = () => {
+    setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: '', target_language_names: '' })
+    setEditingId(null)
+    setShowAdd(false)
+  }
+
+  const startEdit = (p: LanguageProfile) => {
+    setForm({
+      name: p.name,
+      source_language: p.source_language,
+      source_language_name: p.source_language_name,
+      target_languages: p.target_languages.join(', '),
+      target_language_names: p.target_language_names.join(', '),
+    })
+    setEditingId(p.id)
+    setShowAdd(false)
+  }
+
+  const handleSave = () => {
+    const targetLangs = form.target_languages.split(',').map((s) => s.trim()).filter(Boolean)
+    const targetNames = form.target_language_names.split(',').map((s) => s.trim()).filter(Boolean)
+    if (!form.name || targetLangs.length === 0) {
+      toast('Name and at least one target language required', 'error')
+      return
+    }
+    if (targetLangs.length !== targetNames.length) {
+      toast('Target language codes and names must have the same count', 'error')
+      return
+    }
+
+    const payload = {
+      name: form.name,
+      source_language: form.source_language,
+      source_language_name: form.source_language_name,
+      target_languages: targetLangs,
+      target_language_names: targetNames,
+    }
+
+    if (editingId) {
+      updateProfile.mutate({ id: editingId, data: payload }, {
+        onSuccess: () => { toast('Profile updated'); resetForm() },
+        onError: () => toast('Failed to update profile', 'error'),
+      })
+    } else {
+      createProfile.mutate(payload, {
+        onSuccess: () => { toast('Profile created'); resetForm() },
+        onError: () => toast('Failed to create profile', 'error'),
+      })
+    }
+  }
+
+  const handleDelete = (id: number) => {
+    deleteProfile.mutate(id, {
+      onSuccess: () => toast('Profile deleted'),
+      onError: () => toast('Cannot delete default profile', 'error'),
+    })
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-32">
+        <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent)' }} />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+          Language profiles define which languages to translate for each series/movie
+        </span>
+        <button
+          onClick={() => { setShowAdd(true); setEditingId(null); setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: '', target_language_names: '' }) }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all duration-150"
+          style={{ border: '1px solid var(--accent-dim)', color: 'var(--accent)', backgroundColor: 'var(--accent-bg)' }}
+        >
+          <Plus size={12} />
+          Add Profile
+        </button>
+      </div>
+
+      {/* Add/Edit Form */}
+      {(showAdd || editingId !== null) && (
+        <div
+          className="rounded-lg p-4 space-y-3"
+          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--accent-dim)' }}
+        >
+          <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {editingId ? 'Edit Profile' : 'New Profile'}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Name</label>
+              <input
+                type="text" value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="e.g. German Only"
+                className="w-full px-2.5 py-1.5 rounded text-xs"
+                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Source Language Code</label>
+              <input
+                type="text" value={form.source_language}
+                onChange={(e) => setForm((f) => ({ ...f, source_language: e.target.value }))}
+                placeholder="en"
+                className="w-full px-2.5 py-1.5 rounded text-xs"
+                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Source Language Name</label>
+              <input
+                type="text" value={form.source_language_name}
+                onChange={(e) => setForm((f) => ({ ...f, source_language_name: e.target.value }))}
+                placeholder="English"
+                className="w-full px-2.5 py-1.5 rounded text-xs"
+                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Target Language Codes (comma-separated)</label>
+              <input
+                type="text" value={form.target_languages}
+                onChange={(e) => setForm((f) => ({ ...f, target_languages: e.target.value }))}
+                placeholder="de, fr"
+                className="w-full px-2.5 py-1.5 rounded text-xs"
+                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}
+              />
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Target Language Names (comma-separated, same order)</label>
+              <input
+                type="text" value={form.target_language_names}
+                onChange={(e) => setForm((f) => ({ ...f, target_language_names: e.target.value }))}
+                placeholder="German, French"
+                className="w-full px-2.5 py-1.5 rounded text-xs"
+                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              onClick={handleSave}
+              disabled={createProfile.isPending || updateProfile.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white"
+              style={{ backgroundColor: 'var(--accent)' }}
+            >
+              {(createProfile.isPending || updateProfile.isPending) ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Check size={12} />
+              )}
+              Save
+            </button>
+            <button onClick={resetForm} className="flex items-center gap-1 px-3 py-1.5 rounded text-xs" style={{ color: 'var(--text-muted)' }}>
+              <X size={12} /> Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Profile List */}
+      {(profiles || []).map((p) => (
+        <div
+          key={p.id}
+          className="rounded-lg p-4 space-y-2"
+          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Globe size={14} style={{ color: 'var(--accent)' }} />
+              <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{p.name}</span>
+              {p.is_default && (
+                <span
+                  className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+                  style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
+                >
+                  Default
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => startEdit(p)}
+                className="p-1.5 rounded transition-all duration-150"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+                title="Edit profile"
+              >
+                <Edit2 size={12} />
+              </button>
+              {!p.is_default && (
+                <button
+                  onClick={() => handleDelete(p.id)}
+                  disabled={deleteProfile.isPending}
+                  className="p-1.5 rounded transition-all duration-150"
+                  style={{ border: '1px solid var(--border)', color: 'var(--error)', backgroundColor: 'var(--bg-primary)' }}
+                  title="Delete profile"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <span>Source: <code style={{ fontFamily: 'var(--font-mono)' }}>{p.source_language}</code> ({p.source_language_name})</span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Targets:</span>
+            {p.target_languages.map((lang, i) => (
+              <span
+                key={lang}
+                className="px-2 py-0.5 rounded text-xs font-medium"
+                style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}
+              >
+                {lang.toUpperCase()} ({p.target_language_names[i]})
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {(!profiles || profiles.length === 0) && !showAdd && (
+        <div className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>
+          No language profiles configured. A default profile will be created automatically.
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Settings Page ──────────────────────────────────────────────────────────
 
 export function SettingsPage() {
@@ -475,8 +726,9 @@ export function SettingsPage() {
   const retranslateBatch = useRetranslateBatch()
 
   const tabFields = FIELDS.filter((f) => f.tab === activeTab)
-  const hasTestConnection = ['Ollama', 'Bazarr (Legacy)', 'Sonarr', 'Radarr', 'Jellyfin'].includes(activeTab)
+  const hasTestConnection = ['Ollama', 'Sonarr', 'Radarr', 'Jellyfin'].includes(activeTab)
   const isProvidersTab = activeTab === 'Providers'
+  const isLanguagesTab = activeTab === 'Languages'
   const isTranslationTab = activeTab === 'Translation'
 
   if (isLoading) {
@@ -552,6 +804,8 @@ export function SettingsPage() {
               onFieldChange={(key, value) => setValues((v) => ({ ...v, [key]: value }))}
               onSave={doSave}
             />
+          ) : isLanguagesTab ? (
+            <LanguageProfilesTab />
           ) : (
             <div
               className="rounded-lg p-5 space-y-4"

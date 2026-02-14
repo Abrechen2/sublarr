@@ -1,12 +1,17 @@
 import { useState } from 'react'
-import { useLibrary } from '@/hooks/useApi'
+import { useLibrary, useLanguageProfiles, useAssignProfile } from '@/hooks/useApi'
 import { Tv, Film, Loader2, Settings } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import type { SeriesInfo, MovieInfo } from '@/lib/types'
+import type { SeriesInfo, MovieInfo, LanguageProfile } from '@/lib/types'
 
 type Tab = 'series' | 'movies'
 
-function LibraryCard({ item, type }: { item: SeriesInfo | MovieInfo; type: Tab }) {
+function LibraryCard({ item, type, profiles, onAssign }: {
+  item: SeriesInfo | MovieInfo
+  type: Tab
+  profiles?: LanguageProfile[]
+  onAssign?: (arrId: number, profileId: number) => void
+}) {
   const isSeries = type === 'series'
   return (
     <div
@@ -64,6 +69,27 @@ function LibraryCard({ item, type }: { item: SeriesInfo | MovieInfo; type: Tab }
             </span>
           )}
         </div>
+        {profiles && profiles.length > 1 && onAssign && (
+          <select
+            className="mt-1.5 w-full text-[10px] px-1.5 py-1 rounded"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-secondary)',
+            }}
+            defaultValue=""
+            onChange={(e) => {
+              if (e.target.value) onAssign(item.id, Number(e.target.value))
+            }}
+          >
+            <option value="">Default Profile</option>
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.target_languages.join(', ')})
+              </option>
+            ))}
+          </select>
+        )}
       </div>
     </div>
   )
@@ -71,8 +97,14 @@ function LibraryCard({ item, type }: { item: SeriesInfo | MovieInfo; type: Tab }
 
 export function LibraryPage() {
   const { data: library, isLoading } = useLibrary()
+  const { data: profiles } = useLanguageProfiles()
+  const assignProfile = useAssignProfile()
   const [activeTab, setActiveTab] = useState<Tab>('series')
   const navigate = useNavigate()
+
+  const handleAssign = (type: 'series' | 'movie', arrId: number, profileId: number) => {
+    assignProfile.mutate({ type, arrId, profileId })
+  }
 
   if (isLoading) {
     return (
@@ -163,10 +195,22 @@ export function LibraryPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
           {activeTab === 'series'
             ? series.map((item: SeriesInfo) => (
-                <LibraryCard key={item.id} item={item} type="series" />
+                <LibraryCard
+                  key={item.id}
+                  item={item}
+                  type="series"
+                  profiles={profiles}
+                  onAssign={(arrId, profileId) => handleAssign('series', arrId, profileId)}
+                />
               ))
             : movies.map((item: MovieInfo) => (
-                <LibraryCard key={item.id} item={item} type="movies" />
+                <LibraryCard
+                  key={item.id}
+                  item={item}
+                  type="movies"
+                  profiles={profiles}
+                  onAssign={(arrId, profileId) => handleAssign('movie', arrId, profileId)}
+                />
               ))}
         </div>
       )}
