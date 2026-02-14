@@ -19,6 +19,8 @@ from providers.base import (
     SubtitleResult,
     SubtitleFormat,
     VideoQuery,
+    ProviderAuthError,
+    ProviderRateLimitError,
 )
 from providers import register_provider
 from providers.http_session import create_session
@@ -128,9 +130,10 @@ class JimakuProvider(SubtitleProvider):
 
     def initialize(self):
         if not self.api_key:
-            logger.debug("Jimaku: no API key configured, skipping")
+            logger.warning("Jimaku: no API key configured, provider will be disabled")
             return
 
+        logger.debug("Jimaku: initializing with API key (length: %d)", len(self.api_key))
         self.session = create_session(
             max_retries=2,
             backoff_factor=2.0,
@@ -140,6 +143,7 @@ class JimakuProvider(SubtitleProvider):
         self.session.headers.update({
             "Authorization": f"Bearer {self.api_key}",
         })
+        logger.debug("Jimaku: session created successfully")
 
     def terminate(self):
         if self.session:
@@ -164,23 +168,34 @@ class JimakuProvider(SubtitleProvider):
 
     def search(self, query: VideoQuery) -> list[SubtitleResult]:
         if not self.session or not self.api_key:
+            logger.warning("Jimaku: cannot search - session=%s, api_key=%s", 
+                          self.session is not None, bool(self.api_key))
             return []
 
+        logger.debug("Jimaku: searching for %s (languages: %s)", 
+                    query.display_name, query.languages)
         results = []
 
         # Search by AniList ID (most accurate for anime)
         entries = []
         if query.anilist_id:
+            logger.debug("Jimaku: searching by AniList ID: %d", query.anilist_id)
             entries = self._search_by_anilist(query.anilist_id)
 
         # Fallback: search by name
         if not entries:
             search_term = query.series_title or query.title
             if search_term:
+                logger.debug("Jimaku: searching by name: %s", search_term)
                 entries = self._search_by_name(search_term)
+            else:
+                logger.warning("Jimaku: insufficient search criteria - no AniList ID and no title")
 
         if not entries:
+            logger.debug("Jimaku: no entries found")
             return []
+        
+        logger.debug("Jimaku: found %d entries", len(entries))
 
         # For each entry, get available subtitle files
         for entry in entries[:5]:  # Limit to top 5 entries
@@ -227,31 +242,69 @@ class JimakuProvider(SubtitleProvider):
                 results.append(result)
 
         logger.info("Jimaku: found %d results", len(results))
+        if results:
+            logger.debug("Jimaku: top result - %s (score: %d, format: %s, language: %s)",
+                        results[0].filename, results[0].score, results[0].format.value, results[0].language)
         return results
 
     def _search_by_anilist(self, anilist_id: int) -> list[dict]:
         """Search entries by AniList ID."""
         try:
+            logger.debug("Jimaku: API request - AniList ID %d", anilist_id)
             resp = self.session.get(f"{API_BASE}/entries/search", params={
                 "anilist_id": anilist_id,
             })
+            logger.debug("Jimaku: API response status: %d", resp.status_code)
+            if resp.status_code == 401 or resp.status_code == 403:
+                error_msg = f"Jimaku authentication failed: HTTP {resp.status_code}"
+                logger.error(error_msg)
+                raise ProviderAuthError(error_msg)
+            
+            if resp.status_code == 429:
+                error_msg = f"Jimaku rate limit exceeded: HTTP {resp.status_code}"
+                logger.warning(error_msg)
+                raise ProviderRateLimitError(error_msg)
+            
             if resp.status_code == 200:
-                return resp.json() if isinstance(resp.json(), list) else [resp.json()]
+                data = resp.json()
+                entries = data if isinstance(data, list) else [data]
+                logger.debug("Jimaku: found %d entries by AniList ID", len(entries))
+                return entries
+            else:
+                logger.warning("Jimaku AniList search failed: HTTP %d, response: %s", 
+                             resp.status_code, resp.text[:200])
         except Exception as e:
-            logger.warning("Jimaku AniList search failed: %s", e)
+            logger.warning("Jimaku AniList search failed: %s", e, exc_info=True)
         return []
 
     def _search_by_name(self, name: str) -> list[dict]:
         """Search entries by name."""
         try:
+            logger.debug("Jimaku: API request - name: %s", name)
             resp = self.session.get(f"{API_BASE}/entries/search", params={
                 "query": name,
             })
+            logger.debug("Jimaku: API response status: %d", resp.status_code)
+            if resp.status_code == 401 or resp.status_code == 403:
+                error_msg = f"Jimaku authentication failed: HTTP {resp.status_code}"
+                logger.error(error_msg)
+                raise ProviderAuthError(error_msg)
+            
+            if resp.status_code == 429:
+                error_msg = f"Jimaku rate limit exceeded: HTTP {resp.status_code}"
+                logger.warning(error_msg)
+                raise ProviderRateLimitError(error_msg)
+            
             if resp.status_code == 200:
                 data = resp.json()
-                return data if isinstance(data, list) else [data]
+                entries = data if isinstance(data, list) else [data]
+                logger.debug("Jimaku: found %d entries by name", len(entries))
+                return entries
+            else:
+                logger.warning("Jimaku name search failed: HTTP %d, response: %s", 
+                             resp.status_code, resp.text[:200])
         except Exception as e:
-            logger.warning("Jimaku name search failed: %s", e)
+            logger.warning("Jimaku name search failed: %s", e, exc_info=True)
         return []
 
     def _get_entry_files(self, entry_id: int, query: VideoQuery) -> list[tuple[str, str, bool]]:

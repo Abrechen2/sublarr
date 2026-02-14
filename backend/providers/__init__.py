@@ -27,6 +27,8 @@ from providers.base import (
     SubtitleFormat,
     VideoQuery,
     compute_score,
+    ProviderAuthError,
+    ProviderRateLimitError,
 )
 
 logger = logging.getLogger(__name__)
@@ -177,35 +179,53 @@ class ProviderManager:
         # Initialize providers in priority order
         for name in priority_list:
             if name not in _PROVIDER_CLASSES:
+                logger.debug("Provider %s not found in registry", name)
                 continue
             if name not in enabled_set:
+                logger.debug("Provider %s not in enabled set", name)
                 continue
 
             try:
                 config = self._get_provider_config(name)
+                logger.debug("Initializing provider %s with config keys: %s", name, list(config.keys()))
                 provider = _PROVIDER_CLASSES[name](**config)
                 provider.initialize()
-                self._providers[name] = provider
-                logger.info("Provider initialized: %s", name)
+                
+                # Check if provider was actually initialized
+                if hasattr(provider, 'session') and provider.session is None:
+                    logger.warning("Provider %s initialized but session is None (likely missing API key)", name)
+                else:
+                    self._providers[name] = provider
+                    logger.info("Provider initialized successfully: %s", name)
             except Exception as e:
-                logger.warning("Failed to initialize provider %s: %s", name, e)
+                logger.error("Failed to initialize provider %s: %s", name, e, exc_info=True)
 
         # Add any enabled providers not in priority list
         for name in enabled_set:
             if name in self._providers:
                 continue
             if name not in _PROVIDER_CLASSES:
+                logger.debug("Provider %s not found in registry (fallback)", name)
                 continue
             try:
                 config = self._get_provider_config(name)
+                logger.debug("Initializing provider %s (fallback) with config keys: %s", name, list(config.keys()))
                 provider = _PROVIDER_CLASSES[name](**config)
                 provider.initialize()
-                self._providers[name] = provider
-                logger.info("Provider initialized: %s", name)
+                
+                # Check if provider was actually initialized
+                if hasattr(provider, 'session') and provider.session is None:
+                    logger.warning("Provider %s initialized but session is None (likely missing API key)", name)
+                else:
+                    self._providers[name] = provider
+                    logger.info("Provider initialized successfully (fallback): %s", name)
             except Exception as e:
-                logger.warning("Failed to initialize provider %s: %s", name, e)
+                logger.error("Failed to initialize provider %s (fallback): %s", name, e, exc_info=True)
 
-        logger.info("Active providers: %s", list(self._providers.keys()))
+        if not self._providers:
+            logger.warning("No providers were successfully initialized! Check API keys and configuration.")
+        else:
+            logger.info("Active providers (%d): %s", len(self._providers), list(self._providers.keys()))
 
     def _get_provider_config(self, name: str) -> dict:
         """Get provider-specific config from settings."""
@@ -274,20 +294,45 @@ class ProviderManager:
         retries = self.PROVIDER_RETRIES.get(name, 2)
         last_error = None
         
+        # Check if provider is initialized
+        if hasattr(provider, 'session') and provider.session is None:
+            logger.warning("Provider %s not initialized (session is None), skipping search", name)
+            return []
+        
+        logger.debug("Searching provider %s for: %s (languages: %s)", 
+                    name, query.display_name, query.languages)
+        
         for attempt in range(retries + 1):
             try:
                 results = provider.search(query)
                 logger.info("Provider %s returned %d results (attempt %d/%d)", 
                           name, len(results), attempt + 1, retries + 1)
+                if results:
+                    logger.debug("Provider %s top result: %s (score: %d, format: %s)", 
+                               name, results[0].filename, results[0].score, results[0].format.value)
                 return results
+            except ProviderAuthError as e:
+                logger.error("Provider %s authentication failed: %s", name, e)
+                return []  # Don't retry auth errors
+            except ProviderRateLimitError as e:
+                logger.warning("Provider %s rate limit exceeded: %s", name, e)
+                if attempt < retries:
+                    # Wait a bit longer for rate limits
+                    import time
+                    wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                    logger.debug("Waiting %ds before retry...", wait_time)
+                    time.sleep(wait_time)
+                    last_error = e
+                else:
+                    return []  # Don't retry indefinitely for rate limits
             except Exception as e:
                 last_error = e
                 if attempt < retries:
                     logger.debug("Provider %s search failed (attempt %d/%d), retrying: %s",
-                               name, attempt + 1, retries + 1, e)
+                               name, attempt + 1, retries + 1, e, exc_info=True)
                 else:
                     logger.warning("Provider %s search failed after %d attempts: %s",
-                                 name, retries + 1, e)
+                                 name, retries + 1, e, exc_info=True)
         
         return []
 

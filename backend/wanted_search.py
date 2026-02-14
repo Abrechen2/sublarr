@@ -26,12 +26,63 @@ logger = logging.getLogger(__name__)
 INTER_ITEM_DELAY = 0.5  # seconds between items (rate-limit protection)
 
 
+def _parse_filename_for_metadata(file_path: str) -> dict:
+    """Parse filename to extract series title, season, episode, year.
+    
+    Returns dict with: series_title, season, episode, year, title
+    """
+    filename = os.path.basename(file_path)
+    name_without_ext = os.path.splitext(filename)[0]
+    
+    result = {
+        "series_title": "",
+        "title": "",
+        "season": None,
+        "episode": None,
+        "year": None,
+    }
+    
+    # Try to extract season/episode
+    for pattern in _EPISODE_PATTERNS:
+        match = pattern.search(name_without_ext)
+        if match:
+            if len(match.groups()) == 2:
+                result["season"] = int(match.group(1))
+                result["episode"] = int(match.group(2))
+            else:
+                result["episode"] = int(match.group(1))
+            break
+    
+    # Extract year (4 digits, likely between 1900-2100)
+    year_match = re.search(r'\b(19|20)\d{2}\b', name_without_ext)
+    if year_match:
+        result["year"] = int(year_match.group(0))
+    
+    # Extract series/movie title (everything before season/episode/year)
+    # Remove common release group tags and quality indicators
+    title_parts = re.split(r'[Ss]\d+[Ee]\d+|\.\d{4}\.|\[.*?\]|\(.*?\)', name_without_ext)
+    if title_parts:
+        clean_title = title_parts[0].strip(' .-_')
+        # Remove quality tags (1080p, 720p, etc.)
+        clean_title = re.sub(r'\b\d+p\b', '', clean_title, flags=re.IGNORECASE).strip(' .-_')
+        # Remove codec tags (x264, x265, etc.)
+        clean_title = re.sub(r'\b(x264|x265|h264|h265|hevc)\b', '', clean_title, flags=re.IGNORECASE).strip(' .-_')
+        
+        if result["season"] is not None:
+            result["series_title"] = clean_title
+        else:
+            result["title"] = clean_title
+    
+    return result
+
+
 def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
     """Build a rich VideoQuery from a wanted item + Sonarr/Radarr metadata.
 
     Fetches series/movie metadata from the relevant *arr client to enrich
     the query with titles, IDs, season/episode numbers, etc.
     Uses target_language from the wanted item (language profile aware).
+    Falls back to filename parsing if metadata is unavailable.
     """
     settings = get_settings()
     # Use item's target_language if set, otherwise fall back to global config
@@ -41,6 +92,8 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
         file_path=wanted_item["file_path"],
         languages=[item_lang],
     )
+
+    metadata_available = False
 
     if wanted_item["item_type"] == "episode":
         series_id = wanted_item.get("sonarr_series_id")
@@ -62,6 +115,9 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
                         query.tvdb_id = meta.get("tvdb_id")
                         query.anidb_id = meta.get("anidb_id")
                         query.anilist_id = meta.get("anilist_id")
+                        metadata_available = True
+                        logger.debug("Built query from Sonarr metadata: %s S%02dE%02d", 
+                                   query.series_title, query.season or 0, query.episode or 0)
             except Exception as e:
                 logger.warning("Failed to get Sonarr metadata for wanted %d: %s",
                                wanted_item["id"], e)
@@ -81,9 +137,45 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
                         query.imdb_id = meta.get("imdb_id", "")
                         query.tmdb_id = meta.get("tmdb_id")
                         query.genres = meta.get("genres", [])
+                        metadata_available = True
+                        logger.debug("Built query from Radarr metadata: %s (%s)", 
+                                   query.title, query.year or "no year")
             except Exception as e:
                 logger.warning("Failed to get Radarr metadata for wanted %d: %s",
                                wanted_item["id"], e)
+
+    # Fallback to filename parsing if metadata unavailable
+    if not metadata_available:
+        logger.debug("Metadata unavailable, parsing filename: %s", wanted_item["file_path"])
+        parsed = _parse_filename_for_metadata(wanted_item["file_path"])
+        
+        if not query.series_title and parsed["series_title"]:
+            query.series_title = parsed["series_title"]
+        if not query.title and parsed["title"]:
+            query.title = parsed["title"]
+        if query.season is None and parsed["season"] is not None:
+            query.season = parsed["season"]
+        if query.episode is None and parsed["episode"] is not None:
+            query.episode = parsed["episode"]
+        if query.year is None and parsed["year"] is not None:
+            query.year = parsed["year"]
+        
+        logger.debug("Parsed from filename: series=%s, title=%s, S%02dE%02d, year=%s",
+                     query.series_title or "N/A", query.title or "N/A", 
+                     query.season or 0, query.episode or 0, query.year or "N/A")
+
+    # Validate query has minimum required data
+    has_minimum_data = False
+    if wanted_item["item_type"] == "episode":
+        has_minimum_data = bool(query.series_title or query.title) and query.season is not None and query.episode is not None
+    else:
+        has_minimum_data = bool(query.title)
+    
+    if not has_minimum_data:
+        logger.warning("Query for wanted item %d lacks minimum required data: file_path=%s, series_title=%s, title=%s, season=%s, episode=%s",
+                      wanted_item["id"], query.file_path, query.series_title, query.title, query.season, query.episode)
+    else:
+        logger.debug("Query validated: %s", query.display_name)
 
     return query
 

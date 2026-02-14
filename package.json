@@ -7,7 +7,10 @@
     "dev:backend": "cd backend && cross-env FLASK_APP=server.py FLASK_ENV=development FLASK_DEBUG=1 python -m flask run --host=0.0.0.0 --port=5765 --reload",
     "dev:frontend": "cd frontend && npm run dev",
     "build": "cd frontend && npm run build",
-    "install:all": "npm install && cd frontend && npm install"
+    "install:all": "npm install && cd frontend && npm install",
+    "setup": "node -e \"console.log('Use: npm run setup:ps1 (Windows) or ./scripts/setup-dev.sh (Linux/Mac)')\"",
+    "setup:ps1": "powershell -ExecutionPolicy Bypass -File scripts/setup-dev.ps1",
+    "setup:sh": "bash scripts/setup-dev.sh"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
