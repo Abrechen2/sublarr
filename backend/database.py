@@ -75,6 +75,32 @@ CREATE INDEX IF NOT EXISTS idx_jobs_created ON jobs(created_at);
 CREATE INDEX IF NOT EXISTS idx_provider_cache_hash ON provider_cache(provider_name, query_hash);
 CREATE INDEX IF NOT EXISTS idx_provider_cache_expires ON provider_cache(expires_at);
 CREATE INDEX IF NOT EXISTS idx_subtitle_downloads_path ON subtitle_downloads(file_path);
+
+CREATE TABLE IF NOT EXISTS wanted_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_type TEXT NOT NULL,
+    sonarr_series_id INTEGER,
+    sonarr_episode_id INTEGER,
+    radarr_movie_id INTEGER,
+    title TEXT NOT NULL DEFAULT '',
+    season_episode TEXT DEFAULT '',
+    file_path TEXT NOT NULL,
+    existing_sub TEXT DEFAULT '',
+    missing_languages TEXT DEFAULT '[]',
+    status TEXT NOT NULL DEFAULT 'wanted',
+    last_search_at TEXT DEFAULT '',
+    search_count INTEGER DEFAULT 0,
+    error TEXT DEFAULT '',
+    added_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_wanted_status ON wanted_items(status);
+CREATE INDEX IF NOT EXISTS idx_wanted_item_type ON wanted_items(item_type);
+CREATE INDEX IF NOT EXISTS idx_wanted_file_path ON wanted_items(file_path);
+CREATE INDEX IF NOT EXISTS idx_wanted_sonarr_series ON wanted_items(sonarr_series_id);
+CREATE INDEX IF NOT EXISTS idx_wanted_sonarr_episode ON wanted_items(sonarr_episode_id);
+CREATE INDEX IF NOT EXISTS idx_wanted_radarr_movie ON wanted_items(radarr_movie_id);
 """
 
 
@@ -426,6 +452,52 @@ def cleanup_expired_cache():
         db.commit()
 
 
+def get_provider_cache_stats() -> dict:
+    """Get aggregated cache stats per provider (total entries, active/expired)."""
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    with _db_lock:
+        rows = db.execute(
+            """SELECT provider_name, COUNT(*) as total,
+                      SUM(CASE WHEN expires_at > ? THEN 1 ELSE 0 END) as active
+               FROM provider_cache GROUP BY provider_name""",
+            (now,),
+        ).fetchall()
+    return {row[0]: {"total": row[1], "active": row[2]} for row in rows}
+
+
+def get_provider_download_stats() -> dict:
+    """Get download counts per provider, broken down by format."""
+    db = get_db()
+    with _db_lock:
+        rows = db.execute(
+            """SELECT provider_name, format, COUNT(*) as count
+               FROM subtitle_downloads GROUP BY provider_name, format"""
+        ).fetchall()
+
+    stats: dict = {}
+    for row in rows:
+        name = row[0]
+        fmt = row[1] or "unknown"
+        count = row[2]
+        if name not in stats:
+            stats[name] = {"total": 0, "by_format": {}}
+        stats[name]["total"] += count
+        stats[name]["by_format"][fmt] = count
+    return stats
+
+
+def clear_provider_cache(provider_name: str = None):
+    """Clear provider cache. If provider_name is given, only clear that provider."""
+    db = get_db()
+    with _db_lock:
+        if provider_name:
+            db.execute("DELETE FROM provider_cache WHERE provider_name=?", (provider_name,))
+        else:
+            db.execute("DELETE FROM provider_cache")
+        db.commit()
+
+
 def record_subtitle_download(provider_name: str, subtitle_id: str, language: str,
                               fmt: str, file_path: str, score: int):
     """Record a subtitle download for history tracking."""
@@ -439,3 +511,229 @@ def record_subtitle_download(provider_name: str, subtitle_id: str, language: str
             (provider_name, subtitle_id, language, fmt, file_path, score, now),
         )
         db.commit()
+
+
+# ─── Wanted Operations ──────────────────────────────────────────────────────
+
+
+def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
+                       season_episode: str = "", existing_sub: str = "",
+                       missing_languages: list = None,
+                       sonarr_series_id: int = None,
+                       sonarr_episode_id: int = None,
+                       radarr_movie_id: int = None) -> int:
+    """Insert or update a wanted item (matched on file_path).
+
+    Returns the row id.
+    """
+    now = datetime.utcnow().isoformat()
+    langs_json = json.dumps(missing_languages or [])
+    db = get_db()
+
+    with _db_lock:
+        existing = db.execute(
+            "SELECT id, status FROM wanted_items WHERE file_path=?", (file_path,)
+        ).fetchone()
+
+        if existing:
+            row_id = existing[0]
+            # Don't overwrite 'ignored' status
+            if existing[1] == "ignored":
+                db.execute(
+                    """UPDATE wanted_items SET title=?, season_episode=?, existing_sub=?,
+                       missing_languages=?, sonarr_series_id=?, sonarr_episode_id=?,
+                       radarr_movie_id=?, updated_at=?
+                       WHERE id=?""",
+                    (title, season_episode, existing_sub, langs_json,
+                     sonarr_series_id, sonarr_episode_id, radarr_movie_id,
+                     now, row_id),
+                )
+            else:
+                db.execute(
+                    """UPDATE wanted_items SET item_type=?, title=?, season_episode=?,
+                       existing_sub=?, missing_languages=?, status='wanted',
+                       sonarr_series_id=?, sonarr_episode_id=?, radarr_movie_id=?,
+                       updated_at=?
+                       WHERE id=?""",
+                    (item_type, title, season_episode, existing_sub, langs_json,
+                     sonarr_series_id, sonarr_episode_id, radarr_movie_id,
+                     now, row_id),
+                )
+        else:
+            cursor = db.execute(
+                """INSERT INTO wanted_items
+                   (item_type, file_path, title, season_episode, existing_sub,
+                    missing_languages, sonarr_series_id, sonarr_episode_id,
+                    radarr_movie_id, status, added_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'wanted', ?, ?)""",
+                (item_type, file_path, title, season_episode, existing_sub,
+                 langs_json, sonarr_series_id, sonarr_episode_id,
+                 radarr_movie_id, now, now),
+            )
+            row_id = cursor.lastrowid
+        db.commit()
+
+    return row_id
+
+
+def get_wanted_items(page: int = 1, per_page: int = 50,
+                     item_type: str = None, status: str = None,
+                     series_id: int = None) -> dict:
+    """Get paginated wanted items with optional filters."""
+    db = get_db()
+    offset = (page - 1) * per_page
+
+    conditions = []
+    params = []
+    if item_type:
+        conditions.append("item_type=?")
+        params.append(item_type)
+    if status:
+        conditions.append("status=?")
+        params.append(status)
+    if series_id is not None:
+        conditions.append("sonarr_series_id=?")
+        params.append(series_id)
+
+    where = " WHERE " + " AND ".join(conditions) if conditions else ""
+
+    with _db_lock:
+        count = db.execute(
+            f"SELECT COUNT(*) FROM wanted_items{where}", params
+        ).fetchone()[0]
+        rows = db.execute(
+            f"SELECT * FROM wanted_items{where} ORDER BY added_at DESC LIMIT ? OFFSET ?",
+            params + [per_page, offset],
+        ).fetchall()
+
+    total_pages = max(1, (count + per_page - 1) // per_page)
+    return {
+        "data": [_row_to_wanted(r) for r in rows],
+        "page": page,
+        "per_page": per_page,
+        "total": count,
+        "total_pages": total_pages,
+    }
+
+
+def get_wanted_item(item_id: int) -> Optional[dict]:
+    """Get a single wanted item by ID."""
+    db = get_db()
+    with _db_lock:
+        row = db.execute("SELECT * FROM wanted_items WHERE id=?", (item_id,)).fetchone()
+    if not row:
+        return None
+    return _row_to_wanted(row)
+
+
+def update_wanted_status(item_id: int, status: str, error: str = ""):
+    """Update a wanted item's status."""
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    with _db_lock:
+        db.execute(
+            "UPDATE wanted_items SET status=?, error=?, updated_at=? WHERE id=?",
+            (status, error, now, item_id),
+        )
+        db.commit()
+
+
+def update_wanted_search(item_id: int):
+    """Increment search_count and set last_search_at."""
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    with _db_lock:
+        db.execute(
+            "UPDATE wanted_items SET search_count=search_count+1, last_search_at=?, updated_at=? WHERE id=?",
+            (now, now, item_id),
+        )
+        db.commit()
+
+
+def delete_wanted_items(file_paths: list):
+    """Delete wanted items by file paths (batch)."""
+    if not file_paths:
+        return
+    db = get_db()
+    placeholders = ",".join("?" for _ in file_paths)
+    with _db_lock:
+        db.execute(
+            f"DELETE FROM wanted_items WHERE file_path IN ({placeholders})",
+            file_paths,
+        )
+        db.commit()
+
+
+def delete_wanted_item(item_id: int):
+    """Delete a single wanted item."""
+    db = get_db()
+    with _db_lock:
+        db.execute("DELETE FROM wanted_items WHERE id=?", (item_id,))
+        db.commit()
+
+
+def get_wanted_count(status: str = None) -> int:
+    """Get count of wanted items with optional status filter."""
+    db = get_db()
+    with _db_lock:
+        if status:
+            row = db.execute(
+                "SELECT COUNT(*) FROM wanted_items WHERE status=?", (status,)
+            ).fetchone()
+        else:
+            row = db.execute("SELECT COUNT(*) FROM wanted_items").fetchone()
+    return row[0]
+
+
+def get_wanted_summary() -> dict:
+    """Get aggregated wanted counts by type, status, and existing_sub."""
+    db = get_db()
+    with _db_lock:
+        total = db.execute("SELECT COUNT(*) FROM wanted_items").fetchone()[0]
+
+        by_type = {}
+        for row in db.execute(
+            "SELECT item_type, COUNT(*) FROM wanted_items GROUP BY item_type"
+        ).fetchall():
+            by_type[row[0]] = row[1]
+
+        by_status = {}
+        for row in db.execute(
+            "SELECT status, COUNT(*) FROM wanted_items GROUP BY status"
+        ).fetchall():
+            by_status[row[0]] = row[1]
+
+        by_existing = {}
+        for row in db.execute(
+            "SELECT existing_sub, COUNT(*) FROM wanted_items GROUP BY existing_sub"
+        ).fetchall():
+            key = row[0] if row[0] else "none"
+            by_existing[key] = row[1]
+
+    return {
+        "total": total,
+        "by_type": by_type,
+        "by_status": by_status,
+        "by_existing": by_existing,
+    }
+
+
+def get_all_wanted_file_paths() -> set:
+    """Get all file paths currently in the wanted table (for cleanup)."""
+    db = get_db()
+    with _db_lock:
+        rows = db.execute("SELECT file_path FROM wanted_items").fetchall()
+    return {row[0] for row in rows}
+
+
+def _row_to_wanted(row) -> dict:
+    """Convert a database row to a wanted item dict."""
+    d = dict(row)
+    if d.get("missing_languages"):
+        try:
+            d["missing_languages"] = json.loads(d["missing_languages"])
+        except json.JSONDecodeError:
+            d["missing_languages"] = []
+    else:
+        d["missing_languages"] = []
+    return d

@@ -3,6 +3,11 @@ import {
   getHealth, getStats, getJobs, getBazarrStatus,
   getBatchStatus, getConfig, updateConfig, getLibrary,
   translateFile, translateWanted, startBatch, getLogs,
+  getWantedItems, getWantedSummary, refreshWanted,
+  updateWantedItemStatus, deleteWantedItem,
+  searchWantedItem, processWantedItem,
+  startWantedBatchSearch, getWantedBatchStatus,
+  getProviders, testProvider, getProviderStats, clearProviderCache,
 } from '@/api/client'
 
 // ─── Health ──────────────────────────────────────────────────────────────────
@@ -70,6 +75,120 @@ export function useUpdateConfig() {
     mutationFn: (values: Record<string, unknown>) => updateConfig(values),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['config'] })
+    },
+  })
+}
+
+// ─── Wanted ─────────────────────────────────────────────────────────────
+
+export function useWantedItems(page = 1, perPage = 50, itemType?: string, status?: string) {
+  return useQuery({
+    queryKey: ['wanted', page, perPage, itemType, status],
+    queryFn: () => getWantedItems(page, perPage, itemType, status),
+    refetchInterval: 30000,
+  })
+}
+
+export function useWantedSummary() {
+  return useQuery({
+    queryKey: ['wanted-summary'],
+    queryFn: getWantedSummary,
+    refetchInterval: 30000,
+  })
+}
+
+export function useRefreshWanted() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (seriesId?: number) => refreshWanted(seriesId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wanted'] })
+      queryClient.invalidateQueries({ queryKey: ['wanted-summary'] })
+    },
+  })
+}
+
+export function useUpdateWantedStatus() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ itemId, status }: { itemId: number; status: string }) =>
+      updateWantedItemStatus(itemId, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wanted'] })
+      queryClient.invalidateQueries({ queryKey: ['wanted-summary'] })
+    },
+  })
+}
+
+export function useSearchWantedItem() {
+  return useMutation({
+    mutationFn: (itemId: number) => searchWantedItem(itemId),
+  })
+}
+
+export function useProcessWantedItem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (itemId: number) => processWantedItem(itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wanted'] })
+      queryClient.invalidateQueries({ queryKey: ['wanted-summary'] })
+    },
+  })
+}
+
+export function useStartWantedBatch() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (itemIds?: number[]) => startWantedBatchSearch(itemIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wanted-batch-status'] })
+    },
+  })
+}
+
+export function useWantedBatchStatus() {
+  return useQuery({
+    queryKey: ['wanted-batch-status'],
+    queryFn: getWantedBatchStatus,
+    refetchInterval: 3000,
+  })
+}
+
+// ─── Providers ───────────────────────────────────────────────────────────────
+
+export function useProviders() {
+  return useQuery({
+    queryKey: ['providers'],
+    queryFn: getProviders,
+    refetchInterval: 30000,
+  })
+}
+
+export function useTestProvider() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) => testProvider(name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['providers'] })
+    },
+  })
+}
+
+export function useProviderStats() {
+  return useQuery({
+    queryKey: ['provider-stats'],
+    queryFn: getProviderStats,
+    refetchInterval: 30000,
+  })
+}
+
+export function useClearProviderCache() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (providerName?: string) => clearProviderCache(providerName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['provider-stats'] })
     },
   })
 }

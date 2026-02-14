@@ -6,7 +6,7 @@ import {
   Zap,
   Server,
 } from 'lucide-react'
-import { useHealth, useStats, useJobs, useBazarrStatus } from '@/hooks/useApi'
+import { useHealth, useStats, useJobs, useWantedSummary } from '@/hooks/useApi'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatDuration, formatRelativeTime, truncatePath } from '@/lib/utils'
 
@@ -68,7 +68,7 @@ function SkeletonCard() {
 export function Dashboard() {
   const { data: health, isLoading: healthLoading } = useHealth()
   const { data: stats, isLoading: statsLoading } = useStats()
-  const { data: bazarr } = useBazarrStatus()
+  const { data: wantedSummary } = useWantedSummary()
   const { data: recentJobs } = useJobs(1, 10)
 
   return (
@@ -95,9 +95,9 @@ export function Dashboard() {
             />
             <StatCard
               icon={Zap}
-              label="Bazarr"
-              value={bazarr?.configured ? (bazarr.reachable ? 'Connected' : 'Error') : 'N/A'}
-              color={bazarr?.reachable ? 'var(--success)' : bazarr?.configured ? 'var(--error)' : 'var(--text-muted)'}
+              label="Wanted"
+              value={wantedSummary?.by_status?.wanted ?? 0}
+              color={wantedSummary?.total ? 'var(--warning)' : 'var(--text-muted)'}
               delay={0.04}
             />
             <StatCard

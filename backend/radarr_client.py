@@ -169,6 +169,21 @@ class RadarrClient:
             return True
         return False
 
+    def get_movie_metadata(self, movie_id):
+        """Get rich metadata for building a VideoQuery.
+
+        Returns:
+            dict: {title, year, imdb_id} or None on error
+        """
+        movie = self.get_movie_by_id(movie_id)
+        if not movie:
+            return None
+        return {
+            "title": movie.get("title", ""),
+            "year": movie.get("year"),
+            "imdb_id": movie.get("imdbId", ""),
+        }
+
     def get_library_info(self, anime_only=True):
         """Get library overview for movies.
 

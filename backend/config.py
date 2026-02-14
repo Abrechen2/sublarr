@@ -4,6 +4,8 @@ All settings can be overridden via environment variables with the SUBLARR_ prefi
 or via a .env file. Example: SUBLARR_PORT=8080
 """
 
+import os
+
 from pydantic_settings import BaseSettings
 from pydantic import Field
 from typing import Optional
@@ -68,6 +70,12 @@ class Settings(BaseSettings):
     # Example: "/data/media=Z:\Media;/anime=Z:\Anime"
     path_mapping: str = ""
 
+    # Wanted System
+    wanted_scan_interval_hours: int = 6  # 0 = disabled
+    wanted_anime_only: bool = True
+    wanted_scan_on_startup: bool = True
+    wanted_max_search_attempts: int = 3
+
     # Webhook
     webhook_delay_minutes: int = 30  # Wait time after Sonarr/Radarr webhook
 
@@ -120,6 +128,39 @@ class Settings(BaseSettings):
                 else:
                     data[key] = ""
         return data
+
+
+def map_path(path: str) -> str:
+    """Map a remote file path to a local path using configured path mappings.
+
+    Path mapping is configured via the SUBLARR_PATH_MAPPING setting:
+    Format: "remote_prefix=local_prefix" (multiple pairs separated by semicolons)
+    Example: "/data/media=/mnt/media;/anime=/share/anime"
+
+    On Windows, forward slashes in the mapped path are converted to backslashes.
+    """
+    s = get_settings()
+    mapping = s.path_mapping
+    if not mapping:
+        return path
+
+    for pair in mapping.split(";"):
+        pair = pair.strip()
+        if "=" not in pair:
+            continue
+        remote_prefix, local_prefix = pair.split("=", 1)
+        remote_prefix = remote_prefix.strip()
+        local_prefix = local_prefix.strip()
+        if not remote_prefix or not local_prefix:
+            continue
+
+        if path.startswith(remote_prefix):
+            mapped = local_prefix + path[len(remote_prefix):]
+            if os.name == 'nt':
+                mapped = mapped.replace("/", "\\")
+            return mapped
+
+    return path
 
 
 # Language tag mapping (ISO 639-1 -> all variants)

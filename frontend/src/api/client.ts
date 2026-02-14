@@ -1,7 +1,8 @@
 import axios from 'axios'
 import type {
   HealthStatus, Stats, PaginatedJobs, Job, BatchState,
-  BazarrStatus, LibraryInfo, AppConfig,
+  BazarrStatus, LibraryInfo, AppConfig, PaginatedWanted, WantedSummary,
+  WantedSearchResponse, WantedBatchStatus, ProviderInfo, ProviderStats,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -87,6 +88,83 @@ export async function getConfig(): Promise<AppConfig> {
 
 export async function updateConfig(values: Record<string, unknown>) {
   const { data } = await api.put('/config', values)
+  return data
+}
+
+// ─── Wanted ─────────────────────────────────────────────────────────────
+
+export async function getWantedItems(
+  page = 1, perPage = 50, itemType?: string, status?: string
+): Promise<PaginatedWanted> {
+  const params: Record<string, unknown> = { page, per_page: perPage }
+  if (itemType) params.item_type = itemType
+  if (status) params.status = status
+  const { data } = await api.get('/wanted', { params })
+  return data
+}
+
+export async function getWantedSummary(): Promise<WantedSummary> {
+  const { data } = await api.get('/wanted/summary')
+  return data
+}
+
+export async function refreshWanted(seriesId?: number) {
+  const body = seriesId ? { series_id: seriesId } : {}
+  const { data } = await api.post('/wanted/refresh', body)
+  return data
+}
+
+export async function updateWantedItemStatus(itemId: number, status: string) {
+  const { data } = await api.put(`/wanted/${itemId}/status`, { status })
+  return data
+}
+
+export async function deleteWantedItem(itemId: number) {
+  const { data } = await api.delete(`/wanted/${itemId}`)
+  return data
+}
+
+export async function searchWantedItem(itemId: number): Promise<WantedSearchResponse> {
+  const { data } = await api.post(`/wanted/${itemId}/search`)
+  return data
+}
+
+export async function processWantedItem(itemId: number): Promise<{ status: string }> {
+  const { data } = await api.post(`/wanted/${itemId}/process`)
+  return data
+}
+
+export async function startWantedBatchSearch(itemIds?: number[]): Promise<{ status: string; total_items: number }> {
+  const body = itemIds ? { item_ids: itemIds } : {}
+  const { data } = await api.post('/wanted/batch-search', body)
+  return data
+}
+
+export async function getWantedBatchStatus(): Promise<WantedBatchStatus> {
+  const { data } = await api.get('/wanted/batch-search/status')
+  return data
+}
+
+// ─── Providers ───────────────────────────────────────────────────────────────
+
+export async function getProviders(): Promise<{ providers: ProviderInfo[] }> {
+  const { data } = await api.get('/providers')
+  return data
+}
+
+export async function testProvider(name: string): Promise<{ provider: string; healthy: boolean; message: string }> {
+  const { data } = await api.post(`/providers/test/${name}`)
+  return data
+}
+
+export async function getProviderStats(): Promise<ProviderStats> {
+  const { data } = await api.get('/providers/stats')
+  return data
+}
+
+export async function clearProviderCache(providerName?: string) {
+  const body = providerName ? { provider_name: providerName } : {}
+  const { data } = await api.post('/providers/cache/clear', body)
   return data
 }
 

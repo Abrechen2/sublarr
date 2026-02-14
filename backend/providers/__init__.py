@@ -259,9 +259,29 @@ class ProviderManager:
         return output_path
 
     def get_provider_status(self) -> list[dict]:
-        """Get status of all providers (for API/UI)."""
+        """Get status of all providers (for API/UI) with priority, downloads, config_fields."""
+        from database import get_provider_download_stats
+
+        # Build priority order
+        priority_str = getattr(self.settings, "provider_priorities", "animetosho,jimaku,opensubtitles")
+        priority_list = [p.strip() for p in priority_str.split(",") if p.strip()]
+
+        # Get enabled set
+        enabled_str = getattr(self.settings, "providers_enabled", "")
+        if enabled_str:
+            enabled_set = {p.strip() for p in enabled_str.split(",") if p.strip()}
+        else:
+            enabled_set = set(_PROVIDER_CLASSES.keys())
+
+        # Download stats from DB
+        download_stats = get_provider_download_stats()
+
         statuses = []
         for name, cls in _PROVIDER_CLASSES.items():
+            priority = priority_list.index(name) if name in priority_list else len(priority_list)
+            downloads = download_stats.get(name, {}).get("total", 0)
+            config_fields = self._get_provider_config_fields(name)
+
             provider = self._providers.get(name)
             if provider:
                 try:
@@ -274,16 +294,41 @@ class ProviderManager:
                     "initialized": True,
                     "healthy": healthy,
                     "message": msg,
+                    "priority": priority,
+                    "downloads": downloads,
+                    "config_fields": config_fields,
                 })
             else:
                 statuses.append({
                     "name": name,
-                    "enabled": name in {p.strip() for p in getattr(self.settings, "providers_enabled", "").split(",") if p.strip()} or not getattr(self.settings, "providers_enabled", ""),
+                    "enabled": name in enabled_set,
                     "initialized": False,
                     "healthy": False,
                     "message": "Not initialized",
+                    "priority": priority,
+                    "downloads": downloads,
+                    "config_fields": config_fields,
                 })
+
+        # Sort by priority
+        statuses.sort(key=lambda s: s["priority"])
         return statuses
+
+    @staticmethod
+    def _get_provider_config_fields(name: str) -> list[dict]:
+        """Return config field definitions for a provider (for dynamic UI forms)."""
+        fields_map = {
+            "opensubtitles": [
+                {"key": "opensubtitles_api_key", "label": "API Key", "type": "password", "required": True},
+                {"key": "opensubtitles_username", "label": "Username", "type": "text", "required": False},
+                {"key": "opensubtitles_password", "label": "Password", "type": "password", "required": False},
+            ],
+            "jimaku": [
+                {"key": "jimaku_api_key", "label": "API Key", "type": "password", "required": True},
+            ],
+            "animetosho": [],  # No auth needed
+        }
+        return fields_map.get(name, [])
 
     def shutdown(self):
         """Terminate all providers."""
