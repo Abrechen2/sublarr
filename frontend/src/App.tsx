@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Sidebar } from '@/components/layout/Sidebar'
-import { ToastContainer } from '@/components/shared/Toast'
+import { ToastContainer, toast } from '@/components/shared/Toast'
+import { useWebSocket } from '@/hooks/useWebSocket'
 import { Dashboard } from '@/pages/Dashboard'
 import { ActivityPage } from '@/pages/Activity'
 import { WantedPage } from '@/pages/Wanted'
@@ -40,10 +41,44 @@ function AnimatedRoutes() {
   )
 }
 
+function GlobalWebSocketListener() {
+  useWebSocket({
+    onWebhookReceived: (data: unknown) => {
+      const d = data as Record<string, unknown>
+      toast(`Webhook: ${d.title || 'Download received'}`, 'info')
+    },
+    onWebhookCompleted: (data: unknown) => {
+      const d = data as Record<string, unknown>
+      toast(`Auto-processed: ${d.title || d.file_path || 'file'}`, 'success')
+    },
+    onUpgradeCompleted: (data: unknown) => {
+      const d = data as Record<string, unknown>
+      toast(`Upgraded: ${d.file_path || 'subtitle'}`, 'success')
+    },
+    onWantedSearchCompleted: (data: unknown) => {
+      const d = data as Record<string, unknown>
+      toast(`Search complete: ${d.found || 0} found`, 'info')
+    },
+    onRetranslationCompleted: (data: unknown) => {
+      const d = data as Record<string, unknown>
+      const count = d.count || d.succeeded || 0
+      toast(`Re-translated: ${count} files`, 'success')
+    },
+    onConfigUpdated: (data: unknown) => {
+      const d = data as Record<string, unknown>
+      const keys = d.updated_keys as string[] | undefined
+      toast(`Config updated${keys ? `: ${keys.join(', ')}` : ''}`, 'info')
+    },
+  })
+
+  return null
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <GlobalWebSocketListener />
         <div className="flex min-h-screen">
           <Sidebar />
           <main className="flex-1 p-4 md:p-6 lg:p-8 pt-16 md:pt-6 lg:pt-8 min-h-screen">

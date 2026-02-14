@@ -5,6 +5,7 @@ or via a .env file. Example: SUBLARR_PORT=8080
 """
 
 import os
+import hashlib
 
 from pydantic_settings import BaseSettings
 from pydantic import Field
@@ -76,8 +77,22 @@ class Settings(BaseSettings):
     wanted_scan_on_startup: bool = True
     wanted_max_search_attempts: int = 3
 
-    # Webhook
-    webhook_delay_minutes: int = 30  # Wait time after Sonarr/Radarr webhook
+    # Upgrade System
+    upgrade_enabled: bool = True
+    upgrade_min_score_delta: int = 50
+    upgrade_window_days: int = 7
+    upgrade_prefer_ass: bool = True  # SRT->ASS always upgrade
+
+    # Webhook Automation
+    webhook_delay_minutes: int = 5  # Wait time after Sonarr/Radarr webhook
+    webhook_auto_scan: bool = True
+    webhook_auto_search: bool = True
+    webhook_auto_translate: bool = True
+
+    # Wanted Search Scheduler
+    wanted_search_interval_hours: int = 24  # 0 = disabled
+    wanted_search_on_startup: bool = False
+    wanted_search_max_items_per_run: int = 50
 
     model_config = {
         "env_prefix": "SUBLARR_",
@@ -117,6 +132,11 @@ class Settings(BaseSettings):
     def get_source_lang_tags(self) -> set[str]:
         """Get all language tags for the source language."""
         return _get_language_tags(self.source_language)
+
+    def get_translation_config_hash(self) -> str:
+        """SHA256 hash of model+prompt+target_language (first 12 chars)."""
+        content = f"{self.ollama_model}|{self.get_prompt_template()}|{self.target_language}"
+        return hashlib.sha256(content.encode()).hexdigest()[:12]
 
     def get_safe_config(self) -> dict:
         """Get config dict without sensitive values (API keys)."""

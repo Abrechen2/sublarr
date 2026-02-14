@@ -2,6 +2,7 @@ import { useState, Fragment } from 'react'
 import {
   useWantedItems, useWantedSummary, useRefreshWanted, useUpdateWantedStatus,
   useSearchWantedItem, useProcessWantedItem, useStartWantedBatch, useWantedBatchStatus,
+  useRetranslateSingle,
 } from '@/hooks/useApi'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
@@ -13,6 +14,7 @@ import {
 
 const STATUS_FILTERS = ['all', 'wanted', 'failed', 'ignored'] as const
 const TYPE_FILTERS = ['all', 'episode', 'movie'] as const
+const UPGRADE_FILTERS = ['all', 'upgrades'] as const
 
 function SummaryCard({ icon: Icon, label, value, color }: {
   icon: typeof Search
@@ -154,6 +156,7 @@ export function WantedPage() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const [typeFilter, setTypeFilter] = useState<string | undefined>()
+  const [upgradeFilter, setUpgradeFilter] = useState(false)
   const [expandedItem, setExpandedItem] = useState<number | null>(null)
   const [searchResults, setSearchResults] = useState<Record<number, WantedSearchResponse>>({})
 
@@ -163,13 +166,19 @@ export function WantedPage() {
   const updateStatus = useUpdateWantedStatus()
   const searchItem = useSearchWantedItem()
   const processItem = useProcessWantedItem()
+  const retranslateItem = useRetranslateSingle()
   const startBatch = useStartWantedBatch()
   const { data: batchStatus } = useWantedBatchStatus()
 
   const totalWanted = summary?.by_status?.wanted ?? 0
   const totalEpisodes = summary?.by_type?.episode ?? 0
   const totalMovies = summary?.by_type?.movie ?? 0
-  const upgradeable = summary?.by_existing?.srt ?? 0
+  const upgradeable = summary?.upgradeable ?? 0
+
+  // Client-side filter for upgrade candidates
+  const filteredData = upgradeFilter
+    ? wanted?.data?.filter((item) => item.upgrade_candidate === 1)
+    : wanted?.data
 
   const handleSearch = (itemId: number) => {
     if (expandedItem === itemId) {
@@ -311,6 +320,19 @@ export function WantedPage() {
             )
           })}
         </div>
+        {upgradeable > 0 && (
+          <button
+            onClick={() => { setUpgradeFilter(!upgradeFilter); setPage(1) }}
+            className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
+            style={{
+              backgroundColor: upgradeFilter ? 'var(--success)18' : 'var(--bg-surface)',
+              color: upgradeFilter ? 'var(--success)' : 'var(--text-secondary)',
+              border: `1px solid ${upgradeFilter ? 'var(--success)' : 'var(--border)'}`,
+            }}
+          >
+            Upgrades Only ({upgradeable})
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -344,8 +366,8 @@ export function WantedPage() {
                     <td className="px-4 py-3"><div className="skeleton h-6 w-6 rounded ml-auto" /></td>
                   </tr>
                 ))
-              ) : wanted?.data?.length ? (
-                wanted.data.map((item) => (
+              ) : filteredData?.length ? (
+                filteredData.map((item) => (
                   <Fragment key={item.id}>
                     <tr
                       className="transition-colors duration-100"
@@ -370,15 +392,28 @@ export function WantedPage() {
                         <StatusBadge status={item.status} />
                       </td>
                       <td className="px-3 py-2.5 hidden sm:table-cell">
-                        <span
-                          className="text-xs uppercase"
-                          style={{
-                            fontFamily: 'var(--font-mono)',
-                            color: item.existing_sub === 'srt' ? 'var(--warning)' : 'var(--text-muted)',
-                          }}
-                        >
-                          {item.existing_sub || 'none'}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="text-xs uppercase"
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              color: item.existing_sub === 'srt' ? 'var(--warning)' : 'var(--text-muted)',
+                            }}
+                          >
+                            {item.existing_sub || 'none'}
+                          </span>
+                          {item.upgrade_candidate === 1 && (
+                            <span
+                              className="text-[9px] px-1 py-0.5 rounded font-bold uppercase"
+                              style={{
+                                backgroundColor: 'var(--success)18',
+                                color: 'var(--success)',
+                              }}
+                            >
+                              SRT&rarr;ASS
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td
                         className="px-3 py-2.5 text-xs tabular-nums hidden md:table-cell"
@@ -420,6 +455,17 @@ export function WantedPage() {
                             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
                           >
                             <Play size={14} />
+                          </button>
+                          <button
+                            onClick={() => retranslateItem.mutate(item.id)}
+                            disabled={retranslateItem.isPending}
+                            className="p-1 rounded transition-colors duration-150"
+                            title="Re-translate"
+                            style={{ color: 'var(--text-muted)' }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--warning)')}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                          >
+                            <RefreshCw size={14} />
                           </button>
                           <button
                             onClick={() => updateStatus.mutate({

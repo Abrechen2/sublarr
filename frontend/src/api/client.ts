@@ -3,6 +3,7 @@ import type {
   HealthStatus, Stats, PaginatedJobs, Job, BatchState,
   BazarrStatus, LibraryInfo, AppConfig, PaginatedWanted, WantedSummary,
   WantedSearchResponse, WantedBatchStatus, ProviderInfo, ProviderStats,
+  RetranslateStatus,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -145,6 +146,11 @@ export async function getWantedBatchStatus(): Promise<WantedBatchStatus> {
   return data
 }
 
+export async function searchAllWanted(): Promise<{ status: string }> {
+  const { data } = await api.post('/wanted/search-all')
+  return data
+}
+
 // ─── Providers ───────────────────────────────────────────────────────────────
 
 export async function getProviders(): Promise<{ providers: ProviderInfo[] }> {
@@ -165,6 +171,23 @@ export async function getProviderStats(): Promise<ProviderStats> {
 export async function clearProviderCache(providerName?: string) {
   const body = providerName ? { provider_name: providerName } : {}
   const { data } = await api.post('/providers/cache/clear', body)
+  return data
+}
+
+// ─── Re-Translation ──────────────────────────────────────────────────────────
+
+export async function getRetranslateStatus(): Promise<RetranslateStatus> {
+  const { data } = await api.get('/retranslate/status')
+  return data
+}
+
+export async function retranslateSingle(itemId: number): Promise<{ status: string; job_id: string }> {
+  const { data } = await api.post(`/retranslate/${itemId}`)
+  return data
+}
+
+export async function retranslateBatch(): Promise<{ status: string; total: number }> {
+  const { data } = await api.post('/retranslate/batch')
   return data
 }
 

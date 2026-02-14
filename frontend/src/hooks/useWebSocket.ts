@@ -6,6 +6,17 @@ interface UseWebSocketOptions {
   onBatchProgress?: (data: unknown) => void
   onBatchCompleted?: (data: unknown) => void
   onLogEntry?: (data: unknown) => void
+  onWebhookReceived?: (data: unknown) => void
+  onWebhookCompleted?: (data: unknown) => void
+  onUpgradeCompleted?: (data: unknown) => void
+  onWantedScanCompleted?: (data: unknown) => void
+  onWantedSearchProgress?: (data: unknown) => void
+  onWantedSearchCompleted?: (data: unknown) => void
+  onWantedBatchProgress?: (data: unknown) => void
+  onWantedBatchCompleted?: (data: unknown) => void
+  onRetranslationProgress?: (data: unknown) => void
+  onRetranslationCompleted?: (data: unknown) => void
+  onConfigUpdated?: (data: unknown) => void
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
@@ -13,18 +24,12 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   const [connected, setConnected] = useState(false)
 
   // Keep stable refs for callbacks to avoid stale closures
-  const onJobUpdateRef = useRef(options.onJobUpdate)
-  const onBatchProgressRef = useRef(options.onBatchProgress)
-  const onBatchCompletedRef = useRef(options.onBatchCompleted)
-  const onLogEntryRef = useRef(options.onLogEntry)
+  const callbackRefs = useRef(options)
 
   // Update refs when callbacks change
   useEffect(() => {
-    onJobUpdateRef.current = options.onJobUpdate
-    onBatchProgressRef.current = options.onBatchProgress
-    onBatchCompletedRef.current = options.onBatchCompleted
-    onLogEntryRef.current = options.onLogEntry
-  }, [options.onJobUpdate, options.onBatchProgress, options.onBatchCompleted, options.onLogEntry])
+    callbackRefs.current = options
+  })
 
   // Stable socket connection — runs once
   useEffect(() => {
@@ -41,26 +46,36 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     })
 
     // Use ref-based handlers so they always call the latest callback
-    socket.on('job_update', (data: unknown) => {
-      onJobUpdateRef.current?.(data)
-    })
-    socket.on('batch_progress', (data: unknown) => {
-      onBatchProgressRef.current?.(data)
-    })
-    socket.on('batch_completed', (data: unknown) => {
-      onBatchCompletedRef.current?.(data)
-    })
-    socket.on('log_entry', (data: unknown) => {
-      onLogEntryRef.current?.(data)
-    })
+    const events: Array<[string, keyof UseWebSocketOptions]> = [
+      ['job_update', 'onJobUpdate'],
+      ['batch_progress', 'onBatchProgress'],
+      ['batch_completed', 'onBatchCompleted'],
+      ['log_entry', 'onLogEntry'],
+      ['webhook_received', 'onWebhookReceived'],
+      ['webhook_completed', 'onWebhookCompleted'],
+      ['upgrade_completed', 'onUpgradeCompleted'],
+      ['wanted_scan_completed', 'onWantedScanCompleted'],
+      ['wanted_search_progress', 'onWantedSearchProgress'],
+      ['wanted_search_completed', 'onWantedSearchCompleted'],
+      ['wanted_batch_progress', 'onWantedBatchProgress'],
+      ['wanted_batch_completed', 'onWantedBatchCompleted'],
+      ['retranslation_progress', 'onRetranslationProgress'],
+      ['retranslation_completed', 'onRetranslationCompleted'],
+      ['config_updated', 'onConfigUpdated'],
+    ]
+
+    for (const [eventName, callbackKey] of events) {
+      socket.on(eventName, (data: unknown) => {
+        callbackRefs.current[callbackKey]?.(data)
+      })
+    }
 
     socketRef.current = socket
 
     return () => {
-      socket.off('job_update')
-      socket.off('batch_progress')
-      socket.off('batch_completed')
-      socket.off('log_entry')
+      for (const [eventName] of events) {
+        socket.off(eventName)
+      }
       socket.disconnect()
     }
   }, [])
