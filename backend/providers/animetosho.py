@@ -77,12 +77,14 @@ class AnimeToshoProvider(SubtitleProvider):
         self.session = None
 
     def initialize(self):
+        logger.debug("AnimeTosho: initializing (no API key required)")
         self.session = create_session(
             max_retries=2,
             backoff_factor=1.0,
             timeout=20,
             user_agent="Sublarr/1.0",
         )
+        logger.debug("AnimeTosho: session created successfully")
 
     def terminate(self):
         if self.session:
@@ -102,8 +104,11 @@ class AnimeToshoProvider(SubtitleProvider):
 
     def search(self, query: VideoQuery) -> list[SubtitleResult]:
         if not self.session:
+            logger.warning("AnimeTosho: cannot search - session is None")
             return []
 
+        logger.debug("AnimeTosho: searching for %s (languages: %s)", 
+                    query.display_name, query.languages)
         results = []
 
         # Build search query
@@ -117,6 +122,7 @@ class AnimeToshoProvider(SubtitleProvider):
             search_term = query.title
 
         if not search_term:
+            logger.warning("AnimeTosho: insufficient search criteria - no search term")
             return []
 
         # Search AnimeTosho feed API
@@ -131,23 +137,33 @@ class AnimeToshoProvider(SubtitleProvider):
             if query.anidb_id:
                 params["aid"] = query.anidb_id
 
+            logger.debug("AnimeTosho: API request params: %s", params)
             resp = self.session.get(FEED_API, params=params)
+            logger.debug("AnimeTosho: API response status: %d", resp.status_code)
+            
             if resp.status_code != 200:
-                logger.warning("AnimeTosho search failed: HTTP %d", resp.status_code)
+                logger.warning("AnimeTosho search failed: HTTP %d, response: %s", 
+                              resp.status_code, resp.text[:200])
                 return []
 
             entries = resp.json()
             if not isinstance(entries, list):
+                logger.warning("AnimeTosho: API returned non-list response: %s", type(entries))
                 return []
+            
+            logger.debug("AnimeTosho: API returned %d entries", len(entries))
 
             for entry in entries:
                 entry_results = self._process_entry(entry, query)
                 results.extend(entry_results)
 
         except Exception as e:
-            logger.error("AnimeTosho search error: %s", e)
+            logger.error("AnimeTosho search error: %s", e, exc_info=True)
 
         logger.info("AnimeTosho: found %d subtitle results", len(results))
+        if results:
+            logger.debug("AnimeTosho: top result - %s (score: %d, format: %s, language: %s)",
+                        results[0].filename, results[0].score, results[0].format.value, results[0].language)
         return results
 
     def _process_entry(self, entry: dict, query: VideoQuery) -> list[SubtitleResult]:

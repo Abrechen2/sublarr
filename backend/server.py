@@ -887,20 +887,100 @@ def list_providers():
 
 @api.route("/providers/test/<provider_name>", methods=["POST"])
 def test_provider(provider_name):
-    """Test a specific provider's connectivity."""
+    """Test a specific provider's connectivity and optionally perform a search.
+    
+    Body (optional): {
+        "test_search": true,
+        "query": {
+            "series_title": "...",
+            "season": 1,
+            "episode": 1,
+            "language": "en"
+        }
+    }
+    """
     try:
         from providers import get_provider_manager
+        from providers.base import VideoQuery, ProviderAuthError, ProviderRateLimitError
+        
         manager = get_provider_manager()
         provider = manager._providers.get(provider_name)
         if not provider:
-            return jsonify({"error": f"Provider '{provider_name}' not found or not enabled"}), 404
+            return jsonify({
+                "error": f"Provider '{provider_name}' not found or not enabled",
+                "available_providers": list(manager._providers.keys())
+            }), 404
 
-        healthy, message = provider.health_check()
-        return jsonify({
+        result = {
             "provider": provider_name,
-            "healthy": healthy,
-            "message": message,
-        })
+            "initialized": provider.session is not None if hasattr(provider, 'session') else True,
+        }
+        
+        # Health check
+        try:
+            healthy, message = provider.health_check()
+            result["health_check"] = {
+                "healthy": healthy,
+                "message": message,
+            }
+        except Exception as e:
+            result["health_check"] = {
+                "healthy": False,
+                "message": f"Health check failed: {str(e)}",
+                "error": str(e),
+            }
+        
+        # Optional search test
+        data = request.get_json() or {}
+        if data.get("test_search"):
+            query_data = data.get("query", {})
+            test_query = VideoQuery(
+                series_title=query_data.get("series_title", ""),
+                title=query_data.get("title", ""),
+                season=query_data.get("season"),
+                episode=query_data.get("episode"),
+                languages=[query_data.get("language", "en")],
+            )
+            
+            try:
+                search_results = provider.search(test_query)
+                result["search_test"] = {
+                    "success": True,
+                    "results_count": len(search_results),
+                    "query": {
+                        "display_name": test_query.display_name,
+                        "languages": test_query.languages,
+                    },
+                    "top_results": [
+                        {
+                            "filename": r.filename,
+                            "language": r.language,
+                            "format": r.format.value,
+                            "score": r.score,
+                        }
+                        for r in search_results[:5]
+                    ],
+                }
+            except ProviderAuthError as e:
+                result["search_test"] = {
+                    "success": False,
+                    "error": "authentication_failed",
+                    "message": str(e),
+                }
+            except ProviderRateLimitError as e:
+                result["search_test"] = {
+                    "success": False,
+                    "error": "rate_limit_exceeded",
+                    "message": str(e),
+                }
+            except Exception as e:
+                result["search_test"] = {
+                    "success": False,
+                    "error": "search_failed",
+                    "message": str(e),
+                }
+        
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

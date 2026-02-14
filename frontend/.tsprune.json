@@ -1,0 +1,16 @@
+{
+  "ignore": [
+    "test",
+    "tests",
+    "*.test.*",
+    "*.spec.*",
+    "setup.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "eslint.config.js",
+    "tsconfig*.json"
+  ],
+  "ignoreExportsUsedInFile": true,
+  "project": "./tsconfig.app.json"
+}

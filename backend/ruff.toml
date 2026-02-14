@@ -1,0 +1,29 @@
+# Ruff configuration for Sublarr Backend
+# Ruff is a fast Python linter and formatter
+
+line-length = 100
+target-version = "py311"
+
+[lint]
+# Select rule sets: E (pycodestyle errors), F (pyflakes), I (isort), N (pep8-naming), W (pycodestyle warnings)
+# SIM = Simplify (code simplification), BLE = Blind Except (exception handling)
+select = ["E", "F", "I", "N", "W", "UP", "SIM", "BLE"]  # UP = pyupgrade
+ignore = [
+    "E501",  # Line too long (handled by formatter)
+    "W191",  # Indentation contains tabs (we use spaces)
+    "SIM108",  # Use ternary operator (can reduce readability)
+    "BLE001",  # Blind except (we handle specific exceptions where needed)
+]
+
+[lint.isort]
+known-first-party = ["providers", "config", "database", "server"]
+
+[lint.per-file-ignores]
+# Ignore specific rules for test files
+"tests/**/*.py" = ["E501", "F401"]  # Allow long lines and unused imports in tests
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
