@@ -376,11 +376,25 @@ export function WantedPage() {
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >
                       <td className="px-4 py-2.5" title={item.file_path}>
-                        <div
-                          className="truncate max-w-xs text-sm"
-                          style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}
-                        >
-                          {item.title || truncatePath(item.file_path)}
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="truncate max-w-xs text-sm"
+                            style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}
+                          >
+                            {item.title || truncatePath(item.file_path)}
+                          </span>
+                          {item.target_language && (
+                            <span
+                              className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase"
+                              style={{
+                                backgroundColor: 'var(--accent-bg)',
+                                color: 'var(--accent)',
+                                fontFamily: 'var(--font-mono)',
+                              }}
+                            >
+                              {item.target_language}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-3 py-2.5">

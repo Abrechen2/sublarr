@@ -44,6 +44,14 @@ def get_output_path(mkv_path, fmt="ass"):
     return f"{base}.{settings.target_language}.{fmt}"
 
 
+def get_output_path_for_lang(mkv_path, fmt="ass", target_language=None):
+    """Get the output path for a specific target language."""
+    if not target_language:
+        return get_output_path(mkv_path, fmt)
+    base = os.path.splitext(mkv_path)[0]
+    return f"{base}.{target_language}.{fmt}"
+
+
 def detect_existing_target(mkv_path, probe_data=None):
     """Detect existing target language subtitles (external files and embedded streams).
 
@@ -52,20 +60,32 @@ def detect_existing_target(mkv_path, probe_data=None):
         None if no target language subtitle exists. ASS takes priority over SRT.
     """
     settings = get_settings()
+    return detect_existing_target_for_lang(mkv_path, settings.target_language, probe_data)
+
+
+def detect_existing_target_for_lang(mkv_path, target_language, probe_data=None):
+    """Detect existing subtitles for a specific target language.
+
+    Returns:
+        str or None: "ass" if target ASS found, "srt" if only target SRT found,
+        None if no target language subtitle exists.
+    """
+    from config import _get_language_tags
     base = os.path.splitext(mkv_path)[0]
+    lang_tags = _get_language_tags(target_language)
 
     # Check external files — ASS first (higher priority)
-    for pattern in settings.get_target_patterns("ass"):
-        if os.path.exists(base + pattern):
+    for tag in lang_tags:
+        if os.path.exists(f"{base}.{tag}.ass"):
             return "ass"
 
     has_srt = False
-    for pattern in settings.get_target_patterns("srt"):
-        if os.path.exists(base + pattern):
+    for tag in lang_tags:
+        if os.path.exists(f"{base}.{tag}.srt"):
             has_srt = True
             break
 
-    # Check embedded streams
+    # Check embedded streams (only works for default target language)
     if probe_data:
         embedded = has_target_language_stream(probe_data)
         if embedded == "ass":
@@ -150,9 +170,10 @@ def _check_translation_quality(original_texts, translated_texts):
     return warnings
 
 
-def translate_ass(mkv_path, stream_info, probe_data):
+def translate_ass(mkv_path, stream_info, probe_data,
+                  target_language=None, target_language_name=None):
     """Translate an ASS subtitle stream to target language .{lang}.ass."""
-    output_path = get_output_path(mkv_path, "ass")
+    output_path = get_output_path_for_lang(mkv_path, "ass", target_language)
     check_disk_space(output_path)
 
     suffix = ".ass"
@@ -220,7 +241,7 @@ def translate_ass(mkv_path, stream_info, probe_data):
             translated_count += 1
 
         settings = get_settings()
-        lang_tag = settings.target_language.upper()
+        lang_tag = (target_language or settings.target_language).upper()
         info_title = subs.info.get("Title", "")
         if not info_title.startswith(f"[{lang_tag}]"):
             subs.info["Title"] = f"[{lang_tag}] {info_title}"
@@ -253,9 +274,9 @@ def translate_ass(mkv_path, stream_info, probe_data):
             os.unlink(tmp_path)
 
 
-def translate_srt_from_stream(mkv_path, stream_info):
+def translate_srt_from_stream(mkv_path, stream_info, target_language=None):
     """Translate an embedded SRT subtitle stream to target language .{lang}.srt."""
-    output_path = get_output_path(mkv_path, "srt")
+    output_path = get_output_path_for_lang(mkv_path, "srt", target_language)
     check_disk_space(output_path)
 
     with tempfile.NamedTemporaryFile(suffix=".srt", delete=False) as tmp:
@@ -272,9 +293,10 @@ def translate_srt_from_stream(mkv_path, stream_info):
             os.unlink(tmp_path)
 
 
-def translate_srt_from_file(mkv_path, srt_path, source="external_srt"):
+def translate_srt_from_file(mkv_path, srt_path, source="external_srt",
+                           target_language=None):
     """Translate an external SRT file to target language .{lang}.srt."""
-    output_path = get_output_path(mkv_path, "srt")
+    output_path = get_output_path_for_lang(mkv_path, "srt", target_language)
     check_disk_space(output_path)
 
     try:
@@ -374,7 +396,7 @@ def _build_video_query(mkv_path, context=None):
     return query
 
 
-def _search_providers_for_target_ass(mkv_path, context=None):
+def _search_providers_for_target_ass(mkv_path, context=None, target_language=None):
     """Search subtitle providers for a target language ASS file.
 
     Returns:
@@ -385,16 +407,17 @@ def _search_providers_for_target_ass(mkv_path, context=None):
         from providers.base import VideoQuery, SubtitleFormat
 
         settings = get_settings()
+        tgt_lang = target_language or settings.target_language
         manager = get_provider_manager()
 
         query = _build_video_query(mkv_path, context)
-        query.languages = [settings.target_language]
+        query.languages = [tgt_lang]
 
         result = manager.search_and_download_best(
             query, format_filter=SubtitleFormat.ASS
         )
         if result and result.content:
-            output_path = get_output_path(mkv_path, "ass")
+            output_path = get_output_path_for_lang(mkv_path, "ass", tgt_lang)
             manager.save_subtitle(result, output_path)
             logger.info("Provider %s delivered target ASS: %s", result.provider_name, output_path)
             return output_path
@@ -468,7 +491,8 @@ def _record_config_hash_for_result(result, file_path):
         logger.debug("Failed to record config hash: %s", e)
 
 
-def translate_file(mkv_path, force=False, bazarr_context=None):
+def translate_file(mkv_path, force=False, arr_context=None,
+                   target_language=None, target_language_name=None):
     """Translate subtitles for a single MKV file.
 
     Three-case priority chain (target language ASS is always the goal):
@@ -485,37 +509,48 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
         C4: Nothing → Fail
 
     After successful translation: notify integrations if context provided.
+
+    Args:
+        target_language: Override target language (e.g. "de"). Defaults to config.
+        target_language_name: Override target language name (e.g. "German"). Defaults to config.
     """
     settings = get_settings()
+    tgt_lang = target_language or settings.target_language
+    tgt_name = target_language_name or settings.target_language_name
 
     if not os.path.exists(mkv_path):
         raise FileNotFoundError(f"File not found: {mkv_path}")
 
-    logger.info("Processing: %s", mkv_path)
+    logger.info("Processing: %s (target: %s)", mkv_path, tgt_lang)
     probe_data = run_ffprobe(mkv_path)
 
     if not force:
-        target_status = detect_existing_target(mkv_path, probe_data)
+        target_status = detect_existing_target_for_lang(mkv_path, tgt_lang, probe_data)
     else:
         target_status = None
 
     result = None
 
+    # Helper to get output path with the right language
+    def _out(fmt):
+        return get_output_path_for_lang(mkv_path, fmt, tgt_lang)
+
     # === CASE A: Target ASS exists → Done ===
     if target_status == "ass":
         logger.info("Case A: Target ASS already exists, skipping")
-        return _skip_result(f"{settings.target_language_name} ASS already exists")
+        return _skip_result(f"{tgt_name} ASS already exists")
 
     # === CASE B: Target SRT exists → Upgrade attempt to ASS ===
     if target_status == "srt":
         logger.info("Case B: Target SRT found, attempting upgrade to ASS")
 
         # B1: Provider search for target ASS
-        target_ass_path = _search_providers_for_target_ass(mkv_path, bazarr_context)
+        target_ass_path = _search_providers_for_target_ass(
+            mkv_path, arr_context, target_language=tgt_lang)
         if target_ass_path:
             logger.info("Case B1: Provider found target ASS (upgrade from SRT)")
             return _skip_result(
-                f"{settings.target_language_name} ASS downloaded via provider (upgraded from SRT)",
+                f"{tgt_name} ASS downloaded via provider (upgraded from SRT)",
                 output_path=target_ass_path,
             )
 
@@ -523,16 +558,17 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
         best_ass = select_best_subtitle_stream(probe_data, format_filter="ass")
         if best_ass:
             logger.info("Case B2: Upgrading — translating source ASS to target ASS")
-            result = translate_ass(mkv_path, best_ass, probe_data)
+            result = translate_ass(mkv_path, best_ass, probe_data,
+                                   target_language=tgt_lang, target_language_name=tgt_name)
             if result["success"]:
                 result["stats"]["upgrade_from_srt"] = True
                 _record_config_hash_for_result(result, mkv_path)
-                _notify_integrations(bazarr_context)
+                _notify_integrations(arr_context)
                 return result
 
         # B3: No upgrade possible
         logger.info("Case B3: No ASS upgrade available, keeping target SRT")
-        return _skip_result(f"{settings.target_language_name} SRT exists, no ASS upgrade available")
+        return _skip_result(f"{tgt_name} SRT exists, no ASS upgrade available")
 
     # === CASE C: No target subtitle → Full pipeline ===
 
@@ -540,75 +576,61 @@ def translate_file(mkv_path, force=False, bazarr_context=None):
     best_stream = select_best_subtitle_stream(probe_data)
     if best_stream and best_stream["format"] == "ass":
         logger.info("Case C1: Translating source ASS to target ASS")
-        result = translate_ass(mkv_path, best_stream, probe_data)
+        result = translate_ass(mkv_path, best_stream, probe_data,
+                               target_language=tgt_lang, target_language_name=tgt_name)
         if result["success"]:
             _record_config_hash_for_result(result, mkv_path)
-            _notify_integrations(bazarr_context)
+            _notify_integrations(arr_context)
         return result
 
     # C2: Source SRT embedded → .{lang}.srt
     if best_stream and best_stream["format"] == "srt":
         logger.info("Case C2: Translating embedded source SRT to target SRT")
-        result = translate_srt_from_stream(mkv_path, best_stream)
+        result = translate_srt_from_stream(mkv_path, best_stream,
+                                           target_language=tgt_lang)
         if result["success"]:
             _record_config_hash_for_result(result, mkv_path)
-            _notify_integrations(bazarr_context)
+            _notify_integrations(arr_context)
         return result
 
     # C2b: External source SRT → .{lang}.srt
     ext_srt = find_external_source_sub(mkv_path)
     if ext_srt:
         logger.info("Case C2b: Translating external source SRT to target SRT")
-        result = translate_srt_from_file(mkv_path, ext_srt)
+        result = translate_srt_from_file(mkv_path, ext_srt,
+                                         target_language=tgt_lang)
         if result["success"]:
             _record_config_hash_for_result(result, mkv_path)
-            _notify_integrations(bazarr_context)
+            _notify_integrations(arr_context)
         return result
 
     # C3: Provider search for source subtitle → translate
-    src_path, src_fmt = _search_providers_for_source_sub(mkv_path, bazarr_context)
+    src_path, src_fmt = _search_providers_for_source_sub(mkv_path, arr_context)
     if src_path:
         if src_fmt == "ass":
             logger.info("Case C3: Translating provider source ASS to target ASS")
-            result = _translate_external_ass(mkv_path, src_path)
+            result = _translate_external_ass(mkv_path, src_path,
+                                             target_language=tgt_lang,
+                                             target_language_name=tgt_name)
         else:
             logger.info("Case C3: Translating provider source SRT to target SRT")
-            result = translate_srt_from_file(mkv_path, src_path, source="provider_source_srt")
+            result = translate_srt_from_file(mkv_path, src_path,
+                                             source="provider_source_srt",
+                                             target_language=tgt_lang)
         if result and result["success"]:
             _record_config_hash_for_result(result, mkv_path)
-            _notify_integrations(bazarr_context)
+            _notify_integrations(arr_context)
         return result
-
-    # C3b: Bazarr legacy fallback (if still configured)
-    if bazarr_context:
-        try:
-            from bazarr_client import get_bazarr_client
-            bazarr = get_bazarr_client()
-            if bazarr:
-                logger.info("Case C3b: Trying Bazarr legacy fallback for source SRT")
-                src_srt_path = bazarr.fetch_source_srt(
-                    bazarr_context.get("sonarr_series_id"),
-                    bazarr_context.get("sonarr_episode_id"),
-                )
-                if src_srt_path:
-                    result = translate_srt_from_file(
-                        mkv_path, src_srt_path, source="bazarr_source_srt"
-                    )
-                    if result["success"]:
-                        _record_config_hash_for_result(result, mkv_path)
-                        _notify_integrations(bazarr_context)
-                    return result
-        except Exception as e:
-            logger.warning("Bazarr fallback failed: %s", e)
 
     # C4: Nothing found
     logger.warning("Case C4: No source subtitle found for %s", mkv_path)
     return _fail_result(f"No {settings.source_language_name} subtitle source found")
 
 
-def _translate_external_ass(mkv_path, ass_path):
+def _translate_external_ass(mkv_path, ass_path, target_language=None,
+                           target_language_name=None):
     """Translate a downloaded external ASS file to target language."""
-    output_path = get_output_path(mkv_path, "ass")
+    output_path = get_output_path_for_lang(mkv_path, "ass", target_language)
     check_disk_space(output_path)
 
     try:
@@ -663,7 +685,7 @@ def _translate_external_ass(mkv_path, ass_path):
             translated_count += 1
 
         settings = get_settings()
-        lang_tag = settings.target_language.upper()
+        lang_tag = (target_language or settings.target_language).upper()
         info_title = subs.info.get("Title", "")
         if not info_title.startswith(f"[{lang_tag}]"):
             subs.info["Title"] = f"[{lang_tag}] {info_title}"
@@ -697,17 +719,6 @@ def _notify_integrations(context):
     """Notify external services about new subtitle files."""
     if not context:
         return
-
-    # Bazarr scan-disk (legacy, if still configured)
-    series_id = context.get("sonarr_series_id")
-    if series_id:
-        try:
-            from bazarr_client import get_bazarr_client
-            bazarr = get_bazarr_client()
-            if bazarr:
-                bazarr.notify_scan_disk(series_id)
-        except Exception as e:
-            logger.debug("Bazarr notification skipped: %s", e)
 
     # Jellyfin library refresh
     try:

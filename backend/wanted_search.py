@@ -31,12 +31,15 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
 
     Fetches series/movie metadata from the relevant *arr client to enrich
     the query with titles, IDs, season/episode numbers, etc.
+    Uses target_language from the wanted item (language profile aware).
     """
     settings = get_settings()
+    # Use item's target_language if set, otherwise fall back to global config
+    item_lang = wanted_item.get("target_language") or settings.target_language
 
     query = VideoQuery(
         file_path=wanted_item["file_path"],
-        languages=[settings.target_language],
+        languages=[item_lang],
     )
 
     if wanted_item["item_type"] == "episode":
@@ -93,10 +96,11 @@ def search_wanted_item(item_id: int) -> dict:
 
     settings = get_settings()
     manager = get_provider_manager()
+    item_lang = item.get("target_language") or settings.target_language
 
     # Build query for target language ASS
     query = build_query_from_wanted(item)
-    query.languages = [settings.target_language]
+    query.languages = [item_lang]
 
     target_results = []
     try:
@@ -137,6 +141,7 @@ def process_wanted_item(item_id: int) -> dict:
         return {"wanted_id": item_id, "status": "error", "error": "Item not found"}
 
     settings = get_settings()
+    item_lang = item.get("target_language") or settings.target_language
 
     # Check max search attempts
     if item["search_count"] >= settings.wanted_max_search_attempts:
@@ -165,7 +170,7 @@ def process_wanted_item(item_id: int) -> dict:
     # Step 1: Try to find target language ASS directly from providers
     manager = get_provider_manager()
     query = build_query_from_wanted(item)
-    query.languages = [settings.target_language]
+    query.languages = [item_lang]
 
     try:
         result = manager.search_and_download_best(
@@ -176,8 +181,8 @@ def process_wanted_item(item_id: int) -> dict:
 
             # For upgrade candidates, check if the new sub is actually better
             if is_upgrade and current_score > 0:
-                from translator import get_output_path as _get_out
-                existing_srt = _get_out(file_path, "srt")
+                from translator import get_output_path_for_lang
+                existing_srt = get_output_path_for_lang(file_path, "srt", item_lang)
                 do_upgrade, reason = should_upgrade(
                     "srt", current_score, "ass", new_score,
                     upgrade_prefer_ass=settings.upgrade_prefer_ass,
@@ -195,12 +200,12 @@ def process_wanted_item(item_id: int) -> dict:
                     }
                 logger.info("Wanted %d: Upgrade approved — %s", item_id, reason)
 
-            from translator import get_output_path
-            output_path = get_output_path(file_path, "ass")
+            from translator import get_output_path_for_lang
+            output_path = get_output_path_for_lang(file_path, "ass", item_lang)
 
             # If upgrading from SRT, remove old SRT file
             if is_upgrade:
-                old_srt = get_output_path(file_path, "srt")
+                old_srt = get_output_path_for_lang(file_path, "srt", item_lang)
                 if os.path.exists(old_srt):
                     os.remove(old_srt)
                     logger.info("Wanted %d: Removed old SRT: %s", item_id, old_srt)
@@ -229,7 +234,7 @@ def process_wanted_item(item_id: int) -> dict:
     # Step 2: Fall back to translate_file() which handles all cases (B1/C1-C4)
     try:
         from translator import translate_file
-        translate_result = translate_file(file_path)
+        translate_result = translate_file(file_path, target_language=item_lang)
 
         if translate_result["success"]:
             if translate_result["stats"].get("skipped"):

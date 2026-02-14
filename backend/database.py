@@ -125,6 +125,30 @@ CREATE TABLE IF NOT EXISTS translation_config_history (
     first_used_at TEXT NOT NULL,
     last_used_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS language_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    source_language TEXT NOT NULL DEFAULT 'en',
+    source_language_name TEXT NOT NULL DEFAULT 'English',
+    target_languages_json TEXT NOT NULL DEFAULT '["de"]',
+    target_language_names_json TEXT NOT NULL DEFAULT '["German"]',
+    is_default INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS series_language_profiles (
+    sonarr_series_id INTEGER PRIMARY KEY,
+    profile_id INTEGER NOT NULL,
+    FOREIGN KEY (profile_id) REFERENCES language_profiles(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS movie_language_profiles (
+    radarr_movie_id INTEGER PRIMARY KEY,
+    profile_id INTEGER NOT NULL,
+    FOREIGN KEY (profile_id) REFERENCES language_profiles(id) ON DELETE CASCADE
+);
 """
 
 
@@ -181,22 +205,46 @@ def _run_migrations(conn):
     if "config_hash" not in columns:
         conn.execute("ALTER TABLE jobs ADD COLUMN config_hash TEXT DEFAULT ''")
 
+    # Add target_language to wanted_items
+    cursor = conn.execute("PRAGMA table_info(wanted_items)")
+    columns = {row[1] for row in cursor.fetchall()}
+    if "target_language" not in columns:
+        conn.execute("ALTER TABLE wanted_items ADD COLUMN target_language TEXT DEFAULT ''")
+
+    # Create default language profile if none exists
+    row = conn.execute("SELECT COUNT(*) FROM language_profiles").fetchone()
+    if row[0] == 0:
+        from config import get_settings
+        s = get_settings()
+        now = datetime.utcnow().isoformat()
+        conn.execute(
+            """INSERT INTO language_profiles
+               (name, source_language, source_language_name,
+                target_languages_json, target_language_names_json,
+                is_default, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, 1, ?, ?)""",
+            ("Default", s.source_language, s.source_language_name,
+             json.dumps([s.target_language]),
+             json.dumps([s.target_language_name]),
+             now, now),
+        )
+
 
 # ─── Job Operations ───────────────────────────────────────────────────────────
 
 
-def create_job(file_path: str, force: bool = False, bazarr_context: dict = None) -> dict:
+def create_job(file_path: str, force: bool = False, arr_context: dict = None) -> dict:
     """Create a new translation job in the database."""
     job_id = str(uuid.uuid4())[:8]
     now = datetime.utcnow().isoformat()
-    bazarr_json = json.dumps(bazarr_context) if bazarr_context else ""
+    context_json = json.dumps(arr_context) if arr_context else ""
 
     db = get_db()
     with _db_lock:
         db.execute(
             """INSERT INTO jobs (id, file_path, status, force, bazarr_context_json, created_at)
                VALUES (?, ?, 'queued', ?, ?, ?)""",
-            (job_id, file_path, int(force), bazarr_json, now),
+            (job_id, file_path, int(force), context_json, now),
         )
         db.commit()
 
@@ -205,7 +253,7 @@ def create_job(file_path: str, force: bool = False, bazarr_context: dict = None)
         "file_path": file_path,
         "status": "queued",
         "force": force,
-        "bazarr_context": bazarr_context,
+        "arr_context": arr_context,
         "created_at": now,
         "completed_at": None,
         "result": None,
@@ -302,11 +350,11 @@ def _row_to_job(row) -> dict:
 
     if d.get("bazarr_context_json"):
         try:
-            d["bazarr_context"] = json.loads(d["bazarr_context_json"])
+            d["arr_context"] = json.loads(d["bazarr_context_json"])
         except json.JSONDecodeError:
-            d["bazarr_context"] = None
+            d["arr_context"] = None
     else:
-        d["bazarr_context"] = None
+        d["arr_context"] = None
     del d["bazarr_context_json"]
 
     d["force"] = bool(d.get("force", 0))
@@ -567,8 +615,9 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                        sonarr_episode_id: int = None,
                        radarr_movie_id: int = None,
                        upgrade_candidate: bool = False,
-                       current_score: int = 0) -> int:
-    """Insert or update a wanted item (matched on file_path).
+                       current_score: int = 0,
+                       target_language: str = "") -> int:
+    """Insert or update a wanted item (matched on file_path + target_language).
 
     Returns the row id.
     """
@@ -578,9 +627,17 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
     db = get_db()
 
     with _db_lock:
-        existing = db.execute(
-            "SELECT id, status FROM wanted_items WHERE file_path=?", (file_path,)
-        ).fetchone()
+        # Match on file_path + target_language for multi-language support
+        if target_language:
+            existing = db.execute(
+                "SELECT id, status FROM wanted_items WHERE file_path=? AND target_language=?",
+                (file_path, target_language),
+            ).fetchone()
+        else:
+            existing = db.execute(
+                "SELECT id, status FROM wanted_items WHERE file_path=? AND (target_language='' OR target_language IS NULL)",
+                (file_path,),
+            ).fetchone()
 
         if existing:
             row_id = existing[0]
@@ -590,11 +647,11 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                     """UPDATE wanted_items SET title=?, season_episode=?, existing_sub=?,
                        missing_languages=?, sonarr_series_id=?, sonarr_episode_id=?,
                        radarr_movie_id=?, upgrade_candidate=?, current_score=?,
-                       updated_at=?
+                       target_language=?, updated_at=?
                        WHERE id=?""",
                     (title, season_episode, existing_sub, langs_json,
                      sonarr_series_id, sonarr_episode_id, radarr_movie_id,
-                     upgrade_int, current_score, now, row_id),
+                     upgrade_int, current_score, target_language, now, row_id),
                 )
             else:
                 db.execute(
@@ -602,11 +659,11 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                        existing_sub=?, missing_languages=?, status='wanted',
                        sonarr_series_id=?, sonarr_episode_id=?, radarr_movie_id=?,
                        upgrade_candidate=?, current_score=?,
-                       updated_at=?
+                       target_language=?, updated_at=?
                        WHERE id=?""",
                     (item_type, title, season_episode, existing_sub, langs_json,
                      sonarr_series_id, sonarr_episode_id, radarr_movie_id,
-                     upgrade_int, current_score, now, row_id),
+                     upgrade_int, current_score, target_language, now, row_id),
                 )
         else:
             cursor = db.execute(
@@ -614,11 +671,12 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                    (item_type, file_path, title, season_episode, existing_sub,
                     missing_languages, sonarr_series_id, sonarr_episode_id,
                     radarr_movie_id, upgrade_candidate, current_score,
-                    status, added_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'wanted', ?, ?)""",
+                    target_language, status, added_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'wanted', ?, ?)""",
                 (item_type, file_path, title, season_episode, existing_sub,
                  langs_json, sonarr_series_id, sonarr_episode_id,
-                 radarr_movie_id, upgrade_int, current_score, now, now),
+                 radarr_movie_id, upgrade_int, current_score,
+                 target_language, now, now),
             )
             row_id = cursor.lastrowid
         db.commit()
@@ -781,6 +839,30 @@ def get_all_wanted_file_paths() -> set:
     return {row[0] for row in rows}
 
 
+def get_wanted_items_for_cleanup() -> list:
+    """Get wanted items with file_path, target_language, and id for cleanup."""
+    db = get_db()
+    with _db_lock:
+        rows = db.execute(
+            "SELECT id, file_path, target_language FROM wanted_items"
+        ).fetchall()
+    return [{"id": r[0], "file_path": r[1], "target_language": r[2] or ""} for r in rows]
+
+
+def delete_wanted_items_by_ids(item_ids: list):
+    """Delete wanted items by their IDs (batch)."""
+    if not item_ids:
+        return
+    db = get_db()
+    placeholders = ",".join("?" for _ in item_ids)
+    with _db_lock:
+        db.execute(
+            f"DELETE FROM wanted_items WHERE id IN ({placeholders})",
+            item_ids,
+        )
+        db.commit()
+
+
 def get_wanted_item_by_path(file_path: str) -> Optional[dict]:
     """Get a wanted item by file path."""
     db = get_db()
@@ -911,3 +993,220 @@ def get_outdated_jobs(current_hash: str, limit: int = 100) -> list:
             (current_hash, limit),
         ).fetchall()
     return [_row_to_job(r) for r in rows]
+
+
+# ─── Language Profile Operations ──────────────────────────────────────────────
+
+
+def _row_to_profile(row) -> dict:
+    """Convert a database row to a language profile dict."""
+    d = dict(row)
+    d["is_default"] = bool(d.get("is_default", 0))
+    try:
+        d["target_languages"] = json.loads(d.get("target_languages_json", "[]"))
+    except json.JSONDecodeError:
+        d["target_languages"] = []
+    del d["target_languages_json"]
+    try:
+        d["target_language_names"] = json.loads(d.get("target_language_names_json", "[]"))
+    except json.JSONDecodeError:
+        d["target_language_names"] = []
+    del d["target_language_names_json"]
+    return d
+
+
+def create_language_profile(name: str, source_lang: str, source_name: str,
+                             target_langs: list[str], target_names: list[str]) -> int:
+    """Create a new language profile. Returns the profile ID."""
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    with _db_lock:
+        cursor = db.execute(
+            """INSERT INTO language_profiles
+               (name, source_language, source_language_name,
+                target_languages_json, target_language_names_json,
+                is_default, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, 0, ?, ?)""",
+            (name, source_lang, source_name,
+             json.dumps(target_langs), json.dumps(target_names),
+             now, now),
+        )
+        profile_id = cursor.lastrowid
+        db.commit()
+    return profile_id
+
+
+def get_language_profile(profile_id: int) -> Optional[dict]:
+    """Get a language profile by ID."""
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            "SELECT * FROM language_profiles WHERE id=?", (profile_id,)
+        ).fetchone()
+    if not row:
+        return None
+    return _row_to_profile(row)
+
+
+def get_all_language_profiles() -> list[dict]:
+    """Get all language profiles, default first."""
+    db = get_db()
+    with _db_lock:
+        rows = db.execute(
+            "SELECT * FROM language_profiles ORDER BY is_default DESC, name ASC"
+        ).fetchall()
+    return [_row_to_profile(r) for r in rows]
+
+
+def update_language_profile(profile_id: int, **fields):
+    """Update a language profile's fields."""
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+
+    allowed = {"name", "source_language", "source_language_name",
+               "target_languages", "target_language_names"}
+    updates = []
+    params = []
+
+    for key, value in fields.items():
+        if key not in allowed:
+            continue
+        if key == "target_languages":
+            updates.append("target_languages_json=?")
+            params.append(json.dumps(value))
+        elif key == "target_language_names":
+            updates.append("target_language_names_json=?")
+            params.append(json.dumps(value))
+        else:
+            updates.append(f"{key}=?")
+            params.append(value)
+
+    if not updates:
+        return
+
+    updates.append("updated_at=?")
+    params.append(now)
+    params.append(profile_id)
+
+    with _db_lock:
+        db.execute(
+            f"UPDATE language_profiles SET {', '.join(updates)} WHERE id=?",
+            params,
+        )
+        db.commit()
+
+
+def delete_language_profile(profile_id: int) -> bool:
+    """Delete a language profile (cannot delete default). Returns True if deleted."""
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            "SELECT is_default FROM language_profiles WHERE id=?", (profile_id,)
+        ).fetchone()
+        if not row:
+            return False
+        if row[0]:
+            return False  # Cannot delete default profile
+
+        db.execute("DELETE FROM language_profiles WHERE id=?", (profile_id,))
+        # Assignments using this profile are cascaded by FK
+        db.commit()
+    return True
+
+
+def get_default_profile() -> dict:
+    """Get the default language profile."""
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            "SELECT * FROM language_profiles WHERE is_default=1"
+        ).fetchone()
+    if not row:
+        # Fallback: return first profile
+        with _db_lock:
+            row = db.execute(
+                "SELECT * FROM language_profiles ORDER BY id ASC LIMIT 1"
+            ).fetchone()
+    if not row:
+        # No profiles at all — return synthetic default from config
+        s = get_settings()
+        return {
+            "id": 0,
+            "name": "Default",
+            "source_language": s.source_language,
+            "source_language_name": s.source_language_name,
+            "target_languages": [s.target_language],
+            "target_language_names": [s.target_language_name],
+            "is_default": True,
+        }
+    return _row_to_profile(row)
+
+
+def get_series_profile(sonarr_series_id: int) -> dict:
+    """Get the language profile assigned to a series. Falls back to default."""
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            """SELECT lp.* FROM language_profiles lp
+               JOIN series_language_profiles slp ON slp.profile_id = lp.id
+               WHERE slp.sonarr_series_id=?""",
+            (sonarr_series_id,),
+        ).fetchone()
+    if row:
+        return _row_to_profile(row)
+    return get_default_profile()
+
+
+def get_movie_profile(radarr_movie_id: int) -> dict:
+    """Get the language profile assigned to a movie. Falls back to default."""
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            """SELECT lp.* FROM language_profiles lp
+               JOIN movie_language_profiles mlp ON mlp.profile_id = lp.id
+               WHERE mlp.radarr_movie_id=?""",
+            (radarr_movie_id,),
+        ).fetchone()
+    if row:
+        return _row_to_profile(row)
+    return get_default_profile()
+
+
+def assign_series_profile(sonarr_series_id: int, profile_id: int):
+    """Assign a language profile to a series."""
+    db = get_db()
+    with _db_lock:
+        db.execute(
+            """INSERT OR REPLACE INTO series_language_profiles
+               (sonarr_series_id, profile_id) VALUES (?, ?)""",
+            (sonarr_series_id, profile_id),
+        )
+        db.commit()
+
+
+def assign_movie_profile(radarr_movie_id: int, profile_id: int):
+    """Assign a language profile to a movie."""
+    db = get_db()
+    with _db_lock:
+        db.execute(
+            """INSERT OR REPLACE INTO movie_language_profiles
+               (radarr_movie_id, profile_id) VALUES (?, ?)""",
+            (radarr_movie_id, profile_id),
+        )
+        db.commit()
+
+
+def get_series_profile_assignments() -> dict[int, int]:
+    """Get all series -> profile_id assignments."""
+    db = get_db()
+    with _db_lock:
+        rows = db.execute("SELECT sonarr_series_id, profile_id FROM series_language_profiles").fetchall()
+    return {row[0]: row[1] for row in rows}
+
+
+def get_movie_profile_assignments() -> dict[int, int]:
+    """Get all movie -> profile_id assignments."""
+    db = get_db()
+    with _db_lock:
+        rows = db.execute("SELECT radarr_movie_id, profile_id FROM movie_language_profiles").fetchall()
+    return {row[0]: row[1] for row in rows}

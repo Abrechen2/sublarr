@@ -57,6 +57,13 @@ if _db_overrides:
 else:
     logger.info("No config overrides in database, using env/defaults")
 
+# Bazarr deprecation warning
+if os.environ.get("SUBLARR_BAZARR_URL") or os.environ.get("SUBLARR_BAZARR_API_KEY"):
+    logger.warning(
+        "DEPRECATION: SUBLARR_BAZARR_URL/SUBLARR_BAZARR_API_KEY are set but Bazarr "
+        "integration has been removed. Sublarr now has its own provider system."
+    )
+
 # Initialize wanted scanner & scheduler
 from wanted_scanner import get_scanner, invalidate_scanner
 _wanted_scanner = get_scanner()
@@ -101,8 +108,7 @@ wanted_batch_lock = threading.Lock()
 stats_lock = threading.Lock()
 _memory_stats = {
     "started_at": time.time(),
-    "upgrades": {"srt_to_ass_translated": 0, "srt_to_ass_bazarr": 0, "srt_upgrade_skipped": 0},
-    "bazarr_synced": 0,
+    "upgrades": {"srt_to_ass_translated": 0, "srt_upgrade_skipped": 0},
     "quality_warnings": 0,
 }
 
@@ -115,9 +121,7 @@ def _update_stats(result):
             if s.get("skipped"):
                 record_stat(success=True, skipped=True)
                 reason = s.get("reason", "")
-                if "upgrade" in reason.lower() and "bazarr" in reason.lower():
-                    _memory_stats["upgrades"]["srt_to_ass_bazarr"] += 1
-                elif "no ASS upgrade" in reason:
+                if "no ASS upgrade" in reason:
                     _memory_stats["upgrades"]["srt_upgrade_skipped"] += 1
             else:
                 fmt = s.get("format", "")
@@ -140,7 +144,7 @@ def _run_job(job_data):
         result = translate_file(
             job_data["file_path"],
             force=job_data.get("force", False),
-            bazarr_context=job_data.get("bazarr_context"),
+            arr_context=job_data.get("arr_context"),
         )
 
         status = "completed" if result["success"] else "failed"
@@ -160,8 +164,8 @@ def _run_job(job_data):
         record_stat(success=False)
 
 
-def _build_bazarr_context(data):
-    """Build bazarr_context from request data if Sonarr IDs are present."""
+def _build_arr_context(data):
+    """Build arr_context from request data if Sonarr IDs are present."""
     series_id = data.get("sonarr_series_id")
     episode_id = data.get("sonarr_episode_id")
     if series_id and episode_id:
@@ -192,18 +196,6 @@ def health():
         service_status["providers"] = f"{active_count}/{len(provider_statuses)} active"
     except Exception:
         service_status["providers"] = "error"
-
-    # Bazarr (legacy)
-    try:
-        from bazarr_client import get_bazarr_client
-        bazarr = get_bazarr_client()
-        if bazarr:
-            b_healthy, b_msg = bazarr.health_check()
-            service_status["bazarr"] = b_msg if b_healthy else f"unhealthy: {b_msg}"
-        else:
-            service_status["bazarr"] = "not configured"
-    except Exception:
-        service_status["bazarr"] = "not configured"
 
     # Sonarr
     try:
@@ -265,8 +257,8 @@ def translate_async():
     if not os.path.exists(file_path):
         return jsonify({"error": f"File not found: {file_path}"}), 404
 
-    bazarr_context = _build_bazarr_context(data)
-    job = create_job(file_path, force, bazarr_context)
+    arr_context = _build_arr_context(data)
+    job = create_job(file_path, force, arr_context)
     thread = threading.Thread(target=_run_job, args=(job,), daemon=True)
     thread.start()
 
@@ -290,97 +282,15 @@ def translate_sync():
     if not os.path.exists(file_path):
         return jsonify({"error": f"File not found: {file_path}"}), 404
 
-    bazarr_context = _build_bazarr_context(data)
+    arr_context = _build_arr_context(data)
 
     try:
-        result = translate_file(file_path, force=force, bazarr_context=bazarr_context)
+        result = translate_file(file_path, force=force, arr_context=arr_context)
         _update_stats(result)
         status_code = 200 if result["success"] else 500
         return jsonify(result), status_code
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
-
-
-@api.route("/translate/wanted", methods=["POST"])
-def translate_wanted():
-    """Translate episodes from Bazarr's wanted list (anime only)."""
-    data = request.get_json() or {}
-    max_episodes = min(data.get("max_episodes", 5), 100)
-
-    try:
-        from bazarr_client import get_bazarr_client
-        bazarr = get_bazarr_client()
-    except Exception:
-        bazarr = None
-
-    if not bazarr:
-        return jsonify({"error": "Bazarr not configured or unreachable"}), 503
-
-    episodes = bazarr.get_wanted_anime(limit=max_episodes)
-    if not episodes:
-        return jsonify({"status": "no_wanted", "message": "No anime episodes in wanted list"}), 200
-
-    # Get Sonarr client for path lookup (Bazarr wanted doesn't include file paths)
-    try:
-        from sonarr_client import get_sonarr_client
-        sonarr = get_sonarr_client()
-    except Exception:
-        sonarr = None
-
-    job_ids = []
-    skipped_paths = []
-    for ep in episodes[:max_episodes]:
-        path = ep.get("path")
-
-        # Bazarr wanted API doesn't include file paths — look up via Sonarr
-        if not path and sonarr and ep.get("sonarr_episode_id"):
-            logger.info("Wanted: looking up path via Sonarr for episode %s", ep.get("sonarr_episode_id"))
-            path = sonarr.get_episode_file_path(ep["sonarr_episode_id"])
-
-        if not path:
-            reason = "no file path found (Sonarr lookup failed or not configured)"
-            logger.warning("Wanted: %s — %s %s", reason, ep.get("series_title"), ep.get("episode_number"))
-            skipped_paths.append({"episode": f"{ep.get('series_title')} {ep.get('episode_number')}", "reason": reason})
-            continue
-
-        # Apply path mapping (remote → local)
-        mapped_path = _map_path(path)
-
-        if not os.path.exists(mapped_path):
-            logger.warning("Wanted: file not found (original: %s, mapped: %s)", path, mapped_path)
-            skipped_paths.append({
-                "episode": f"{ep.get('series_title')} {ep.get('episode_number')}",
-                "sonarr_path": path,
-                "mapped_path": mapped_path,
-                "reason": "file not found — configure path_mapping in Settings",
-            })
-            continue
-
-        path = mapped_path
-        bazarr_context = {
-            "sonarr_series_id": ep["sonarr_series_id"],
-            "sonarr_episode_id": ep["sonarr_episode_id"],
-        }
-        job = create_job(path, bazarr_context=bazarr_context)
-        job_ids.append(job["id"])
-        thread = threading.Thread(target=_run_job, args=(job,), daemon=True)
-        thread.start()
-        time.sleep(0.5)
-
-    return jsonify({
-        "status": "started",
-        "episodes_queued": len(job_ids),
-        "job_ids": job_ids,
-        "episodes": [
-            {
-                "series": ep["series_title"],
-                "episode": ep["episode_number"],
-                "title": ep["episode_title"],
-            }
-            for ep in episodes[:max_episodes]
-        ],
-        "skipped": skipped_paths if skipped_paths else None,
-    }), 202
 
 
 # ─── Job & Status Endpoints ──────────────────────────────────────────────────
@@ -403,36 +313,6 @@ def list_jobs():
     status_filter = request.args.get("status")
     result = get_jobs(page=page, per_page=per_page, status=status_filter)
     return jsonify(result)
-
-
-@api.route("/status/bazarr", methods=["GET"])
-def bazarr_status():
-    """Get Bazarr integration status."""
-    try:
-        from bazarr_client import get_bazarr_client
-        bazarr = get_bazarr_client()
-    except Exception:
-        bazarr = None
-
-    if not bazarr:
-        return jsonify({
-            "configured": False,
-            "message": "Bazarr not configured",
-        })
-
-    healthy, message = bazarr.health_check()
-    wanted_count = bazarr.get_wanted_anime_total() if healthy else 0
-
-    with stats_lock:
-        synced = _memory_stats.get("bazarr_synced", 0)
-
-    return jsonify({
-        "configured": True,
-        "reachable": healthy,
-        "message": message,
-        "wanted_anime_count": wanted_count,
-        "translations_synced": synced,
-    })
 
 
 # ─── Batch Endpoints ─────────────────────────────────────────────────────────
@@ -641,7 +521,6 @@ def get_stats():
         uptime = time.time() - _memory_stats["started_at"]
         memory_extras = {
             "upgrades": dict(_memory_stats["upgrades"]),
-            "bazarr_synced": _memory_stats["bazarr_synced"],
             "quality_warnings": _memory_stats["quality_warnings"],
         }
 
@@ -692,12 +571,10 @@ def update_config():
     settings = reload_settings(all_overrides)
 
     # Invalidate singleton clients so they pick up new URLs/keys
-    from bazarr_client import invalidate_client as _inv_bazarr
     from sonarr_client import invalidate_client as _inv_sonarr
     from radarr_client import invalidate_client as _inv_radarr
     from jellyfin_client import invalidate_client as _inv_jellyfin
     from providers import invalidate_manager as _inv_providers
-    _inv_bazarr()
     _inv_sonarr()
     _inv_radarr()
     _inv_jellyfin()
@@ -859,6 +736,119 @@ def clear_cache():
         "status": "cleared",
         "provider": provider_name or "all",
     })
+
+
+# ─── Language Profile Endpoints ──────────────────────────────────────────────
+
+
+@api.route("/language-profiles", methods=["GET"])
+def list_language_profiles():
+    """Get all language profiles."""
+    from database import get_all_language_profiles
+    profiles = get_all_language_profiles()
+    return jsonify({"profiles": profiles})
+
+
+@api.route("/language-profiles", methods=["POST"])
+def create_language_profile_endpoint():
+    """Create a new language profile."""
+    from database import create_language_profile as db_create_profile
+    data = request.get_json() or {}
+
+    name = data.get("name", "").strip()
+    if not name:
+        return jsonify({"error": "name is required"}), 400
+
+    source_lang = data.get("source_language", "en")
+    source_name = data.get("source_language_name", "English")
+    target_langs = data.get("target_languages", ["de"])
+    target_names = data.get("target_language_names", ["German"])
+
+    if not target_langs:
+        return jsonify({"error": "At least one target language is required"}), 400
+
+    try:
+        profile_id = db_create_profile(
+            name, source_lang, source_name, target_langs, target_names
+        )
+    except Exception as e:
+        if "UNIQUE constraint" in str(e):
+            return jsonify({"error": f"Profile name '{name}' already exists"}), 409
+        return jsonify({"error": str(e)}), 500
+
+    from database import get_language_profile
+    profile = get_language_profile(profile_id)
+    return jsonify(profile), 201
+
+
+@api.route("/language-profiles/<int:profile_id>", methods=["PUT"])
+def update_language_profile_endpoint(profile_id):
+    """Update a language profile."""
+    from database import get_language_profile, update_language_profile as db_update_profile
+    profile = get_language_profile(profile_id)
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+
+    data = request.get_json() or {}
+    fields = {}
+    for key in ("name", "source_language", "source_language_name",
+                "target_languages", "target_language_names"):
+        if key in data:
+            fields[key] = data[key]
+
+    if not fields:
+        return jsonify({"error": "No fields to update"}), 400
+
+    try:
+        db_update_profile(profile_id, **fields)
+    except Exception as e:
+        if "UNIQUE constraint" in str(e):
+            return jsonify({"error": f"Profile name '{data.get('name')}' already exists"}), 409
+        return jsonify({"error": str(e)}), 500
+
+    updated = get_language_profile(profile_id)
+    return jsonify(updated)
+
+
+@api.route("/language-profiles/<int:profile_id>", methods=["DELETE"])
+def delete_language_profile_endpoint(profile_id):
+    """Delete a language profile (cannot delete default)."""
+    from database import delete_language_profile as db_delete_profile
+    deleted = db_delete_profile(profile_id)
+    if not deleted:
+        return jsonify({"error": "Profile not found or is the default profile"}), 400
+    return jsonify({"status": "deleted", "id": profile_id})
+
+
+@api.route("/language-profiles/assign", methods=["PUT"])
+def assign_profile():
+    """Assign a language profile to a series or movie.
+
+    Body: { type: "series"|"movie", arr_id: int, profile_id: int }
+    """
+    from database import assign_series_profile, assign_movie_profile, get_language_profile
+    data = request.get_json() or {}
+
+    item_type = data.get("type")
+    arr_id = data.get("arr_id")
+    profile_id = data.get("profile_id")
+
+    if not item_type or arr_id is None or profile_id is None:
+        return jsonify({"error": "type, arr_id, and profile_id are required"}), 400
+
+    # Verify profile exists
+    profile = get_language_profile(profile_id)
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+
+    if item_type == "series":
+        assign_series_profile(arr_id, profile_id)
+    elif item_type == "movie":
+        assign_movie_profile(arr_id, profile_id)
+    else:
+        return jsonify({"error": "type must be 'series' or 'movie'"}), 400
+
+    return jsonify({"status": "assigned", "type": item_type, "arr_id": arr_id, "profile_id": profile_id})
 
 
 # ─── Wanted Endpoints ────────────────────────────────────────────────────────

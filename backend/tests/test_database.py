@@ -29,11 +29,11 @@ def temp_db():
 
 def test_create_job(temp_db):
     """Test job creation."""
-    job = create_job("/test/path.mkv", force=False, bazarr_context={"series_id": 123})
+    job = create_job("/test/path.mkv", force=False, arr_context={"series_id": 123})
     assert job["id"] is not None
     assert job["file_path"] == "/test/path.mkv"
     assert job["status"] == "queued"
-    assert job["bazarr_context"]["series_id"] == 123
+    assert job["arr_context"]["series_id"] == 123
 
 
 def test_get_job(temp_db):

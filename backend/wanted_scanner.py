@@ -12,12 +12,15 @@ import threading
 from datetime import datetime
 
 from config import get_settings, map_path
-from translator import detect_existing_target, get_output_path
+from translator import detect_existing_target_for_lang, get_output_path_for_lang
 from upgrade_scorer import score_existing_subtitle
 from database import (
     upsert_wanted_item,
     delete_wanted_items,
     get_all_wanted_file_paths,
+    get_series_profile,
+    get_movie_profile,
+    get_default_profile,
 )
 
 logger = logging.getLogger(__name__)
@@ -217,6 +220,11 @@ class WantedScanner:
         if not episodes:
             return 0, 0, set()
 
+        # Load language profile for this series
+        profile = get_series_profile(series_id)
+        target_languages = profile.get("target_languages", [settings.target_language])
+        target_language_names = profile.get("target_language_names", [settings.target_language_name])
+
         added = 0
         updated = 0
         scanned_paths = set()
@@ -244,43 +252,46 @@ class WantedScanner:
 
             scanned_paths.add(mapped_path)
 
-            # Check existing target subs (no ffprobe — fast external-only check)
-            existing = detect_existing_target(mapped_path)
-            if existing == "ass":
-                continue  # Goal achieved
-
             season_num = ep.get("seasonNumber", 0)
             episode_num = ep.get("episodeNumber", 0)
             season_episode = f"S{season_num:02d}E{episode_num:02d}"
-            title = f"{series_title} — {season_episode}"
-            existing_sub = existing or ""
 
-            # Score existing subtitle for upgrade detection
-            is_upgrade = False
-            cur_score = 0
-            if existing_sub == "srt" and settings.upgrade_enabled:
-                srt_path = get_output_path(mapped_path, "srt")
-                if os.path.exists(srt_path):
-                    _, cur_score = score_existing_subtitle(srt_path)
-                    is_upgrade = True
+            # Check each target language from the profile
+            for target_lang, target_name in zip(target_languages, target_language_names):
+                existing = detect_existing_target_for_lang(mapped_path, target_lang)
+                if existing == "ass":
+                    continue  # Goal achieved for this language
 
-            row_id = upsert_wanted_item(
-                item_type="episode",
-                file_path=mapped_path,
-                title=title,
-                season_episode=season_episode,
-                existing_sub=existing_sub,
-                missing_languages=[settings.target_language],
-                sonarr_series_id=series_id,
-                sonarr_episode_id=episode_id,
-                upgrade_candidate=is_upgrade,
-                current_score=cur_score,
-            )
+                title = f"{series_title} — {season_episode}"
+                if len(target_languages) > 1:
+                    title = f"{title} [{target_lang.upper()}]"
+                existing_sub = existing or ""
 
-            if row_id:
-                # Simple heuristic: if we did an INSERT vs UPDATE
-                # The upsert always returns an id, so we count both
-                added += 1
+                # Score existing subtitle for upgrade detection
+                is_upgrade = False
+                cur_score = 0
+                if existing_sub == "srt" and settings.upgrade_enabled:
+                    srt_path = get_output_path_for_lang(mapped_path, "srt", target_lang)
+                    if os.path.exists(srt_path):
+                        _, cur_score = score_existing_subtitle(srt_path)
+                        is_upgrade = True
+
+                row_id = upsert_wanted_item(
+                    item_type="episode",
+                    file_path=mapped_path,
+                    title=title,
+                    season_episode=season_episode,
+                    existing_sub=existing_sub,
+                    missing_languages=[target_lang],
+                    sonarr_series_id=series_id,
+                    sonarr_episode_id=episode_id,
+                    upgrade_candidate=is_upgrade,
+                    current_score=cur_score,
+                    target_language=target_lang,
+                )
+
+                if row_id:
+                    added += 1
 
         return added, updated, scanned_paths
 
@@ -324,64 +335,86 @@ class WantedScanner:
 
             scanned_paths.add(mapped_path)
 
-            existing = detect_existing_target(mapped_path)
-            if existing == "ass":
-                continue
+            # Load language profile for this movie
+            profile = get_movie_profile(movie_id)
+            target_languages = profile.get("target_languages", [settings.target_language])
+            target_language_names = profile.get("target_language_names", [settings.target_language_name])
 
-            existing_sub = existing or ""
+            for target_lang, target_name in zip(target_languages, target_language_names):
+                existing = detect_existing_target_for_lang(mapped_path, target_lang)
+                if existing == "ass":
+                    continue
 
-            # Score existing subtitle for upgrade detection
-            is_upgrade = False
-            cur_score = 0
-            if existing_sub == "srt" and settings.upgrade_enabled:
-                srt_path = get_output_path(mapped_path, "srt")
-                if os.path.exists(srt_path):
-                    _, cur_score = score_existing_subtitle(srt_path)
-                    is_upgrade = True
+                title = movie_title
+                if len(target_languages) > 1:
+                    title = f"{title} [{target_lang.upper()}]"
+                existing_sub = existing or ""
 
-            row_id = upsert_wanted_item(
-                item_type="movie",
-                file_path=mapped_path,
-                title=movie_title,
-                existing_sub=existing_sub,
-                missing_languages=[settings.target_language],
-                radarr_movie_id=movie_id,
-                upgrade_candidate=is_upgrade,
-                current_score=cur_score,
-            )
+                # Score existing subtitle for upgrade detection
+                is_upgrade = False
+                cur_score = 0
+                if existing_sub == "srt" and settings.upgrade_enabled:
+                    srt_path = get_output_path_for_lang(mapped_path, "srt", target_lang)
+                    if os.path.exists(srt_path):
+                        _, cur_score = score_existing_subtitle(srt_path)
+                        is_upgrade = True
 
-            if row_id:
-                added += 1
+                row_id = upsert_wanted_item(
+                    item_type="movie",
+                    file_path=mapped_path,
+                    title=title,
+                    existing_sub=existing_sub,
+                    missing_languages=[target_lang],
+                    radarr_movie_id=movie_id,
+                    upgrade_candidate=is_upgrade,
+                    current_score=cur_score,
+                    target_language=target_lang,
+                )
+
+                if row_id:
+                    added += 1
 
         return added, updated, scanned_paths
 
     def _cleanup(self, scanned_paths: set) -> int:
-        """Remove wanted items whose files no longer exist or whose subs appeared."""
-        existing_paths = get_all_wanted_file_paths()
-        to_remove = []
+        """Remove wanted items whose files no longer exist or whose subs appeared.
 
-        for path in existing_paths:
+        Language-aware: checks per target_language from each wanted item.
+        """
+        from database import get_wanted_items_for_cleanup
+
+        items = get_wanted_items_for_cleanup()
+        to_remove_ids = []
+
+        for item in items:
+            path = item["file_path"]
+            target_lang = item.get("target_language", "")
+
             # File no longer exists on disk
             if not os.path.exists(path):
-                to_remove.append(path)
+                to_remove_ids.append(item["id"])
                 continue
 
-            # Target ASS appeared since last scan
-            existing = detect_existing_target(path)
+            # Target ASS appeared since last scan (language-aware)
+            if target_lang:
+                existing = detect_existing_target_for_lang(path, target_lang)
+            else:
+                from translator import detect_existing_target
+                existing = detect_existing_target(path)
             if existing == "ass":
-                to_remove.append(path)
+                to_remove_ids.append(item["id"])
                 continue
 
             # Path wasn't in this scan (series/movie removed from arr?)
-            # Only remove if scanned_paths is non-empty (a scan actually ran)
             if scanned_paths and path not in scanned_paths:
-                to_remove.append(path)
+                to_remove_ids.append(item["id"])
 
-        if to_remove:
-            delete_wanted_items(to_remove)
-            logger.info("Wanted cleanup: removed %d items", len(to_remove))
+        if to_remove_ids:
+            from database import delete_wanted_items_by_ids
+            delete_wanted_items_by_ids(to_remove_ids)
+            logger.info("Wanted cleanup: removed %d items", len(to_remove_ids))
 
-        return len(to_remove)
+        return len(to_remove_ids)
 
     # ─── Search All ────────────────────────────────────────────────────────
 

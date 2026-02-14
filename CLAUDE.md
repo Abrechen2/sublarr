@@ -22,7 +22,7 @@ Sublarr entwickelt sich vom reinen Uebersetzer zum vollstaendigen Bazarr-Ersatz:
 - **Phase 3 (erledigt):** Such- und Download-Workflow (End-to-End ohne Bazarr)
 - **Phase 4 (erledigt):** Provider-UI (Credentials, Prioritaeten, Test im Frontend)
 - **Phase 5 (erledigt):** Upgrade-System + Automatisierung (SRT→ASS, Scheduler)
-- **Phase 6 (geplant):** Erweiterte Provider, Language-Profiles, Bazarr entfernen
+- **Phase 6 (erledigt):** Erweiterte Provider (SubDL), Language-Profiles, Bazarr entfernt
 
 ### Vorteile gegenueber Bazarr
 
@@ -50,7 +50,6 @@ Code aus Bazarr darf direkt kopiert/adaptiert werden (gleiche Lizenz).
 | Sonarr (v3) | `X-Api-Key` | Serien/Episoden-Liste, File-Paths, Webhooks (OnDownload) |
 | Radarr (v3) | `X-Api-Key` | Film-Liste, File-Paths, Webhooks (OnDownload) |
 | Jellyfin/Emby | `X-MediaBrowser-Token` | Library-Refresh nach neuen Untertiteln |
-| Bazarr | `X-API-KEY` | **Legacy-Fallback** — scan-disk, wird schrittweise entfernt |
 
 ## Subtitle Provider System
 
@@ -60,9 +59,10 @@ Eigenstaendiges Provider-System ersetzt Bazarr fuer Subtitle-Sourcing.
 
 ```
 VideoQuery → ProviderManager.search()
-              ├── AnimeTosho  (kein Auth, Fansub ASS, Feed API)
-              ├── Jimaku      (API Key, Anime-fokussiert, AniList ID)
-              └── OpenSubtitles (API Key, REST v2, breite Abdeckung)
+              ├── AnimeTosho    (kein Auth, Fansub ASS, Feed API)
+              ├── Jimaku        (API Key, Anime-fokussiert, AniList ID)
+              ├── OpenSubtitles (API Key, REST v2, breite Abdeckung)
+              └── SubDL         (API Key, Subscene-Nachfolger, ZIP)
            → Score & Sort (ASS bekommt +50 Bonus)
            → Download best → Save/Translate
 ```
@@ -74,6 +74,7 @@ VideoQuery → ProviderManager.search()
 | 1 | AnimeTosho | Sehr hoch (Fansub) | Keine | Extrahiert Subs aus Releases, XZ-komprimiert |
 | 2 | Jimaku | Hoch | API-Key | Anime-spezifisch, ZIP/RAR Archive, AniList ID |
 | 3 | OpenSubtitles | Variabel | API-Key | Groesste DB, REST v2 API |
+| 4 | SubDL | Variabel | API-Key | Subscene-Nachfolger, ZIP-Download, breite Abdeckung |
 
 ### Scoring-System (aus Bazarr/subliminal adaptiert)
 
@@ -83,12 +84,13 @@ release_group(14), source(7), resolution(2), **format_bonus(50 fuer ASS)**
 ### Provider-Konfiguration
 
 ```env
-SUBLARR_PROVIDER_PRIORITIES=animetosho,jimaku,opensubtitles
+SUBLARR_PROVIDER_PRIORITIES=animetosho,jimaku,opensubtitles,subdl
 SUBLARR_PROVIDERS_ENABLED=           # Leer = alle aktiv
 SUBLARR_OPENSUBTITLES_API_KEY=...
 SUBLARR_OPENSUBTITLES_USERNAME=...
 SUBLARR_OPENSUBTITLES_PASSWORD=...
 SUBLARR_JIMAKU_API_KEY=...
+SUBLARR_SUBDL_API_KEY=...
 ```
 
 ---
@@ -113,7 +115,6 @@ sublarr/
 │   ├── translator.py          # Drei-Stufen Pipeline, Provider-Integration
 │   ├── ass_utils.py           # Parametrisierte Language Tags, Style-Klassifizierung
 │   ├── ollama_client.py       # Prompt-Template aus Config
-│   ├── bazarr_client.py       # **Legacy** — wird schrittweise entfernt
 │   ├── sonarr_client.py       # Sonarr v3 API (Serien, Episoden, Tags, Metadata)
 │   ├── radarr_client.py       # Radarr v3 API (Filme, Tags, Metadata)
 │   ├── jellyfin_client.py     # Jellyfin/Emby Library-Refresh
@@ -126,7 +127,8 @@ sublarr/
 │       ├── http_session.py    # RetryingSession mit Rate-Limit-Handling
 │       ├── opensubtitles.py   # OpenSubtitles.com REST API v2
 │       ├── jimaku.py          # Jimaku Anime-Provider (AniList, ZIP/RAR)
-│       └── animetosho.py      # AnimeTosho Feed API (Fansub ASS, XZ)
+│       ├── animetosho.py      # AnimeTosho Feed API (Fansub ASS, XZ)
+│       └── subdl.py           # SubDL REST API (Subscene successor, ZIP)
 │
 └── frontend/                  # React + TypeScript + Tailwind CSS
     ├── src/
@@ -172,7 +174,6 @@ und ueberschreiben Env/File-Werte beim naechsten Reload.
 | GET | `/api/v1/health` | Health Check (alle Services + Provider) — keine Auth |
 | POST | `/api/v1/translate` | Async Uebersetzung (gibt job_id zurueck) |
 | POST | `/api/v1/translate/sync` | Synchrone Uebersetzung |
-| POST | `/api/v1/translate/wanted` | Wanted-List verarbeiten |
 | GET | `/api/v1/status/<job_id>` | Job-Status abfragen |
 | GET | `/api/v1/jobs` | Paginierte Job-History aus DB |
 | POST | `/api/v1/batch` | Batch-Verarbeitung (dry_run, Pagination) |
@@ -194,7 +195,16 @@ und ueberschreiben Env/File-Werte beim naechsten Reload.
 | GET | `/api/v1/config` | Aktuelle Config (ohne Secrets) |
 | PUT | `/api/v1/config` | Config updaten (invalidiert Provider-Manager) |
 | GET | `/api/v1/library` | Serien/Filme mit Sub-Status |
-| GET | `/api/v1/status/bazarr` | Bazarr Legacy-Status |
+
+### Language Profiles
+
+| Methode | Pfad | Beschreibung |
+|---|---|---|
+| GET | `/api/v1/language-profiles` | Alle Profile listen |
+| POST | `/api/v1/language-profiles` | Neues Profil erstellen |
+| PUT | `/api/v1/language-profiles/<id>` | Profil bearbeiten |
+| DELETE | `/api/v1/language-profiles/<id>` | Profil loeschen (nicht Default) |
+| PUT | `/api/v1/language-profiles/assign` | Serie/Film einem Profil zuweisen |
 
 ### Wanted Search & Process
 
@@ -228,10 +238,9 @@ und ueberschreiben Env/File-Werte beim naechsten Reload.
 - **Case C:** Kein Target Sub → Volle Pipeline:
   - C1: Source ASS embedded → .{lang}.ass
   - C2: Source SRT (embedded/extern) → .{lang}.srt
-  - C3: **Provider suchen** nach Source Sub → uebersetzen (ersetzt Bazarr)
-  - C3b: Bazarr Legacy-Fallback (wenn noch konfiguriert)
+  - C3: **Provider suchen** nach Source Sub → uebersetzen
   - C4: Nichts gefunden → Fail
-- Alle Sprach-Referenzen parametrisiert via `config.py`
+- Alle Sprach-Referenzen parametrisiert via `config.py` oder Language Profile
 
 ### Provider-System (providers/)
 
@@ -241,11 +250,15 @@ und ueberschreiben Env/File-Werte beim naechsten Reload.
 - **Fallback:** Wenn Provider 1 fehlschlaegt → naechster Provider automatisch
 - **Config-Reload:** `invalidate_manager()` bei Settings-Aenderung → neue Provider-Instanzen
 
-### Multi-Language
+### Multi-Language & Language Profiles
 
 - `source_language` / `target_language` konfigurierbar (Default: en→de)
 - Language-Tags automatisch generiert (z.B. "de" → {"de", "deu", "ger", "german"})
 - Prompt-Template dynamisch aus Sprach-Konfiguration
+- **Language Profiles:** Pro Serie/Film konfigurierbar, mehrere Zielsprachen moeglich
+  - Default-Profil wird automatisch aus globaler Config erstellt
+  - Wanted-Scanner erzeugt ein Item pro fehlender Sprache
+  - Translation-Pipeline akzeptiert `target_language` Parameter (Fallback auf Config)
 
 ### Style-Klassifizierung (ass_utils.py)
 
@@ -255,12 +268,15 @@ und ueberschreiben Env/File-Werte beim naechsten Reload.
 
 ### Persistence (database.py)
 
-- SQLite mit WAL Mode, 6 Tabellen:
+- SQLite mit WAL Mode, 9 Tabellen:
   - `jobs` — Translation Job-Tracking, Stats, Fehler
   - `daily_stats` — Aggregierte Tagesstatistiken
   - `config_entries` — Runtime-Config-Aenderungen
   - `provider_cache` — Suchergebnisse cachen (TTL-basiert)
   - `subtitle_downloads` — Download-History pro Provider
+  - `language_profiles` — Multi-Language Profile (Name, Source, Targets)
+  - `series_language_profiles` — Profil-Zuweisung pro Sonarr-Serie
+  - `movie_language_profiles` — Profil-Zuweisung pro Radarr-Film
 
 ### Authentication (auth.py)
 
@@ -275,7 +291,7 @@ und ueberschreiben Env/File-Werte beim naechsten Reload.
 ```
 main                        ← Stabil, nur nach Beta-Release
   └── feature/sublarr-public  ← Basis-Features (UI, Sonarr/Radarr, Translation)
-        └── feature/provider-system  ← Provider-System (Milestone 1 fertig)
+        └── feature/provider-system  ← Provider-System + Milestones 1-6
 ```
 
 **Main bleibt unberuehrt** bis eine gute Beta existiert.
@@ -323,4 +339,4 @@ Folgende Bazarr-Komponenten wurden adaptiert oder als Referenz genutzt:
 - **OpenSubtitles:** API-Key pflicht seit 2024, 5 req/s Rate-Limit, Login gibt hoehere Download-Limits
 - **Jimaku:** Primaer japanische Subs, API-Token aus Account-Settings, ZIP/RAR Archive haeufig
 - **AnimeTosho:** Kein Auth noetig, XZ-komprimierte Subs, AniDB-Episode-ID verbessert Matching
-- **Subscene:** Seit Mai 2024 offline — SubDL ist Nachfolger (Milestone 6)
+- **SubDL:** Subscene-Nachfolger seit Mai 2024, API-Key erforderlich, ZIP-Download, 2000 Downloads/Tag Limit
