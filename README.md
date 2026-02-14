@@ -1,95 +1,83 @@
 # Sublarr
 
-**Subtitle Translation Service** — *arr-Style Open-Source Tool
+<p align="center">
+  <img src="logo.png" alt="Sublarr Logo" width="128" />
+</p>
+
+**Standalone Subtitle Manager & Translator** — *arr-Style Open-Source Tool
 
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![React + TypeScript](https://img.shields.io/badge/React-TypeScript-blue.svg)](https://react.dev/)
+[![React 19](https://img.shields.io/badge/React_19-TypeScript-blue.svg)](https://react.dev/)
+[![Docker](https://img.shields.io/badge/Docker-ghcr.io-blue.svg)](https://github.com/denniswittke/sublarr/pkgs/container/sublarr)
 
-Sublarr ist ein Open-Source-Tool zur automatischen Übersetzung von Anime-Untertiteln via Ollama LLM. Es integriert sich nahtlos in das *arr-Ökosystem (Sonarr, Radarr, Bazarr) und bietet eine moderne Web-UI im *arr-Stil.
+Sublarr ist ein eigenstaendiger Subtitle-Manager und Uebersetzer fuer Anime und Medien. Er durchsucht Subtitle-Provider direkt, downloadt die besten Untertitel (ASS bevorzugt) und uebersetzt sie automatisch via Ollama LLM. Integration mit Sonarr, Radarr und Jellyfin/Emby.
 
-## ✨ Features
+## Features
 
-- 🌍 **Multi-Language Support** — Konfigurierbare Quell- und Zielsprache (Default: EN→DE)
-- 🎨 ***arr-Style UI** — Dark Theme, React + TypeScript + Tailwind CSS
-- 🔌 ***arr Integration** — Sonarr, Radarr, Bazarr, Jellyfin/Emby
-- 📊 **Persistent Storage** — SQLite für Jobs, Stats, Config
-- 🔐 **Optional Auth** — API-Key-Authentifizierung
-- ⚡ **WebSocket** — Live-Updates für Jobs und Batch-Status
-- 🐳 **Docker Ready** — Multi-Stage Build, Production-ready
+- **ASS-first Scoring** — ASS-Format bekommt +50 Bonus gegenueber SRT
+- **4 Provider** — AnimeTosho, Jimaku, OpenSubtitles, SubDL
+- **LLM-Uebersetzung** — Automatische Uebersetzung via Ollama (konfigurierbare Sprachen)
+- **Language Profiles** — Pro Serie/Film mehrere Zielsprachen
+- **Wanted-System** — Fehlende Subs automatisch erkennen und suchen
+- **\*arr Integration** — Sonarr, Radarr Webhooks + Jellyfin Library-Refresh
+- **\*arr-Style UI** — React 19 + TypeScript + Tailwind v4, Dark Theme
+- **Docker Ready** — Multi-Stage Build, GHCR CI/CD
 
-## 🚀 Quick Start
+## Quick Start
 
-### Development
-
-```bash
-# Backend DEV Server
-cd backend
-pip install -r requirements.txt
-python -m flask run --port=5765
-
-# Frontend DEV Server (separates Terminal)
-cd frontend
-npm install
-npm run dev
-```
-
-Oder nutze die Skripte:
-
-```powershell
-# Windows
-.\scripts\dev-backend.ps1
-.\scripts\dev-frontend.ps1
-
-# Oder beide zusammen
-.\scripts\dev-all.ps1
-```
+### Docker (empfohlen)
 
 ```bash
-# Linux/Mac
-./scripts/dev-backend.sh
-./scripts/dev-frontend.sh
-```
-
-### Docker
-
-```bash
-# .env erstellen
+# .env erstellen und anpassen
 cp .env.example .env
-# .env anpassen
 
 # Build & Start
 docker compose up -d --build
 ```
 
-## 🧪 Tests
+Erreichbar unter `http://localhost:5765`
+
+### Development
 
 ```bash
-# Backend Tests
-cd backend
-python -m pytest tests/ -v
+# Dependencies installieren
+npm run install:all
 
-# Frontend Tests
-cd frontend
-npm run test
-
-# Alle Tests
-.\scripts\run-tests.ps1  # Windows
-./scripts/run-tests.sh    # Linux/Mac
+# Backend + Frontend parallel starten
+npm run dev
 ```
 
-## 📖 Dokumentation
+Oder mit den Skripten unter `scripts/` (PowerShell + Bash).
 
-- [CLAUDE.md](CLAUDE.md) — Vollständige Architektur-Dokumentation
-- [SUBLARR-PLAN.md](SUBLARR-PLAN.md) — Implementierungsplan
-- [.env.example](.env.example) — Alle konfigurierbaren Variablen
+## Tests
 
-## 🎨 Logo & Branding
+```bash
+# Backend
+cd backend && python -m pytest
 
-- **Primärfarbe:** Teal (#1DB8D4)
-- **Logo:** Sprechblase + bidirektionaler Übersetzungspfeil
-- **Stil:** Flat Design, *arr-konsistent
+# Frontend
+cd frontend && npm test
+```
 
-## 📝 License
+## Dokumentation
+
+| Datei | Inhalt |
+|---|---|
+| [CLAUDE.md](CLAUDE.md) | Architektur, Commands, API-Referenz |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Detaillierte Systemarchitektur |
+| [docs/API.md](docs/API.md) | Vollstaendige API-Dokumentation |
+| [docs/PROVIDERS.md](docs/PROVIDERS.md) | Provider-System Dokumentation |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Contribution Guidelines |
+| [CHANGELOG.md](CHANGELOG.md) | Versionshistorie |
+| [ROADMAP.md](ROADMAP.md) | Entwicklungs-Roadmap |
+| [.env.example](.env.example) | Alle konfigurierbaren Variablen |
+
+## Branding
+
+- **Primaerfarbe:** Teal (#1DB8D4)
+- **Stil:** *arr-Suite kompatibel (Sonarr, Radarr, Prowlarr)
+
+## License
 
 GPL-3.0 — siehe [LICENSE](LICENSE)

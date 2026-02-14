@@ -27,9 +27,18 @@ Desktop.ini
 
 # Windows temp files
 NDH6SA~*
+~$*
 
 # Claude Code
 .claude/
+.mcp.json
+
+# Playwright MCP
+.playwright-mcp/
+
+# Dev runtime
+dev.log
+dev-pids.txt
 
 # Test data
 test-media/
