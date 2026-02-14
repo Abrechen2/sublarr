@@ -98,3 +98,30 @@ Live: `GET /logs`, `WS /socket.io/`
 3. **Secrets** nur in `.env` oder `config_entries` DB — nie in Code/Commits
 4. **Provider-Downloads** nur in Media-Verzeichnisse — kein beliebiger Dateizugriff
 5. **Batch-Verarbeitung** belastet GPU/CPU stark — vorher bestaetigen
+
+## Versionsstrategie
+
+Sublarr folgt Semantic Versioning (SemVer) mit konservativer Beta-Strategie:
+
+**Aktueller Stand:**
+- ✅ **v1.0.0-beta** (Phase 1: Foundation) — veröffentlicht
+
+**Phase 2: Open Platform (v0.x Serie)**
+- **v0.2.0-beta** — Nach Milestone 13-15 (Plugin-System, Translation-Backend, Whisper)
+- **v0.3.0-beta** — Nach Milestone 16-18 (Media-Server, Standalone, Forced-Subs)
+- **v0.4.0-beta** — Nach Milestone 19-21 (Events/Hooks, i18n, OpenAPI)
+- **v0.5.0-beta** — Nach Milestone 23 (Performance-Optimierungen)
+- **v0.9.0-beta** — Stabilisierung (alle Phase 2 Features, Bugfixes)
+- **v0.9.1, v0.9.2, ...** — Weitere Bugfixes und Stabilisierung
+- **v1.0.0** — Final Release (nach ausreichendem Testing und Community-Feedback)
+
+**Phase 3: Advanced Features (v1.x Serie)**
+- **v1.1.0-beta** — Nach Phase 3 Milestones (Advanced Features & UX)
+- **v1.2.0, v1.3.0, ...** — Weitere Feature-Releases
+- **v2.0.0** — Nur bei Breaking Changes
+
+**Release-Strategie:**
+- Beta-Releases: Neue Features, koennen Breaking Changes enthalten
+- RC (Release Candidate): Feature-complete, nur noch Bugfixes
+- Final Release: Production-ready, ausreichend getestet
+- Patch-Releases (x.x.1, x.x.2): Nur Bugfixes, keine neuen Features

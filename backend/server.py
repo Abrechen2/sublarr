@@ -17,7 +17,7 @@ from flask import Flask, Blueprint, request, jsonify, send_from_directory
 from flask_socketio import SocketIO
 
 from config import Settings, get_settings, reload_settings, map_path
-from auth import init_auth
+from auth import init_auth, require_api_key
 from database import (
     get_db, create_job, update_job, get_job, get_jobs,
     get_pending_job_count, record_stat, get_stats_summary,

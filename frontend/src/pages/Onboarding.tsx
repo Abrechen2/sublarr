@@ -68,7 +68,7 @@ export default function Onboarding() {
     setTesting(true)
     try {
       const health = await getHealth()
-      if (health.ollama?.healthy) {
+      if (health.services?.ollama && !health.services.ollama.includes('error')) {
         toast('Ollama connection successful!')
       } else {
         toast('Ollama not reachable', 'error')
