@@ -10,6 +10,8 @@ import {
   Menu,
   X,
   Tv,
+  Clock,
+  Ban,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useHealth } from '@/hooks/useApi'
@@ -39,6 +41,8 @@ const navGroups: NavGroup[] = [
     items: [
       { to: '/activity', label: 'Activity', icon: Activity },
       { to: '/queue', label: 'Queue', icon: ListOrdered },
+      { to: '/history', label: 'History', icon: Clock },
+      { to: '/blacklist', label: 'Blacklist', icon: Ban },
     ],
   },
   {
@@ -99,7 +103,7 @@ export function Sidebar() {
 
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-4">
-          <img src="/favicon.svg" alt="Sublarr" className="w-8 h-8" />
+          <img src="/logo-192.png" alt="Sublarr" className="w-8 h-8 rounded-md" />
           <span
             className="text-lg font-bold tracking-tight"
             style={{ color: 'var(--accent)' }}
