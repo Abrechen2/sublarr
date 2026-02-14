@@ -275,6 +275,8 @@ class SubDLProvider(SubtitleProvider):
                     matches=matches,
                     provider_data={
                         "sd_id": sd_id,
+                        "query_episode": query.episode,
+                        "query_season": query.season,
                     },
                 )
                 results.append(result)
@@ -305,9 +307,10 @@ class SubDLProvider(SubtitleProvider):
         if not extracted:
             raise RuntimeError("No subtitle files found in SubDL ZIP archive")
 
-        # Build a minimal query for file selection
+        # Build query with episode context for correct archive file selection
         query = VideoQuery(
-            episode=None,  # Will use metadata if available
+            episode=result.provider_data.get("query_episode"),
+            season=result.provider_data.get("query_season"),
         )
 
         # Pick the best file
