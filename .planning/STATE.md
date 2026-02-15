@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 2 - Translation Multi-Backend
+**Current focus:** Phase 2 - Translation Multi-Backend (COMPLETE)
 
 ## Current Position
 
 Phase: 2 of 16 (Translation Multi-Backend)
-Plan: 5 of 6 in current phase
-Status: In progress
-Last activity: 2026-02-15 -- Completed 02-05-PLAN.md (Frontend translation backend management UI)
+Plan: 6 of 6 in current phase
+Status: Phase complete
+Last activity: 2026-02-15 -- Completed 02-06-PLAN.md (Translation backend test suite)
 
-Progress: [████████████████░░░░] 5/6 plans in phase
+Progress: [████████████████████] 6/6 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
+- Total plans completed: 16
 - Average duration: 7 min
-- Total execution time: 112 min
+- Total execution time: 114 min
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [████████████████░░░░] 5/6 pla
 |-------|-------|-------|----------|
 | 00-architecture-refactoring | 3/3 | 27 min | 9 min |
 | 01-provider-plugin-expansion | 6/6 | 64 min | 11 min |
-| 02-translation-multi-backend | 5/6 | 21 min | 4 min |
+| 02-translation-multi-backend | 6/6 | 23 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (5 min), 02-02 (2 min), 02-03 (3 min), 02-04 (5 min), 02-05 (6 min)
+- Last 5 plans: 02-02 (2 min), 02-03 (3 min), 02-04 (5 min), 02-05 (6 min), 02-06 (2 min)
 - Trend: Accelerating
 
 *Updated after each plan completion*
@@ -99,6 +99,9 @@ Recent decisions affecting current work:
 - [02-05]: Backend cards use collapsible pattern with lazy config loading (fetch only when expanded)
 - [02-05]: Fallback chain editor uses select dropdown + up/down arrows (no drag-and-drop dependency)
 - [02-05]: Password fields have show/hide toggle per field for API key UX
+- [02-06]: Per-test DB isolation via autouse fixture with tmp_path (not shared temp_db)
+- [02-06]: MockBackend hierarchy (MockBackend/MockBackendFail/MockBackendAlt) for fallback chain testing
+- [02-06]: Backend config_fields tested via class-level attributes (no instantiation needed for smoke tests)
 
 ### Pending Todos
 
@@ -108,10 +111,11 @@ None yet.
 
 - Phase 0 complete -- no blockers for Phases 1, 2, 3 (can proceed in parallel)
 - Phase 1 complete -- all 6 plans executed, all summaries written
+- Phase 2 complete -- all 6 plans executed, all summaries written, 36 unit tests passing
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 2 plan 5 complete (Frontend translation backend management UI) -- next: 02-06-PLAN.md
-Resume file: .planning/phases/02-translation-multi-backend/02-06-PLAN.md
+Stopped at: Phase 2 complete (all 6 plans executed) -- next phase TBD
+Resume file: .planning/ROADMAP.md
