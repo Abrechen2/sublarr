@@ -21,8 +21,13 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                        upgrade_candidate: bool = False,
                        current_score: int = 0,
                        target_language: str = "",
-                       instance_name: str = "") -> int:
-    """Insert or update a wanted item (matched on file_path + target_language).
+                       instance_name: str = "",
+                       subtitle_type: str = "full") -> int:
+    """Insert or update a wanted item (matched on file_path + target_language + subtitle_type).
+
+    The uniqueness check includes subtitle_type so that a single file can have
+    parallel wanted items for different subtitle types (e.g., full + forced)
+    in the same language.
 
     Returns the row id.
     """
@@ -32,16 +37,16 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
     db = get_db()
 
     with _db_lock:
-        # Match on file_path + target_language for multi-language support
+        # Match on file_path + target_language + subtitle_type for multi-language + multi-type support
         if target_language:
             existing = db.execute(
-                "SELECT id, status FROM wanted_items WHERE file_path=? AND target_language=?",
-                (file_path, target_language),
+                "SELECT id, status FROM wanted_items WHERE file_path=? AND target_language=? AND subtitle_type=?",
+                (file_path, target_language, subtitle_type),
             ).fetchone()
         else:
             existing = db.execute(
-                "SELECT id, status FROM wanted_items WHERE file_path=? AND (target_language='' OR target_language IS NULL)",
-                (file_path,),
+                "SELECT id, status FROM wanted_items WHERE file_path=? AND (target_language='' OR target_language IS NULL) AND subtitle_type=?",
+                (file_path, subtitle_type),
             ).fetchone()
 
         if existing:
@@ -53,12 +58,13 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                        missing_languages=?, sonarr_series_id=?, sonarr_episode_id=?,
                        radarr_movie_id=?, standalone_series_id=?, standalone_movie_id=?,
                        upgrade_candidate=?, current_score=?,
-                       target_language=?, instance_name=?, updated_at=?
+                       target_language=?, instance_name=?, subtitle_type=?, updated_at=?
                        WHERE id=?""",
                     (title, season_episode, existing_sub, langs_json,
                      sonarr_series_id, sonarr_episode_id, radarr_movie_id,
                      standalone_series_id, standalone_movie_id,
-                     upgrade_int, current_score, target_language, instance_name, now, row_id),
+                     upgrade_int, current_score, target_language, instance_name,
+                     subtitle_type, now, row_id),
                 )
             else:
                 db.execute(
@@ -67,12 +73,13 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                        sonarr_series_id=?, sonarr_episode_id=?, radarr_movie_id=?,
                        standalone_series_id=?, standalone_movie_id=?,
                        upgrade_candidate=?, current_score=?,
-                       target_language=?, instance_name=?, updated_at=?
+                       target_language=?, instance_name=?, subtitle_type=?, updated_at=?
                        WHERE id=?""",
                     (item_type, title, season_episode, existing_sub, langs_json,
                      sonarr_series_id, sonarr_episode_id, radarr_movie_id,
                      standalone_series_id, standalone_movie_id,
-                     upgrade_int, current_score, target_language, instance_name, now, row_id),
+                     upgrade_int, current_score, target_language, instance_name,
+                     subtitle_type, now, row_id),
                 )
         else:
             cursor = db.execute(
@@ -81,13 +88,13 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                     missing_languages, sonarr_series_id, sonarr_episode_id,
                     radarr_movie_id, standalone_series_id, standalone_movie_id,
                     upgrade_candidate, current_score,
-                    target_language, instance_name, status, added_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'wanted', ?, ?)""",
+                    target_language, instance_name, subtitle_type, status, added_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'wanted', ?, ?)""",
                 (item_type, file_path, title, season_episode, existing_sub,
                  langs_json, sonarr_series_id, sonarr_episode_id,
                  radarr_movie_id, standalone_series_id, standalone_movie_id,
                  upgrade_int, current_score,
-                 target_language, instance_name, now, now),
+                 target_language, instance_name, subtitle_type, now, now),
             )
             row_id = cursor.lastrowid
         db.commit()

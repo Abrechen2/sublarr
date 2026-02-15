@@ -78,6 +78,9 @@ class VideoQuery:
     # Language preferences
     languages: list[str] = field(default_factory=list)  # ISO 639-1 codes to search for
 
+    # Forced/signs subtitle search
+    forced_only: bool = False  # When True, providers filter for forced/signs subtitles
+
     @property
     def is_episode(self) -> bool:
         return self.season is not None and self.episode is not None
