@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 7 complete - Events/Hooks & Custom Scoring
+**Current focus:** Phase 8 in progress - i18n + Backup + Admin Polish
 
 ## Current Position
 
-Phase: 7 of 16 (Events/Hooks & Custom Scoring)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-15 -- Completed 07-03-PLAN.md (API & Frontend UI for Events/Hooks and Scoring)
+Phase: 8 of 16 (i18n + Backup + Admin Polish)
+Plan: 1 of 5 in current phase
+Status: In progress
+Last activity: 2026-02-15 -- Completed 08-01-PLAN.md (Theme + i18n Foundation)
 
-Progress: [████████████████████] 3/3 plans in phase
+Progress: [████░░░░░░░░░░░░░░░░] 1/5 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 33
+- Total plans completed: 34
 - Average duration: 7 min
-- Total execution time: 241 min
+- Total execution time: 251 min
 
 **By Phase:**
 
@@ -35,10 +35,11 @@ Progress: [████████████████████] 3/3 pla
 | 05-standalone-mode | 5/5 | 28 min | 6 min |
 | 06-forced-signs-subs | 3/3 | 22 min | 7 min |
 | 07-events-hooks-custom-scoring | 3/3 | 46 min | 15 min |
+| 08-i18n-backup-admin-polish | 1/5 | 10 min | 10 min |
 
 **Recent Trend:**
-- Last 5 plans: 06-03 (11 min), 07-01 (26 min), 07-02 (10 min), 07-03 (10 min)
-- Trend: Phase 7 heavy on foundation (plan 01), lighter on wiring and UI
+- Last 5 plans: 07-01 (26 min), 07-02 (10 min), 07-03 (10 min), 08-01 (10 min)
+- Trend: Consistent ~10 min per plan for UI/foundation work
 
 *Updated after each plan completion*
 
@@ -195,6 +196,12 @@ Recent decisions affecting current work:
 - [07-03]: Webhook test with event_name='*' uses 'config_updated' as sample event for payload generation
 - [07-03]: ScoringTab uses weightsInit/modsInit guard to prevent query refetch from clobbering user edits
 - [07-03]: Provider modifiers rendered as range sliders (-100 to +100) with color-coded values
+- [08-01]: Default theme is dark (no stored preference = dark class applied, preserving current appearance)
+- [08-01]: Theme stored as 'sublarr-theme' in localStorage with 3 states: dark, light, system
+- [08-01]: Inline script in index.html prevents flash of wrong theme before React hydration
+- [08-01]: i18n uses static JSON imports (no HTTP backend) -- only en/de, negligible bundle impact
+- [08-01]: Language stored as 'sublarr-language' in localStorage via i18next-browser-languagedetector
+- [08-01]: LanguageSwitcher shows target language label (DE when en active, EN when de active)
 
 ### Pending Todos
 
@@ -215,5 +222,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 7 complete -- all 3 plans executed (event system, hook engine, API + UI)
-Resume file: .planning/phases/07-events-hooks-custom-scoring/07-03-SUMMARY.md
+Stopped at: Phase 8, Plan 01 complete -- theme system + i18n foundation
+Resume file: .planning/phases/08-i18n-backup-admin-polish/08-01-SUMMARY.md

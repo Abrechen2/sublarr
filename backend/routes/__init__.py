@@ -21,6 +21,7 @@ def register_blueprints(app):
     from routes.whisper import bp as whisper_bp
     from routes.standalone import bp as standalone_bp
     from routes.hooks import bp as hooks_bp
+    from routes.tools import bp as tools_bp
 
     for blueprint in [
         translate_bp,
@@ -37,5 +38,6 @@ def register_blueprints(app):
         whisper_bp,
         standalone_bp,
         hooks_bp,
+        tools_bp,
     ]:
         app.register_blueprint(blueprint)
