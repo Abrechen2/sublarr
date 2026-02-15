@@ -273,3 +273,17 @@ def _register_builtin_backends(manager: TranslationManager) -> None:
     # LibreTranslate: uses stdlib requests (always available)
     from translation.libretranslate import LibreTranslateBackend
     manager.register_backend(LibreTranslateBackend)
+
+    # OpenAI-compatible: optional dependency (openai package may not be installed)
+    try:
+        from translation.openai_compat import OpenAICompatBackend
+        manager.register_backend(OpenAICompatBackend)
+    except ImportError:
+        logger.info("OpenAI-compatible backend not available (openai package not installed)")
+
+    # Google Cloud Translation: optional dependency (google-cloud-translate may not be installed)
+    try:
+        from translation.google_translate import GoogleTranslateBackend
+        manager.register_backend(GoogleTranslateBackend)
+    except ImportError:
+        logger.info("Google Translation backend not available (google-cloud-translate package not installed)")
