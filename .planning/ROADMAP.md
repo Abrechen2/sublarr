@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 0: Architecture Refactoring** - Convert monolith to Application Factory + Blueprints
 - [x] **Phase 1: Provider Plugin + Expansion** - Plugin system and 8 new built-in providers
-- [ ] **Phase 2: Translation Multi-Backend** - ABC-based multi-backend translation with fallback chains
+- [x] **Phase 2: Translation Multi-Backend** - ABC-based multi-backend translation with fallback chains
 - [ ] **Phase 3: Media-Server Abstraction** - Plex, Kodi support alongside existing Jellyfin/Emby
 - [ ] **Phase 4: Whisper Speech-to-Text** - faster-whisper and Subgen integration as translation fallback
 - [ ] **Phase 5: Standalone Mode** - Folder-watch operation without Sonarr/Radarr dependency
@@ -85,12 +85,12 @@ Plans:
 **Plans:** 6 plans
 
 Plans:
-- [ ] 02-01-PLAN.md -- TranslationBackend ABC, TranslationManager, shared LLM utilities, OllamaBackend migration, DB schema extension
-- [ ] 02-02-PLAN.md -- API backends: DeepL (with glossary) and LibreTranslate (self-hosted)
-- [ ] 02-03-PLAN.md -- LLM + API backends: OpenAI-compatible (multi-endpoint) and Google Cloud Translation
-- [ ] 02-04-PLAN.md -- Rewire translator.py to use TranslationManager, backend management API endpoints, profile integration
-- [ ] 02-05-PLAN.md -- Frontend: Translation Backends settings tab, profile backend selector, fallback chain editor, stats display
-- [ ] 02-06-PLAN.md -- Test suite for translation multi-backend system
+- [x] 02-01-PLAN.md -- TranslationBackend ABC, TranslationManager, shared LLM utilities, OllamaBackend migration, DB schema extension
+- [x] 02-02-PLAN.md -- API backends: DeepL (with glossary) and LibreTranslate (self-hosted)
+- [x] 02-03-PLAN.md -- LLM + API backends: OpenAI-compatible (multi-endpoint) and Google Cloud Translation
+- [x] 02-04-PLAN.md -- Rewire translator.py to use TranslationManager, backend management API endpoints, profile integration
+- [x] 02-05-PLAN.md -- Frontend: Translation Backends settings tab, profile backend selector, fallback chain editor, stats display
+- [x] 02-06-PLAN.md -- Test suite for translation multi-backend system
 
 ### Phase 3: Media-Server Abstraction
 **Goal**: Users can connect Plex and Kodi (in addition to Jellyfin/Emby) for library refresh notifications, with multi-server support
@@ -325,7 +325,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 |-------|----------------|--------|-----------|
 | 0. Architecture Refactoring | 3/3 | Complete | 2026-02-15 |
 | 1. Provider Plugin + Expansion | 6/6 | Complete | 2026-02-15 |
-| 2. Translation Multi-Backend | 0/6 | Not started | - |
+| 2. Translation Multi-Backend | 6/6 | Complete | 2026-02-15 |
 | 3. Media-Server Abstraction | 0/TBD | Not started | - |
 | 4. Whisper Speech-to-Text | 0/TBD | Not started | - |
 | 5. Standalone Mode | 0/TBD | Not started | - |
@@ -365,4 +365,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-15 (Phase 2 planned)*
+*Last updated: 2026-02-15 (Phase 2 complete)*
