@@ -315,6 +315,75 @@ CREATE TABLE IF NOT EXISTS metadata_cache (
     expires_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_metadata_cache_expires ON metadata_cache(expires_at);
+
+CREATE TABLE IF NOT EXISTS hook_configs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    event_name TEXT NOT NULL,
+    hook_type TEXT DEFAULT 'script',
+    enabled INTEGER DEFAULT 1,
+    script_path TEXT DEFAULT '',
+    timeout_seconds INTEGER DEFAULT 30,
+    last_triggered_at TEXT DEFAULT '',
+    last_status TEXT DEFAULT '',
+    trigger_count INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_hook_configs_event ON hook_configs(event_name);
+
+CREATE TABLE IF NOT EXISTS webhook_configs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    event_name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    secret TEXT DEFAULT '',
+    enabled INTEGER DEFAULT 1,
+    retry_count INTEGER DEFAULT 3,
+    timeout_seconds INTEGER DEFAULT 10,
+    last_triggered_at TEXT DEFAULT '',
+    last_status_code INTEGER DEFAULT 0,
+    last_error TEXT DEFAULT '',
+    consecutive_failures INTEGER DEFAULT 0,
+    trigger_count INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_webhook_configs_event ON webhook_configs(event_name);
+
+CREATE TABLE IF NOT EXISTS hook_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    hook_id INTEGER,
+    webhook_id INTEGER,
+    event_name TEXT NOT NULL,
+    hook_type TEXT NOT NULL,
+    success INTEGER NOT NULL,
+    exit_code INTEGER DEFAULT NULL,
+    status_code INTEGER DEFAULT NULL,
+    stdout TEXT DEFAULT '',
+    stderr TEXT DEFAULT '',
+    error TEXT DEFAULT '',
+    duration_ms REAL DEFAULT 0,
+    triggered_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_hook_log_hook_id ON hook_log(hook_id);
+CREATE INDEX IF NOT EXISTS idx_hook_log_webhook_id ON hook_log(webhook_id);
+CREATE INDEX IF NOT EXISTS idx_hook_log_triggered_at ON hook_log(triggered_at);
+
+CREATE TABLE IF NOT EXISTS scoring_weights (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    score_type TEXT NOT NULL,
+    weight_key TEXT NOT NULL,
+    weight_value INTEGER NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(score_type, weight_key)
+);
+
+CREATE TABLE IF NOT EXISTS provider_score_modifiers (
+    provider_name TEXT PRIMARY KEY,
+    modifier INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 
