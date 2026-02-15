@@ -38,6 +38,69 @@ ENGLISH_MARKER_WORDS = {
 }
 
 
+def _is_whisper_enabled() -> bool:
+    """Check if Whisper transcription is enabled in config."""
+    try:
+        from db.config import get_config_entry
+        enabled = get_config_entry("whisper_enabled")
+        return enabled is not None and enabled.lower() in ("true", "1", "yes")
+    except Exception:
+        return False
+
+
+def _submit_whisper_job(mkv_path: str, arr_context: dict = None):
+    """Submit a Whisper transcription job for the given media file.
+
+    Case D is async: submits to the Whisper queue and returns a
+    'whisper_pending' status. The queue worker handles transcription and
+    can re-enter the translation pipeline after completion.
+
+    Returns:
+        Dict with status='whisper_pending' and job_id, or None if Whisper
+        is not available.
+    """
+    try:
+        from whisper import get_whisper_manager
+        from routes.whisper import _get_queue
+        from extensions import socketio
+        import uuid
+
+        manager = get_whisper_manager()
+        backend = manager.get_active_backend()
+        if not backend:
+            logger.info("Case D: No Whisper backend configured")
+            return None
+
+        # Determine source language from config
+        settings = get_settings()
+        source_lang = settings.source_language or "ja"
+
+        job_id = uuid.uuid4().hex
+        queue = _get_queue()
+        queue.submit(
+            job_id=job_id,
+            file_path=mkv_path,
+            language=source_lang,
+            source_language=source_lang,
+            whisper_manager=manager,
+            socketio=socketio,
+        )
+
+        logger.info("Case D: Submitted Whisper job %s for %s (language: %s)",
+                    job_id, os.path.basename(mkv_path), source_lang)
+
+        return {
+            "success": True,
+            "status": "whisper_pending",
+            "whisper_job_id": job_id,
+            "message": f"Whisper transcription queued (job {job_id[:8]}...)",
+            "stats": {"source": "whisper", "whisper_job_id": job_id},
+        }
+    except Exception as e:
+        logger.warning("Case D: Failed to submit Whisper job: %s", e)
+        return None
+
+
 def _extract_series_id(arr_context):
     """Extract Sonarr series_id from arr_context.
     
@@ -684,7 +747,7 @@ def translate_file(mkv_path, force=False, arr_context=None,
                    target_language=None, target_language_name=None):
     """Translate subtitles for a single MKV file.
 
-    Three-case priority chain (target language ASS is always the goal):
+    Four-case priority chain (target language ASS is always the goal):
 
     CASE A: Target ASS exists → Skip (goal achieved)
     CASE B: Target SRT exists → Upgrade attempt:
@@ -695,7 +758,9 @@ def translate_file(mkv_path, force=False, arr_context=None,
         C1: Source ASS embedded → .{lang}.ass
         C2: Source SRT (embedded/external) → .{lang}.srt
         C3: Provider search for source subtitle → translate
-        C4: Nothing → Fail
+        C4: Nothing → Fall through to Case D
+    CASE D: Whisper transcription (if enabled):
+        D1: Submit audio transcription to Whisper queue → returns whisper_pending
 
     After successful translation: notify integrations if context provided.
 
@@ -815,8 +880,17 @@ def translate_file(mkv_path, force=False, arr_context=None,
             _notify_integrations(arr_context, file_path=mkv_path)
         return result
 
-    # C4: Nothing found
+    # C4: Nothing found from providers/embedded
     logger.warning("Case C4: No source subtitle found for %s", mkv_path)
+
+    # === CASE D: Whisper transcription as last resort ===
+    if _is_whisper_enabled():
+        logger.info("Case D: No subtitle source found, attempting Whisper transcription for %s", mkv_path)
+        whisper_result = _submit_whisper_job(mkv_path, arr_context)
+        if whisper_result:
+            return whisper_result
+        logger.warning("Case D: Whisper transcription not available or failed to submit for %s", mkv_path)
+
     return _fail_result(f"No {settings.source_language_name} subtitle source found")
 
 
