@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 from config import reload_settings
-from db import init_db, get_db
+from db import init_db, get_db, close_db
 from app import create_app
 
 
@@ -29,7 +29,8 @@ def temp_db():
     
     yield db_path
     
-    # Cleanup
+    # Cleanup — close DB connection before deleting (Windows file locking)
+    close_db()
     if os.path.exists(db_path):
         os.unlink(db_path)
     if "SUBLARR_DB_PATH" in os.environ:

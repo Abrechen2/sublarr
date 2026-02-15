@@ -4,6 +4,7 @@ import pytest
 import os
 import tempfile
 from config import reload_settings
+from db import close_db
 from app import create_app
 
 
@@ -23,7 +24,8 @@ def client():
     with app.test_client() as client:
         yield client
 
-    # Cleanup
+    # Cleanup — close DB connection before deleting (Windows file locking)
+    close_db()
     if os.path.exists(db_path):
         os.unlink(db_path)
     if "SUBLARR_DB_PATH" in os.environ:
