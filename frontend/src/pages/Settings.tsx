@@ -5,16 +5,17 @@ import {
   useLanguageProfiles, useCreateProfile, useUpdateProfile, useDeleteProfile,
   useExportConfig, useImportConfig,
   usePromptPresets, useCreatePromptPreset, useUpdatePromptPreset, useDeletePromptPreset,
+  useBackends, useTestBackend, useBackendConfig, useSaveBackendConfig, useBackendStats,
 } from '@/hooks/useApi'
-import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Download, Database, RefreshCw, Plus, Edit2, X, Check, Globe, Upload, FileDown } from 'lucide-react'
+import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Download, Database, RefreshCw, Plus, Edit2, X, Check, Globe, Upload, FileDown, Activity, Eye, EyeOff } from 'lucide-react'
 import { getHealth } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
-import type { ProviderInfo, LanguageProfile } from '@/lib/types'
+import type { ProviderInfo, LanguageProfile, TranslationBackendInfo, BackendStats, BackendHealthResult } from '@/lib/types'
 
 const TABS = [
   'General',
-  'Ollama',
   'Translation',
+  'Translation Backends',
   'Languages',
   'Automation',
   'Wanted',
@@ -41,12 +42,6 @@ const FIELDS: FieldConfig[] = [
   { key: 'log_level', label: 'Log Level', type: 'text', placeholder: 'INFO', tab: 'General' },
   { key: 'media_path', label: 'Media Path', type: 'text', placeholder: '/media', tab: 'General' },
   { key: 'db_path', label: 'Database Path', type: 'text', placeholder: '/config/sublarr.db', tab: 'General' },
-  // Ollama
-  { key: 'ollama_url', label: 'Ollama URL', type: 'text', placeholder: 'http://localhost:11434', tab: 'Ollama' },
-  { key: 'ollama_model', label: 'Model', type: 'text', placeholder: 'qwen2.5:14b-instruct', tab: 'Ollama' },
-  { key: 'batch_size', label: 'Batch Size', type: 'number', tab: 'Ollama' },
-  { key: 'request_timeout', label: 'Request Timeout (s)', type: 'number', tab: 'Ollama' },
-  { key: 'temperature', label: 'Temperature', type: 'number', tab: 'Ollama' },
   // Translation
   { key: 'source_language', label: 'Source Language Code', type: 'text', placeholder: 'en', tab: 'Translation' },
   { key: 'target_language', label: 'Target Language Code', type: 'text', placeholder: 'de', tab: 'Translation' },
@@ -1128,10 +1123,334 @@ function PromptPresetsTab() {
   )
 }
 
+// ─── Translation Backend Card ────────────────────────────────────────────────
+
+function BackendCard({
+  backend,
+  stats,
+  onTest,
+  testResult,
+}: {
+  backend: TranslationBackendInfo
+  stats?: BackendStats
+  onTest: () => void
+  testResult?: BackendHealthResult | 'testing'
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [formValues, setFormValues] = useState<Record<string, string>>({})
+  const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({})
+  const { data: configData } = useBackendConfig(expanded ? backend.name : '')
+  const saveConfigMut = useSaveBackendConfig()
+
+  // Load config values when expanded
+  useEffect(() => {
+    if (configData) {
+      setFormValues(configData)
+    }
+  }, [configData])
+
+  const handleSave = () => {
+    saveConfigMut.mutate(
+      { name: backend.name, config: formValues },
+      {
+        onSuccess: () => toast('Backend config saved'),
+        onError: () => toast('Failed to save backend config', 'error'),
+      }
+    )
+  }
+
+  const successRate = stats && stats.total_requests > 0
+    ? Math.round((stats.successful_translations / stats.total_requests) * 100)
+    : null
+
+  return (
+    <div
+      className="rounded-lg overflow-hidden"
+      style={{
+        backgroundColor: 'var(--bg-surface)',
+        border: '1px solid var(--border)',
+      }}
+    >
+      {/* Header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between gap-3 p-4 text-left transition-colors"
+        style={{ backgroundColor: expanded ? 'var(--bg-surface-hover)' : undefined }}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {backend.display_name}
+          </span>
+          <span
+            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium"
+            style={{
+              backgroundColor: backend.configured ? 'var(--success-bg)' : 'rgba(124,130,147,0.08)',
+              color: backend.configured ? 'var(--success)' : 'var(--text-muted)',
+            }}
+          >
+            <span
+              className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{ backgroundColor: backend.configured ? 'var(--success)' : 'var(--text-muted)' }}
+            />
+            {backend.configured ? 'Configured' : 'Not configured'}
+          </span>
+          {backend.supports_glossary && (
+            <span
+              className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+              style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
+            >
+              Glossary
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {successRate !== null && (
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              {successRate}% success
+            </span>
+          )}
+          {expanded ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-4 space-y-4" style={{ borderTop: '1px solid var(--border)' }}>
+          {/* Stats row */}
+          {stats && stats.total_requests > 0 && (
+            <div className="pt-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <Activity size={12} style={{ color: 'var(--text-muted)' }} />
+                <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  Statistics
+                </span>
+              </div>
+              {/* Success rate bar */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs w-8" style={{ color: 'var(--text-muted)' }}>
+                  {successRate}%
+                </span>
+                <div className="flex-1 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bg-primary)' }}>
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${successRate}%`,
+                      backgroundColor: (successRate ?? 0) > 80
+                        ? 'rgb(16 185 129)'
+                        : (successRate ?? 0) > 50
+                          ? 'rgb(245 158 11)'
+                          : 'rgb(239 68 68)',
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap text-xs" style={{ color: 'var(--text-muted)' }}>
+                <span>{stats.successful_translations}/{stats.total_requests} requests</span>
+                {stats.avg_response_time_ms > 0 && (
+                  <span>Avg: {Math.round(stats.avg_response_time_ms)}ms</span>
+                )}
+                {stats.last_response_time_ms > 0 && (
+                  <span>Last: {Math.round(stats.last_response_time_ms)}ms</span>
+                )}
+                {stats.total_characters > 0 && (
+                  <span>{stats.total_characters.toLocaleString()} chars</span>
+                )}
+                {stats.consecutive_failures > 0 && (
+                  <span style={{ color: 'rgb(245 158 11)' }}>
+                    {stats.consecutive_failures} consecutive failures
+                  </span>
+                )}
+              </div>
+              {stats.last_error && (
+                <div className="text-xs truncate" style={{ color: 'var(--error)' }} title={stats.last_error}>
+                  Last error: {stats.last_error}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Config form */}
+          {backend.config_fields.length > 0 && (
+            <div className="space-y-3 pt-2" style={{ borderTop: stats && stats.total_requests > 0 ? '1px solid var(--border)' : undefined }}>
+              {backend.config_fields.map((field) => (
+                <div key={field.key} className="space-y-1">
+                  <label className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                    {field.label}
+                    {field.required && <span style={{ color: 'var(--error)' }}>*</span>}
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type={field.type === 'password' && !showPasswords[field.key] ? 'password' : field.type === 'number' ? 'number' : 'text'}
+                      value={formValues[field.key] === '***configured***' ? '' : (formValues[field.key] ?? field.default ?? '')}
+                      onChange={(e) => setFormValues((v) => ({ ...v, [field.key]: e.target.value }))}
+                      placeholder={formValues[field.key] === '***configured***' ? '(configured)' : field.default || (field.required ? 'Required' : 'Optional')}
+                      className="flex-1 px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none"
+                      style={{
+                        backgroundColor: 'var(--bg-primary)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-primary)',
+                        fontFamily: 'var(--font-mono)',
+                      }}
+                    />
+                    {field.type === 'password' && (
+                      <button
+                        onClick={() => setShowPasswords((p) => ({ ...p, [field.key]: !p[field.key] }))}
+                        className="p-1.5 rounded transition-all duration-150"
+                        style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', backgroundColor: 'var(--bg-primary)' }}
+                        title={showPasswords[field.key] ? 'Hide' : 'Show'}
+                      >
+                        {showPasswords[field.key] ? <EyeOff size={12} /> : <Eye size={12} />}
+                      </button>
+                    )}
+                  </div>
+                  {field.help && (
+                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{field.help}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {backend.config_fields.length === 0 && (
+            <div className="pt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+              No configuration required for this backend.
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+            <button
+              onClick={onTest}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150"
+              style={{
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
+                backgroundColor: 'var(--bg-primary)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--accent-dim)'
+                e.currentTarget.style.color = 'var(--accent)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border)'
+                e.currentTarget.style.color = 'var(--text-secondary)'
+              }}
+            >
+              {testResult === 'testing' ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <TestTube size={12} />
+              )}
+              Test
+            </button>
+
+            {backend.config_fields.length > 0 && (
+              <button
+                onClick={handleSave}
+                disabled={saveConfigMut.isPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white"
+                style={{ backgroundColor: 'var(--accent)' }}
+              >
+                {saveConfigMut.isPending ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <Save size={12} />
+                )}
+                Save
+              </button>
+            )}
+
+            {/* Test result inline */}
+            {testResult && testResult !== 'testing' && (
+              <span className="text-xs" style={{ color: testResult.healthy ? 'var(--success)' : 'var(--error)' }}>
+                {testResult.healthy ? 'Healthy' : 'Error'}: {testResult.message}
+              </span>
+            )}
+          </div>
+
+          {/* Backend info */}
+          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            Max batch size: {backend.max_batch_size} lines
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Translation Backends Tab ────────────────────────────────────────────────
+
+function TranslationBackendsTab() {
+  const { data: backendsData, isLoading: backendsLoading } = useBackends()
+  const { data: statsData } = useBackendStats()
+  const testBackendMut = useTestBackend()
+  const [testResults, setTestResults] = useState<Record<string, BackendHealthResult | 'testing'>>({})
+
+  const backends = backendsData?.backends ?? []
+  const statsMap = new Map<string, BackendStats>()
+  if (statsData?.stats) {
+    for (const s of statsData.stats) {
+      statsMap.set(s.backend_name, s)
+    }
+  }
+
+  const handleTest = (name: string) => {
+    setTestResults((prev) => ({ ...prev, [name]: 'testing' }))
+    testBackendMut.mutate(name, {
+      onSuccess: (result) => {
+        setTestResults((prev) => ({ ...prev, [name]: result }))
+        if (result.healthy) {
+          toast(`${name}: healthy`)
+        } else {
+          toast(`${name}: ${result.message}`, 'error')
+        }
+      },
+      onError: () => {
+        setTestResults((prev) => ({ ...prev, [name]: { healthy: false, message: 'Test request failed' } }))
+        toast(`${name}: test failed`, 'error')
+      },
+    })
+  }
+
+  if (backendsLoading) {
+    return (
+      <div className="flex items-center justify-center h-32">
+        <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent)' }} />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+          {backends.length} translation backends available &mdash; expand to configure and test
+        </span>
+      </div>
+
+      {backends.map((backend) => (
+        <BackendCard
+          key={backend.name}
+          backend={backend}
+          stats={statsMap.get(backend.name)}
+          onTest={() => handleTest(backend.name)}
+          testResult={testResults[backend.name]}
+        />
+      ))}
+
+      {backends.length === 0 && (
+        <div className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>
+          No translation backends registered. Install backend packages (e.g. deepl, openai, google-cloud-translate) to enable them.
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Language Profiles Tab ────────────────────────────────────────────────────
 
 function LanguageProfilesTab() {
   const { data: profiles, isLoading } = useLanguageProfiles()
+  const { data: backendsData } = useBackends()
   const createProfile = useCreateProfile()
   const updateProfile = useUpdateProfile()
   const deleteProfile = useDeleteProfile()
@@ -1143,10 +1462,14 @@ function LanguageProfilesTab() {
     source_language_name: 'English',
     target_languages: '',
     target_language_names: '',
+    translation_backend: '',
+    fallback_chain: [] as string[],
   })
 
+  const backends = backendsData?.backends ?? []
+
   const resetForm = () => {
-    setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: '', target_language_names: '' })
+    setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: '', target_language_names: '', translation_backend: '', fallback_chain: [] })
     setEditingId(null)
     setShowAdd(false)
   }
@@ -1158,9 +1481,28 @@ function LanguageProfilesTab() {
       source_language_name: p.source_language_name,
       target_languages: p.target_languages.join(', '),
       target_language_names: p.target_language_names.join(', '),
+      translation_backend: p.translation_backend || '',
+      fallback_chain: p.fallback_chain || [],
     })
     setEditingId(p.id)
     setShowAdd(false)
+  }
+
+  const handleFallbackMove = (index: number, direction: 'up' | 'down') => {
+    const chain = [...form.fallback_chain]
+    const swapIdx = direction === 'up' ? index - 1 : index + 1
+    if (swapIdx < 0 || swapIdx >= chain.length) return
+    ;[chain[index], chain[swapIdx]] = [chain[swapIdx], chain[index]]
+    setForm((f) => ({ ...f, fallback_chain: chain }))
+  }
+
+  const handleFallbackRemove = (index: number) => {
+    setForm((f) => ({ ...f, fallback_chain: f.fallback_chain.filter((_, i) => i !== index) }))
+  }
+
+  const handleFallbackAdd = (name: string) => {
+    if (!name || form.fallback_chain.includes(name)) return
+    setForm((f) => ({ ...f, fallback_chain: [...f.fallback_chain, name] }))
   }
 
   const handleSave = () => {
@@ -1181,6 +1523,8 @@ function LanguageProfilesTab() {
       source_language_name: form.source_language_name,
       target_languages: targetLangs,
       target_language_names: targetNames,
+      translation_backend: form.translation_backend || '',
+      fallback_chain: form.fallback_chain,
     }
 
     if (editingId) {
@@ -1218,7 +1562,7 @@ function LanguageProfilesTab() {
           Language profiles define which languages to translate for each series/movie
         </span>
         <button
-          onClick={() => { setShowAdd(true); setEditingId(null); setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: '', target_language_names: '' }) }}
+          onClick={() => { setShowAdd(true); setEditingId(null); setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: '', target_language_names: '', translation_backend: '', fallback_chain: [] }) }}
           className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all duration-150"
           style={{ border: '1px solid var(--accent-dim)', color: 'var(--accent)', backgroundColor: 'var(--accent-bg)' }}
         >
@@ -1286,6 +1630,95 @@ function LanguageProfilesTab() {
                 className="w-full px-2.5 py-1.5 rounded text-xs"
                 style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               />
+            </div>
+
+            {/* Translation Backend Selector */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Translation Backend</label>
+              <select
+                value={form.translation_backend}
+                onChange={(e) => setForm((f) => ({ ...f, translation_backend: e.target.value }))}
+                className="w-full px-2.5 py-1.5 rounded text-xs"
+                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+              >
+                <option value="">Default (Ollama)</option>
+                {backends.map((b) => (
+                  <option key={b.name} value={b.name}>{b.display_name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Fallback Chain Editor */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Fallback Chain</label>
+              <div className="space-y-1.5">
+                {form.fallback_chain.length > 0 ? (
+                  form.fallback_chain.map((name, idx) => {
+                    const isPrimary = name === form.translation_backend
+                    return (
+                      <div key={name} className="flex items-center gap-1.5">
+                        <span
+                          className="flex-1 px-2 py-1 rounded text-xs"
+                          style={{
+                            backgroundColor: 'var(--bg-primary)',
+                            border: '1px solid var(--border)',
+                            color: isPrimary ? 'var(--accent)' : 'var(--text-primary)',
+                            fontFamily: 'var(--font-mono)',
+                          }}
+                        >
+                          {idx + 1}. {backends.find((b) => b.name === name)?.display_name || name}
+                          {isPrimary && ' (primary)'}
+                        </span>
+                        <button
+                          onClick={() => handleFallbackMove(idx, 'up')}
+                          disabled={idx === 0}
+                          className="p-1 rounded"
+                          style={{ color: idx === 0 ? 'var(--text-muted)' : 'var(--text-secondary)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-primary)' }}
+                        >
+                          <ChevronUp size={10} />
+                        </button>
+                        <button
+                          onClick={() => handleFallbackMove(idx, 'down')}
+                          disabled={idx === form.fallback_chain.length - 1}
+                          className="p-1 rounded"
+                          style={{ color: idx === form.fallback_chain.length - 1 ? 'var(--text-muted)' : 'var(--text-secondary)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-primary)' }}
+                        >
+                          <ChevronDown size={10} />
+                        </button>
+                        {!isPrimary && (
+                          <button
+                            onClick={() => handleFallbackRemove(idx)}
+                            className="p-1 rounded"
+                            style={{ color: 'var(--error)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-primary)' }}
+                          >
+                            <X size={10} />
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })
+                ) : (
+                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    No fallback chain configured. Add backends below.
+                  </span>
+                )}
+                {/* Add backend to chain */}
+                {backends.filter((b) => !form.fallback_chain.includes(b.name)).length > 0 && (
+                  <select
+                    value=""
+                    onChange={(e) => { handleFallbackAdd(e.target.value); e.target.value = '' }}
+                    className="w-full px-2.5 py-1 rounded text-xs"
+                    style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+                  >
+                    <option value="">+ Add backend to fallback chain...</option>
+                    {backends
+                      .filter((b) => !form.fallback_chain.includes(b.name))
+                      .map((b) => (
+                        <option key={b.name} value={b.name}>{b.display_name}</option>
+                      ))}
+                  </select>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2 pt-1">
@@ -1365,6 +1798,19 @@ function LanguageProfilesTab() {
                 {lang.toUpperCase()} ({p.target_language_names[i]})
               </span>
             ))}
+          </div>
+          {/* Translation backend info */}
+          <div className="flex items-center gap-4 flex-wrap text-xs" style={{ color: 'var(--text-secondary)' }}>
+            {p.translation_backend && (
+              <span>
+                Backend: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.translation_backend}</code>
+              </span>
+            )}
+            {p.fallback_chain && p.fallback_chain.length > 0 && (
+              <span>
+                Fallback: <code style={{ fontFamily: 'var(--font-mono)' }}>{p.fallback_chain.join(' > ')}</code>
+              </span>
+            )}
           </div>
         </div>
       ))}
@@ -1488,11 +1934,12 @@ export function SettingsPage() {
   }
 
   const tabFields = FIELDS.filter((f) => f.tab === activeTab)
-  const hasTestConnection = ['Ollama', 'Sonarr', 'Radarr', 'Jellyfin'].includes(activeTab)
+  const hasTestConnection = ['Sonarr', 'Radarr', 'Jellyfin'].includes(activeTab)
   const isProvidersTab = activeTab === 'Providers'
   const isLanguagesTab = activeTab === 'Languages'
   const isTranslationTab = activeTab === 'Translation'
   const isPromptPresetsTab = activeTab === 'Prompt Presets'
+  const isTranslationBackendsTab = activeTab === 'Translation Backends'
 
   if (isLoading) {
     return (
@@ -1571,6 +2018,8 @@ export function SettingsPage() {
             <LanguageProfilesTab />
           ) : isPromptPresetsTab ? (
             <PromptPresetsTab />
+          ) : isTranslationBackendsTab ? (
+            <TranslationBackendsTab />
           ) : (
             <div
               className="rounded-lg p-5 space-y-4"
