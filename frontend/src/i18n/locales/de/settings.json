@@ -15,6 +15,8 @@
     "whisper": "Whisper",
     "events_hooks": "Events & Hooks",
     "scoring": "Scoring",
+    "backup": "Backup",
+    "subtitle_tools": "Untertitel-Werkzeuge",
     "notifications": "Benachrichtigungen",
     "prompt_presets": "Prompt-Vorlagen"
   },
