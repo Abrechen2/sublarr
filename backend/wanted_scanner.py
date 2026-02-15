@@ -698,8 +698,8 @@ class WantedScanner:
                 processed, total, found, failed, duration,
             )
 
-            if socketio:
-                socketio.emit("wanted_search_completed", summary)
+            from events import emit_event
+            emit_event("wanted_scan_complete", summary)
 
             return summary
 

@@ -7,6 +7,7 @@ import threading
 from flask import Blueprint, request, jsonify
 
 from extensions import socketio
+from events import emit_event
 
 bp = Blueprint("wanted", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -75,7 +76,7 @@ def refresh_wanted():
             result = scanner.scan_series(series_id)
         else:
             result = scanner.scan_all()
-        socketio.emit("wanted_scan_completed", result)
+        emit_event("wanted_scan_complete", result)
 
     thread = threading.Thread(target=_run_scan, daemon=True)
     thread.start()
@@ -145,9 +146,9 @@ def process_wanted(item_id):
 
     def _run():
         result = process_wanted_item(item_id)
-        socketio.emit("wanted_item_processed", result)
+        emit_event("wanted_item_processed", result)
         if result.get("upgraded"):
-            socketio.emit("upgrade_completed", {
+            emit_event("upgrade_complete", {
                 "file_path": result.get("output_path"),
                 "provider": result.get("provider"),
             })
@@ -211,7 +212,7 @@ def wanted_batch_search():
                 wanted_batch_state["running"] = False
                 wanted_batch_state["current_item"] = None
 
-            socketio.emit("wanted_batch_completed", snapshot)
+            emit_event("batch_complete", snapshot)
 
             try:
                 from notifier import send_notification
@@ -319,7 +320,7 @@ def extract_embedded_sub(item_id):
         # Update wanted item if ASS was extracted
         if stream_info["format"] == "ass":
             delete_wanted_item(item_id)
-            socketio.emit("wanted_item_processed", {
+            emit_event("wanted_item_processed", {
                 "wanted_id": item_id,
                 "status": "found",
                 "output_path": output_path,

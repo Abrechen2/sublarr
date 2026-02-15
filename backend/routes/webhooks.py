@@ -7,6 +7,7 @@ import threading
 from flask import Blueprint, request, jsonify
 
 from extensions import socketio
+from events import emit_event
 
 bp = Blueprint("webhooks", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None, mo
     s = get_settings()
     delay = s.webhook_delay_minutes * 60
 
-    socketio.emit("webhook_received", {
+    emit_event("webhook_received", {
         "file_path": file_path,
         "title": title,
         "delay_minutes": s.webhook_delay_minutes,

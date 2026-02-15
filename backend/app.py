@@ -139,6 +139,19 @@ def create_app(testing=False):
     from db import init_db
     init_db()
 
+    # Initialize event system (SocketIO bridge + hook/webhook subscribers)
+    from events import init_event_system
+    from events.hooks import HookEngine, init_hook_subscribers
+    from events.webhooks import WebhookDispatcher, init_webhook_subscribers
+
+    init_event_system(app)
+
+    hook_engine = HookEngine(max_workers=4)
+    init_hook_subscribers(hook_engine)
+
+    webhook_dispatcher = WebhookDispatcher(max_workers=4)
+    init_webhook_subscribers(webhook_dispatcher)
+
     # Apply DB config overrides on startup (settings saved via UI take precedence)
     from db.config import get_all_config_entries
     _db_overrides = get_all_config_entries()
