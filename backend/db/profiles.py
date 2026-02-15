@@ -37,19 +37,32 @@ def _row_to_profile(row) -> dict:
     if "fallback_chain_json" in d:
         del d["fallback_chain_json"]
 
+    # Forced subtitle preference (added in Phase 6)
+    d["forced_preference"] = d.get("forced_preference", "disabled")
+
     return d
+
+
+VALID_FORCED_PREFERENCES = ("disabled", "separate", "auto")
 
 
 def create_language_profile(name: str, source_lang: str, source_name: str,
                              target_langs: list[str], target_names: list[str],
                              translation_backend: str = "ollama",
-                             fallback_chain: list[str] | None = None) -> int:
+                             fallback_chain: list[str] | None = None,
+                             forced_preference: str = "disabled") -> int:
     """Create a new language profile. Returns the profile ID.
 
     Args:
         translation_backend: Primary translation backend (default "ollama")
         fallback_chain: Ordered list of backends to try. Defaults to [translation_backend].
+        forced_preference: Forced subtitle handling mode ("disabled", "separate", "auto").
     """
+    if forced_preference not in VALID_FORCED_PREFERENCES:
+        raise ValueError(
+            f"Invalid forced_preference '{forced_preference}'. "
+            f"Must be one of: {VALID_FORCED_PREFERENCES}"
+        )
     if fallback_chain is None:
         fallback_chain = [translation_backend]
     now = datetime.utcnow().isoformat()
@@ -60,11 +73,13 @@ def create_language_profile(name: str, source_lang: str, source_name: str,
                (name, source_language, source_language_name,
                 target_languages_json, target_language_names_json,
                 translation_backend, fallback_chain_json,
+                forced_preference,
                 is_default, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)""",
             (name, source_lang, source_name,
              json.dumps(target_langs), json.dumps(target_names),
              translation_backend, json.dumps(fallback_chain),
+             forced_preference,
              now, now),
         )
         profile_id = cursor.lastrowid
@@ -101,9 +116,18 @@ def update_language_profile(profile_id: int, **fields):
 
     allowed = {"name", "source_language", "source_language_name",
                "target_languages", "target_language_names",
-               "translation_backend", "fallback_chain"}
+               "translation_backend", "fallback_chain", "forced_preference"}
     updates = []
     params = []
+
+    # Validate forced_preference if provided
+    if "forced_preference" in fields:
+        fp = fields["forced_preference"]
+        if fp not in VALID_FORCED_PREFERENCES:
+            raise ValueError(
+                f"Invalid forced_preference '{fp}'. "
+                f"Must be one of: {VALID_FORCED_PREFERENCES}"
+            )
 
     for key, value in fields.items():
         if key not in allowed:
