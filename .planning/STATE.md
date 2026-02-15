@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 0 of 16 (Architecture Refactoring)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-15 -- Completed 00-01-PLAN.md (database package extraction)
+Last activity: 2026-02-15 -- Completed 00-02-PLAN.md (application factory and blueprint routing)
 
-Progress: [███░░░░░░░░░░░░░░░░░] 1/3 plans in phase
+Progress: [██████░░░░░░░░░░░░░░] 2/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 5 min
-- Total execution time: 5 min
+- Total plans completed: 2
+- Average duration: 6.5 min
+- Total execution time: 13 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 00-architecture-refactoring | 1/3 | 5 min | 5 min |
+| 00-architecture-refactoring | 2/3 | 13 min | 6.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 00-01 (5 min)
-- Trend: N/A (first plan)
+- Last 5 plans: 00-01 (5 min), 00-02 (8 min)
+- Trend: Stable
 
 *Updated after each plan completion*
 
@@ -50,6 +50,10 @@ Recent decisions affecting current work:
 - [00-01]: Schema DDL and migrations stay in db/__init__.py -- single source of truth for all 17 tables
 - [00-01]: Private helpers (_row_to_job, _row_to_wanted, _row_to_profile) stay with their domain modules
 - [00-01]: database.py preserved intact until Plan 03 updates all external imports
+- [00-02]: SocketIOLogHandler takes socketio as constructor parameter (not module-level binding)
+- [00-02]: Mutable state (batch_state, wanted_batch_state, _memory_stats) stays in owning route module
+- [00-02]: system.py imports batch_state/_memory_stats from routes.translate for cross-module stats
+- [00-02]: server.py left intact -- Plan 03 handles cleanup and deletion
 
 ### Pending Todos
 
@@ -57,12 +61,11 @@ None yet.
 
 ### Blockers/Concerns
 
-- server.py monolith (2618 lines) must be split before any feature work (Phase 0, Plan 02)
-- Module-level singletons break Application Factory pattern (Phase 0 critical path)
-- database.py still present -- must be removed in Plan 03 after all imports updated
+- server.py and database.py still present -- must be removed in Plan 03 after all imports updated
+- External modules (translator.py, wanted_scanner.py, etc.) still import from `database` -- Plan 03 must update these
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Plan 00-01 complete, ready for Plan 00-02 (routes extraction)
-Resume file: .planning/phases/00-architecture-refactoring/00-02-PLAN.md
+Stopped at: Plan 00-02 complete, ready for Plan 00-03 (import updates and cleanup)
+Resume file: .planning/phases/00-architecture-refactoring/00-03-PLAN.md
