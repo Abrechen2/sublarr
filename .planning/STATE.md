@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 6 - Forced/Signs Subtitle Management (Complete)
+**Current focus:** Phase 7 - Events/Hooks & Custom Scoring (In progress)
 
 ## Current Position
 
-Phase: 6 of 16 (Forced/Signs Subtitle Management)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-15 -- Completed 06-03-PLAN.md (API & Frontend UI Forced Integration)
+Phase: 7 of 16 (Events/Hooks & Custom Scoring)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-15 -- Completed 07-01-PLAN.md (Event Bus + DB Schema + Configurable Scoring)
 
-Progress: [████████████████████] 3/3 plans in phase
+Progress: [███████░░░░░░░░░░░░░] 1/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 30
-- Average duration: 6 min
-- Total execution time: 195 min
+- Total plans completed: 31
+- Average duration: 7 min
+- Total execution time: 221 min
 
 **By Phase:**
 
@@ -34,10 +34,11 @@ Progress: [████████████████████] 3/3 pla
 | 04-whisper-speech-to-text | 3/3 | 13 min | 4 min |
 | 05-standalone-mode | 5/5 | 28 min | 6 min |
 | 06-forced-signs-subs | 3/3 | 22 min | 7 min |
+| 07-events-hooks-custom-scoring | 1/3 | 26 min | 26 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-05 (13 min), 06-01 (6 min), 06-02 (5 min), 06-03 (11 min)
-- Trend: UI-heavy plans take longer (~11 min) vs backend-only (~5 min)
+- Last 5 plans: 06-01 (6 min), 06-02 (5 min), 06-03 (11 min), 07-01 (26 min)
+- Trend: Foundation plans with multiple modules + verification take longer
 
 *Updated after each plan completion*
 
@@ -178,6 +179,13 @@ Recent decisions affecting current work:
 - [06-03]: Subtitle type filter buttons only shown when forcedCount > 0 to keep UI clean
 - [06-03]: Profile list cards show forced preference only when not 'disabled' to reduce visual noise
 - [06-03]: get_wanted_by_subtitle_type handles NULL subtitle_type values by defaulting to 'full'
+- [07-01]: blinker Namespace for signal isolation -- all Sublarr signals in sublarr_signals
+- [07-01]: CATALOG_VERSION=1 for future payload schema evolution
+- [07-01]: SocketIO bridge uses closure pattern (make_bridge) to correctly capture event_name in loop
+- [07-01]: emit_event guards current_app with try/except RuntimeError for use outside request context
+- [07-01]: Scoring cache TTL=60s -- balances DB freshness vs query overhead
+- [07-01]: Provider modifier cache loads all modifiers at once (single query) instead of per-provider
+- [07-01]: DB overrides merge on top of hardcoded defaults ({**defaults, **db_overrides})
 
 ### Pending Todos
 
@@ -192,10 +200,11 @@ None yet.
 - Phase 4 complete -- all 3 plans executed, all summaries written (whisper package + API + frontend)
 - Phase 5 complete -- all 5 plans executed, all summaries written (DB + metadata + manager + API + UI)
 - Phase 6 complete -- all 3 plans executed, all summaries written (data model + detection, scanner + search, API + UI)
+- Phase 7 in progress -- plan 01 complete (event bus + DB schema + configurable scoring)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 6 complete -- all 3 plans executed (data model + detection, scanner + search pipeline, API + frontend UI)
-Resume file: .planning/phases/06-forced-signs-subs/06-03-SUMMARY.md
+Stopped at: Phase 7 plan 01 complete -- event bus, 5 DB tables, configurable scoring
+Resume file: .planning/phases/07-events-hooks-custom-scoring/07-01-SUMMARY.md
