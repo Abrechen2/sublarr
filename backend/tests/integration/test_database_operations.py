@@ -1,15 +1,10 @@
 """Integration tests for database operations."""
 
 import pytest
-from database import (
-    create_job,
-    get_job,
-    get_jobs,
-    get_wanted_items,
-    add_blacklist_entry,
-    get_blacklist_entries,
-    get_download_history,
-)
+from db.jobs import create_job, get_job, get_jobs
+from db.wanted import get_wanted_items
+from db.blacklist import add_blacklist_entry, get_blacklist_entries
+from db.library import get_download_history
 
 
 class TestJobOperations:

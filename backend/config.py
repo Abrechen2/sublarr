@@ -149,7 +149,7 @@ class Settings(BaseSettings):
         """
         # Try to get default preset from database
         try:
-            from database import get_default_prompt_preset
+            from db.translation import get_default_prompt_preset
             preset = get_default_prompt_preset()
             if preset and preset.get("prompt_template"):
                 return preset["prompt_template"]

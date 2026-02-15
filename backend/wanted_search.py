@@ -10,13 +10,8 @@ import time
 import logging
 
 from config import get_settings, map_path
-from database import (
-    get_wanted_item,
-    get_wanted_items,
-    update_wanted_status,
-    update_wanted_search,
-    record_upgrade,
-)
+from db.wanted import get_wanted_item, get_wanted_items, update_wanted_status, update_wanted_search
+from db.library import record_upgrade
 from upgrade_scorer import should_upgrade
 from providers import get_provider_manager
 from providers.base import VideoQuery, SubtitleFormat

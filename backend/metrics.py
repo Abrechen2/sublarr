@@ -108,7 +108,8 @@ def collect_queue_metrics() -> None:
         return
 
     try:
-        from database import get_pending_job_count, get_wanted_summary
+        from db.jobs import get_pending_job_count
+        from db.wanted import get_wanted_summary
         JOB_QUEUE_SIZE.set(get_pending_job_count())
         summary = get_wanted_summary()
         WANTED_QUEUE_SIZE.set(summary.get("wanted", 0))

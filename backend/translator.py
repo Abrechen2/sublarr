@@ -556,7 +556,7 @@ def _record_config_hash_for_result(result, file_path):
     try:
         settings = get_settings()
         config_hash = settings.get_translation_config_hash()
-        from database import record_translation_config
+        from db.translation import record_translation_config
         record_translation_config(
             config_hash=config_hash,
             ollama_model=settings.ollama_model,

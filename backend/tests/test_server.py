@@ -4,7 +4,7 @@ import pytest
 import os
 import tempfile
 from config import reload_settings
-from server import app
+from app import create_app
 
 
 @pytest.fixture
@@ -16,10 +16,13 @@ def client():
     os.environ["SUBLARR_DB_PATH"] = db_path
     os.environ["SUBLARR_API_KEY"] = ""  # Disable auth for tests
     reload_settings()
-    
+
+    app = create_app(testing=True)
+    app.config["TESTING"] = True
+
     with app.test_client() as client:
         yield client
-    
+
     # Cleanup
     if os.path.exists(db_path):
         os.unlink(db_path)

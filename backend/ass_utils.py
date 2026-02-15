@@ -335,7 +335,7 @@ def run_ffprobe(file_path, use_cache=True):
         RuntimeError: If ffprobe fails, times out, or returns invalid JSON
     """
     import os
-    from database import get_ffprobe_cache, set_ffprobe_cache
+    from db.cache import get_ffprobe_cache, set_ffprobe_cache
 
     # Check cache if enabled
     if use_cache:

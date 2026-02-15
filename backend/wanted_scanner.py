@@ -15,14 +15,8 @@ from config import get_settings, map_path
 from translator import detect_existing_target_for_lang, get_output_path_for_lang
 from upgrade_scorer import score_existing_subtitle
 from ass_utils import run_ffprobe, has_target_language_stream
-from database import (
-    upsert_wanted_item,
-    delete_wanted_items,
-    get_all_wanted_file_paths,
-    get_series_profile,
-    get_movie_profile,
-    get_default_profile,
-)
+from db.wanted import upsert_wanted_item, delete_wanted_items, get_all_wanted_file_paths
+from db.profiles import get_series_profile, get_movie_profile, get_default_profile
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +133,7 @@ class WantedScanner:
             removed = self._cleanup(scanned_paths)
 
             duration = round(time.time() - start, 1)
-            from database import get_wanted_count
+            from db.wanted import get_wanted_count
             total_wanted = get_wanted_count()
 
             summary = {
@@ -469,7 +463,7 @@ class WantedScanner:
 
         Language-aware: checks per target_language from each wanted item.
         """
-        from database import get_wanted_items_for_cleanup
+        from db.wanted import get_wanted_items_for_cleanup
 
         items = get_wanted_items_for_cleanup()
         to_remove_ids = []
@@ -498,7 +492,7 @@ class WantedScanner:
                 to_remove_ids.append(item["id"])
 
         if to_remove_ids:
-            from database import delete_wanted_items_by_ids
+            from db.wanted import delete_wanted_items_by_ids
             delete_wanted_items_by_ids(to_remove_ids)
             logger.info("Wanted cleanup: removed %d items", len(to_remove_ids))
 
@@ -522,7 +516,7 @@ class WantedScanner:
             settings = get_settings()
             max_items = settings.wanted_search_max_items_per_run
 
-            from database import get_wanted_items
+            from db.wanted import get_wanted_items
             result = get_wanted_items(page=1, per_page=max_items, status="wanted")
             items = result.get("data", [])
 
