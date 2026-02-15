@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 2 of 16 (Translation Multi-Backend)
-Plan: 2 of 6 in current phase
+Plan: 3 of 6 in current phase
 Status: In progress
-Last activity: 2026-02-15 -- Completed 02-02-PLAN.md (DeepL + LibreTranslate API backends)
+Last activity: 2026-02-15 -- Completed 02-03-PLAN.md (OpenAI-compat + Google Cloud Translation backends)
 
-Progress: [██████░░░░░░░░░░░░░░] 2/6 plans in phase
+Progress: [██████████░░░░░░░░░░] 3/6 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: 8 min
-- Total execution time: 98 min
+- Total execution time: 101 min
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [██████░░░░░░░░░░░░░░] 2/6 pla
 |-------|-------|-------|----------|
 | 00-architecture-refactoring | 3/3 | 27 min | 9 min |
 | 01-provider-plugin-expansion | 6/6 | 64 min | 11 min |
-| 02-translation-multi-backend | 2/6 | 7 min | 4 min |
+| 02-translation-multi-backend | 3/6 | 10 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-05 (8 min), 01-06 (11 min), 01-02 (13 min), 02-01 (5 min), 02-02 (2 min)
+- Last 5 plans: 01-06 (11 min), 01-02 (13 min), 02-01 (5 min), 02-02 (2 min), 02-03 (3 min)
 - Trend: Accelerating
 
 *Updated after each plan completion*
@@ -89,6 +89,9 @@ Recent decisions affecting current work:
 - [02-02]: LibreTranslate translates line-by-line (max_batch_size=1) to guarantee 1:1 line mapping
 - [02-02]: DeepL import guarded with try/except -- backend class loads even without deepl SDK installed
 - [02-02]: Both API backends return TranslationResult(success=False) on error instead of raising exceptions
+- [02-03]: OpenAI-compatible backend handles retries internally (max_retries=0 on SDK client) for consistent CJK hallucination detection
+- [02-03]: Google backend creates fresh client per call (no lazy caching) since credentials may change via config_entries
+- [02-03]: Both backends register via try/except ImportError guards -- missing packages don't break app startup
 
 ### Pending Todos
 
@@ -103,5 +106,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 2 plan 2 complete (DeepL + LibreTranslate) -- next: 02-03-PLAN.md
-Resume file: .planning/phases/02-translation-multi-backend/02-03-PLAN.md
+Stopped at: Phase 2 plan 3 complete (OpenAI-compat + Google) -- next: 02-04-PLAN.md
+Resume file: .planning/phases/02-translation-multi-backend/02-04-PLAN.md
