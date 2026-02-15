@@ -134,12 +134,14 @@ Plans:
   2. Media files are parsed and grouped into series/movies with correct metadata from TMDB, AniList, or TVDB
   3. Standalone-detected items appear in the Wanted list and go through the same search/download/translate pipeline as Sonarr/Radarr items
   4. Onboarding wizard offers a standalone setup path that skips Sonarr/Radarr configuration entirely
-**Plans**: TBD
+**Plans:** 5 plans
 
 Plans:
-- [ ] 05-01: TBD
-- [ ] 05-02: TBD
-- [ ] 05-03: TBD
+- [ ] 05-01-PLAN.md -- DB schema (4 tables + migrations), config settings, media file parser (guessit + anime detection)
+- [ ] 05-02-PLAN.md -- Metadata package: TMDB, AniList, TVDB API clients + MetadataResolver orchestrator
+- [ ] 05-03-PLAN.md -- StandaloneManager, filesystem watcher (watchdog), directory scanner, wanted_scanner integration
+- [ ] 05-04-PLAN.md -- Standalone API Blueprint (/api/v1/standalone/*), wanted_search metadata enrichment
+- [ ] 05-05-PLAN.md -- Frontend: Library Sources settings tab, TypeScript types/hooks, Onboarding standalone path
 
 ### Phase 6: Forced/Signs Subtitle Management
 **Goal**: Users can separately manage forced/signs subtitles per series, with automatic detection and dedicated search
@@ -329,7 +331,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | 2. Translation Multi-Backend | 6/6 | Complete | 2026-02-15 |
 | 3. Media-Server Abstraction | 3/3 | Complete | 2026-02-15 |
 | 4. Whisper Speech-to-Text | 3/3 | Complete | 2026-02-15 |
-| 5. Standalone Mode | 0/TBD | Not started | - |
+| 5. Standalone Mode | 0/5 | Planned | - |
 | 6. Forced/Signs Subs | 0/TBD | Not started | - |
 | 7. Events/Hooks + Custom Scoring | 0/TBD | Not started | - |
 | 8. i18n + Backup + Admin Polish | 0/TBD | Not started | - |
@@ -366,4 +368,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-15 (Phase 4 complete)*
+*Last updated: 2026-02-15 (Phase 5 planned)*
