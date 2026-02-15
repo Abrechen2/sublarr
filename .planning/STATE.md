@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 7 - Events/Hooks & Custom Scoring (In progress)
+**Current focus:** Phase 7 complete - Events/Hooks & Custom Scoring
 
 ## Current Position
 
 Phase: 7 of 16 (Events/Hooks & Custom Scoring)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-15 -- Completed 07-02-PLAN.md (Hook Engine + Webhook Dispatcher + Rewiring)
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-02-15 -- Completed 07-03-PLAN.md (API & Frontend UI for Events/Hooks and Scoring)
 
-Progress: [██████████████░░░░░░] 2/3 plans in phase
+Progress: [████████████████████] 3/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 32
+- Total plans completed: 33
 - Average duration: 7 min
-- Total execution time: 231 min
+- Total execution time: 241 min
 
 **By Phase:**
 
@@ -34,11 +34,11 @@ Progress: [██████████████░░░░░░] 2/3 pla
 | 04-whisper-speech-to-text | 3/3 | 13 min | 4 min |
 | 05-standalone-mode | 5/5 | 28 min | 6 min |
 | 06-forced-signs-subs | 3/3 | 22 min | 7 min |
-| 07-events-hooks-custom-scoring | 2/3 | 36 min | 18 min |
+| 07-events-hooks-custom-scoring | 3/3 | 46 min | 15 min |
 
 **Recent Trend:**
-- Last 5 plans: 06-02 (5 min), 06-03 (11 min), 07-01 (26 min), 07-02 (10 min)
-- Trend: Execution plans faster than foundation plans with complex module creation
+- Last 5 plans: 06-03 (11 min), 07-01 (26 min), 07-02 (10 min), 07-03 (10 min)
+- Trend: Phase 7 heavy on foundation (plan 01), lighter on wiring and UI
 
 *Updated after each plan completion*
 
@@ -191,6 +191,10 @@ Recent decisions affecting current work:
 - [07-02]: standalone_scan_complete and standalone_file_detected added to EVENT_CATALOG
 - [07-02]: Scoring cache invalidation triggered on config_updated when scoring-related keys change
 - [07-02]: webhook_completed kept as socketio.emit (operational event, not catalog business event)
+- [07-03]: clear_hook_logs() added to db/hooks.py for DELETE /hooks/logs endpoint (missing from Plan 02)
+- [07-03]: Webhook test with event_name='*' uses 'config_updated' as sample event for payload generation
+- [07-03]: ScoringTab uses weightsInit/modsInit guard to prevent query refetch from clobbering user edits
+- [07-03]: Provider modifiers rendered as range sliders (-100 to +100) with color-coded values
 
 ### Pending Todos
 
@@ -205,11 +209,11 @@ None yet.
 - Phase 4 complete -- all 3 plans executed, all summaries written (whisper package + API + frontend)
 - Phase 5 complete -- all 5 plans executed, all summaries written (DB + metadata + manager + API + UI)
 - Phase 6 complete -- all 3 plans executed, all summaries written (data model + detection, scanner + search, API + UI)
-- Phase 7 in progress -- plan 02 complete (hook engine + webhook dispatcher + socketio.emit rewiring)
+- Phase 7 complete -- all 3 plans executed, all summaries written (event system + engine/dispatcher + API/UI)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 7 plan 02 complete -- hook engine, webhook dispatcher, socketio.emit rewiring
-Resume file: .planning/phases/07-events-hooks-custom-scoring/07-02-SUMMARY.md
+Stopped at: Phase 7 complete -- all 3 plans executed (event system, hook engine, API + UI)
+Resume file: .planning/phases/07-events-hooks-custom-scoring/07-03-SUMMARY.md
