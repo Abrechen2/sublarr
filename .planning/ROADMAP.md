@@ -185,12 +185,14 @@ Plans:
   3. User can restore from a backup ZIP (uploaded via UI), with schema validation and merge strategy
   4. Statistics page shows charts with time-range filters for translations, downloads, provider usage, and can be exported
   5. User can toggle between dark and light theme, and logs page supports level filtering, download, and rotation config
-**Plans**: TBD
+**Plans:** 5 plans
 
 Plans:
-- [ ] 08-01: TBD
-- [ ] 08-02: TBD
-- [ ] 08-03: TBD
+- [ ] 08-01-PLAN.md -- Theme system (dark/light CSS variables, useTheme hook, ThemeToggle) and i18n infrastructure (react-i18next, common namespace, LanguageSwitcher)
+- [ ] 08-02-PLAN.md -- Backend APIs: ZIP backup/restore, statistics with time-range, log download/rotation, subtitle tools Blueprint
+- [ ] 08-03-PLAN.md -- Statistics page (Recharts charts), Backup Settings tab, Subtitle Tools tab, Logs enhancements
+- [ ] 08-04-PLAN.md -- i18n Part 1: EN/DE JSON files + useTranslation wrapping for Sidebar, Dashboard, Settings, Logs, Library, Wanted, SeriesDetail, Statistics
+- [ ] 08-05-PLAN.md -- i18n Part 2: EN/DE JSON files + useTranslation wrapping for Activity, Queue, History, Blacklist, Onboarding, StatusBadge
 
 ### Phase 9: OpenAPI + Release Preparation
 **Goal**: API is fully documented with Swagger UI, performance is optimized, and the project is ready for community launch as v0.9.0-beta
@@ -336,7 +338,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | 5. Standalone Mode | 5/5 | Complete | 2026-02-15 |
 | 6. Forced/Signs Subs | 3/3 | Complete | 2026-02-15 |
 | 7. Events/Hooks + Custom Scoring | 3/3 | Complete | 2026-02-15 |
-| 8. i18n + Backup + Admin Polish | 0/TBD | Not started | - |
+| 8. i18n + Backup + Admin Polish | 0/5 | Not started | - |
 | 9. OpenAPI + Release Preparation | 0/TBD | Not started | - |
 | 10. Performance & Scalability | 0/TBD | Not started | - |
 | 11. Subtitle Editor | 0/TBD | Not started | - |
@@ -370,4 +372,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-15 (Phase 7 complete)*
+*Last updated: 2026-02-15 (Phase 8 planned)*
