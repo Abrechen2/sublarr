@@ -46,11 +46,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. API routes are organized in separate Blueprint files (translate, providers, library, wanted, config, webhooks, system) instead of one monolithic server.py
   3. Database access uses Flask app context instead of module-level singletons, and database.py is split into focused modules
   4. All existing tests pass without modification (backward compatibility preserved)
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 00-01: TBD
-- [ ] 00-02: TBD
+- [ ] 00-01-PLAN.md -- Split database.py into db/ package (9 domain modules)
+- [ ] 00-02-PLAN.md -- Create extensions.py, app.py factory, routes/ package (9 blueprints)
+- [ ] 00-03-PLAN.md -- Update all imports, entry points, delete old files, verify tests
 
 ### Phase 1: Provider Plugin + Expansion
 **Goal**: Users can install third-party provider plugins and access 8 additional built-in providers, expanding subtitle coverage across languages and sources
@@ -316,7 +317,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Architecture Refactoring | 0/TBD | Not started | - |
+| 0. Architecture Refactoring | 0/3 | Not started | - |
 | 1. Provider Plugin + Expansion | 0/TBD | Not started | - |
 | 2. Translation Multi-Backend | 0/TBD | Not started | - |
 | 3. Media-Server Abstraction | 0/TBD | Not started | - |
