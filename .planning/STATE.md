@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 3 - Media-Server Abstraction (IN PROGRESS)
+**Current focus:** Phase 3 - Media-Server Abstraction (COMPLETE)
 
 ## Current Position
 
 Phase: 3 of 16 (Media-Server Abstraction)
-Plan: 2 of N in current phase
-Status: In progress
-Last activity: 2026-02-15 -- Completed 03-02-PLAN.md (app wiring, routes, config migration)
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-02-15 -- Completed 03-03-PLAN.md (frontend UI: Media Servers tab + onboarding)
 
-Progress: [████████░░░░░░░░░░░░] 2/? plans in phase
+Progress: [████████████████████] 3/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
+- Total plans completed: 19
 - Average duration: 7 min
-- Total execution time: 124 min
+- Total execution time: 132 min
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [████████░░░░░░░░░░░░] 2/? pla
 | 00-architecture-refactoring | 3/3 | 27 min | 9 min |
 | 01-provider-plugin-expansion | 6/6 | 64 min | 11 min |
 | 02-translation-multi-backend | 6/6 | 23 min | 4 min |
-| 03-media-server-abstraction | 2/? | 10 min | 5 min |
+| 03-media-server-abstraction | 3/3 | 18 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-04 (5 min), 02-05 (6 min), 02-06 (2 min), 03-01 (4 min), 03-02 (6 min)
+- Last 5 plans: 02-05 (6 min), 02-06 (2 min), 03-01 (4 min), 03-02 (6 min), 03-03 (8 min)
 - Trend: Stable (~5 min avg)
 
 *Updated after each plan completion*
@@ -114,6 +114,11 @@ Recent decisions affecting current work:
 - [03-02]: Legacy jellyfin_url auto-migration stores back to config_entries as one-time migration
 - [03-02]: jellyfin_client.py not deleted -- preserved for tests, no production code imports it
 - [03-02]: Health endpoint aggregates per-instance status into media_servers summary
+- [03-03]: MediaServersTab follows collapsible card pattern from TranslationBackendsTab for UI consistency
+- [03-03]: Add Server uses dropdown menu (not modal) for quick type selection
+- [03-03]: Onboarding media server step is optional -- Skip button advances without saving
+- [03-03]: Onboarding loads media server types lazily on step entry to avoid unnecessary API calls
+- [03-03]: Jellyfin tab and FIELDS entries fully removed -- no backward compatibility shim
 
 ### Pending Todos
 
@@ -124,11 +129,11 @@ None yet.
 - Phase 0 complete -- no blockers for Phases 1, 2, 3 (can proceed in parallel)
 - Phase 1 complete -- all 6 plans executed, all summaries written
 - Phase 2 complete -- all 6 plans executed, all summaries written, 36 unit tests passing
-- Phase 3 in progress -- Plan 01 complete (ABC + backends), Plan 02 complete (wiring)
+- Phase 3 complete -- all 3 plans executed, all summaries written (ABC + wiring + frontend)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 3 Plan 02 complete -- next: 03-03-PLAN.md (if exists) or phase completion
-Resume file: .planning/phases/03-media-server-abstraction/03-02-SUMMARY.md
+Stopped at: Phase 3 complete -- next: Phase 4 planning/research or next roadmap phase
+Resume file: .planning/phases/03-media-server-abstraction/03-03-SUMMARY.md
