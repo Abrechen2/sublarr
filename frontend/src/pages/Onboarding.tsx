@@ -1,19 +1,20 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { updateConfig, completeOnboarding, getHealth, getMediaServerTypes, saveMediaServerInstances, testMediaServer, saveWatchedFolder, triggerStandaloneScan } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Server, Globe, Cpu, Search, Play, Monitor, Plus, TestTube, Trash2, Eye, EyeOff, FolderOpen } from 'lucide-react'
 import type { MediaServerType, MediaServerInstance, MediaServerTestResult } from '@/lib/types'
 
 const ALL_STEPS = [
-  { id: 'mode', title: 'Setup Mode', icon: Server, description: 'Choose how you want to use Sublarr.' },
-  { id: 'arr', title: 'Sonarr / Radarr', icon: Server, description: 'Connect your *arr instances to detect missing subtitles.' },
-  { id: 'standalone', title: 'Standalone Folders', icon: FolderOpen, description: 'Point Sublarr at your media folders directly.' },
-  { id: 'pathmapping', title: 'Path Mapping', icon: Globe, description: 'Map remote paths to local paths (if *arr runs on a different host).' },
-  { id: 'providers', title: 'Providers', icon: Search, description: 'Configure subtitle provider API keys for searching.' },
-  { id: 'ollama', title: 'Ollama', icon: Cpu, description: 'Set up the LLM translation backend.' },
-  { id: 'mediaservers', title: 'Media Servers (Optional)', icon: Monitor, description: 'Configure media servers for automatic library refresh after subtitle downloads.' },
-  { id: 'scan', title: 'First Scan', icon: Play, description: 'Run your first wanted scan to find missing subtitles.' },
+  { id: 'mode', titleKey: 'steps.mode', icon: Server, descKey: 'mode_step.description' },
+  { id: 'arr', titleKey: 'steps.arr', icon: Server, descKey: 'arr_step.description' },
+  { id: 'standalone', titleKey: 'steps.standalone', icon: FolderOpen, descKey: 'standalone_step.description' },
+  { id: 'pathmapping', titleKey: 'steps.pathmapping', icon: Globe, descKey: 'pathmapping_step.description' },
+  { id: 'providers', titleKey: 'steps.providers', icon: Search, descKey: 'providers_step.description' },
+  { id: 'ollama', titleKey: 'steps.ollama', icon: Cpu, descKey: 'ollama_step.description' },
+  { id: 'mediaservers', titleKey: 'steps.mediaservers', icon: Monitor, descKey: 'mediaservers_step.description' },
+  { id: 'scan', titleKey: 'steps.scan', icon: Play, descKey: 'scan_step.description' },
 ]
 
 function getVisibleSteps(setupMode: 'arr' | 'standalone' | null) {
@@ -34,6 +35,7 @@ const inputStyle = {
 }
 
 export default function Onboarding() {
+  const { t } = useTranslation('onboarding')
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
@@ -115,7 +117,7 @@ export default function Onboarding() {
 
       setStep((s) => s + 1)
     } catch {
-      toast('Failed to save settings', 'error')
+      toast(t('errors.save_failed'), 'error')
     } finally {
       setSaving(false)
     }
@@ -126,12 +128,12 @@ export default function Onboarding() {
     try {
       const health = await getHealth()
       if (health.services?.ollama && !health.services.ollama.includes('error')) {
-        toast('Ollama connection successful!')
+        toast(t('ollama_step.connection_successful'))
       } else {
-        toast('Ollama not reachable', 'error')
+        toast(t('ollama_step.connection_failed'), 'error')
       }
     } catch {
-      toast('Connection test failed', 'error')
+      toast(t('ollama_step.test_failed'), 'error')
     } finally {
       setTesting(false)
     }
@@ -142,14 +144,14 @@ export default function Onboarding() {
     try {
       if (setupMode === 'standalone') {
         await triggerStandaloneScan()
-        toast('Standalone scan started!')
+        toast(t('scan_step.standalone_scan_started'))
       } else {
         const { refreshWanted } = await import('@/api/client')
         await refreshWanted()
-        toast('Wanted scan started!')
+        toast(t('scan_step.wanted_scan_started'))
       }
     } catch {
-      toast('Scan failed', 'error')
+      toast(t('scan_step.scan_failed'), 'error')
     }
   }
 
@@ -194,13 +196,13 @@ export default function Onboarding() {
       const result = await testMediaServer(inst as Record<string, unknown>)
       setMsTestResults((prev) => ({ ...prev, [idx]: result }))
       if (result.healthy) {
-        toast(`${inst.name}: connection successful`)
+        toast(`${inst.name}: ${t('mediaservers_step.connection_successful')}`)
       } else {
         toast(`${inst.name}: ${result.message}`, 'error')
       }
     } catch {
-      setMsTestResults((prev) => ({ ...prev, [idx]: { healthy: false, message: 'Test request failed' } }))
-      toast(`${inst.name}: test failed`, 'error')
+      setMsTestResults((prev) => ({ ...prev, [idx]: { healthy: false, message: t('mediaservers_step.test_failed') } }))
+      toast(`${inst.name}: ${t('mediaservers_step.test_failed')}`, 'error')
     }
   }
 
@@ -228,10 +230,10 @@ export default function Onboarding() {
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            Welcome to Sublarr
+            {t('welcome.title')}
           </h1>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Let's set up your subtitle manager in a few quick steps.
+            {t('welcome.subtitle')}
           </p>
         </div>
 
@@ -261,10 +263,10 @@ export default function Onboarding() {
             })()}
             <div>
               <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-                {currentStepDef.title}
+                {t(currentStepDef.titleKey)}
               </h2>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Step {step + 1} of {visibleSteps.length} &mdash; {currentStepDef.description}
+                {t('step_info', { step: step + 1, total: visibleSteps.length })} &mdash; {t(currentStepDef.descKey)}
               </p>
             </div>
           </div>
@@ -288,10 +290,10 @@ export default function Onboarding() {
                     {setupMode === 'arr' && <CheckCircle size={16} style={{ color: 'var(--accent)' }} />}
                   </div>
                   <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                    Sonarr / Radarr Mode
+                    {t('mode_step.arr_title')}
                   </div>
                   <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    Use with Sonarr and/or Radarr for automatic media detection
+                    {t('mode_step.arr_description')}
                   </div>
                 </button>
 
@@ -311,10 +313,10 @@ export default function Onboarding() {
                     {setupMode === 'standalone' && <CheckCircle size={16} style={{ color: 'var(--accent)' }} />}
                   </div>
                   <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                    Standalone Mode
+                    {t('mode_step.standalone_title')}
                   </div>
                   <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    Point at media folders directly, no Sonarr/Radarr needed
+                    {t('mode_step.standalone_description')}
                   </div>
                 </button>
               </div>
@@ -323,20 +325,20 @@ export default function Onboarding() {
 
           {currentStepDef.id === 'arr' && (
             <div className="space-y-4">
-              <Field label="Sonarr URL" keyName="sonarr_url" placeholder="http://localhost:8989" />
-              <Field label="Sonarr API Key" keyName="sonarr_api_key" type="password" />
-              <Field label="Radarr URL (optional)" keyName="radarr_url" placeholder="http://localhost:7878" />
-              <Field label="Radarr API Key (optional)" keyName="radarr_api_key" type="password" />
+              <Field label={t('arr_step.sonarr_url')} keyName="sonarr_url" placeholder="http://localhost:8989" />
+              <Field label={t('arr_step.sonarr_api_key')} keyName="sonarr_api_key" type="password" />
+              <Field label={t('arr_step.radarr_url')} keyName="radarr_url" placeholder="http://localhost:7878" />
+              <Field label={t('arr_step.radarr_api_key')} keyName="radarr_api_key" type="password" />
             </div>
           )}
 
           {currentStepDef.id === 'standalone' && (
             <div className="space-y-4">
-              <Field label="TMDB API Key (required for metadata)" keyName="tmdb_api_key" type="password" />
-              <Field label="TVDB API Key (optional)" keyName="tvdb_api_key" type="password" />
+              <Field label={t('standalone_step.tmdb_api_key')} keyName="tmdb_api_key" type="password" />
+              <Field label={t('standalone_step.tvdb_api_key')} keyName="tvdb_api_key" type="password" />
               <div className="space-y-2">
                 <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                  Media Folders
+                  {t('standalone_step.media_folders')}
                 </label>
                 {standaloneFolders.map((folder, idx) => (
                   <div key={idx} className="flex items-center gap-2">
@@ -387,11 +389,11 @@ export default function Onboarding() {
                     style={{ color: 'var(--accent)', border: '1px solid var(--accent-dim)' }}
                   >
                     <Plus size={14} />
-                    Add
+                    {t('common:actions.add')}
                   </button>
                 </div>
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  Add folders containing your media files. Sublarr will scan them for series and movies.
+                  {t('standalone_step.media_folders_help')}
                 </p>
               </div>
             </div>
@@ -400,13 +402,12 @@ export default function Onboarding() {
           {currentStepDef.id === 'pathmapping' && (
             <div className="space-y-4">
               <Field
-                label="Path Mapping"
+                label={t('pathmapping_step.label')}
                 keyName="path_mapping"
-                placeholder="/data/media=/mnt/media;/anime=/share/anime"
+                placeholder={t('pathmapping_step.placeholder')}
               />
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Format: remote_prefix=local_prefix (semicolon-separated for multiple).
-                Leave empty if Sublarr runs on the same host as Sonarr/Radarr.
+                {t('pathmapping_step.help')}
               </p>
             </div>
           )}
@@ -414,23 +415,23 @@ export default function Onboarding() {
           {currentStepDef.id === 'providers' && (
             <div className="space-y-4">
               <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                AnimeTosho works without an API key. Add others for broader coverage.
+                {t('providers_step.info')}
               </p>
-              <Field label="OpenSubtitles API Key" keyName="opensubtitles_api_key" type="password" />
-              <Field label="Jimaku API Key" keyName="jimaku_api_key" type="password" />
-              <Field label="SubDL API Key" keyName="subdl_api_key" type="password" />
+              <Field label={t('providers_step.opensubtitles_api_key')} keyName="opensubtitles_api_key" type="password" />
+              <Field label={t('providers_step.jimaku_api_key')} keyName="jimaku_api_key" type="password" />
+              <Field label={t('providers_step.subdl_api_key')} keyName="subdl_api_key" type="password" />
             </div>
           )}
 
           {currentStepDef.id === 'ollama' && (
             <div className="space-y-4">
-              <Field label="Ollama URL" keyName="ollama_url" placeholder="http://localhost:11434" />
-              <Field label="Ollama Model" keyName="ollama_model" placeholder="qwen2.5:14b-instruct" />
+              <Field label={t('ollama_step.url')} keyName="ollama_url" placeholder="http://localhost:11434" />
+              <Field label={t('ollama_step.model')} keyName="ollama_model" placeholder="qwen2.5:14b-instruct" />
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Source Language" keyName="source_language" placeholder="en" />
-                <Field label="Source Language Name" keyName="source_language_name" placeholder="English" />
-                <Field label="Target Language" keyName="target_language" placeholder="de" />
-                <Field label="Target Language Name" keyName="target_language_name" placeholder="German" />
+                <Field label={t('ollama_step.source_language')} keyName="source_language" placeholder="en" />
+                <Field label={t('ollama_step.source_language_name')} keyName="source_language_name" placeholder="English" />
+                <Field label={t('ollama_step.target_language')} keyName="target_language" placeholder="de" />
+                <Field label={t('ollama_step.target_language_name')} keyName="target_language_name" placeholder="German" />
               </div>
               <button
                 onClick={testOllama}
@@ -443,7 +444,7 @@ export default function Onboarding() {
                 }}
               >
                 {testing ? <Loader2 size={14} className="animate-spin" /> : <Cpu size={14} />}
-                Test Ollama Connection
+                {t('ollama_step.test_connection')}
               </button>
             </div>
           )}
@@ -451,7 +452,7 @@ export default function Onboarding() {
           {currentStepDef.id === 'mediaservers' && (
             <div className="space-y-4">
               <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                Add media servers for automatic library refresh after subtitle downloads. You can skip this and configure later in Settings.
+                {t('mediaservers_step.info')}
               </p>
 
               {/* Type selection buttons */}
@@ -510,7 +511,7 @@ export default function Onboarding() {
                       type="text"
                       value={String(inst.name ?? '')}
                       onChange={(e) => updateMsField(idx, 'name', e.target.value)}
-                      placeholder="Server name"
+                      placeholder={t('mediaservers_step.server_name')}
                       className="w-full px-2.5 py-1.5 rounded text-sm focus:outline-none"
                       style={inputStyle}
                     />
@@ -559,7 +560,7 @@ export default function Onboarding() {
                         ) : (
                           <TestTube size={12} />
                         )}
-                        Test
+                        {t('common:actions.test')}
                       </button>
                       {testResult && testResult !== 'testing' && (
                         <span className="text-xs" style={{ color: testResult.healthy ? 'var(--success)' : 'var(--error)' }}>
@@ -582,7 +583,7 @@ export default function Onboarding() {
           {currentStepDef.id === 'scan' && (
             <div className="space-y-4 text-center">
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Run a scan to find episodes and movies missing subtitles.
+                {t('scan_step.info')}
               </p>
               {!scanStarted ? (
                 <button
@@ -591,12 +592,12 @@ export default function Onboarding() {
                   style={{ backgroundColor: 'var(--accent)' }}
                 >
                   <Play size={16} />
-                  Start First Scan
+                  {t('scan_step.start_scan')}
                 </button>
               ) : (
                 <div className="flex items-center justify-center gap-2" style={{ color: 'var(--success)' }}>
                   <CheckCircle size={18} />
-                  <span className="text-sm font-medium">Scan started! Check the Wanted page for results.</span>
+                  <span className="text-sm font-medium">{t('scan_step.scan_started')}</span>
                 </div>
               )}
             </div>
@@ -611,7 +612,7 @@ export default function Onboarding() {
             style={{ color: 'var(--text-muted)' }}
           >
             <ArrowLeft size={14} />
-            {step > 0 ? 'Back' : 'Skip Setup'}
+            {step > 0 ? t('navigation.back') : t('navigation.skip_setup')}
           </button>
 
           {step < visibleSteps.length - 1 ? (
@@ -622,7 +623,7 @@ export default function Onboarding() {
               style={{ backgroundColor: currentStepDef.id === 'mode' ? 'var(--text-muted)' : 'var(--accent)' }}
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : null}
-              {currentStepDef.id === 'mediaservers' ? (msInstances.length > 0 ? 'Save & Next' : 'Skip') : 'Next'}
+              {currentStepDef.id === 'mediaservers' ? (msInstances.length > 0 ? t('navigation.save_next') : t('navigation.skip')) : t('navigation.next')}
               <ArrowRight size={14} />
             </button>
           ) : (
@@ -632,7 +633,7 @@ export default function Onboarding() {
               style={{ backgroundColor: 'var(--success)' }}
             >
               <CheckCircle size={14} />
-              Finish Setup
+              {t('navigation.finish')}
             </button>
           )}
         </div>
