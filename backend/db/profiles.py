@@ -19,12 +19,24 @@ def _row_to_profile(row) -> dict:
         d["target_languages"] = json.loads(d.get("target_languages_json", "[]"))
     except json.JSONDecodeError:
         d["target_languages"] = []
-    del d["target_languages_json"]
+    if "target_languages_json" in d:
+        del d["target_languages_json"]
     try:
         d["target_language_names"] = json.loads(d.get("target_language_names_json", "[]"))
     except json.JSONDecodeError:
         d["target_language_names"] = []
-    del d["target_language_names_json"]
+    if "target_language_names_json" in d:
+        del d["target_language_names_json"]
+
+    # Translation backend fields (added in Phase 2)
+    d["translation_backend"] = d.get("translation_backend", "ollama")
+    try:
+        d["fallback_chain"] = json.loads(d.get("fallback_chain_json", '["ollama"]'))
+    except (json.JSONDecodeError, TypeError):
+        d["fallback_chain"] = ["ollama"]
+    if "fallback_chain_json" in d:
+        del d["fallback_chain_json"]
+
     return d
 
 
@@ -77,7 +89,8 @@ def update_language_profile(profile_id: int, **fields):
     db = get_db()
 
     allowed = {"name", "source_language", "source_language_name",
-               "target_languages", "target_language_names"}
+               "target_languages", "target_language_names",
+               "translation_backend", "fallback_chain"}
     updates = []
     params = []
 
@@ -89,6 +102,9 @@ def update_language_profile(profile_id: int, **fields):
             params.append(json.dumps(value))
         elif key == "target_language_names":
             updates.append("target_language_names_json=?")
+            params.append(json.dumps(value))
+        elif key == "fallback_chain":
+            updates.append("fallback_chain_json=?")
             params.append(json.dumps(value))
         else:
             updates.append(f"{key}=?")

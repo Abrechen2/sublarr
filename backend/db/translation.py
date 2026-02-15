@@ -271,3 +271,124 @@ def delete_prompt_preset(preset_id: int) -> bool:
         cursor = db.execute("DELETE FROM prompt_presets WHERE id=?", (preset_id,))
         db.commit()
     return cursor.rowcount > 0
+
+
+# ─── Translation Backend Stats Operations ────────────────────────────────────
+
+
+def record_backend_success(backend_name: str, response_time_ms: float, characters_used: int):
+    """Record a successful translation for a backend.
+
+    Uses upsert to create or update the stats row. Updates running average
+    response time using weighted formula: (old_avg * (n-1) + new) / n.
+    """
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    with _db_lock:
+        existing = db.execute(
+            "SELECT total_requests, avg_response_time_ms FROM translation_backend_stats WHERE backend_name=?",
+            (backend_name,),
+        ).fetchone()
+
+        if existing:
+            total = existing[0]
+            old_avg = existing[1] or 0
+            # Weighted running average: (old_avg * (n-1) + new) / n
+            new_total = total + 1
+            new_avg = (old_avg * total + response_time_ms) / new_total if new_total > 0 else response_time_ms
+
+            db.execute(
+                """UPDATE translation_backend_stats SET
+                    total_requests = total_requests + 1,
+                    successful_translations = successful_translations + 1,
+                    total_characters = total_characters + ?,
+                    avg_response_time_ms = ?,
+                    last_response_time_ms = ?,
+                    last_success_at = ?,
+                    consecutive_failures = 0,
+                    updated_at = ?
+                WHERE backend_name = ?""",
+                (characters_used, new_avg, response_time_ms, now, now, backend_name),
+            )
+        else:
+            db.execute(
+                """INSERT INTO translation_backend_stats
+                   (backend_name, total_requests, successful_translations, total_characters,
+                    avg_response_time_ms, last_response_time_ms, last_success_at,
+                    consecutive_failures, updated_at)
+                   VALUES (?, 1, 1, ?, ?, ?, ?, 0, ?)""",
+                (backend_name, characters_used, response_time_ms, response_time_ms, now, now),
+            )
+        db.commit()
+
+
+def record_backend_failure(backend_name: str, error_msg: str):
+    """Record a failed translation for a backend.
+
+    Uses upsert to create or update the stats row. Increments consecutive
+    failures and records the error message.
+    """
+    now = datetime.utcnow().isoformat()
+    db = get_db()
+    with _db_lock:
+        existing = db.execute(
+            "SELECT 1 FROM translation_backend_stats WHERE backend_name=?",
+            (backend_name,),
+        ).fetchone()
+
+        if existing:
+            db.execute(
+                """UPDATE translation_backend_stats SET
+                    total_requests = total_requests + 1,
+                    failed_translations = failed_translations + 1,
+                    consecutive_failures = consecutive_failures + 1,
+                    last_failure_at = ?,
+                    last_error = ?,
+                    updated_at = ?
+                WHERE backend_name = ?""",
+                (now, error_msg[:500], now, backend_name),
+            )
+        else:
+            db.execute(
+                """INSERT INTO translation_backend_stats
+                   (backend_name, total_requests, failed_translations,
+                    consecutive_failures, last_failure_at, last_error, updated_at)
+                   VALUES (?, 1, 1, 1, ?, ?, ?)""",
+                (backend_name, now, error_msg[:500], now),
+            )
+        db.commit()
+
+
+def get_backend_stats() -> list[dict]:
+    """Get stats for all translation backends."""
+    db = get_db()
+    with _db_lock:
+        rows = db.execute(
+            "SELECT * FROM translation_backend_stats ORDER BY backend_name ASC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_backend_stat(backend_name: str) -> Optional[dict]:
+    """Get stats for a single translation backend."""
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            "SELECT * FROM translation_backend_stats WHERE backend_name=?",
+            (backend_name,),
+        ).fetchone()
+    if not row:
+        return None
+    return dict(row)
+
+
+def reset_backend_stats(backend_name: str) -> bool:
+    """Reset stats for a backend. Returns True if a row was deleted."""
+    db = get_db()
+    with _db_lock:
+        cursor = db.execute(
+            "DELETE FROM translation_backend_stats WHERE backend_name=?",
+            (backend_name,),
+        )
+        db.commit()
+    return cursor.rowcount > 0

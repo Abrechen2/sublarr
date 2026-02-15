@@ -221,6 +221,23 @@ CREATE TABLE IF NOT EXISTS anidb_mappings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_anidb_mappings_anidb_id ON anidb_mappings(anidb_id);
+
+CREATE TABLE IF NOT EXISTS translation_backend_stats (
+    backend_name TEXT PRIMARY KEY,
+    total_requests INTEGER DEFAULT 0,
+    successful_translations INTEGER DEFAULT 0,
+    failed_translations INTEGER DEFAULT 0,
+    total_characters INTEGER DEFAULT 0,
+    avg_response_time_ms REAL DEFAULT 0,
+    last_response_time_ms REAL DEFAULT 0,
+    last_success_at TEXT,
+    last_failure_at TEXT,
+    last_error TEXT DEFAULT '',
+    consecutive_failures INTEGER DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_translation_backend_stats_updated ON translation_backend_stats(updated_at);
 """
 
 
@@ -387,3 +404,36 @@ def _run_migrations(conn):
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_anidb_mappings_anidb_id ON anidb_mappings(anidb_id)")
         logger.info("Created anidb_mappings table")
+
+    # Add translation_backend and fallback_chain_json columns to language_profiles
+    cursor = conn.execute("PRAGMA table_info(language_profiles)")
+    lp_columns = {row[1] for row in cursor.fetchall()}
+    if "translation_backend" not in lp_columns:
+        conn.execute("ALTER TABLE language_profiles ADD COLUMN translation_backend TEXT DEFAULT 'ollama'")
+        logger.info("Added translation_backend column to language_profiles")
+    if "fallback_chain_json" not in lp_columns:
+        conn.execute("ALTER TABLE language_profiles ADD COLUMN fallback_chain_json TEXT DEFAULT '[\"ollama\"]'")
+        logger.info("Added fallback_chain_json column to language_profiles")
+
+    # Check if translation_backend_stats table exists (migration for existing DBs)
+    try:
+        conn.execute("SELECT 1 FROM translation_backend_stats LIMIT 1")
+    except sqlite3.OperationalError:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS translation_backend_stats (
+                backend_name TEXT PRIMARY KEY,
+                total_requests INTEGER DEFAULT 0,
+                successful_translations INTEGER DEFAULT 0,
+                failed_translations INTEGER DEFAULT 0,
+                total_characters INTEGER DEFAULT 0,
+                avg_response_time_ms REAL DEFAULT 0,
+                last_response_time_ms REAL DEFAULT 0,
+                last_success_at TEXT,
+                last_failure_at TEXT,
+                last_error TEXT DEFAULT '',
+                consecutive_failures INTEGER DEFAULT 0,
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_translation_backend_stats_updated ON translation_backend_stats(updated_at)")
+        logger.info("Created translation_backend_stats table")
