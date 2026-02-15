@@ -1,0 +1,78 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "library": "Bibliothek",
+    "wanted": "Gesucht",
+    "activity": "Aktivitaet",
+    "queue": "Warteschlange",
+    "history": "Verlauf",
+    "blacklist": "Sperrliste",
+    "settings": "Einstellungen",
+    "logs": "Protokolle",
+    "statistics": "Statistiken"
+  },
+  "nav_groups": {
+    "content": "Inhalte",
+    "activity": "Aktivitaet",
+    "system": "System"
+  },
+  "status": {
+    "healthy": "Gesund",
+    "unhealthy": "Fehlerhaft",
+    "online": "Online",
+    "offline": "Offline",
+    "enabled": "Aktiviert",
+    "disabled": "Deaktiviert",
+    "running": "Laeuft",
+    "completed": "Abgeschlossen",
+    "failed": "Fehlgeschlagen",
+    "queued": "Wartend"
+  },
+  "actions": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Loeschen",
+    "edit": "Bearbeiten",
+    "add": "Hinzufuegen",
+    "test": "Testen",
+    "download": "Herunterladen",
+    "upload": "Hochladen",
+    "refresh": "Aktualisieren",
+    "search": "Suchen",
+    "export": "Exportieren",
+    "import": "Importieren",
+    "confirm": "Bestaetigen",
+    "back": "Zurueck"
+  },
+  "theme": {
+    "dark": "Dunkel",
+    "light": "Hell",
+    "system": "System"
+  },
+  "language": {
+    "en": "English",
+    "de": "Deutsch"
+  },
+  "app": {
+    "name": "Sublarr",
+    "online": "Online",
+    "offline": "Offline"
+  },
+  "pagination": {
+    "showing": "Zeige",
+    "of": "von",
+    "items": "Eintraege"
+  },
+  "time": {
+    "just_now": "Gerade eben",
+    "minutes_ago": "Vor {{count}} Min.",
+    "hours_ago": "Vor {{count}} Std.",
+    "days_ago": "Vor {{count}} T."
+  },
+  "confirm": {
+    "title": "Bist du sicher?",
+    "message": "Diese Aktion kann nicht rueckgaengig gemacht werden.",
+    "yes": "Ja",
+    "no": "Nein"
+  }
+}
