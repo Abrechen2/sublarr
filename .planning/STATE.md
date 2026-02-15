@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 8 of 16 (i18n + Backup + Admin Polish)
-Plan: 2 of 5 in current phase
+Plan: 4 of 5 in current phase
 Status: In progress
-Last activity: 2026-02-15 -- Completed 08-02-PLAN.md (Backend APIs: Backup, Statistics, Tools)
+Last activity: 2026-02-15 -- Completed 08-04-PLAN.md (Core Pages i18n: EN/DE translations + useTranslation hooks)
 
-Progress: [████████░░░░░░░░░░░░] 2/5 plans in phase
+Progress: [████████████████░░░░] 3/5 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 35
+- Total plans completed: 36
 - Average duration: 8 min
-- Total execution time: 263 min
+- Total execution time: 299 min
 
 **By Phase:**
 
@@ -35,11 +35,11 @@ Progress: [████████░░░░░░░░░░░░] 2/5 pla
 | 05-standalone-mode | 5/5 | 28 min | 6 min |
 | 06-forced-signs-subs | 3/3 | 22 min | 7 min |
 | 07-events-hooks-custom-scoring | 3/3 | 46 min | 15 min |
-| 08-i18n-backup-admin-polish | 2/5 | 22 min | 11 min |
+| 08-i18n-backup-admin-polish | 3/5 | 58 min | 19 min |
 
 **Recent Trend:**
-- Last 5 plans: 07-02 (10 min), 07-03 (10 min), 08-01 (10 min), 08-02 (12 min)
-- Trend: Consistent ~10-12 min per plan for backend API and UI work
+- Last 5 plans: 07-03 (10 min), 08-01 (10 min), 08-02 (12 min), 08-04 (36 min)
+- Trend: 08-04 longer due to large file count (18 files, 7 page components) and build verification
 
 *Updated after each plan completion*
 
@@ -209,6 +209,11 @@ Recent decisions affecting current work:
 - [08-02]: Tools blueprint validates all file_path args against media_path using os.path.abspath for path traversal prevention
 - [08-02]: All tool operations create .bak backup before modifying files -- non-destructive by default
 - [08-02]: ASS timing adjustment uses centisecond precision (H:MM:SS.cc format) with ms-to-cs conversion
+- [08-04]: Library namespace shared across Library, Wanted, SeriesDetail (related content pages with subsections)
+- [08-04]: Settings TAB_KEYS mapping keeps internal tab IDs as English strings for state comparison
+- [08-04]: Sub-components receive t as prop or use useTranslation directly depending on component isolation
+- [08-04]: Sidebar navGroups uses labelKey/titleKey pattern with static keys resolved at render via t()
+- [08-04]: Statistics.tsx skipped (created by parallel plan 08-03) -- translation JSON files ready for consumption
 
 ### Pending Todos
 
@@ -229,5 +234,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 8, Plan 02 complete -- backend APIs for backup, statistics, tools
-Resume file: .planning/phases/08-i18n-backup-admin-polish/08-02-SUMMARY.md
+Stopped at: Phase 8, Plan 04 complete -- core pages i18n (EN/DE translations + useTranslation hooks)
+Resume file: .planning/phases/08-i18n-backup-admin-polish/08-04-SUMMARY.md
