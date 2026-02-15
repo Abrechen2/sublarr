@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 6 - Forced/Signs Subtitle Management (In Progress)
+**Current focus:** Phase 6 - Forced/Signs Subtitle Management (Complete)
 
 ## Current Position
 
 Phase: 6 of 16 (Forced/Signs Subtitle Management)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-15 -- Completed 06-02-PLAN.md (Scanner & Search Pipeline Forced Integration)
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-02-15 -- Completed 06-03-PLAN.md (API & Frontend UI Forced Integration)
 
-Progress: [████████████░░░░░░░░] 2/3 plans in phase
+Progress: [████████████████████] 3/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 29
+- Total plans completed: 30
 - Average duration: 6 min
-- Total execution time: 184 min
+- Total execution time: 195 min
 
 **By Phase:**
 
@@ -33,11 +33,11 @@ Progress: [████████████░░░░░░░░] 2/3 pla
 | 03-media-server-abstraction | 3/3 | 18 min | 6 min |
 | 04-whisper-speech-to-text | 3/3 | 13 min | 4 min |
 | 05-standalone-mode | 5/5 | 28 min | 6 min |
-| 06-forced-signs-subs | 2/3 | 11 min | 6 min |
+| 06-forced-signs-subs | 3/3 | 22 min | 7 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-04 (3 min), 05-03 (5 min), 05-05 (13 min), 06-01 (6 min), 06-02 (5 min)
-- Trend: Consistent ~6 min for non-UI plans
+- Last 5 plans: 05-05 (13 min), 06-01 (6 min), 06-02 (5 min), 06-03 (11 min)
+- Trend: UI-heavy plans take longer (~11 min) vs backend-only (~5 min)
 
 *Updated after each plan completion*
 
@@ -173,6 +173,11 @@ Recent decisions affecting current work:
 - [06-02]: ProviderManager classifies results post-search using classify_forced_result for providers without native forced support
 - [06-02]: Forced subtitles are download-only -- no translation step (per research recommendation)
 - [06-02]: Single-pass search pattern: search once, classify results, no double-searching
+- [06-03]: Profile API validates forced_preference at route level (400 response) before db layer
+- [06-03]: SubtitleTypeBadge only renders for 'forced' type -- 'full' returns null to avoid UI clutter
+- [06-03]: Subtitle type filter buttons only shown when forcedCount > 0 to keep UI clean
+- [06-03]: Profile list cards show forced preference only when not 'disabled' to reduce visual noise
+- [06-03]: get_wanted_by_subtitle_type handles NULL subtitle_type values by defaulting to 'full'
 
 ### Pending Todos
 
@@ -186,11 +191,11 @@ None yet.
 - Phase 3 complete -- all 3 plans executed, all summaries written (ABC + wiring + frontend)
 - Phase 4 complete -- all 3 plans executed, all summaries written (whisper package + API + frontend)
 - Phase 5 complete -- all 5 plans executed, all summaries written (DB + metadata + manager + API + UI)
-- Phase 6 in progress -- Plan 01 complete (data model + detection engine), Plan 02 complete (scanner + search pipeline)
+- Phase 6 complete -- all 3 plans executed, all summaries written (data model + detection, scanner + search, API + UI)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 6 Plan 02 complete -- scanner + search pipeline forced integration (wanted_scanner, wanted_search, OpenSubtitles, ProviderManager)
-Resume file: .planning/phases/06-forced-signs-subs/06-02-SUMMARY.md
+Stopped at: Phase 6 complete -- all 3 plans executed (data model + detection, scanner + search pipeline, API + frontend UI)
+Resume file: .planning/phases/06-forced-signs-subs/06-03-SUMMARY.md
