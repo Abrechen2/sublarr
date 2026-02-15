@@ -88,10 +88,10 @@ export function useUpdateConfig() {
 
 // ─── Wanted ─────────────────────────────────────────────────────────────
 
-export function useWantedItems(page = 1, perPage = 50, itemType?: string, status?: string) {
+export function useWantedItems(page = 1, perPage = 50, itemType?: string, status?: string, subtitleType?: string) {
   return useQuery({
-    queryKey: ['wanted', page, perPage, itemType, status],
-    queryFn: () => getWantedItems(page, perPage, itemType, status),
+    queryKey: ['wanted', page, perPage, itemType, status, subtitleType],
+    queryFn: () => getWantedItems(page, perPage, itemType, status, subtitleType),
     refetchInterval: 30000,
   })
 }

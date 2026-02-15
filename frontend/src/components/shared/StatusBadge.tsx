@@ -44,3 +44,23 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
     </span>
   )
 }
+
+/**
+ * Compact badge for subtitle type indication.
+ * Only renders for "forced" type -- "full" is the default and shows nothing.
+ */
+export function SubtitleTypeBadge({ subtitleType, className }: { subtitleType: string; className?: string }) {
+  if (subtitleType !== 'forced') return null
+
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium',
+        className
+      )}
+      style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
+    >
+      Forced
+    </span>
+  )
+}
