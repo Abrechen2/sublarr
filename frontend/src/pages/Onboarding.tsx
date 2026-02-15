@@ -1,18 +1,29 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { updateConfig, completeOnboarding, getHealth, getMediaServerTypes, saveMediaServerInstances, testMediaServer } from '@/api/client'
+import { updateConfig, completeOnboarding, getHealth, getMediaServerTypes, saveMediaServerInstances, testMediaServer, saveWatchedFolder, triggerStandaloneScan } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
-import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Server, Globe, Cpu, Search, Play, Monitor, Plus, TestTube, Trash2, Eye, EyeOff } from 'lucide-react'
+import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Server, Globe, Cpu, Search, Play, Monitor, Plus, TestTube, Trash2, Eye, EyeOff, FolderOpen } from 'lucide-react'
 import type { MediaServerType, MediaServerInstance, MediaServerTestResult } from '@/lib/types'
 
-const STEPS = [
-  { title: 'Sonarr / Radarr', icon: Server, description: 'Connect your *arr instances to detect missing subtitles.' },
-  { title: 'Path Mapping', icon: Globe, description: 'Map remote paths to local paths (if *arr runs on a different host).' },
-  { title: 'Providers', icon: Search, description: 'Configure subtitle provider API keys for searching.' },
-  { title: 'Ollama', icon: Cpu, description: 'Set up the LLM translation backend.' },
-  { title: 'Media Servers (Optional)', icon: Monitor, description: 'Configure media servers for automatic library refresh after subtitle downloads.' },
-  { title: 'First Scan', icon: Play, description: 'Run your first wanted scan to find missing subtitles.' },
+const ALL_STEPS = [
+  { id: 'mode', title: 'Setup Mode', icon: Server, description: 'Choose how you want to use Sublarr.' },
+  { id: 'arr', title: 'Sonarr / Radarr', icon: Server, description: 'Connect your *arr instances to detect missing subtitles.' },
+  { id: 'standalone', title: 'Standalone Folders', icon: FolderOpen, description: 'Point Sublarr at your media folders directly.' },
+  { id: 'pathmapping', title: 'Path Mapping', icon: Globe, description: 'Map remote paths to local paths (if *arr runs on a different host).' },
+  { id: 'providers', title: 'Providers', icon: Search, description: 'Configure subtitle provider API keys for searching.' },
+  { id: 'ollama', title: 'Ollama', icon: Cpu, description: 'Set up the LLM translation backend.' },
+  { id: 'mediaservers', title: 'Media Servers (Optional)', icon: Monitor, description: 'Configure media servers for automatic library refresh after subtitle downloads.' },
+  { id: 'scan', title: 'First Scan', icon: Play, description: 'Run your first wanted scan to find missing subtitles.' },
 ]
+
+function getVisibleSteps(setupMode: 'arr' | 'standalone' | null) {
+  if (!setupMode) return [ALL_STEPS[0]] // only setup mode step
+  if (setupMode === 'arr') {
+    return ALL_STEPS.filter(s => ['mode', 'arr', 'pathmapping', 'providers', 'ollama', 'mediaservers', 'scan'].includes(s.id))
+  }
+  // standalone: skip arr and pathmapping
+  return ALL_STEPS.filter(s => ['mode', 'standalone', 'providers', 'ollama', 'mediaservers', 'scan'].includes(s.id))
+}
 
 const inputStyle = {
   backgroundColor: 'var(--bg-primary)',
@@ -28,6 +39,14 @@ export default function Onboarding() {
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
   const [scanStarted, setScanStarted] = useState(false)
+  const [setupMode, setSetupMode] = useState<'arr' | 'standalone' | null>(null)
+
+  const visibleSteps = getVisibleSteps(setupMode)
+  const currentStepDef = visibleSteps[step] || visibleSteps[0]
+
+  // Standalone folder state
+  const [standaloneFolders, setStandaloneFolders] = useState<{ path: string; label: string }[]>([])
+  const [newFolderPath, setNewFolderPath] = useState('')
 
   const [values, setValues] = useState({
     sonarr_url: '',
@@ -44,6 +63,8 @@ export default function Onboarding() {
     target_language_name: 'German',
     source_language: 'en',
     source_language_name: 'English',
+    tmdb_api_key: '',
+    tvdb_api_key: '',
   })
 
   // Media server state
@@ -54,12 +75,12 @@ export default function Onboarding() {
 
   // Load media server types when reaching that step
   useEffect(() => {
-    if (step === 4 && msTypes.length === 0) {
+    if (currentStepDef.id === 'mediaservers' && msTypes.length === 0) {
       getMediaServerTypes()
         .then(setMsTypes)
         .catch(() => { /* ignore -- types will just be empty */ })
     }
-  }, [step, msTypes.length])
+  }, [currentStepDef.id, msTypes.length])
 
   const set = (key: string, val: string) =>
     setValues((v) => ({ ...v, [key]: val }))
@@ -72,10 +93,23 @@ export default function Onboarding() {
       for (const [k, v] of Object.entries(values)) {
         if (v) toSave[k] = v
       }
-      await updateConfig(toSave)
+
+      // If on standalone step, enable standalone mode and save folders
+      if (currentStepDef.id === 'standalone') {
+        toSave.standalone_enabled = 'true'
+        await updateConfig(toSave)
+        // Save each folder
+        for (const folder of standaloneFolders) {
+          if (folder.path.trim()) {
+            await saveWatchedFolder({ path: folder.path.trim(), label: folder.label.trim(), media_type: 'auto', enabled: true })
+          }
+        }
+      } else {
+        await updateConfig(toSave)
+      }
 
       // If on media server step, also save instances
-      if (step === 4 && msInstances.length > 0) {
+      if (currentStepDef.id === 'mediaservers' && msInstances.length > 0) {
         await saveMediaServerInstances(msInstances)
       }
 
@@ -106,9 +140,14 @@ export default function Onboarding() {
   const startScan = async () => {
     setScanStarted(true)
     try {
-      const { refreshWanted } = await import('@/api/client')
-      await refreshWanted()
-      toast('Wanted scan started!')
+      if (setupMode === 'standalone') {
+        await triggerStandaloneScan()
+        toast('Standalone scan started!')
+      } else {
+        const { refreshWanted } = await import('@/api/client')
+        await refreshWanted()
+        toast('Wanted scan started!')
+      }
     } catch {
       toast('Scan failed', 'error')
     }
@@ -198,8 +237,8 @@ export default function Onboarding() {
 
         {/* Progress */}
         <div className="flex items-center gap-1">
-          {STEPS.map((s, i) => (
-            <div key={i} className="flex-1 flex items-center gap-1">
+          {visibleSteps.map((s, i) => (
+            <div key={s.id} className="flex-1 flex items-center gap-1">
               <div
                 className="h-1.5 flex-1 rounded-full transition-all duration-300"
                 style={{
@@ -217,20 +256,72 @@ export default function Onboarding() {
         >
           <div className="flex items-center gap-3">
             {(() => {
-              const Icon = STEPS[step].icon
+              const Icon = currentStepDef.icon
               return <Icon size={20} style={{ color: 'var(--accent)' }} />
             })()}
             <div>
               <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-                {STEPS[step].title}
+                {currentStepDef.title}
               </h2>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Step {step + 1} of {STEPS.length} &mdash; {STEPS[step].description}
+                Step {step + 1} of {visibleSteps.length} &mdash; {currentStepDef.description}
               </p>
             </div>
           </div>
 
-          {step === 0 && (
+          {currentStepDef.id === 'mode' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Sonarr / Radarr Mode card */}
+                <button
+                  onClick={() => { setSetupMode('arr'); setStep(1) }}
+                  className="rounded-lg p-4 text-left space-y-2 transition-all duration-200"
+                  style={{
+                    backgroundColor: 'var(--bg-primary)',
+                    border: setupMode === 'arr' ? '2px solid var(--accent)' : '1px solid var(--border)',
+                  }}
+                  onMouseEnter={(e) => { if (setupMode !== 'arr') e.currentTarget.style.borderColor = 'var(--accent-dim)' }}
+                  onMouseLeave={(e) => { if (setupMode !== 'arr') e.currentTarget.style.borderColor = 'var(--border)' }}
+                >
+                  <div className="flex items-center justify-between">
+                    <Server size={20} style={{ color: 'var(--accent)' }} />
+                    {setupMode === 'arr' && <CheckCircle size={16} style={{ color: 'var(--accent)' }} />}
+                  </div>
+                  <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    Sonarr / Radarr Mode
+                  </div>
+                  <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    Use with Sonarr and/or Radarr for automatic media detection
+                  </div>
+                </button>
+
+                {/* Standalone Mode card */}
+                <button
+                  onClick={() => { setSetupMode('standalone'); setStep(1) }}
+                  className="rounded-lg p-4 text-left space-y-2 transition-all duration-200"
+                  style={{
+                    backgroundColor: 'var(--bg-primary)',
+                    border: setupMode === 'standalone' ? '2px solid var(--accent)' : '1px solid var(--border)',
+                  }}
+                  onMouseEnter={(e) => { if (setupMode !== 'standalone') e.currentTarget.style.borderColor = 'var(--accent-dim)' }}
+                  onMouseLeave={(e) => { if (setupMode !== 'standalone') e.currentTarget.style.borderColor = 'var(--border)' }}
+                >
+                  <div className="flex items-center justify-between">
+                    <FolderOpen size={20} style={{ color: 'var(--accent)' }} />
+                    {setupMode === 'standalone' && <CheckCircle size={16} style={{ color: 'var(--accent)' }} />}
+                  </div>
+                  <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    Standalone Mode
+                  </div>
+                  <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    Point at media folders directly, no Sonarr/Radarr needed
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {currentStepDef.id === 'arr' && (
             <div className="space-y-4">
               <Field label="Sonarr URL" keyName="sonarr_url" placeholder="http://localhost:8989" />
               <Field label="Sonarr API Key" keyName="sonarr_api_key" type="password" />
@@ -239,7 +330,74 @@ export default function Onboarding() {
             </div>
           )}
 
-          {step === 1 && (
+          {currentStepDef.id === 'standalone' && (
+            <div className="space-y-4">
+              <Field label="TMDB API Key (required for metadata)" keyName="tmdb_api_key" type="password" />
+              <Field label="TVDB API Key (optional)" keyName="tvdb_api_key" type="password" />
+              <div className="space-y-2">
+                <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  Media Folders
+                </label>
+                {standaloneFolders.map((folder, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={folder.path}
+                      onChange={(e) => {
+                        const updated = [...standaloneFolders]
+                        updated[idx] = { ...updated[idx], path: e.target.value }
+                        setStandaloneFolders(updated)
+                      }}
+                      placeholder="/path/to/media"
+                      className="flex-1 px-3 py-2 rounded-md text-sm focus:outline-none"
+                      style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }}
+                    />
+                    <button
+                      onClick={() => setStandaloneFolders((prev) => prev.filter((_, i) => i !== idx))}
+                      className="p-1.5 rounded transition-colors"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newFolderPath}
+                    onChange={(e) => setNewFolderPath(e.target.value)}
+                    placeholder="/path/to/media"
+                    className="flex-1 px-3 py-2 rounded-md text-sm focus:outline-none"
+                    style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newFolderPath.trim()) {
+                        setStandaloneFolders((prev) => [...prev, { path: newFolderPath.trim(), label: '' }])
+                        setNewFolderPath('')
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      if (newFolderPath.trim()) {
+                        setStandaloneFolders((prev) => [...prev, { path: newFolderPath.trim(), label: '' }])
+                        setNewFolderPath('')
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
+                    style={{ color: 'var(--accent)', border: '1px solid var(--accent-dim)' }}
+                  >
+                    <Plus size={14} />
+                    Add
+                  </button>
+                </div>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Add folders containing your media files. Sublarr will scan them for series and movies.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {currentStepDef.id === 'pathmapping' && (
             <div className="space-y-4">
               <Field
                 label="Path Mapping"
@@ -253,7 +411,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {step === 2 && (
+          {currentStepDef.id === 'providers' && (
             <div className="space-y-4">
               <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                 AnimeTosho works without an API key. Add others for broader coverage.
@@ -264,7 +422,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {step === 3 && (
+          {currentStepDef.id === 'ollama' && (
             <div className="space-y-4">
               <Field label="Ollama URL" keyName="ollama_url" placeholder="http://localhost:11434" />
               <Field label="Ollama Model" keyName="ollama_model" placeholder="qwen2.5:14b-instruct" />
@@ -290,7 +448,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {step === 4 && (
+          {currentStepDef.id === 'mediaservers' && (
             <div className="space-y-4">
               <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                 Add media servers for automatic library refresh after subtitle downloads. You can skip this and configure later in Settings.
@@ -421,7 +579,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {step === 5 && (
+          {currentStepDef.id === 'scan' && (
             <div className="space-y-4 text-center">
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                 Run a scan to find episodes and movies missing subtitles.
@@ -456,15 +614,15 @@ export default function Onboarding() {
             {step > 0 ? 'Back' : 'Skip Setup'}
           </button>
 
-          {step < STEPS.length - 1 ? (
+          {step < visibleSteps.length - 1 ? (
             <button
               onClick={saveAndNext}
-              disabled={saving}
+              disabled={saving || currentStepDef.id === 'mode'}
               className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-white"
-              style={{ backgroundColor: 'var(--accent)' }}
+              style={{ backgroundColor: currentStepDef.id === 'mode' ? 'var(--text-muted)' : 'var(--accent)' }}
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : null}
-              {step === 4 ? (msInstances.length > 0 ? 'Save & Next' : 'Skip') : 'Next'}
+              {currentStepDef.id === 'mediaservers' ? (msInstances.length > 0 ? 'Save & Next' : 'Skip') : 'Next'}
               <ArrowRight size={14} />
             </button>
           ) : (
