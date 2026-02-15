@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 5 of 16 (Standalone Mode)
-Plan: 4 of 5 in current phase
-Status: In progress
-Last activity: 2026-02-15 -- Completed 05-03-PLAN.md (StandaloneManager, Watcher, Scanner, Wanted Integration)
+Plan: 5 of 5 in current phase
+Status: Phase complete
+Last activity: 2026-02-15 -- Completed 05-05-PLAN.md (Standalone Frontend UI)
 
-Progress: [████████████████░░░░] 4/5 plans in phase
+Progress: [████████████████████] 5/5 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 26
+- Total plans completed: 27
 - Average duration: 6 min
-- Total execution time: 160 min
+- Total execution time: 173 min
 
 **By Phase:**
 
@@ -32,11 +32,11 @@ Progress: [████████████████░░░░] 4/5 pla
 | 02-translation-multi-backend | 6/6 | 23 min | 4 min |
 | 03-media-server-abstraction | 3/3 | 18 min | 6 min |
 | 04-whisper-speech-to-text | 3/3 | 13 min | 4 min |
-| 05-standalone-mode | 4/5 | 15 min | 4 min |
+| 05-standalone-mode | 5/5 | 28 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-03 (5 min), 05-01 (4 min), 05-02 (3 min), 05-04 (3 min), 05-03 (5 min)
-- Trend: Stable (~4 min avg)
+- Last 5 plans: 05-01 (4 min), 05-02 (3 min), 05-04 (3 min), 05-03 (5 min), 05-05 (13 min)
+- Trend: Slight uptick on UI-heavy plans (~6 min avg)
 
 *Updated after each plan completion*
 
@@ -157,6 +157,11 @@ Recent decisions affecting current work:
 - [05-04]: GET /status falls back to basic DB stats if StandaloneManager not yet implemented
 - [05-04]: Series/movie deletion cascades to associated wanted_items before entity removal
 - [05-04]: guessit fallback in _parse_filename_for_metadata gracefully degrades if standalone.parser unavailable
+- [05-05]: Library Sources tab positioned after Radarr, before Media Servers for logical flow
+- [05-05]: Watched folder management uses inline add/edit form (not modal) for simplicity
+- [05-05]: Setup Mode step uses large cards with teal hover border for clear visual distinction
+- [05-05]: Standalone path conditionally skips Sonarr/Radarr/Path Mapping steps via visibleSteps array
+- [05-05]: StandaloneStatus polling every 10 seconds for watcher running indicator
 
 ### Pending Todos
 
@@ -169,11 +174,11 @@ None yet.
 - Phase 2 complete -- all 6 plans executed, all summaries written, 36 unit tests passing
 - Phase 3 complete -- all 3 plans executed, all summaries written (ABC + wiring + frontend)
 - Phase 4 complete -- all 3 plans executed, all summaries written (whisper package + API + frontend)
-- Phase 5 in progress -- 05-01, 05-02 (wave 1), 05-03, 05-04 (wave 2) complete; 05-05 remaining
+- Phase 5 complete -- all 5 plans executed, all summaries written (DB + metadata + manager + API + UI)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 5 in progress -- 05-03 complete (Manager + Watcher + Scanner + Wanted), 05-05 remaining
-Resume file: .planning/phases/05-standalone-mode/05-03-SUMMARY.md
+Stopped at: Phase 5 complete -- all 5 plans executed (DB schema, metadata resolver, manager/watcher/scanner, API, UI)
+Resume file: .planning/phases/05-standalone-mode/05-05-SUMMARY.md
