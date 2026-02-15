@@ -129,6 +129,17 @@ class WantedScanner:
             except Exception as e:
                 logger.error("Wanted scan: Radarr error: %s", e)
 
+            # Scan standalone items (if standalone mode enabled)
+            try:
+                from config import get_settings as _get_standalone_settings
+                if getattr(_get_standalone_settings(), 'standalone_enabled', False):
+                    sa, su, sp = self._scan_standalone()
+                    added += sa
+                    updated += su
+                    scanned_paths.update(sp)
+            except Exception as e:
+                logger.error("Wanted scan: Standalone error: %s", e)
+
             # Cleanup: remove items whose files no longer exist or subs appeared
             removed = self._cleanup(scanned_paths)
 
@@ -458,10 +469,45 @@ class WantedScanner:
 
         return total_added, total_updated, all_paths
 
+    def _scan_standalone(self) -> tuple:
+        """Scan standalone watched folders for wanted items.
+
+        Creates a StandaloneScanner, runs a full scan, and collects
+        scanned file paths from standalone entries in the DB.
+
+        Returns:
+            Tuple of (added, updated, scanned_paths).
+        """
+        from standalone.scanner import StandaloneScanner
+
+        if not hasattr(self, '_standalone_scanner'):
+            self._standalone_scanner = StandaloneScanner()
+
+        summary = self._standalone_scanner.scan_all_folders()
+        added = summary.get("wanted_added", 0)
+        updated = 0
+
+        # Collect all file paths from standalone wanted items
+        scanned_paths = set()
+        try:
+            from db import get_db, _db_lock
+            db = get_db()
+            with _db_lock:
+                rows = db.execute(
+                    "SELECT file_path FROM wanted_items WHERE instance_name='standalone'"
+                ).fetchall()
+            scanned_paths = {row[0] for row in rows}
+        except Exception as e:
+            logger.debug("Could not collect standalone scanned paths: %s", e)
+
+        return (added, updated, scanned_paths)
+
     def _cleanup(self, scanned_paths: set) -> int:
         """Remove wanted items whose files no longer exist or whose subs appeared.
 
         Language-aware: checks per target_language from each wanted item.
+        Standalone items are only removed if their file no longer exists or
+        target ASS appeared -- NOT if they are absent from Sonarr/Radarr scan paths.
         """
         from db.wanted import get_wanted_items_for_cleanup
 
@@ -471,6 +517,7 @@ class WantedScanner:
         for item in items:
             path = item["file_path"]
             target_lang = item.get("target_language", "")
+            instance_name = item.get("instance_name", "")
 
             # File no longer exists on disk
             if not os.path.exists(path):
@@ -488,6 +535,9 @@ class WantedScanner:
                 continue
 
             # Path wasn't in this scan (series/movie removed from arr?)
+            # Skip this check for standalone items -- they manage their own cleanup
+            if instance_name == "standalone":
+                continue
             if scanned_paths and path not in scanned_paths:
                 to_remove_ids.append(item["id"])
 

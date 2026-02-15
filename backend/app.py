@@ -180,6 +180,16 @@ def create_app(testing=False):
     except Exception as e:
         logger.warning("Media server manager initialization failed: %s", e)
 
+    # Initialize standalone manager (folder watching + scanning)
+    try:
+        from config import get_settings as _get_standalone_settings
+        if getattr(_get_standalone_settings(), 'standalone_enabled', False):
+            from standalone import get_standalone_manager
+            standalone_mgr = get_standalone_manager()
+            logger.info("Standalone manager initialized")
+    except Exception as e:
+        logger.warning("Standalone manager initialization failed: %s", e)
+
     # Bazarr deprecation warning
     if os.environ.get("SUBLARR_BAZARR_URL") or os.environ.get("SUBLARR_BAZARR_API_KEY"):
         logger.warning(
@@ -249,7 +259,7 @@ def _register_app_routes(app):
 
 
 def _start_schedulers(settings):
-    """Start background schedulers (wanted scanner, database backup)."""
+    """Start background schedulers (wanted scanner, database backup, standalone watcher)."""
     from wanted_scanner import get_scanner
     scanner = get_scanner()
     scanner.start_scheduler(socketio=socketio)
@@ -259,6 +269,15 @@ def _start_schedulers(settings):
         db_path=settings.db_path,
         backup_dir=settings.backup_dir,
     )
+
+    # Start standalone watcher if enabled
+    if getattr(settings, 'standalone_enabled', False):
+        try:
+            from standalone import get_standalone_manager
+            standalone_mgr = get_standalone_manager()
+            standalone_mgr.start(socketio=socketio)
+        except Exception as e:
+            logging.getLogger(__name__).warning("Standalone watcher start failed: %s", e)
 
 
 if __name__ == "__main__":

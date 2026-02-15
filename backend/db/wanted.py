@@ -16,6 +16,8 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                        sonarr_series_id: int = None,
                        sonarr_episode_id: int = None,
                        radarr_movie_id: int = None,
+                       standalone_series_id: int = None,
+                       standalone_movie_id: int = None,
                        upgrade_candidate: bool = False,
                        current_score: int = 0,
                        target_language: str = "",
@@ -49,11 +51,13 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                 db.execute(
                     """UPDATE wanted_items SET title=?, season_episode=?, existing_sub=?,
                        missing_languages=?, sonarr_series_id=?, sonarr_episode_id=?,
-                       radarr_movie_id=?, upgrade_candidate=?, current_score=?,
+                       radarr_movie_id=?, standalone_series_id=?, standalone_movie_id=?,
+                       upgrade_candidate=?, current_score=?,
                        target_language=?, instance_name=?, updated_at=?
                        WHERE id=?""",
                     (title, season_episode, existing_sub, langs_json,
                      sonarr_series_id, sonarr_episode_id, radarr_movie_id,
+                     standalone_series_id, standalone_movie_id,
                      upgrade_int, current_score, target_language, instance_name, now, row_id),
                 )
             else:
@@ -61,11 +65,13 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                     """UPDATE wanted_items SET item_type=?, title=?, season_episode=?,
                        existing_sub=?, missing_languages=?, status='wanted',
                        sonarr_series_id=?, sonarr_episode_id=?, radarr_movie_id=?,
+                       standalone_series_id=?, standalone_movie_id=?,
                        upgrade_candidate=?, current_score=?,
                        target_language=?, instance_name=?, updated_at=?
                        WHERE id=?""",
                     (item_type, title, season_episode, existing_sub, langs_json,
                      sonarr_series_id, sonarr_episode_id, radarr_movie_id,
+                     standalone_series_id, standalone_movie_id,
                      upgrade_int, current_score, target_language, instance_name, now, row_id),
                 )
         else:
@@ -73,12 +79,14 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                 """INSERT INTO wanted_items
                    (item_type, file_path, title, season_episode, existing_sub,
                     missing_languages, sonarr_series_id, sonarr_episode_id,
-                    radarr_movie_id, upgrade_candidate, current_score,
+                    radarr_movie_id, standalone_series_id, standalone_movie_id,
+                    upgrade_candidate, current_score,
                     target_language, instance_name, status, added_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'wanted', ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'wanted', ?, ?)""",
                 (item_type, file_path, title, season_episode, existing_sub,
                  langs_json, sonarr_series_id, sonarr_episode_id,
-                 radarr_movie_id, upgrade_int, current_score,
+                 radarr_movie_id, standalone_series_id, standalone_movie_id,
+                 upgrade_int, current_score,
                  target_language, instance_name, now, now),
             )
             row_id = cursor.lastrowid
@@ -243,13 +251,16 @@ def get_all_wanted_file_paths() -> set:
 
 
 def get_wanted_items_for_cleanup() -> list:
-    """Get wanted items with file_path, target_language, and id for cleanup."""
+    """Get wanted items with file_path, target_language, instance_name, and id for cleanup."""
     db = get_db()
     with _db_lock:
         rows = db.execute(
-            "SELECT id, file_path, target_language FROM wanted_items"
+            "SELECT id, file_path, target_language, instance_name FROM wanted_items"
         ).fetchall()
-    return [{"id": r[0], "file_path": r[1], "target_language": r[2] or ""} for r in rows]
+    return [
+        {"id": r[0], "file_path": r[1], "target_language": r[2] or "", "instance_name": r[3] or ""}
+        for r in rows
+    ]
 
 
 def delete_wanted_items_by_ids(item_ids: list):
