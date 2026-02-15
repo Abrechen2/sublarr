@@ -25,7 +25,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Standalone Mode** - Folder-watch operation without Sonarr/Radarr dependency
 - [x] **Phase 6: Forced/Signs Subtitle Management** - Forced subtitle detection, search, and per-series config
 - [x] **Phase 7: Events/Hooks + Custom Scoring** - Internal event bus, script hooks, outgoing webhooks, scoring config
-- [ ] **Phase 8: i18n + Backup + Admin Polish** - UI internationalization, backup/restore, statistics, theming
+- [x] **Phase 8: i18n + Backup + Admin Polish** - UI internationalization, backup/restore, statistics, theming
 - [ ] **Phase 9: OpenAPI + Release Preparation** - API documentation, performance tuning, community launch
 - [ ] **Phase 10: Performance & Scalability** - SQLAlchemy/PostgreSQL option, Redis caching, RQ job queue
 - [ ] **Phase 11: Subtitle Editor** - ASS/SRT preview component and inline editor with CodeMirror
@@ -188,11 +188,11 @@ Plans:
 **Plans:** 5 plans
 
 Plans:
-- [ ] 08-01-PLAN.md -- Theme system (dark/light CSS variables, useTheme hook, ThemeToggle) and i18n infrastructure (react-i18next, common namespace, LanguageSwitcher)
-- [ ] 08-02-PLAN.md -- Backend APIs: ZIP backup/restore, statistics with time-range, log download/rotation, subtitle tools Blueprint
-- [ ] 08-03-PLAN.md -- Statistics page (Recharts charts), Backup Settings tab, Subtitle Tools tab, Logs enhancements
-- [ ] 08-04-PLAN.md -- i18n Part 1: EN/DE JSON files + useTranslation wrapping for Sidebar, Dashboard, Settings, Logs, Library, Wanted, SeriesDetail, Statistics
-- [ ] 08-05-PLAN.md -- i18n Part 2: EN/DE JSON files + useTranslation wrapping for Activity, Queue, History, Blacklist, Onboarding, StatusBadge
+- [x] 08-01-PLAN.md -- Theme system (dark/light CSS variables, useTheme hook, ThemeToggle) and i18n infrastructure (react-i18next, common namespace, LanguageSwitcher)
+- [x] 08-02-PLAN.md -- Backend APIs: ZIP backup/restore, statistics with time-range, log download/rotation, subtitle tools Blueprint
+- [x] 08-03-PLAN.md -- Statistics page (Recharts charts), Backup Settings tab, Subtitle Tools tab, Logs enhancements
+- [x] 08-04-PLAN.md -- i18n Part 1: EN/DE JSON files + useTranslation wrapping for Sidebar, Dashboard, Settings, Logs, Library, Wanted, SeriesDetail, Statistics
+- [x] 08-05-PLAN.md -- i18n Part 2: EN/DE JSON files + useTranslation wrapping for Activity, Queue, History, Blacklist, Onboarding, StatusBadge
 
 ### Phase 9: OpenAPI + Release Preparation
 **Goal**: API is fully documented with Swagger UI, performance is optimized, and the project is ready for community launch as v0.9.0-beta
@@ -338,7 +338,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | 5. Standalone Mode | 5/5 | Complete | 2026-02-15 |
 | 6. Forced/Signs Subs | 3/3 | Complete | 2026-02-15 |
 | 7. Events/Hooks + Custom Scoring | 3/3 | Complete | 2026-02-15 |
-| 8. i18n + Backup + Admin Polish | 0/5 | Not started | - |
+| 8. i18n + Backup + Admin Polish | 5/5 | Complete | 2026-02-15 |
 | 9. OpenAPI + Release Preparation | 0/TBD | Not started | - |
 | 10. Performance & Scalability | 0/TBD | Not started | - |
 | 11. Subtitle Editor | 0/TBD | Not started | - |
@@ -372,4 +372,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-15 (Phase 8 planned)*
+*Last updated: 2026-02-15 (Phase 8 complete)*
