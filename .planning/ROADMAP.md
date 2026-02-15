@@ -152,11 +152,12 @@ Plans:
   2. Provider search can specifically target forced/signs subtitles when enabled for a series
   3. Existing subtitles are analyzed (ffprobe flags, ASS style analysis, naming patterns) to detect whether they are forced/signs
   4. User can set forced subtitle preference (disabled/separate/auto) per series in the language profile
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
+- [ ] 06-01-PLAN.md -- DB schema migrations (subtitle_type, forced_preference), forced_detection.py module, VideoQuery/profiles/wanted extensions
+- [ ] 06-02-PLAN.md -- Scanner forced item creation, provider forced search (OpenSubtitles foreign_parts_only), search pipeline classification
+- [ ] 06-03-PLAN.md -- Profile and Wanted API endpoints, frontend forced preference UI, wanted forced badges and filter
 
 ### Phase 7: Events/Hooks + Custom Scoring
 **Goal**: Users can extend Sublarr behavior through shell scripts, outgoing webhooks, and custom scoring weights without modifying code
@@ -332,7 +333,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | 3. Media-Server Abstraction | 3/3 | Complete | 2026-02-15 |
 | 4. Whisper Speech-to-Text | 3/3 | Complete | 2026-02-15 |
 | 5. Standalone Mode | 5/5 | Complete | 2026-02-15 |
-| 6. Forced/Signs Subs | 0/TBD | Not started | - |
+| 6. Forced/Signs Subs | 0/3 | Not started | - |
 | 7. Events/Hooks + Custom Scoring | 0/TBD | Not started | - |
 | 8. i18n + Backup + Admin Polish | 0/TBD | Not started | - |
 | 9. OpenAPI + Release Preparation | 0/TBD | Not started | - |
@@ -368,4 +369,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-15 (Phase 5 complete)*
+*Last updated: 2026-02-15 (Phase 6 planned)*
