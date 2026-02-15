@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 2 of 16 (Translation Multi-Backend)
-Plan: 1 of 6 in current phase
+Plan: 2 of 6 in current phase
 Status: In progress
-Last activity: 2026-02-15 -- Completed 02-01-PLAN.md (TranslationBackend ABC + Ollama migration)
+Last activity: 2026-02-15 -- Completed 02-02-PLAN.md (DeepL + LibreTranslate API backends)
 
-Progress: [███░░░░░░░░░░░░░░░░░] 1/6 plans in phase
+Progress: [██████░░░░░░░░░░░░░░] 2/6 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
-- Average duration: 9 min
-- Total execution time: 96 min
+- Total plans completed: 12
+- Average duration: 8 min
+- Total execution time: 98 min
 
 **By Phase:**
 
@@ -29,11 +29,11 @@ Progress: [███░░░░░░░░░░░░░░░░░] 1/6 pla
 |-------|-------|-------|----------|
 | 00-architecture-refactoring | 3/3 | 27 min | 9 min |
 | 01-provider-plugin-expansion | 6/6 | 64 min | 11 min |
-| 02-translation-multi-backend | 1/6 | 5 min | 5 min |
+| 02-translation-multi-backend | 2/6 | 7 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-04 (8 min), 01-05 (8 min), 01-06 (11 min), 01-02 (13 min), 02-01 (5 min)
-- Trend: Stable
+- Last 5 plans: 01-05 (8 min), 01-06 (11 min), 01-02 (13 min), 02-01 (5 min), 02-02 (2 min)
+- Trend: Accelerating
 
 *Updated after each plan completion*
 
@@ -85,6 +85,10 @@ Recent decisions affecting current work:
 - [02-01]: OllamaBackend reads config from config_entries with Pydantic Settings fallback for migration
 - [02-01]: TranslationManager uses lazy backend creation -- misconfigured backends don't break others
 - [02-01]: Circuit breakers per backend reuse existing CircuitBreaker class from provider system
+- [02-02]: DeepL glossary cached by (source, target) pair -- avoids re-creating glossaries on every batch
+- [02-02]: LibreTranslate translates line-by-line (max_batch_size=1) to guarantee 1:1 line mapping
+- [02-02]: DeepL import guarded with try/except -- backend class loads even without deepl SDK installed
+- [02-02]: Both API backends return TranslationResult(success=False) on error instead of raising exceptions
 
 ### Pending Todos
 
@@ -99,5 +103,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 2 plan 1 complete (ABC + Ollama) -- next: 02-02-PLAN.md
-Resume file: .planning/phases/02-translation-multi-backend/02-02-PLAN.md
+Stopped at: Phase 2 plan 2 complete (DeepL + LibreTranslate) -- next: 02-03-PLAN.md
+Resume file: .planning/phases/02-translation-multi-backend/02-03-PLAN.md
