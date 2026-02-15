@@ -11,6 +11,7 @@ import requests
 from flask import Blueprint, request, jsonify
 
 from extensions import socketio
+from events import emit_event
 
 bp = Blueprint("translate", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -389,7 +390,7 @@ def batch_start():
                 batch_state["current_file"] = None
                 snapshot = dict(batch_state)
 
-            socketio.emit("batch_completed", snapshot)
+            emit_event("batch_complete", snapshot)
 
             try:
                 from notifier import send_notification
@@ -482,7 +483,7 @@ def retranslate_single(job_id):
 
     def _run():
         _run_job(new_job)
-        socketio.emit("retranslation_completed", {
+        emit_event("translation_complete", {
             "file_path": file_path,
             "job_id": new_job["id"],
         })
@@ -553,7 +554,7 @@ def retranslate_batch():
                 "current_file": file_path,
             })
 
-        socketio.emit("retranslation_completed", {
+        emit_event("translation_complete", {
             "count": processed,
             "succeeded": succeeded,
             "failed": failed,

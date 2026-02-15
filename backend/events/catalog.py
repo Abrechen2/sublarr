@@ -31,6 +31,8 @@ config_updated = sublarr_signals.signal("config_updated")
 whisper_complete = sublarr_signals.signal("whisper_complete")
 whisper_failed = sublarr_signals.signal("whisper_failed")
 hook_executed = sublarr_signals.signal("hook_executed")
+standalone_scan_complete = sublarr_signals.signal("standalone_scan_complete")
+standalone_file_detected = sublarr_signals.signal("standalone_file_detected")
 
 # ---- Catalog dict (machine-readable metadata) ----------------------------------
 
@@ -154,6 +156,22 @@ EVENT_CATALOG: dict[str, dict] = {
         "payload_keys": [
             "hook_id", "webhook_id", "hook_type", "event_name",
             "success", "duration_ms",
+        ],
+    },
+    "standalone_scan_complete": {
+        "signal": standalone_scan_complete,
+        "label": "Standalone Scan Complete",
+        "description": "A standalone folder scan completed.",
+        "payload_keys": [
+            "folders_scanned", "files_found", "wanted_added", "duration_seconds",
+        ],
+    },
+    "standalone_file_detected": {
+        "signal": standalone_file_detected,
+        "label": "Standalone File Detected",
+        "description": "A new media file was detected in a watched folder.",
+        "payload_keys": [
+            "path", "type", "wanted",
         ],
     },
 }

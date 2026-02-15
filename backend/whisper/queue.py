@@ -244,16 +244,17 @@ class WhisperQueue:
                                  completed_at=datetime.utcnow().isoformat())
                 self._emit_progress(socketio, job_id, "completed", 1.0, "Transcription complete")
 
-                if socketio:
-                    try:
-                        socketio.emit("whisper_completed", {
-                            "job_id": job_id,
-                            "segment_count": result.segment_count,
-                            "detected_language": result.detected_language,
-                            "duration_seconds": result.duration_seconds,
-                        })
-                    except Exception:
-                        pass
+                try:
+                    from events import emit_event
+                    emit_event("whisper_complete", {
+                        "job_id": job_id,
+                        "segment_count": result.segment_count,
+                        "detected_language": result.detected_language,
+                        "duration_seconds": result.duration_seconds,
+                        "processing_time_ms": elapsed_ms,
+                    })
+                except Exception:
+                    pass
 
                 logger.info(
                     "Whisper job %s completed: %d segments, %.1fs duration, %.0fms processing",
@@ -281,14 +282,14 @@ class WhisperQueue:
             except Exception as db_err:
                 logger.error("Failed to persist failed job %s: %s", job_id, db_err)
 
-            if socketio:
-                try:
-                    socketio.emit("whisper_error", {
-                        "job_id": job_id,
-                        "error": error_msg[:500],
-                    })
-                except Exception:
-                    pass
+            try:
+                from events import emit_event
+                emit_event("whisper_failed", {
+                    "job_id": job_id,
+                    "error": error_msg[:500],
+                })
+            except Exception:
+                pass
 
         finally:
             # Clean up temp audio file

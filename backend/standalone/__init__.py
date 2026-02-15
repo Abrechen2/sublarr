@@ -147,11 +147,11 @@ class StandaloneManager:
         """Run an initial full scan of all watched folders (background thread)."""
         try:
             summary = self._scanner.scan_all_folders()
-            if self._socketio:
-                try:
-                    self._socketio.emit("standalone_scan_complete", summary)
-                except Exception:
-                    pass
+            try:
+                from events import emit_event
+                emit_event("standalone_scan_complete", summary)
+            except Exception:
+                pass
             logger.info("Initial standalone scan complete: %s", summary)
         except Exception as e:
             logger.error("Initial standalone scan failed: %s", e)
@@ -159,18 +159,18 @@ class StandaloneManager:
     def _on_new_file(self, path: str) -> None:
         """Callback for the watcher when a new stable video file is detected.
 
-        Processes the file through the scanner and emits a WebSocket event.
+        Processes the file through the scanner and emits an event.
         """
         try:
             result = self._scanner.process_single_file(path)
-            if self._socketio:
-                try:
-                    self._socketio.emit("standalone_file_detected", {
-                        "path": path,
-                        **result,
-                    })
-                except Exception:
-                    pass
+            try:
+                from events import emit_event
+                emit_event("standalone_file_detected", {
+                    "path": path,
+                    **result,
+                })
+            except Exception:
+                pass
             logger.info(
                 "Processed new file: %s (type=%s, wanted=%s)",
                 path, result.get("type"), result.get("wanted"),

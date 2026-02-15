@@ -4,7 +4,7 @@ import os
 import logging
 from flask import Blueprint, request, jsonify
 
-from extensions import socketio
+from events import emit_event
 
 bp = Blueprint("config", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -89,7 +89,19 @@ def update_config():
 
     logger.info("Config updated: %s — settings reloaded", saved_keys)
 
-    socketio.emit("config_updated", {"updated_keys": saved_keys})
+    emit_event("config_updated", {"updated_keys": saved_keys})
+
+    # Invalidate scoring cache if scoring-related keys changed
+    scoring_keys_changed = any(
+        k.startswith("scoring_") or k.startswith("provider_modifier_")
+        for k in saved_keys
+    )
+    if scoring_keys_changed:
+        try:
+            from providers.base import invalidate_scoring_cache
+            invalidate_scoring_cache()
+        except Exception:
+            pass
 
     return jsonify({
         "status": "saved",
