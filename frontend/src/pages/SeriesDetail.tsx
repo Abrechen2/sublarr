@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry } from '@/hooks/useApi'
 import {
@@ -51,6 +52,7 @@ function EpisodeSearchPanel({ results, isLoading, onProcess }: {
   isLoading: boolean
   onProcess: (wantedId: number) => void
 }) {
+  const { t } = useTranslation('library')
   if (isLoading) {
     return (
       <div
@@ -58,7 +60,7 @@ function EpisodeSearchPanel({ results, isLoading, onProcess }: {
         style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}
       >
         <Loader2 size={14} className="animate-spin" />
-        Searching providers...
+        {t('series_detail.searching_providers')}
       </div>
     )
   }
@@ -76,7 +78,7 @@ function EpisodeSearchPanel({ results, isLoading, onProcess }: {
         className="px-6 py-4 text-sm"
         style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-muted)' }}
       >
-        No results found from any provider.
+        {t('series_detail.no_search_results')}
       </div>
     )
   }
@@ -85,7 +87,7 @@ function EpisodeSearchPanel({ results, isLoading, onProcess }: {
     <div style={{ backgroundColor: 'var(--bg-primary)' }} className="px-4 py-3">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-          Search Results ({allResults.length})
+          {t('series_detail.search_results', { count: allResults.length })}
         </span>
         <button
           onClick={() => onProcess(results.wanted_id)}
@@ -93,7 +95,7 @@ function EpisodeSearchPanel({ results, isLoading, onProcess }: {
           style={{ backgroundColor: 'var(--accent)' }}
         >
           <Download size={11} />
-          Download Best
+          {t('series_detail.download_best')}
         </button>
       </div>
       <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
@@ -161,6 +163,7 @@ function EpisodeSearchPanel({ results, isLoading, onProcess }: {
 // ─── Glossary Panel ────────────────────────────────────────────────────────
 
 function GlossaryPanel({ seriesId }: { seriesId: number }) {
+  const { t } = useTranslation('library')
   const { data, isLoading } = useGlossaryEntries(seriesId)
   const createEntry = useCreateGlossaryEntry()
   const updateEntry = useUpdateGlossaryEntry()
@@ -243,7 +246,7 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
         style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}
       >
         <Loader2 size={14} className="animate-spin" />
-        Loading glossary...
+        {t('series_detail.loading_glossary')}
       </div>
     )
   }
@@ -252,7 +255,7 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
     <div style={{ backgroundColor: 'var(--bg-primary)' }} className="px-4 py-3 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-          Glossary ({entries.length})
+          {t('series_detail.glossary')} ({entries.length})
         </span>
         <button
           onClick={() => {
@@ -263,14 +266,14 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
           style={{ backgroundColor: 'var(--accent)' }}
         >
           <Plus size={11} />
-          Add Entry
+          {t('series_detail.add_entry')}
         </button>
       </div>
 
       {/* Search */}
       <input
         type="text"
-        placeholder="Search glossary..."
+        placeholder={t('series_detail.search_glossary')}
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         className="w-full px-3 py-1.5 rounded text-xs"
@@ -288,12 +291,12 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--accent-dim)' }}
         >
           <div className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {editingId ? 'Edit Entry' : 'New Entry'}
+            {editingId ? t('series_detail.edit_entry') : t('series_detail.new_entry')}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <input
               type="text"
-              placeholder="Source term"
+              placeholder={t('series_detail.source_term')}
               value={formData.source_term}
               onChange={(e) => setFormData((f) => ({ ...f, source_term: e.target.value }))}
               className="px-2 py-1.5 rounded text-xs"
@@ -305,7 +308,7 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
             />
             <input
               type="text"
-              placeholder="Target term"
+              placeholder={t('series_detail.target_term')}
               value={formData.target_term}
               onChange={(e) => setFormData((f) => ({ ...f, target_term: e.target.value }))}
               className="px-2 py-1.5 rounded text-xs"
@@ -318,7 +321,7 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
           </div>
           <input
             type="text"
-            placeholder="Notes (optional)"
+            placeholder={t('series_detail.notes_optional')}
             value={formData.notes}
             onChange={(e) => setFormData((f) => ({ ...f, notes: e.target.value }))}
             className="w-full px-2 py-1.5 rounded text-xs"
@@ -340,10 +343,10 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
               ) : (
                 <Check size={10} />
               )}
-              Save
+              {t('series_detail.save')}
             </button>
             <button onClick={resetForm} className="flex items-center gap-1 px-2.5 py-1 rounded text-xs" style={{ color: 'var(--text-muted)' }}>
-              <X size={10} /> Cancel
+              <X size={10} /> {t('series_detail.cancel')}
             </button>
           </div>
         </div>
@@ -352,7 +355,7 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
       {/* Entries List */}
       {filteredEntries.length === 0 ? (
         <div className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>
-          {searchQuery ? 'No entries match your search' : 'No glossary entries yet'}
+          {searchQuery ? t('series_detail.no_glossary_match') : t('series_detail.no_glossary_entries')}
         </div>
       ) : (
         <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
@@ -417,6 +420,7 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
   entries: EpisodeHistoryEntry[]
   isLoading: boolean
 }) {
+  const { t } = useTranslation('library')
   if (isLoading) {
     return (
       <div
@@ -424,7 +428,7 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
         style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}
       >
         <Loader2 size={14} className="animate-spin" />
-        Loading history...
+        {t('series_detail.loading_history')}
       </div>
     )
   }
@@ -435,7 +439,7 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
         className="px-6 py-4 text-sm"
         style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-muted)' }}
       >
-        No history entries for this episode.
+        {t('series_detail.no_history')}
       </div>
     )
   }
@@ -443,7 +447,7 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
   return (
     <div style={{ backgroundColor: 'var(--bg-primary)' }} className="px-4 py-3">
       <span className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--text-muted)' }}>
-        History ({entries.length})
+        {t('series_detail.history_count', { count: entries.length })}
       </span>
       <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
         <table className="w-full">
@@ -509,7 +513,7 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
 
 // ─── Season Group ──────────────────────────────────────────────────────────
 
-function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onHistory, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess }: {
+function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onHistory, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, t }: {
   season: number
   episodes: EpisodeInfo[]
   targetLanguages: string[]
@@ -522,6 +526,7 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
   historyEntries: EpisodeHistoryEntry[]
   historyLoading: boolean
   onProcess: (wantedId: number) => void
+  t: (key: string, opts?: Record<string, unknown>) => string
 }) {
   const [expanded, setExpanded] = useState(true)
 
@@ -542,10 +547,10 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
           <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
         )}
         <span className="text-sm font-semibold">
-          Season {season}
+          {t('series_detail.season', { number: season })}
         </span>
         <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>
-          ({episodes.length} episodes)
+          ({t('series_detail.episodes_count', { count: episodes.length })})
         </span>
       </button>
 
@@ -579,13 +584,13 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                         <div
                           className="w-2 h-2 rounded-full"
                           style={{ backgroundColor: 'var(--success)' }}
-                          title="Has file"
+                          title={t('series_detail.has_file')}
                         />
                       ) : (
                         <div
                           className="w-2 h-2 rounded-full"
                           style={{ backgroundColor: 'var(--text-muted)' }}
-                          title="No file"
+                          title={t('series_detail.no_file')}
                         />
                       )}
                     </div>
@@ -600,7 +605,7 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
 
                     {/* Title */}
                     <div className="flex-1 min-w-0 text-sm truncate" title={ep.title}>
-                      {ep.title || 'TBA'}
+                      {ep.title || t('series_detail.tba')}
                     </div>
 
                     {/* Audio */}
@@ -647,7 +652,7 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                           onClick={onClose}
                           className="p-1.5 rounded transition-colors"
                           style={{ color: 'var(--text-muted)' }}
-                          title="Close"
+                          title={t('series_detail.close')}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.color = 'var(--error)'
                           }}
@@ -666,7 +671,7 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                           color: isExpanded && mode === 'search' ? 'var(--accent)' : 'var(--text-muted)',
                           opacity: ep.has_file ? 1 : 0.4,
                         }}
-                        title="Search subtitles"
+                        title={t('series_detail.search_subtitles')}
                         onMouseEnter={(e) => {
                           if (ep.has_file) {
                             e.currentTarget.style.color = 'var(--accent)'
@@ -694,7 +699,7 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                           color: isExpanded && mode === 'history' ? 'var(--accent)' : 'var(--text-muted)',
                           opacity: ep.has_file ? 1 : 0.4,
                         }}
-                        title="History"
+                        title={t('series_detail.history')}
                         onMouseEnter={(e) => {
                           if (ep.has_file) {
                             e.currentTarget.style.color = 'var(--accent)'
@@ -747,6 +752,7 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export function SeriesDetailPage() {
+  const { t } = useTranslation('library')
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const seriesId = Number(id)
@@ -856,13 +862,13 @@ export function SeriesDetailPage() {
           style={{ color: 'var(--text-secondary)' }}
         >
           <ArrowLeft size={14} />
-          Back to Library
+          {t('series_detail.back_to_library')}
         </button>
         <div
           className="rounded-lg p-8 text-center"
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
         >
-          <p style={{ color: 'var(--error)' }}>Failed to load series details.</p>
+          <p style={{ color: 'var(--error)' }}>{t('series_detail.failed_to_load')}</p>
         </div>
       </div>
     )
@@ -945,7 +951,7 @@ export function SeriesDetailPage() {
                 style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
               >
                 <FileVideo size={11} />
-                {series.episode_file_count} files
+                {t('series_detail.files', { count: series.episode_file_count })}
               </span>
               <span
                 className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
@@ -955,14 +961,14 @@ export function SeriesDetailPage() {
                 }}
               >
                 <AlertTriangle size={11} />
-                {missingCount} missing subtitles
+                {t('series_detail.missing_subtitles', { count: missingCount })}
               </span>
               <span
                 className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
                 style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
               >
                 <Play size={11} />
-                {series.status === 'continuing' ? 'Continuing' : series.status === 'ended' ? 'Ended' : series.status}
+                {series.status === 'continuing' ? t('series_detail.continuing') : series.status === 'ended' ? t('series_detail.ended') : series.status}
               </span>
               {series.tags.length > 0 && (
                 <span
@@ -1022,7 +1028,7 @@ export function SeriesDetailPage() {
                 }}
               >
                 <BookOpen size={11} />
-                Glossary
+                {t('series_detail.glossary')}
               </button>
             </div>
 
@@ -1064,31 +1070,31 @@ export function SeriesDetailPage() {
             className="w-12 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider"
             style={{ color: 'var(--text-secondary)' }}
           >
-            Ep
+            {t('series_detail.ep')}
           </div>
           <div
             className="flex-1 text-[11px] font-semibold uppercase tracking-wider"
             style={{ color: 'var(--text-secondary)' }}
           >
-            Title
+            {t('series_detail.title_col')}
           </div>
           <div
             className="w-24 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider"
             style={{ color: 'var(--text-secondary)' }}
           >
-            Audio
+            {t('series_detail.audio')}
           </div>
           <div
             className="w-40 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider"
             style={{ color: 'var(--text-secondary)' }}
           >
-            Subtitles
+            {t('series_detail.subtitles')}
           </div>
           <div
             className="w-20 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider text-right"
             style={{ color: 'var(--text-secondary)' }}
           >
-            Actions
+            {t('series_detail.actions')}
           </div>
         </div>
 
@@ -1108,12 +1114,13 @@ export function SeriesDetailPage() {
             historyEntries={expandedEp ? historyEntries[expandedEp.id] ?? [] : []}
             historyLoading={expandedEp?.mode === 'history' && !(expandedEp.id in historyEntries)}
             onProcess={handleProcess}
+            t={t}
           />
         ))}
 
         {seasonGroups.length === 0 && (
           <div className="p-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-            No episodes found.
+            {t('series_detail.no_episodes')}
           </div>
         )}
       </div>

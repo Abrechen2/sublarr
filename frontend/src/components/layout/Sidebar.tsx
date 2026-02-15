@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   LayoutDashboard,
   Activity,
@@ -12,6 +13,7 @@ import {
   Tv,
   Clock,
   Ban,
+  BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useHealth } from '@/hooks/useApi'
@@ -20,44 +22,46 @@ import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher'
 
 interface NavItem {
   to: string
-  label: string
+  labelKey: string
   icon: typeof LayoutDashboard
 }
 
 interface NavGroup {
-  title: string
+  titleKey: string
   items: NavItem[]
 }
 
 const navGroups: NavGroup[] = [
   {
-    title: 'Content',
+    titleKey: 'nav_groups.content',
     items: [
-      { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-      { to: '/library', label: 'Library', icon: Tv },
-      { to: '/wanted', label: 'Wanted', icon: Search },
+      { to: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+      { to: '/library', labelKey: 'nav.library', icon: Tv },
+      { to: '/wanted', labelKey: 'nav.wanted', icon: Search },
     ],
   },
   {
-    title: 'Activity',
+    titleKey: 'nav_groups.activity',
     items: [
-      { to: '/activity', label: 'Activity', icon: Activity },
-      { to: '/queue', label: 'Queue', icon: ListOrdered },
-      { to: '/history', label: 'History', icon: Clock },
-      { to: '/blacklist', label: 'Blacklist', icon: Ban },
+      { to: '/activity', labelKey: 'nav.activity', icon: Activity },
+      { to: '/queue', labelKey: 'nav.queue', icon: ListOrdered },
+      { to: '/history', labelKey: 'nav.history', icon: Clock },
+      { to: '/blacklist', labelKey: 'nav.blacklist', icon: Ban },
     ],
   },
   {
-    title: 'System',
+    titleKey: 'nav_groups.system',
     items: [
-      { to: '/settings', label: 'Settings', icon: Settings },
-      { to: '/logs', label: 'Logs', icon: ScrollText },
+      { to: '/settings', labelKey: 'nav.settings', icon: Settings },
+      { to: '/statistics', labelKey: 'nav.statistics', icon: BarChart3 },
+      { to: '/logs', labelKey: 'nav.logs', icon: ScrollText },
     ],
   },
 ]
 
 export function Sidebar() {
   const { data: health } = useHealth()
+  const { t } = useTranslation('common')
   const [mobileOpen, setMobileOpen] = useState(false)
   const isHealthy = health?.status === 'healthy'
 
@@ -120,14 +124,14 @@ export function Sidebar() {
         {/* Navigation */}
         <nav className="flex-1 px-3 py-1 overflow-y-auto">
           {navGroups.map((group) => (
-            <div key={group.title} className="mb-3">
+            <div key={group.titleKey} className="mb-3">
               <div
                 className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest"
                 style={{ color: 'var(--text-muted)' }}
               >
-                {group.title}
+                {t(group.titleKey)}
               </div>
-              {group.items.map(({ to, label, icon: Icon }) => (
+              {group.items.map(({ to, labelKey, icon: Icon }) => (
                 <NavLink
                   key={to}
                   to={to}
@@ -154,7 +158,7 @@ export function Sidebar() {
                         />
                       )}
                       <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
-                      {label}
+                      {t(labelKey)}
                     </>
                   )}
                 </NavLink>
@@ -179,7 +183,7 @@ export function Sidebar() {
               }}
             />
             <span className="truncate">
-              {isHealthy ? 'Online' : 'Offline'}
+              {isHealthy ? t('app.online') : t('app.offline')}
             </span>
             <span
               className="ml-auto tabular-nums"
