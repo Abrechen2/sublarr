@@ -134,6 +134,15 @@ class Settings(BaseSettings):
     plugins_dir: str = "/config/plugins"
     plugin_hot_reload: bool = False  # Enable watchdog file watcher for plugins directory
 
+    # Standalone Mode
+    standalone_enabled: bool = False
+    standalone_scan_interval_hours: int = 6  # 0 = disabled
+    standalone_debounce_seconds: int = 10
+    tmdb_api_key: str = ""  # TMDB API v3 Bearer token
+    tvdb_api_key: str = ""  # TVDB API v4 key (optional)
+    tvdb_pin: str = ""  # TVDB PIN (optional)
+    metadata_cache_ttl_days: int = 30
+
     # AniDB Integration
     anidb_enabled: bool = True  # Enable AniDB ID resolution
     anidb_cache_ttl_days: int = 30  # Cache TTL for TVDB → AniDB mappings
