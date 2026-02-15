@@ -240,6 +240,17 @@ class OpenSubtitlesProvider(SubtitleProvider):
                 fps = attrs.get("fps", 0)
                 feature = attrs.get("feature_details", {})
 
+                # Detect if this subtitle is forced (foreign parts only)
+                is_forced = bool(attrs.get("foreign_parts_only", False))
+
+                # Filter based on forced_only flag:
+                # - forced_only=True: skip non-forced results
+                # - forced_only=False: skip forced results (don't mix forced into full)
+                if query.forced_only and not is_forced:
+                    continue
+                if not query.forced_only and is_forced:
+                    continue
+
                 for f in files:
                     file_id = f.get("file_id")
                     filename = f.get("file_name", "")
@@ -276,9 +287,10 @@ class OpenSubtitlesProvider(SubtitleProvider):
                         filename=filename,
                         release_info=release,
                         hearing_impaired=hi,
+                        forced=is_forced,
                         fps=fps if fps else None,
                         matches=matches,
-                        provider_data={"file_id": file_id},
+                        provider_data={"file_id": file_id, "foreign_parts_only": is_forced},
                     )
                     results.append(result)
 

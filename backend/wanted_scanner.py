@@ -17,6 +17,7 @@ from upgrade_scorer import score_existing_subtitle
 from ass_utils import run_ffprobe, has_target_language_stream
 from db.wanted import upsert_wanted_item, delete_wanted_items, get_all_wanted_file_paths
 from db.profiles import get_series_profile, get_movie_profile, get_default_profile
+from forced_detection import is_forced_external_sub
 
 logger = logging.getLogger(__name__)
 
@@ -318,10 +319,36 @@ class WantedScanner:
                 current_score=cur_score,
                 target_language=target_lang,
                 instance_name=instance_name or "",
+                subtitle_type="full",
             )
 
             if row_id:
                 added += 1
+
+            # Forced subtitle handling based on profile preference
+            forced_preference = profile.get("forced_preference", "disabled")
+            if forced_preference == "separate":
+                existing_forced = detect_existing_target_for_lang(
+                    mapped_path, target_lang, probe_data, subtitle_type="forced"
+                )
+                if existing_forced is None:
+                    forced_title = f"{title} [Forced]"
+                    forced_row_id = upsert_wanted_item(
+                        item_type="movie",
+                        file_path=mapped_path,
+                        title=forced_title,
+                        existing_sub="",
+                        missing_languages=[target_lang],
+                        radarr_movie_id=movie_id,
+                        upgrade_candidate=False,
+                        current_score=0,
+                        target_language=target_lang,
+                        instance_name=instance_name or "",
+                        subtitle_type="forced",
+                    )
+                    if forced_row_id:
+                        added += 1
+            # "auto" and "disabled" do not create dedicated forced wanted items
 
         return added, updated, scanned_paths
 
@@ -443,10 +470,38 @@ class WantedScanner:
                     current_score=cur_score,
                     target_language=target_lang,
                     instance_name=instance_name or "",
+                    subtitle_type="full",
                 )
 
                 if row_id:
                     added += 1
+
+                # Forced subtitle handling based on profile preference
+                forced_preference = profile.get("forced_preference", "disabled")
+                if forced_preference == "separate":
+                    existing_forced = detect_existing_target_for_lang(
+                        mapped_path, target_lang, probe_data, subtitle_type="forced"
+                    )
+                    if existing_forced is None:
+                        forced_title = f"{title} [Forced]"
+                        forced_row_id = upsert_wanted_item(
+                            item_type="episode",
+                            file_path=mapped_path,
+                            title=forced_title,
+                            season_episode=season_episode,
+                            existing_sub="",
+                            missing_languages=[target_lang],
+                            sonarr_series_id=series_id,
+                            sonarr_episode_id=episode_id,
+                            upgrade_candidate=False,
+                            current_score=0,
+                            target_language=target_lang,
+                            instance_name=instance_name or "",
+                            subtitle_type="forced",
+                        )
+                        if forced_row_id:
+                            added += 1
+                # "auto" and "disabled" do not create dedicated forced wanted items
 
         return added, updated, scanned_paths
 
