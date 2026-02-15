@@ -20,6 +20,7 @@ def register_blueprints(app):
     from routes.mediaservers import bp as mediaservers_bp
     from routes.whisper import bp as whisper_bp
     from routes.standalone import bp as standalone_bp
+    from routes.hooks import bp as hooks_bp
 
     for blueprint in [
         translate_bp,
@@ -35,5 +36,6 @@ def register_blueprints(app):
         mediaservers_bp,
         whisper_bp,
         standalone_bp,
+        hooks_bp,
     ]:
         app.register_blueprint(blueprint)
