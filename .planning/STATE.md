@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 7 of 16 (Events/Hooks & Custom Scoring)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-15 -- Completed 07-01-PLAN.md (Event Bus + DB Schema + Configurable Scoring)
+Last activity: 2026-02-15 -- Completed 07-02-PLAN.md (Hook Engine + Webhook Dispatcher + Rewiring)
 
-Progress: [███████░░░░░░░░░░░░░] 1/3 plans in phase
+Progress: [██████████████░░░░░░] 2/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 31
+- Total plans completed: 32
 - Average duration: 7 min
-- Total execution time: 221 min
+- Total execution time: 231 min
 
 **By Phase:**
 
@@ -34,11 +34,11 @@ Progress: [███████░░░░░░░░░░░░░] 1/3 pla
 | 04-whisper-speech-to-text | 3/3 | 13 min | 4 min |
 | 05-standalone-mode | 5/5 | 28 min | 6 min |
 | 06-forced-signs-subs | 3/3 | 22 min | 7 min |
-| 07-events-hooks-custom-scoring | 1/3 | 26 min | 26 min |
+| 07-events-hooks-custom-scoring | 2/3 | 36 min | 18 min |
 
 **Recent Trend:**
-- Last 5 plans: 06-01 (6 min), 06-02 (5 min), 06-03 (11 min), 07-01 (26 min)
-- Trend: Foundation plans with multiple modules + verification take longer
+- Last 5 plans: 06-02 (5 min), 06-03 (11 min), 07-01 (26 min), 07-02 (10 min)
+- Trend: Execution plans faster than foundation plans with complex module creation
 
 *Updated after each plan completion*
 
@@ -186,6 +186,11 @@ Recent decisions affecting current work:
 - [07-01]: Scoring cache TTL=60s -- balances DB freshness vs query overhead
 - [07-01]: Provider modifier cache loads all modifiers at once (single query) instead of per-provider
 - [07-01]: DB overrides merge on top of hardcoded defaults ({**defaults, **db_overrides})
+- [07-02]: Progress/streaming events kept as direct socketio.emit -- high frequency, not for hooks/webhooks
+- [07-02]: hook_executed signal skipped in hook/webhook subscribers to prevent infinite recursion
+- [07-02]: standalone_scan_complete and standalone_file_detected added to EVENT_CATALOG
+- [07-02]: Scoring cache invalidation triggered on config_updated when scoring-related keys change
+- [07-02]: webhook_completed kept as socketio.emit (operational event, not catalog business event)
 
 ### Pending Todos
 
@@ -200,11 +205,11 @@ None yet.
 - Phase 4 complete -- all 3 plans executed, all summaries written (whisper package + API + frontend)
 - Phase 5 complete -- all 5 plans executed, all summaries written (DB + metadata + manager + API + UI)
 - Phase 6 complete -- all 3 plans executed, all summaries written (data model + detection, scanner + search, API + UI)
-- Phase 7 in progress -- plan 01 complete (event bus + DB schema + configurable scoring)
+- Phase 7 in progress -- plan 02 complete (hook engine + webhook dispatcher + socketio.emit rewiring)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 7 plan 01 complete -- event bus, 5 DB tables, configurable scoring
-Resume file: .planning/phases/07-events-hooks-custom-scoring/07-01-SUMMARY.md
+Stopped at: Phase 7 plan 02 complete -- hook engine, webhook dispatcher, socketio.emit rewiring
+Resume file: .planning/phases/07-events-hooks-custom-scoring/07-02-SUMMARY.md
