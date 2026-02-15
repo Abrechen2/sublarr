@@ -62,6 +62,9 @@ Recent decisions affecting current work:
 - [01-01]: Built-in providers always win name collisions -- plugins with duplicate names rejected
 - [01-01]: Safe import = exception catching only (no sandboxing), same trust model as Bazarr
 - [01-01]: Config field keys match Pydantic Settings field names, stripped to short params for constructor
+- [01-03]: Hot-reload uses 2-second debounce via threading.Timer to coalesce rapid file events
+- [01-03]: plugin_hot_reload defaults to false (opt-in) to avoid unnecessary filesystem watching
+- [01-03]: Watchdog is optional dependency -- ImportError caught gracefully in app.py
 - [01-04]: Gestdown covers both PROV-01 (Addic7ed) and PROV-03 (Gestdown) -- single provider, no duplication
 - [01-04]: Gestdown language mapping uses API fetch with hardcoded fallback for resilience
 - [01-04]: Podnapisi uses lxml with graceful fallback to stdlib xml.etree.ElementTree
@@ -78,5 +81,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Plan 01-04 complete (Gestdown + Podnapisi providers)
+Stopped at: Plan 01-03 complete (hot-reload + plugin template)
 Resume file: .planning/phases/01-provider-plugin-expansion/01-02-PLAN.md
