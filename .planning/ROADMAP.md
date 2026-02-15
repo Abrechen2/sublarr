@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Translation Multi-Backend** - ABC-based multi-backend translation with fallback chains
 - [x] **Phase 3: Media-Server Abstraction** - Plex, Kodi support alongside existing Jellyfin/Emby
 - [x] **Phase 4: Whisper Speech-to-Text** - faster-whisper and Subgen integration as translation fallback
-- [ ] **Phase 5: Standalone Mode** - Folder-watch operation without Sonarr/Radarr dependency
+- [x] **Phase 5: Standalone Mode** - Folder-watch operation without Sonarr/Radarr dependency
 - [ ] **Phase 6: Forced/Signs Subtitle Management** - Forced subtitle detection, search, and per-series config
 - [ ] **Phase 7: Events/Hooks + Custom Scoring** - Internal event bus, script hooks, outgoing webhooks, scoring config
 - [ ] **Phase 8: i18n + Backup + Admin Polish** - UI internationalization, backup/restore, statistics, theming
@@ -137,11 +137,11 @@ Plans:
 **Plans:** 5 plans
 
 Plans:
-- [ ] 05-01-PLAN.md -- DB schema (4 tables + migrations), config settings, media file parser (guessit + anime detection)
-- [ ] 05-02-PLAN.md -- Metadata package: TMDB, AniList, TVDB API clients + MetadataResolver orchestrator
-- [ ] 05-03-PLAN.md -- StandaloneManager, filesystem watcher (watchdog), directory scanner, wanted_scanner integration
-- [ ] 05-04-PLAN.md -- Standalone API Blueprint (/api/v1/standalone/*), wanted_search metadata enrichment
-- [ ] 05-05-PLAN.md -- Frontend: Library Sources settings tab, TypeScript types/hooks, Onboarding standalone path
+- [x] 05-01-PLAN.md -- DB schema (4 tables + migrations), config settings, media file parser (guessit + anime detection)
+- [x] 05-02-PLAN.md -- Metadata package: TMDB, AniList, TVDB API clients + MetadataResolver orchestrator
+- [x] 05-03-PLAN.md -- StandaloneManager, filesystem watcher (watchdog), directory scanner, wanted_scanner integration
+- [x] 05-04-PLAN.md -- Standalone API Blueprint (/api/v1/standalone/*), wanted_search metadata enrichment
+- [x] 05-05-PLAN.md -- Frontend: Library Sources settings tab, TypeScript types/hooks, Onboarding standalone path
 
 ### Phase 6: Forced/Signs Subtitle Management
 **Goal**: Users can separately manage forced/signs subtitles per series, with automatic detection and dedicated search
@@ -331,7 +331,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | 2. Translation Multi-Backend | 6/6 | Complete | 2026-02-15 |
 | 3. Media-Server Abstraction | 3/3 | Complete | 2026-02-15 |
 | 4. Whisper Speech-to-Text | 3/3 | Complete | 2026-02-15 |
-| 5. Standalone Mode | 0/5 | Planned | - |
+| 5. Standalone Mode | 5/5 | Complete | 2026-02-15 |
 | 6. Forced/Signs Subs | 0/TBD | Not started | - |
 | 7. Events/Hooks + Custom Scoring | 0/TBD | Not started | - |
 | 8. i18n + Backup + Admin Polish | 0/TBD | Not started | - |
@@ -368,4 +368,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-15 (Phase 5 planned)*
+*Last updated: 2026-02-15 (Phase 5 complete)*
