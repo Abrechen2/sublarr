@@ -118,12 +118,12 @@ Plans:
   3. Whisper jobs appear in a dedicated queue with progress updates via WebSocket, respecting max-concurrent limits
   4. Whisper correctly extracts the Japanese audio track (or user-configured source language track) from media files via ffmpeg
   5. Transcription results include language detection that is validated against the expected source language
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
-- [ ] 04-03: TBD
+- [ ] 04-01-PLAN.md -- Whisper package: WhisperBackend ABC, WhisperManager, audio extraction, queue system, DB schema, faster-whisper + Subgen backends
+- [ ] 04-02-PLAN.md -- Whisper API blueprint, translator.py Case D integration, WhisperSubgenProvider deprecation
+- [ ] 04-03-PLAN.md -- Frontend Whisper Settings tab with backend cards, global config, TypeScript types and hooks
 
 ### Phase 5: Standalone Mode
 **Goal**: Users without Sonarr/Radarr can use Sublarr by pointing it at media folders, with automatic file detection and metadata lookup
@@ -328,7 +328,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | 1. Provider Plugin + Expansion | 6/6 | Complete | 2026-02-15 |
 | 2. Translation Multi-Backend | 6/6 | Complete | 2026-02-15 |
 | 3. Media-Server Abstraction | 3/3 | Complete | 2026-02-15 |
-| 4. Whisper Speech-to-Text | 0/TBD | Not started | - |
+| 4. Whisper Speech-to-Text | 0/3 | Not started | - |
 | 5. Standalone Mode | 0/TBD | Not started | - |
 | 6. Forced/Signs Subs | 0/TBD | Not started | - |
 | 7. Events/Hooks + Custom Scoring | 0/TBD | Not started | - |
@@ -366,4 +366,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-15 (Phase 3 complete)*
+*Last updated: 2026-02-15 (Phase 4 planned)*
