@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 1 of 16 (Provider Plugin Expansion)
-Plan: 4 of 6 in current phase
+Plan: 5 of 6 in current phase
 Status: In progress
-Last activity: 2026-02-15 -- Completed 01-03-PLAN.md (hot-reload + plugin template)
+Last activity: 2026-02-15 -- Completed 01-05-PLAN.md (Kitsunekko + Napisy24 + WhisperSubgen providers)
 
-Progress: [█████████████░░░░░░░] 4/6 plans in phase
+Progress: [████████████████░░░░] 5/6 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: 8 min
-- Total execution time: 59 min
+- Total execution time: 67 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 00-architecture-refactoring | 3/3 | 27 min | 9 min |
-| 01-provider-plugin-expansion | 4/6 | 32 min | 8 min |
+| 01-provider-plugin-expansion | 5/6 | 40 min | 8 min |
 
 **Recent Trend:**
-- Last 5 plans: 00-03 (14 min), 01-01 (8 min), 01-03 (8 min), 01-04 (8 min), 01-05 (8 min)
+- Last 5 plans: 01-01 (8 min), 01-03 (8 min), 01-04 (8 min), 01-05 (8 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -68,6 +68,10 @@ Recent decisions affecting current work:
 - [01-04]: Gestdown covers both PROV-01 (Addic7ed) and PROV-03 (Gestdown) -- single provider, no duplication
 - [01-04]: Gestdown language mapping uses API fetch with hardcoded fallback for resilience
 - [01-04]: Podnapisi uses lxml with graceful fallback to stdlib xml.etree.ElementTree
+- [01-05]: Kitsunekko uses conditional BeautifulSoup import -- degrades gracefully if bs4 not installed
+- [01-05]: Napisy24 computes MD5 of first 10MB for file hash matching (Bazarr-compatible algorithm)
+- [01-05]: WhisperSubgen returns low-score placeholder (score=10) in search, defers transcription to download()
+- [01-05]: WhisperSubgen uses ffmpeg pipe:1 for audio extraction (no temp files)
 
 ### Pending Todos
 
@@ -81,5 +85,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Plan 01-03 complete (hot-reload + plugin template)
-Resume file: .planning/phases/01-provider-plugin-expansion/01-02-PLAN.md
+Stopped at: Plan 01-05 complete (Kitsunekko + Napisy24 + WhisperSubgen providers)
+Resume file: .planning/phases/01-provider-plugin-expansion/01-06-PLAN.md
