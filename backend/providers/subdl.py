@@ -131,6 +131,14 @@ class SubDLProvider(SubtitleProvider):
         "te", "ml", "kn", "mr", "gu", "ur", "my", "km", "lo",
     }
 
+    # Plugin system attributes
+    config_fields = [
+        {"key": "subdl_api_key", "label": "API Key", "type": "password", "required": True},
+    ]
+    rate_limit = (30, 10)
+    timeout = 15
+    max_retries = 2
+
     def __init__(self, api_key: str = "", **kwargs):
         super().__init__(**kwargs)
         self.api_key = api_key
