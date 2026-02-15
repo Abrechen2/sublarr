@@ -150,6 +150,26 @@ class ProviderManager:
             from providers import subdl  # noqa: F401
         except ImportError as e:
             logger.debug("SubDL provider not available: %s", e)
+        try:
+            from providers import gestdown  # noqa: F401
+        except ImportError as e:
+            logger.debug("Gestdown provider not available: %s", e)
+        try:
+            from providers import podnapisi  # noqa: F401
+        except ImportError as e:
+            logger.debug("Podnapisi provider not available: %s", e)
+        try:
+            from providers import kitsunekko  # noqa: F401
+        except ImportError as e:
+            logger.debug("Kitsunekko provider not available: %s", e)
+        try:
+            from providers import napisy24  # noqa: F401
+        except ImportError as e:
+            logger.debug("Napisy24 provider not available: %s", e)
+        try:
+            from providers import whisper_subgen  # noqa: F401
+        except ImportError as e:
+            logger.debug("WhisperSubgen provider not available: %s", e)
 
         # Load plugin providers (from plugins directory)
         self._load_plugins()
@@ -215,12 +235,16 @@ class ProviderManager:
                     priority_list.append(name)
 
         # Initialize providers in priority order
+        from db.providers import is_provider_auto_disabled
         for name in priority_list:
             if name not in _PROVIDER_CLASSES:
                 logger.debug("Provider %s not found in registry", name)
                 continue
             if name not in enabled_set:
                 logger.debug("Provider %s not in enabled set", name)
+                continue
+            if is_provider_auto_disabled(name):
+                logger.info("Provider %s is auto-disabled, skipping initialization", name)
                 continue
 
             try:
@@ -398,42 +422,51 @@ class ProviderManager:
         return hashlib.md5(key_str.encode()).hexdigest()
 
     def _search_provider_with_retry(self, name: str, provider: SubtitleProvider,
-                                    query: VideoQuery) -> list[SubtitleResult]:
-        """Search a single provider with retries."""
+                                    query: VideoQuery) -> tuple[list[SubtitleResult], float]:
+        """Search a single provider with retries.
+
+        Returns:
+            Tuple of (results list, elapsed_ms). elapsed_ms is 0 if no successful search.
+        """
+        import time as _time
+
         retries = self._get_retries(name)
         last_error = None
-        
+        elapsed_ms = 0.0
+
         # Check if provider is initialized
         if hasattr(provider, 'session') and provider.session is None:
             logger.warning("Provider %s not initialized (session is None), skipping search", name)
-            return []
-        
-        logger.debug("Searching provider %s for: %s (languages: %s)", 
+            return [], 0.0
+
+        logger.debug("Searching provider %s for: %s (languages: %s)",
                     name, query.display_name, query.languages)
-        
+
         for attempt in range(retries + 1):
             try:
+                start = _time.monotonic()
                 results = provider.search(query)
-                logger.info("Provider %s returned %d results (attempt %d/%d)", 
-                          name, len(results), attempt + 1, retries + 1)
+                elapsed_ms = (_time.monotonic() - start) * 1000
+
+                logger.info("Provider %s returned %d results in %.0fms (attempt %d/%d)",
+                          name, len(results), elapsed_ms, attempt + 1, retries + 1)
                 if results:
-                    logger.debug("Provider %s top result: %s (score: %d, format: %s)", 
+                    logger.debug("Provider %s top result: %s (score: %d, format: %s)",
                                name, results[0].filename, results[0].score, results[0].format.value)
-                return results
+                return results, elapsed_ms
             except ProviderAuthError as e:
                 logger.error("Provider %s authentication failed: %s", name, e)
-                return []  # Don't retry auth errors
+                return [], 0.0  # Don't retry auth errors
             except ProviderRateLimitError as e:
                 logger.warning("Provider %s rate limit exceeded: %s", name, e)
                 if attempt < retries:
                     # Wait a bit longer for rate limits
-                    import time
                     wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
                     logger.debug("Waiting %ds before retry...", wait_time)
-                    time.sleep(wait_time)
+                    _time.sleep(wait_time)
                     last_error = e
                 else:
-                    return []  # Don't retry indefinitely for rate limits
+                    return [], 0.0  # Don't retry indefinitely for rate limits
             except Exception as e:
                 last_error = e
                 if attempt < retries:
@@ -442,8 +475,23 @@ class ProviderManager:
                 else:
                     logger.warning("Provider %s search failed after %d attempts: %s",
                                  name, retries + 1, e, exc_info=True)
-        
-        return []
+
+        return [], 0.0
+
+    def _check_auto_disable(self, name: str):
+        """Check if a provider should be auto-disabled based on consecutive failures.
+
+        Auto-disables when consecutive_failures >= 2x circuit_breaker_failure_threshold.
+        """
+        from db.providers import get_provider_stats as _get_stats, auto_disable_provider
+        stats = _get_stats(name)
+        if not stats:
+            return
+        consecutive = stats.get("consecutive_failures", 0)
+        threshold = self.settings.circuit_breaker_failure_threshold * 2
+        if consecutive >= threshold:
+            cooldown = getattr(self.settings, "provider_auto_disable_cooldown_minutes", 30)
+            auto_disable_provider(name, cooldown_minutes=cooldown)
 
     def search(
         self,
@@ -496,13 +544,20 @@ class ProviderManager:
         perfect_match_found = False
 
         # Parallel search with ThreadPoolExecutor
+        from db.providers import update_provider_stats, auto_disable_provider, is_provider_auto_disabled
+
         with ThreadPoolExecutor(max_workers=len(self._providers)) as executor:
             futures = {}
             for name, provider in self._providers.items():
+                # Check auto-disable status
+                if is_provider_auto_disabled(name):
+                    logger.debug("Skipping provider %s -- auto-disabled", name)
+                    continue
+
                 # Check circuit breaker
                 cb = self._circuit_breakers.get(name)
                 if cb and not cb.allow_request():
-                    logger.debug("Skipping provider %s — circuit breaker OPEN", name)
+                    logger.debug("Skipping provider %s -- circuit breaker OPEN", name)
                     continue
 
                 # Check rate limit
@@ -526,16 +581,20 @@ class ProviderManager:
             for future in as_completed(futures, timeout=max_timeout):
                 name = futures[future]
                 try:
-                    results = future.result()
+                    results, elapsed_ms = future.result()
                     all_results.extend(results)
 
-                    # Update circuit breaker
+                    # Update circuit breaker and stats
                     cb = self._circuit_breakers.get(name)
                     if cb:
                         if results:
                             cb.record_success()
+                            update_provider_stats(name, success=True, score=0, response_time_ms=elapsed_ms)
                         else:
                             cb.record_failure()
+                            update_provider_stats(name, success=False, score=0, response_time_ms=elapsed_ms)
+                            # Auto-disable check: if consecutive failures >= 2x CB threshold
+                            self._check_auto_disable(name)
 
                     # Check for perfect match (early exit)
                     if early_exit and results:
@@ -547,21 +606,25 @@ class ProviderManager:
                                           result.score, name)
                                 perfect_match_found = True
                                 break
-                        
+
                         if perfect_match_found:
                             # Cancel remaining futures (they'll complete but we won't wait)
                             break
-                            
+
                 except FutureTimeoutError:
                     logger.warning("Provider %s search timed out", name)
                     cb = self._circuit_breakers.get(name)
                     if cb:
                         cb.record_failure()
+                    update_provider_stats(name, success=False, score=0)
+                    self._check_auto_disable(name)
                 except Exception as e:
                     logger.warning("Provider %s search failed: %s", name, e)
                     cb = self._circuit_breakers.get(name)
                     if cb:
                         cb.record_failure()
+                    update_provider_stats(name, success=False, score=0)
+                    self._check_auto_disable(name)
 
         # If early exit was triggered, we may have incomplete results, but that's OK
         # Score all results
@@ -768,7 +831,7 @@ class ProviderManager:
 
     def get_provider_status(self) -> list[dict]:
         """Get status of all providers (for API/UI) with priority, downloads, config_fields, and stats."""
-        from db.providers import get_provider_download_stats, get_provider_stats, get_provider_success_rate
+        from db.providers import get_provider_download_stats, get_provider_stats, get_provider_success_rate, is_provider_auto_disabled
 
         # Build priority order (use current priority list from _init_providers)
         priority_str = getattr(self.settings, "provider_priorities", "animetosho,jimaku,opensubtitles,subdl")
