@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 0 of 16 (Architecture Refactoring)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-02-15 -- Roadmap created (17 phases, 134 requirements mapped)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-15 -- Completed 00-01-PLAN.md (database package extraction)
 
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
+Progress: [███░░░░░░░░░░░░░░░░░] 1/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 5 min
+- Total execution time: 5 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 00-architecture-refactoring | 1/3 | 5 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: -
-- Trend: -
+- Last 5 plans: 00-01 (5 min)
+- Trend: N/A (first plan)
 
 *Updated after each plan completion*
 
@@ -47,6 +47,9 @@ Recent decisions affecting current work:
 - [Roadmap]: Phases 1, 2, 3 can run in parallel after Phase 0
 - [Research]: apispec (not Flask-smorest/APIFlask) for OpenAPI to avoid route rewrites
 - [Research]: openai library covers all OpenAI-compatible endpoints, making litellm unnecessary
+- [00-01]: Schema DDL and migrations stay in db/__init__.py -- single source of truth for all 17 tables
+- [00-01]: Private helpers (_row_to_job, _row_to_wanted, _row_to_profile) stay with their domain modules
+- [00-01]: database.py preserved intact until Plan 03 updates all external imports
 
 ### Pending Todos
 
@@ -54,11 +57,12 @@ None yet.
 
 ### Blockers/Concerns
 
-- server.py monolith (2618 lines) must be split before any feature work (Phase 0)
+- server.py monolith (2618 lines) must be split before any feature work (Phase 0, Plan 02)
 - Module-level singletons break Application Factory pattern (Phase 0 critical path)
+- database.py still present -- must be removed in Plan 03 after all imports updated
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Roadmap creation complete, ready for Phase 0 planning
-Resume file: None
+Stopped at: Plan 00-01 complete, ready for Plan 00-02 (routes extraction)
+Resume file: .planning/phases/00-architecture-refactoring/00-02-PLAN.md
