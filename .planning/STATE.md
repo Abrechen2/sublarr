@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 1 of 16 (Provider Plugin Expansion)
-Plan: 1 of 6 in current phase
+Plan: 4 of 6 in current phase
 Status: In progress
-Last activity: 2026-02-15 -- Completed 01-01-PLAN.md (plugin infrastructure)
+Last activity: 2026-02-15 -- Completed 01-03-PLAN.md (hot-reload + plugin template)
 
-Progress: [███░░░░░░░░░░░░░░░░░] 1/6 plans in phase
+Progress: [█████████████░░░░░░░] 4/6 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 9 min
-- Total execution time: 35 min
+- Total plans completed: 7
+- Average duration: 8 min
+- Total execution time: 59 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 00-architecture-refactoring | 3/3 | 27 min | 9 min |
-| 01-provider-plugin-expansion | 1/6 | 8 min | 8 min |
+| 01-provider-plugin-expansion | 4/6 | 32 min | 8 min |
 
 **Recent Trend:**
-- Last 5 plans: 00-01 (5 min), 00-02 (8 min), 00-03 (14 min), 01-01 (8 min)
+- Last 5 plans: 00-03 (14 min), 01-01 (8 min), 01-03 (8 min), 01-04 (8 min), 01-05 (8 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -62,6 +62,9 @@ Recent decisions affecting current work:
 - [01-01]: Built-in providers always win name collisions -- plugins with duplicate names rejected
 - [01-01]: Safe import = exception catching only (no sandboxing), same trust model as Bazarr
 - [01-01]: Config field keys match Pydantic Settings field names, stripped to short params for constructor
+- [01-04]: Gestdown covers both PROV-01 (Addic7ed) and PROV-03 (Gestdown) -- single provider, no duplication
+- [01-04]: Gestdown language mapping uses API fetch with hardcoded fallback for resilience
+- [01-04]: Podnapisi uses lxml with graceful fallback to stdlib xml.etree.ElementTree
 
 ### Pending Todos
 
@@ -75,5 +78,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Plan 01-01 complete (plugin infrastructure)
+Stopped at: Plan 01-04 complete (Gestdown + Podnapisi providers)
 Resume file: .planning/phases/01-provider-plugin-expansion/01-02-PLAN.md
