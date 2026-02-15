@@ -5,6 +5,16 @@ import LanguageDetector from 'i18next-browser-languagedetector'
 // Static imports -- no HTTP backend needed for 2 languages
 import enCommon from './locales/en/common.json'
 import deCommon from './locales/de/common.json'
+import enDashboard from './locales/en/dashboard.json'
+import deDashboard from './locales/de/dashboard.json'
+import enSettings from './locales/en/settings.json'
+import deSettings from './locales/de/settings.json'
+import enLibrary from './locales/en/library.json'
+import deLibrary from './locales/de/library.json'
+import enLogs from './locales/en/logs.json'
+import deLogs from './locales/de/logs.json'
+import enStatistics from './locales/en/statistics.json'
+import deStatistics from './locales/de/statistics.json'
 
 i18n
   .use(LanguageDetector)
@@ -13,9 +23,19 @@ i18n
     resources: {
       en: {
         common: enCommon,
+        dashboard: enDashboard,
+        settings: enSettings,
+        library: enLibrary,
+        logs: enLogs,
+        statistics: enStatistics,
       },
       de: {
         common: deCommon,
+        dashboard: deDashboard,
+        settings: deSettings,
+        library: deLibrary,
+        logs: deLogs,
+        statistics: deStatistics,
       },
     },
     fallbackLng: 'en',

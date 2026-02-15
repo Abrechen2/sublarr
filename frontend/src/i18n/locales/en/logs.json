@@ -1,0 +1,8 @@
+{
+  "title": "Logs",
+  "search_placeholder": "Search...",
+  "auto_scroll_on": "Auto-scroll ON",
+  "auto_scroll_off": "Auto-scroll OFF",
+  "no_logs": "No log entries",
+  "no_logs_for_level": "No log entries for level {{level}}"
+}

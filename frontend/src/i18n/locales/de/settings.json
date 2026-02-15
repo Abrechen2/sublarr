@@ -1,0 +1,125 @@
+{
+  "title": "Einstellungen",
+  "tabs": {
+    "general": "Allgemein",
+    "translation": "Uebersetzung",
+    "translation_backends": "Uebersetzungs-Backends",
+    "languages": "Sprachen",
+    "automation": "Automatisierung",
+    "wanted": "Gesucht",
+    "providers": "Provider",
+    "sonarr": "Sonarr",
+    "radarr": "Radarr",
+    "library_sources": "Bibliotheksquellen",
+    "media_servers": "Medienserver",
+    "whisper": "Whisper",
+    "events_hooks": "Events & Hooks",
+    "scoring": "Scoring",
+    "notifications": "Benachrichtigungen",
+    "prompt_presets": "Prompt-Vorlagen"
+  },
+  "general": {
+    "port": "Port",
+    "api_key": "API Key",
+    "api_key_placeholder": "Leer lassen zum Deaktivieren",
+    "log_level": "Log-Stufe",
+    "media_path": "Medienpfad",
+    "db_path": "Datenbankpfad"
+  },
+  "translation": {
+    "source_language_code": "Quellsprache (Code)",
+    "target_language_code": "Zielsprache (Code)",
+    "source_language_name": "Quellsprache (Name)",
+    "target_language_name": "Zielsprache (Name)",
+    "hi_removal": "Untertitel fuer Hoergeschaedigte entfernen"
+  },
+  "automation": {
+    "upgrade_enabled": "Upgrade aktiviert",
+    "prefer_ass": "ASS gegenueber SRT bevorzugen",
+    "min_score_delta": "Mindest-Score-Differenz",
+    "upgrade_window": "Upgrade-Fenster (Tage)",
+    "webhook_delay": "Webhook-Verzoegerung (Minuten)",
+    "auto_scan": "Auto-Scan nach Download",
+    "auto_search": "Auto-Suche bei Providern",
+    "auto_translate": "Gefundene Untertitel automatisch uebersetzen",
+    "search_interval": "Suchintervall (Stunden, 0=deaktiviert)",
+    "search_on_startup": "Suche beim Start",
+    "max_items_per_run": "Max. Eintraege pro Suchlauf"
+  },
+  "wanted_tab": {
+    "scan_interval": "Scan-Intervall (Stunden, 0=deaktiviert)",
+    "anime_only": "Nur Anime (Sonarr)",
+    "anime_movies_only": "Nur Anime-Filme (Radarr)",
+    "scan_on_startup": "Scan beim Start",
+    "max_search_attempts": "Max. Suchversuche"
+  },
+  "sonarr": {
+    "url": "Sonarr URL",
+    "api_key": "Sonarr API Key"
+  },
+  "radarr": {
+    "url": "Radarr URL",
+    "api_key": "Radarr API Key"
+  },
+  "library_sources": {
+    "standalone_enabled": "Standalone-Modus aktivieren",
+    "tmdb_api_key": "TMDB API Key (Bearer Token)",
+    "tvdb_api_key": "TVDB API Key (Optional)",
+    "tvdb_pin": "TVDB PIN (Optional)",
+    "scan_interval": "Scan-Intervall (Stunden, 0=deaktiviert)",
+    "debounce": "Datei-Erkennungs-Debounce (Sekunden)"
+  },
+  "notifications": {
+    "on_download": "Benachrichtigung bei Download",
+    "on_upgrade": "Benachrichtigung bei Upgrade",
+    "on_batch_complete": "Benachrichtigung bei Batch-Abschluss",
+    "on_error": "Benachrichtigung bei Fehler",
+    "manual_actions": "Manuelle Aktionen benachrichtigen"
+  },
+  "actions": {
+    "save": "Speichern",
+    "test": "Testen",
+    "test_connection": "Verbindung testen",
+    "reset_defaults": "Standardwerte zuruecksetzen",
+    "add_mapping": "Zuordnung hinzufuegen",
+    "add_instance": "Instanz hinzufuegen",
+    "enabled": "Aktiviert",
+    "disabled": "Deaktiviert"
+  },
+  "path_mapping": {
+    "title": "Pfadzuordnung (Remote \u2192 Lokal)",
+    "remote_path": "Remote-Pfad",
+    "local_path": "Lokaler Pfad",
+    "test_title": "Pfadzuordnung testen",
+    "mapped_to": "Zugeordnet zu:",
+    "file_exists": "Datei existiert",
+    "file_not_found": "Datei nicht gefunden"
+  },
+  "instances": {
+    "title": "{{label}}-Instanzen",
+    "instance_n": "Instanz {{n}}",
+    "legacy_note": "Mehrere {{label}}-Instanzen konfigurieren. Wenn leer, wird die Legacy-URL/Key oben verwendet."
+  },
+  "providers_tab": {
+    "healthy": "Gesund",
+    "error": "Fehler",
+    "disabled": "Deaktiviert",
+    "not_initialized": "Nicht initialisiert",
+    "enabled": "Aktiviert",
+    "test_provider": "Provider testen",
+    "move_up": "Nach oben (hoehere Prioritaet)",
+    "move_down": "Nach unten (niedrigere Prioritaet)",
+    "cache_entries": "Cache-Eintraege",
+    "clear_cache": "Cache leeren",
+    "re_enable": "Wieder aktivieren",
+    "auto_disabled": "Automatisch deaktiviert"
+  },
+  "config_export": {
+    "title": "Konfigurationsverwaltung",
+    "export": "Konfiguration exportieren",
+    "import": "Konfiguration importieren",
+    "import_warning": "Dies ueberschreibt die aktuellen Einstellungen. API Keys muessen erneut eingegeben werden.",
+    "export_success": "Konfiguration erfolgreich exportiert",
+    "import_success": "Konfiguration erfolgreich importiert"
+  }
+}
