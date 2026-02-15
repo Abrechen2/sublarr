@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 8 of 16 (i18n + Backup + Admin Polish)
-Plan: 1 of 5 in current phase
+Plan: 2 of 5 in current phase
 Status: In progress
-Last activity: 2026-02-15 -- Completed 08-01-PLAN.md (Theme + i18n Foundation)
+Last activity: 2026-02-15 -- Completed 08-02-PLAN.md (Backend APIs: Backup, Statistics, Tools)
 
-Progress: [████░░░░░░░░░░░░░░░░] 1/5 plans in phase
+Progress: [████████░░░░░░░░░░░░] 2/5 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 34
-- Average duration: 7 min
-- Total execution time: 251 min
+- Total plans completed: 35
+- Average duration: 8 min
+- Total execution time: 263 min
 
 **By Phase:**
 
@@ -35,11 +35,11 @@ Progress: [████░░░░░░░░░░░░░░░░] 1/5 pla
 | 05-standalone-mode | 5/5 | 28 min | 6 min |
 | 06-forced-signs-subs | 3/3 | 22 min | 7 min |
 | 07-events-hooks-custom-scoring | 3/3 | 46 min | 15 min |
-| 08-i18n-backup-admin-polish | 1/5 | 10 min | 10 min |
+| 08-i18n-backup-admin-polish | 2/5 | 22 min | 11 min |
 
 **Recent Trend:**
-- Last 5 plans: 07-01 (26 min), 07-02 (10 min), 07-03 (10 min), 08-01 (10 min)
-- Trend: Consistent ~10 min per plan for UI/foundation work
+- Last 5 plans: 07-02 (10 min), 07-03 (10 min), 08-01 (10 min), 08-02 (12 min)
+- Trend: Consistent ~10-12 min per plan for backend API and UI work
 
 *Updated after each plan completion*
 
@@ -202,6 +202,13 @@ Recent decisions affecting current work:
 - [08-01]: i18n uses static JSON imports (no HTTP backend) -- only en/de, negligible bundle impact
 - [08-01]: Language stored as 'sublarr-language' in localStorage via i18next-browser-languagedetector
 - [08-01]: LanguageSwitcher shows target language label (DE when en active, EN when de active)
+- [08-02]: ZIP backup uses in-memory BytesIO buffer then writes to backup_dir -- avoids temp file management
+- [08-02]: ZIP restore imports config keys but skips secrets (same pattern as config/import endpoint)
+- [08-02]: Statistics endpoint queries 5 DB tables independently (daily_stats, provider_stats, subtitle_downloads, translation_backend_stats, upgrade_history)
+- [08-02]: Log rotation config stored in config_entries (log_max_size_mb, log_backup_count) -- applied on next restart
+- [08-02]: Tools blueprint validates all file_path args against media_path using os.path.abspath for path traversal prevention
+- [08-02]: All tool operations create .bak backup before modifying files -- non-destructive by default
+- [08-02]: ASS timing adjustment uses centisecond precision (H:MM:SS.cc format) with ms-to-cs conversion
 
 ### Pending Todos
 
@@ -222,5 +229,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 8, Plan 01 complete -- theme system + i18n foundation
-Resume file: .planning/phases/08-i18n-backup-admin-polish/08-01-SUMMARY.md
+Stopped at: Phase 8, Plan 02 complete -- backend APIs for backup, statistics, tools
+Resume file: .planning/phases/08-i18n-backup-admin-polish/08-02-SUMMARY.md
