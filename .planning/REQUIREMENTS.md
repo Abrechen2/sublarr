@@ -129,7 +129,7 @@
 
 ### Release + Community (M22)
 
-- [ ] **RELS-01**: Migration Guide v1.0.0-beta → v0.9.0-beta
+- [ ] **RELS-01**: Migration Guide v1.0.0-beta -> v0.9.0-beta
 - [ ] **RELS-02**: Plugin-Entwickler Guide (erweitert)
 - [ ] **RELS-03**: User-Guide (Setup-Szenarien, Troubleshooting, FAQ)
 - [ ] **RELS-04**: Community-Provider-Repository Setup
@@ -222,13 +222,13 @@
 
 ## v2 Requirements
 
-(Deferred — not in current scope)
+(Deferred -- not in current scope)
 
-- Frontend E2E Tests (Playwright) — geplant fuer spaeter
-- Performance Tests (locust/pytest-benchmark) — geplant fuer spaeter
-- Multi-User/RBAC — Single-User Self-Hosted Fokus
-- Mobile App — Web-first
-- Telemetrie — nur als Opt-in in M22 angedacht, niedrige Prioritaet
+- Frontend E2E Tests (Playwright) -- geplant fuer spaeter
+- Performance Tests (locust/pytest-benchmark) -- geplant fuer spaeter
+- Multi-User/RBAC -- Single-User Self-Hosted Fokus
+- Mobile App -- Web-first
+- Telemetrie -- nur als Opt-in in M22 angedacht, niedrige Prioritaet
 
 ## Out of Scope
 
@@ -245,37 +245,152 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ARCH-01..04 | Phase 0 | Pending |
-| PLUG-01..05 | Phase 1 (M13) | Pending |
-| PROV-01..10 | Phase 1 (M13) | Pending |
-| TRAN-01..10 | Phase 2 (M14) | Pending |
-| WHSP-01..08 | Phase 4 (M15) | Pending |
-| MSRV-01..07 | Phase 3 (M16) | Pending |
-| STND-01..09 | Phase 5 (M17) | Pending |
-| FRCD-01..05 | Phase 6 (M18) | Pending |
-| EVNT-01..04 | Phase 7 (M19) | Pending |
-| SCOR-01..02 | Phase 7 (M19) | Pending |
-| I18N-01..03 | Phase 8 (M20) | Pending |
-| BKUP-01..03 | Phase 8 (M20) | Pending |
-| ADMN-01..04 | Phase 8 (M20) | Pending |
-| OAPI-01..06 | Phase 9 (M21+M22) | Pending |
-| RELS-01..05 | Phase 9 (M21+M22) | Pending |
-| PERF-01..09 | Phase 10 (M23) | Pending |
-| EDIT-01..05 | Phase 11 (M24) | Pending |
-| BATC-01..07 | Phase 12 (M25) | Pending |
-| COMP-01..05 | Phase 13 (M26+M27) | Pending |
-| SYNC-01..05 | Phase 13 (M26+M27) | Pending |
-| DASH-01..04 | Phase 14 (M28) | Pending |
-| KEYS-01..05 | Phase 15 (M29+M30+M31) | Pending |
-| NOTF-01..05 | Phase 15 (M29+M30+M31) | Pending |
-| DEDU-01..05 | Phase 15 (M29+M30+M31) | Pending |
-| INTG-01..05 | Phase 16 (M32) | Pending |
+| ARCH-01 | Phase 0: Architecture Refactoring | Pending |
+| ARCH-02 | Phase 0: Architecture Refactoring | Pending |
+| ARCH-03 | Phase 0: Architecture Refactoring | Pending |
+| ARCH-04 | Phase 0: Architecture Refactoring | Pending |
+| PLUG-01 | Phase 1: Provider Plugin + Expansion | Pending |
+| PLUG-02 | Phase 1: Provider Plugin + Expansion | Pending |
+| PLUG-03 | Phase 1: Provider Plugin + Expansion | Pending |
+| PLUG-04 | Phase 1: Provider Plugin + Expansion | Pending |
+| PLUG-05 | Phase 1: Provider Plugin + Expansion | Pending |
+| PROV-01 | Phase 1: Provider Plugin + Expansion | Pending |
+| PROV-02 | Phase 1: Provider Plugin + Expansion | Pending |
+| PROV-03 | Phase 1: Provider Plugin + Expansion | Pending |
+| PROV-04 | Phase 1: Provider Plugin + Expansion | Pending |
+| PROV-05 | Phase 1: Provider Plugin + Expansion | Pending |
+| PROV-06 | Phase 1: Provider Plugin + Expansion | Pending |
+| PROV-07 | Phase 1: Provider Plugin + Expansion | Pending |
+| PROV-08 | Phase 1: Provider Plugin + Expansion | Pending |
+| PROV-09 | Phase 1: Provider Plugin + Expansion | Pending |
+| PROV-10 | Phase 1: Provider Plugin + Expansion | Pending |
+| TRAN-01 | Phase 2: Translation Multi-Backend | Pending |
+| TRAN-02 | Phase 2: Translation Multi-Backend | Pending |
+| TRAN-03 | Phase 2: Translation Multi-Backend | Pending |
+| TRAN-04 | Phase 2: Translation Multi-Backend | Pending |
+| TRAN-05 | Phase 2: Translation Multi-Backend | Pending |
+| TRAN-06 | Phase 2: Translation Multi-Backend | Pending |
+| TRAN-07 | Phase 2: Translation Multi-Backend | Pending |
+| TRAN-08 | Phase 2: Translation Multi-Backend | Pending |
+| TRAN-09 | Phase 2: Translation Multi-Backend | Pending |
+| TRAN-10 | Phase 2: Translation Multi-Backend | Pending |
+| MSRV-01 | Phase 3: Media-Server Abstraction | Pending |
+| MSRV-02 | Phase 3: Media-Server Abstraction | Pending |
+| MSRV-03 | Phase 3: Media-Server Abstraction | Pending |
+| MSRV-04 | Phase 3: Media-Server Abstraction | Pending |
+| MSRV-05 | Phase 3: Media-Server Abstraction | Pending |
+| MSRV-06 | Phase 3: Media-Server Abstraction | Pending |
+| MSRV-07 | Phase 3: Media-Server Abstraction | Pending |
+| WHSP-01 | Phase 4: Whisper Speech-to-Text | Pending |
+| WHSP-02 | Phase 4: Whisper Speech-to-Text | Pending |
+| WHSP-03 | Phase 4: Whisper Speech-to-Text | Pending |
+| WHSP-04 | Phase 4: Whisper Speech-to-Text | Pending |
+| WHSP-05 | Phase 4: Whisper Speech-to-Text | Pending |
+| WHSP-06 | Phase 4: Whisper Speech-to-Text | Pending |
+| WHSP-07 | Phase 4: Whisper Speech-to-Text | Pending |
+| WHSP-08 | Phase 4: Whisper Speech-to-Text | Pending |
+| STND-01 | Phase 5: Standalone Mode | Pending |
+| STND-02 | Phase 5: Standalone Mode | Pending |
+| STND-03 | Phase 5: Standalone Mode | Pending |
+| STND-04 | Phase 5: Standalone Mode | Pending |
+| STND-05 | Phase 5: Standalone Mode | Pending |
+| STND-06 | Phase 5: Standalone Mode | Pending |
+| STND-07 | Phase 5: Standalone Mode | Pending |
+| STND-08 | Phase 5: Standalone Mode | Pending |
+| STND-09 | Phase 5: Standalone Mode | Pending |
+| FRCD-01 | Phase 6: Forced/Signs Subs | Pending |
+| FRCD-02 | Phase 6: Forced/Signs Subs | Pending |
+| FRCD-03 | Phase 6: Forced/Signs Subs | Pending |
+| FRCD-04 | Phase 6: Forced/Signs Subs | Pending |
+| FRCD-05 | Phase 6: Forced/Signs Subs | Pending |
+| EVNT-01 | Phase 7: Events/Hooks + Custom Scoring | Pending |
+| EVNT-02 | Phase 7: Events/Hooks + Custom Scoring | Pending |
+| EVNT-03 | Phase 7: Events/Hooks + Custom Scoring | Pending |
+| EVNT-04 | Phase 7: Events/Hooks + Custom Scoring | Pending |
+| SCOR-01 | Phase 7: Events/Hooks + Custom Scoring | Pending |
+| SCOR-02 | Phase 7: Events/Hooks + Custom Scoring | Pending |
+| I18N-01 | Phase 8: i18n + Backup + Admin Polish | Pending |
+| I18N-02 | Phase 8: i18n + Backup + Admin Polish | Pending |
+| I18N-03 | Phase 8: i18n + Backup + Admin Polish | Pending |
+| BKUP-01 | Phase 8: i18n + Backup + Admin Polish | Pending |
+| BKUP-02 | Phase 8: i18n + Backup + Admin Polish | Pending |
+| BKUP-03 | Phase 8: i18n + Backup + Admin Polish | Pending |
+| ADMN-01 | Phase 8: i18n + Backup + Admin Polish | Pending |
+| ADMN-02 | Phase 8: i18n + Backup + Admin Polish | Pending |
+| ADMN-03 | Phase 8: i18n + Backup + Admin Polish | Pending |
+| ADMN-04 | Phase 8: i18n + Backup + Admin Polish | Pending |
+| OAPI-01 | Phase 9: OpenAPI + Release Preparation | Pending |
+| OAPI-02 | Phase 9: OpenAPI + Release Preparation | Pending |
+| OAPI-03 | Phase 9: OpenAPI + Release Preparation | Pending |
+| OAPI-04 | Phase 9: OpenAPI + Release Preparation | Pending |
+| OAPI-05 | Phase 9: OpenAPI + Release Preparation | Pending |
+| OAPI-06 | Phase 9: OpenAPI + Release Preparation | Pending |
+| RELS-01 | Phase 9: OpenAPI + Release Preparation | Pending |
+| RELS-02 | Phase 9: OpenAPI + Release Preparation | Pending |
+| RELS-03 | Phase 9: OpenAPI + Release Preparation | Pending |
+| RELS-04 | Phase 9: OpenAPI + Release Preparation | Pending |
+| RELS-05 | Phase 9: OpenAPI + Release Preparation | Pending |
+| PERF-01 | Phase 10: Performance & Scalability | Pending |
+| PERF-02 | Phase 10: Performance & Scalability | Pending |
+| PERF-03 | Phase 10: Performance & Scalability | Pending |
+| PERF-04 | Phase 10: Performance & Scalability | Pending |
+| PERF-05 | Phase 10: Performance & Scalability | Pending |
+| PERF-06 | Phase 10: Performance & Scalability | Pending |
+| PERF-07 | Phase 10: Performance & Scalability | Pending |
+| PERF-08 | Phase 10: Performance & Scalability | Pending |
+| PERF-09 | Phase 10: Performance & Scalability | Pending |
+| EDIT-01 | Phase 11: Subtitle Editor | Pending |
+| EDIT-02 | Phase 11: Subtitle Editor | Pending |
+| EDIT-03 | Phase 11: Subtitle Editor | Pending |
+| EDIT-04 | Phase 11: Subtitle Editor | Pending |
+| EDIT-05 | Phase 11: Subtitle Editor | Pending |
+| BATC-01 | Phase 12: Batch Operations + Smart-Filter | Pending |
+| BATC-02 | Phase 12: Batch Operations + Smart-Filter | Pending |
+| BATC-03 | Phase 12: Batch Operations + Smart-Filter | Pending |
+| BATC-04 | Phase 12: Batch Operations + Smart-Filter | Pending |
+| BATC-05 | Phase 12: Batch Operations + Smart-Filter | Pending |
+| BATC-06 | Phase 12: Batch Operations + Smart-Filter | Pending |
+| BATC-07 | Phase 12: Batch Operations + Smart-Filter | Pending |
+| COMP-01 | Phase 13: Comparison + Sync + Health-Check | Pending |
+| COMP-02 | Phase 13: Comparison + Sync + Health-Check | Pending |
+| COMP-03 | Phase 13: Comparison + Sync + Health-Check | Pending |
+| COMP-04 | Phase 13: Comparison + Sync + Health-Check | Pending |
+| COMP-05 | Phase 13: Comparison + Sync + Health-Check | Pending |
+| SYNC-01 | Phase 13: Comparison + Sync + Health-Check | Pending |
+| SYNC-02 | Phase 13: Comparison + Sync + Health-Check | Pending |
+| SYNC-03 | Phase 13: Comparison + Sync + Health-Check | Pending |
+| SYNC-04 | Phase 13: Comparison + Sync + Health-Check | Pending |
+| SYNC-05 | Phase 13: Comparison + Sync + Health-Check | Pending |
+| DASH-01 | Phase 14: Dashboard Widgets + Quick-Actions | Pending |
+| DASH-02 | Phase 14: Dashboard Widgets + Quick-Actions | Pending |
+| DASH-03 | Phase 14: Dashboard Widgets + Quick-Actions | Pending |
+| DASH-04 | Phase 14: Dashboard Widgets + Quick-Actions | Pending |
+| KEYS-01 | Phase 15: API-Key Mgmt + Notifications + Cleanup | Pending |
+| KEYS-02 | Phase 15: API-Key Mgmt + Notifications + Cleanup | Pending |
+| KEYS-03 | Phase 15: API-Key Mgmt + Notifications + Cleanup | Pending |
+| KEYS-04 | Phase 15: API-Key Mgmt + Notifications + Cleanup | Pending |
+| KEYS-05 | Phase 15: API-Key Mgmt + Notifications + Cleanup | Pending |
+| NOTF-01 | Phase 15: API-Key Mgmt + Notifications + Cleanup | Pending |
+| NOTF-02 | Phase 15: API-Key Mgmt + Notifications + Cleanup | Pending |
+| NOTF-03 | Phase 15: API-Key Mgmt + Notifications + Cleanup | Pending |
+| NOTF-04 | Phase 15: API-Key Mgmt + Notifications + Cleanup | Pending |
+| NOTF-05 | Phase 15: API-Key Mgmt + Notifications + Cleanup | Pending |
+| DEDU-01 | Phase 15: API-Key Mgmt + Notifications + Cleanup | Pending |
+| DEDU-02 | Phase 15: API-Key Mgmt + Notifications + Cleanup | Pending |
+| DEDU-03 | Phase 15: API-Key Mgmt + Notifications + Cleanup | Pending |
+| DEDU-04 | Phase 15: API-Key Mgmt + Notifications + Cleanup | Pending |
+| DEDU-05 | Phase 15: API-Key Mgmt + Notifications + Cleanup | Pending |
+| INTG-01 | Phase 16: External Integrations | Pending |
+| INTG-02 | Phase 16: External Integrations | Pending |
+| INTG-03 | Phase 16: External Integrations | Pending |
+| INTG-04 | Phase 16: External Integrations | Pending |
+| INTG-05 | Phase 16: External Integrations | Pending |
 
 **Coverage:**
 - v1 requirements: 134 total
 - Mapped to phases: 134
-- Unmapped: 0 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-15*
-*Last updated: 2026-02-15 after initial definition*
+*Last updated: 2026-02-15 after roadmap creation*
