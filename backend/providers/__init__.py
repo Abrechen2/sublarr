@@ -170,6 +170,14 @@ class ProviderManager:
             from providers import whisper_subgen  # noqa: F401
         except ImportError as e:
             logger.debug("WhisperSubgen provider not available: %s", e)
+        try:
+            from providers import titrari  # noqa: F401
+        except ImportError as e:
+            logger.debug("Titrari provider not available: %s", e)
+        try:
+            from providers import legendasdivx  # noqa: F401
+        except ImportError as e:
+            logger.debug("LegendasDivx provider not available: %s", e)
 
         # Load plugin providers (from plugins directory)
         self._load_plugins()
@@ -859,6 +867,23 @@ class ProviderManager:
             perf_stats = performance_stats.get(name, {})
             success_rate = get_provider_success_rate(name)
 
+            # Build common stats dict with response time and auto-disable info
+            auto_disabled = is_provider_auto_disabled(name)
+            stats_dict = {
+                "total_searches": perf_stats.get("total_searches", 0),
+                "successful_downloads": perf_stats.get("successful_downloads", 0),
+                "failed_downloads": perf_stats.get("failed_downloads", 0),
+                "success_rate": success_rate,
+                "avg_score": perf_stats.get("avg_score", 0),
+                "consecutive_failures": perf_stats.get("consecutive_failures", 0),
+                "last_success_at": perf_stats.get("last_success_at"),
+                "last_failure_at": perf_stats.get("last_failure_at"),
+                "avg_response_time_ms": perf_stats.get("avg_response_time_ms", 0) or 0,
+                "last_response_time_ms": perf_stats.get("last_response_time_ms", 0) or 0,
+                "auto_disabled": auto_disabled,
+                "disabled_until": perf_stats.get("disabled_until", "") or "",
+            }
+
             provider = self._providers.get(name)
             if provider:
                 try:
@@ -874,16 +899,7 @@ class ProviderManager:
                     "priority": priority,
                     "downloads": downloads,
                     "config_fields": config_fields,
-                    "stats": {
-                        "total_searches": perf_stats.get("total_searches", 0),
-                        "successful_downloads": perf_stats.get("successful_downloads", 0),
-                        "failed_downloads": perf_stats.get("failed_downloads", 0),
-                        "success_rate": success_rate,
-                        "avg_score": perf_stats.get("avg_score", 0),
-                        "consecutive_failures": perf_stats.get("consecutive_failures", 0),
-                        "last_success_at": perf_stats.get("last_success_at"),
-                        "last_failure_at": perf_stats.get("last_failure_at"),
-                    },
+                    "stats": stats_dict,
                 })
             else:
                 statuses.append({
@@ -895,16 +911,7 @@ class ProviderManager:
                     "priority": priority,
                     "downloads": downloads,
                     "config_fields": config_fields,
-                    "stats": {
-                        "total_searches": perf_stats.get("total_searches", 0),
-                        "successful_downloads": perf_stats.get("successful_downloads", 0),
-                        "failed_downloads": perf_stats.get("failed_downloads", 0),
-                        "success_rate": success_rate,
-                        "avg_score": perf_stats.get("avg_score", 0),
-                        "consecutive_failures": perf_stats.get("consecutive_failures", 0),
-                        "last_success_at": perf_stats.get("last_success_at"),
-                        "last_failure_at": perf_stats.get("last_failure_at"),
-                    },
+                    "stats": stats_dict,
                 })
 
         # Sort by priority
