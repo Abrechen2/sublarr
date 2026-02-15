@@ -24,8 +24,13 @@ import {
   getWatchedFolders, saveWatchedFolder, deleteWatchedFolder,
   getStandaloneSeries, getStandaloneMovies, triggerStandaloneScan,
   getStandaloneStatus, refreshSeriesMetadata,
+  getEventCatalog, getHookConfigs, createHookConfig, updateHookConfig, deleteHookConfig, testHook,
+  getWebhookConfigs, createWebhookConfig, updateWebhookConfig, deleteWebhookConfig, testWebhook,
+  getHookLogs, clearHookLogs,
+  getScoringWeights, updateScoringWeights, resetScoringWeights,
+  getProviderModifiers, updateProviderModifiers,
 } from '@/api/client'
-import type { LanguageProfile, BackendConfig, MediaServerInstance } from '@/lib/types'
+import type { LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig } from '@/lib/types'
 
 // ─── Health ──────────────────────────────────────────────────────────────────
 
@@ -737,5 +742,119 @@ export function useRefreshSeriesMetadata() {
   return useMutation({
     mutationFn: refreshSeriesMetadata,
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['standaloneSeries'] }) },
+  })
+}
+
+// ─── Events & Hooks ──────────────────────────────────────────────────────
+
+export function useEventCatalog() {
+  return useQuery({ queryKey: ['eventCatalog'], queryFn: getEventCatalog })
+}
+
+export function useHookConfigs() {
+  return useQuery({ queryKey: ['hookConfigs'], queryFn: () => getHookConfigs() })
+}
+
+export function useCreateHook() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: createHookConfig,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['hookConfigs'] }) },
+  })
+}
+
+export function useUpdateHook() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<HookConfig> }) => updateHookConfig(id, data),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['hookConfigs'] }) },
+  })
+}
+
+export function useDeleteHook() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: deleteHookConfig,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['hookConfigs'] }) },
+  })
+}
+
+export function useTestHook() {
+  return useMutation({ mutationFn: testHook })
+}
+
+export function useWebhookConfigs() {
+  return useQuery({ queryKey: ['webhookConfigs'], queryFn: () => getWebhookConfigs() })
+}
+
+export function useCreateWebhook() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: createWebhookConfig,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['webhookConfigs'] }) },
+  })
+}
+
+export function useUpdateWebhook() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<WebhookConfig> }) => updateWebhookConfig(id, data),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['webhookConfigs'] }) },
+  })
+}
+
+export function useDeleteWebhook() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: deleteWebhookConfig,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['webhookConfigs'] }) },
+  })
+}
+
+export function useTestWebhook() {
+  return useMutation({ mutationFn: testWebhook })
+}
+
+export function useHookLogs(params?: { hook_id?: number; webhook_id?: number; limit?: number }) {
+  return useQuery({ queryKey: ['hookLogs', params], queryFn: () => getHookLogs(params) })
+}
+
+export function useClearHookLogs() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: clearHookLogs,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['hookLogs'] }) },
+  })
+}
+
+export function useScoringWeights() {
+  return useQuery({ queryKey: ['scoringWeights'], queryFn: getScoringWeights })
+}
+
+export function useUpdateScoringWeights() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: updateScoringWeights,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['scoringWeights'] }) },
+  })
+}
+
+export function useResetScoringWeights() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: resetScoringWeights,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['scoringWeights'] }) },
+  })
+}
+
+export function useProviderModifiers() {
+  return useQuery({ queryKey: ['providerModifiers'], queryFn: getProviderModifiers })
+}
+
+export function useUpdateProviderModifiers() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: updateProviderModifiers,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['providerModifiers'] }) },
   })
 }
