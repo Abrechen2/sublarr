@@ -18,6 +18,7 @@ def register_blueprints(app):
     from routes.blacklist import bp as blacklist_bp
     from routes.plugins import bp as plugins_bp
     from routes.mediaservers import bp as mediaservers_bp
+    from routes.whisper import bp as whisper_bp
 
     for blueprint in [
         translate_bp,
@@ -31,5 +32,6 @@ def register_blueprints(app):
         blacklist_bp,
         plugins_bp,
         mediaservers_bp,
+        whisper_bp,
     ]:
         app.register_blueprint(blueprint)
