@@ -497,4 +497,17 @@ export async function getMediaServerHealth(): Promise<MediaServerHealthResult[]>
   return data
 }
 
+// ─── Whisper API ──────────────────────────────────────────────────────────
+export const getWhisperBackends = () => api.get('/whisper/backends').then(r => r.data)
+export const testWhisperBackend = (name: string) => api.post(`/whisper/backends/test/${name}`).then(r => r.data)
+export const getWhisperBackendConfig = (name: string) => api.get(`/whisper/backends/config/${name}`).then(r => r.data)
+export const saveWhisperBackendConfig = (name: string, config: Record<string, string>) => api.put(`/whisper/backends/config/${name}`, config).then(r => r.data)
+export const getWhisperConfig = () => api.get('/whisper/config').then(r => r.data)
+export const saveWhisperConfig = (config: Record<string, unknown>) => api.put('/whisper/config', config).then(r => r.data)
+export const getWhisperQueue = (params?: { status?: string; limit?: number }) => api.get('/whisper/queue', { params }).then(r => r.data)
+export const getWhisperJob = (jobId: string) => api.get(`/whisper/jobs/${jobId}`).then(r => r.data)
+export const submitWhisperJob = (data: { file_path: string; language?: string }) => api.post('/whisper/transcribe', data).then(r => r.data)
+export const deleteWhisperJob = (jobId: string) => api.delete(`/whisper/jobs/${jobId}`).then(r => r.data)
+export const getWhisperStats = () => api.get('/whisper/stats').then(r => r.data)
+
 export default api

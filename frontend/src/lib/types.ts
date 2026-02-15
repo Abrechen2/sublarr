@@ -393,3 +393,57 @@ export interface EpisodeHistoryEntry {
 export interface AppConfig {
   [key: string]: string | number | boolean
 }
+
+// ─── Whisper Types ──────────────────────────────────────────────────────────
+export interface WhisperBackendInfo {
+  name: string
+  display_name: string
+  config_fields: Array<{
+    key: string
+    label: string
+    type: 'text' | 'password' | 'number'
+    required: boolean
+    default: string
+    help: string
+  }>
+  configured: boolean
+  supports_gpu: boolean
+  supports_language_detection: boolean
+}
+
+export interface WhisperJob {
+  id: string
+  file_path: string
+  language: string
+  status: 'queued' | 'extracting' | 'loading' | 'transcribing' | 'saving' | 'completed' | 'failed' | 'cancelled'
+  progress: number
+  phase: string
+  backend_name: string
+  detected_language: string
+  language_probability: number
+  srt_content: string
+  segment_count: number
+  duration_seconds: number
+  processing_time_ms: number
+  error: string
+  created_at: string
+  started_at: string
+  completed_at: string
+}
+
+export interface WhisperConfig {
+  whisper_enabled: boolean
+  whisper_backend: string
+  max_concurrent_whisper: number
+}
+
+export interface WhisperStats {
+  total: number
+  by_status: Record<string, number>
+  avg_processing_time: number
+}
+
+export interface WhisperHealthResult {
+  healthy: boolean
+  message: string
+}
