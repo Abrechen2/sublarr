@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Provider Plugin + Expansion** - Plugin system and 8 new built-in providers
 - [x] **Phase 2: Translation Multi-Backend** - ABC-based multi-backend translation with fallback chains
 - [x] **Phase 3: Media-Server Abstraction** - Plex, Kodi support alongside existing Jellyfin/Emby
-- [ ] **Phase 4: Whisper Speech-to-Text** - faster-whisper and Subgen integration as translation fallback
+- [x] **Phase 4: Whisper Speech-to-Text** - faster-whisper and Subgen integration as translation fallback
 - [ ] **Phase 5: Standalone Mode** - Folder-watch operation without Sonarr/Radarr dependency
 - [ ] **Phase 6: Forced/Signs Subtitle Management** - Forced subtitle detection, search, and per-series config
 - [ ] **Phase 7: Events/Hooks + Custom Scoring** - Internal event bus, script hooks, outgoing webhooks, scoring config
@@ -121,9 +121,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md -- Whisper package: WhisperBackend ABC, WhisperManager, audio extraction, queue system, DB schema, faster-whisper + Subgen backends
-- [ ] 04-02-PLAN.md -- Whisper API blueprint, translator.py Case D integration, WhisperSubgenProvider deprecation
-- [ ] 04-03-PLAN.md -- Frontend Whisper Settings tab with backend cards, global config, TypeScript types and hooks
+- [x] 04-01-PLAN.md -- Whisper package: WhisperBackend ABC, WhisperManager, audio extraction, queue system, DB schema, faster-whisper + Subgen backends
+- [x] 04-02-PLAN.md -- Whisper API blueprint, translator.py Case D integration, WhisperSubgenProvider deprecation
+- [x] 04-03-PLAN.md -- Frontend Whisper Settings tab with backend cards, global config, TypeScript types and hooks
 
 ### Phase 5: Standalone Mode
 **Goal**: Users without Sonarr/Radarr can use Sublarr by pointing it at media folders, with automatic file detection and metadata lookup
@@ -328,7 +328,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | 1. Provider Plugin + Expansion | 6/6 | Complete | 2026-02-15 |
 | 2. Translation Multi-Backend | 6/6 | Complete | 2026-02-15 |
 | 3. Media-Server Abstraction | 3/3 | Complete | 2026-02-15 |
-| 4. Whisper Speech-to-Text | 0/3 | Not started | - |
+| 4. Whisper Speech-to-Text | 3/3 | Complete | 2026-02-15 |
 | 5. Standalone Mode | 0/TBD | Not started | - |
 | 6. Forced/Signs Subs | 0/TBD | Not started | - |
 | 7. Events/Hooks + Custom Scoring | 0/TBD | Not started | - |
@@ -366,4 +366,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-15 (Phase 4 planned)*
+*Last updated: 2026-02-15 (Phase 4 complete)*
