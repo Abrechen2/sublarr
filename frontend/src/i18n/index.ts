@@ -15,6 +15,10 @@ import enLogs from './locales/en/logs.json'
 import deLogs from './locales/de/logs.json'
 import enStatistics from './locales/en/statistics.json'
 import deStatistics from './locales/de/statistics.json'
+import enActivity from './locales/en/activity.json'
+import deActivity from './locales/de/activity.json'
+import enOnboarding from './locales/en/onboarding.json'
+import deOnboarding from './locales/de/onboarding.json'
 
 i18n
   .use(LanguageDetector)
@@ -28,6 +32,8 @@ i18n
         library: enLibrary,
         logs: enLogs,
         statistics: enStatistics,
+        activity: enActivity,
+        onboarding: enOnboarding,
       },
       de: {
         common: deCommon,
@@ -36,6 +42,8 @@ i18n
         library: deLibrary,
         logs: deLogs,
         statistics: deStatistics,
+        activity: deActivity,
+        onboarding: deOnboarding,
       },
     },
     fallbackLng: 'en',
