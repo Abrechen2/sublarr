@@ -1,0 +1,90 @@
+{
+  "title": "Activity",
+  "filter": {
+    "all": "All",
+    "completed": "Completed",
+    "failed": "Failed",
+    "running": "Running",
+    "queued": "Queued"
+  },
+  "table": {
+    "file": "File",
+    "status": "Status",
+    "format": "Format",
+    "time": "Time",
+    "error": "Error",
+    "actions": "Actions"
+  },
+  "expanded": {
+    "full_path": "Full Path",
+    "output": "Output",
+    "format": "Format",
+    "force": "Force",
+    "force_yes": "Yes",
+    "force_no": "No",
+    "created": "Created",
+    "completed": "Completed",
+    "error": "Error",
+    "stats": "Stats"
+  },
+  "no_jobs": "No jobs found",
+  "retry_started": "Retry started",
+  "retry_failed": "Retry failed",
+  "retry_job": "Retry job",
+  "page_info": "Page {{page}} of {{totalPages}} ({{total}} total)",
+  "queue": {
+    "title": "Queue",
+    "batch_processing": "Batch Processing",
+    "total": "Total",
+    "processed": "Processed",
+    "succeeded": "Succeeded",
+    "failed": "Failed",
+    "skipped": "Skipped",
+    "current": "Current",
+    "running": "Running",
+    "running_count": "Running ({{count}})",
+    "queued": "Queued",
+    "queued_count": "Queued ({{count}})",
+    "no_active": "No active translations",
+    "no_queued": "No queued jobs"
+  },
+  "history": {
+    "title": "History",
+    "subtitle": "Subtitle download history across all providers",
+    "total_downloads": "Total Downloads",
+    "last_24h": "Last 24h",
+    "last_7d": "Last 7 Days",
+    "top_provider": "Top Provider",
+    "all_providers": "All Providers",
+    "table": {
+      "file": "File",
+      "provider": "Provider",
+      "lang": "Lang",
+      "format": "Format",
+      "score": "Score",
+      "date": "Date",
+      "actions": "Actions"
+    },
+    "no_history": "No download history yet",
+    "add_to_blacklist": "Add to blacklist",
+    "blacklisted_from_history": "Blacklisted from history"
+  },
+  "blacklist": {
+    "title": "Blacklist",
+    "subtitle": "{{count}} blacklisted subtitles will be excluded from search results",
+    "blocked_subtitles": "Blocked Subtitles",
+    "clear_all": "Clear All",
+    "clear_confirm": "Clear all entries?",
+    "table": {
+      "provider": "Provider",
+      "subtitle_id": "Subtitle ID",
+      "lang": "Lang",
+      "title_path": "Title / Path",
+      "reason": "Reason",
+      "added": "Added",
+      "actions": "Actions"
+    },
+    "no_items": "No blacklisted subtitles. Use the ban button on search results or history to block unwanted subtitles.",
+    "remove_from_blacklist": "Remove from blacklist"
+  }
+}

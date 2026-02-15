@@ -1,0 +1,91 @@
+{
+  "welcome": {
+    "title": "Welcome to Sublarr",
+    "subtitle": "Let's set up your subtitle manager in a few quick steps."
+  },
+  "steps": {
+    "mode": "Setup Mode",
+    "arr": "Sonarr / Radarr",
+    "standalone": "Standalone Folders",
+    "pathmapping": "Path Mapping",
+    "providers": "Providers",
+    "ollama": "Ollama",
+    "mediaservers": "Media Servers (Optional)",
+    "scan": "First Scan"
+  },
+  "step_info": "Step {{step}} of {{total}}",
+  "mode_step": {
+    "description": "Choose how you want to use Sublarr.",
+    "arr_title": "Sonarr / Radarr Mode",
+    "arr_description": "Use with Sonarr and/or Radarr for automatic media detection",
+    "standalone_title": "Standalone Mode",
+    "standalone_description": "Point at media folders directly, no Sonarr/Radarr needed"
+  },
+  "arr_step": {
+    "description": "Connect your *arr instances to detect missing subtitles.",
+    "sonarr_url": "Sonarr URL",
+    "sonarr_api_key": "Sonarr API Key",
+    "radarr_url": "Radarr URL (optional)",
+    "radarr_api_key": "Radarr API Key (optional)"
+  },
+  "standalone_step": {
+    "description": "Point Sublarr at your media folders directly.",
+    "tmdb_api_key": "TMDB API Key (required for metadata)",
+    "tvdb_api_key": "TVDB API Key (optional)",
+    "media_folders": "Media Folders",
+    "media_folders_help": "Add folders containing your media files. Sublarr will scan them for series and movies."
+  },
+  "pathmapping_step": {
+    "description": "Map remote paths to local paths (if *arr runs on a different host).",
+    "label": "Path Mapping",
+    "placeholder": "/data/media=/mnt/media;/anime=/share/anime",
+    "help": "Format: remote_prefix=local_prefix (semicolon-separated for multiple). Leave empty if Sublarr runs on the same host as Sonarr/Radarr."
+  },
+  "providers_step": {
+    "description": "Configure subtitle provider API keys for searching.",
+    "info": "AnimeTosho works without an API key. Add others for broader coverage.",
+    "opensubtitles_api_key": "OpenSubtitles API Key",
+    "jimaku_api_key": "Jimaku API Key",
+    "subdl_api_key": "SubDL API Key"
+  },
+  "ollama_step": {
+    "description": "Set up the LLM translation backend.",
+    "url": "Ollama URL",
+    "model": "Ollama Model",
+    "source_language": "Source Language",
+    "source_language_name": "Source Language Name",
+    "target_language": "Target Language",
+    "target_language_name": "Target Language Name",
+    "test_connection": "Test Ollama Connection",
+    "connection_successful": "Ollama connection successful!",
+    "connection_failed": "Ollama not reachable",
+    "test_failed": "Connection test failed"
+  },
+  "mediaservers_step": {
+    "description": "Configure media servers for automatic library refresh after subtitle downloads.",
+    "info": "Add media servers for automatic library refresh after subtitle downloads. You can skip this and configure later in Settings.",
+    "server_name": "Server name",
+    "connection_successful": "connection successful",
+    "test_failed": "test failed"
+  },
+  "scan_step": {
+    "description": "Run your first wanted scan to find missing subtitles.",
+    "info": "Run a scan to find episodes and movies missing subtitles.",
+    "start_scan": "Start First Scan",
+    "scan_started": "Scan started! Check the Wanted page for results.",
+    "standalone_scan_started": "Standalone scan started!",
+    "wanted_scan_started": "Wanted scan started!",
+    "scan_failed": "Scan failed"
+  },
+  "navigation": {
+    "back": "Back",
+    "next": "Next",
+    "skip_setup": "Skip Setup",
+    "skip": "Skip",
+    "save_next": "Save & Next",
+    "finish": "Finish Setup"
+  },
+  "errors": {
+    "save_failed": "Failed to save settings"
+  }
+}
