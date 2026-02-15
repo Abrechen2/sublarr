@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useBlacklist, useRemoveFromBlacklist, useClearBlacklist } from '@/hooks/useApi'
 import { formatRelativeTime } from '@/lib/utils'
 import {
@@ -6,6 +7,7 @@ import {
 } from 'lucide-react'
 
 export function BlacklistPage() {
+  const { t } = useTranslation('activity')
   const [page, setPage] = useState(1)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
 
@@ -24,16 +26,16 @@ export function BlacklistPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1>Blacklist</h1>
+          <h1>{t('blacklist.title')}</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-            {blacklist?.total ?? 0} blacklisted subtitles will be excluded from search results
+            {t('blacklist.subtitle', { count: blacklist?.total ?? 0 })}
           </p>
         </div>
         {(blacklist?.total ?? 0) > 0 && (
           <div>
             {showClearConfirm ? (
               <div className="flex items-center gap-2">
-                <span className="text-xs" style={{ color: 'var(--warning)' }}>Clear all entries?</span>
+                <span className="text-xs" style={{ color: 'var(--warning)' }}>{t('blacklist.clear_confirm')}</span>
                 <button
                   onClick={handleClearAll}
                   disabled={clearAll.isPending}
@@ -41,14 +43,14 @@ export function BlacklistPage() {
                   style={{ backgroundColor: 'var(--error)' }}
                 >
                   <Trash2 size={12} />
-                  Confirm
+                  {t('common:actions.confirm')}
                 </button>
                 <button
                   onClick={() => setShowClearConfirm(false)}
                   className="px-3 py-1.5 rounded-md text-xs font-medium"
                   style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
                 >
-                  Cancel
+                  {t('common:actions.cancel')}
                 </button>
               </div>
             ) : (
@@ -62,7 +64,7 @@ export function BlacklistPage() {
                 }}
               >
                 <Trash2 size={14} />
-                Clear All
+                {t('blacklist.clear_all')}
               </button>
             )}
           </div>
@@ -81,7 +83,7 @@ export function BlacklistPage() {
           <div className="text-lg font-bold tabular-nums" style={{ fontFamily: 'var(--font-mono)' }}>
             {blacklist?.total ?? 0}
           </div>
-          <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Blocked Subtitles</div>
+          <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>{t('blacklist.blocked_subtitles')}</div>
         </div>
       </div>
 
@@ -94,13 +96,13 @@ export function BlacklistPage() {
           <table className="w-full min-w-[600px]">
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>Provider</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>Subtitle ID</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>Lang</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>Title / Path</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>Reason</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>Added</th>
-                <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>Actions</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('blacklist.table.provider')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('blacklist.table.subtitle_id')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('blacklist.table.lang')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>{t('blacklist.table.title_path')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>{t('blacklist.table.reason')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>{t('blacklist.table.added')}</th>
+                <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('blacklist.table.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -175,7 +177,7 @@ export function BlacklistPage() {
                         onClick={() => removeEntry.mutate(entry.id)}
                         disabled={removeEntry.isPending}
                         className="p-1 rounded transition-colors duration-150"
-                        title="Remove from blacklist"
+                        title={t('blacklist.remove_from_blacklist')}
                         style={{ color: 'var(--text-muted)' }}
                         onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--error)')}
                         onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
@@ -190,7 +192,7 @@ export function BlacklistPage() {
                   <td colSpan={7} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
                     <div className="flex flex-col items-center gap-2">
                       <AlertTriangle size={20} style={{ color: 'var(--text-muted)' }} />
-                      No blacklisted subtitles. Use the ban button on search results or history to block unwanted subtitles.
+                      {t('blacklist.no_items')}
                     </div>
                   </td>
                 </tr>
@@ -206,7 +208,7 @@ export function BlacklistPage() {
             style={{ borderTop: '1px solid var(--border)' }}
           >
             <span className="text-xs" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-              Page {blacklist.page} of {blacklist.total_pages} ({blacklist.total} total)
+              {t('page_info', { page: blacklist.page, totalPages: blacklist.total_pages, total: blacklist.total })}
             </span>
             <div className="flex gap-1.5">
               <button

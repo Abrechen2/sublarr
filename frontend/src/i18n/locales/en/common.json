@@ -26,7 +26,14 @@
     "running": "Running",
     "completed": "Completed",
     "failed": "Failed",
-    "queued": "Queued"
+    "queued": "Queued",
+    "wanted": "Wanted",
+    "searching": "Searching",
+    "found": "Found",
+    "ignored": "Ignored",
+    "not_configured": "Not configured",
+    "skipped": "Skipped",
+    "forced": "Forced"
   },
   "actions": {
     "save": "Save",

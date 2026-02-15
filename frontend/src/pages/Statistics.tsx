@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Loader2, Download, ChevronDown } from 'lucide-react'
 import { useStatistics, useExportStatistics } from '@/hooks/useApi'
 import { TranslationChart } from '@/components/charts/TranslationChart'
@@ -10,6 +11,7 @@ import { toast } from '@/components/shared/Toast'
 const RANGES = ['7d', '30d', '90d', '365d'] as const
 
 export function StatisticsPage() {
+  const { t } = useTranslation('statistics')
   const [range, setRange] = useState<string>('30d')
   const [exportOpen, setExportOpen] = useState(false)
   const exportRef = useRef<HTMLDivElement>(null)
@@ -26,9 +28,9 @@ export function StatisticsPage() {
         a.download = `sublarr-statistics-${range}.${format}`
         a.click()
         URL.revokeObjectURL(url)
-        toast(`Statistics exported as ${format.toUpperCase()}`)
+        toast(t('exported', { format: format.toUpperCase(), defaultValue: `Statistics exported as ${format.toUpperCase()}` }))
       },
-      onError: () => toast('Export failed', 'error'),
+      onError: () => toast(t('export_failed', 'Export failed'), 'error'),
     })
   }
 
@@ -36,7 +38,7 @@ export function StatisticsPage() {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1>Statistics</h1>
+        <h1>{t('title')}</h1>
         <div className="flex items-center gap-2">
           {/* Range filter */}
           <div className="flex gap-1">
@@ -76,7 +78,7 @@ export function StatisticsPage() {
               ) : (
                 <Download size={12} />
               )}
-              Export
+              {t('export')}
               <ChevronDown size={10} />
             </button>
             {exportOpen && (
@@ -95,7 +97,7 @@ export function StatisticsPage() {
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
                 >
-                  Export JSON
+                  {t('export_json')}
                 </button>
                 <button
                   onClick={() => handleExport('csv')}
@@ -104,7 +106,7 @@ export function StatisticsPage() {
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
                 >
-                  Export CSV
+                  {t('export_csv')}
                 </button>
               </div>
             )}
@@ -134,7 +136,7 @@ export function StatisticsPage() {
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
         >
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            No statistics data yet. Start translating subtitles to see charts here.
+            {t('no_data')}
           </p>
         </div>
       ) : (
@@ -145,7 +147,7 @@ export function StatisticsPage() {
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
             <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-              Daily Translations
+              {t('charts.translations')}
             </h3>
             <TranslationChart data={data.daily} />
           </div>
@@ -156,7 +158,7 @@ export function StatisticsPage() {
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
             <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-              Provider Usage
+              {t('charts.providers')}
             </h3>
             <ProviderChart data={data.providers} />
           </div>
@@ -166,7 +168,7 @@ export function StatisticsPage() {
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
             <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-              Subtitle Formats
+              {t('charts.format')}
             </h3>
             <FormatChart data={data.by_format} />
           </div>
@@ -177,7 +179,7 @@ export function StatisticsPage() {
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
             <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-              Downloads by Provider
+              {t('charts.downloads_by_provider')}
             </h3>
             <DownloadChart data={data.downloads_by_provider} />
           </div>

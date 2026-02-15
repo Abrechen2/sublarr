@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useHistory, useHistoryStats, useAddToBlacklist } from '@/hooks/useApi'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
 import {
@@ -32,6 +33,7 @@ function SummaryCard({ icon: Icon, label, value, color }: {
 }
 
 export function HistoryPage() {
+  const { t } = useTranslation('activity')
   const [page, setPage] = useState(1)
   const [providerFilter, setProviderFilter] = useState<string | undefined>()
 
@@ -47,18 +49,18 @@ export function HistoryPage() {
     <div className="space-y-5">
       {/* Header */}
       <div>
-        <h1>History</h1>
+        <h1>{t('history.title')}</h1>
         <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-          Subtitle download history across all providers
+          {t('history.subtitle')}
         </p>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <SummaryCard icon={Download} label="Total Downloads" value={stats?.total_downloads ?? 0} color="var(--accent)" />
-        <SummaryCard icon={Clock} label="Last 24h" value={stats?.last_24h ?? 0} color="var(--success)" />
-        <SummaryCard icon={Clock} label="Last 7 Days" value={stats?.last_7d ?? 0} color="var(--warning)" />
-        <SummaryCard icon={Download} label="Top Provider" value={topProvider} color="var(--text-secondary)" />
+        <SummaryCard icon={Download} label={t('history.total_downloads')} value={stats?.total_downloads ?? 0} color="var(--accent)" />
+        <SummaryCard icon={Clock} label={t('history.last_24h')} value={stats?.last_24h ?? 0} color="var(--success)" />
+        <SummaryCard icon={Clock} label={t('history.last_7d')} value={stats?.last_7d ?? 0} color="var(--warning)" />
+        <SummaryCard icon={Download} label={t('history.top_provider')} value={topProvider} color="var(--text-secondary)" />
       </div>
 
       {/* Filters */}
@@ -76,7 +78,7 @@ export function HistoryPage() {
                 border: `1px solid ${isActive ? 'var(--accent-dim)' : 'var(--border)'}`,
               }}
             >
-              {p === 'all' ? 'All Providers' : p}
+              {p === 'all' ? t('history.all_providers') : p}
             </button>
           )
         })}
@@ -91,13 +93,13 @@ export function HistoryPage() {
           <table className="w-full min-w-[600px]">
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>File</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>Provider</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>Lang</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>Format</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>Score</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>Date</th>
-                <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>Actions</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.file')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.provider')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.lang')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.format')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>{t('history.table.score')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>{t('history.table.date')}</th>
+                <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -182,11 +184,11 @@ export function HistoryPage() {
                           subtitle_id: entry.subtitle_id,
                           language: entry.language,
                           file_path: entry.file_path,
-                          reason: 'Blacklisted from history',
+                          reason: t('history.blacklisted_from_history'),
                         })}
                         disabled={addBlacklist.isPending}
                         className="p-1 rounded transition-colors duration-150"
-                        title="Add to blacklist"
+                        title={t('history.add_to_blacklist')}
                         style={{ color: 'var(--text-muted)' }}
                         onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--error)')}
                         onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
@@ -199,7 +201,7 @@ export function HistoryPage() {
               ) : (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    No download history yet
+                    {t('history.no_history')}
                   </td>
                 </tr>
               )}
@@ -214,7 +216,7 @@ export function HistoryPage() {
             style={{ borderTop: '1px solid var(--border)' }}
           >
             <span className="text-xs" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-              Page {history.page} of {history.total_pages} ({history.total} total)
+              {t('page_info', { page: history.page, totalPages: history.total_pages, total: history.total })}
             </span>
             <div className="flex gap-1.5">
               <button
