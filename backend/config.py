@@ -72,6 +72,9 @@ class Settings(BaseSettings):
     jellyfin_url: str = ""
     jellyfin_api_key: str = ""
 
+    # Media Servers (multi-backend: Jellyfin, Plex, Kodi)
+    media_servers_json: str = ""  # JSON array of media server instances
+
     # Path Mapping (remote → local, for when *arr apps run on different host)
     # Format: "remote_prefix=local_prefix" (semicolon-separated for multiple)
     # Example: "/data/media=Z:\Media;/anime=Z:\Anime"
@@ -398,5 +401,47 @@ def get_radarr_instances() -> list[dict]:
             "api_key": settings.radarr_api_key,
             "path_mapping": settings.path_mapping,
         }]
-    
+
+    return []
+
+
+def get_media_server_instances() -> list[dict]:
+    """Get media server instances from config, with fallback to legacy Jellyfin settings.
+
+    Checks config_entries for media_servers_json first.
+    If not found, auto-migrates legacy jellyfin_url + jellyfin_api_key to the new format.
+
+    Returns list of instance dicts:
+        [{"type": "jellyfin", "name": "...", "enabled": true, "url": "...", "api_key": "..."}]
+    """
+    import json
+    from db.config import get_config_entry, save_config_entry
+
+    # Try new multi-instance config from DB
+    raw = get_config_entry("media_servers_json")
+    if raw:
+        try:
+            instances = json.loads(raw)
+            if isinstance(instances, list) and len(instances) > 0:
+                return instances
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    # Fallback to legacy single-instance Jellyfin config
+    settings = get_settings()
+    if settings.jellyfin_url and settings.jellyfin_api_key:
+        migrated = [{
+            "type": "jellyfin",
+            "name": "Jellyfin",
+            "enabled": True,
+            "url": settings.jellyfin_url,
+            "api_key": settings.jellyfin_api_key,
+        }]
+        # One-time migration: store back into config_entries
+        try:
+            save_config_entry("media_servers_json", json.dumps(migrated))
+        except Exception:
+            pass  # Migration is best-effort
+        return migrated
+
     return []
