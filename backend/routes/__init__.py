@@ -19,6 +19,7 @@ def register_blueprints(app):
     from routes.plugins import bp as plugins_bp
     from routes.mediaservers import bp as mediaservers_bp
     from routes.whisper import bp as whisper_bp
+    from routes.standalone import bp as standalone_bp
 
     for blueprint in [
         translate_bp,
@@ -33,5 +34,6 @@ def register_blueprints(app):
         plugins_bp,
         mediaservers_bp,
         whisper_bp,
+        standalone_bp,
     ]:
         app.register_blueprint(blueprint)
