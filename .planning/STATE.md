@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 4 of 16 (Whisper Speech-to-Text)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-15 -- Completed 04-01-PLAN.md (whisper core package + backends)
+Last activity: 2026-02-15 -- Completed 04-02-PLAN.md (Whisper API wiring + Case D + deprecation)
 
-Progress: [███████░░░░░░░░░░░░░] 1/3 plans in phase
+Progress: [██████████████░░░░░░] 2/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
+- Total plans completed: 21
 - Average duration: 7 min
-- Total execution time: 137 min
+- Total execution time: 140 min
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [███████░░░░░░░░░░░░░] 1/3 pla
 | 01-provider-plugin-expansion | 6/6 | 64 min | 11 min |
 | 02-translation-multi-backend | 6/6 | 23 min | 4 min |
 | 03-media-server-abstraction | 3/3 | 18 min | 6 min |
-| 04-whisper-speech-to-text | 1/3 | 5 min | 5 min |
+| 04-whisper-speech-to-text | 2/3 | 8 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-06 (2 min), 03-01 (4 min), 03-02 (6 min), 03-03 (8 min), 04-01 (5 min)
+- Last 5 plans: 03-01 (4 min), 03-02 (6 min), 03-03 (8 min), 04-01 (5 min), 04-02 (3 min)
 - Trend: Stable (~5 min avg)
 
 *Updated after each plan completion*
@@ -127,6 +127,11 @@ Recent decisions affecting current work:
 - [04-01]: SubgenBackend import wrapped in try/except ImportError for resilience
 - [04-01]: LANGUAGE_TAG_MAP covers 14 languages with ISO 639-1 and 639-2 variants (no external dependency)
 - [04-01]: WhisperQueue uses tempfile for extracted audio with guaranteed cleanup in finally block
+- [04-02]: WhisperQueue singleton in routes/whisper.py with lazy initialization and config-based concurrency
+- [04-02]: Case D returns whisper_pending status (async) -- does not block translate_file() return
+- [04-02]: WhisperSubgenProvider kept with @register_provider but all methods are no-ops (deprecated)
+- [04-02]: Global whisper config uses three keys: whisper_enabled, whisper_backend, max_concurrent_whisper
+- [04-02]: Backend config uses whisper.<name>.<key> namespacing consistent with Plan 01
 
 ### Pending Todos
 
@@ -138,11 +143,11 @@ None yet.
 - Phase 1 complete -- all 6 plans executed, all summaries written
 - Phase 2 complete -- all 6 plans executed, all summaries written, 36 unit tests passing
 - Phase 3 complete -- all 3 plans executed, all summaries written (ABC + wiring + frontend)
-- Phase 4 in progress -- Plan 01 (core package) complete, Plans 02-03 pending
+- Phase 4 in progress -- Plans 01-02 complete, Plan 03 (frontend UI) pending
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 4 Plan 01 complete -- next: 04-02-PLAN.md (API endpoints + settings wiring)
-Resume file: .planning/phases/04-whisper-speech-to-text/04-01-SUMMARY.md
+Stopped at: Phase 4 Plan 02 complete -- next: 04-03-PLAN.md (Whisper frontend UI)
+Resume file: .planning/phases/04-whisper-speech-to-text/04-02-SUMMARY.md
