@@ -32,6 +32,7 @@ from providers.base import (
     ProviderTimeoutError,
 )
 from circuit_breaker import CircuitBreaker
+from forced_detection import classify_forced_result
 
 logger = logging.getLogger(__name__)
 
@@ -639,6 +640,22 @@ class ProviderManager:
         for result in all_results:
             if result.score == 0:  # Only score if not already scored
                 compute_score(result, query)
+
+        # Post-search forced classification: use forced_detection to classify
+        # results from providers without native forced support (e.g., AnimeTosho,
+        # Jimaku, SubDL). Single-pass: search once, classify results.
+        for result in all_results:
+            if not result.forced:
+                forced_type = classify_forced_result(
+                    result.filename,
+                    result.provider_data if hasattr(result, 'provider_data') else None,
+                )
+                if forced_type in ("forced", "signs"):
+                    result.forced = True
+
+        # Post-filter: if query requests forced_only, remove non-forced results
+        if query.forced_only:
+            all_results = [r for r in all_results if r.forced]
 
         # Filter by language (if query specifies languages)
         if query.languages:
