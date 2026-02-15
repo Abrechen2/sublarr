@@ -1,0 +1,49 @@
+{
+  "title": "Dashboard",
+  "stats": {
+    "ollama": "Ollama",
+    "online": "Online",
+    "offline": "Offline",
+    "wanted": "Wanted",
+    "translated_today": "Translated Today",
+    "queue": "Queue"
+  },
+  "quick_actions": {
+    "title": "Quick Actions",
+    "scan_library": "Scan Library",
+    "scanning": "Scanning...",
+    "search_wanted": "Search Wanted",
+    "searching": "Searching..."
+  },
+  "services": {
+    "title": "Service Connections"
+  },
+  "providers": {
+    "title": "Subtitle Providers",
+    "disabled": "Disabled",
+    "healthy": "Healthy",
+    "error": "Error"
+  },
+  "total_stats": {
+    "title": "Total Stats",
+    "translated": "Translated",
+    "failed": "Failed",
+    "skipped": "Skipped"
+  },
+  "by_format": {
+    "title": "By Format",
+    "no_data": "No data yet"
+  },
+  "system": {
+    "title": "System",
+    "uptime": "Uptime",
+    "batch_running": "Batch Running",
+    "yes": "Yes",
+    "quality_warnings": "Quality Warnings"
+  },
+  "recent_activity": {
+    "title": "Recent Activity",
+    "view_all": "View All",
+    "no_activity": "No recent activity"
+  }
+}

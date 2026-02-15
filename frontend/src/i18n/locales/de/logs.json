@@ -1,0 +1,8 @@
+{
+  "title": "Protokolle",
+  "search_placeholder": "Suchen...",
+  "auto_scroll_on": "Auto-Scrollen AN",
+  "auto_scroll_off": "Auto-Scrollen AUS",
+  "no_logs": "Keine Protokolleintraege",
+  "no_logs_for_level": "Keine Protokolleintraege fuer Stufe {{level}}"
+}

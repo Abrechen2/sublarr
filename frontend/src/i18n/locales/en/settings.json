@@ -1,0 +1,125 @@
+{
+  "title": "Settings",
+  "tabs": {
+    "general": "General",
+    "translation": "Translation",
+    "translation_backends": "Translation Backends",
+    "languages": "Languages",
+    "automation": "Automation",
+    "wanted": "Wanted",
+    "providers": "Providers",
+    "sonarr": "Sonarr",
+    "radarr": "Radarr",
+    "library_sources": "Library Sources",
+    "media_servers": "Media Servers",
+    "whisper": "Whisper",
+    "events_hooks": "Events & Hooks",
+    "scoring": "Scoring",
+    "notifications": "Notifications",
+    "prompt_presets": "Prompt Presets"
+  },
+  "general": {
+    "port": "Port",
+    "api_key": "API Key",
+    "api_key_placeholder": "Leave empty to disable",
+    "log_level": "Log Level",
+    "media_path": "Media Path",
+    "db_path": "Database Path"
+  },
+  "translation": {
+    "source_language_code": "Source Language Code",
+    "target_language_code": "Target Language Code",
+    "source_language_name": "Source Language Name",
+    "target_language_name": "Target Language Name",
+    "hi_removal": "Remove Hearing Impaired Tags"
+  },
+  "automation": {
+    "upgrade_enabled": "Upgrade Enabled",
+    "prefer_ass": "Prefer ASS over SRT",
+    "min_score_delta": "Min Score Delta",
+    "upgrade_window": "Upgrade Window (days)",
+    "webhook_delay": "Webhook Delay (minutes)",
+    "auto_scan": "Auto-Scan after Download",
+    "auto_search": "Auto-Search Providers",
+    "auto_translate": "Auto-Translate Found Subs",
+    "search_interval": "Search Interval (hours, 0=disabled)",
+    "search_on_startup": "Search on Startup",
+    "max_items_per_run": "Max Items per Search Run"
+  },
+  "wanted_tab": {
+    "scan_interval": "Scan Interval (hours, 0=disabled)",
+    "anime_only": "Anime Only (Sonarr)",
+    "anime_movies_only": "Anime Movies Only (Radarr)",
+    "scan_on_startup": "Scan on Startup",
+    "max_search_attempts": "Max Search Attempts"
+  },
+  "sonarr": {
+    "url": "Sonarr URL",
+    "api_key": "Sonarr API Key"
+  },
+  "radarr": {
+    "url": "Radarr URL",
+    "api_key": "Radarr API Key"
+  },
+  "library_sources": {
+    "standalone_enabled": "Enable Standalone Mode",
+    "tmdb_api_key": "TMDB API Key (Bearer Token)",
+    "tvdb_api_key": "TVDB API Key (Optional)",
+    "tvdb_pin": "TVDB PIN (Optional)",
+    "scan_interval": "Scan Interval (hours, 0=disabled)",
+    "debounce": "File Detection Debounce (seconds)"
+  },
+  "notifications": {
+    "on_download": "Notify on Download",
+    "on_upgrade": "Notify on Upgrade",
+    "on_batch_complete": "Notify on Batch Complete",
+    "on_error": "Notify on Error",
+    "manual_actions": "Notify Manual Actions"
+  },
+  "actions": {
+    "save": "Save",
+    "test": "Test",
+    "test_connection": "Test Connection",
+    "reset_defaults": "Reset to Defaults",
+    "add_mapping": "Add Mapping",
+    "add_instance": "Add Instance",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
+  },
+  "path_mapping": {
+    "title": "Path Mapping (Remote \u2192 Local)",
+    "remote_path": "Remote Path",
+    "local_path": "Local Path",
+    "test_title": "Test Path Mapping",
+    "mapped_to": "Mapped to:",
+    "file_exists": "File exists",
+    "file_not_found": "File not found"
+  },
+  "instances": {
+    "title": "{{label}} Instances",
+    "instance_n": "Instance {{n}}",
+    "legacy_note": "Configure multiple {{label}} instances. If empty, the legacy URL/Key above is used."
+  },
+  "providers_tab": {
+    "healthy": "Healthy",
+    "error": "Error",
+    "disabled": "Disabled",
+    "not_initialized": "Not initialized",
+    "enabled": "Enabled",
+    "test_provider": "Test provider",
+    "move_up": "Move up (higher priority)",
+    "move_down": "Move down (lower priority)",
+    "cache_entries": "cache entries",
+    "clear_cache": "Clear Cache",
+    "re_enable": "Re-enable",
+    "auto_disabled": "Auto-disabled"
+  },
+  "config_export": {
+    "title": "Configuration Management",
+    "export": "Export Config",
+    "import": "Import Config",
+    "import_warning": "This will overwrite your current settings. API keys will need to be re-entered.",
+    "export_success": "Config exported successfully",
+    "import_success": "Config imported successfully"
+  }
+}
