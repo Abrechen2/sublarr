@@ -21,6 +21,9 @@ import {
   getMediaServerTypes, getMediaServerInstances, saveMediaServerInstances, testMediaServer, getMediaServerHealth,
   getWhisperBackends, testWhisperBackend, getWhisperBackendConfig, saveWhisperBackendConfig,
   getWhisperConfig, saveWhisperConfig, getWhisperQueue, getWhisperStats,
+  getWatchedFolders, saveWatchedFolder, deleteWatchedFolder,
+  getStandaloneSeries, getStandaloneMovies, triggerStandaloneScan,
+  getStandaloneStatus, refreshSeriesMetadata,
 } from '@/api/client'
 import type { LanguageProfile, BackendConfig, MediaServerInstance } from '@/lib/types'
 
@@ -682,4 +685,57 @@ export function useWhisperQueue(params?: { status?: string; limit?: number }) {
 }
 export function useWhisperStats() {
   return useQuery({ queryKey: ['whisper-stats'], queryFn: getWhisperStats })
+}
+
+// ─── Standalone Mode ──────────────────────────────────────────────────────
+
+export function useWatchedFolders() {
+  return useQuery({ queryKey: ['watchedFolders'], queryFn: getWatchedFolders })
+}
+
+export function useSaveWatchedFolder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: saveWatchedFolder,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['watchedFolders'] }) },
+  })
+}
+
+export function useDeleteWatchedFolder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: deleteWatchedFolder,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['watchedFolders'] }) },
+  })
+}
+
+export function useStandaloneSeries() {
+  return useQuery({ queryKey: ['standaloneSeries'], queryFn: getStandaloneSeries })
+}
+
+export function useStandaloneMovies() {
+  return useQuery({ queryKey: ['standaloneMovies'], queryFn: getStandaloneMovies })
+}
+
+export function useTriggerStandaloneScan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: triggerStandaloneScan,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['standaloneSeries'] })
+      void qc.invalidateQueries({ queryKey: ['standaloneMovies'] })
+    },
+  })
+}
+
+export function useStandaloneStatus() {
+  return useQuery({ queryKey: ['standaloneStatus'], queryFn: getStandaloneStatus, refetchInterval: 10000 })
+}
+
+export function useRefreshSeriesMetadata() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: refreshSeriesMetadata,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['standaloneSeries'] }) },
+  })
 }

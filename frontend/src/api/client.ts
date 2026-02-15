@@ -7,6 +7,7 @@ import type {
   PaginatedBlacklist, PaginatedHistory, HistoryStats,
   TranslationBackendInfo, BackendConfig, BackendHealthResult, BackendStats,
   MediaServerType, MediaServerInstance, MediaServerTestResult, MediaServerHealthResult,
+  WatchedFolder, StandaloneSeries, StandaloneMovie, StandaloneStatus,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -509,5 +510,49 @@ export const getWhisperJob = (jobId: string) => api.get(`/whisper/jobs/${jobId}`
 export const submitWhisperJob = (data: { file_path: string; language?: string }) => api.post('/whisper/transcribe', data).then(r => r.data)
 export const deleteWhisperJob = (jobId: string) => api.delete(`/whisper/jobs/${jobId}`).then(r => r.data)
 export const getWhisperStats = () => api.get('/whisper/stats').then(r => r.data)
+
+// ─── Standalone Mode ──────────────────────────────────────────────────────
+
+export async function getWatchedFolders(): Promise<WatchedFolder[]> {
+  const { data } = await api.get('/standalone/folders')
+  return data
+}
+
+export async function saveWatchedFolder(folder: Partial<WatchedFolder> & { path: string }): Promise<WatchedFolder> {
+  if (folder.id) {
+    const { data } = await api.put(`/standalone/folders/${folder.id}`, folder)
+    return data
+  }
+  const { data } = await api.post('/standalone/folders', folder)
+  return data
+}
+
+export async function deleteWatchedFolder(folderId: number): Promise<void> {
+  await api.delete(`/standalone/folders/${folderId}`)
+}
+
+export async function getStandaloneSeries(): Promise<StandaloneSeries[]> {
+  const { data } = await api.get('/standalone/series')
+  return data
+}
+
+export async function getStandaloneMovies(): Promise<StandaloneMovie[]> {
+  const { data } = await api.get('/standalone/movies')
+  return data
+}
+
+export async function triggerStandaloneScan(): Promise<{ message: string }> {
+  const { data } = await api.post('/standalone/scan')
+  return data
+}
+
+export async function getStandaloneStatus(): Promise<StandaloneStatus> {
+  const { data } = await api.get('/standalone/status')
+  return data
+}
+
+export async function refreshSeriesMetadata(seriesId: number): Promise<void> {
+  await api.post(`/standalone/series/${seriesId}/refresh-metadata`)
+}
 
 export default api
