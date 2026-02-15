@@ -9,6 +9,7 @@ import type {
   MediaServerType, MediaServerInstance, MediaServerTestResult, MediaServerHealthResult,
   WatchedFolder, StandaloneSeries, StandaloneMovie, StandaloneStatus,
   HookConfig, WebhookConfig,
+  StatisticsData, FullBackupInfo, SubtitleToolResult, LogRotationConfig,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -578,5 +579,69 @@ export const resetScoringWeights = () => api.delete('/scoring/weights')
 export const getProviderModifiers = () => api.get('/scoring/modifiers').then(r => r.data)
 export const updateProviderModifiers = (data: Record<string, number>) => api.put('/scoring/modifiers', data).then(r => r.data)
 export const deleteProviderModifier = (name: string) => api.delete(`/scoring/modifiers/${name}`)
+
+// ─── Statistics ──────────────────────────────────────────────────────────────
+
+export async function getStatistics(range: string): Promise<StatisticsData> {
+  const { data } = await api.get('/statistics', { params: { range } })
+  return data
+}
+
+export async function exportStatistics(range: string, format: 'json' | 'csv'): Promise<Blob> {
+  const { data } = await api.get('/statistics/export', {
+    params: { range, format },
+    responseType: 'blob',
+  })
+  return data
+}
+
+// ─── Full Backup ─────────────────────────────────────────────────────────────
+
+export async function createFullBackup(): Promise<FullBackupInfo> {
+  const { data } = await api.post('/backup/full')
+  return data
+}
+
+export async function listFullBackups(): Promise<{ backups: FullBackupInfo[] }> {
+  const { data } = await api.get('/backup/full/list')
+  return data
+}
+
+export function downloadFullBackupUrl(filename: string): string {
+  return `/api/v1/backup/full/download/${filename}`
+}
+
+export async function restoreFullBackup(file: File): Promise<{ status: string; config_imported: string[]; db_restored: boolean }> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await api.post('/backup/full/restore', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
+// ─── Log Rotation ────────────────────────────────────────────────────────────
+
+export async function getLogRotation(): Promise<LogRotationConfig> {
+  const { data } = await api.get('/logs/rotation')
+  return data
+}
+
+export async function updateLogRotation(config: LogRotationConfig): Promise<LogRotationConfig> {
+  const { data } = await api.put('/logs/rotation', config)
+  return data
+}
+
+// ─── Subtitle Tools ──────────────────────────────────────────────────────────
+
+export async function runSubtitleTool(tool: string, params: Record<string, unknown>): Promise<SubtitleToolResult> {
+  const { data } = await api.post(`/tools/${tool}`, params)
+  return data
+}
+
+export async function previewSubtitle(filePath: string): Promise<{ format: string; lines: string[]; total_lines: number }> {
+  const { data } = await api.get('/tools/preview', { params: { file_path: filePath } })
+  return data
+}
 
 export default api

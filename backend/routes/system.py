@@ -531,6 +531,7 @@ def get_statistics():
             "SELECT * FROM daily_stats ORDER BY date DESC LIMIT ?", (days,)
         ).fetchall()
     daily = []
+    by_format_totals: dict = {}
     for row in daily_rows:
         d = dict(row)
         daily.append({
@@ -539,6 +540,14 @@ def get_statistics():
             "failed": d["failed"],
             "skipped": d["skipped"],
         })
+        # Aggregate per-format totals across all days
+        fmt_json = d.get("by_format_json", '{"ass": 0, "srt": 0}')
+        try:
+            fmt = json.loads(fmt_json) if isinstance(fmt_json, str) else {}
+        except (json.JSONDecodeError, TypeError):
+            fmt = {}
+        for k, v in fmt.items():
+            by_format_totals[k] = by_format_totals.get(k, 0) + (v or 0)
 
     # Provider stats (all providers)
     providers = get_provider_stats()
@@ -550,7 +559,7 @@ def get_statistics():
                FROM subtitle_downloads GROUP BY provider_name"""
         ).fetchall()
     downloads_by_provider = [
-        {"provider": row[0], "count": row[1], "avg_score": round(row[2] or 0, 1)}
+        {"provider_name": row[0], "count": row[1], "avg_score": round(row[2] or 0, 1)}
         for row in dl_rows
     ]
 
@@ -573,6 +582,7 @@ def get_statistics():
         "downloads_by_provider": downloads_by_provider,
         "backend_stats": backend_stats,
         "upgrades": upgrades,
+        "by_format": by_format_totals,
         "range": range_param,
     })
 
