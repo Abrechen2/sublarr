@@ -17,8 +17,9 @@ import {
   exportConfig, importConfig,
   getGlossaryEntries, createGlossaryEntry, updateGlossaryEntry, deleteGlossaryEntry,
   getPromptPresets, getDefaultPromptPreset, createPromptPreset, updatePromptPreset, deletePromptPreset,
+  getBackends, testBackend, getBackendConfig, saveBackendConfig, getBackendStats,
 } from '@/api/client'
-import type { LanguageProfile } from '@/lib/types'
+import type { LanguageProfile, BackendConfig } from '@/lib/types'
 
 // ─── Health ──────────────────────────────────────────────────────────────────
 
@@ -553,5 +554,49 @@ export function useDeletePromptPreset() {
       queryClient.invalidateQueries({ queryKey: ['prompt-presets'] })
       queryClient.invalidateQueries({ queryKey: ['config'] })
     },
+  })
+}
+
+// ─── Translation Backends ────────────────────────────────────────────────────
+
+export function useBackends() {
+  return useQuery({
+    queryKey: ['backends'],
+    queryFn: getBackends,
+    staleTime: 30000,
+  })
+}
+
+export function useTestBackend() {
+  return useMutation({
+    mutationFn: (name: string) => testBackend(name),
+  })
+}
+
+export function useBackendConfig(name: string) {
+  return useQuery({
+    queryKey: ['backend-config', name],
+    queryFn: () => getBackendConfig(name),
+    enabled: !!name,
+  })
+}
+
+export function useSaveBackendConfig() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ name, config }: { name: string; config: BackendConfig }) =>
+      saveBackendConfig(name, config),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['backends'] })
+      queryClient.invalidateQueries({ queryKey: ['backend-config'] })
+    },
+  })
+}
+
+export function useBackendStats() {
+  return useQuery({
+    queryKey: ['backend-stats'],
+    queryFn: getBackendStats,
+    staleTime: 60000,
   })
 }
