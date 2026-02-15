@@ -6,6 +6,7 @@ import type {
   RetranslateStatus, LanguageProfile, EpisodeHistoryEntry,
   PaginatedBlacklist, PaginatedHistory, HistoryStats,
   TranslationBackendInfo, BackendConfig, BackendHealthResult, BackendStats,
+  MediaServerType, MediaServerInstance, MediaServerTestResult, MediaServerHealthResult,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -466,6 +467,33 @@ export async function saveBackendConfig(name: string, config: BackendConfig): Pr
 
 export async function getBackendStats(): Promise<{ stats: BackendStats[] }> {
   const { data } = await api.get('/backends/stats')
+  return data
+}
+
+// ─── Media Servers ──────────────────────────────────────────────────────────
+
+export async function getMediaServerTypes(): Promise<MediaServerType[]> {
+  const { data } = await api.get('/mediaservers/types')
+  return data
+}
+
+export async function getMediaServerInstances(): Promise<MediaServerInstance[]> {
+  const { data } = await api.get('/mediaservers/instances')
+  return data
+}
+
+export async function saveMediaServerInstances(instances: MediaServerInstance[]): Promise<MediaServerInstance[]> {
+  const { data } = await api.put('/mediaservers/instances', instances)
+  return data
+}
+
+export async function testMediaServer(config: Record<string, unknown>): Promise<MediaServerTestResult> {
+  const { data } = await api.post('/mediaservers/test', config)
+  return data
+}
+
+export async function getMediaServerHealth(): Promise<MediaServerHealthResult[]> {
+  const { data } = await api.get('/mediaservers/health')
   return data
 }
 

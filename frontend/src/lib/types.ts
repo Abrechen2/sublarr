@@ -304,6 +304,35 @@ export interface BackendStats {
   consecutive_failures: number
 }
 
+// ─── Media Servers ──────────────────────────────────────────────────────────
+
+export interface MediaServerType {
+  name: string           // "jellyfin", "plex", "kodi"
+  display_name: string   // "Jellyfin / Emby", "Plex", "Kodi"
+  config_fields: BackendConfigField[]  // Reuse existing BackendConfigField interface
+}
+
+export interface MediaServerInstance {
+  type: string           // "jellyfin", "plex", "kodi"
+  name: string           // User-defined name, e.g. "Living Room Plex"
+  enabled: boolean
+  [key: string]: unknown // Dynamic config keys (url, api_key, token, username, password, path_mapping)
+}
+
+export interface MediaServerHealthResult {
+  name: string
+  type: string
+  healthy: boolean
+  message: string
+}
+
+export interface MediaServerTestResult {
+  healthy: boolean
+  message: string
+}
+
+// ─── Blacklist ──────────────────────────────────────────────────────────────
+
 export interface BlacklistEntry {
   id: number
   provider_name: string

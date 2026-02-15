@@ -18,8 +18,9 @@ import {
   getGlossaryEntries, createGlossaryEntry, updateGlossaryEntry, deleteGlossaryEntry,
   getPromptPresets, getDefaultPromptPreset, createPromptPreset, updatePromptPreset, deletePromptPreset,
   getBackends, testBackend, getBackendConfig, saveBackendConfig, getBackendStats,
+  getMediaServerTypes, getMediaServerInstances, saveMediaServerInstances, testMediaServer, getMediaServerHealth,
 } from '@/api/client'
-import type { LanguageProfile, BackendConfig } from '@/lib/types'
+import type { LanguageProfile, BackendConfig, MediaServerInstance } from '@/lib/types'
 
 // ─── Health ──────────────────────────────────────────────────────────────────
 
@@ -598,5 +599,47 @@ export function useBackendStats() {
     queryKey: ['backend-stats'],
     queryFn: getBackendStats,
     staleTime: 60000,
+  })
+}
+
+// ─── Media Servers ──────────────────────────────────────────────────────────
+
+export function useMediaServerTypes() {
+  return useQuery({
+    queryKey: ['mediaServerTypes'],
+    queryFn: getMediaServerTypes,
+    staleTime: 60_000,
+  })
+}
+
+export function useMediaServerInstances() {
+  return useQuery({
+    queryKey: ['mediaServerInstances'],
+    queryFn: getMediaServerInstances,
+    staleTime: 10_000,
+  })
+}
+
+export function useSaveMediaServerInstances() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (instances: MediaServerInstance[]) => saveMediaServerInstances(instances),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['mediaServerInstances'] })
+    },
+  })
+}
+
+export function useTestMediaServer() {
+  return useMutation({
+    mutationFn: (config: Record<string, unknown>) => testMediaServer(config),
+  })
+}
+
+export function useMediaServerHealth() {
+  return useQuery({
+    queryKey: ['mediaServerHealth'],
+    queryFn: getMediaServerHealth,
+    staleTime: 30_000,
   })
 }
