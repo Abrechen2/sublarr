@@ -104,7 +104,8 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
 
 def get_wanted_items(page: int = 1, per_page: int = 50,
                      item_type: str = None, status: str = None,
-                     series_id: int = None) -> dict:
+                     series_id: int = None,
+                     subtitle_type: str = None) -> dict:
     """Get paginated wanted items with optional filters."""
     db = get_db()
     offset = (page - 1) * per_page
@@ -120,6 +121,9 @@ def get_wanted_items(page: int = 1, per_page: int = 50,
     if series_id is not None:
         conditions.append("sonarr_series_id=?")
         params.append(series_id)
+    if subtitle_type:
+        conditions.append("subtitle_type=?")
+        params.append(subtitle_type)
 
     where = " WHERE " + " AND ".join(conditions) if conditions else ""
 
@@ -323,6 +327,20 @@ def find_wanted_by_episode(sonarr_episode_id: int, target_language: str = "") ->
     if not row:
         return None
     return _row_to_wanted(row)
+
+
+def get_wanted_by_subtitle_type() -> dict:
+    """Get wanted item counts grouped by subtitle_type."""
+    db = get_db()
+    with _db_lock:
+        rows = db.execute(
+            "SELECT subtitle_type, COUNT(*) FROM wanted_items GROUP BY subtitle_type"
+        ).fetchall()
+    result = {}
+    for row in rows:
+        key = row[0] if row[0] else "full"
+        result[key] = row[1]
+    return result
 
 
 def _row_to_wanted(row) -> dict:
