@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 5 - Standalone Mode (In Progress)
+**Current focus:** Phase 6 - Forced/Signs Subtitle Management (In Progress)
 
 ## Current Position
 
-Phase: 5 of 16 (Standalone Mode)
-Plan: 5 of 5 in current phase
-Status: Phase complete
-Last activity: 2026-02-15 -- Completed 05-05-PLAN.md (Standalone Frontend UI)
+Phase: 6 of 16 (Forced/Signs Subtitle Management)
+Plan: 1 of ? in current phase
+Status: In progress
+Last activity: 2026-02-15 -- Completed 06-01-PLAN.md (Data Model & Detection Engine)
 
-Progress: [████████████████████] 5/5 plans in phase
+Progress: [████░░░░░░░░░░░░░░░░] 1/? plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 27
+- Total plans completed: 28
 - Average duration: 6 min
-- Total execution time: 173 min
+- Total execution time: 179 min
 
 **By Phase:**
 
@@ -33,10 +33,11 @@ Progress: [████████████████████] 5/5 pla
 | 03-media-server-abstraction | 3/3 | 18 min | 6 min |
 | 04-whisper-speech-to-text | 3/3 | 13 min | 4 min |
 | 05-standalone-mode | 5/5 | 28 min | 6 min |
+| 06-forced-signs-subs | 1/? | 6 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-01 (4 min), 05-02 (3 min), 05-04 (3 min), 05-03 (5 min), 05-05 (13 min)
-- Trend: Slight uptick on UI-heavy plans (~6 min avg)
+- Last 5 plans: 05-02 (3 min), 05-04 (3 min), 05-03 (5 min), 05-05 (13 min), 06-01 (6 min)
+- Trend: Consistent ~6 min for non-UI plans
 
 *Updated after each plan completion*
 
@@ -162,6 +163,11 @@ Recent decisions affecting current work:
 - [05-05]: Setup Mode step uses large cards with teal hover border for clear visual distinction
 - [05-05]: Standalone path conditionally skips Sonarr/Radarr/Path Mapping steps via visibleSteps array
 - [05-05]: StandaloneStatus polling every 10 seconds for watcher running indicator
+- [06-01]: Multi-signal detection uses priority-ordered signals (ffprobe > filename > title > ASS) with confidence scoring
+- [06-01]: classify_forced_result checks provider_data.foreign_parts_only (OpenSubtitles) before filename patterns
+- [06-01]: Lazy import of classify_styles inside detect_subtitle_type to avoid circular imports
+- [06-01]: VALID_FORCED_PREFERENCES validation in both create and update profile functions
+- [06-01]: subtitle_type added to wanted upsert uniqueness check (application-level, not DB UNIQUE constraint)
 
 ### Pending Todos
 
@@ -175,10 +181,11 @@ None yet.
 - Phase 3 complete -- all 3 plans executed, all summaries written (ABC + wiring + frontend)
 - Phase 4 complete -- all 3 plans executed, all summaries written (whisper package + API + frontend)
 - Phase 5 complete -- all 5 plans executed, all summaries written (DB + metadata + manager + API + UI)
+- Phase 6 in progress -- Plan 01 complete (data model + detection engine)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 5 complete -- all 5 plans executed (DB schema, metadata resolver, manager/watcher/scanner, API, UI)
-Resume file: .planning/phases/05-standalone-mode/05-05-SUMMARY.md
+Stopped at: Phase 6 Plan 01 complete -- data model + detection engine (schema migrations, forced_detection.py, extended VideoQuery/profiles/wanted/translator)
+Resume file: .planning/phases/06-forced-signs-subs/06-01-SUMMARY.md
