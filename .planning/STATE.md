@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 3 - Media-Server Abstraction (COMPLETE)
+**Current focus:** Phase 4 - Whisper Speech-to-Text (In Progress)
 
 ## Current Position
 
-Phase: 3 of 16 (Media-Server Abstraction)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-15 -- Completed 03-03-PLAN.md (frontend UI: Media Servers tab + onboarding)
+Phase: 4 of 16 (Whisper Speech-to-Text)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-15 -- Completed 04-01-PLAN.md (whisper core package + backends)
 
-Progress: [████████████████████] 3/3 plans in phase
+Progress: [███████░░░░░░░░░░░░░] 1/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19
+- Total plans completed: 20
 - Average duration: 7 min
-- Total execution time: 132 min
+- Total execution time: 137 min
 
 **By Phase:**
 
@@ -31,9 +31,10 @@ Progress: [████████████████████] 3/3 pla
 | 01-provider-plugin-expansion | 6/6 | 64 min | 11 min |
 | 02-translation-multi-backend | 6/6 | 23 min | 4 min |
 | 03-media-server-abstraction | 3/3 | 18 min | 6 min |
+| 04-whisper-speech-to-text | 1/3 | 5 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-05 (6 min), 02-06 (2 min), 03-01 (4 min), 03-02 (6 min), 03-03 (8 min)
+- Last 5 plans: 02-06 (2 min), 03-01 (4 min), 03-02 (6 min), 03-03 (8 min), 04-01 (5 min)
 - Trend: Stable (~5 min avg)
 
 *Updated after each plan completion*
@@ -119,6 +120,13 @@ Recent decisions affecting current work:
 - [03-03]: Onboarding media server step is optional -- Skip button advances without saving
 - [03-03]: Onboarding loads media server types lazily on step entry to avoid unnecessary API calls
 - [03-03]: Jellyfin tab and FIELDS entries fully removed -- no backward compatibility shim
+- [04-01]: WhisperManager uses single active backend (not fallback chain) -- only one Whisper instance at a time
+- [04-01]: whisper_backend config entry selects active backend, defaults to "subgen"
+- [04-01]: Config namespaced as whisper.<name>.<key> in config_entries (mirrors backend.<name>.<key> pattern)
+- [04-01]: FasterWhisperBackend lazy-loads model and caches until model_size/device/compute_type changes
+- [04-01]: SubgenBackend import wrapped in try/except ImportError for resilience
+- [04-01]: LANGUAGE_TAG_MAP covers 14 languages with ISO 639-1 and 639-2 variants (no external dependency)
+- [04-01]: WhisperQueue uses tempfile for extracted audio with guaranteed cleanup in finally block
 
 ### Pending Todos
 
@@ -130,10 +138,11 @@ None yet.
 - Phase 1 complete -- all 6 plans executed, all summaries written
 - Phase 2 complete -- all 6 plans executed, all summaries written, 36 unit tests passing
 - Phase 3 complete -- all 3 plans executed, all summaries written (ABC + wiring + frontend)
+- Phase 4 in progress -- Plan 01 (core package) complete, Plans 02-03 pending
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 3 complete -- next: Phase 4 planning/research or next roadmap phase
-Resume file: .planning/phases/03-media-server-abstraction/03-03-SUMMARY.md
+Stopped at: Phase 4 Plan 01 complete -- next: 04-02-PLAN.md (API endpoints + settings wiring)
+Resume file: .planning/phases/04-whisper-speech-to-text/04-01-SUMMARY.md
