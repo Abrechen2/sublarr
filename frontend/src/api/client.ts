@@ -5,6 +5,7 @@ import type {
   WantedSearchResponse, WantedBatchStatus, ProviderInfo, ProviderStats,
   RetranslateStatus, LanguageProfile, EpisodeHistoryEntry,
   PaginatedBlacklist, PaginatedHistory, HistoryStats,
+  TranslationBackendInfo, BackendConfig, BackendHealthResult, BackendStats,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -439,6 +440,32 @@ export async function getOnboardingStatus(): Promise<{
 
 export async function completeOnboarding(): Promise<{ status: string }> {
   const { data } = await api.post('/onboarding/complete')
+  return data
+}
+
+// ─── Translation Backends ────────────────────────────────────────────────────
+
+export async function getBackends(): Promise<{ backends: TranslationBackendInfo[] }> {
+  const { data } = await api.get('/backends')
+  return data
+}
+
+export async function testBackend(name: string): Promise<BackendHealthResult> {
+  const { data } = await api.post(`/backends/test/${name}`)
+  return data
+}
+
+export async function getBackendConfig(name: string): Promise<BackendConfig> {
+  const { data } = await api.get(`/backends/${name}/config`)
+  return data
+}
+
+export async function saveBackendConfig(name: string, config: BackendConfig): Promise<void> {
+  await api.put(`/backends/${name}/config`, config)
+}
+
+export async function getBackendStats(): Promise<{ stats: BackendStats[] }> {
+  const { data } = await api.get('/backends/stats')
   return data
 }
 

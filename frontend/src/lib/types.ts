@@ -256,6 +256,52 @@ export interface LanguageProfile {
   target_languages: string[]
   target_language_names: string[]
   is_default: boolean
+  translation_backend: string
+  fallback_chain: string[]
+}
+
+// ─── Translation Backends ────────────────────────────────────────────────────
+
+export interface TranslationBackendInfo {
+  name: string
+  display_name: string
+  config_fields: BackendConfigField[]
+  configured: boolean
+  supports_glossary: boolean
+  max_batch_size: number
+}
+
+export interface BackendConfigField {
+  key: string
+  label: string
+  type: 'text' | 'password' | 'number'
+  required: boolean
+  default: string
+  help?: string
+}
+
+export interface BackendConfig {
+  [key: string]: string
+}
+
+export interface BackendHealthResult {
+  healthy: boolean
+  message: string
+  usage?: Record<string, unknown>
+}
+
+export interface BackendStats {
+  backend_name: string
+  total_requests: number
+  successful_translations: number
+  failed_translations: number
+  total_characters: number
+  avg_response_time_ms: number
+  last_response_time_ms: number
+  last_success_at: string | null
+  last_failure_at: string | null
+  last_error: string
+  consecutive_failures: number
 }
 
 export interface BlacklistEntry {
