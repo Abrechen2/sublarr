@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 3 of 16 (Media-Server Abstraction)
-Plan: 1 of N in current phase
+Plan: 2 of N in current phase
 Status: In progress
-Last activity: 2026-02-15 -- Completed 03-01-PLAN.md (MediaServer ABC + backends)
+Last activity: 2026-02-15 -- Completed 03-02-PLAN.md (app wiring, routes, config migration)
 
-Progress: [████░░░░░░░░░░░░░░░░] 1/? plans in phase
+Progress: [████████░░░░░░░░░░░░] 2/? plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17
+- Total plans completed: 18
 - Average duration: 7 min
-- Total execution time: 118 min
+- Total execution time: 124 min
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [████░░░░░░░░░░░░░░░░] 1/? pla
 | 00-architecture-refactoring | 3/3 | 27 min | 9 min |
 | 01-provider-plugin-expansion | 6/6 | 64 min | 11 min |
 | 02-translation-multi-backend | 6/6 | 23 min | 4 min |
-| 03-media-server-abstraction | 1/? | 4 min | 4 min |
+| 03-media-server-abstraction | 2/? | 10 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-03 (3 min), 02-04 (5 min), 02-05 (6 min), 02-06 (2 min), 03-01 (4 min)
-- Trend: Stable (~4 min avg)
+- Last 5 plans: 02-04 (5 min), 02-05 (6 min), 02-06 (2 min), 03-01 (4 min), 03-02 (6 min)
+- Trend: Stable (~5 min avg)
 
 *Updated after each plan completion*
 
@@ -109,6 +109,11 @@ Recent decisions affecting current work:
 - [03-01]: PlexServer uses lazy plexapi connection (no connect in __init__)
 - [03-01]: KodiServer uses directory-scoped VideoLibrary.Scan (not per-item ID lookup)
 - [03-01]: plexapi import guarded with try/except -- PlexServer class loads without plexapi installed
+- [03-02]: PUT /mediaservers/instances saves full array then invalidate+reload (not partial updates)
+- [03-02]: POST /mediaservers/test creates temporary non-persisted instance for UI Test button
+- [03-02]: Legacy jellyfin_url auto-migration stores back to config_entries as one-time migration
+- [03-02]: jellyfin_client.py not deleted -- preserved for tests, no production code imports it
+- [03-02]: Health endpoint aggregates per-instance status into media_servers summary
 
 ### Pending Todos
 
@@ -119,11 +124,11 @@ None yet.
 - Phase 0 complete -- no blockers for Phases 1, 2, 3 (can proceed in parallel)
 - Phase 1 complete -- all 6 plans executed, all summaries written
 - Phase 2 complete -- all 6 plans executed, all summaries written, 36 unit tests passing
-- Phase 3 in progress -- Plan 01 complete (ABC + backends), Plan 02 pending (wiring)
+- Phase 3 in progress -- Plan 01 complete (ABC + backends), Plan 02 complete (wiring)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 3 Plan 01 complete -- next: 03-02-PLAN.md (app wiring, routes, frontend)
-Resume file: .planning/phases/03-media-server-abstraction/03-01-SUMMARY.md
+Stopped at: Phase 3 Plan 02 complete -- next: 03-03-PLAN.md (if exists) or phase completion
+Resume file: .planning/phases/03-media-server-abstraction/03-02-SUMMARY.md
