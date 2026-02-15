@@ -6,6 +6,7 @@ provider rate limits.
 """
 
 import os
+import re
 import time
 import logging
 
@@ -20,12 +21,39 @@ logger = logging.getLogger(__name__)
 
 INTER_ITEM_DELAY = 0.5  # seconds between items (rate-limit protection)
 
+# Episode patterns for filename parsing (ordered by specificity)
+_EPISODE_PATTERNS = [
+    re.compile(r'[Ss](\d+)[Ee](\d+)'),           # S01E02
+    re.compile(r'(\d+)x(\d+)'),                    # 1x02
+    re.compile(r'[Ee](?:pisode)?\s*(\d+)', re.I),  # E02, Episode 02
+    re.compile(r' - (\d{2,3})(?:\s|\.|\[|$)'),     # " - 02" (anime absolute)
+]
+
 
 def _parse_filename_for_metadata(file_path: str) -> dict:
     """Parse filename to extract series title, season, episode, year.
-    
+
+    Tries guessit first if available (via standalone.parser), then falls back
+    to regex patterns. Standalone items typically have metadata from DB, so
+    this fallback is rarely exercised for them.
+
     Returns dict with: series_title, season, episode, year, title
     """
+    # Try guessit first if available (more robust than regex patterns)
+    try:
+        from standalone.parser import parse_media_file
+        parsed = parse_media_file(file_path)
+        if parsed.get("title"):
+            return {
+                "series_title": parsed["title"] if parsed["type"] == "episode" else "",
+                "title": parsed["title"] if parsed["type"] == "movie" else "",
+                "season": parsed.get("season"),
+                "episode": parsed.get("episode"),
+                "year": parsed.get("year"),
+            }
+    except ImportError:
+        pass  # standalone.parser not available, fall through to regex
+
     filename = os.path.basename(file_path)
     name_without_ext = os.path.splitext(filename)[0]
     
@@ -117,6 +145,34 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
                 logger.warning("Failed to get Sonarr metadata for wanted %d: %s",
                                wanted_item["id"], e)
 
+        # Try standalone metadata if no Sonarr metadata
+        if not metadata_available:
+            standalone_sid = wanted_item.get("standalone_series_id")
+            if standalone_sid:
+                try:
+                    from db.standalone import get_standalone_series
+                    series = get_standalone_series(standalone_sid)
+                    if series:
+                        query.series_title = series.get("title", "")
+                        query.year = series.get("year")
+                        query.imdb_id = series.get("imdb_id", "")
+                        query.tvdb_id = series.get("tvdb_id")
+                        query.tmdb_id = series.get("tmdb_id")
+                        query.anilist_id = series.get("anilist_id")
+                        # Parse season/episode from wanted item's season_episode field
+                        se = wanted_item.get("season_episode", "")
+                        if se:
+                            se_match = re.match(r'S(\d+)E(\d+)', se, re.IGNORECASE)
+                            if se_match:
+                                query.season = int(se_match.group(1))
+                                query.episode = int(se_match.group(2))
+                        metadata_available = True
+                        logger.debug("Built query from standalone series metadata: %s",
+                                     query.series_title)
+                except Exception as e:
+                    logger.warning("Failed to get standalone series metadata for wanted %d: %s",
+                                   wanted_item["id"], e)
+
     elif wanted_item["item_type"] == "movie":
         movie_id = wanted_item.get("radarr_movie_id")
 
@@ -138,6 +194,25 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
             except Exception as e:
                 logger.warning("Failed to get Radarr metadata for wanted %d: %s",
                                wanted_item["id"], e)
+
+        # Try standalone metadata if no Radarr metadata
+        if not metadata_available:
+            standalone_mid = wanted_item.get("standalone_movie_id")
+            if standalone_mid:
+                try:
+                    from db.standalone import get_standalone_movies
+                    movie = get_standalone_movies(standalone_mid)
+                    if movie and isinstance(movie, dict):
+                        query.title = movie.get("title", "")
+                        query.year = movie.get("year")
+                        query.imdb_id = movie.get("imdb_id", "")
+                        query.tmdb_id = movie.get("tmdb_id")
+                        metadata_available = True
+                        logger.debug("Built query from standalone movie metadata: %s (%s)",
+                                     query.title, query.year)
+                except Exception as e:
+                    logger.warning("Failed to get standalone movie metadata for wanted %d: %s",
+                                   wanted_item["id"], e)
 
     # Fallback to filename parsing if metadata unavailable
     if not metadata_available:
