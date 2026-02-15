@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 6 of 16 (Forced/Signs Subtitle Management)
-Plan: 1 of ? in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-15 -- Completed 06-01-PLAN.md (Data Model & Detection Engine)
+Last activity: 2026-02-15 -- Completed 06-02-PLAN.md (Scanner & Search Pipeline Forced Integration)
 
-Progress: [████░░░░░░░░░░░░░░░░] 1/? plans in phase
+Progress: [████████████░░░░░░░░] 2/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 28
+- Total plans completed: 29
 - Average duration: 6 min
-- Total execution time: 179 min
+- Total execution time: 184 min
 
 **By Phase:**
 
@@ -33,10 +33,10 @@ Progress: [████░░░░░░░░░░░░░░░░] 1/? pla
 | 03-media-server-abstraction | 3/3 | 18 min | 6 min |
 | 04-whisper-speech-to-text | 3/3 | 13 min | 4 min |
 | 05-standalone-mode | 5/5 | 28 min | 6 min |
-| 06-forced-signs-subs | 1/? | 6 min | 6 min |
+| 06-forced-signs-subs | 2/3 | 11 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-02 (3 min), 05-04 (3 min), 05-03 (5 min), 05-05 (13 min), 06-01 (6 min)
+- Last 5 plans: 05-04 (3 min), 05-03 (5 min), 05-05 (13 min), 06-01 (6 min), 06-02 (5 min)
 - Trend: Consistent ~6 min for non-UI plans
 
 *Updated after each plan completion*
@@ -168,6 +168,11 @@ Recent decisions affecting current work:
 - [06-01]: Lazy import of classify_styles inside detect_subtitle_type to avoid circular imports
 - [06-01]: VALID_FORCED_PREFERENCES validation in both create and update profile functions
 - [06-01]: subtitle_type added to wanted upsert uniqueness check (application-level, not DB UNIQUE constraint)
+- [06-02]: Scanner creates forced wanted items only for forced_preference=separate; auto and disabled do not create dedicated items
+- [06-02]: OpenSubtitles filters results at provider level based on foreign_parts_only + query.forced_only
+- [06-02]: ProviderManager classifies results post-search using classify_forced_result for providers without native forced support
+- [06-02]: Forced subtitles are download-only -- no translation step (per research recommendation)
+- [06-02]: Single-pass search pattern: search once, classify results, no double-searching
 
 ### Pending Todos
 
@@ -181,11 +186,11 @@ None yet.
 - Phase 3 complete -- all 3 plans executed, all summaries written (ABC + wiring + frontend)
 - Phase 4 complete -- all 3 plans executed, all summaries written (whisper package + API + frontend)
 - Phase 5 complete -- all 5 plans executed, all summaries written (DB + metadata + manager + API + UI)
-- Phase 6 in progress -- Plan 01 complete (data model + detection engine)
+- Phase 6 in progress -- Plan 01 complete (data model + detection engine), Plan 02 complete (scanner + search pipeline)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 6 Plan 01 complete -- data model + detection engine (schema migrations, forced_detection.py, extended VideoQuery/profiles/wanted/translator)
-Resume file: .planning/phases/06-forced-signs-subs/06-01-SUMMARY.md
+Stopped at: Phase 6 Plan 02 complete -- scanner + search pipeline forced integration (wanted_scanner, wanted_search, OpenSubtitles, ProviderManager)
+Resume file: .planning/phases/06-forced-signs-subs/06-02-SUMMARY.md
