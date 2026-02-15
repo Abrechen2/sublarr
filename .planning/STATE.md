@@ -12,16 +12,16 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 Phase: 8 of 16 (i18n + Backup + Admin Polish)
 Plan: 4 of 5 in current phase
 Status: In progress
-Last activity: 2026-02-15 -- Completed 08-04-PLAN.md (Core Pages i18n: EN/DE translations + useTranslation hooks)
+Last activity: 2026-02-15 -- Completed 08-03-PLAN.md (Statistics page, Backup/Tools tabs, Logs enhancements)
 
-Progress: [████████████████░░░░] 3/5 plans in phase
+Progress: [████████████████████] 4/5 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 36
-- Average duration: 8 min
-- Total execution time: 299 min
+- Total plans completed: 37
+- Average duration: 9 min
+- Total execution time: 341 min
 
 **By Phase:**
 
@@ -35,11 +35,11 @@ Progress: [████████████████░░░░] 3/5 pla
 | 05-standalone-mode | 5/5 | 28 min | 6 min |
 | 06-forced-signs-subs | 3/3 | 22 min | 7 min |
 | 07-events-hooks-custom-scoring | 3/3 | 46 min | 15 min |
-| 08-i18n-backup-admin-polish | 3/5 | 58 min | 19 min |
+| 08-i18n-backup-admin-polish | 4/5 | 100 min | 25 min |
 
 **Recent Trend:**
-- Last 5 plans: 07-03 (10 min), 08-01 (10 min), 08-02 (12 min), 08-04 (36 min)
-- Trend: 08-04 longer due to large file count (18 files, 7 page components) and build verification
+- Last 5 plans: 08-01 (10 min), 08-02 (12 min), 08-04 (36 min), 08-03 (42 min)
+- Trend: 08-03 longer due to Recharts install issues (parallel npm conflict), type compatibility fixes, and large Settings.tsx additions
 
 *Updated after each plan completion*
 
@@ -209,6 +209,12 @@ Recent decisions affecting current work:
 - [08-02]: Tools blueprint validates all file_path args against media_path using os.path.abspath for path traversal prevention
 - [08-02]: All tool operations create .bak backup before modifying files -- non-destructive by default
 - [08-02]: ASS timing adjustment uses centisecond precision (H:MM:SS.cc format) with ms-to-cs conversion
+- [08-03]: Recharts v3 for chart library -- built-in TypeScript support, responsive containers, CSS variable theming
+- [08-03]: Statistics endpoint enhanced with by_format aggregation from daily_stats.by_format_json column
+- [08-03]: Backend downloads_by_provider normalized to use provider_name key (was provider)
+- [08-03]: BackupTab uses file upload for restore (FormData) -- no server-side file path needed
+- [08-03]: SubtitleToolsTab uses inline tool forms rather than modal dialogs for simplicity
+- [08-03]: Logs rotation config is collapsible section at bottom to avoid cluttering the log viewer
 - [08-04]: Library namespace shared across Library, Wanted, SeriesDetail (related content pages with subsections)
 - [08-04]: Settings TAB_KEYS mapping keeps internal tab IDs as English strings for state comparison
 - [08-04]: Sub-components receive t as prop or use useTranslation directly depending on component isolation
@@ -234,5 +240,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 8, Plan 04 complete -- core pages i18n (EN/DE translations + useTranslation hooks)
-Resume file: .planning/phases/08-i18n-backup-admin-polish/08-04-SUMMARY.md
+Stopped at: Phase 8, Plan 03 complete -- Statistics page, Backup/Tools tabs, Logs enhancements
+Resume file: .planning/phases/08-i18n-backup-admin-polish/08-03-SUMMARY.md
