@@ -148,6 +148,19 @@ def create_app(testing=False):
     else:
         logger.info("No config overrides in database, using env/defaults")
 
+    # Initialize plugin system
+    plugins_dir = getattr(settings, "plugins_dir", "")
+    if plugins_dir:
+        os.makedirs(plugins_dir, exist_ok=True)
+        from providers.plugins import init_plugin_manager
+        plugin_mgr = init_plugin_manager(plugins_dir)
+        loaded, plugin_errors = plugin_mgr.discover()
+        if loaded:
+            logger.info("Loaded %d plugins: %s", len(loaded), loaded)
+        if plugin_errors:
+            for err in plugin_errors:
+                logger.warning("Plugin load error: %s -- %s", err["file"], err["error"])
+
     # Bazarr deprecation warning
     if os.environ.get("SUBLARR_BAZARR_URL") or os.environ.get("SUBLARR_BAZARR_API_KEY"):
         logger.warning(
