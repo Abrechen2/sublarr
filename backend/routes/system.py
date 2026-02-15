@@ -55,17 +55,22 @@ def health():
     except Exception:
         service_status["radarr"] = "error"
 
-    # Jellyfin
+    # Media Servers (replaces old Jellyfin-specific check)
     try:
-        from jellyfin_client import get_jellyfin_client
-        jellyfin = get_jellyfin_client()
-        if jellyfin:
-            j_healthy, j_msg = jellyfin.health_check()
-            service_status["jellyfin"] = j_msg if j_healthy else f"unhealthy: {j_msg}"
+        from mediaserver import get_media_server_manager
+        manager = get_media_server_manager()
+        ms_health = manager.health_check_all()
+        if ms_health:
+            healthy_count = sum(1 for h in ms_health if h["healthy"])
+            service_status["media_servers"] = f"{healthy_count}/{len(ms_health)} healthy"
+            # Also add individual server status
+            for h in ms_health:
+                key = f"media_server:{h['name']}"
+                service_status[key] = h["message"] if h["healthy"] else f"unhealthy: {h['message']}"
         else:
-            service_status["jellyfin"] = "not configured"
+            service_status["media_servers"] = "none configured"
     except Exception:
-        service_status["jellyfin"] = "error"
+        service_status["media_servers"] = "error"
 
     status_code = 200 if healthy else 503
     return jsonify({

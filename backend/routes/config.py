@@ -70,15 +70,22 @@ def update_config():
     # Invalidate singleton clients so they pick up new URLs/keys
     from sonarr_client import invalidate_client as _inv_sonarr
     from radarr_client import invalidate_client as _inv_radarr
-    from jellyfin_client import invalidate_client as _inv_jellyfin
+    from mediaserver import invalidate_media_server_manager as _inv_media
     from providers import invalidate_manager as _inv_providers
     from notifier import invalidate_notifier as _inv_notifier
     _inv_sonarr()
     _inv_radarr()
-    _inv_jellyfin()
+    _inv_media()
     _inv_providers()
     _inv_notifier()
     invalidate_scanner()
+
+    # Reload media server instances with new config
+    try:
+        from mediaserver import get_media_server_manager
+        get_media_server_manager().load_instances()
+    except Exception:
+        pass
 
     logger.info("Config updated: %s — settings reloaded", saved_keys)
 
@@ -160,13 +167,20 @@ def import_config():
     # Invalidate caches
     from sonarr_client import invalidate_client as _inv_sonarr
     from radarr_client import invalidate_client as _inv_radarr
-    from jellyfin_client import invalidate_client as _inv_jellyfin
+    from mediaserver import invalidate_media_server_manager as _inv_media
     from providers import invalidate_manager as _inv_providers
     _inv_sonarr()
     _inv_radarr()
-    _inv_jellyfin()
+    _inv_media()
     _inv_providers()
     invalidate_scanner()
+
+    # Reload media server instances with new config
+    try:
+        from mediaserver import get_media_server_manager
+        get_media_server_manager().load_instances()
+    except Exception:
+        pass
 
     logger.info("Config imported: %s (skipped secrets: %s)", imported, skipped_secrets)
 
