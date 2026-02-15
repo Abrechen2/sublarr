@@ -7,8 +7,8 @@ import shutil
 from pathlib import Path
 
 from config import reload_settings
-from database import init_db, get_db
-from server import app
+from db import init_db, get_db
+from app import create_app
 
 
 @pytest.fixture
@@ -43,9 +43,10 @@ def temp_db():
 @pytest.fixture
 def client(temp_db):
     """Create a test client for Flask app."""
+    app = create_app(testing=True)
     app.config["TESTING"] = True
     app.config["WTF_CSRF_ENABLED"] = False
-    
+
     with app.test_client() as client:
         yield client
 

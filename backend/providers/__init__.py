@@ -133,7 +133,7 @@ class ProviderManager:
 
         # Auto-prioritize based on success rate if enabled
         if getattr(self.settings, "provider_auto_prioritize", True):
-            from database import get_provider_stats, get_provider_success_rate
+            from db.providers import get_provider_stats, get_provider_success_rate
             
             # Get stats for all enabled providers
             provider_success_rates = {}
@@ -371,7 +371,7 @@ class ProviderManager:
         cache_key = self._make_cache_key(query, format_filter)
         cache_ttl_minutes = getattr(self.settings, "provider_cache_ttl_minutes", 5)
         
-        from database import get_cached_results, cache_provider_results
+        from db.providers import get_cached_results, cache_provider_results
         cached_json = get_cached_results("combined", cache_key, format_filter.value if format_filter else None)
         if cached_json:
             try:
@@ -482,7 +482,7 @@ class ProviderManager:
             all_results = [r for r in all_results if r.score >= min_score]
 
         # Filter blacklisted subtitles
-        from database import is_blacklisted
+        from db.blacklist import is_blacklisted
         all_results = [r for r in all_results if not is_blacklisted(r.provider_name, r.subtitle_id)]
 
         # Sort by format preference (ASS first), then by score descending
@@ -621,7 +621,7 @@ class ProviderManager:
         # Try results in order until one downloads successfully
         for result in results:
             # Track search attempt for stats
-            from database import update_provider_stats
+            from db.providers import update_provider_stats
             try:
                 content = self.download(result)
                 if content is not None:  # Empty bytes for embedded is OK
@@ -668,7 +668,7 @@ class ProviderManager:
 
     def get_provider_status(self) -> list[dict]:
         """Get status of all providers (for API/UI) with priority, downloads, config_fields, and stats."""
-        from database import get_provider_download_stats, get_provider_stats, get_provider_success_rate
+        from db.providers import get_provider_download_stats, get_provider_stats, get_provider_success_rate
 
         # Build priority order (use current priority list from _init_providers)
         priority_str = getattr(self.settings, "provider_priorities", "animetosho,jimaku,opensubtitles,subdl")

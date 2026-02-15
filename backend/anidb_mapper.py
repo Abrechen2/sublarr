@@ -13,7 +13,7 @@ from typing import Optional
 from datetime import datetime, timedelta
 
 from config import get_settings
-from database import get_anidb_mapping, save_anidb_mapping
+from db.cache import get_anidb_mapping, save_anidb_mapping
 
 logger = logging.getLogger(__name__)
 
