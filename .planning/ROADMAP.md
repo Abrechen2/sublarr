@@ -63,12 +63,15 @@ Plans:
   3. User can search and download subtitles from at least 8 new providers (Addic7ed, Podnapisi, Gestdown, Kitsunekko, Whisper-Subgen, Napisy24, Titrari, LegendasDivx)
   4. Provider health dashboard shows per-provider success rate, response time, and download count; unhealthy providers auto-disable with cooldown
   5. Plugin developer documentation and template enable creating a new provider in under 30 minutes
-**Plans**: TBD
+**Plans:** 6 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
-- [ ] 01-03: TBD
+- [ ] 01-01-PLAN.md -- Plugin infrastructure: declarative config_fields, plugin discovery, manifest validation, DB config storage, API endpoints
+- [ ] 01-02-PLAN.md -- Provider health monitoring: response time tracking, auto-disable with cooldown, frontend stats display
+- [ ] 01-03-PLAN.md -- Plugin hot-reload (watchdog file watcher + API endpoint) and developer template with documentation
+- [ ] 01-04-PLAN.md -- REST/XML providers: Gestdown (Addic7ed proxy) and Podnapisi
+- [ ] 01-05-PLAN.md -- Specialized providers: Kitsunekko (Japanese scraping), Napisy24 (Polish hash), Whisper-Subgen (external ASR)
+- [ ] 01-06-PLAN.md -- Scraping providers: Titrari (Romanian) and LegendasDivx (Portuguese with session auth)
 
 ### Phase 2: Translation Multi-Backend
 **Goal**: Users can translate subtitles using any of 5 backends (Ollama, DeepL, LibreTranslate, OpenAI-compatible, Google) with per-profile backend selection and automatic fallback
@@ -318,7 +321,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 0. Architecture Refactoring | 3/3 | Complete | 2026-02-15 |
-| 1. Provider Plugin + Expansion | 0/TBD | Not started | - |
+| 1. Provider Plugin + Expansion | 0/6 | Planned | - |
 | 2. Translation Multi-Backend | 0/TBD | Not started | - |
 | 3. Media-Server Abstraction | 0/TBD | Not started | - |
 | 4. Whisper Speech-to-Text | 0/TBD | Not started | - |
@@ -359,4 +362,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-15 (Phase 0 complete)*
+*Last updated: 2026-02-15 (Phase 1 planned)*
