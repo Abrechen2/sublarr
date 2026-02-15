@@ -11,27 +11,27 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 
 Phase: 1 of 16 (Provider Plugin Expansion)
 Plan: 6 of 6 in current phase
-Status: In progress (5/6 summaries complete, 01-02 pending)
-Last activity: 2026-02-15 -- Completed 01-06-PLAN.md (Titrari + LegendasDivx HTML scraping providers)
+Status: Phase complete
+Last activity: 2026-02-15 -- Completed 01-02-PLAN.md (provider health monitoring)
 
-Progress: [████████████████████] 6/6 plans in phase (01-02 summary pending)
+Progress: [████████████████████] 6/6 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
+- Total plans completed: 10
 - Average duration: 9 min
-- Total execution time: 78 min
+- Total execution time: 91 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 00-architecture-refactoring | 3/3 | 27 min | 9 min |
-| 01-provider-plugin-expansion | 6/6 | 51 min | 9 min |
+| 01-provider-plugin-expansion | 6/6 | 64 min | 11 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (8 min), 01-04 (8 min), 01-05 (8 min), 01-06 (11 min)
+- Last 5 plans: 01-03 (8 min), 01-04 (8 min), 01-05 (8 min), 01-06 (11 min), 01-02 (13 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -76,6 +76,10 @@ Recent decisions affecting current work:
 - [01-06]: LegendasDivx uses lazy auth -- login deferred to first search via _ensure_authenticated()
 - [01-06]: Daily limit safety margin 140/145 with date comparison reset (today > last_reset_date)
 - [01-06]: Session expiry detected via 302 redirect to login page, auto re-authentication
+- [01-02]: Auto-disable threshold = 2x circuit_breaker_failure_threshold (default 10 consecutive failures)
+- [01-02]: provider_auto_disable_cooldown_minutes config setting with 30 min default
+- [01-02]: Response time uses weighted running average: (old_avg * (n-1) + new) / n
+- [01-02]: clear_auto_disable resets consecutive_failures to 0 for clean re-enable
 
 ### Pending Todos
 
@@ -84,11 +88,11 @@ None yet.
 ### Blockers/Concerns
 
 - Phase 0 complete -- no blockers for Phases 1, 2, 3 (can proceed in parallel)
+- Phase 1 complete -- all 6 plans executed, all summaries written
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
-- Phase 1 plan 01-02 summary still pending (may be executing in parallel)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Plan 01-06 complete (Titrari + LegendasDivx providers) -- Phase 1 execution complete
+Stopped at: Phase 1 complete (all 6 plans) -- ready for Phase 2
 Resume file: .planning/phases/02-*/02-01-PLAN.md (next phase)
