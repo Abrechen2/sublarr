@@ -79,6 +79,67 @@ Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,Test subtitle line
 
 
 @pytest.fixture
+def mock_ollama(monkeypatch):
+    """Mock the Ollama client (translate_all returns identity translations)."""
+    from unittest.mock import MagicMock
+
+    mock_client = MagicMock()
+    mock_client.return_value = ["translated line 1", "translated line 2"]
+
+    monkeypatch.setattr("ollama_client.translate_all", mock_client)
+    return mock_client
+
+
+@pytest.fixture
+def mock_provider_manager(monkeypatch):
+    """Mock the ProviderManager singleton."""
+    from unittest.mock import MagicMock
+    from providers.base import SubtitleResult, SubtitleFormat
+
+    manager = MagicMock()
+    manager.search.return_value = []
+    manager.search_and_download_best.return_value = None
+    manager.download.return_value = None
+    manager._circuit_breakers = {}
+
+    monkeypatch.setattr("providers.get_provider_manager", lambda: manager)
+    return manager
+
+
+@pytest.fixture
+def create_test_subtitle(temp_dir):
+    """Factory fixture to create test subtitle files (ASS or SRT)."""
+    def _create(fmt="ass", lang="en", lines=None):
+        if lines is None:
+            lines = ["Hello World", "How are you"]
+
+        base_path = Path(temp_dir) / f"test.{lang}"
+
+        if fmt == "ass":
+            content = "[Script Info]\nTitle: Test\nScriptType: v4.00+\n\n"
+            content += "[V4+ Styles]\n"
+            content += "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+            content += "Style: Default,Arial,20,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1\n\n"
+            content += "[Events]\n"
+            content += "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+            for i, line in enumerate(lines):
+                start = f"0:00:{i*3+1:02d}.00"
+                end = f"0:00:{i*3+3:02d}.00"
+                content += f"Dialogue: 0,{start},{end},Default,,0,0,0,,{line}\n"
+            path = str(base_path) + ".ass"
+        else:
+            content = ""
+            for i, line in enumerate(lines, 1):
+                content += f"{i}\n00:00:{(i-1)*3+1:02d},000 --> 00:00:{(i-1)*3+3:02d},000\n{line}\n\n"
+            path = str(base_path) + ".srt"
+
+        Path(path).write_text(content, encoding="utf-8")
+        return path
+
+    return _create
+
+
+@pytest.fixture
 def mock_requests(monkeypatch):
     """Mock requests library for HTTP calls."""
     import requests

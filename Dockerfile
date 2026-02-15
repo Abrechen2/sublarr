@@ -36,8 +36,17 @@ COPY backend/ .
 # Copy built frontend
 COPY --from=frontend /build/dist ./static
 
-# Create config directory
-RUN mkdir -p /config
+# Create non-root user with configurable UID/GID
+ARG PUID=1000
+ARG PGID=1000
+RUN groupadd -g ${PGID} sublarr && \
+    useradd -u ${PUID} -g ${PGID} -m -s /bin/bash sublarr
+
+# Create config and backups directory
+RUN mkdir -p /config/backups && \
+    chown -R sublarr:sublarr /app /config
+
+USER sublarr
 
 EXPOSE 5765
 

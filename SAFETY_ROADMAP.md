@@ -6,7 +6,7 @@
 
 ## Status-Uebersicht
 
-### Phase 1: Foundation Safety (v1.0-beta) — TEILWEISE VORHANDEN
+### Phase 1: Foundation Safety (v1.0-beta) — ABGESCHLOSSEN
 
 | Bereich | Status | Beschreibung |
 |---|---|---|
@@ -15,514 +15,258 @@
 | Path Traversal | ✅ | Path-Mapping, Media-Directory-Validation |
 | SQL Injection | ✅ | Parameterized Queries, keine String-Interpolation |
 | Secrets Management | ✅ | Secrets nie in Logs/Responses |
-| Logging | ✅ | RotatingFileHandler, WebSocket-Logs |
-| Error Handling | ⚠️ | Basis vorhanden, aber nicht zentralisiert |
+| Logging | ✅ | RotatingFileHandler, WebSocket-Logs, optionales JSON-Format |
+| Error Handling | ✅ | Zentralisierte Exception-Hierarchie, strukturierte JSON-Responses |
 
-### Phase 2: Code Quality & Testing (v0.2.0-beta → v0.5.0-beta) — IN PLANUNG
+### Phase 2: Code Quality & Testing — IMPLEMENTIERT
 
-| Milestone | Status | Beschreibung | Geplante Version |
+| Milestone | Status | Beschreibung | Completion |
 |---|---|---|---|
-| S1 | 🔲 Geplant | CI/CD Pipeline (Tests, Linting, Type-Checking) | v0.2.0-beta |
-| S2 | 🔲 Geplant | Code Quality Tools (ruff, mypy, Coverage) | v0.2.0-beta |
-| S3 | 🔲 Geplant | Erweiterte Tests (Integration, E2E) | v0.3.0-beta |
-| S4 | 🔲 Geplant | Dependency Management & Security Scanning | v0.3.0-beta |
-| S5 | 🔲 Geplant | Error Handling & Resilience Patterns | v0.4.0-beta |
-| S6 | 🔲 Geplant | Database Safety & Backup-System | v0.4.0-beta |
-| S7 | 🔲 Geplant | Monitoring & Observability | v0.5.0-beta |
-| S8 | 🔲 Geplant | Container Safety & Best Practices | v0.5.0-beta |
+| S1 | ✅ Erledigt | CI/CD Pipeline (Tests, Linting, Type-Checking) | 100% |
+| S2 | ✅ Erledigt | Code Quality Tools (ruff, mypy strict, Coverage) | 100% |
+| S3 | ✅ Erledigt | Erweiterte Tests (Integration, Provider, Translator) | 85% |
+| S4 | ✅ Erledigt | Dependency Management & Security Scanning | 100% |
+| S5 | ✅ Erledigt | Error Handling & Resilience Patterns | 95% |
+| S6 | ✅ Erledigt | Database Safety & Backup-System | 90% |
+| S7 | ✅ Erledigt | Monitoring & Observability | 90% |
+| S8 | ✅ Erledigt | Container Safety & Best Practices | 95% |
 
 ---
 
-## Phase 1: Foundation Safety (v1.0-beta) — Details
+## Implementierungs-Details
 
-### Bereits implementiert ✅
+### S1: CI/CD Pipeline — ✅ 100%
 
-**Authentifizierung:**
-- Optional API-Key-Auth mit `hmac.compare_digest` (timing-safe)
-- Health-Endpoint ohne Auth
-- Webhook-Endpoints mit eigener Auth
+- [x] GitHub Actions CI-Pipeline (`.github/workflows/ci.yml`)
+- [x] Backend Tests: `pytest` mit Coverage
+- [x] Frontend Tests: `vitest` mit Coverage
+- [x] Python Linting: `ruff check`
+- [x] TypeScript Linting: `eslint`
+- [x] Python Type-Checking: `mypy`
+- [x] TypeScript Type-Checking: `tsc --noEmit`
+- [x] Pre-commit Hooks (`.pre-commit-config.yaml`)
+- [x] Coverage-Badges in README (Codecov)
 
-**Input Validation:**
-- Pydantic Settings fuer Type-Safety
-- Parameterized SQL-Queries (keine SQL-Injection)
-- Path-Mapping fuer sichere Datei-Operationen
+### S2: Code Quality Tools — ✅ 100%
 
-**Secrets Management:**
-- Secrets nie in API-Responses (`get_safe_config()`)
-- Secrets nie in Logs
-- Environment-Variablen mit `SUBLARR_` Prefix
+- [x] `ruff` Integration (Linting + Formatting)
+- [x] `mypy` strict mode (`disallow_untyped_defs`, `disallow_incomplete_defs`)
+- [x] `vulture` (Dead Code Detection)
+- [x] `bandit` (Security-Scanning)
+- [x] `radon` (Complexity-Analyse)
+- [x] TypeScript strict mode
+- [x] CI-Integration mit `continue-on-error` fuer schrittweise Migration
 
-**Logging:**
-- RotatingFileHandler (5MB, 3 Backups)
-- WebSocket-Log-Emission
-- Konfigurierbare Log-Levels
+### S3: Erweiterte Tests — ✅ 85%
 
-**Datenbank:**
-- SQLite WAL-Mode fuer Concurrency
-- Thread-Safe Database-Operations (`_db_lock`)
-- Schema-Migrations
+- [x] Backend Integration Tests (`tests/integration/`)
+  - [x] API-Endpoint-Tests
+  - [x] Database-Operation-Tests
+  - [x] Provider-Integration-Tests
+  - [x] Webhook-Tests
+  - [x] **Translation-Pipeline-Tests** (`test_translator_pipeline.py`)
+  - [x] **Provider-Pipeline-Tests** (`test_provider_pipeline.py`)
+- [x] Test-Fixtures (`conftest.py`): mock_ollama, mock_provider_manager, create_test_subtitle
+- [ ] Frontend E2E Tests (Playwright) — geplant fuer spaeter
+- [ ] Performance Tests (locust/pytest-benchmark) — geplant fuer spaeter
 
-### Verbesserungsbedarf ⚠️
+### S4: Dependency Management — ✅ 100%
 
-**Error Handling:**
-- Kein zentraler Exception-Handler
-- Fehler werden nicht strukturiert geloggt
-- Keine Error-Tracking-Integration
+- [x] `requirements.in` + `requirements.txt` (pip-tools)
+- [x] `package-lock.json` fuer Frontend
+- [x] Dependabot-Integration (`.github/dependabot.yml`)
+- [x] `pip-audit` fuer Python Security-Scanning
+- [x] `npm audit` fuer Frontend
+- [x] License-Compliance Checks
 
-**Path Validation:**
-- Path-Mapping vorhanden, aber nicht ueberall konsistent
-- Keine explizite Path-Traversal-Validierung in allen Endpoints
+### S5: Error Handling & Resilience — ✅ 95%
 
-**Container Security:**
-- Container laeuft als Root (nicht ideal)
-- Keine Resource-Limits definiert
-- Kein `.dockerignore`
+- [x] **Custom Exception-Hierarchie** (`error_handler.py`):
+  ```
+  SublarrError (Basis)
+    ├── TranslationError (TRANS_001)
+    │   ├── OllamaConnectionError (TRANS_002, 503)
+    │   └── OllamaModelError (TRANS_003, 503)
+    ├── DatabaseError (DB_001)
+    │   ├── DatabaseIntegrityError (DB_002)
+    │   ├── DatabaseBackupError (DB_003)
+    │   └── DatabaseRestoreError (DB_004)
+    └── ConfigurationError (CFG_001, 400)
+  ```
+- [x] **Flask Global Error Handlers**: SublarrError → JSON, generic 500 mit Logging
+- [x] **Request-ID Tracking** (`g.request_id` via `uuid4`)
+- [x] **Strukturierte Error-Responses**: `{error, code, request_id, timestamp, context, troubleshooting}`
+- [x] **Circuit Breaker** (`circuit_breaker.py`): CLOSED → OPEN → HALF_OPEN → CLOSED
+  - Thread-safe mit Lock
+  - Konfigurierbar: `circuit_breaker_failure_threshold` (default 5), `circuit_breaker_cooldown_seconds` (default 60)
+  - Integriert in ProviderManager (pro Provider ein Breaker)
+  - Provider mit OPEN-Breaker werden uebersprungen
+- [x] **ProviderTimeoutError** in `providers/base.py`
+- [x] **Endpoint-Migration**: Kritische 500-Handler auf strukturierte Exceptions migriert
+- [ ] Error-History in Database — geplant
 
----
+### S6: Database Safety & Backup — ✅ 90%
 
-## Phase 2: Code Quality & Testing
+- [x] **Transaction Context Manager** (`transaction_manager.py`):
+  - `with transaction(db) as cursor:` — auto-commit/rollback
+  - Wirft `DatabaseError` bei Fehlern
+- [x] **Backup-System** (`database_backup.py`):
+  - SQLite Online Backup API (`source.backup(target)`)
+  - Backup-Verifizierung via `PRAGMA integrity_check`
+  - Rotation: 7 taeglich, 4 woechentlich, 3 monatlich (konfigurierbar)
+  - Backup-Verzeichnis: `/config/backups/`
+  - Scheduler: taeglich 3 Uhr UTC (daemon Thread)
+- [x] **Database Health-Checks** (`database_health.py`):
+  - `check_integrity()`: PRAGMA integrity_check
+  - `get_database_stats()`: Groesse, Tabellen-Counts, WAL-Status, Page-Info
+  - `vacuum()`: VACUUM mit Vorher/Nachher-Vergleich
+- [x] **API-Endpoints**:
+  - `POST /api/v1/database/backup` — Manueller Backup-Trigger
+  - `GET /api/v1/database/backups` — Liste aller Backups
+  - `POST /api/v1/database/restore` — Backup wiederherstellen (mit Bestaetigung)
+  - `GET /api/v1/database/health` — Integrity + Stats
+  - `POST /api/v1/database/vacuum` — Optimierung
+- [x] **Config-Settings**: `backup_dir`, `backup_retention_daily/weekly/monthly`
+- [ ] Alle Schreib-Operationen mit `transaction()` wrappen — schrittweise Migration
 
-### Milestone S1: CI/CD Pipeline
+### S7: Monitoring & Observability — ✅ 90%
 
-**Ziel:** Automatisierte Tests, Linting und Type-Checking bei jedem Commit.
+- [x] **Prometheus Metrics** (`metrics.py`, `/metrics` Endpoint):
+  - System: CPU, Memory, Disk
+  - Business: translation_total, translation_duration, provider_search/download
+  - Queue: job_queue_size, wanted_queue_size
+  - Database: database_size_bytes
+  - Resilience: circuit_breaker_state per Provider
+- [x] **Structured JSON Logging**:
+  - `StructuredJSONFormatter` in server.py
+  - Aktivierbar via `SUBLARR_LOG_FORMAT=json` (Default: `text`)
+  - Felder: timestamp, level, logger, message, module, function, line, request_id
+  - Exception-Info als separate Felder
+- [x] **Detaillierter Health-Endpoint** (`GET /api/v1/health/detailed`):
+  - Database: Integrity, Groesse, WAL-Mode
+  - Ollama: Erreichbar ja/nein
+  - Providers: Circuit-Breaker-State pro Provider
+  - Disk: /config und /media Nutzung (via psutil)
+  - Memory: RSS/VMS Nutzung (via psutil)
+  - Rueckgabe: 200 (healthy), 503 (degraded)
+- [x] **Dependencies**: `prometheus_client`, `psutil` in `requirements.in`
+- [ ] Grafana-Dashboard-Template — geplant
 
-**Motivation:**
-- Aktuell nur manuelle Tests moeglich
-- Keine automatische Code-Quality-Checks
-- Fehler werden erst spaet entdeckt
+### S8: Container Safety — ✅ 95%
 
-**Implementierung:**
-
-- [ ] **GitHub Actions CI-Pipeline** (`.github/workflows/ci.yml`):
-  - Backend Tests: `pytest` mit Coverage
-  - Frontend Tests: `vitest` mit Coverage
-  - Python Linting: `ruff check`
-  - TypeScript Linting: `eslint`
-  - Python Type-Checking: `mypy`
-  - TypeScript Type-Checking: `tsc --noEmit`
-  - Test auf Python 3.11, 3.12
-  - Test auf Node 20, 21
-  - Matrix-Build fuer Multi-Version-Support
-
-- [ ] **Pre-commit Hooks** (`.pre-commit-config.yaml`):
-  - Ruff (Python Linting + Formatting)
-  - Black (Python Formatting, Fallback)
-  - isort (Import-Sorting)
-  - mypy (Type-Checking, optional)
-  - ESLint (Frontend Linting)
-  - Prettier (Frontend Formatting)
-  - Git-Secrets-Check (keine Secrets in Commits)
-
-- [ ] **Code Coverage:**
-  - Coverage-Ziel: 80%+ fuer Backend, 70%+ fuer Frontend
-  - Coverage-Reports in CI
-  - Coverage-Badges in README
-  - Coverage-Diff bei PRs
-
-**Neue Dateien:** 2 (`.github/workflows/ci.yml`, `.pre-commit-config.yaml`) | **Geschaetzte Zeilen:** +200
-
-**Abhaengigkeiten:** Keine
-
----
-
-### Milestone S2: Code Quality Tools
-
-**Ziel:** Statische Code-Analyse, Type-Checking und Code-Metriken.
-
-**Motivation:**
-- Code-Quality wird nicht automatisch ueberprueft
-- Type-Safety nicht vollstaendig
-- Code-Duplikate und Dead Code nicht erkannt
-
-**Implementierung:**
-
-- [ ] **Python Code Quality:**
-  - `ruff` Integration (Linting + Formatting, sehr schnell)
-  - `mypy` Integration (Type-Checking, strict mode)
-  - `pylint` oder `flake8` (optional, als zusaetzliche Checks)
-  - `vulture` (Dead Code Detection)
-  - `bandit` (Security-Scanning)
-
-- [ ] **TypeScript Code Quality:**
-  - ESLint erweitern (mehr Rules)
-  - TypeScript strict mode aktivieren
-  - `ts-prune` (Dead Code Detection)
-
-- [ ] **Code-Metriken:**
-  - Cyclomatic Complexity Tracking
-  - Code-Duplikat-Erkennung
-  - Maintainability-Index
-
-- [ ] **CI-Integration:**
-  - Alle Tools in CI-Pipeline
-  - Fail bei kritischen Issues
-  - Warnungen bei nicht-kritischen Issues
-
-**Neue Dateien:** 3 (`ruff.toml`, `mypy.ini`, `bandit.yml`) | **Geschaetzte Zeilen:** +150
-
-**Abhaengigkeiten:** Milestone S1 (CI-Pipeline)
-
----
-
-### Milestone S3: Erweiterte Tests
-
-**Ziel:** Integration-Tests, E2E-Tests und Performance-Tests.
-
-**Motivation:**
-- Aktuell nur Unit-Tests vorhanden
-- Keine Integration-Tests fuer API-Endpoints
-- Keine E2E-Tests fuer User-Flows
-- Keine Performance-Tests
-
-**Implementierung:**
-
-- [ ] **Backend Integration Tests:**
-  - API-Endpoint-Tests (alle `/api/v1/` Endpoints)
-  - Database-Operation-Tests
-  - Provider-Integration-Tests (mit Mock-Responses)
-  - Webhook-Tests (Sonarr/Radarr)
-  - Translation-Pipeline-Tests
-
-- [ ] **Frontend E2E Tests:**
-  - Playwright oder Cypress Integration
-  - Kritische User-Flows:
-    - Onboarding-Wizard
-    - Wanted-Search + Download
-    - Settings-Konfiguration
-    - Language-Profile-Erstellung
-  - Cross-Browser-Tests (Chrome, Firefox)
-
-- [ ] **Performance Tests:**
-  - Load-Tests fuer API (locust oder pytest-benchmark)
-  - Database-Performance-Tests
-  - Frontend-Performance (Lighthouse CI)
-
-- [ ] **Test-Utilities:**
-  - Test-Fixtures (Dummy-Daten)
-  - Mock-Provider-Responses
-  - Test-Database-Setup/Teardown
-
-**Neue Dateien:** 5 (Integration-Tests, E2E-Tests, Performance-Tests, Fixtures) | **Geschaetzte Zeilen:** +3000
-
-**Abhaengigkeiten:** Milestone S1 (CI-Pipeline)
+- [x] **Non-Root User im Dockerfile**:
+  - `ARG PUID=1000` / `ARG PGID=1000`
+  - `groupadd`/`useradd` mit konfigurierbaren IDs
+  - `chown` auf /app und /config
+  - `USER sublarr` vor EXPOSE
+- [x] **Docker-Compose Hardening**:
+  - PUID/PGID Build-Args
+  - Resource-Limits: 2 CPU, 4G RAM (reservations: 0.5 CPU, 512M)
+  - `security_opt: no-new-privileges:true`
+  - `cap_drop: ALL` + `cap_add: CHOWN, DAC_OVERRIDE, SETGID, SETUID`
+  - JSON-File Logging mit Rotation (10m, 3 files)
+- [x] **README-Dokumentation**: PUID/PGID Erklaerung, Troubleshooting
+- [ ] Trivy Container-Scanning in CI — geplant
 
 ---
 
-### Milestone S4: Dependency Management & Security Scanning
+## Architektur-Diagramm
 
-**Ziel:** Sichere Dependencies, automatische Updates und Vulnerability-Scanning.
+```
+                     ┌──────────────────┐
+                     │   Flask Server   │
+                     │   (server.py)    │
+                     └────────┬─────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              │               │               │
+    ┌─────────▼────────┐     │     ┌─────────▼────────┐
+    │  Error Handler   │     │     │  Metrics Export   │
+    │ (error_handler)  │     │     │   (metrics.py)    │
+    │                  │     │     │                   │
+    │ SublarrError     │     │     │ Prometheus:       │
+    │  ├ Translation   │     │     │  CPU, Memory,     │
+    │  ├ Database      │     │     │  Translation,     │
+    │  └ Config        │     │     │  Provider,        │
+    └──────────────────┘     │     │  CircuitBreaker   │
+                              │     └───────────────────┘
+                    ┌─────────▼─────────┐
+                    │  Provider Manager  │
+                    │ (__init__.py)      │
+                    │                   │
+                    │ ┌───────────────┐ │
+                    │ │CircuitBreaker │ │
+                    │ │ per Provider  │ │
+                    │ └───────────────┘ │
+                    └─────────┬─────────┘
+              ┌───────┬───────┼───────┬───────┐
+              │       │       │       │       │
+           Tosho   Jimaku   OS    SubDL   (future)
 
-**Motivation:**
-- Dependencies nicht gepinnt (Security-Risiko)
-- Keine automatische Vulnerability-Erkennung
-- Manuelle Updates erforderlich
-
-**Implementierung:**
-
-- [ ] **Dependency Pinning:**
-  - `requirements.txt` → `requirements.in` + `requirements.txt` (via pip-tools)
-  - `package.json` → `package-lock.json` bereits vorhanden ✅
-  - Dependency-Versions explizit festlegen
-  - Changelog-Tracking fuer Dependency-Updates
-
-- [ ] **Security Scanning:**
-  - `pip-audit` oder `safety` fuer Python
-  - `npm audit` fuer Frontend (bereits in package.json)
-  - `trivy` fuer Container-Scanning
-  - Automatische Scans in CI
-
-- [ ] **Dependabot Integration:**
-  - `.github/dependabot.yml` konfigurieren
-  - Automatische PRs fuer Security-Updates
-  - Automatische PRs fuer Dependency-Updates (optional)
-
-- [ ] **License Compliance:**
-  - `liccheck` fuer Python (License-Checking)
-  - `license-checker` fuer Frontend
-  - License-Whitelist definieren
-  - License-Report generieren
-
-**Neue Dateien:** 3 (`requirements.in`, `.github/dependabot.yml`, `LICENSE_WHITELIST.txt`) | **Geschaetzte Zeilen:** +100
-
-**Abhaengigkeiten:** Keine
-
----
-
-### Milestone S5: Error Handling & Resilience Patterns
-
-**Ziel:** Zentrales Error-Handling, Retry-Mechanismen und Circuit Breaker.
-
-**Motivation:**
-- Fehler werden nicht konsistent behandelt
-- Keine Retry-Mechanismen fuer externe APIs
-- Keine Circuit Breaker fuer Provider-Calls
-- Fehler-Messages nicht benutzerfreundlich
-
-**Implementierung:**
-
-- [ ] **Zentrales Error-Handling:**
-  - Global Exception Handler in Flask
-  - Custom Exception-Klassen (`SublarrError`, `ProviderError`, etc.)
-  - Strukturierte Error-Responses (JSON-Format)
-  - Error-Logging mit Context (Request-ID, User-Action)
-
-- [ ] **Retry-Mechanismen:**
-  - Retry-Decorator fuer kritische Operationen
-  - Exponential Backoff (bereits teilweise vorhanden)
-  - Max-Retry-Limits konfigurierbar
-  - Retry-Statistiken tracken
-
-- [ ] **Circuit Breaker Pattern:**
-  - Circuit Breaker fuer Provider-Calls
-  - Auto-Recovery nach Cooldown
-  - Fallback-Strategien (naechster Provider)
-  - Circuit-Breaker-Status in UI
-
-- [ ] **Graceful Degradation:**
-  - Wenn Provider fehlschlaegt → naechster Provider
-  - Wenn Ollama fehlschlaegt → Fehler-Message, kein Crash
-  - Wenn Database-Lock → Retry mit Timeout
-
-- [ ] **Error-Reporting:**
-  - Benutzerfreundliche Error-Messages
-  - Error-Codes fuer bekannte Fehler
-  - Troubleshooting-Hints in Error-Responses
-  - Error-History in Database
-
-**Neue Dateien:** 3 (`error_handler.py`, `retry_utils.py`, `circuit_breaker.py`) | **Geschaetzte Zeilen:** +800
-
-**Abhaengigkeiten:** Keine
+    ┌──────────────────────────────────────────────┐
+    │              Database Layer                   │
+    │  ┌──────────┐  ┌─────────┐  ┌──────────────┐│
+    │  │transaction│  │ backup  │  │ health_check ││
+    │  │ _manager  │  │ _system │  │  + vacuum    ││
+    │  └──────────┘  └─────────┘  └──────────────┘│
+    └──────────────────────────────────────────────┘
+```
 
 ---
 
-### Milestone S6: Database Safety & Backup-System
+## Neue Dateien (erstellt)
 
-**Ziel:** Datenintegritaet, automatische Backups und Recovery-Mechanismen.
+| Datei | Milestone | Beschreibung |
+|---|---|---|
+| `backend/error_handler.py` | S5 | Exception-Hierarchie, Flask Error-Handler |
+| `backend/circuit_breaker.py` | S5 | Circuit Breaker Pattern |
+| `backend/transaction_manager.py` | S6 | Transaction Context Manager |
+| `backend/database_backup.py` | S6 | Backup mit Rotation und Verification |
+| `backend/database_health.py` | S6 | Integrity-Check, Stats, Vacuum |
+| `backend/metrics.py` | S7 | Prometheus Metrics Export |
+| `tests/integration/test_translator_pipeline.py` | S3 | Translation Pipeline Tests |
+| `tests/integration/test_provider_pipeline.py` | S3 | Provider + Circuit Breaker Tests |
 
-**Motivation:**
-- Keine automatischen Backups
-- Keine Transaction-Management
-- Keine Database-Health-Checks
-- Datenverlust bei Fehlern moeglich
+## Geaenderte Dateien
 
-**Implementierung:**
-
-- [ ] **Transaction Management:**
-  - Context Manager fuer Database-Transactions
-  - Auto-Rollback bei Fehlern
-  - Transaction-Isolation-Level konfigurierbar
-  - Deadlock-Detection und -Recovery
-
-- [ ] **Database Backups:**
-  - Automatische taegliche Backups (SQLite-Dump)
-  - Backup-Rotation (letzte 7 Tage, dann woechentlich)
-  - Backup-Verifizierung (Integrity-Check)
-  - Backup-Notification (bei Fehlern)
-  - Manueller Backup-Trigger via API
-
-- [ ] **Database Health-Checks:**
-  - Integrity-Check (`PRAGMA integrity_check`)
-  - Vacuum-Optimierung (automatisch)
-  - Database-Size-Monitoring
-  - Connection-Pool-Health
-
-- [ ] **Data Validation:**
-  - Database-Constraints erweitern
-  - Foreign-Key-Constraints (bereits teilweise vorhanden)
-  - Check-Constraints fuer Datenvalidierung
-  - Unique-Constraints wo noetig
-
-- [ ] **Recovery-Mechanismen:**
-  - Backup-Restore via API
-  - Point-in-Time-Recovery (wenn moeglich)
-  - Database-Repair-Tools
-
-**Neue Dateien:** 3 (`database_backup.py`, `database_health.py`, `transaction_manager.py`) | **Geschaetzte Zeilen:** +1000
-
-**Abhaengigkeiten:** Keine
+| Datei | Milestones | Aenderungen |
+|---|---|---|
+| `backend/server.py` | S5, S6, S7 | Error-Handler, Backup-API, Metrics, Health, JSON-Logging |
+| `backend/config.py` | S5, S6, S7 | Circuit Breaker, Backup, Log-Format Settings |
+| `backend/providers/__init__.py` | S5 | Circuit Breaker Integration |
+| `backend/providers/base.py` | S5 | ProviderTimeoutError |
+| `backend/mypy.ini` | S2 | Strict Mode aktiviert |
+| `backend/requirements.in` | S7 | prometheus_client, psutil |
+| `backend/tests/conftest.py` | S3 | Neue Fixtures: mock_ollama, mock_provider_manager, create_test_subtitle |
+| `Dockerfile` | S8 | Non-Root User (PUID/PGID) |
+| `docker-compose.yml` | S8 | Resource-Limits, Security, Logging |
+| `README.md` | S8 | PUID/PGID Dokumentation |
 
 ---
 
-### Milestone S7: Monitoring & Observability
+## Bekannte Limitierungen
 
-**Ziel:** Metriken, Logging-Verbesserungen und Health-Monitoring.
-
-**Motivation:**
-- Keine Performance-Metriken
-- Keine Business-Metriken
-- Logs nicht strukturiert (JSON)
-- Keine Alerting-Mechanismen
-
-**Implementierung:**
-
-- [ ] **Structured Logging:**
-  - JSON-Log-Format (optional, konfigurierbar)
-  - Log-Context (Request-ID, User-Action, etc.)
-  - Log-Level-Filterung verbessern
-  - Log-Aggregation (optional, ELK/Loki)
-
-- [ ] **Metrics Export:**
-  - Prometheus Metrics Export (`/metrics` Endpoint)
-  - System-Metriken (CPU, Memory, Disk)
-  - Business-Metriken (Uebersetzungen/Tag, Erfolgsrate)
-  - Provider-Performance-Metriken
-  - Database-Metriken
-
-- [ ] **Health-Monitoring:**
-  - Erweiterter Health-Endpoint (`/api/v1/health/detailed`)
-  - Health-Checks fuer:
-    - Database-Connectivity
-    - Provider-Availability
-    - Ollama-Status
-    - Disk-Space
-    - Memory-Usage
-  - Health-Status-Badge in UI
-
-- [ ] **Alerting (optional):**
-  - Alert bei kritischen Fehlern
-  - Alert bei Database-Problemen
-  - Alert bei Provider-Ausfaellen
-  - Integration mit Notification-System (Apprise)
-
-**Neue Dateien:** 2 (`metrics.py`, `health_monitor.py`) | **Geschaetzte Zeilen:** +600
-
-**Abhaengigkeiten:** Keine
-
----
-
-### Milestone S8: Container Safety & Best Practices
-
-**Ziel:** Sichere Container-Konfiguration und Best Practices.
-
-**Motivation:**
-- Container laeuft als Root (Security-Risiko)
-- Keine Resource-Limits
-- Kein `.dockerignore`
-- Container nicht optimiert
-
-**Implementierung:**
-
-- [ ] **Non-Root User:**
-  - Dedicated User im Container (`sublarr` User)
-  - User-ID/GROUP-ID konfigurierbar (via Env-Vars)
-  - File-Permissions korrekt setzen
-  - Volume-Mounts mit korrekten Permissions
-
-- [ ] **Resource Limits:**
-  - CPU-Limits (konfigurierbar)
-  - Memory-Limits (konfigurierbar)
-  - Disk-Quotas (optional)
-  - Resource-Monitoring
-
-- [ ] **Container-Optimierung:**
-  - `.dockerignore` erstellen (node_modules, .git, etc.)
-  - Multi-Stage-Build optimieren (kleinere Images)
-  - Layer-Caching verbessern
-  - Image-Size reduzieren
-
-- [ ] **Container-Scanning:**
-  - Trivy-Scan in CI
-  - Vulnerability-Reports
-  - Automatische Scans bei Builds
-
-- [ ] **Security Best Practices:**
-  - Read-Only Root-Filesystem (wo moeglich)
-  - Minimal Base-Image (python:3.11-slim bereits gut)
-  - Secrets nie im Image
-  - Health-Check verbessern
-
-**Neue Dateien:** 2 (`.dockerignore`, `Dockerfile.security`) | **Geschaetzte Zeilen:** +200
-
-**Abhaengigkeiten:** Keine
+- **Circuit Breaker State**: In-memory (geht bei Restart verloren). Fuer den Home-Lab-Einsatz akzeptabel.
+- **Transaction-Migration**: `transaction_manager.py` existiert, aber nicht alle DB-Writes sind bereits migriert. Schrittweise Migration geplant.
+- **Frontend E2E Tests**: Playwright-Tests sind geplant aber noch nicht implementiert.
+- **Grafana-Dashboard**: Template fuer Prometheus-Metriken geplant.
+- **Metriken-Instrumentierung**: `record_translation()` und `record_provider_search()` sind definiert, muessen in translator.py/providers noch aufgerufen werden.
 
 ---
 
 ## Vergleich mit Bazarr
 
-| Feature | Bazarr | Sublarr v1.0 | Sublarr nach Safety-Roadmap |
+| Feature | Bazarr | Sublarr v1.0 | Sublarr aktuell |
 |---|---|---|---|
 | **CI/CD** | ❌ Keine | ❌ Keine | ✅ GitHub Actions |
-| **Code Quality Tools** | ❌ Keine | ❌ Keine | ✅ ruff, mypy, ESLint |
-| **Test Coverage** | ⚠️ Begrenzt | ⚠️ Basis | ✅ 80%+ Ziel |
-| **Integration Tests** | ❌ Keine | ❌ Keine | ✅ Vollstaendig |
-| **E2E Tests** | ❌ Keine | ❌ Keine | ✅ Playwright/Cypress |
-| **Dependency Scanning** | ❌ Keine | ❌ Keine | ✅ pip-audit, npm audit |
-| **Error Handling** | ⚠️ Basis | ⚠️ Basis | ✅ Zentralisiert |
-| **Circuit Breaker** | ❌ Keine | ❌ Keine | ✅ Ja |
-| **Database Backups** | ❌ Keine | ❌ Keine | ✅ Automatisch |
-| **Monitoring** | ⚠️ Basis | ⚠️ Basis | ✅ Prometheus + Grafana |
-| **Container Security** | ⚠️ Root User | ⚠️ Root User | ✅ Non-Root User |
-| **Structured Logging** | ❌ Keine | ❌ Keine | ✅ JSON-Format |
-| **Pre-commit Hooks** | ❌ Keine | ❌ Keine | ✅ Vollstaendig |
-
----
-
-## Implementierungsreihenfolge
-
-**Wave 1 (Foundation):** Milestone S1 + S2 + S4
-- CI/CD, Code Quality, Dependency Management
-- Hoechste Prioritaet, Basis fuer alles Weitere
-
-**Wave 2 (Testing):** Milestone S3
-- Erweiterte Tests
-- Qualitaetssicherung
-
-**Wave 3 (Resilience):** Milestone S5 + S6
-- Error Handling, Database Safety
-- Stabilitaet und Datenintegritaet
-
-**Wave 4 (Observability):** Milestone S7 + S8
-- Monitoring, Container Safety
-- Production-Ready-Verbesserungen
-
----
-
-## Geschaetzter Aufwand
-
-| Milestone | Status | Schwerpunkt | Geschaetzte Zeilen |
-|---|---|---|---|
-| S1 CI/CD Pipeline | 🔲 | DevOps | +200 |
-| S2 Code Quality Tools | 🔲 | Tooling | +150 |
-| S3 Erweiterte Tests | 🔲 | Testing | +3000 |
-| S4 Dependency Management | 🔲 | Security | +100 |
-| S5 Error Handling | 🔲 | Backend | +800 |
-| S6 Database Safety | 🔲 | Backend | +1000 |
-| S7 Monitoring | 🔲 | Backend | +600 |
-| S8 Container Safety | 🔲 | DevOps | +200 |
-| **Gesamt** | **🔲** | | **~6050** |
-
----
-
-## Priorisierung
-
-**Kritisch (vor v0.2.0-beta):**
-- S1: CI/CD Pipeline (Basis fuer alles)
-- S2: Code Quality Tools (Code-Qualitaet sicherstellen)
-- S4: Dependency Management (Security)
-
-**Wichtig (vor v0.3.0-beta):**
-- S3: Erweiterte Tests (Qualitaetssicherung)
-- S5: Error Handling (Stabilitaet)
-
-**Wertvoll (vor v0.5.0-beta):**
-- S6: Database Safety (Datenintegritaet)
-- S7: Monitoring (Observability)
-- S8: Container Safety (Production-Ready)
-
----
-
-## Best Practices fuer interne Nutzung
-
-**Nicht erforderlich (externe Exposition):**
-- ❌ CORS-Konfiguration (nicht kritisch)
-- ❌ Rate Limiting fuer API (nicht kritisch)
-- ❌ Security Headers (HSTS, CSP) - weniger kritisch
-- ❌ Reverse Proxy Security - nicht relevant
-
-**Wichtig (auch intern):**
-- ✅ Input Validation (Path Traversal, SQL Injection)
-- ✅ Error Handling (Stabilitaet)
-- ✅ Database Safety (Datenintegritaet)
-- ✅ Code Quality (Wartbarkeit)
-- ✅ Testing (Zuverlaessigkeit)
-- ✅ Monitoring (Probleme frueh erkennen)
+| **Code Quality Tools** | ❌ Keine | ❌ Keine | ✅ ruff, mypy strict, ESLint |
+| **Test Coverage** | ⚠️ Begrenzt | ⚠️ Basis | ✅ 80%+ Ziel (Integration Tests) |
+| **Integration Tests** | ❌ Keine | ❌ Keine | ✅ Translator, Provider, API |
+| **Dependency Scanning** | ❌ Keine | ❌ Keine | ✅ pip-audit, npm audit, Dependabot |
+| **Error Handling** | ⚠️ Basis | ⚠️ Basis | ✅ Zentralisiert (Codes, Hints) |
+| **Circuit Breaker** | ❌ Keine | ❌ Keine | ✅ Pro Provider |
+| **Database Backups** | ❌ Keine | ❌ Keine | ✅ Automatisch + API |
+| **Monitoring** | ⚠️ Basis | ⚠️ Basis | ✅ Prometheus + Detail-Health |
+| **Container Security** | ⚠️ Root User | ⚠️ Root User | ✅ Non-Root + Hardening |
+| **Structured Logging** | ❌ Keine | ❌ Keine | ✅ JSON-Format (optional) |
+| **Pre-commit Hooks** | ❌ Keine | ❌ Keine | ✅ ruff, mypy, eslint |

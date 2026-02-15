@@ -113,6 +113,19 @@ class Settings(BaseSettings):
     notify_on_error: bool = True
     notify_manual_actions: bool = False
 
+    # Circuit Breaker
+    circuit_breaker_failure_threshold: int = 5  # Consecutive failures before opening
+    circuit_breaker_cooldown_seconds: int = 60  # Seconds in OPEN before HALF_OPEN probe
+
+    # Logging
+    log_format: str = "text"  # "text" or "json" (structured JSON for log aggregation)
+
+    # Database Backup
+    backup_dir: str = "/config/backups"
+    backup_retention_daily: int = 7
+    backup_retention_weekly: int = 4
+    backup_retention_monthly: int = 3
+
     # AniDB Integration
     anidb_enabled: bool = True  # Enable AniDB ID resolution
     anidb_cache_ttl_days: int = 30  # Cache TTL for TVDB → AniDB mappings
