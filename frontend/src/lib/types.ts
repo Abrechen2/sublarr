@@ -447,3 +447,64 @@ export interface WhisperHealthResult {
   healthy: boolean
   message: string
 }
+
+// ─── Standalone Mode ──────────────────────────────────────────────────────
+
+export interface WatchedFolder {
+  id: number
+  path: string
+  label: string
+  media_type: 'auto' | 'tv' | 'movie'
+  enabled: boolean
+  last_scan_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface StandaloneSeries {
+  id: number
+  title: string
+  year: number | null
+  folder_path: string
+  tmdb_id: number | null
+  tvdb_id: number | null
+  anilist_id: number | null
+  imdb_id: string
+  poster_url: string
+  is_anime: boolean
+  episode_count: number
+  season_count: number
+  metadata_source: string
+  wanted_count?: number  // from joined query
+  created_at: string
+  updated_at: string
+}
+
+export interface StandaloneMovie {
+  id: number
+  title: string
+  year: number | null
+  file_path: string
+  tmdb_id: number | null
+  imdb_id: string
+  poster_url: string
+  metadata_source: string
+  wanted?: boolean  // from joined query
+  created_at: string
+  updated_at: string
+}
+
+export interface StandaloneStatus {
+  enabled: boolean
+  watcher_running: boolean
+  folders_count: number
+  scanner_scanning: boolean
+}
+
+export interface StandaloneScanResult {
+  folders_scanned: number
+  series_found: number
+  movies_found: number
+  wanted_added: number
+  duration_seconds: number
+}
