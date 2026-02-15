@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 4 - Whisper Speech-to-Text (In Progress)
+**Current focus:** Phase 4 - Whisper Speech-to-Text (Complete)
 
 ## Current Position
 
 Phase: 4 of 16 (Whisper Speech-to-Text)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-15 -- Completed 04-02-PLAN.md (Whisper API wiring + Case D + deprecation)
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-02-15 -- Completed 04-03-PLAN.md (Whisper frontend Settings UI)
 
-Progress: [██████████████░░░░░░] 2/3 plans in phase
+Progress: [████████████████████] 3/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21
+- Total plans completed: 22
 - Average duration: 7 min
-- Total execution time: 140 min
+- Total execution time: 145 min
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [██████████████░░░░░░] 2/3 pla
 | 01-provider-plugin-expansion | 6/6 | 64 min | 11 min |
 | 02-translation-multi-backend | 6/6 | 23 min | 4 min |
 | 03-media-server-abstraction | 3/3 | 18 min | 6 min |
-| 04-whisper-speech-to-text | 2/3 | 8 min | 4 min |
+| 04-whisper-speech-to-text | 3/3 | 13 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (4 min), 03-02 (6 min), 03-03 (8 min), 04-01 (5 min), 04-02 (3 min)
+- Last 5 plans: 03-02 (6 min), 03-03 (8 min), 04-01 (5 min), 04-02 (3 min), 04-03 (5 min)
 - Trend: Stable (~5 min avg)
 
 *Updated after each plan completion*
@@ -132,6 +132,10 @@ Recent decisions affecting current work:
 - [04-02]: WhisperSubgenProvider kept with @register_provider but all methods are no-ops (deprecated)
 - [04-02]: Global whisper config uses three keys: whisper_enabled, whisper_backend, max_concurrent_whisper
 - [04-02]: Backend config uses whisper.<name>.<key> namespacing consistent with Plan 01
+- [04-03]: WhisperBackendCard is a separate component from BackendCard -- different props (WhisperBackendInfo vs TranslationBackendInfo)
+- [04-03]: WhisperTab combines global config section (enable/disable, backend selection, max concurrent) with backend cards below
+- [04-03]: Toggle switch for whisper_enabled uses pure CSS transition (no third-party dependency)
+- [04-03]: Model info table for faster_whisper shown only when that backend card is expanded
 
 ### Pending Todos
 
@@ -143,11 +147,11 @@ None yet.
 - Phase 1 complete -- all 6 plans executed, all summaries written
 - Phase 2 complete -- all 6 plans executed, all summaries written, 36 unit tests passing
 - Phase 3 complete -- all 3 plans executed, all summaries written (ABC + wiring + frontend)
-- Phase 4 in progress -- Plans 01-02 complete, Plan 03 (frontend UI) pending
+- Phase 4 complete -- all 3 plans executed, all summaries written (whisper package + API + frontend)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 4 Plan 02 complete -- next: 04-03-PLAN.md (Whisper frontend UI)
-Resume file: .planning/phases/04-whisper-speech-to-text/04-02-SUMMARY.md
+Stopped at: Phase 4 complete -- all 3 plans executed, ready for Phase 5
+Resume file: .planning/phases/04-whisper-speech-to-text/04-03-SUMMARY.md
