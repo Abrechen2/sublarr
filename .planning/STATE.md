@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 2 of 16 (Translation Multi-Backend)
-Plan: 3 of 6 in current phase
+Plan: 4 of 6 in current phase
 Status: In progress
-Last activity: 2026-02-15 -- Completed 02-03-PLAN.md (OpenAI-compat + Google Cloud Translation backends)
+Last activity: 2026-02-15 -- Completed 02-04-PLAN.md (Pipeline integration + backend API)
 
-Progress: [██████████░░░░░░░░░░] 3/6 plans in phase
+Progress: [█████████████░░░░░░░] 4/6 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
+- Total plans completed: 14
 - Average duration: 8 min
-- Total execution time: 101 min
+- Total execution time: 106 min
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [██████████░░░░░░░░░░] 3/6 pla
 |-------|-------|-------|----------|
 | 00-architecture-refactoring | 3/3 | 27 min | 9 min |
 | 01-provider-plugin-expansion | 6/6 | 64 min | 11 min |
-| 02-translation-multi-backend | 3/6 | 10 min | 3 min |
+| 02-translation-multi-backend | 4/6 | 15 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-06 (11 min), 01-02 (13 min), 02-01 (5 min), 02-02 (2 min), 02-03 (3 min)
+- Last 5 plans: 01-02 (13 min), 02-01 (5 min), 02-02 (2 min), 02-03 (3 min), 02-04 (5 min)
 - Trend: Accelerating
 
 *Updated after each plan completion*
@@ -92,6 +92,9 @@ Recent decisions affecting current work:
 - [02-03]: OpenAI-compatible backend handles retries internally (max_retries=0 on SDK client) for consistent CJK hallucination detection
 - [02-03]: Google backend creates fresh client per call (no lazy caching) since credentials may change via config_entries
 - [02-03]: Both backends register via try/except ImportError guards -- missing packages don't break app startup
+- [02-04]: _translate_with_manager returns (lines, result) tuple to propagate backend_name for config hash and stats
+- [02-04]: Config hash includes backend_name -- Ollama uses model+prompt[:50], non-Ollama uses backend_name+target_lang only
+- [02-04]: Synthetic default profile includes translation_backend and fallback_chain to prevent KeyError
 
 ### Pending Todos
 
@@ -106,5 +109,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 2 plan 3 complete (OpenAI-compat + Google) -- next: 02-04-PLAN.md
-Resume file: .planning/phases/02-translation-multi-backend/02-04-PLAN.md
+Stopped at: Phase 2 plan 4 complete (Pipeline integration + backend API) -- next: 02-05-PLAN.md
+Resume file: .planning/phases/02-translation-multi-backend/02-05-PLAN.md
