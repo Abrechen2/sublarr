@@ -116,6 +116,7 @@ class Settings(BaseSettings):
     # Circuit Breaker
     circuit_breaker_failure_threshold: int = 5  # Consecutive failures before opening
     circuit_breaker_cooldown_seconds: int = 60  # Seconds in OPEN before HALF_OPEN probe
+    provider_auto_disable_cooldown_minutes: int = 30  # Minutes before auto-disabled provider is re-enabled
 
     # Logging
     log_format: str = "text"  # "text" or "json" (structured JSON for log aggregation)

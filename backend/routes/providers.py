@@ -181,20 +181,75 @@ def search_providers():
 @bp.route("/providers/stats", methods=["GET"])
 def provider_stats():
     """Get cache, download, and performance statistics for all providers."""
-    from db.providers import get_provider_cache_stats, get_provider_download_stats, get_provider_stats, get_provider_success_rate
+    from db.providers import (
+        get_provider_cache_stats, get_provider_download_stats,
+        get_provider_stats, get_provider_success_rate, is_provider_auto_disabled,
+    )
 
     cache_stats = get_provider_cache_stats()
     download_stats = get_provider_download_stats()
     performance_stats = get_provider_stats()  # All provider stats
 
-    # Add success rates to performance stats
+    # Add success rates and response time data to performance stats
     for provider_name in performance_stats:
         performance_stats[provider_name]["success_rate"] = get_provider_success_rate(provider_name)
+        performance_stats[provider_name]["auto_disabled"] = is_provider_auto_disabled(provider_name)
 
     return jsonify({
         "cache": cache_stats,
         "downloads": download_stats,
         "performance": performance_stats,
+    })
+
+
+@bp.route("/providers/health", methods=["GET"])
+def provider_health():
+    """Get health overview for all providers (dashboard-oriented endpoint).
+
+    Returns per-provider: name, healthy, success_rate, avg_response_time_ms,
+    last_response_time_ms, auto_disabled, disabled_until, consecutive_failures.
+    """
+    from providers import get_provider_manager
+    manager = get_provider_manager()
+    statuses = manager.get_provider_status()
+
+    health_data = []
+    for s in statuses:
+        stats = s.get("stats", {})
+        health_data.append({
+            "name": s["name"],
+            "healthy": s["healthy"],
+            "enabled": s["enabled"],
+            "initialized": s["initialized"],
+            "success_rate": stats.get("success_rate", 0),
+            "avg_response_time_ms": stats.get("avg_response_time_ms", 0),
+            "last_response_time_ms": stats.get("last_response_time_ms", 0),
+            "auto_disabled": stats.get("auto_disabled", False),
+            "disabled_until": stats.get("disabled_until", ""),
+            "consecutive_failures": stats.get("consecutive_failures", 0),
+            "total_searches": stats.get("total_searches", 0),
+        })
+
+    return jsonify({"providers": health_data})
+
+
+@bp.route("/providers/<name>/enable", methods=["POST"])
+def enable_provider(name):
+    """Manually re-enable an auto-disabled provider."""
+    from db.providers import clear_auto_disable, is_provider_auto_disabled
+
+    if not is_provider_auto_disabled(name):
+        return jsonify({
+            "status": "already_enabled",
+            "provider": name,
+            "message": f"Provider '{name}' is not auto-disabled",
+        })
+
+    clear_auto_disable(name)
+    return jsonify({
+        "status": "enabled",
+        "provider": name,
+        "message": f"Provider '{name}' has been re-enabled",
     })
 
 

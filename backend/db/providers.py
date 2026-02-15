@@ -128,13 +128,15 @@ def record_subtitle_download(provider_name: str, subtitle_id: str, language: str
 # ─── Provider Statistics Operations ─────────────────────────────────────────────
 
 
-def update_provider_stats(provider_name: str, success: bool, score: int = 0):
+def update_provider_stats(provider_name: str, success: bool, score: int = 0,
+                          response_time_ms: float = None):
     """Update provider statistics after a search/download attempt.
 
     Args:
         provider_name: Name of the provider
         success: True if download was successful, False otherwise
         score: Score of the downloaded subtitle (0 if failed)
+        response_time_ms: Response time in milliseconds (optional)
     """
     now = datetime.utcnow().isoformat()
     db = get_db()
@@ -162,15 +164,28 @@ def update_provider_stats(provider_name: str, success: bool, score: int = 0):
             last_success_at = now if success else stats["last_success_at"]
             last_failure_at = now if not success else stats["last_failure_at"]
 
+            # Calculate response time averages
+            avg_response_time_ms = stats.get("avg_response_time_ms", 0) or 0
+            last_response_time_ms = stats.get("last_response_time_ms", 0) or 0
+            if response_time_ms is not None:
+                last_response_time_ms = response_time_ms
+                # Weighted running average: new_avg = (old_avg * (n-1) + new_value) / n
+                if total_searches > 1:
+                    avg_response_time_ms = (avg_response_time_ms * (total_searches - 1) + response_time_ms) / total_searches
+                else:
+                    avg_response_time_ms = response_time_ms
+
             db.execute(
                 """UPDATE provider_stats SET
                    total_searches=?, successful_downloads=?, failed_downloads=?,
                    avg_score=?, last_success_at=?, last_failure_at=?,
-                   consecutive_failures=?, updated_at=?
+                   consecutive_failures=?, avg_response_time_ms=?,
+                   last_response_time_ms=?, updated_at=?
                    WHERE provider_name=?""",
                 (total_searches, successful_downloads, failed_downloads,
                  avg_score, last_success_at, last_failure_at,
-                 consecutive_failures, now, provider_name),
+                 consecutive_failures, avg_response_time_ms,
+                 last_response_time_ms, now, provider_name),
             )
         else:
             # Create new stats entry
@@ -182,11 +197,13 @@ def update_provider_stats(provider_name: str, success: bool, score: int = 0):
             db.execute(
                 """INSERT INTO provider_stats
                    (provider_name, total_searches, successful_downloads, failed_downloads,
-                    avg_score, last_success_at, last_failure_at, consecutive_failures, updated_at)
-                   VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?)""",
+                    avg_score, last_success_at, last_failure_at, consecutive_failures,
+                    avg_response_time_ms, last_response_time_ms, updated_at)
+                   VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (provider_name, successful_downloads, failed_downloads,
                  avg_score, now if success else None, now if not success else None,
-                 consecutive_failures, now),
+                 consecutive_failures,
+                 response_time_ms or 0, response_time_ms or 0, now),
             )
         db.commit()
 
@@ -213,6 +230,124 @@ def get_provider_stats(provider_name: str = None) -> dict:
         else:
             rows = db.execute("SELECT * FROM provider_stats").fetchall()
             return {row["provider_name"]: dict(row) for row in rows}
+
+
+def auto_disable_provider(provider_name: str, cooldown_minutes: int = 30):
+    """Auto-disable a provider with a cooldown period.
+
+    Args:
+        provider_name: Name of the provider to disable
+        cooldown_minutes: Minutes until the provider is automatically re-enabled
+    """
+    now = datetime.utcnow()
+    disabled_until = (now + __import__("datetime").timedelta(minutes=cooldown_minutes)).isoformat()
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            "SELECT 1 FROM provider_stats WHERE provider_name=?", (provider_name,)
+        ).fetchone()
+        if row:
+            db.execute(
+                """UPDATE provider_stats SET auto_disabled=1, disabled_until=?, updated_at=?
+                   WHERE provider_name=?""",
+                (disabled_until, now.isoformat(), provider_name),
+            )
+        else:
+            db.execute(
+                """INSERT INTO provider_stats
+                   (provider_name, auto_disabled, disabled_until, updated_at)
+                   VALUES (?, 1, ?, ?)""",
+                (provider_name, disabled_until, now.isoformat()),
+            )
+        db.commit()
+    logger.warning("Provider %s auto-disabled until %s (%d min cooldown)",
+                   provider_name, disabled_until, cooldown_minutes)
+
+
+def is_provider_auto_disabled(provider_name: str) -> bool:
+    """Check if a provider is currently auto-disabled.
+
+    If the disabled_until time has passed, automatically clears the auto-disable flag.
+
+    Args:
+        provider_name: Name of the provider
+
+    Returns:
+        True if the provider is currently auto-disabled, False otherwise
+    """
+    db = get_db()
+    with _db_lock:
+        row = db.execute(
+            "SELECT auto_disabled, disabled_until FROM provider_stats WHERE provider_name=?",
+            (provider_name,),
+        ).fetchone()
+        if not row:
+            return False
+        if not row["auto_disabled"]:
+            return False
+        # Check if cooldown has expired
+        disabled_until = row["disabled_until"]
+        if disabled_until:
+            now = datetime.utcnow().isoformat()
+            if disabled_until < now:
+                # Cooldown expired, clear auto-disable
+                db.execute(
+                    "UPDATE provider_stats SET auto_disabled=0, disabled_until='' WHERE provider_name=?",
+                    (provider_name,),
+                )
+                db.commit()
+                logger.info("Provider %s auto-disable expired, re-enabled", provider_name)
+                return False
+        return True
+
+
+def clear_auto_disable(provider_name: str):
+    """Manually clear the auto-disable flag for a provider.
+
+    Args:
+        provider_name: Name of the provider to re-enable
+    """
+    db = get_db()
+    with _db_lock:
+        db.execute(
+            "UPDATE provider_stats SET auto_disabled=0, disabled_until='', consecutive_failures=0 WHERE provider_name=?",
+            (provider_name,),
+        )
+        db.commit()
+    logger.info("Provider %s manually re-enabled (auto-disable cleared)", provider_name)
+
+
+def get_provider_health_history(provider_name: str = None, days: int = 7) -> list:
+    """Get provider health history as daily aggregates.
+
+    Args:
+        provider_name: Optional filter by provider name. If None, returns all providers.
+        days: Number of days to look back (default: 7)
+
+    Returns:
+        List of dicts with provider_name, date, total_searches, successful_downloads,
+        failed_downloads, avg_response_time_ms
+    """
+    db = get_db()
+    cutoff = (datetime.utcnow() - __import__("datetime").timedelta(days=days)).isoformat()
+    with _db_lock:
+        if provider_name:
+            rows = db.execute(
+                """SELECT provider_name, total_searches, successful_downloads,
+                          failed_downloads, avg_response_time_ms, updated_at
+                   FROM provider_stats
+                   WHERE provider_name=? AND updated_at >= ?""",
+                (provider_name, cutoff),
+            ).fetchall()
+        else:
+            rows = db.execute(
+                """SELECT provider_name, total_searches, successful_downloads,
+                          failed_downloads, avg_response_time_ms, updated_at
+                   FROM provider_stats
+                   WHERE updated_at >= ?""",
+                (cutoff,),
+            ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def get_provider_success_rate(provider_name: str) -> float:
