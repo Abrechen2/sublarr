@@ -24,7 +24,8 @@ from ass_utils import (
     restore_tags,
     fix_line_breaks,
 )
-from ollama_client import translate_all
+from translation import get_translation_manager
+from translation.base import TranslationResult
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,87 @@ def _extract_series_id(arr_context):
         return series["id"]
     
     return None
+
+
+def _resolve_backend_for_context(arr_context, target_language):
+    """Resolve translation backend and fallback chain from language profile.
+
+    Uses the arr_context to determine which series/movie profile to use.
+    Falls back to the default profile if no specific assignment exists.
+
+    Args:
+        arr_context: Dict with sonarr_series_id or radarr_movie_id (or None)
+        target_language: Target language code (unused currently, for future per-lang backends)
+
+    Returns:
+        tuple: (translation_backend: str, fallback_chain: list[str])
+    """
+    from db.profiles import get_default_profile, get_series_profile, get_movie_profile
+
+    profile = None
+    if arr_context:
+        if arr_context.get("sonarr_series_id"):
+            profile = get_series_profile(arr_context["sonarr_series_id"])
+        elif arr_context.get("radarr_movie_id"):
+            profile = get_movie_profile(arr_context["radarr_movie_id"])
+
+    if not profile:
+        profile = get_default_profile()
+
+    backend = profile.get("translation_backend", "ollama")
+    chain = profile.get("fallback_chain", ["ollama"])
+
+    # Ensure primary backend is first in chain
+    if backend not in chain:
+        chain = [backend] + list(chain)
+
+    return (backend, chain)
+
+
+def _translate_with_manager(lines, source_lang, target_lang,
+                            arr_context=None, series_id=None):
+    """Translate lines using TranslationManager with profile-based backend selection.
+
+    Resolves the backend and fallback chain from the language profile associated
+    with the arr_context, loads glossary entries if a series_id is provided,
+    and delegates to TranslationManager.translate_with_fallback().
+
+    Args:
+        lines: List of subtitle text lines to translate
+        source_lang: ISO 639-1 source language code
+        target_lang: ISO 639-1 target language code
+        arr_context: Optional dict with sonarr_series_id or radarr_movie_id
+        series_id: Optional Sonarr series ID for glossary lookup
+
+    Returns:
+        list[str]: Translated lines in same order as input
+
+    Raises:
+        RuntimeError: If all backends in the fallback chain fail
+    """
+    _backend_name, fallback_chain = _resolve_backend_for_context(arr_context, target_lang)
+
+    # Load glossary entries if series_id provided
+    glossary_entries = None
+    if series_id:
+        try:
+            from db.translation import get_glossary_for_series
+            entries = get_glossary_for_series(series_id)
+            if entries:
+                glossary_entries = entries
+                logger.debug("Loaded %d glossary entries for series %d", len(entries), series_id)
+        except Exception as e:
+            logger.debug("Failed to load glossary for series %d: %s", series_id, e)
+
+    manager = get_translation_manager()
+    result = manager.translate_with_fallback(
+        lines, source_lang, target_lang, fallback_chain, glossary_entries
+    )
+
+    if result.success:
+        return result.translated_lines, result
+    else:
+        raise RuntimeError(f"Translation failed: {result.error}")
 
 
 def get_output_path(mkv_path, fmt="ass"):
@@ -267,7 +349,14 @@ def translate_ass(mkv_path, stream_info, probe_data,
             dialog_texts = remove_hi_from_ass_events(dialog_texts)
 
         series_id = _extract_series_id(arr_context)
-        translated_texts = translate_all(dialog_texts, series_id=series_id)
+        tgt_lang = target_language or settings.target_language
+        translated_texts, translation_result = _translate_with_manager(
+            dialog_texts,
+            source_lang=settings.source_language,
+            target_lang=tgt_lang,
+            arr_context=arr_context,
+            series_id=series_id,
+        )
 
         if len(translated_texts) != len(dialog_texts):
             return _fail_result(
@@ -288,7 +377,7 @@ def translate_ass(mkv_path, stream_info, probe_data,
             subs.events[idx].text = restored
             translated_count += 1
 
-        lang_tag = (target_language or settings.target_language).upper()
+        lang_tag = tgt_lang.upper()
         info_title = subs.info.get("Title", "")
         if not info_title.startswith(f"[{lang_tag}]"):
             subs.info["Title"] = f"[{lang_tag}] {info_title}"
@@ -309,6 +398,7 @@ def translate_ass(mkv_path, stream_info, probe_data,
                 "format": "ass",
                 "source": "embedded_ass",
                 "quality_warnings": quality_warnings,
+                "backend_name": translation_result.backend_name,
             },
             "error": None,
         }
@@ -388,7 +478,14 @@ def _translate_srt(srt_path, output_path, source="srt", arr_context=None):
     logger.info("SRT lines to translate: %d", len(dialog_texts))
     # Extract series_id for glossary
     series_id = _extract_series_id(arr_context)
-    translated_texts = translate_all(dialog_texts, series_id=series_id)
+    settings = get_settings()
+    translated_texts, translation_result = _translate_with_manager(
+        dialog_texts,
+        source_lang=settings.source_language,
+        target_lang=settings.target_language,
+        arr_context=arr_context,
+        series_id=series_id,
+    )
 
     # Validate translation output
     validation_errors = []
@@ -398,7 +495,13 @@ def _translate_srt(srt_path, output_path, source="srt", arr_context=None):
         # Retry logic: max 2 retries
         for retry in range(2):
             logger.info("Retrying SRT translation (attempt %d/2)...", retry + 1)
-            translated_texts = translate_all(dialog_texts, series_id=series_id)
+            translated_texts, translation_result = _translate_with_manager(
+                dialog_texts,
+                source_lang=settings.source_language,
+                target_lang=settings.target_language,
+                arr_context=arr_context,
+                series_id=series_id,
+            )
             is_valid, validation_errors = validate_translation_output(dialog_texts, translated_texts, format="srt")
             if is_valid:
                 break
@@ -434,6 +537,7 @@ def _translate_srt(srt_path, output_path, source="srt", arr_context=None):
             "format": "srt",
             "source": source,
             "quality_warnings": quality_warnings,
+            "backend_name": translation_result.backend_name,
         },
         "error": None,
     }
@@ -550,16 +654,23 @@ def _search_providers_for_source_sub(mkv_path, context=None):
 
 
 def _record_config_hash_for_result(result, file_path):
-    """Record the translation config hash for a successful translation job."""
+    """Record the translation config hash for a successful translation job.
+
+    Includes backend_name in the hash so that switching backends triggers
+    re-translation detection.
+    """
     if not result or not result.get("success") or result.get("stats", {}).get("skipped"):
         return
     try:
         settings = get_settings()
-        config_hash = settings.get_translation_config_hash()
+        backend_name = result.get("stats", {}).get("backend_name", "ollama")
+        config_hash = settings.get_translation_config_hash(backend_name=backend_name)
         from db.translation import record_translation_config
+        # For non-Ollama backends, model is not relevant
+        model_info = settings.ollama_model if backend_name == "ollama" else backend_name
         record_translation_config(
             config_hash=config_hash,
-            ollama_model=settings.ollama_model,
+            ollama_model=model_info,
             prompt_template=settings.get_prompt_template()[:200],
             target_language=settings.target_language,
         )
@@ -753,7 +864,15 @@ def _translate_external_ass(mkv_path, ass_path, target_language=None,
 
         # Extract series_id for glossary
         series_id = _extract_series_id(arr_context)
-        translated_texts = translate_all(dialog_texts, series_id=series_id)
+        settings = get_settings()
+        tgt_lang = target_language or settings.target_language
+        translated_texts, translation_result = _translate_with_manager(
+            dialog_texts,
+            source_lang=settings.source_language,
+            target_lang=tgt_lang,
+            arr_context=arr_context,
+            series_id=series_id,
+        )
 
         # Validate translation output
         is_valid, validation_errors = validate_translation_output(dialog_texts, translated_texts, format="ass")
@@ -762,12 +881,18 @@ def _translate_external_ass(mkv_path, ass_path, target_language=None,
             # Retry logic: max 2 retries
             for retry in range(2):
                 logger.info("Retrying translation (attempt %d/2)...", retry + 1)
-                translated_texts = translate_all(dialog_texts, series_id=series_id)
+                translated_texts, translation_result = _translate_with_manager(
+                    dialog_texts,
+                    source_lang=settings.source_language,
+                    target_lang=tgt_lang,
+                    arr_context=arr_context,
+                    series_id=series_id,
+                )
                 is_valid, validation_errors = validate_translation_output(dialog_texts, translated_texts, format="ass")
                 if is_valid:
                     break
                 logger.warning("Retry %d validation failed: %s", retry + 1, validation_errors)
-            
+
             if not is_valid:
                 logger.error("Translation validation failed after retries: %s", validation_errors)
                 # Log for manual review but continue (non-fatal)
@@ -792,8 +917,7 @@ def _translate_external_ass(mkv_path, ass_path, target_language=None,
             subs.events[idx].text = restored
             translated_count += 1
 
-        settings = get_settings()
-        lang_tag = (target_language or settings.target_language).upper()
+        lang_tag = tgt_lang.upper()
         info_title = subs.info.get("Title", "")
         if not info_title.startswith(f"[{lang_tag}]"):
             subs.info["Title"] = f"[{lang_tag}] {info_title}"
@@ -814,6 +938,7 @@ def _translate_external_ass(mkv_path, ass_path, target_language=None,
                 "format": "ass",
                 "source": "provider_source_ass",
                 "quality_warnings": quality_warnings,
+                "backend_name": translation_result.backend_name,
             },
             "error": None,
         }

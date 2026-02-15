@@ -195,9 +195,20 @@ class Settings(BaseSettings):
         """Get all language tags for the source language."""
         return _get_language_tags(self.source_language)
 
-    def get_translation_config_hash(self) -> str:
-        """SHA256 hash of model+prompt+target_language (first 12 chars)."""
-        content = f"{self.ollama_model}|{self.get_prompt_template()}|{self.target_language}"
+    def get_translation_config_hash(self, backend_name: str = "ollama") -> str:
+        """SHA256 hash of backend+model+prompt+target_language (first 12 chars).
+
+        For Ollama backends, includes the model name and prompt template.
+        For non-Ollama backends (DeepL, Google, etc.), model is not relevant
+        so the hash is based on backend name and target language only.
+
+        Args:
+            backend_name: Translation backend name (default "ollama")
+        """
+        if backend_name == "ollama":
+            content = f"{backend_name}|{self.ollama_model}|{self.get_prompt_template()[:50]}|{self.target_language}"
+        else:
+            content = f"{backend_name}||{self.target_language}"
         return hashlib.sha256(content.encode()).hexdigest()[:12]
 
     def get_safe_config(self) -> dict:
