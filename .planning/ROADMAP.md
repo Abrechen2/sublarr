@@ -17,7 +17,7 @@ Sublarr Phase 2 transforms the subtitle manager from a monolithic Ollama-only to
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 0: Architecture Refactoring** - Convert monolith to Application Factory + Blueprints
+- [x] **Phase 0: Architecture Refactoring** - Convert monolith to Application Factory + Blueprints
 - [ ] **Phase 1: Provider Plugin + Expansion** - Plugin system and 8 new built-in providers
 - [ ] **Phase 2: Translation Multi-Backend** - ABC-based multi-backend translation with fallback chains
 - [ ] **Phase 3: Media-Server Abstraction** - Plex, Kodi support alongside existing Jellyfin/Emby
@@ -49,9 +49,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 3 plans
 
 Plans:
-- [ ] 00-01-PLAN.md -- Split database.py into db/ package (9 domain modules)
-- [ ] 00-02-PLAN.md -- Create extensions.py, app.py factory, routes/ package (9 blueprints)
-- [ ] 00-03-PLAN.md -- Update all imports, entry points, delete old files, verify tests
+- [x] 00-01-PLAN.md -- Split database.py into db/ package (9 domain modules)
+- [x] 00-02-PLAN.md -- Create extensions.py, app.py factory, routes/ package (9 blueprints)
+- [x] 00-03-PLAN.md -- Update all imports, entry points, delete old files, verify tests
 
 ### Phase 1: Provider Plugin + Expansion
 **Goal**: Users can install third-party provider plugins and access 8 additional built-in providers, expanding subtitle coverage across languages and sources
@@ -317,7 +317,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Architecture Refactoring | 0/3 | Not started | - |
+| 0. Architecture Refactoring | 3/3 | Complete | 2026-02-15 |
 | 1. Provider Plugin + Expansion | 0/TBD | Not started | - |
 | 2. Translation Multi-Backend | 0/TBD | Not started | - |
 | 3. Media-Server Abstraction | 0/TBD | Not started | - |
@@ -359,4 +359,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-15*
+*Last updated: 2026-02-15 (Phase 0 complete)*
