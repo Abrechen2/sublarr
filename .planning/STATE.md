@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 4 - Whisper Speech-to-Text (Complete)
+**Current focus:** Phase 5 - Standalone Mode (In Progress)
 
 ## Current Position
 
-Phase: 4 of 16 (Whisper Speech-to-Text)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-15 -- Completed 04-03-PLAN.md (Whisper frontend Settings UI)
+Phase: 5 of 16 (Standalone Mode)
+Plan: 2 of 5 in current phase
+Status: In progress
+Last activity: 2026-02-15 -- Completed 05-02-PLAN.md (Metadata Lookup Clients)
 
-Progress: [████████████████████] 3/3 plans in phase
+Progress: [████████░░░░░░░░░░░░] 1/5 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 22
-- Average duration: 7 min
-- Total execution time: 145 min
+- Total plans completed: 23
+- Average duration: 6 min
+- Total execution time: 148 min
 
 **By Phase:**
 
@@ -32,9 +32,10 @@ Progress: [████████████████████] 3/3 pla
 | 02-translation-multi-backend | 6/6 | 23 min | 4 min |
 | 03-media-server-abstraction | 3/3 | 18 min | 6 min |
 | 04-whisper-speech-to-text | 3/3 | 13 min | 4 min |
+| 05-standalone-mode | 1/5 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (6 min), 03-03 (8 min), 04-01 (5 min), 04-02 (3 min), 04-03 (5 min)
+- Last 5 plans: 03-03 (8 min), 04-01 (5 min), 04-02 (3 min), 04-03 (5 min), 05-02 (3 min)
 - Trend: Stable (~5 min avg)
 
 *Updated after each plan completion*
@@ -136,6 +137,12 @@ Recent decisions affecting current work:
 - [04-03]: WhisperTab combines global config section (enable/disable, backend selection, max concurrent) with backend cards below
 - [04-03]: Toggle switch for whisper_enabled uses pure CSS transition (no third-party dependency)
 - [04-03]: Model info table for faster_whisper shown only when that backend card is expanded
+- [05-02]: MetadataResolver uses lazy client creation -- only instantiated when API keys provided
+- [05-02]: AniList always available (no API key required), TMDB and TVDB require keys
+- [05-02]: DB cache calls wrapped in try/except for graceful degradation when DB not initialized
+- [05-02]: AniList rate limiting at 0.7s between calls (conservative for 90 req/min limit)
+- [05-02]: TVDB JWT token cached for 24h with automatic refresh on expiry
+- [05-02]: Anime detection: AniList-first lookup, plus TMDB genre+origin_country heuristic (Animation+JP)
 
 ### Pending Todos
 
@@ -148,10 +155,11 @@ None yet.
 - Phase 2 complete -- all 6 plans executed, all summaries written, 36 unit tests passing
 - Phase 3 complete -- all 3 plans executed, all summaries written (ABC + wiring + frontend)
 - Phase 4 complete -- all 3 plans executed, all summaries written (whisper package + API + frontend)
+- Phase 5 in progress -- 05-02 (metadata clients) complete, 05-01 may be running in parallel
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 4 complete -- all 3 plans executed, ready for Phase 5
-Resume file: .planning/phases/04-whisper-speech-to-text/04-03-SUMMARY.md
+Stopped at: Phase 5 in progress -- 05-02 complete (metadata lookup clients)
+Resume file: .planning/phases/05-standalone-mode/05-02-SUMMARY.md
