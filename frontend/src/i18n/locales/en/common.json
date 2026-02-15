@@ -1,0 +1,78 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "library": "Library",
+    "wanted": "Wanted",
+    "activity": "Activity",
+    "queue": "Queue",
+    "history": "History",
+    "blacklist": "Blacklist",
+    "settings": "Settings",
+    "logs": "Logs",
+    "statistics": "Statistics"
+  },
+  "nav_groups": {
+    "content": "Content",
+    "activity": "Activity",
+    "system": "System"
+  },
+  "status": {
+    "healthy": "Healthy",
+    "unhealthy": "Unhealthy",
+    "online": "Online",
+    "offline": "Offline",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "running": "Running",
+    "completed": "Completed",
+    "failed": "Failed",
+    "queued": "Queued"
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "test": "Test",
+    "download": "Download",
+    "upload": "Upload",
+    "refresh": "Refresh",
+    "search": "Search",
+    "export": "Export",
+    "import": "Import",
+    "confirm": "Confirm",
+    "back": "Back"
+  },
+  "theme": {
+    "dark": "Dark",
+    "light": "Light",
+    "system": "System"
+  },
+  "language": {
+    "en": "English",
+    "de": "Deutsch"
+  },
+  "app": {
+    "name": "Sublarr",
+    "online": "Online",
+    "offline": "Offline"
+  },
+  "pagination": {
+    "showing": "Showing",
+    "of": "of",
+    "items": "items"
+  },
+  "time": {
+    "just_now": "Just now",
+    "minutes_ago": "{{count}} min ago",
+    "hours_ago": "{{count}}h ago",
+    "days_ago": "{{count}}d ago"
+  },
+  "confirm": {
+    "title": "Are you sure?",
+    "message": "This action cannot be undone.",
+    "yes": "Yes",
+    "no": "No"
+  }
+}

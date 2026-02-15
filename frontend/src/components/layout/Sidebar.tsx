@@ -15,6 +15,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useHealth } from '@/hooks/useApi'
+import { ThemeToggle } from '@/components/shared/ThemeToggle'
+import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher'
 
 interface NavItem {
   to: string
@@ -163,6 +165,10 @@ export function Sidebar() {
 
         {/* Footer */}
         <div className="px-4 py-3" style={{ borderTop: '1px solid var(--border)' }}>
+          <div className="flex items-center justify-end gap-1.5 mb-2">
+            <ThemeToggle />
+            <LanguageSwitcher />
+          </div>
           <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
             <div
               className="w-2 h-2 rounded-full shrink-0"
