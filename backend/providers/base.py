@@ -180,10 +180,26 @@ class SubtitleProvider(ABC):
     """Abstract base class for subtitle providers.
 
     Providers are context managers that handle initialization/cleanup.
+
+    Class-level attributes for plugin system:
+        config_fields: Declarative config field definitions for dynamic UI forms.
+            Each dict: {"key": str, "label": str, "type": "text"|"password"|"number",
+                        "required": bool, "default": str}
+        rate_limit: (max_requests, window_seconds); (0, 0) = no limit.
+        timeout: Request timeout in seconds.
+        max_retries: Number of retries on transient failure.
+        is_plugin: True for externally loaded plugins, False for built-in providers.
     """
 
     name: str = "unknown"
     languages: set[str] = set()  # Supported ISO 639-1 codes
+
+    # Plugin system attributes (declarative, read by ProviderManager)
+    config_fields: list[dict] = []
+    rate_limit: tuple[int, int] = (0, 0)
+    timeout: int = 30
+    max_retries: int = 2
+    is_plugin: bool = False
 
     def __init__(self, **config):
         self.config = config

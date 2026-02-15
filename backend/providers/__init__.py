@@ -43,7 +43,17 @@ _manager: Optional["ProviderManager"] = None
 
 
 def register_provider(cls: type[SubtitleProvider]) -> type[SubtitleProvider]:
-    """Decorator to register a provider class."""
+    """Decorator to register a provider class.
+
+    Built-in providers always win on name collision: if a name is already
+    registered, a warning is logged and the duplicate is skipped.
+    """
+    if cls.name in _PROVIDER_CLASSES:
+        logger.warning(
+            "Provider name collision: '%s' already registered by %s, skipping %s",
+            cls.name, _PROVIDER_CLASSES[cls.name].__name__, cls.__name__,
+        )
+        return cls
     _PROVIDER_CLASSES[cls.name] = cls
     return cls
 
@@ -99,6 +109,28 @@ class ProviderManager:
         self._circuit_breakers: dict[str, CircuitBreaker] = {}
         self._init_providers()
 
+    def _load_plugins(self):
+        """Load plugins from the plugin manager (if available).
+
+        Called after built-in providers are registered. Plugin providers
+        are discovered from the plugins directory and registered into
+        _PROVIDER_CLASSES with is_plugin=True.
+        """
+        try:
+            from providers.plugins import get_plugin_manager
+            manager = get_plugin_manager()
+            if manager:
+                loaded, errors = manager.discover()
+                if loaded:
+                    logger.info("Loaded %d plugin providers: %s", len(loaded), loaded)
+                if errors:
+                    for err in errors:
+                        logger.warning("Plugin load error: %s -- %s", err["file"], err["error"])
+        except ImportError:
+            logger.debug("Plugin system not available")
+        except Exception as e:
+            logger.debug("Plugin loading skipped: %s", e)
+
     def _init_providers(self):
         """Initialize enabled providers based on config."""
         # Import providers to trigger registration
@@ -118,6 +150,9 @@ class ProviderManager:
             from providers import subdl  # noqa: F401
         except ImportError as e:
             logger.debug("SubDL provider not available: %s", e)
+
+        # Load plugin providers (from plugins directory)
+        self._load_plugins()
 
         # Get enabled providers
         enabled_str = getattr(self.settings, "providers_enabled", "")
@@ -241,26 +276,88 @@ class ProviderManager:
             logger.info("Active providers (%d): %s", len(self._providers), list(self._providers.keys()))
 
     def _get_provider_config(self, name: str) -> dict:
-        """Get provider-specific config from settings."""
+        """Get provider-specific config from settings or plugin DB config.
+
+        For built-in providers, reads config from Pydantic Settings using
+        the config_fields declared on the provider class. For plugins
+        (is_plugin=True), reads from the plugin config DB table instead.
+        """
+        cls = _PROVIDER_CLASSES.get(name)
+        if not cls:
+            return {}
+
         config = {}
 
-        if name == "opensubtitles":
-            config["api_key"] = getattr(self.settings, "opensubtitles_api_key", "")
-            config["username"] = getattr(self.settings, "opensubtitles_username", "")
-            config["password"] = getattr(self.settings, "opensubtitles_password", "")
-        elif name == "jimaku":
-            config["api_key"] = getattr(self.settings, "jimaku_api_key", "")
-        elif name == "animetosho":
-            pass  # No auth needed
-        elif name == "subdl":
-            config["api_key"] = getattr(self.settings, "subdl_api_key", "")
+        if getattr(cls, "is_plugin", False):
+            # Plugin providers: read config from DB
+            try:
+                from db.plugins import get_plugin_config
+                plugin_config = get_plugin_config(name)
+                for field in getattr(cls, "config_fields", []):
+                    key = field["key"]
+                    config[key] = plugin_config.get(key, field.get("default", ""))
+            except Exception as e:
+                logger.warning("Failed to read plugin config for %s: %s", name, e)
+        else:
+            # Built-in providers: read from Pydantic Settings
+            for field in getattr(cls, "config_fields", []):
+                key = field["key"]
+                config[key] = getattr(self.settings, key, field.get("default", ""))
 
-        # Strip whitespace from all credential values (防 paste artifacts)
-        for key in config:
-            if isinstance(config[key], str):
-                config[key] = config[key].strip()
+        # Map settings-level keys to constructor parameter names.
+        # Built-in providers expect short param names (e.g. "api_key" not
+        # "opensubtitles_api_key"), so strip the provider-name prefix.
+        mapped_config = {}
+        for key, value in config.items():
+            # e.g. "opensubtitles_api_key" -> "api_key", "jimaku_api_key" -> "api_key"
+            short_key = key
+            prefix = f"{name}_"
+            if key.startswith(prefix):
+                short_key = key[len(prefix):]
+            mapped_config[short_key] = value
 
-        return config
+        # Strip whitespace from all credential values (prevent paste artifacts)
+        for key in mapped_config:
+            if isinstance(mapped_config[key], str):
+                mapped_config[key] = mapped_config[key].strip()
+
+        return mapped_config
+
+    def _get_rate_limit(self, provider_name: str) -> tuple[int, int]:
+        """Get rate limit for a provider: (max_requests, window_seconds).
+
+        Prefers class attribute, falls back to hardcoded dict, then (0, 0).
+        """
+        cls = _PROVIDER_CLASSES.get(provider_name)
+        if cls:
+            class_limit = getattr(cls, "rate_limit", (0, 0))
+            if class_limit != (0, 0):
+                return class_limit
+        return self.PROVIDER_RATE_LIMITS.get(provider_name, (0, 0))
+
+    def _get_timeout(self, provider_name: str) -> int:
+        """Get timeout for a provider (seconds).
+
+        Prefers class attribute, falls back to hardcoded dict, then global setting.
+        """
+        cls = _PROVIDER_CLASSES.get(provider_name)
+        if cls:
+            class_timeout = getattr(cls, "timeout", 0)
+            if class_timeout > 0:
+                return class_timeout
+        return self.PROVIDER_TIMEOUTS.get(provider_name, self.settings.provider_search_timeout)
+
+    def _get_retries(self, provider_name: str) -> int:
+        """Get retry count for a provider.
+
+        Prefers class attribute, falls back to hardcoded dict, then default 2.
+        """
+        cls = _PROVIDER_CLASSES.get(provider_name)
+        if cls:
+            class_retries = getattr(cls, "max_retries", -1)
+            if class_retries >= 0:
+                return class_retries
+        return self.PROVIDER_RETRIES.get(provider_name, 2)
 
     def _check_rate_limit(self, provider_name: str) -> bool:
         """Check if provider is within rate limit.
@@ -271,10 +368,9 @@ class ProviderManager:
         if not getattr(self.settings, "provider_rate_limit_enabled", True):
             return True
 
-        if provider_name not in self.PROVIDER_RATE_LIMITS:
+        max_requests, window_seconds = self._get_rate_limit(provider_name)
+        if max_requests == 0 and window_seconds == 0:
             return True  # No rate limit configured
-
-        max_requests, window_seconds = self.PROVIDER_RATE_LIMITS[provider_name]
         now = datetime.utcnow()
         timestamps = self._rate_limits[provider_name]
 
@@ -301,10 +397,10 @@ class ProviderManager:
         key_str = "|".join(key_parts)
         return hashlib.md5(key_str.encode()).hexdigest()
 
-    def _search_provider_with_retry(self, name: str, provider: SubtitleProvider, 
+    def _search_provider_with_retry(self, name: str, provider: SubtitleProvider,
                                     query: VideoQuery) -> list[SubtitleResult]:
         """Search a single provider with retries."""
-        retries = self.PROVIDER_RETRIES.get(name, 2)
+        retries = self._get_retries(name)
         last_error = None
         
         # Check if provider is initialized
@@ -414,16 +510,20 @@ class ProviderManager:
                     logger.debug("Skipping provider %s due to rate limit", name)
                     continue
 
-                # Get provider-specific timeout
-                timeout = self.PROVIDER_TIMEOUTS.get(name, self.settings.provider_search_timeout)
+                # Get provider-specific timeout (used for overall as_completed wait)
+                timeout = self._get_timeout(name)
 
                 # Submit search task
                 future = executor.submit(self._search_provider_with_retry, name, provider, query)
                 futures[future] = name
 
             # Collect results as they complete
-            for future in as_completed(futures, timeout=max(self.PROVIDER_TIMEOUTS.values(), 
-                                                           default=self.settings.provider_search_timeout) + 5):
+            # Use max timeout across all active providers + buffer
+            max_timeout = max(
+                (self._get_timeout(n) for n in self._providers if n in {futures[f] for f in futures}),
+                default=self.settings.provider_search_timeout,
+            ) + 5
+            for future in as_completed(futures, timeout=max_timeout):
                 name = futures[future]
                 try:
                     results = future.result()
@@ -750,22 +850,15 @@ class ProviderManager:
 
     @staticmethod
     def _get_provider_config_fields(name: str) -> list[dict]:
-        """Return config field definitions for a provider (for dynamic UI forms)."""
-        fields_map = {
-            "opensubtitles": [
-                {"key": "opensubtitles_api_key", "label": "API Key", "type": "password", "required": True},
-                {"key": "opensubtitles_username", "label": "Username", "type": "text", "required": False},
-                {"key": "opensubtitles_password", "label": "Password", "type": "password", "required": False},
-            ],
-            "jimaku": [
-                {"key": "jimaku_api_key", "label": "API Key", "type": "password", "required": True},
-            ],
-            "animetosho": [],  # No auth needed
-            "subdl": [
-                {"key": "subdl_api_key", "label": "API Key", "type": "password", "required": True},
-            ],
-        }
-        return fields_map.get(name, [])
+        """Return config field definitions for a provider (for dynamic UI forms).
+
+        Reads from the provider class's config_fields attribute instead of
+        a hardcoded map. Returns an empty list if the class has no config_fields.
+        """
+        cls = _PROVIDER_CLASSES.get(name)
+        if cls:
+            return getattr(cls, "config_fields", [])
+        return []
 
     def shutdown(self):
         """Terminate all providers."""
