@@ -12,16 +12,16 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 Phase: 5 of 16 (Standalone Mode)
 Plan: 2 of 5 in current phase
 Status: In progress
-Last activity: 2026-02-15 -- Completed 05-02-PLAN.md (Metadata Lookup Clients)
+Last activity: 2026-02-15 -- Completed 05-01-PLAN.md (DB Schema, Config, Parser) and 05-02-PLAN.md (Metadata Lookup Clients)
 
-Progress: [████████░░░░░░░░░░░░] 1/5 plans in phase
+Progress: [████████░░░░░░░░░░░░] 2/5 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23
+- Total plans completed: 24
 - Average duration: 6 min
-- Total execution time: 148 min
+- Total execution time: 152 min
 
 **By Phase:**
 
@@ -32,11 +32,11 @@ Progress: [████████░░░░░░░░░░░░] 1/5 pla
 | 02-translation-multi-backend | 6/6 | 23 min | 4 min |
 | 03-media-server-abstraction | 3/3 | 18 min | 6 min |
 | 04-whisper-speech-to-text | 3/3 | 13 min | 4 min |
-| 05-standalone-mode | 1/5 | 3 min | 3 min |
+| 05-standalone-mode | 2/5 | 7 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-03 (8 min), 04-01 (5 min), 04-02 (3 min), 04-03 (5 min), 05-02 (3 min)
-- Trend: Stable (~5 min avg)
+- Last 5 plans: 04-01 (5 min), 04-02 (3 min), 04-03 (5 min), 05-01 (4 min), 05-02 (3 min)
+- Trend: Stable (~4 min avg)
 
 *Updated after each plan completion*
 
@@ -137,6 +137,10 @@ Recent decisions affecting current work:
 - [04-03]: WhisperTab combines global config section (enable/disable, backend selection, max concurrent) with backend cards below
 - [04-03]: Toggle switch for whisper_enabled uses pure CSS transition (no third-party dependency)
 - [04-03]: Model info table for faster_whisper shown only when that backend card is expanded
+- [05-01]: Standalone CRUD follows exact pattern of db/wanted.py -- all functions use with _db_lock and return dicts
+- [05-01]: Anime detection uses multi-signal heuristic: bracket groups, known fansub groups, CRC32 hashes, absolute numbering
+- [05-01]: guessit called with episode_prefer_number=True for anime, standard episode then movie fallback for non-anime
+- [05-01]: metadata_cache uses TEXT PRIMARY KEY (cache_key) with TTL-based expiration (not autoincrement)
 - [05-02]: MetadataResolver uses lazy client creation -- only instantiated when API keys provided
 - [05-02]: AniList always available (no API key required), TMDB and TVDB require keys
 - [05-02]: DB cache calls wrapped in try/except for graceful degradation when DB not initialized
@@ -155,11 +159,11 @@ None yet.
 - Phase 2 complete -- all 6 plans executed, all summaries written, 36 unit tests passing
 - Phase 3 complete -- all 3 plans executed, all summaries written (ABC + wiring + frontend)
 - Phase 4 complete -- all 3 plans executed, all summaries written (whisper package + API + frontend)
-- Phase 5 in progress -- 05-02 (metadata clients) complete, 05-01 may be running in parallel
+- Phase 5 in progress -- 05-01 (DB/config/parser) and 05-02 (metadata clients) complete (wave 1 done)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 5 in progress -- 05-02 complete (metadata lookup clients)
-Resume file: .planning/phases/05-standalone-mode/05-02-SUMMARY.md
+Stopped at: Phase 5 in progress -- wave 1 complete (05-01 + 05-02), ready for wave 2
+Resume file: .planning/phases/05-standalone-mode/05-01-SUMMARY.md
