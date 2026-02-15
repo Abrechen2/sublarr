@@ -128,6 +128,7 @@ class Settings(BaseSettings):
 
     # Plugin System
     plugins_dir: str = "/config/plugins"
+    plugin_hot_reload: bool = False  # Enable watchdog file watcher for plugins directory
 
     # AniDB Integration
     anidb_enabled: bool = True  # Enable AniDB ID resolution

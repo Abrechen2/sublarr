@@ -161,6 +161,15 @@ def create_app(testing=False):
             for err in plugin_errors:
                 logger.warning("Plugin load error: %s -- %s", err["file"], err["error"])
 
+        # Start hot-reload watcher if enabled (optional -- watchdog must be installed)
+        if not testing and getattr(settings, "plugin_hot_reload", False):
+            try:
+                from providers.plugins.watcher import start_plugin_watcher
+                watcher = start_plugin_watcher(plugin_mgr, plugins_dir)
+                logger.info("Plugin hot-reload watcher started on %s", plugins_dir)
+            except ImportError:
+                logger.warning("watchdog not installed, plugin hot-reload disabled")
+
     # Bazarr deprecation warning
     if os.environ.get("SUBLARR_BAZARR_URL") or os.environ.get("SUBLARR_BAZARR_API_KEY"):
         logger.warning(
