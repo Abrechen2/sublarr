@@ -238,6 +238,28 @@ CREATE TABLE IF NOT EXISTS translation_backend_stats (
 );
 
 CREATE INDEX IF NOT EXISTS idx_translation_backend_stats_updated ON translation_backend_stats(updated_at);
+
+CREATE TABLE IF NOT EXISTS whisper_jobs (
+    id TEXT PRIMARY KEY,
+    file_path TEXT NOT NULL,
+    language TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'queued',
+    progress REAL DEFAULT 0.0,
+    phase TEXT DEFAULT '',
+    backend_name TEXT DEFAULT '',
+    detected_language TEXT DEFAULT '',
+    language_probability REAL DEFAULT 0.0,
+    srt_content TEXT DEFAULT '',
+    segment_count INTEGER DEFAULT 0,
+    duration_seconds REAL DEFAULT 0.0,
+    processing_time_ms REAL DEFAULT 0.0,
+    error TEXT DEFAULT '',
+    created_at TEXT NOT NULL,
+    started_at TEXT DEFAULT '',
+    completed_at TEXT DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_whisper_jobs_status ON whisper_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_whisper_jobs_created ON whisper_jobs(created_at);
 """
 
 
@@ -437,3 +459,32 @@ def _run_migrations(conn):
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_translation_backend_stats_updated ON translation_backend_stats(updated_at)")
         logger.info("Created translation_backend_stats table")
+
+    # Check if whisper_jobs table exists (migration for existing DBs)
+    try:
+        conn.execute("SELECT 1 FROM whisper_jobs LIMIT 1")
+    except sqlite3.OperationalError:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS whisper_jobs (
+                id TEXT PRIMARY KEY,
+                file_path TEXT NOT NULL,
+                language TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'queued',
+                progress REAL DEFAULT 0.0,
+                phase TEXT DEFAULT '',
+                backend_name TEXT DEFAULT '',
+                detected_language TEXT DEFAULT '',
+                language_probability REAL DEFAULT 0.0,
+                srt_content TEXT DEFAULT '',
+                segment_count INTEGER DEFAULT 0,
+                duration_seconds REAL DEFAULT 0.0,
+                processing_time_ms REAL DEFAULT 0.0,
+                error TEXT DEFAULT '',
+                created_at TEXT NOT NULL,
+                started_at TEXT DEFAULT '',
+                completed_at TEXT DEFAULT ''
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_whisper_jobs_status ON whisper_jobs(status)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_whisper_jobs_created ON whisper_jobs(created_at)")
+        logger.info("Created whisper_jobs table")
