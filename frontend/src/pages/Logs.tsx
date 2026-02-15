@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useLogs } from '@/hooks/useApi'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { Pause, Play, Search, ArrowDown } from 'lucide-react'
@@ -15,6 +16,7 @@ function getLineLevel(line: string): string {
 }
 
 export function LogsPage() {
+  const { t } = useTranslation('logs')
   const [level, setLevel] = useState<string | undefined>()
   const [search, setSearch] = useState('')
   const [autoScroll, setAutoScroll] = useState(true)
@@ -56,7 +58,7 @@ export function LogsPage() {
   return (
     <div className="space-y-4 h-[calc(100vh-7rem)] flex flex-col">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1>Logs</h1>
+        <h1>{t('title')}</h1>
         <div className="flex items-center gap-2">
           {/* Level Filter */}
           <div className="flex gap-1">
@@ -90,7 +92,7 @@ export function LogsPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search..."
+              placeholder={t('search_placeholder')}
               className="pl-7 pr-3 py-1.5 rounded-md text-xs w-40 focus:outline-none"
               style={{
                 backgroundColor: 'var(--bg-surface)',
@@ -109,7 +111,7 @@ export function LogsPage() {
               color: autoScroll ? 'var(--accent)' : 'var(--text-muted)',
               backgroundColor: autoScroll ? 'var(--accent-subtle)' : 'var(--bg-surface)',
             }}
-            title={autoScroll ? 'Auto-scroll ON' : 'Auto-scroll OFF'}
+            title={autoScroll ? t('auto_scroll_on') : t('auto_scroll_off')}
           >
             {autoScroll ? <ArrowDown size={14} /> : <Pause size={14} />}
           </button>
@@ -140,7 +142,7 @@ export function LogsPage() {
           ))
         ) : (
           <div className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
-            No log entries{level ? ` for level ${level}` : ''}
+            {level ? t('no_logs_for_level', { level }) : t('no_logs')}
           </div>
         )}
       </div>

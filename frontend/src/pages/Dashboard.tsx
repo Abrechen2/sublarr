@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Activity,
   CheckCircle2,
@@ -71,6 +72,7 @@ function SkeletonCard() {
 }
 
 export function Dashboard() {
+  const { t } = useTranslation('dashboard')
   const { data: health, isLoading: healthLoading } = useHealth()
   const { data: stats, isLoading: statsLoading } = useStats()
   const { data: wantedSummary } = useWantedSummary()
@@ -114,7 +116,7 @@ export function Dashboard() {
 
   return (
     <div className="space-y-5">
-      <h1>Dashboard</h1>
+      <h1>{t('title')}</h1>
 
       {/* Status Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -129,28 +131,28 @@ export function Dashboard() {
           <>
             <StatCard
               icon={Server}
-              label="Ollama"
-              value={health?.services?.ollama === 'OK' ? 'Online' : 'Offline'}
+              label={t('stats.ollama')}
+              value={health?.services?.ollama === 'OK' ? t('stats.online') : t('stats.offline')}
               color={health?.services?.ollama === 'OK' ? 'var(--success)' : 'var(--error)'}
               delay={0}
             />
             <StatCard
               icon={Zap}
-              label="Wanted"
+              label={t('stats.wanted')}
               value={wantedSummary?.by_status?.wanted ?? 0}
               color={wantedSummary?.total ? 'var(--warning)' : 'var(--text-muted)'}
               delay={0.04}
             />
             <StatCard
               icon={CheckCircle2}
-              label="Translated Today"
+              label={t('stats.translated_today')}
               value={stats?.today_translated ?? 0}
               color="var(--accent)"
               delay={0.08}
             />
             <StatCard
               icon={Clock}
-              label="Queue"
+              label={t('stats.queue')}
               value={stats?.pending_jobs ?? 0}
               color="var(--warning)"
               delay={0.12}
@@ -165,7 +167,7 @@ export function Dashboard() {
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
         <h2 className="text-xs font-semibold mb-3 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-          Quick Actions
+          {t('quick_actions.title')}
         </h2>
         <div className="flex flex-wrap gap-2">
           <button
@@ -188,7 +190,7 @@ export function Dashboard() {
             ) : (
               <RefreshCw size={14} />
             )}
-            {wantedSummary?.scan_running ? 'Scanning...' : 'Scan Library'}
+            {wantedSummary?.scan_running ? t('quick_actions.scanning') : t('quick_actions.scan_library')}
           </button>
           <button
             onClick={() => {
@@ -210,7 +212,7 @@ export function Dashboard() {
             ) : (
               <Search size={14} />
             )}
-            {batchStatus?.running ? 'Searching...' : 'Search Wanted'}
+            {batchStatus?.running ? t('quick_actions.searching') : t('quick_actions.search_wanted')}
           </button>
         </div>
       </div>
@@ -223,7 +225,7 @@ export function Dashboard() {
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
             <h2 className="text-xs font-semibold mb-3 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-              Service Connections
+              {t('services.title')}
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {Object.entries(health.services).map(([name, status]) => {
@@ -255,7 +257,7 @@ export function Dashboard() {
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
             <h2 className="text-xs font-semibold mb-3 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-              Subtitle Providers
+              {t('providers.title')}
             </h2>
             <div className="space-y-1.5">
               {providers.map((p) => {
@@ -281,7 +283,7 @@ export function Dashboard() {
                       className="text-[10px] font-medium"
                       style={{ color: statusColor }}
                     >
-                      {!p.enabled ? 'Disabled' : p.healthy ? 'Healthy' : 'Error'}
+                      {!p.enabled ? t('providers.disabled') : p.healthy ? t('providers.healthy') : t('providers.error')}
                     </span>
                   </div>
                 )
@@ -299,19 +301,19 @@ export function Dashboard() {
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
             <div className="text-xs font-semibold mb-3 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-              Total Stats
+              {t('total_stats.title')}
             </div>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span>Translated</span>
+                <span>{t('total_stats.translated')}</span>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>{stats.total_translated}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>Failed</span>
+                <span>{t('total_stats.failed')}</span>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--error)' }}>{stats.total_failed}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>Skipped</span>
+                <span>{t('total_stats.skipped')}</span>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{stats.total_skipped}</span>
               </div>
             </div>
@@ -322,7 +324,7 @@ export function Dashboard() {
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
             <div className="text-xs font-semibold mb-3 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-              By Format
+              {t('by_format.title')}
             </div>
             <div className="space-y-2">
               {Object.entries(stats.by_format || {}).map(([fmt, count]) => (
@@ -332,7 +334,7 @@ export function Dashboard() {
                 </div>
               ))}
               {Object.keys(stats.by_format || {}).length === 0 && (
-                <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>No data yet</div>
+                <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('by_format.no_data')}</div>
               )}
             </div>
           </div>
@@ -342,21 +344,21 @@ export function Dashboard() {
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
             <div className="text-xs font-semibold mb-3 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-              System
+              {t('system.title')}
             </div>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span>Uptime</span>
+                <span>{t('system.uptime')}</span>
                 <span style={{ fontFamily: 'var(--font-mono)' }}>
                   {currentUptime !== null ? formatDuration(currentUptime) : stats?.uptime_seconds !== undefined ? formatDuration(stats.uptime_seconds) : '—'}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>Batch Running</span>
-                <span>{stats.batch_running ? 'Yes' : '\u2014'}</span>
+                <span>{t('system.batch_running')}</span>
+                <span>{stats.batch_running ? t('system.yes') : '\u2014'}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>Quality Warnings</span>
+                <span>{t('system.quality_warnings')}</span>
                 <span
                   style={{
                     fontFamily: 'var(--font-mono)',
@@ -381,10 +383,10 @@ export function Dashboard() {
           style={{ borderBottom: '1px solid var(--border)' }}
         >
           <h2 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-            Recent Activity
+            {t('recent_activity.title')}
           </h2>
           <a href="/activity" className="text-xs font-medium" style={{ color: 'var(--accent)' }}>
-            View All &rarr;
+            {t('recent_activity.view_all')} &rarr;
           </a>
         </div>
         <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -425,7 +427,7 @@ export function Dashboard() {
             ))
           ) : (
             <div className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-              No recent activity
+              {t('recent_activity.no_activity')}
             </div>
           )}
         </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   useConfig, useUpdateConfig, useProviders, useTestProvider, useProviderStats,
   useClearProviderCache, useRetranslateStatus, useRetranslateBatch,
@@ -3659,7 +3660,28 @@ function ScoringTab() {
 
 // ─── Settings Page ──────────────────────────────────────────────────────────
 
+// Map internal tab IDs to i18n translation keys
+const TAB_KEYS: Record<string, string> = {
+  'General': 'tabs.general',
+  'Translation': 'tabs.translation',
+  'Translation Backends': 'tabs.translation_backends',
+  'Languages': 'tabs.languages',
+  'Automation': 'tabs.automation',
+  'Wanted': 'tabs.wanted',
+  'Providers': 'tabs.providers',
+  'Sonarr': 'tabs.sonarr',
+  'Radarr': 'tabs.radarr',
+  'Library Sources': 'tabs.library_sources',
+  'Media Servers': 'tabs.media_servers',
+  'Whisper': 'tabs.whisper',
+  'Events & Hooks': 'tabs.events_hooks',
+  'Scoring': 'tabs.scoring',
+  'Notifications': 'tabs.notifications',
+  'Prompt Presets': 'tabs.prompt_presets',
+}
+
 export function SettingsPage() {
+  const { t } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const updateConfig = useUpdateConfig()
   const [activeTab, setActiveTab] = useState('General')
@@ -3790,7 +3812,7 @@ export function SettingsPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1>Settings</h1>
+        <h1>{t('title')}</h1>
         <button
           onClick={handleSave}
           disabled={updateConfig.isPending}
@@ -3805,7 +3827,7 @@ export function SettingsPage() {
           ) : (
             <>
               <Save size={14} />
-              Save
+              {t('actions.save')}
             </>
           )}
         </button>
@@ -3838,7 +3860,7 @@ export function SettingsPage() {
                     style={{ backgroundColor: 'var(--accent)' }}
                   />
                 )}
-                {tab}
+                {TAB_KEYS[tab] ? t(TAB_KEYS[tab]) : tab}
               </button>
             )
           })}

@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, Fragment } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   useWantedItems, useWantedSummary, useRefreshWanted, useUpdateWantedStatus,
   useSearchWantedItem, useProcessWantedItem, useStartWantedBatch, useWantedBatchStatus,
@@ -54,10 +55,11 @@ function ScoreBadge({ score }: { score: number }) {
   )
 }
 
-function SearchResultsRow({ results, isLoading, onBlacklist }: {
+function SearchResultsRow({ results, isLoading, onBlacklist, t }: {
   results: WantedSearchResponse | null
   isLoading: boolean
   onBlacklist: (providerName: string, subtitleId: string, language: string) => void
+  t: (key: string, opts?: Record<string, unknown>) => string
 }) {
   if (isLoading) {
     return (
@@ -65,7 +67,7 @@ function SearchResultsRow({ results, isLoading, onBlacklist }: {
         <td colSpan={9} className="px-6 py-4">
           <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
             <Loader2 size={14} className="animate-spin" />
-            Searching providers...
+            {t('wanted.searching_providers')}
           </div>
         </td>
       </tr>
@@ -83,7 +85,7 @@ function SearchResultsRow({ results, isLoading, onBlacklist }: {
     return (
       <tr style={{ backgroundColor: 'var(--bg-primary)' }}>
         <td colSpan={9} className="px-6 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>
-          No results found from any provider.
+          {t('wanted.no_results_found')}
         </td>
       </tr>
     )
@@ -150,7 +152,7 @@ function SearchResultsRow({ results, isLoading, onBlacklist }: {
                     <button
                       onClick={() => onBlacklist(r.provider, r.subtitle_id, r.language)}
                       className="p-0.5 rounded transition-colors duration-150"
-                      title="Blacklist this subtitle"
+                      title={t('wanted.blacklist_subtitle')}
                       style={{ color: 'var(--text-muted)' }}
                       onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--error)')}
                       onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
@@ -169,6 +171,7 @@ function SearchResultsRow({ results, isLoading, onBlacklist }: {
 }
 
 export function WantedPage() {
+  const { t } = useTranslation('library')
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const [typeFilter, setTypeFilter] = useState<string | undefined>()
@@ -316,7 +319,7 @@ export function WantedPage() {
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--accent)' }}>
               <Loader2 size={14} className="animate-spin" />
-              Processing: {batchStatus.current_item || 'Starting...'}
+              {t('wanted.processing', { item: batchStatus.current_item || t('wanted.starting') })}
             </div>
             <span className="text-xs tabular-nums" style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
               {batchStatus.processed}/{batchStatus.total}
@@ -332,9 +335,9 @@ export function WantedPage() {
             />
           </div>
           <div className="flex gap-4 mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            <span>Found: {batchStatus.found}</span>
-            <span>Failed: {batchStatus.failed}</span>
-            <span>Skipped: {batchStatus.skipped}</span>
+            <span>{t('wanted.found')}: {batchStatus.found}</span>
+            <span>{t('wanted.failed')}: {batchStatus.failed}</span>
+            <span>{t('wanted.skipped')}: {batchStatus.skipped}</span>
           </div>
         </div>
       )}
@@ -342,9 +345,9 @@ export function WantedPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1>Wanted</h1>
+          <h1>{t('wanted.title')}</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-            {summary?.total ?? 0} items missing subtitles
+            {t('wanted.items_missing', { count: summary?.total ?? 0 })}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -359,7 +362,7 @@ export function WantedPage() {
             }}
           >
             <Search size={14} />
-            {batchStatus?.running ? 'Searching...' : 'Search All'}
+            {batchStatus?.running ? t('wanted.searching') : t('wanted.search_all')}
           </button>
           <button
             onClick={() => refreshWanted.mutate(undefined)}
@@ -371,17 +374,17 @@ export function WantedPage() {
               size={14}
               className={refreshWanted.isPending || summary?.scan_running ? 'animate-spin' : ''}
             />
-            {summary?.scan_running ? 'Scanning...' : 'Refresh'}
+            {summary?.scan_running ? t('wanted.scanning') : t('wanted.refresh')}
           </button>
         </div>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <SummaryCard icon={Search} label="Total Wanted" value={totalWanted} color="var(--warning)" />
-        <SummaryCard icon={Tv} label="Episodes" value={totalEpisodes} color="var(--accent)" />
-        <SummaryCard icon={Film} label="Movies" value={totalMovies} color="var(--text-secondary)" />
-        <SummaryCard icon={ArrowUpCircle} label="SRT Upgradeable" value={upgradeable} color="var(--success)" />
+        <SummaryCard icon={Search} label={t('wanted.total_wanted')} value={totalWanted} color="var(--warning)" />
+        <SummaryCard icon={Tv} label={t('wanted.episodes')} value={totalEpisodes} color="var(--accent)" />
+        <SummaryCard icon={Film} label={t('wanted.movies')} value={totalMovies} color="var(--text-secondary)" />
+        <SummaryCard icon={ArrowUpCircle} label={t('wanted.srt_upgradeable')} value={upgradeable} color="var(--success)" />
       </div>
 
       {/* Filters */}
@@ -501,7 +504,7 @@ export function WantedPage() {
           style={{ backgroundColor: 'var(--accent-bg)', border: '1px solid var(--accent-dim)' }}
         >
           <span className="text-sm font-medium" style={{ color: 'var(--accent)' }}>
-            {selectedIds.size} selected
+            {t('wanted.selected', { count: selectedIds.size })}
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -511,7 +514,7 @@ export function WantedPage() {
               style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
             >
               <EyeOff size={12} />
-              Ignore
+              {t('wanted.ignore')}
             </button>
             <button
               onClick={() => handleBulkAction('unignore')}
@@ -520,7 +523,7 @@ export function WantedPage() {
               style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
             >
               <Eye size={12} />
-              Un-ignore
+              {t('wanted.un_ignore')}
             </button>
             <button
               onClick={() => handleBulkAction('search')}
@@ -529,14 +532,14 @@ export function WantedPage() {
               style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
             >
               {bulkRunning ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
-              Search
+              {t('common:actions.search')}
             </button>
             <button
               onClick={() => setSelectedIds(new Set())}
               className="px-2 py-1.5 rounded text-xs"
               style={{ color: 'var(--text-muted)' }}
             >
-              Clear
+              {t('wanted.clear')}
             </button>
           </div>
         </div>
@@ -562,14 +565,14 @@ export function WantedPage() {
                     )}
                   </button>
                 </th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>Title</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>S/E</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>Status</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>Existing</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>Searches</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>Last Search</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>Added</th>
-                <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>Actions</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.title_col')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.se_col')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.status_col')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.existing_col')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.searches_col')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.last_search_col')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.added_col')}</th>
+                <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.actions_col')}</th>
               </tr>
             </thead>
             <tbody>
@@ -645,7 +648,7 @@ export function WantedPage() {
                       </td>
                       <td className="px-3 py-2.5">
                         <span className="text-xs" style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-                          {item.season_episode || (item.item_type === 'movie' ? 'Movie' : '\u2014')}
+                          {item.season_episode || (item.item_type === 'movie' ? t('wanted.movie') : '\u2014')}
                         </span>
                       </td>
                       <td className="px-3 py-2.5">
@@ -688,7 +691,7 @@ export function WantedPage() {
                         className="px-3 py-2.5 text-xs tabular-nums hidden lg:table-cell"
                         style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}
                       >
-                        {item.last_search_at ? formatRelativeTime(item.last_search_at) : 'Never'}
+                        {item.last_search_at ? formatRelativeTime(item.last_search_at) : t('wanted.never')}
                       </td>
                       <td
                         className="px-3 py-2.5 text-xs tabular-nums hidden lg:table-cell"
@@ -702,7 +705,7 @@ export function WantedPage() {
                             onClick={() => handleSearch(item.id)}
                             disabled={searchItem.isPending && expandedItem === item.id}
                             className="p-1 rounded transition-colors duration-150"
-                            title="Search providers"
+                            title={t('wanted.search_providers')}
                             style={{ color: expandedItem === item.id ? 'var(--accent)' : 'var(--text-muted)' }}
                             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
                             onMouseLeave={(e) => {
@@ -719,7 +722,7 @@ export function WantedPage() {
                               onClick={() => handleExtract(item.id, item.target_language)}
                               disabled={extractItem.isPending}
                               className="p-1 rounded transition-colors duration-150"
-                              title="Extract embedded subtitle"
+                              title={t('wanted.extract_embedded')}
                               style={{ color: 'var(--text-muted)' }}
                               onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
                               onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
@@ -731,7 +734,7 @@ export function WantedPage() {
                             onClick={() => handleProcess(item.id)}
                             disabled={processItem.isPending || item.status === 'searching'}
                             className="p-1 rounded transition-colors duration-150"
-                            title="Download + translate"
+                            title={t('wanted.download_translate')}
                             style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--success)')}
                             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
@@ -742,7 +745,7 @@ export function WantedPage() {
                             onClick={() => retranslateItem.mutate(item.id)}
                             disabled={retranslateItem.isPending}
                             className="p-1 rounded transition-colors duration-150"
-                            title="Re-translate"
+                            title={t('wanted.re_translate')}
                             style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--warning)')}
                             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
@@ -755,7 +758,7 @@ export function WantedPage() {
                               status: item.status === 'ignored' ? 'wanted' : 'ignored',
                             })}
                             className="p-1 rounded transition-colors duration-150"
-                            title={item.status === 'ignored' ? 'Un-ignore' : 'Ignore'}
+                            title={item.status === 'ignored' ? t('wanted.un_ignore_action') : t('wanted.ignore_action')}
                             style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
                             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
@@ -770,6 +773,7 @@ export function WantedPage() {
                       <SearchResultsRow
                         results={searchResults[item.id] ?? null}
                         isLoading={searchItem.isPending}
+                        t={t}
                         onBlacklist={(providerName, subtitleId, language) => {
                           addBlacklist.mutate({
                             provider_name: providerName,
@@ -787,7 +791,7 @@ export function WantedPage() {
               ) : (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    {statusFilter || typeFilter || subtitleTypeFilter || languageFilter ? 'No items match the current filters' : 'No wanted items — run a scan to detect missing subtitles'}
+                    {statusFilter || typeFilter || subtitleTypeFilter || languageFilter ? t('wanted.no_match_filters') : t('wanted.no_wanted_items')}
                   </td>
                 </tr>
               )}
