@@ -362,6 +362,19 @@ def get_hook_logs(hook_id: int = None, webhook_id: int = None,
     return [_row_to_dict(r) for r in rows]
 
 
+def clear_hook_logs() -> int:
+    """Delete all hook execution logs.
+
+    Returns:
+        Number of rows deleted.
+    """
+    db = get_db()
+    with _db_lock:
+        cursor = db.execute("DELETE FROM hook_log")
+        db.commit()
+        return cursor.rowcount
+
+
 # ---- Trigger stats helpers -----------------------------------------------------
 
 def update_hook_trigger_stats(hook_id: int, success: bool) -> None:
