@@ -16,6 +16,7 @@ from db.library import record_upgrade
 from upgrade_scorer import should_upgrade
 from providers import get_provider_manager
 from providers.base import VideoQuery, SubtitleFormat
+from translator import get_forced_output_path
 
 logger = logging.getLogger(__name__)
 
@@ -234,13 +235,17 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
                      query.series_title or "N/A", query.title or "N/A", 
                      query.season or 0, query.episode or 0, query.year or "N/A")
 
+    # Set forced_only based on wanted item's subtitle_type
+    if wanted_item.get("subtitle_type", "full") == "forced":
+        query.forced_only = True
+
     # Validate query has minimum required data
     has_minimum_data = False
     if wanted_item["item_type"] == "episode":
         has_minimum_data = bool(query.series_title or query.title) and query.season is not None and query.episode is not None
     else:
         has_minimum_data = bool(query.title)
-    
+
     if not has_minimum_data:
         logger.warning("Query for wanted item %d lacks minimum required data: file_path=%s, series_title=%s, title=%s, season=%s, episode=%s",
                       wanted_item["id"], query.file_path, query.series_title, query.title, query.season, query.episode)
@@ -286,10 +291,10 @@ def search_wanted_item(item_id: int) -> dict:
     item_lang = item.get("target_language") or settings.target_language
     source_lang = settings.source_language
 
-    # Build queries
+    # Build queries (forced_only is set by build_query_from_wanted based on subtitle_type)
     target_query = build_query_from_wanted(item)
     target_query.languages = [item_lang]
-    
+
     source_query = build_query_from_wanted(item)
     source_query.languages = [source_lang]
 
@@ -376,7 +381,12 @@ def process_wanted_item(item_id: int) -> dict:
 
     is_upgrade = bool(item.get("upgrade_candidate"))
     current_score = item.get("current_score", 0)
+    subtitle_type = item.get("subtitle_type", "full")
     manager = get_provider_manager()
+
+    # Forced subtitle handling: download-only, no translation
+    if subtitle_type == "forced":
+        return _process_forced_wanted_item(item, item_id, item_lang, manager)
 
     # Step 1: Try to find target language ASS directly from providers (Priority 1)
     query = build_query_from_wanted(item)
@@ -607,6 +617,81 @@ def process_wanted_item(item_id: int) -> dict:
             "status": "failed",
             "error": error,
         }
+
+
+def _process_forced_wanted_item(item, item_id, item_lang, manager):
+    """Process a forced wanted item: search with forced_only, download, skip translation.
+
+    Forced subtitles are download-only (no translation per research recommendation).
+    Saves to the forced output path (.lang.forced.ext).
+
+    Returns:
+        dict: {wanted_id, status, output_path, provider, error}
+    """
+    file_path = item["file_path"]
+
+    # Build forced query
+    query = build_query_from_wanted(item)
+    query.languages = [item_lang]
+    query.forced_only = True
+
+    # Try target language forced ASS first, then forced SRT
+    for fmt in (SubtitleFormat.ASS, SubtitleFormat.SRT):
+        try:
+            result = manager.search_and_download_best(query, format_filter=fmt)
+            if result and result.content:
+                ext = result.format.value if result.format != SubtitleFormat.UNKNOWN else fmt.value
+                output_path = get_forced_output_path(file_path, fmt=ext, target_language=item_lang)
+                manager.save_subtitle(result, output_path)
+                logger.info("Wanted %d: Forced subtitle downloaded from %s, skipping translation",
+                           item_id, result.provider_name)
+                update_wanted_status(item_id, "found")
+                return {
+                    "wanted_id": item_id,
+                    "status": "found",
+                    "output_path": output_path,
+                    "provider": result.provider_name,
+                    "forced": True,
+                }
+        except Exception as e:
+            logger.warning("Wanted %d: Forced %s search failed: %s", item_id, fmt.value, e)
+
+    # Also try source language forced subtitles (download-only, no translation)
+    settings = get_settings()
+    source_lang = settings.source_language
+    source_query = build_query_from_wanted(item)
+    source_query.languages = [source_lang]
+    source_query.forced_only = True
+
+    for fmt in (SubtitleFormat.ASS, SubtitleFormat.SRT):
+        try:
+            result = manager.search_and_download_best(source_query, format_filter=fmt)
+            if result and result.content:
+                ext = result.format.value if result.format != SubtitleFormat.UNKNOWN else fmt.value
+                output_path = get_forced_output_path(file_path, fmt=ext, target_language=item_lang)
+                manager.save_subtitle(result, output_path)
+                logger.info("Wanted %d: Forced subtitle (source lang) downloaded from %s, skipping translation",
+                           item_id, result.provider_name)
+                update_wanted_status(item_id, "found")
+                return {
+                    "wanted_id": item_id,
+                    "status": "found",
+                    "output_path": output_path,
+                    "provider": result.provider_name,
+                    "forced": True,
+                }
+        except Exception as e:
+            logger.warning("Wanted %d: Forced source %s search failed: %s", item_id, fmt.value, e)
+
+    # No forced subtitle found
+    error = "No forced subtitle found from any provider"
+    update_wanted_status(item_id, "failed", error=error)
+    return {
+        "wanted_id": item_id,
+        "status": "failed",
+        "error": error,
+        "forced": True,
+    }
 
 
 def process_wanted_batch(item_ids=None):
