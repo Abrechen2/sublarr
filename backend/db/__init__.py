@@ -260,6 +260,61 @@ CREATE TABLE IF NOT EXISTS whisper_jobs (
 );
 CREATE INDEX IF NOT EXISTS idx_whisper_jobs_status ON whisper_jobs(status);
 CREATE INDEX IF NOT EXISTS idx_whisper_jobs_created ON whisper_jobs(created_at);
+
+CREATE TABLE IF NOT EXISTS watched_folders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    path TEXT NOT NULL UNIQUE,
+    label TEXT DEFAULT '',
+    media_type TEXT DEFAULT 'auto',
+    enabled INTEGER DEFAULT 1,
+    last_scan_at TEXT DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS standalone_series (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    year INTEGER,
+    folder_path TEXT NOT NULL,
+    tmdb_id INTEGER,
+    tvdb_id INTEGER,
+    anilist_id INTEGER,
+    imdb_id TEXT DEFAULT '',
+    poster_url TEXT DEFAULT '',
+    is_anime INTEGER DEFAULT 0,
+    episode_count INTEGER DEFAULT 0,
+    season_count INTEGER DEFAULT 0,
+    metadata_source TEXT DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(folder_path)
+);
+CREATE INDEX IF NOT EXISTS idx_standalone_series_tmdb ON standalone_series(tmdb_id);
+CREATE INDEX IF NOT EXISTS idx_standalone_series_anilist ON standalone_series(anilist_id);
+
+CREATE TABLE IF NOT EXISTS standalone_movies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    year INTEGER,
+    file_path TEXT NOT NULL UNIQUE,
+    tmdb_id INTEGER,
+    imdb_id TEXT DEFAULT '',
+    poster_url TEXT DEFAULT '',
+    metadata_source TEXT DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_standalone_movies_tmdb ON standalone_movies(tmdb_id);
+
+CREATE TABLE IF NOT EXISTS metadata_cache (
+    cache_key TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    response_json TEXT NOT NULL,
+    cached_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_metadata_cache_expires ON metadata_cache(expires_at);
 """
 
 
@@ -488,3 +543,21 @@ def _run_migrations(conn):
         conn.execute("CREATE INDEX IF NOT EXISTS idx_whisper_jobs_status ON whisper_jobs(status)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_whisper_jobs_created ON whisper_jobs(created_at)")
         logger.info("Created whisper_jobs table")
+
+    # Add standalone columns to wanted_items
+    cursor = conn.execute("PRAGMA table_info(wanted_items)")
+    wi_columns = {row[1] for row in cursor.fetchall()}
+    if "standalone_series_id" not in wi_columns:
+        conn.execute("ALTER TABLE wanted_items ADD COLUMN standalone_series_id INTEGER")
+    if "standalone_movie_id" not in wi_columns:
+        conn.execute("ALTER TABLE wanted_items ADD COLUMN standalone_movie_id INTEGER")
+
+    # Check if standalone tables exist (migration for existing DBs)
+    for table_name in ["watched_folders", "standalone_series", "standalone_movies", "metadata_cache"]:
+        try:
+            conn.execute(f"SELECT 1 FROM {table_name} LIMIT 1")
+        except sqlite3.OperationalError:
+            # Tables will be created by executescript(SCHEMA) on fresh DBs
+            # For existing DBs, run the CREATE TABLE statements
+            conn.executescript(SCHEMA)
+            break
