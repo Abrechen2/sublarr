@@ -126,6 +126,9 @@ class Settings(BaseSettings):
     backup_retention_weekly: int = 4
     backup_retention_monthly: int = 3
 
+    # Plugin System
+    plugins_dir: str = "/config/plugins"
+
     # AniDB Integration
     anidb_enabled: bool = True  # Enable AniDB ID resolution
     anidb_cache_ttl_days: int = 30  # Cache TTL for TVDB → AniDB mappings
