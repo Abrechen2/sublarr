@@ -29,8 +29,12 @@ import {
   getHookLogs, clearHookLogs,
   getScoringWeights, updateScoringWeights, resetScoringWeights,
   getProviderModifiers, updateProviderModifiers,
+  getStatistics, exportStatistics,
+  createFullBackup, listFullBackups, restoreFullBackup,
+  getLogRotation, updateLogRotation,
+  runSubtitleTool, previewSubtitle,
 } from '@/api/client'
-import type { LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig } from '@/lib/types'
+import type { LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig } from '@/lib/types'
 
 // ─── Health ──────────────────────────────────────────────────────────────────
 
@@ -856,5 +860,82 @@ export function useUpdateProviderModifiers() {
   return useMutation({
     mutationFn: updateProviderModifiers,
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['providerModifiers'] }) },
+  })
+}
+
+// ─── Statistics ──────────────────────────────────────────────────────────────
+
+export function useStatistics(range: string) {
+  return useQuery({
+    queryKey: ['statistics', range],
+    queryFn: () => getStatistics(range),
+    refetchInterval: 60000,
+  })
+}
+
+export function useExportStatistics() {
+  return useMutation({
+    mutationFn: ({ range, format }: { range: string; format: 'json' | 'csv' }) =>
+      exportStatistics(range, format),
+  })
+}
+
+// ─── Full Backup ─────────────────────────────────────────────────────────────
+
+export function useFullBackups() {
+  return useQuery({
+    queryKey: ['full-backups'],
+    queryFn: listFullBackups,
+  })
+}
+
+export function useCreateFullBackup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: createFullBackup,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['full-backups'] }) },
+  })
+}
+
+export function useRestoreFullBackup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: restoreFullBackup,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['full-backups'] })
+      void qc.invalidateQueries({ queryKey: ['config'] })
+    },
+  })
+}
+
+// ─── Log Rotation ────────────────────────────────────────────────────────────
+
+export function useLogRotation() {
+  return useQuery({
+    queryKey: ['log-rotation'],
+    queryFn: getLogRotation,
+  })
+}
+
+export function useUpdateLogRotation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (config: LogRotationConfig) => updateLogRotation(config),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['log-rotation'] }) },
+  })
+}
+
+// ─── Subtitle Tools ──────────────────────────────────────────────────────────
+
+export function useSubtitleTool() {
+  return useMutation({
+    mutationFn: ({ tool, params }: { tool: string; params: Record<string, unknown> }) =>
+      runSubtitleTool(tool, params),
+  })
+}
+
+export function usePreviewSubtitle() {
+  return useMutation({
+    mutationFn: (filePath: string) => previewSubtitle(filePath),
   })
 }

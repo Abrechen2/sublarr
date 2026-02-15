@@ -9,6 +9,7 @@ import { WantedPage } from '@/pages/Wanted'
 import { QueuePage } from '@/pages/Queue'
 import { SettingsPage } from '@/pages/Settings'
 import { LogsPage } from '@/pages/Logs'
+import { StatisticsPage } from '@/pages/Statistics'
 import { LibraryPage } from '@/pages/Library'
 import { SeriesDetailPage } from '@/pages/SeriesDetail'
 import { HistoryPage } from '@/pages/History'
@@ -41,6 +42,7 @@ function AnimatedRoutes() {
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/blacklist" element={<BlacklistPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/statistics" element={<StatisticsPage />} />
         <Route path="/logs" element={<LogsPage />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="*" element={<NotFoundPage />} />

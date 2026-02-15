@@ -592,3 +592,34 @@ export interface ScoringWeights {
 export interface ProviderModifiers {
   [provider_name: string]: number
 }
+
+// ─── Statistics ──────────────────────────────────────────────────────────────
+
+export interface StatisticsData {
+  daily: DailyStat[]
+  providers: Record<string, ProviderHealthStats>
+  downloads_by_provider: Array<{ provider_name: string; count: number; avg_score: number }>
+  backend_stats: Array<{ backend_name: string; total_requests: number; successful_translations: number; failed_translations: number; total_characters: number }>
+  upgrades: Array<{ type: string; count: number }>
+  by_format: Record<string, number>
+  range: string
+}
+
+// ─── Backup ──────────────────────────────────────────────────────────────────
+
+export interface FullBackupInfo {
+  filename: string
+  size_bytes: number
+  created_at: string
+  contents: string[]
+}
+
+export interface SubtitleToolResult {
+  status: string
+  [key: string]: unknown
+}
+
+export interface LogRotationConfig {
+  max_size_mb: number
+  backup_count: number
+}
