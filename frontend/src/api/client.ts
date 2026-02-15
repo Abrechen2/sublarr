@@ -8,6 +8,7 @@ import type {
   TranslationBackendInfo, BackendConfig, BackendHealthResult, BackendStats,
   MediaServerType, MediaServerInstance, MediaServerTestResult, MediaServerHealthResult,
   WatchedFolder, StandaloneSeries, StandaloneMovie, StandaloneStatus,
+  HookConfig, WebhookConfig,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -555,5 +556,27 @@ export async function getStandaloneStatus(): Promise<StandaloneStatus> {
 export async function refreshSeriesMetadata(seriesId: number): Promise<void> {
   await api.post(`/standalone/series/${seriesId}/refresh-metadata`)
 }
+
+// ─── Events & Hooks ──────────────────────────────────────────────────────
+
+export const getEventCatalog = () => api.get('/events/catalog').then(r => r.data)
+export const getHookConfigs = (eventName?: string) => api.get('/hooks', { params: eventName ? { event_name: eventName } : {} }).then(r => r.data)
+export const createHookConfig = (data: Partial<HookConfig>) => api.post('/hooks', data).then(r => r.data)
+export const updateHookConfig = (id: number, data: Partial<HookConfig>) => api.put(`/hooks/${id}`, data).then(r => r.data)
+export const deleteHookConfig = (id: number) => api.delete(`/hooks/${id}`)
+export const testHook = (id: number) => api.post(`/hooks/${id}/test`).then(r => r.data)
+export const getWebhookConfigs = (eventName?: string) => api.get('/webhooks', { params: eventName ? { event_name: eventName } : {} }).then(r => r.data)
+export const createWebhookConfig = (data: Partial<WebhookConfig>) => api.post('/webhooks', data).then(r => r.data)
+export const updateWebhookConfig = (id: number, data: Partial<WebhookConfig>) => api.put(`/webhooks/${id}`, data).then(r => r.data)
+export const deleteWebhookConfig = (id: number) => api.delete(`/webhooks/${id}`)
+export const testWebhook = (id: number) => api.post(`/webhooks/${id}/test`).then(r => r.data)
+export const getHookLogs = (params?: { hook_id?: number; webhook_id?: number; limit?: number }) => api.get('/hooks/logs', { params }).then(r => r.data)
+export const clearHookLogs = () => api.delete('/hooks/logs')
+export const getScoringWeights = () => api.get('/scoring/weights').then(r => r.data)
+export const updateScoringWeights = (data: { episode?: Record<string, number>; movie?: Record<string, number> }) => api.put('/scoring/weights', data).then(r => r.data)
+export const resetScoringWeights = () => api.delete('/scoring/weights')
+export const getProviderModifiers = () => api.get('/scoring/modifiers').then(r => r.data)
+export const updateProviderModifiers = (data: Record<string, number>) => api.put('/scoring/modifiers', data).then(r => r.data)
+export const deleteProviderModifier = (name: string) => api.delete(`/scoring/modifiers/${name}`)
 
 export default api

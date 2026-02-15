@@ -511,3 +511,84 @@ export interface StandaloneScanResult {
   wanted_added: number
   duration_seconds: number
 }
+
+// ─── Events & Hooks ──────────────────────────────────────────────────────
+
+export interface EventCatalogItem {
+  name: string
+  label: string
+  description: string
+  payload_keys: string[]
+}
+
+export interface HookConfig {
+  id: number
+  name: string
+  event_name: string
+  hook_type: string
+  enabled: boolean
+  script_path: string
+  timeout_seconds: number
+  last_triggered_at: string
+  last_status: string
+  trigger_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface WebhookConfig {
+  id: number
+  name: string
+  event_name: string
+  url: string
+  secret: string
+  enabled: boolean
+  retry_count: number
+  timeout_seconds: number
+  last_triggered_at: string
+  last_status_code: number
+  last_error: string
+  consecutive_failures: number
+  trigger_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface HookLog {
+  id: number
+  hook_id: number | null
+  webhook_id: number | null
+  event_name: string
+  hook_type: string
+  success: boolean
+  exit_code: number | null
+  status_code: number | null
+  stdout: string
+  stderr: string
+  error: string
+  duration_ms: number
+  triggered_at: string
+}
+
+export interface HookTestResult {
+  success: boolean
+  exit_code?: number
+  stdout?: string
+  stderr?: string
+  status_code?: number
+  error?: string
+  duration_ms: number
+}
+
+export interface ScoringWeights {
+  episode: Record<string, number>
+  movie: Record<string, number>
+  defaults: {
+    episode: Record<string, number>
+    movie: Record<string, number>
+  }
+}
+
+export interface ProviderModifiers {
+  [provider_name: string]: number
+}
