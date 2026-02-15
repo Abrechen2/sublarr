@@ -82,12 +82,15 @@ Plans:
   2. User can assign a specific translation backend to each language profile, so different series use different translation services
   3. When the primary backend fails, translation automatically falls through a user-configured fallback chain to the next available backend
   4. Translation quality metrics are tracked per backend and visible in a dashboard widget, showing success rate and error history
-**Plans**: TBD
+**Plans:** 6 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
-- [ ] 02-03: TBD
+- [ ] 02-01-PLAN.md -- TranslationBackend ABC, TranslationManager, shared LLM utilities, OllamaBackend migration, DB schema extension
+- [ ] 02-02-PLAN.md -- API backends: DeepL (with glossary) and LibreTranslate (self-hosted)
+- [ ] 02-03-PLAN.md -- LLM + API backends: OpenAI-compatible (multi-endpoint) and Google Cloud Translation
+- [ ] 02-04-PLAN.md -- Rewire translator.py to use TranslationManager, backend management API endpoints, profile integration
+- [ ] 02-05-PLAN.md -- Frontend: Translation Backends settings tab, profile backend selector, fallback chain editor, stats display
+- [ ] 02-06-PLAN.md -- Test suite for translation multi-backend system
 
 ### Phase 3: Media-Server Abstraction
 **Goal**: Users can connect Plex and Kodi (in addition to Jellyfin/Emby) for library refresh notifications, with multi-server support
@@ -322,7 +325,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 |-------|----------------|--------|-----------|
 | 0. Architecture Refactoring | 3/3 | Complete | 2026-02-15 |
 | 1. Provider Plugin + Expansion | 6/6 | Complete | 2026-02-15 |
-| 2. Translation Multi-Backend | 0/TBD | Not started | - |
+| 2. Translation Multi-Backend | 0/6 | Not started | - |
 | 3. Media-Server Abstraction | 0/TBD | Not started | - |
 | 4. Whisper Speech-to-Text | 0/TBD | Not started | - |
 | 5. Standalone Mode | 0/TBD | Not started | - |
@@ -362,4 +365,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-15 (Phase 1 complete)*
+*Last updated: 2026-02-15 (Phase 2 planned)*
