@@ -12,16 +12,16 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 Phase: 5 of 16 (Standalone Mode)
 Plan: 4 of 5 in current phase
 Status: In progress
-Last activity: 2026-02-15 -- Completed 05-04-PLAN.md (Standalone API Blueprint + Wanted Search Extension)
+Last activity: 2026-02-15 -- Completed 05-03-PLAN.md (StandaloneManager, Watcher, Scanner, Wanted Integration)
 
-Progress: [████████████░░░░░░░░] 3/5 plans in phase
+Progress: [████████████████░░░░] 4/5 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 25
+- Total plans completed: 26
 - Average duration: 6 min
-- Total execution time: 155 min
+- Total execution time: 160 min
 
 **By Phase:**
 
@@ -32,10 +32,10 @@ Progress: [████████████░░░░░░░░] 3/5 pla
 | 02-translation-multi-backend | 6/6 | 23 min | 4 min |
 | 03-media-server-abstraction | 3/3 | 18 min | 6 min |
 | 04-whisper-speech-to-text | 3/3 | 13 min | 4 min |
-| 05-standalone-mode | 3/5 | 10 min | 3 min |
+| 05-standalone-mode | 4/5 | 15 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-02 (3 min), 04-03 (5 min), 05-01 (4 min), 05-02 (3 min), 05-04 (3 min)
+- Last 5 plans: 04-03 (5 min), 05-01 (4 min), 05-02 (3 min), 05-04 (3 min), 05-03 (5 min)
 - Trend: Stable (~4 min avg)
 
 *Updated after each plan completion*
@@ -147,6 +147,11 @@ Recent decisions affecting current work:
 - [05-02]: AniList rate limiting at 0.7s between calls (conservative for 90 req/min limit)
 - [05-02]: TVDB JWT token cached for 24h with automatic refresh on expiry
 - [05-02]: Anime detection: AniList-first lookup, plus TMDB genre+origin_country heuristic (Animation+JP)
+- [05-03]: MediaFileWatcher uses per-path threading.Timer for debounce (not global timer) to handle multiple simultaneous file events
+- [05-03]: File stability check: size comparison after 2s sleep, reschedule if file still changing
+- [05-03]: StandaloneScanner groups files by series before metadata lookup -- one API call per unique series title
+- [05-03]: Standalone items use instance_name='standalone' in wanted_items, _cleanup skips path-based removal for them
+- [05-03]: upsert_wanted_item extended with standalone_series_id and standalone_movie_id for standalone-to-wanted linking
 - [05-04]: Standalone Blueprint uses /api/v1/standalone prefix (dedicated namespace, not shared /api/v1)
 - [05-04]: Scanner endpoints run in daemon threads with lazy imports to avoid circular imports
 - [05-04]: GET /status falls back to basic DB stats if StandaloneManager not yet implemented
@@ -164,11 +169,11 @@ None yet.
 - Phase 2 complete -- all 6 plans executed, all summaries written, 36 unit tests passing
 - Phase 3 complete -- all 3 plans executed, all summaries written (ABC + wiring + frontend)
 - Phase 4 complete -- all 3 plans executed, all summaries written (whisper package + API + frontend)
-- Phase 5 in progress -- 05-01, 05-02 (wave 1), 05-04 (wave 2) complete; 05-03 and 05-05 remaining
+- Phase 5 in progress -- 05-01, 05-02 (wave 1), 05-03, 05-04 (wave 2) complete; 05-05 remaining
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 5 in progress -- 05-04 complete (API + wanted search), 05-03 and 05-05 remaining
-Resume file: .planning/phases/05-standalone-mode/05-04-SUMMARY.md
+Stopped at: Phase 5 in progress -- 05-03 complete (Manager + Watcher + Scanner + Wanted), 05-05 remaining
+Resume file: .planning/phases/05-standalone-mode/05-03-SUMMARY.md
