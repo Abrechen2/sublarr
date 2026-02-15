@@ -14,6 +14,21 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (function() {
+        var theme = localStorage.getItem('sublarr-theme');
+        if (theme === 'light') {
+          document.documentElement.classList.remove('dark');
+        } else if (theme === 'dark' || !theme) {
+          document.documentElement.classList.add('dark');
+        } else {
+          // system
+          if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+          }
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
