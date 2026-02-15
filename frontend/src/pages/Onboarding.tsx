@@ -1,14 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { updateConfig, completeOnboarding, getHealth } from '@/api/client'
+import { updateConfig, completeOnboarding, getHealth, getMediaServerTypes, saveMediaServerInstances, testMediaServer } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
-import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Server, Globe, Cpu, Search, Play } from 'lucide-react'
+import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Server, Globe, Cpu, Search, Play, Monitor, Plus, TestTube, Trash2, Eye, EyeOff } from 'lucide-react'
+import type { MediaServerType, MediaServerInstance, MediaServerTestResult } from '@/lib/types'
 
 const STEPS = [
   { title: 'Sonarr / Radarr', icon: Server, description: 'Connect your *arr instances to detect missing subtitles.' },
   { title: 'Path Mapping', icon: Globe, description: 'Map remote paths to local paths (if *arr runs on a different host).' },
   { title: 'Providers', icon: Search, description: 'Configure subtitle provider API keys for searching.' },
   { title: 'Ollama', icon: Cpu, description: 'Set up the LLM translation backend.' },
+  { title: 'Media Servers (Optional)', icon: Monitor, description: 'Configure media servers for automatic library refresh after subtitle downloads.' },
   { title: 'First Scan', icon: Play, description: 'Run your first wanted scan to find missing subtitles.' },
 ]
 
@@ -44,6 +46,21 @@ export default function Onboarding() {
     source_language_name: 'English',
   })
 
+  // Media server state
+  const [msTypes, setMsTypes] = useState<MediaServerType[]>([])
+  const [msInstances, setMsInstances] = useState<MediaServerInstance[]>([])
+  const [msTestResults, setMsTestResults] = useState<Record<number, MediaServerTestResult | 'testing'>>({})
+  const [msShowPasswords, setMsShowPasswords] = useState<Record<string, boolean>>({})
+
+  // Load media server types when reaching that step
+  useEffect(() => {
+    if (step === 4 && msTypes.length === 0) {
+      getMediaServerTypes()
+        .then(setMsTypes)
+        .catch(() => { /* ignore -- types will just be empty */ })
+    }
+  }, [step, msTypes.length])
+
   const set = (key: string, val: string) =>
     setValues((v) => ({ ...v, [key]: val }))
 
@@ -56,6 +73,12 @@ export default function Onboarding() {
         if (v) toSave[k] = v
       }
       await updateConfig(toSave)
+
+      // If on media server step, also save instances
+      if (step === 4 && msInstances.length > 0) {
+        await saveMediaServerInstances(msInstances)
+      }
+
       setStep((s) => s + 1)
     } catch {
       toast('Failed to save settings', 'error')
@@ -97,6 +120,48 @@ export default function Onboarding() {
       navigate('/')
     } catch {
       navigate('/')
+    }
+  }
+
+  // Media server helpers
+  const addMediaServer = (serverType: MediaServerType) => {
+    const newInst: MediaServerInstance = {
+      type: serverType.name,
+      name: serverType.display_name,
+      enabled: true,
+    }
+    for (const field of serverType.config_fields) {
+      newInst[field.key] = field.default ?? ''
+    }
+    setMsInstances((prev) => [...prev, newInst])
+  }
+
+  const updateMsField = (idx: number, key: string, value: unknown) => {
+    setMsInstances((prev) => {
+      const updated = [...prev]
+      updated[idx] = { ...updated[idx], [key]: value }
+      return updated
+    })
+  }
+
+  const removeMsInstance = (idx: number) => {
+    setMsInstances((prev) => prev.filter((_, i) => i !== idx))
+  }
+
+  const testMsInstance = async (idx: number) => {
+    const inst = msInstances[idx]
+    setMsTestResults((prev) => ({ ...prev, [idx]: 'testing' }))
+    try {
+      const result = await testMediaServer(inst as Record<string, unknown>)
+      setMsTestResults((prev) => ({ ...prev, [idx]: result }))
+      if (result.healthy) {
+        toast(`${inst.name}: connection successful`)
+      } else {
+        toast(`${inst.name}: ${result.message}`, 'error')
+      }
+    } catch {
+      setMsTestResults((prev) => ({ ...prev, [idx]: { healthy: false, message: 'Test request failed' } }))
+      toast(`${inst.name}: test failed`, 'error')
     }
   }
 
@@ -226,6 +291,137 @@ export default function Onboarding() {
           )}
 
           {step === 4 && (
+            <div className="space-y-4">
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                Add media servers for automatic library refresh after subtitle downloads. You can skip this and configure later in Settings.
+              </p>
+
+              {/* Type selection buttons */}
+              <div className="flex flex-wrap gap-2">
+                {msTypes.map((t) => (
+                  <button
+                    key={t.name}
+                    onClick={() => addMediaServer(t)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
+                    style={{
+                      border: '1px solid var(--accent-dim)',
+                      color: 'var(--accent)',
+                      backgroundColor: 'var(--accent-bg)',
+                    }}
+                  >
+                    <Plus size={14} />
+                    {t.display_name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Configured instances */}
+              {msInstances.map((inst, idx) => {
+                const typeInfo = msTypes.find((t) => t.name === inst.type)
+                const testResult = msTestResults[idx]
+
+                return (
+                  <div
+                    key={idx}
+                    className="rounded-lg p-4 space-y-3"
+                    style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)' }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                          {inst.name}
+                        </span>
+                        <span
+                          className="px-2 py-0.5 rounded-full text-[10px] font-medium"
+                          style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
+                        >
+                          {typeInfo?.display_name ?? inst.type}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => removeMsInstance(idx)}
+                        className="p-1 rounded transition-colors"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+
+                    {/* Name */}
+                    <input
+                      type="text"
+                      value={String(inst.name ?? '')}
+                      onChange={(e) => updateMsField(idx, 'name', e.target.value)}
+                      placeholder="Server name"
+                      className="w-full px-2.5 py-1.5 rounded text-sm focus:outline-none"
+                      style={inputStyle}
+                    />
+
+                    {/* Dynamic config fields */}
+                    {typeInfo?.config_fields.map((field) => (
+                      <div key={field.key} className="space-y-1">
+                        <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                          {field.label} {field.required && <span style={{ color: 'var(--error)' }}>*</span>}
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type={field.type === 'password' && !msShowPasswords[`${idx}-${field.key}`] ? 'password' : 'text'}
+                            value={String(inst[field.key] ?? '')}
+                            onChange={(e) => updateMsField(idx, field.key, e.target.value)}
+                            placeholder={field.default || (field.required ? 'Required' : 'Optional')}
+                            className="flex-1 px-2.5 py-1.5 rounded text-sm focus:outline-none"
+                            style={inputStyle}
+                          />
+                          {field.type === 'password' && (
+                            <button
+                              onClick={() => setMsShowPasswords((p) => ({ ...p, [`${idx}-${field.key}`]: !p[`${idx}-${field.key}`] }))}
+                              className="p-1.5 rounded"
+                              style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', backgroundColor: 'var(--bg-primary)' }}
+                            >
+                              {msShowPasswords[`${idx}-${field.key}`] ? <EyeOff size={12} /> : <Eye size={12} />}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Test button and result */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => testMsInstance(idx)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150"
+                        style={{
+                          border: '1px solid var(--border)',
+                          color: 'var(--text-secondary)',
+                          backgroundColor: 'var(--bg-surface)',
+                        }}
+                      >
+                        {testResult === 'testing' ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          <TestTube size={12} />
+                        )}
+                        Test
+                      </button>
+                      {testResult && testResult !== 'testing' && (
+                        <span className="text-xs" style={{ color: testResult.healthy ? 'var(--success)' : 'var(--error)' }}>
+                          {testResult.healthy ? 'OK' : 'Error'}: {testResult.message}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+
+              {msInstances.length === 0 && msTypes.length === 0 && (
+                <div className="text-center py-4">
+                  <Loader2 size={16} className="animate-spin mx-auto" style={{ color: 'var(--accent)' }} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {step === 5 && (
             <div className="space-y-4 text-center">
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                 Run a scan to find episodes and movies missing subtitles.
@@ -268,7 +464,7 @@ export default function Onboarding() {
               style={{ backgroundColor: 'var(--accent)' }}
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : null}
-              Next
+              {step === 4 ? (msInstances.length > 0 ? 'Save & Next' : 'Skip') : 'Next'}
               <ArrowRight size={14} />
             </button>
           ) : (
