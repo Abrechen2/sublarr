@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 1 - Provider Plugin Expansion
+**Current focus:** Phase 2 - Translation Multi-Backend
 
 ## Current Position
 
-Phase: 1 of 16 (Provider Plugin Expansion)
-Plan: 6 of 6 in current phase
-Status: Phase complete
-Last activity: 2026-02-15 -- Completed 01-02-PLAN.md (provider health monitoring)
+Phase: 2 of 16 (Translation Multi-Backend)
+Plan: 1 of 6 in current phase
+Status: In progress
+Last activity: 2026-02-15 -- Completed 02-01-PLAN.md (TranslationBackend ABC + Ollama migration)
 
-Progress: [████████████████████] 6/6 plans in phase
+Progress: [███░░░░░░░░░░░░░░░░░] 1/6 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 11
 - Average duration: 9 min
-- Total execution time: 91 min
+- Total execution time: 96 min
 
 **By Phase:**
 
@@ -29,9 +29,10 @@ Progress: [████████████████████] 6/6 pla
 |-------|-------|-------|----------|
 | 00-architecture-refactoring | 3/3 | 27 min | 9 min |
 | 01-provider-plugin-expansion | 6/6 | 64 min | 11 min |
+| 02-translation-multi-backend | 1/6 | 5 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (8 min), 01-04 (8 min), 01-05 (8 min), 01-06 (11 min), 01-02 (13 min)
+- Last 5 plans: 01-04 (8 min), 01-05 (8 min), 01-06 (11 min), 01-02 (13 min), 02-01 (5 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -80,6 +81,10 @@ Recent decisions affecting current work:
 - [01-02]: provider_auto_disable_cooldown_minutes config setting with 30 min default
 - [01-02]: Response time uses weighted running average: (old_avg * (n-1) + new) / n
 - [01-02]: clear_auto_disable resets consecutive_failures to 0 for clean re-enable
+- [02-01]: Shared LLM utilities extracted as standalone module -- reusable by all LLM backends
+- [02-01]: OllamaBackend reads config from config_entries with Pydantic Settings fallback for migration
+- [02-01]: TranslationManager uses lazy backend creation -- misconfigured backends don't break others
+- [02-01]: Circuit breakers per backend reuse existing CircuitBreaker class from provider system
 
 ### Pending Todos
 
@@ -94,5 +99,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 1 complete (all 6 plans) -- ready for Phase 2
-Resume file: .planning/phases/02-*/02-01-PLAN.md (next phase)
+Stopped at: Phase 2 plan 1 complete (ABC + Ollama) -- next: 02-02-PLAN.md
+Resume file: .planning/phases/02-translation-multi-backend/02-02-PLAN.md
