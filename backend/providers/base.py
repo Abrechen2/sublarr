@@ -28,6 +28,11 @@ class ProviderRateLimitError(ProviderError):
     pass
 
 
+class ProviderTimeoutError(ProviderError):
+    """Provider request timed out."""
+    pass
+
+
 class SubtitleFormat(str, Enum):
     ASS = "ass"
     SRT = "srt"

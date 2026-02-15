@@ -29,7 +29,9 @@ from providers.base import (
     compute_score,
     ProviderAuthError,
     ProviderRateLimitError,
+    ProviderTimeoutError,
 )
+from circuit_breaker import CircuitBreaker
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +96,7 @@ class ProviderManager:
         self.settings = get_settings()
         self._providers: dict[str, SubtitleProvider] = {}
         self._rate_limits: dict[str, list[datetime]] = defaultdict(list)
+        self._circuit_breakers: dict[str, CircuitBreaker] = {}
         self._init_providers()
 
     def _init_providers(self):
@@ -196,6 +199,11 @@ class ProviderManager:
                     logger.warning("Provider %s initialized but session is None (likely missing API key)", name)
                 else:
                     self._providers[name] = provider
+                    self._circuit_breakers[name] = CircuitBreaker(
+                        name=name,
+                        failure_threshold=self.settings.circuit_breaker_failure_threshold,
+                        cooldown_seconds=self.settings.circuit_breaker_cooldown_seconds,
+                    )
                     logger.info("Provider initialized successfully: %s", name)
             except Exception as e:
                 logger.error("Failed to initialize provider %s: %s", name, e, exc_info=True)
@@ -218,6 +226,11 @@ class ProviderManager:
                     logger.warning("Provider %s initialized but session is None (likely missing API key)", name)
                 else:
                     self._providers[name] = provider
+                    self._circuit_breakers[name] = CircuitBreaker(
+                        name=name,
+                        failure_threshold=self.settings.circuit_breaker_failure_threshold,
+                        cooldown_seconds=self.settings.circuit_breaker_cooldown_seconds,
+                    )
                     logger.info("Provider initialized successfully (fallback): %s", name)
             except Exception as e:
                 logger.error("Failed to initialize provider %s (fallback): %s", name, e, exc_info=True)
@@ -390,6 +403,12 @@ class ProviderManager:
         with ThreadPoolExecutor(max_workers=len(self._providers)) as executor:
             futures = {}
             for name, provider in self._providers.items():
+                # Check circuit breaker
+                cb = self._circuit_breakers.get(name)
+                if cb and not cb.allow_request():
+                    logger.debug("Skipping provider %s — circuit breaker OPEN", name)
+                    continue
+
                 # Check rate limit
                 if not self._check_rate_limit(name):
                     logger.debug("Skipping provider %s due to rate limit", name)
@@ -397,7 +416,7 @@ class ProviderManager:
 
                 # Get provider-specific timeout
                 timeout = self.PROVIDER_TIMEOUTS.get(name, self.settings.provider_search_timeout)
-                
+
                 # Submit search task
                 future = executor.submit(self._search_provider_with_retry, name, provider, query)
                 futures[future] = name
@@ -409,7 +428,15 @@ class ProviderManager:
                 try:
                     results = future.result()
                     all_results.extend(results)
-                    
+
+                    # Update circuit breaker
+                    cb = self._circuit_breakers.get(name)
+                    if cb:
+                        if results:
+                            cb.record_success()
+                        else:
+                            cb.record_failure()
+
                     # Check for perfect match (early exit)
                     if early_exit and results:
                         # Score results immediately to check for perfect match
@@ -427,8 +454,14 @@ class ProviderManager:
                             
                 except FutureTimeoutError:
                     logger.warning("Provider %s search timed out", name)
+                    cb = self._circuit_breakers.get(name)
+                    if cb:
+                        cb.record_failure()
                 except Exception as e:
                     logger.warning("Provider %s search failed: %s", name, e)
+                    cb = self._circuit_breakers.get(name)
+                    if cb:
+                        cb.record_failure()
 
         # If early exit was triggered, we may have incomplete results, but that's OK
         # Score all results

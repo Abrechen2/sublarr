@@ -40,6 +40,19 @@ docker compose up -d --build
 
 Erreichbar unter `http://localhost:5765`
 
+**User/Group IDs (PUID/PGID):**
+
+Sublarr laeuft als non-root User im Container. Setze `PUID` und `PGID` in `.env` passend zu deinem Host-User, damit Dateiberechtigungen auf den Volumes stimmen:
+
+```bash
+# .env
+PUID=1000
+PGID=1000
+```
+
+Standard: `1000:1000`. Finde deine IDs mit `id $USER` auf dem Host.
+Bei Berechtigungsproblemen: `chown -R $PUID:$PGID ./config`
+
 ### Development
 
 **Erstmaliges Setup:**

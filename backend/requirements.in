@@ -13,6 +13,8 @@ python-dotenv>=1.0.0
 simple-websocket>=1.1.0
 rarfile>=4.2
 apprise>=1.9.0
+prometheus_client>=0.21.0
+psutil>=6.1.0
 
 # Development dependencies (optional, can be in separate requirements-dev.in)
 pytest>=8.3.0

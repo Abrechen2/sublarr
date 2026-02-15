@@ -18,6 +18,7 @@ from flask_socketio import SocketIO
 
 from config import Settings, get_settings, reload_settings, map_path
 from auth import init_auth, require_api_key
+from error_handler import register_error_handlers, TranslationError, ConfigurationError
 from database import (
     get_db, create_job, update_job, get_job, get_jobs,
     get_pending_job_count, record_stat, get_stats_summary,
@@ -55,10 +56,49 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 # ─── File + WebSocket Log Handler ─────────────────────────────────────────────
 
+class StructuredJSONFormatter(logging.Formatter):
+    """JSON log formatter for structured logging (ELK, Loki, etc.)."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        import json as _json
+        from flask import g as _g
+
+        entry = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
+        }
+
+        request_id = getattr(_g, "request_id", None) if _has_app_context() else None
+        if request_id:
+            entry["request_id"] = request_id
+
+        if record.exc_info and record.exc_info[1]:
+            entry["exception"] = {
+                "type": type(record.exc_info[1]).__name__,
+                "message": str(record.exc_info[1]),
+            }
+
+        return _json.dumps(entry, default=str)
+
+
+def _has_app_context() -> bool:
+    """Check if Flask application context is active (avoids import cycle)."""
+    try:
+        from flask import has_app_context
+        return has_app_context()
+    except Exception:
+        return False
+
+
 class SocketIOLogHandler(logging.Handler):
     """Emits log entries to connected WebSocket clients."""
 
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord) -> None:
         try:
             msg = self.format(record)
             socketio.emit("log_entry", {"message": msg})
@@ -66,9 +106,16 @@ class SocketIOLogHandler(logging.Handler):
             pass  # Never break the app because of log emission
 
 
-def _setup_logging():
+def _setup_logging() -> None:
     """Set up file handler and WebSocket handler on the root logger."""
     root = logging.getLogger()
+
+    # Determine formatter
+    use_json = getattr(settings, "log_format", "text").lower() == "json"
+    if use_json:
+        formatter: logging.Formatter = StructuredJSONFormatter()
+    else:
+        formatter = logging.Formatter(LOG_FORMAT)
 
     # File handler
     log_file = settings.log_file
@@ -79,7 +126,7 @@ def _setup_logging():
         from logging.handlers import RotatingFileHandler
         fh = RotatingFileHandler(log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8")
         fh.setLevel(log_level)
-        fh.setFormatter(logging.Formatter(LOG_FORMAT))
+        fh.setFormatter(formatter)
         root.addHandler(fh)
     except Exception as e:
         logger.warning("Could not set up log file %s: %s", log_file, e)
@@ -87,7 +134,7 @@ def _setup_logging():
     # WebSocket handler (emits log_entry events to frontend)
     ws_handler = SocketIOLogHandler()
     ws_handler.setLevel(log_level)
-    ws_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    ws_handler.setFormatter(logging.Formatter(LOG_FORMAT))  # Always text for WebSocket
     root.addHandler(ws_handler)
 
 
@@ -95,6 +142,9 @@ _setup_logging()
 
 # Initialize authentication
 init_auth(app)
+
+# Register structured error handlers (SublarrError → JSON, generic 500)
+register_error_handlers(app)
 
 # Initialize database
 get_db()
@@ -118,6 +168,13 @@ if os.environ.get("SUBLARR_BAZARR_URL") or os.environ.get("SUBLARR_BAZARR_API_KE
 from wanted_scanner import get_scanner, invalidate_scanner
 _wanted_scanner = get_scanner()
 _wanted_scanner.start_scheduler(socketio=socketio)
+
+# Start database backup scheduler
+from database_backup import start_backup_scheduler
+start_backup_scheduler(
+    db_path=settings.db_path,
+    backup_dir=settings.backup_dir,
+)
 
 # ─── API Blueprint ────────────────────────────────────────────────────────────
 
@@ -291,6 +348,99 @@ def health():
     }), status_code
 
 
+@api.route("/health/detailed", methods=["GET"])
+def health_detailed():
+    """Detailed health check with subsystem status (authenticated)."""
+    from database_health import check_integrity, get_database_stats
+
+    s = get_settings()
+    subsystems: dict = {}
+    overall_healthy = True
+
+    # Database
+    try:
+        db = get_db()
+        db_ok, db_msg = check_integrity(db)
+        db_stats = get_database_stats(db, s.db_path)
+        subsystems["database"] = {
+            "healthy": db_ok,
+            "message": db_msg,
+            "size_bytes": db_stats.get("size_bytes", 0),
+            "wal_mode": db_stats.get("wal_mode", False),
+        }
+        if not db_ok:
+            overall_healthy = False
+    except Exception as exc:
+        subsystems["database"] = {"healthy": False, "message": str(exc)}
+        overall_healthy = False
+
+    # Ollama
+    try:
+        ollama_ok, ollama_msg = check_ollama_health()
+        subsystems["ollama"] = {"healthy": ollama_ok, "message": ollama_msg}
+        if not ollama_ok:
+            overall_healthy = False
+    except Exception as exc:
+        subsystems["ollama"] = {"healthy": False, "message": str(exc)}
+        overall_healthy = False
+
+    # Providers + circuit breakers
+    try:
+        from providers import get_provider_manager
+        manager = get_provider_manager()
+        providers_detail = []
+        for name, cb in manager._circuit_breakers.items():
+            cb_status = cb.get_status()
+            providers_detail.append({
+                "name": name,
+                "circuit_breaker": cb_status["state"],
+                "failure_count": cb_status["failure_count"],
+            })
+        subsystems["providers"] = {
+            "healthy": all(p["circuit_breaker"] != "open" for p in providers_detail),
+            "details": providers_detail,
+        }
+    except Exception as exc:
+        subsystems["providers"] = {"healthy": False, "message": str(exc)}
+
+    # Disk
+    try:
+        import psutil
+        for path, label in [("/config", "config"), ("/media", "media")]:
+            try:
+                usage = psutil.disk_usage(path)
+                subsystems[f"disk_{label}"] = {
+                    "healthy": usage.percent < 95,
+                    "percent": usage.percent,
+                    "free_bytes": usage.free,
+                }
+                if usage.percent >= 95:
+                    overall_healthy = False
+            except (FileNotFoundError, OSError):
+                subsystems[f"disk_{label}"] = {"healthy": True, "message": "path not found"}
+    except ImportError:
+        subsystems["disk"] = {"healthy": True, "message": "psutil not installed"}
+
+    # Memory
+    try:
+        import psutil
+        proc = psutil.Process()
+        mem = proc.memory_info()
+        subsystems["memory"] = {
+            "healthy": True,
+            "rss_bytes": mem.rss,
+            "vms_bytes": mem.vms,
+        }
+    except ImportError:
+        subsystems["memory"] = {"healthy": True, "message": "psutil not installed"}
+
+    status_code = 200 if overall_healthy else 503
+    return jsonify({
+        "status": "healthy" if overall_healthy else "degraded",
+        "subsystems": subsystems,
+    }), status_code
+
+
 # ─── Translation Endpoints ────────────────────────────────────────────────────
 
 
@@ -340,7 +490,11 @@ def translate_sync():
         status_code = 200 if result["success"] else 500
         return jsonify(result), status_code
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        raise TranslationError(
+            str(e),
+            context={"file_path": file_path},
+            troubleshooting="Check that Ollama is running and the file is accessible.",
+        ) from e
 
 
 # ─── Job & Status Endpoints ──────────────────────────────────────────────────
@@ -877,12 +1031,9 @@ def get_series_detail(series_id):
 @api.route("/providers", methods=["GET"])
 def list_providers():
     """Get status of all subtitle providers."""
-    try:
-        from providers import get_provider_manager
-        manager = get_provider_manager()
-        return jsonify({"providers": manager.get_provider_status()})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    from providers import get_provider_manager
+    manager = get_provider_manager()
+    return jsonify({"providers": manager.get_provider_status()})
 
 
 @api.route("/providers/test/<provider_name>", methods=["POST"])
@@ -981,8 +1132,8 @@ def test_provider(provider_name):
                 }
         
         return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        raise  # Handled by global error handler
 
 
 @api.route("/providers/search", methods=["POST"])
@@ -1043,8 +1194,8 @@ def search_providers():
             ],
             "total": len(results),
         })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        raise  # Handled by global error handler
 
 
 @api.route("/providers/stats", methods=["GET"])
@@ -1731,9 +1882,8 @@ def extract_embedded_sub(item_id):
             "language": stream_info.get("language", ""),
         })
 
-    except Exception as e:
-        logger.exception("Failed to extract embedded subtitle: %s", e)
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        raise  # Handled by global error handler
 
 
 # ─── Webhook Endpoints ───────────────────────────────────────────────────────
@@ -2282,6 +2432,102 @@ def import_config():
     })
 
 
+# ─── Database Backup & Health Endpoints ───────────────────────────────────────
+
+
+@api.route("/database/health", methods=["GET"])
+def database_health():
+    """Check database integrity and return stats."""
+    from database_health import check_integrity, get_database_stats
+
+    db = get_db()
+    is_ok, message = check_integrity(db)
+    stats = get_database_stats(db, get_settings().db_path)
+
+    status_code = 200 if is_ok else 503
+    return jsonify({
+        "healthy": is_ok,
+        "message": message,
+        "stats": stats,
+    }), status_code
+
+
+@api.route("/database/backup", methods=["POST"])
+def create_backup():
+    """Create a manual database backup."""
+    from database_backup import DatabaseBackup
+
+    s = get_settings()
+    backup = DatabaseBackup(
+        db_path=s.db_path,
+        backup_dir=s.backup_dir,
+        retention_daily=s.backup_retention_daily,
+        retention_weekly=s.backup_retention_weekly,
+        retention_monthly=s.backup_retention_monthly,
+    )
+    data = request.get_json() or {}
+    label = data.get("label", "daily")
+    if label not in ("daily", "weekly", "monthly"):
+        label = "daily"
+
+    result = backup.create_backup(label=label)
+    backup.rotate()
+    return jsonify(result), 201
+
+
+@api.route("/database/backups", methods=["GET"])
+def list_backups():
+    """List all available database backups."""
+    from database_backup import DatabaseBackup
+
+    s = get_settings()
+    backup = DatabaseBackup(db_path=s.db_path, backup_dir=s.backup_dir)
+    return jsonify({"backups": backup.list_backups()})
+
+
+@api.route("/database/restore", methods=["POST"])
+def restore_backup():
+    """Restore the database from a backup file.
+
+    Body: {"filename": "sublarr_daily_20260215_030000.db", "confirm": true}
+    """
+    from database_backup import DatabaseBackup
+    from database import close_db
+
+    data = request.get_json() or {}
+    filename = data.get("filename", "")
+    confirm = data.get("confirm", False)
+
+    if not filename:
+        return jsonify({"error": "filename is required"}), 400
+    if not confirm:
+        return jsonify({"error": "Add confirm: true to proceed"}), 400
+
+    s = get_settings()
+    backup = DatabaseBackup(db_path=s.db_path, backup_dir=s.backup_dir)
+    backup_path = os.path.join(s.backup_dir, filename)
+
+    # Close the current connection before restore
+    close_db()
+
+    result = backup.restore_backup(backup_path)
+
+    # Re-open connection
+    get_db()
+
+    return jsonify(result)
+
+
+@api.route("/database/vacuum", methods=["POST"])
+def vacuum_database():
+    """Run VACUUM to reclaim unused space."""
+    from database_health import vacuum
+
+    db = get_db()
+    result = vacuum(db, get_settings().db_path)
+    return jsonify(result)
+
+
 # ─── Logs Endpoint ────────────────────────────────────────────────────────────
 
 
@@ -2329,6 +2575,17 @@ def handle_disconnect():
 # ─── Register Blueprint & SPA Fallback ────────────────────────────────────────
 
 app.register_blueprint(api)
+
+
+# ─── Prometheus Metrics (no auth, outside blueprint) ─────────────────────────
+
+@app.route("/metrics", methods=["GET"])
+def prometheus_metrics():
+    """Prometheus metrics endpoint (unauthenticated)."""
+    from metrics import generate_metrics
+    body, content_type = generate_metrics(get_settings().db_path)
+    from flask import Response
+    return Response(body, mimetype=content_type)
 
 
 @app.route("/", defaults={"path": ""})
