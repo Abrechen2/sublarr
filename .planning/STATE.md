@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 8 in progress - i18n + Backup + Admin Polish
+**Current focus:** Phase 8 complete - i18n + Backup + Admin Polish
 
 ## Current Position
 
 Phase: 8 of 16 (i18n + Backup + Admin Polish)
-Plan: 4 of 5 in current phase
-Status: In progress
-Last activity: 2026-02-15 -- Completed 08-03-PLAN.md (Statistics page, Backup/Tools tabs, Logs enhancements)
+Plan: 5 of 5 in current phase
+Status: Phase complete
+Last activity: 2026-02-15 -- Completed 08-05-PLAN.md (Remaining pages i18n -- Activity, Queue, History, Blacklist, Onboarding, StatusBadge, Statistics)
 
-Progress: [████████████████████] 4/5 plans in phase
+Progress: [█████████████████████████] 5/5 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 37
+- Total plans completed: 38
 - Average duration: 9 min
-- Total execution time: 341 min
+- Total execution time: 357 min
 
 **By Phase:**
 
@@ -35,11 +35,11 @@ Progress: [████████████████████] 4/5 pla
 | 05-standalone-mode | 5/5 | 28 min | 6 min |
 | 06-forced-signs-subs | 3/3 | 22 min | 7 min |
 | 07-events-hooks-custom-scoring | 3/3 | 46 min | 15 min |
-| 08-i18n-backup-admin-polish | 4/5 | 100 min | 25 min |
+| 08-i18n-backup-admin-polish | 5/5 | 116 min | 23 min |
 
 **Recent Trend:**
-- Last 5 plans: 08-01 (10 min), 08-02 (12 min), 08-04 (36 min), 08-03 (42 min)
-- Trend: 08-03 longer due to Recharts install issues (parallel npm conflict), type compatibility fixes, and large Settings.tsx additions
+- Last 5 plans: 08-02 (12 min), 08-04 (36 min), 08-03 (42 min), 08-05 (16 min)
+- Trend: 08-05 faster than average -- straightforward JSON creation and component wrapping with established patterns
 
 *Updated after each plan completion*
 
@@ -220,6 +220,11 @@ Recent decisions affecting current work:
 - [08-04]: Sub-components receive t as prop or use useTranslation directly depending on component isolation
 - [08-04]: Sidebar navGroups uses labelKey/titleKey pattern with static keys resolved at render via t()
 - [08-04]: Statistics.tsx skipped (created by parallel plan 08-03) -- translation JSON files ready for consumption
+- [08-05]: Activity namespace shared across Activity, Queue, History, Blacklist (related activity pages with subsections)
+- [08-05]: StatusBadge uses translation map from API status strings to common:status.* keys (12 statuses mapped)
+- [08-05]: Onboarding ALL_STEPS uses titleKey/descKey pattern (static const, resolved at render via t())
+- [08-05]: Toast.tsx skipped -- no built-in text labels, only renders dynamic messages from callers
+- [08-05]: Statistics.tsx auto-wrapped (gap from parallel 08-03 execution, translation JSON existed from 08-04)
 
 ### Pending Todos
 
@@ -235,10 +240,11 @@ None yet.
 - Phase 5 complete -- all 5 plans executed, all summaries written (DB + metadata + manager + API + UI)
 - Phase 6 complete -- all 3 plans executed, all summaries written (data model + detection, scanner + search, API + UI)
 - Phase 7 complete -- all 3 plans executed, all summaries written (event system + engine/dispatcher + API/UI)
+- Phase 8 complete -- all 5 plans executed, all summaries written (theme, backend APIs, frontend pages, core i18n, remaining i18n)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 8, Plan 03 complete -- Statistics page, Backup/Tools tabs, Logs enhancements
-Resume file: .planning/phases/08-i18n-backup-admin-polish/08-03-SUMMARY.md
+Stopped at: Phase 8 complete -- all 5 plans executed, i18n + Backup + Admin Polish fully delivered
+Resume file: .planning/phases/08-i18n-backup-admin-polish/08-05-SUMMARY.md
