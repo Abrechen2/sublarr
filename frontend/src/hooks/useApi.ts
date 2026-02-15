@@ -19,6 +19,8 @@ import {
   getPromptPresets, getDefaultPromptPreset, createPromptPreset, updatePromptPreset, deletePromptPreset,
   getBackends, testBackend, getBackendConfig, saveBackendConfig, getBackendStats,
   getMediaServerTypes, getMediaServerInstances, saveMediaServerInstances, testMediaServer, getMediaServerHealth,
+  getWhisperBackends, testWhisperBackend, getWhisperBackendConfig, saveWhisperBackendConfig,
+  getWhisperConfig, saveWhisperConfig, getWhisperQueue, getWhisperStats,
 } from '@/api/client'
 import type { LanguageProfile, BackendConfig, MediaServerInstance } from '@/lib/types'
 
@@ -642,4 +644,42 @@ export function useMediaServerHealth() {
     queryFn: getMediaServerHealth,
     staleTime: 30_000,
   })
+}
+
+// ─── Whisper Hooks ──────────────────────────────────────────────────────────
+export function useWhisperBackends() {
+  return useQuery({ queryKey: ['whisper-backends'], queryFn: getWhisperBackends })
+}
+export function useTestWhisperBackend() {
+  return useMutation({ mutationFn: (name: string) => testWhisperBackend(name) })
+}
+export function useWhisperBackendConfig(name: string) {
+  return useQuery({
+    queryKey: ['whisper-backend-config', name],
+    queryFn: () => getWhisperBackendConfig(name),
+    enabled: !!name,
+  })
+}
+export function useSaveWhisperBackendConfig() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ name, config }: { name: string; config: Record<string, string> }) => saveWhisperBackendConfig(name, config),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['whisper-backends'] }) },
+  })
+}
+export function useWhisperConfig() {
+  return useQuery({ queryKey: ['whisper-config'], queryFn: getWhisperConfig })
+}
+export function useSaveWhisperConfig() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (config: Record<string, unknown>) => saveWhisperConfig(config),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['whisper-config'] }) },
+  })
+}
+export function useWhisperQueue(params?: { status?: string; limit?: number }) {
+  return useQuery({ queryKey: ['whisper-queue', params], queryFn: () => getWhisperQueue(params), refetchInterval: 5000 })
+}
+export function useWhisperStats() {
+  return useQuery({ queryKey: ['whisper-stats'], queryFn: getWhisperStats })
 }
