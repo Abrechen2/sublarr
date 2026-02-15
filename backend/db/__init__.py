@@ -203,6 +203,10 @@ CREATE TABLE IF NOT EXISTS provider_stats (
     last_success_at TEXT,
     last_failure_at TEXT,
     consecutive_failures INTEGER DEFAULT 0,
+    avg_response_time_ms REAL DEFAULT 0,
+    last_response_time_ms REAL DEFAULT 0,
+    auto_disabled INTEGER DEFAULT 0,
+    disabled_until TEXT DEFAULT '',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -354,6 +358,18 @@ def _run_migrations(conn):
             ("Default", default_prompt, now, now),
         )
         logger.info("Created default prompt preset")
+
+    # Add response time and auto-disable columns to provider_stats
+    cursor = conn.execute("PRAGMA table_info(provider_stats)")
+    ps_columns = {row[1] for row in cursor.fetchall()}
+    if "avg_response_time_ms" not in ps_columns:
+        conn.execute("ALTER TABLE provider_stats ADD COLUMN avg_response_time_ms REAL DEFAULT 0")
+    if "last_response_time_ms" not in ps_columns:
+        conn.execute("ALTER TABLE provider_stats ADD COLUMN last_response_time_ms REAL DEFAULT 0")
+    if "auto_disabled" not in ps_columns:
+        conn.execute("ALTER TABLE provider_stats ADD COLUMN auto_disabled INTEGER DEFAULT 0")
+    if "disabled_until" not in ps_columns:
+        conn.execute("ALTER TABLE provider_stats ADD COLUMN disabled_until TEXT DEFAULT ''")
 
     # Check if anidb_mappings table exists (migration for existing DBs)
     try:
