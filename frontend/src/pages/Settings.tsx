@@ -2289,12 +2289,13 @@ function LanguageProfilesTab() {
     target_language_names: '',
     translation_backend: '',
     fallback_chain: [] as string[],
+    forced_preference: 'disabled' as 'disabled' | 'separate' | 'auto',
   })
 
   const backends = backendsData?.backends ?? []
 
   const resetForm = () => {
-    setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: '', target_language_names: '', translation_backend: '', fallback_chain: [] })
+    setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: '', target_language_names: '', translation_backend: '', fallback_chain: [], forced_preference: 'disabled' })
     setEditingId(null)
     setShowAdd(false)
   }
@@ -2308,6 +2309,7 @@ function LanguageProfilesTab() {
       target_language_names: p.target_language_names.join(', '),
       translation_backend: p.translation_backend || '',
       fallback_chain: p.fallback_chain || [],
+      forced_preference: p.forced_preference || 'disabled',
     })
     setEditingId(p.id)
     setShowAdd(false)
@@ -2350,6 +2352,7 @@ function LanguageProfilesTab() {
       target_language_names: targetNames,
       translation_backend: form.translation_backend || '',
       fallback_chain: form.fallback_chain,
+      forced_preference: form.forced_preference,
     }
 
     if (editingId) {
@@ -2387,7 +2390,7 @@ function LanguageProfilesTab() {
           Language profiles define which languages to translate for each series/movie
         </span>
         <button
-          onClick={() => { setShowAdd(true); setEditingId(null); setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: '', target_language_names: '', translation_backend: '', fallback_chain: [] }) }}
+          onClick={() => { setShowAdd(true); setEditingId(null); setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: '', target_language_names: '', translation_backend: '', fallback_chain: [], forced_preference: 'disabled' }) }}
           className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all duration-150"
           style={{ border: '1px solid var(--accent-dim)', color: 'var(--accent)', backgroundColor: 'var(--accent-bg)' }}
         >
@@ -2455,6 +2458,26 @@ function LanguageProfilesTab() {
                 className="w-full px-2.5 py-1.5 rounded text-xs"
                 style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               />
+            </div>
+
+            {/* Forced Subtitles Preference */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Forced Subtitles</label>
+              <select
+                value={form.forced_preference}
+                onChange={(e) => setForm((f) => ({ ...f, forced_preference: e.target.value as 'disabled' | 'separate' | 'auto' }))}
+                className="w-full px-2.5 py-1.5 rounded text-xs"
+                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+              >
+                <option value="disabled">Disabled</option>
+                <option value="separate">Separate</option>
+                <option value="auto">Auto</option>
+              </select>
+              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                {form.forced_preference === 'disabled' && 'Do not manage forced/signs subtitles'}
+                {form.forced_preference === 'separate' && 'Actively search and track forced subtitles separately'}
+                {form.forced_preference === 'auto' && 'Detect forced subtitles if found, but don\'t actively search'}
+              </p>
             </div>
 
             {/* Translation Backend Selector */}
@@ -2634,6 +2657,11 @@ function LanguageProfilesTab() {
             {p.fallback_chain && p.fallback_chain.length > 0 && (
               <span>
                 Fallback: <code style={{ fontFamily: 'var(--font-mono)' }}>{p.fallback_chain.join(' > ')}</code>
+              </span>
+            )}
+            {p.forced_preference && p.forced_preference !== 'disabled' && (
+              <span>
+                Forced: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.forced_preference}</code>
               </span>
             )}
           </div>

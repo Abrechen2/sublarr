@@ -153,6 +153,7 @@ export interface WantedItem {
   upgrade_candidate: number
   current_score: number
   instance_name?: string
+  subtitle_type: 'full' | 'forced'
 }
 
 export interface PaginatedWanted {
@@ -168,6 +169,7 @@ export interface WantedSummary {
   by_type: Record<string, number>
   by_status: Record<string, number>
   by_existing: Record<string, number>
+  by_subtitle_type: Record<string, number>
   upgradeable: number
   scan_running: boolean
   last_scan_at: string
@@ -258,6 +260,7 @@ export interface LanguageProfile {
   is_default: boolean
   translation_backend: string
   fallback_chain: string[]
+  forced_preference: 'disabled' | 'separate' | 'auto'
 }
 
 // ─── Translation Backends ────────────────────────────────────────────────────

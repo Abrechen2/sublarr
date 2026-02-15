@@ -4,7 +4,7 @@ import {
   useSearchWantedItem, useProcessWantedItem, useStartWantedBatch, useWantedBatchStatus,
   useRetranslateSingle, useAddToBlacklist, useExtractEmbeddedSub,
 } from '@/hooks/useApi'
-import { StatusBadge } from '@/components/shared/StatusBadge'
+import { StatusBadge, SubtitleTypeBadge } from '@/components/shared/StatusBadge'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
 import type { WantedSearchResponse } from '@/lib/types'
@@ -16,6 +16,7 @@ import {
 
 const STATUS_FILTERS = ['all', 'wanted', 'failed', 'ignored'] as const
 const TYPE_FILTERS = ['all', 'episode', 'movie'] as const
+const SUBTITLE_TYPE_FILTERS = ['all', 'full', 'forced'] as const
 
 function SummaryCard({ icon: Icon, label, value, color }: {
   icon: typeof Search
@@ -171,6 +172,7 @@ export function WantedPage() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const [typeFilter, setTypeFilter] = useState<string | undefined>()
+  const [subtitleTypeFilter, setSubtitleTypeFilter] = useState<string | undefined>()
   const [upgradeFilter, setUpgradeFilter] = useState(false)
   const [languageFilter, setLanguageFilter] = useState<string | undefined>()
   const [expandedItem, setExpandedItem] = useState<number | null>(null)
@@ -178,7 +180,7 @@ export function WantedPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
   const { data: summary } = useWantedSummary()
-  const { data: wanted, isLoading } = useWantedItems(page, 50, typeFilter, statusFilter)
+  const { data: wanted, isLoading } = useWantedItems(page, 50, typeFilter, statusFilter, subtitleTypeFilter)
   const refreshWanted = useRefreshWanted()
   const updateStatus = useUpdateWantedStatus()
   const searchItem = useSearchWantedItem()
@@ -193,6 +195,7 @@ export function WantedPage() {
   const totalEpisodes = summary?.by_type?.episode ?? 0
   const totalMovies = summary?.by_type?.movie ?? 0
   const upgradeable = summary?.upgradeable ?? 0
+  const forcedCount = summary?.by_subtitle_type?.forced ?? 0
 
   // Extract unique languages from data
   const availableLanguages = useMemo(() => {
@@ -421,6 +424,28 @@ export function WantedPage() {
             )
           })}
         </div>
+        {forcedCount > 0 && (
+          <div className="flex gap-1.5">
+            {SUBTITLE_TYPE_FILTERS.map((st) => {
+              const isActive = (st === 'all' && !subtitleTypeFilter) || subtitleTypeFilter === st
+              return (
+                <button
+                  key={st}
+                  onClick={() => { setSubtitleTypeFilter(st === 'all' ? undefined : st); setPage(1) }}
+                  className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
+                  style={{
+                    backgroundColor: isActive ? 'var(--accent-bg)' : 'var(--bg-surface)',
+                    color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                    border: `1px solid ${isActive ? 'var(--accent-dim)' : 'var(--border)'}`,
+                  }}
+                >
+                  {st === 'all' ? 'All Subs' : st.charAt(0).toUpperCase() + st.slice(1)}
+                  {st === 'forced' && ` (${forcedCount})`}
+                </button>
+              )
+            })}
+          </div>
+        )}
         {availableLanguages.length > 1 && (
           <div className="flex gap-1.5">
             <button
@@ -624,7 +649,10 @@ export function WantedPage() {
                         </span>
                       </td>
                       <td className="px-3 py-2.5">
-                        <StatusBadge status={item.status} />
+                        <div className="flex items-center gap-1.5">
+                          <StatusBadge status={item.status} />
+                          <SubtitleTypeBadge subtitleType={item.subtitle_type} />
+                        </div>
                       </td>
                       <td className="px-3 py-2.5 hidden sm:table-cell">
                         <div className="flex items-center gap-1.5">
@@ -759,7 +787,7 @@ export function WantedPage() {
               ) : (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    {statusFilter || typeFilter || languageFilter ? 'No items match the current filters' : 'No wanted items — run a scan to detect missing subtitles'}
+                    {statusFilter || typeFilter || subtitleTypeFilter || languageFilter ? 'No items match the current filters' : 'No wanted items — run a scan to detect missing subtitles'}
                   </td>
                 </tr>
               )}
