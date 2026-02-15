@@ -72,6 +72,12 @@ class AnimeToshoProvider(SubtitleProvider):
         "ar", "nl", "pl", "sv", "cs", "hu", "tr",
     }
 
+    # Plugin system attributes
+    config_fields = []  # no auth needed
+    rate_limit = (50, 30)
+    timeout = 20
+    max_retries = 2
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.session = None

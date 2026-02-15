@@ -123,6 +123,14 @@ class JimakuProvider(SubtitleProvider):
     name = "jimaku"
     languages = {"ja", "en"}  # Primarily Japanese subtitles
 
+    # Plugin system attributes
+    config_fields = [
+        {"key": "jimaku_api_key", "label": "API Key", "type": "password", "required": True},
+    ]
+    rate_limit = (100, 60)
+    timeout = 30
+    max_retries = 2
+
     def __init__(self, api_key: str = "", **kwargs):
         super().__init__(**kwargs)
         self.api_key = api_key

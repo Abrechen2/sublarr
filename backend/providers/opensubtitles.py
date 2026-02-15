@@ -79,6 +79,16 @@ class OpenSubtitlesProvider(SubtitleProvider):
         "th", "vi", "id", "hi",
     }
 
+    # Plugin system attributes
+    config_fields = [
+        {"key": "opensubtitles_api_key", "label": "API Key", "type": "password", "required": True},
+        {"key": "opensubtitles_username", "label": "Username", "type": "text", "required": False},
+        {"key": "opensubtitles_password", "label": "Password", "type": "password", "required": False},
+    ]
+    rate_limit = (40, 10)
+    timeout = 15
+    max_retries = 3
+
     def __init__(self, api_key: str = "", username: str = "", password: str = "", **kwargs):
         super().__init__(**kwargs)
         self.api_key = api_key
