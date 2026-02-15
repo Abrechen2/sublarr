@@ -170,6 +170,11 @@ export async function clearProviderCache(providerName?: string) {
   return data
 }
 
+export async function enableProvider(name: string): Promise<{ status: string; provider: string; message: string }> {
+  const { data } = await api.post(`/providers/${name}/enable`)
+  return data
+}
+
 // ─── Language Profiles ───────────────────────────────────────────────────────
 
 export async function getLanguageProfiles(): Promise<LanguageProfile[]> {

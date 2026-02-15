@@ -447,6 +447,7 @@ function ProviderCard({
   isLast,
   onToggle,
   onClearCache,
+  onReEnable,
 }: {
   provider: ProviderInfo
   cacheCount: number
@@ -460,6 +461,7 @@ function ProviderCard({
   isLast: boolean
   onToggle: () => void
   onClearCache: () => void
+  onReEnable: () => void
 }) {
   const statusColor = !provider.enabled
     ? 'var(--text-muted)'
@@ -606,6 +608,71 @@ function ProviderCard({
         )}
       </div>
 
+      {/* Health stats */}
+      {provider.stats && (
+        <div className="space-y-1.5">
+          {/* Success rate bar */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs w-8" style={{ color: 'var(--text-muted)' }}>
+              {Math.round(provider.stats.success_rate * 100)}%
+            </span>
+            <div className="flex-1 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bg-primary)' }}>
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${provider.stats.success_rate * 100}%`,
+                  backgroundColor: provider.stats.success_rate > 0.8
+                    ? 'rgb(16 185 129)'
+                    : provider.stats.success_rate > 0.5
+                      ? 'rgb(245 158 11)'
+                      : 'rgb(239 68 68)',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Response time and failure info */}
+          <div className="flex items-center gap-3 flex-wrap text-xs" style={{ color: 'var(--text-muted)' }}>
+            {provider.stats.avg_response_time_ms > 0 && (
+              <span>Avg: {Math.round(provider.stats.avg_response_time_ms)}ms</span>
+            )}
+            {provider.stats.last_response_time_ms > 0 && (
+              <span>Last: {Math.round(provider.stats.last_response_time_ms)}ms</span>
+            )}
+            {provider.stats.consecutive_failures > 0 && (
+              <span style={{ color: 'rgb(245 158 11)' }}>
+                {provider.stats.consecutive_failures} consecutive failures
+              </span>
+            )}
+          </div>
+
+          {/* Auto-disabled badge with re-enable button */}
+          {provider.stats.auto_disabled && (
+            <div className="flex items-center gap-2">
+              <span
+                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                style={{ backgroundColor: 'var(--error-bg)', color: 'var(--error)' }}
+              >
+                Disabled until {provider.stats.disabled_until
+                  ? new Date(provider.stats.disabled_until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  : 'unknown'}
+              </span>
+              <button
+                onClick={onReEnable}
+                className="px-2 py-0.5 rounded text-xs font-medium transition-all duration-150"
+                style={{
+                  border: '1px solid var(--accent-dim)',
+                  color: 'var(--accent)',
+                  backgroundColor: 'var(--accent-bg)',
+                }}
+              >
+                Re-enable
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Credential fields */}
       {provider.config_fields.length > 0 && (
         <div className="space-y-2 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
@@ -718,6 +785,18 @@ function ProvidersTab({
     })
   }
 
+  const handleReEnable = (name: string) => {
+    void (async () => {
+      try {
+        const { enableProvider } = await import('@/api/client')
+        const result = await enableProvider(name)
+        toast(result.message || `Provider ${name} re-enabled`)
+      } catch {
+        toast(`Failed to re-enable ${name}`, 'error')
+      }
+    })()
+  }
+
   if (providersLoading) {
     return (
       <div className="flex items-center justify-center h-32">
@@ -764,6 +843,7 @@ function ProvidersTab({
             isLast={idx === orderedProviders.length - 1}
             onToggle={() => handleToggle(provider.name, provider.enabled)}
             onClearCache={() => handleClearCache(provider.name)}
+            onReEnable={() => handleReEnable(provider.name)}
           />
         )
       })}
