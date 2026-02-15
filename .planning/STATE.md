@@ -5,33 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 0 - Architecture Refactoring
+**Current focus:** Phase 1 - Provider Plugin Expansion
 
 ## Current Position
 
-Phase: 0 of 16 (Architecture Refactoring)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-15 -- Completed 00-03-PLAN.md (import updates and monolith deletion)
+Phase: 1 of 16 (Provider Plugin Expansion)
+Plan: 1 of 6 in current phase
+Status: In progress
+Last activity: 2026-02-15 -- Completed 01-01-PLAN.md (plugin infrastructure)
 
-Progress: [████████████████████] 3/3 plans in phase -- PHASE 0 COMPLETE
+Progress: [███░░░░░░░░░░░░░░░░░] 1/6 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
+- Total plans completed: 4
 - Average duration: 9 min
-- Total execution time: 27 min
+- Total execution time: 35 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 00-architecture-refactoring | 3/3 | 27 min | 9 min |
+| 01-provider-plugin-expansion | 1/6 | 8 min | 8 min |
 
 **Recent Trend:**
-- Last 5 plans: 00-01 (5 min), 00-02 (8 min), 00-03 (14 min)
-- Trend: Stable (00-03 longer due to human-verify checkpoint)
+- Last 5 plans: 00-01 (5 min), 00-02 (8 min), 00-03 (14 min), 01-01 (8 min)
+- Trend: Stable
 
 *Updated after each plan completion*
 
@@ -57,6 +58,10 @@ Recent decisions affecting current work:
 - [00-03]: Gunicorn workers=1 (Flask-SocketIO requires single worker for WebSocket state)
 - [00-03]: Test fixtures use create_app(testing=True) -- no global app instance in tests
 - [00-03]: 28 pre-existing test failures noted (not caused by refactoring)
+- [01-01]: Plugin config stored in config_entries table with plugin.<name>.<key> namespacing -- no new DB table
+- [01-01]: Built-in providers always win name collisions -- plugins with duplicate names rejected
+- [01-01]: Safe import = exception catching only (no sandboxing), same trust model as Bazarr
+- [01-01]: Config field keys match Pydantic Settings field names, stripped to short params for constructor
 
 ### Pending Todos
 
@@ -70,5 +75,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 0 complete (all 3 plans finished)
-Resume file: Next phase planning (Phases 1, 2, 3 can run in parallel)
+Stopped at: Plan 01-01 complete (plugin infrastructure)
+Resume file: .planning/phases/01-provider-plugin-expansion/01-02-PLAN.md
