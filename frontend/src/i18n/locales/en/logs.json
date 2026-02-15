@@ -4,5 +4,9 @@
   "auto_scroll_on": "Auto-scroll ON",
   "auto_scroll_off": "Auto-scroll OFF",
   "no_logs": "No log entries",
-  "no_logs_for_level": "No log entries for level {{level}}"
+  "no_logs_for_level": "No log entries for level {{level}}",
+  "toast": {
+    "rotation_saved": "Rotation config saved",
+    "rotation_failed": "Failed to save rotation config"
+  }
 }

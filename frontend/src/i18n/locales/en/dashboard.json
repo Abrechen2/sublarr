@@ -41,6 +41,12 @@
     "yes": "Yes",
     "quality_warnings": "Quality Warnings"
   },
+  "toast": {
+    "scan_started": "Library scan started",
+    "scan_failed": "Scan failed",
+    "search_started": "Wanted search started",
+    "search_failed": "Search failed"
+  },
   "recent_activity": {
     "title": "Recent Activity",
     "view_all": "View All",

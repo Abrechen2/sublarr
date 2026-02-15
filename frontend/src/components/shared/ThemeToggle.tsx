@@ -1,4 +1,5 @@
 import { Moon, Sun, Monitor } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useTheme } from '@/hooks/useTheme'
 
 const themeOrder = ['dark', 'light', 'system'] as const
@@ -10,14 +11,9 @@ const themeIcons: Record<Theme, typeof Moon> = {
   system: Monitor,
 }
 
-const themeLabels: Record<Theme, string> = {
-  dark: 'Dark',
-  light: 'Light',
-  system: 'System',
-}
-
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme()
+  const { t } = useTranslation('common')
 
   const cycleTheme = () => {
     const currentIndex = themeOrder.indexOf(theme)
@@ -26,12 +22,13 @@ export function ThemeToggle() {
   }
 
   const Icon = themeIcons[theme]
+  const label = t(`theme.${theme}`)
 
   return (
     <button
       onClick={cycleTheme}
-      aria-label={`Theme: ${themeLabels[theme]}`}
-      title={themeLabels[theme]}
+      aria-label={`Theme: ${label}`}
+      title={label}
       className="flex items-center justify-center rounded-md transition-colors duration-150"
       style={{
         width: 28,
