@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 2 of 16 (Translation Multi-Backend)
-Plan: 4 of 6 in current phase
+Plan: 5 of 6 in current phase
 Status: In progress
-Last activity: 2026-02-15 -- Completed 02-04-PLAN.md (Pipeline integration + backend API)
+Last activity: 2026-02-15 -- Completed 02-05-PLAN.md (Frontend translation backend management UI)
 
-Progress: [█████████████░░░░░░░] 4/6 plans in phase
+Progress: [████████████████░░░░] 5/6 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
-- Average duration: 8 min
-- Total execution time: 106 min
+- Total plans completed: 15
+- Average duration: 7 min
+- Total execution time: 112 min
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [█████████████░░░░░░░] 4/6 pla
 |-------|-------|-------|----------|
 | 00-architecture-refactoring | 3/3 | 27 min | 9 min |
 | 01-provider-plugin-expansion | 6/6 | 64 min | 11 min |
-| 02-translation-multi-backend | 4/6 | 15 min | 4 min |
+| 02-translation-multi-backend | 5/6 | 21 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (13 min), 02-01 (5 min), 02-02 (2 min), 02-03 (3 min), 02-04 (5 min)
+- Last 5 plans: 02-01 (5 min), 02-02 (2 min), 02-03 (3 min), 02-04 (5 min), 02-05 (6 min)
 - Trend: Accelerating
 
 *Updated after each plan completion*
@@ -95,6 +95,10 @@ Recent decisions affecting current work:
 - [02-04]: _translate_with_manager returns (lines, result) tuple to propagate backend_name for config hash and stats
 - [02-04]: Config hash includes backend_name -- Ollama uses model+prompt[:50], non-Ollama uses backend_name+target_lang only
 - [02-04]: Synthetic default profile includes translation_backend and fallback_chain to prevent KeyError
+- [02-05]: Removed Ollama tab entirely -- all backend config now managed through Translation Backends tab
+- [02-05]: Backend cards use collapsible pattern with lazy config loading (fetch only when expanded)
+- [02-05]: Fallback chain editor uses select dropdown + up/down arrows (no drag-and-drop dependency)
+- [02-05]: Password fields have show/hide toggle per field for API key UX
 
 ### Pending Todos
 
@@ -109,5 +113,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 2 plan 4 complete (Pipeline integration + backend API) -- next: 02-05-PLAN.md
-Resume file: .planning/phases/02-translation-multi-backend/02-05-PLAN.md
+Stopped at: Phase 2 plan 5 complete (Frontend translation backend management UI) -- next: 02-06-PLAN.md
+Resume file: .planning/phases/02-translation-multi-backend/02-06-PLAN.md
