@@ -949,38 +949,32 @@ def _translate_external_ass(mkv_path, ass_path, target_language=None,
 
 
 def _notify_integrations(context, file_path=None):
-    """Notify external services about new subtitle files.
-    
+    """Notify all configured media servers about new subtitle files.
+
     Args:
         context: arr_context dict with sonarr_series_id, sonarr_episode_id, or radarr_movie_id
-        file_path: Optional file path for Emby item lookup
+        file_path: File path for media server item lookup
     """
-    if not context:
+    if not context or not file_path:
         return
 
-    # Emby item refresh (preferred over full library refresh)
+    item_type = ""
+    if context.get("sonarr_series_id") or context.get("sonarr_episode_id"):
+        item_type = "episode"
+    elif context.get("radarr_movie_id"):
+        item_type = "movie"
+
     try:
-        from jellyfin_client import get_jellyfin_client
-        jellyfin = get_jellyfin_client()
-        if jellyfin and file_path:
-            # Try to find Emby item by file path
-            item_id = jellyfin.search_item_by_path(file_path)
-            if item_id:
-                # Determine item type from context
-                item_type = None
-                if context.get("sonarr_series_id") or context.get("sonarr_episode_id"):
-                    item_type = "Episode"
-                elif context.get("radarr_movie_id"):
-                    item_type = "Movie"
-                
-                if jellyfin.refresh_item(item_id, item_type=item_type):
-                    logger.info("Emby item refresh triggered for %s (%s)", item_id, item_type or "unknown")
-                    return
-            # Fallback to full library refresh if item not found
-            logger.debug("Emby item not found for %s, falling back to library refresh", file_path)
-            jellyfin.refresh_library()
+        from mediaserver import get_media_server_manager
+        manager = get_media_server_manager()
+        results = manager.refresh_all(file_path, item_type)
+        for r in results:
+            if r.success:
+                logger.info("Media server refresh: %s", r.message)
+            else:
+                logger.warning("Media server refresh failed: %s", r.message)
     except Exception as e:
-        logger.debug("Emby notification skipped: %s", e)
+        logger.warning("Media server notification failed: %s", e)
 
 
 def scan_directory(directory, force=False):

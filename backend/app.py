@@ -170,6 +170,16 @@ def create_app(testing=False):
             except ImportError:
                 logger.warning("watchdog not installed, plugin hot-reload disabled")
 
+    # Initialize media server manager (loads configured instances)
+    try:
+        from mediaserver import get_media_server_manager
+        ms_manager = get_media_server_manager()
+        ms_manager.load_instances()
+        types = ms_manager.get_all_server_types()
+        logger.info("Media server manager initialized: %d types registered", len(types))
+    except Exception as e:
+        logger.warning("Media server manager initialization failed: %s", e)
+
     # Bazarr deprecation warning
     if os.environ.get("SUBLARR_BAZARR_URL") or os.environ.get("SUBLARR_BAZARR_API_KEY"):
         logger.warning(
