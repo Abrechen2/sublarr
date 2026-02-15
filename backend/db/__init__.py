@@ -561,3 +561,24 @@ def _run_migrations(conn):
             # For existing DBs, run the CREATE TABLE statements
             conn.executescript(SCHEMA)
             break
+
+    # Add subtitle_type to wanted_items (forced/signs subtitle tracking)
+    cursor = conn.execute("PRAGMA table_info(wanted_items)")
+    wi_cols = {row[1] for row in cursor.fetchall()}
+    if "subtitle_type" not in wi_cols:
+        conn.execute("ALTER TABLE wanted_items ADD COLUMN subtitle_type TEXT DEFAULT 'full'")
+        logger.info("Added subtitle_type column to wanted_items")
+
+    # Add subtitle_type to subtitle_downloads (forced/signs subtitle tracking)
+    cursor = conn.execute("PRAGMA table_info(subtitle_downloads)")
+    sd_cols = {row[1] for row in cursor.fetchall()}
+    if "subtitle_type" not in sd_cols:
+        conn.execute("ALTER TABLE subtitle_downloads ADD COLUMN subtitle_type TEXT DEFAULT 'full'")
+        logger.info("Added subtitle_type column to subtitle_downloads")
+
+    # Add forced_preference to language_profiles
+    cursor = conn.execute("PRAGMA table_info(language_profiles)")
+    lp_cols2 = {row[1] for row in cursor.fetchall()}
+    if "forced_preference" not in lp_cols2:
+        conn.execute("ALTER TABLE language_profiles ADD COLUMN forced_preference TEXT DEFAULT 'disabled'")
+        logger.info("Added forced_preference column to language_profiles")
