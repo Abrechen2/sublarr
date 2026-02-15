@@ -173,8 +173,8 @@ export function Dashboard() {
           <button
             onClick={() => {
               refreshWanted.mutate(undefined, {
-                onSuccess: () => toast('Library scan started'),
-                onError: () => toast('Scan failed', 'error'),
+                onSuccess: () => toast(t('toast.scan_started')),
+                onError: () => toast(t('toast.scan_failed'), 'error'),
               })
             }}
             disabled={refreshWanted.isPending || wantedSummary?.scan_running}
@@ -195,8 +195,8 @@ export function Dashboard() {
           <button
             onClick={() => {
               startBatch.mutate(undefined, {
-                onSuccess: () => toast('Wanted search started'),
-                onError: () => toast('Search failed', 'error'),
+                onSuccess: () => toast(t('toast.search_started')),
+                onError: () => toast(t('toast.search_failed'), 'error'),
               })
             }}
             disabled={startBatch.isPending || batchStatus?.running}

@@ -28,9 +28,9 @@ export function StatisticsPage() {
         a.download = `sublarr-statistics-${range}.${format}`
         a.click()
         URL.revokeObjectURL(url)
-        toast(t('exported', { format: format.toUpperCase(), defaultValue: `Statistics exported as ${format.toUpperCase()}` }))
+        toast(t('exported', { format: format.toUpperCase() }))
       },
-      onError: () => toast(t('export_failed', 'Export failed'), 'error'),
+      onError: () => toast(t('export_failed'), 'error'),
     })
   }
 

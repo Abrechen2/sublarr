@@ -77,8 +77,8 @@ export function LogsPage() {
     updateRotation.mutate(
       { max_size_mb: rotationMaxSize, backup_count: rotationBackupCount },
       {
-        onSuccess: () => toast('Rotation config saved'),
-        onError: () => toast('Failed to save rotation config', 'error'),
+        onSuccess: () => toast(t('toast.rotation_saved')),
+        onError: () => toast(t('toast.rotation_failed'), 'error'),
       }
     )
   }
