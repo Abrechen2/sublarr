@@ -262,3 +262,14 @@ def _register_builtin_backends(manager: TranslationManager) -> None:
     """Register all built-in translation backends."""
     from translation.ollama import OllamaBackend
     manager.register_backend(OllamaBackend)
+
+    # DeepL: optional dependency (deepl package may not be installed)
+    try:
+        from translation.deepl_backend import DeepLBackend
+        manager.register_backend(DeepLBackend)
+    except ImportError:
+        logger.info("DeepL backend not available (deepl package not installed)")
+
+    # LibreTranslate: uses stdlib requests (always available)
+    from translation.libretranslate import LibreTranslateBackend
+    manager.register_backend(LibreTranslateBackend)
