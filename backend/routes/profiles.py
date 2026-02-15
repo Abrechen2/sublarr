@@ -34,9 +34,14 @@ def create_language_profile_endpoint():
     if not target_langs:
         return jsonify({"error": "At least one target language is required"}), 400
 
+    translation_backend = data.get("translation_backend", "ollama")
+    fallback_chain = data.get("fallback_chain")
+
     try:
         profile_id = create_language_profile(
-            name, source_lang, source_name, target_langs, target_names
+            name, source_lang, source_name, target_langs, target_names,
+            translation_backend=translation_backend,
+            fallback_chain=fallback_chain,
         )
     except Exception as e:
         if "UNIQUE constraint" in str(e):
@@ -59,7 +64,8 @@ def update_language_profile_endpoint(profile_id):
     data = request.get_json() or {}
     fields = {}
     for key in ("name", "source_language", "source_language_name",
-                "target_languages", "target_language_names"):
+                "target_languages", "target_language_names",
+                "translation_backend", "fallback_chain"):
         if key in data:
             fields[key] = data[key]
 

@@ -41,8 +41,17 @@ def _row_to_profile(row) -> dict:
 
 
 def create_language_profile(name: str, source_lang: str, source_name: str,
-                             target_langs: list[str], target_names: list[str]) -> int:
-    """Create a new language profile. Returns the profile ID."""
+                             target_langs: list[str], target_names: list[str],
+                             translation_backend: str = "ollama",
+                             fallback_chain: list[str] | None = None) -> int:
+    """Create a new language profile. Returns the profile ID.
+
+    Args:
+        translation_backend: Primary translation backend (default "ollama")
+        fallback_chain: Ordered list of backends to try. Defaults to [translation_backend].
+    """
+    if fallback_chain is None:
+        fallback_chain = [translation_backend]
     now = datetime.utcnow().isoformat()
     db = get_db()
     with _db_lock:
@@ -50,10 +59,12 @@ def create_language_profile(name: str, source_lang: str, source_name: str,
             """INSERT INTO language_profiles
                (name, source_language, source_language_name,
                 target_languages_json, target_language_names_json,
+                translation_backend, fallback_chain_json,
                 is_default, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, 0, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)""",
             (name, source_lang, source_name,
              json.dumps(target_langs), json.dumps(target_names),
+             translation_backend, json.dumps(fallback_chain),
              now, now),
         )
         profile_id = cursor.lastrowid
@@ -167,6 +178,8 @@ def get_default_profile() -> dict:
             "target_languages": [s.target_language],
             "target_language_names": [s.target_language_name],
             "is_default": True,
+            "translation_backend": "ollama",
+            "fallback_chain": ["ollama"],
         }
     return _row_to_profile(row)
 
