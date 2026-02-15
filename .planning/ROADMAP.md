@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 0: Architecture Refactoring** - Convert monolith to Application Factory + Blueprints
 - [x] **Phase 1: Provider Plugin + Expansion** - Plugin system and 8 new built-in providers
 - [x] **Phase 2: Translation Multi-Backend** - ABC-based multi-backend translation with fallback chains
-- [ ] **Phase 3: Media-Server Abstraction** - Plex, Kodi support alongside existing Jellyfin/Emby
+- [x] **Phase 3: Media-Server Abstraction** - Plex, Kodi support alongside existing Jellyfin/Emby
 - [ ] **Phase 4: Whisper Speech-to-Text** - faster-whisper and Subgen integration as translation fallback
 - [ ] **Phase 5: Standalone Mode** - Folder-watch operation without Sonarr/Radarr dependency
 - [ ] **Phase 6: Forced/Signs Subtitle Management** - Forced subtitle detection, search, and per-series config
@@ -104,9 +104,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 03-01-PLAN.md -- MediaServer ABC, MediaServerManager, JellyfinEmby migration, Plex and Kodi backends
-- [ ] 03-02-PLAN.md -- API blueprint, translator.py rewire, config invalidation, health endpoint, legacy migration
-- [ ] 03-03-PLAN.md -- Frontend Media Servers settings tab, onboarding wizard media server step
+- [x] 03-01-PLAN.md -- MediaServer ABC, MediaServerManager, JellyfinEmby migration, Plex and Kodi backends
+- [x] 03-02-PLAN.md -- API blueprint, translator.py rewire, config invalidation, health endpoint, legacy migration
+- [x] 03-03-PLAN.md -- Frontend Media Servers settings tab, onboarding wizard media server step
 
 ### Phase 4: Whisper Speech-to-Text
 **Goal**: When no subtitles are found from any provider, Sublarr can generate them from audio using Whisper, creating a complete fallback chain
@@ -327,7 +327,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | 0. Architecture Refactoring | 3/3 | Complete | 2026-02-15 |
 | 1. Provider Plugin + Expansion | 6/6 | Complete | 2026-02-15 |
 | 2. Translation Multi-Backend | 6/6 | Complete | 2026-02-15 |
-| 3. Media-Server Abstraction | 0/3 | Not started | - |
+| 3. Media-Server Abstraction | 3/3 | Complete | 2026-02-15 |
 | 4. Whisper Speech-to-Text | 0/TBD | Not started | - |
 | 5. Standalone Mode | 0/TBD | Not started | - |
 | 6. Forced/Signs Subs | 0/TBD | Not started | - |
@@ -366,4 +366,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-15 (Phase 3 planned)*
+*Last updated: 2026-02-15 (Phase 3 complete)*
