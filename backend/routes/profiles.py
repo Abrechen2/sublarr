@@ -36,12 +36,17 @@ def create_language_profile_endpoint():
 
     translation_backend = data.get("translation_backend", "ollama")
     fallback_chain = data.get("fallback_chain")
+    forced_preference = data.get("forced_preference", "disabled")
+
+    if forced_preference not in ("disabled", "separate", "auto"):
+        return jsonify({"error": "forced_preference must be one of: disabled, separate, auto"}), 400
 
     try:
         profile_id = create_language_profile(
             name, source_lang, source_name, target_langs, target_names,
             translation_backend=translation_backend,
             fallback_chain=fallback_chain,
+            forced_preference=forced_preference,
         )
     except Exception as e:
         if "UNIQUE constraint" in str(e):
@@ -65,12 +70,15 @@ def update_language_profile_endpoint(profile_id):
     fields = {}
     for key in ("name", "source_language", "source_language_name",
                 "target_languages", "target_language_names",
-                "translation_backend", "fallback_chain"):
+                "translation_backend", "fallback_chain", "forced_preference"):
         if key in data:
             fields[key] = data[key]
 
     if not fields:
         return jsonify({"error": "No fields to update"}), 400
+
+    if "forced_preference" in fields and fields["forced_preference"] not in ("disabled", "separate", "auto"):
+        return jsonify({"error": "forced_preference must be one of: disabled, separate, auto"}), 400
 
     try:
         update_language_profile(profile_id, **fields)

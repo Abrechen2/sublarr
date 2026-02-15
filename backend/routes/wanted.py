@@ -34,11 +34,12 @@ def list_wanted():
     item_type = request.args.get("item_type")
     status_filter = request.args.get("status")
     series_id = request.args.get("series_id", type=int)
+    subtitle_type = request.args.get("subtitle_type")
 
     result = get_wanted_items(
         page=page, per_page=per_page,
         item_type=item_type, status=status_filter,
-        series_id=series_id,
+        series_id=series_id, subtitle_type=subtitle_type,
     )
     return jsonify(result)
 
@@ -47,12 +48,13 @@ def list_wanted():
 def wanted_summary():
     """Get aggregated wanted stats."""
     from wanted_scanner import get_scanner
-    from db.wanted import get_wanted_summary
+    from db.wanted import get_wanted_summary, get_wanted_by_subtitle_type
 
     scanner = get_scanner()
     summary = get_wanted_summary()
     summary["scan_running"] = scanner.is_scanning
     summary["last_scan_at"] = scanner.last_scan_at
+    summary["by_subtitle_type"] = get_wanted_by_subtitle_type()
     return jsonify(summary)
 
 
