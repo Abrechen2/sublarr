@@ -223,12 +223,16 @@ Plans:
   3. Redis can optionally be used for provider cache, session storage, and rate limiting, with graceful fallback to SQLite when Redis is unavailable
   4. Job queue uses Redis + RQ for persistent jobs that survive container restarts (falling back to in-process queue without Redis)
   5. Predefined Grafana dashboards and extended Prometheus metrics are available for monitoring at scale
-**Plans**: TBD
+**Plans:** 7 plans
 
 Plans:
-- [ ] 10-01: TBD
-- [ ] 10-02: TBD
-- [ ] 10-03: TBD
+- [ ] 10-01-PLAN.md -- SQLAlchemy ORM models for all 25+ tables + Flask-SQLAlchemy/Alembic infrastructure
+- [ ] 10-02-PLAN.md -- Repository layer Part 1: config, blacklist, cache, plugins, scoring, library, whisper, translation
+- [ ] 10-03-PLAN.md -- Repository layer Part 2: jobs, wanted, profiles, providers, hooks, standalone
+- [ ] 10-04-PLAN.md -- Cache abstraction (Redis + memory fallback) + Job queue abstraction (RQ + ThreadPoolExecutor fallback)
+- [ ] 10-05-PLAN.md -- Integration wiring: app factory, config settings, db/__init__.py rewrite, import redirection
+- [ ] 10-06-PLAN.md -- Dialect-aware database backup/health + Docker PostgreSQL/Redis compose
+- [ ] 10-07-PLAN.md -- Extended Prometheus metrics + Grafana dashboard provisioning
 
 ### Phase 11: Subtitle Editor
 **Goal**: Users can preview and edit subtitle files directly in the browser with syntax highlighting, live preview, and version diffing
@@ -342,7 +346,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | 7. Events/Hooks + Custom Scoring | 3/3 | Complete | 2026-02-15 |
 | 8. i18n + Backup + Admin Polish | 5/5 | Complete | 2026-02-15 |
 | 9. OpenAPI + Release Preparation | 0/5 | Not started | - |
-| 10. Performance & Scalability | 0/TBD | Not started | - |
+| 10. Performance & Scalability | 0/7 | Not started | - |
 | 11. Subtitle Editor | 0/TBD | Not started | - |
 | 12. Batch Operations + Smart-Filter | 0/TBD | Not started | - |
 | 13. Comparison + Sync + Health-Check | 0/TBD | Not started | - |
@@ -374,4 +378,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-15 (Phase 8 complete)*
+*Last updated: 2026-02-16 (Phase 10 planned)*
