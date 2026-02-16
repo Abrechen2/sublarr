@@ -11,17 +11,17 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 
 Phase: 9 of 16 (OpenAPI + Release Preparation)
 Plan: 5 of 5 in current phase
-Status: In progress (plan 04 pending)
-Last activity: 2026-02-16 -- Completed 09-05-PLAN.md (Release Documentation)
+Status: Phase complete
+Last activity: 2026-02-16 -- Completed 09-04-PLAN.md (OpenAPI Remaining + Tasks Page)
 
-Progress: [████████████████████░░░░░] 4/5 plans in phase
+Progress: [█████████████████████████] 5/5 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 42
+- Total plans completed: 43
 - Average duration: 10 min
-- Total execution time: 401 min
+- Total execution time: 417 min
 
 **By Phase:**
 
@@ -36,11 +36,11 @@ Progress: [████████████████████░░░
 | 06-forced-signs-subs | 3/3 | 22 min | 7 min |
 | 07-events-hooks-custom-scoring | 3/3 | 46 min | 15 min |
 | 08-i18n-backup-admin-polish | 5/5 | 116 min | 23 min |
-| 09-openapi-release-preparation | 4/5 | 44 min | 11 min |
+| 09-openapi-release-preparation | 5/5 | 60 min | 12 min |
 
 **Recent Trend:**
-- Last 5 plans: 09-01 (11 min), 09-02 (11 min), 09-03 (15 min), 09-05 (7 min)
-- Trend: Phase 9 plans averaging 11 min -- documentation plans execute faster than code plans
+- Last 5 plans: 09-01 (11 min), 09-02 (11 min), 09-03 (15 min), 09-05 (7 min), 09-04 (16 min)
+- Trend: Phase 9 complete at 60 min total, averaging 12 min/plan
 
 *Updated after each plan completion*
 
@@ -245,6 +245,9 @@ Recent decisions affecting current work:
 - [09-05]: Migration guide emphasizes version renumber is NOT a downgrade to avoid user confusion
 - [09-05]: Unraid template Ollama URL marked as non-required (standalone mode does not need it)
 - [09-05]: docker-compose.yml left unchanged -- already correct with env_file pattern and proper security settings
+- [09-04]: Created dedicated /api/v1/tasks endpoint (vs reusing /health/detailed) for cleaner frontend consumption
+- [09-04]: useTriggerTask maps task names to trigger endpoints (wanted_scan -> /wanted/refresh, wanted_search -> /wanted/search-all, backup -> /database/backup)
+- [09-04]: ListChecks icon for Tasks nav entry, positioned between Statistics and Logs in System group
 
 ### Pending Todos
 
@@ -261,11 +264,11 @@ None yet.
 - Phase 6 complete -- all 3 plans executed, all summaries written (data model + detection, scanner + search, API + UI)
 - Phase 7 complete -- all 3 plans executed, all summaries written (event system + engine/dispatcher + API/UI)
 - Phase 8 complete -- all 5 plans executed, all summaries written (theme, backend APIs, frontend pages, core i18n, remaining i18n)
-- Phase 9 in progress -- 4/5 plans executed (OpenAPI infra + backend performance + frontend performance + release docs; plan 04 pending)
+- Phase 9 complete -- all 5 plans executed (OpenAPI infra + backend performance + frontend performance + release docs + remaining blueprints/tasks page)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Phase 9 plan 5 of 5 complete -- Release documentation (CHANGELOG, migration, user guide, providers, Unraid)
-Resume file: .planning/phases/09-openapi-release-preparation/09-05-SUMMARY.md
+Stopped at: Phase 9 complete -- all 5 plans executed (120 OpenAPI paths, Tasks page, release docs)
+Resume file: .planning/phases/09-openapi-release-preparation/09-04-SUMMARY.md
