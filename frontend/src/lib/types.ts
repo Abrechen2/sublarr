@@ -623,3 +623,19 @@ export interface LogRotationConfig {
   max_size_mb: number
   backup_count: number
 }
+
+// ─── Scheduler Tasks ──────────────────────────────────────────────────────────
+
+export interface SchedulerTask {
+  name: string
+  display_name: string
+  running: boolean
+  last_run: string | null
+  next_run: string | null
+  interval_hours: number | null
+  enabled: boolean
+}
+
+export interface TasksResponse {
+  tasks: SchedulerTask[]
+}

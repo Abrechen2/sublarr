@@ -10,6 +10,7 @@ import type {
   WatchedFolder, StandaloneSeries, StandaloneMovie, StandaloneStatus,
   HookConfig, WebhookConfig,
   StatisticsData, FullBackupInfo, SubtitleToolResult, LogRotationConfig,
+  TasksResponse,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -641,6 +642,13 @@ export async function runSubtitleTool(tool: string, params: Record<string, unkno
 
 export async function previewSubtitle(filePath: string): Promise<{ format: string; lines: string[]; total_lines: number }> {
   const { data } = await api.get('/tools/preview', { params: { file_path: filePath } })
+  return data
+}
+
+// ─── Scheduler Tasks ────────────────────────────────────────────────────────
+
+export async function getTasks(): Promise<TasksResponse> {
+  const { data } = await api.get('/tasks')
   return data
 }
 
