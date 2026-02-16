@@ -19,7 +19,33 @@ logger = logging.getLogger(__name__)
 
 @bp.route("/health", methods=["GET"])
 def health():
-    """Health check endpoint (no auth required)."""
+    """Health check endpoint (no auth required).
+    ---
+    get:
+      tags:
+        - System
+      summary: Basic health check
+      description: Returns overall health status, version, and service connectivity. No authentication required.
+      responses:
+        200:
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, unhealthy]
+                  version:
+                    type: string
+                  services:
+                    type: object
+                    additionalProperties:
+                      type: string
+        503:
+          description: System is unhealthy
+    """
     from ollama_client import check_ollama_health
     from config import get_settings
 
@@ -89,7 +115,35 @@ def health():
 
 @bp.route("/health/detailed", methods=["GET"])
 def health_detailed():
-    """Detailed health check with subsystem status (authenticated)."""
+    """Detailed health check with subsystem status (authenticated).
+    ---
+    get:
+      tags:
+        - System
+      summary: Detailed health check
+      description: Returns per-subsystem health status including database, Ollama, providers, disk, and memory.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: All subsystems healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded]
+                  subsystems:
+                    type: object
+                    additionalProperties:
+                      type: object
+        401:
+          description: Unauthorized (API key required)
+        503:
+          description: One or more subsystems degraded
+    """
     from database_health import check_integrity, get_database_stats
     from ollama_client import check_ollama_health
     from db import get_db
@@ -176,6 +230,186 @@ def health_detailed():
     except ImportError:
         subsystems["memory"] = {"healthy": True, "message": "psutil not installed"}
 
+    # ── New subsystem checks ──────────────────────────────────────────────
+
+    # Translation Backends
+    try:
+        from translation import get_translation_manager
+        tm = get_translation_manager()
+        backends_info = tm.get_all_backends()
+        backends_health = {}
+        for b in backends_info:
+            bname = b["name"]
+            if not b.get("configured"):
+                backends_health[bname] = {"healthy": True, "message": "Not configured"}
+                continue
+            try:
+                instance = tm.get_backend(bname)
+                if instance and hasattr(instance, "health_check"):
+                    h, msg = instance.health_check()
+                    backends_health[bname] = {"healthy": h, "message": msg}
+                else:
+                    backends_health[bname] = {"healthy": True, "message": "No health check available"}
+            except Exception as be:
+                backends_health[bname] = {"healthy": False, "message": str(be)}
+        subsystems["translation_backends"] = {
+            "healthy": any(b["healthy"] for b in backends_health.values()) if backends_health else True,
+            "backends": backends_health,
+        }
+        if not subsystems["translation_backends"]["healthy"]:
+            overall_healthy = False
+    except Exception as exc:
+        subsystems["translation_backends"] = {"healthy": False, "message": str(exc)}
+        overall_healthy = False
+
+    # Media Servers
+    try:
+        from mediaserver import get_media_server_manager
+        ms_manager = get_media_server_manager()
+        ms_checks = ms_manager.health_check_all()
+        if ms_checks:
+            instances = [
+                {"type": c.get("type", ""), "name": c.get("name", ""), "healthy": c["healthy"], "message": c.get("message", "")}
+                for c in ms_checks
+            ]
+            subsystems["media_servers"] = {
+                "healthy": all(c["healthy"] for c in instances),
+                "instances": instances,
+            }
+            if not subsystems["media_servers"]["healthy"]:
+                overall_healthy = False
+        else:
+            subsystems["media_servers"] = {
+                "healthy": True,
+                "instances": [],
+                "message": "No media servers configured",
+            }
+    except Exception as exc:
+        subsystems["media_servers"] = {"healthy": False, "message": str(exc)}
+        overall_healthy = False
+
+    # Whisper Backends
+    try:
+        from whisper import get_whisper_manager
+        from db.config import get_config_entry
+        whisper_enabled = get_config_entry("whisper_enabled")
+        if whisper_enabled and whisper_enabled.lower() in ("true", "1", "yes"):
+            wm = get_whisper_manager()
+            active_backend = wm.get_active_backend()
+            if active_backend and hasattr(active_backend, "health_check"):
+                try:
+                    w_healthy, w_msg = active_backend.health_check()
+                    subsystems["whisper_backends"] = {
+                        "healthy": w_healthy,
+                        "active_backend": active_backend.name,
+                        "message": w_msg,
+                    }
+                except Exception as we:
+                    subsystems["whisper_backends"] = {
+                        "healthy": False,
+                        "active_backend": active_backend.name,
+                        "message": str(we),
+                    }
+            else:
+                subsystems["whisper_backends"] = {
+                    "healthy": True,
+                    "active_backend": None,
+                    "message": "No active whisper backend",
+                }
+        else:
+            subsystems["whisper_backends"] = {
+                "healthy": True,
+                "active_backend": None,
+                "message": "Whisper disabled",
+            }
+    except Exception as exc:
+        subsystems["whisper_backends"] = {"healthy": True, "active_backend": None, "message": str(exc)}
+
+    # Arr Connectivity (Sonarr + Radarr instances)
+    try:
+        from config import get_sonarr_instances, get_radarr_instances
+
+        sonarr_checks = []
+        for inst in get_sonarr_instances():
+            iname = inst.get("name", "Default")
+            try:
+                from sonarr_client import get_sonarr_client
+                client = get_sonarr_client(instance_name=iname)
+                if client:
+                    h, msg = client.health_check()
+                    sonarr_checks.append({"instance_name": iname, "healthy": h, "message": msg})
+                else:
+                    sonarr_checks.append({"instance_name": iname, "healthy": False, "message": "Client not available"})
+            except Exception as se:
+                sonarr_checks.append({"instance_name": iname, "healthy": False, "message": str(se)})
+
+        radarr_checks = []
+        for inst in get_radarr_instances():
+            iname = inst.get("name", "Default")
+            try:
+                from radarr_client import get_radarr_client
+                client = get_radarr_client(instance_name=iname)
+                if client:
+                    h, msg = client.health_check()
+                    radarr_checks.append({"instance_name": iname, "healthy": h, "message": msg})
+                else:
+                    radarr_checks.append({"instance_name": iname, "healthy": False, "message": "Client not available"})
+            except Exception as re_exc:
+                radarr_checks.append({"instance_name": iname, "healthy": False, "message": str(re_exc)})
+
+        all_arr = sonarr_checks + radarr_checks
+        subsystems["arr_connectivity"] = {
+            "healthy": all(c["healthy"] for c in all_arr) if all_arr else True,
+            "sonarr": sonarr_checks,
+            "radarr": radarr_checks,
+        }
+        if not subsystems["arr_connectivity"]["healthy"]:
+            overall_healthy = False
+    except Exception as exc:
+        subsystems["arr_connectivity"] = {"healthy": False, "message": str(exc)}
+        overall_healthy = False
+
+    # Scheduler Status
+    try:
+        from wanted_scanner import get_scanner
+        scanner = get_scanner()
+        tasks = []
+
+        # Wanted scan scheduler
+        scan_running = scanner.is_scanning
+        scan_interval = getattr(s, "wanted_scan_interval_hours", 0)
+        tasks.append({
+            "name": "wanted_scan",
+            "running": scan_running,
+            "last_run": scanner.last_scan_at or None,
+            "interval_hours": scan_interval,
+        })
+
+        # Wanted search scheduler
+        search_running = scanner.is_searching
+        search_interval = getattr(s, "wanted_search_interval_hours", 0)
+        tasks.append({
+            "name": "wanted_search",
+            "running": search_running,
+            "last_run": scanner.last_search_at or None,
+            "interval_hours": search_interval,
+        })
+
+        # Backup scheduler
+        backup_enabled = bool(getattr(s, "backup_schedule_enabled", False))
+        tasks.append({
+            "name": "backup",
+            "enabled": backup_enabled,
+            "last_run": None,
+        })
+
+        subsystems["scheduler"] = {
+            "healthy": True,
+            "tasks": tasks,
+        }
+    except Exception as exc:
+        subsystems["scheduler"] = {"healthy": True, "message": str(exc)}
+
     status_code = 200 if overall_healthy else 503
     return jsonify({
         "status": "healthy" if overall_healthy else "degraded",
@@ -185,7 +419,38 @@ def health_detailed():
 
 @bp.route("/stats", methods=["GET"])
 def get_stats():
-    """Get overall statistics."""
+    """Get overall statistics.
+    ---
+    get:
+      tags:
+        - System
+      summary: Get runtime statistics
+      description: Returns translation stats, pending jobs, uptime, and batch status.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Statistics summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_jobs:
+                    type: integer
+                  completed_jobs:
+                    type: integer
+                  pending_jobs:
+                    type: integer
+                  uptime_seconds:
+                    type: integer
+                  batch_running:
+                    type: boolean
+                  upgrades:
+                    type: object
+                  quality_warnings:
+                    type: integer
+    """
     from db.jobs import get_stats_summary, get_pending_job_count
     from routes.translate import batch_state, stats_lock, _memory_stats
 
@@ -211,7 +476,33 @@ def get_stats():
 
 @bp.route("/database/health", methods=["GET"])
 def database_health():
-    """Check database integrity and return stats."""
+    """Check database integrity and return stats.
+    ---
+    get:
+      tags:
+        - System
+      summary: Database health check
+      description: Runs SQLite integrity check and returns database statistics.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Database is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  healthy:
+                    type: boolean
+                  message:
+                    type: string
+                  stats:
+                    type: object
+                    additionalProperties: true
+        503:
+          description: Database integrity check failed
+    """
     from database_health import check_integrity, get_database_stats
     from db import get_db
     from config import get_settings
@@ -230,7 +521,40 @@ def database_health():
 
 @bp.route("/database/backup", methods=["POST"])
 def create_backup():
-    """Create a manual database backup."""
+    """Create a manual database backup.
+    ---
+    post:
+      tags:
+        - System
+      summary: Create database backup
+      description: Creates a manual SQLite database backup with optional label.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  enum: [daily, weekly, monthly]
+                  default: daily
+      responses:
+        201:
+          description: Backup created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  path:
+                    type: string
+                  size_bytes:
+                    type: integer
+                  label:
+                    type: string
+    """
     from database_backup import DatabaseBackup
     from config import get_settings
 
@@ -254,7 +578,35 @@ def create_backup():
 
 @bp.route("/database/backups", methods=["GET"])
 def list_backups():
-    """List all available database backups."""
+    """List all available database backups.
+    ---
+    get:
+      tags:
+        - System
+      summary: List database backups
+      description: Returns a list of all available SQLite database backup files.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: List of backups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  backups:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        filename:
+                          type: string
+                        size_bytes:
+                          type: integer
+                        created_at:
+                          type: string
+    """
     from database_backup import DatabaseBackup
     from config import get_settings
 
@@ -266,8 +618,42 @@ def list_backups():
 @bp.route("/database/restore", methods=["POST"])
 def restore_backup():
     """Restore the database from a backup file.
-
-    Body: {"filename": "sublarr_daily_20260215_030000.db", "confirm": true}
+    ---
+    post:
+      tags:
+        - System
+      summary: Restore database from backup
+      description: Restores the SQLite database from a previously created backup file. Requires explicit confirmation.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filename, confirm]
+              properties:
+                filename:
+                  type: string
+                  description: Backup filename to restore from
+                confirm:
+                  type: boolean
+                  description: Must be true to proceed with restore
+      responses:
+        200:
+          description: Database restored successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  restored_from:
+                    type: string
+        400:
+          description: Missing filename or confirmation
     """
     from database_backup import DatabaseBackup
     from db import get_db, close_db
@@ -302,7 +688,35 @@ def restore_backup():
 
 @bp.route("/backup/full", methods=["POST"])
 def create_full_backup():
-    """Create a full ZIP backup containing manifest, config, and database."""
+    """Create a full ZIP backup containing manifest, config, and database.
+    ---
+    post:
+      tags:
+        - System
+      summary: Create full ZIP backup
+      description: Creates a ZIP archive containing manifest.json, config.json, and the SQLite database.
+      security:
+        - apiKeyAuth: []
+      responses:
+        201:
+          description: Full backup created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  filename:
+                    type: string
+                  size_bytes:
+                    type: integer
+                  created_at:
+                    type: string
+                    format: date-time
+                  contents:
+                    type: array
+                    items:
+                      type: string
+    """
     from database_backup import DatabaseBackup
     from config import get_settings
 
@@ -361,7 +775,35 @@ def create_full_backup():
 
 @bp.route("/backup/full/download/<filename>", methods=["GET"])
 def download_full_backup(filename):
-    """Download a ZIP backup file."""
+    """Download a ZIP backup file.
+    ---
+    get:
+      tags:
+        - System
+      summary: Download a ZIP backup
+      description: Downloads a previously created full ZIP backup file.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: filename
+          required: true
+          schema:
+            type: string
+          description: ZIP backup filename
+      responses:
+        200:
+          description: ZIP file download
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        400:
+          description: Invalid filename
+        404:
+          description: Backup file not found
+    """
     from config import get_settings
 
     # Security: validate filename
@@ -378,7 +820,45 @@ def download_full_backup(filename):
 
 @bp.route("/backup/full/restore", methods=["POST"])
 def restore_full_backup():
-    """Restore from a full ZIP backup (config + database)."""
+    """Restore from a full ZIP backup (config + database).
+    ---
+    post:
+      tags:
+        - System
+      summary: Restore from full ZIP backup
+      description: Uploads and restores a full ZIP backup containing config and database. Secrets are skipped during config import.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: ZIP backup file
+      responses:
+        200:
+          description: Backup restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  config_imported:
+                    type: array
+                    items:
+                      type: string
+                  db_restored:
+                    type: boolean
+        400:
+          description: Invalid or missing file
+    """
     from database_backup import DatabaseBackup
     from db import get_db, close_db
     from db.config import save_config_entry, get_all_config_entries
@@ -477,7 +957,36 @@ def restore_full_backup():
 
 @bp.route("/backup/full/list", methods=["GET"])
 def list_full_backups():
-    """List all ZIP backup files."""
+    """List all ZIP backup files.
+    ---
+    get:
+      tags:
+        - System
+      summary: List full ZIP backups
+      description: Returns a list of all full ZIP backup files with metadata.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: List of ZIP backups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  backups:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        filename:
+                          type: string
+                        size_bytes:
+                          type: integer
+                        created_at:
+                          type: string
+                          format: date-time
+    """
     from config import get_settings
 
     s = get_settings()
@@ -517,7 +1026,57 @@ def list_full_backups():
 
 @bp.route("/statistics", methods=["GET"])
 def get_statistics():
-    """Get comprehensive statistics with time range filter."""
+    """Get comprehensive statistics with time range filter.
+    ---
+    get:
+      tags:
+        - System
+      summary: Get comprehensive statistics
+      description: Returns daily stats, provider stats, download counts, backend stats, upgrades, and format breakdown.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: query
+          name: range
+          schema:
+            type: string
+            enum: ["7d", "30d", "90d", "365d"]
+            default: "30d"
+          description: Time range for statistics
+      responses:
+        200:
+          description: Statistics data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  daily:
+                    type: array
+                    items:
+                      type: object
+                  providers:
+                    type: object
+                    additionalProperties: true
+                  downloads_by_provider:
+                    type: array
+                    items:
+                      type: object
+                  backend_stats:
+                    type: array
+                    items:
+                      type: object
+                  upgrades:
+                    type: array
+                    items:
+                      type: object
+                  by_format:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                  range:
+                    type: string
+    """
     from db import get_db, _db_lock
     from db.providers import get_provider_stats
 
@@ -591,7 +1150,43 @@ def get_statistics():
 
 @bp.route("/statistics/export", methods=["GET"])
 def export_statistics():
-    """Export statistics as JSON or CSV file download."""
+    """Export statistics as JSON or CSV file download.
+    ---
+    get:
+      tags:
+        - System
+      summary: Export statistics
+      description: Downloads statistics as JSON or CSV file for the specified time range.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: query
+          name: range
+          schema:
+            type: string
+            enum: ["7d", "30d", "90d", "365d"]
+            default: "30d"
+          description: Time range for export
+        - in: query
+          name: format
+          schema:
+            type: string
+            enum: [json, csv]
+            default: json
+          description: Export file format
+      responses:
+        200:
+          description: File download
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+            text/csv:
+              schema:
+                type: string
+                format: binary
+    """
     from db import get_db, _db_lock
     from db.providers import get_provider_stats
 
@@ -670,7 +1265,26 @@ def export_statistics():
 
 @bp.route("/logs/download", methods=["GET"])
 def download_logs():
-    """Download the log file as an attachment."""
+    """Download the log file as an attachment.
+    ---
+    get:
+      tags:
+        - System
+      summary: Download log file
+      description: Downloads the Sublarr log file as a text attachment.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Log file download
+          content:
+            text/plain:
+              schema:
+                type: string
+                format: binary
+        404:
+          description: Log file not found
+    """
     from config import get_settings
 
     log_file = get_settings().log_file
@@ -682,7 +1296,28 @@ def download_logs():
 
 @bp.route("/logs/rotation", methods=["GET"])
 def get_log_rotation():
-    """Get current log rotation configuration."""
+    """Get current log rotation configuration.
+    ---
+    get:
+      tags:
+        - System
+      summary: Get log rotation config
+      description: Returns current log rotation settings (max size and backup count).
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Log rotation configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  max_size_mb:
+                    type: integer
+                  backup_count:
+                    type: integer
+    """
     from db.config import get_config_entry
 
     max_size_mb = int(get_config_entry("log_max_size_mb") or "10")
@@ -696,7 +1331,51 @@ def get_log_rotation():
 
 @bp.route("/logs/rotation", methods=["PUT"])
 def update_log_rotation():
-    """Update log rotation configuration."""
+    """Update log rotation configuration.
+    ---
+    put:
+      tags:
+        - System
+      summary: Update log rotation config
+      description: Updates log rotation settings. Changes take effect on next application restart.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                max_size_mb:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  description: Maximum log file size in MB
+                backup_count:
+                  type: integer
+                  minimum: 1
+                  maximum: 20
+                  description: Number of rotated log files to keep
+      responses:
+        200:
+          description: Configuration updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  max_size_mb:
+                    type: integer
+                  backup_count:
+                    type: integer
+                  note:
+                    type: string
+        400:
+          description: Invalid parameter values
+    """
     from db.config import save_config_entry
 
     data = request.get_json() or {}
@@ -736,7 +1415,30 @@ def update_log_rotation():
 
 @bp.route("/database/vacuum", methods=["POST"])
 def vacuum_database():
-    """Run VACUUM to reclaim unused space."""
+    """Run VACUUM to reclaim unused space.
+    ---
+    post:
+      tags:
+        - System
+      summary: Vacuum database
+      description: Runs SQLite VACUUM command to reclaim unused disk space and defragment the database.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Vacuum completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  size_before:
+                    type: integer
+                  size_after:
+                    type: integer
+    """
     from database_health import vacuum
     from db import get_db
     from config import get_settings
@@ -748,7 +1450,43 @@ def vacuum_database():
 
 @bp.route("/logs", methods=["GET"])
 def get_logs():
-    """Get recent log entries."""
+    """Get recent log entries.
+    ---
+    get:
+      tags:
+        - System
+      summary: Get recent logs
+      description: Returns recent log entries with optional line count and level filter.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: query
+          name: lines
+          schema:
+            type: integer
+            default: 200
+          description: Number of recent log lines to return
+        - in: query
+          name: level
+          schema:
+            type: string
+            enum: [DEBUG, INFO, WARNING, ERROR, CRITICAL]
+          description: Filter by log level
+      responses:
+        200:
+          description: Log entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      type: string
+                  total:
+                    type: integer
+    """
     from config import get_settings
 
     settings = get_settings()
@@ -777,7 +1515,39 @@ def get_logs():
 
 @bp.route("/notifications/test", methods=["POST"])
 def notification_test():
-    """Send a test notification."""
+    """Send a test notification.
+    ---
+    post:
+      tags:
+        - System
+      summary: Send test notification
+      description: Sends a test notification via Apprise. Optionally test a specific notification URL.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                  description: Optional specific Apprise URL to test
+      responses:
+        200:
+          description: Notification sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        500:
+          description: Notification failed
+    """
     from notifier import test_notification
 
     data = request.get_json() or {}
@@ -789,7 +1559,28 @@ def notification_test():
 
 @bp.route("/notifications/status", methods=["GET"])
 def notification_status():
-    """Get notification configuration status."""
+    """Get notification configuration status.
+    ---
+    get:
+      tags:
+        - System
+      summary: Get notification status
+      description: Returns whether notifications are configured and the count of notification URLs.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Notification configuration status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  configured:
+                    type: boolean
+                  url_count:
+                    type: integer
+    """
     from notifier import get_notification_status
     return jsonify(get_notification_status())
 
