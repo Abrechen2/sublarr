@@ -9,7 +9,8 @@
     "blacklist": "Blacklist",
     "settings": "Settings",
     "logs": "Logs",
-    "statistics": "Statistics"
+    "statistics": "Statistics",
+    "tasks": "Tasks"
   },
   "nav_groups": {
     "content": "Content",
@@ -81,5 +82,25 @@
     "message": "This action cannot be undone.",
     "yes": "Yes",
     "no": "No"
+  },
+  "tasks": {
+    "title": "Tasks",
+    "run_now": "Run Now",
+    "running": "Running",
+    "idle": "Idle",
+    "last_run": "Last Run",
+    "next_run": "Next Run",
+    "interval": "Interval",
+    "status": "Status",
+    "no_tasks": "No background tasks configured",
+    "never": "Never",
+    "pending": "Pending",
+    "manual": "Manual only",
+    "every_minutes": "Every {{count}} min",
+    "every_hour": "Every hour",
+    "every_hours": "Every {{count}} hours",
+    "every_day": "Every day",
+    "triggered": "{{name}} triggered",
+    "trigger_failed": "Failed to trigger {{name}}"
   }
 }

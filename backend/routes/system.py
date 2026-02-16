@@ -1585,6 +1585,118 @@ def notification_status():
     return jsonify(get_notification_status())
 
 
+@bp.route("/tasks", methods=["GET"])
+def list_tasks():
+    """List background scheduler tasks with status and timing info.
+    ---
+    get:
+      tags:
+        - System
+      summary: List background tasks
+      description: Returns all background scheduler tasks with their current status, last run time, interval, and enabled state.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: List of scheduler tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        display_name:
+                          type: string
+                        running:
+                          type: boolean
+                        last_run:
+                          type: string
+                          nullable: true
+                          format: date-time
+                        next_run:
+                          type: string
+                          nullable: true
+                          format: date-time
+                        interval_hours:
+                          type: number
+                          nullable: true
+                        enabled:
+                          type: boolean
+    """
+    from config import get_settings
+    from wanted_scanner import get_scanner
+
+    s = get_settings()
+    tasks = []
+
+    try:
+        scanner = get_scanner()
+
+        # Wanted scan
+        scan_interval = getattr(s, "wanted_scan_interval_hours", 6)
+        scan_last = scanner.last_scan_at or None
+        scan_next = None
+        if scan_last and scan_interval:
+            try:
+                from datetime import timedelta
+                last_dt = datetime.fromisoformat(str(scan_last))
+                scan_next = (last_dt + timedelta(hours=scan_interval)).isoformat()
+            except Exception:
+                pass
+        tasks.append({
+            "name": "wanted_scan",
+            "display_name": "Wanted Scan",
+            "running": scanner.is_scanning,
+            "last_run": str(scan_last) if scan_last else None,
+            "next_run": scan_next,
+            "interval_hours": scan_interval,
+            "enabled": scan_interval > 0,
+        })
+
+        # Wanted search
+        search_interval = getattr(s, "wanted_search_interval_hours", 24)
+        search_last = scanner.last_search_at or None
+        search_next = None
+        if search_last and search_interval:
+            try:
+                from datetime import timedelta
+                last_dt = datetime.fromisoformat(str(search_last))
+                search_next = (last_dt + timedelta(hours=search_interval)).isoformat()
+            except Exception:
+                pass
+        tasks.append({
+            "name": "wanted_search",
+            "display_name": "Wanted Search",
+            "running": scanner.is_searching,
+            "last_run": str(search_last) if search_last else None,
+            "next_run": search_next,
+            "interval_hours": search_interval,
+            "enabled": search_interval > 0,
+        })
+    except Exception as exc:
+        logger.warning("Failed to read scanner tasks: %s", exc)
+
+    # Backup scheduler
+    backup_enabled = bool(getattr(s, "backup_schedule_enabled", False))
+    tasks.append({
+        "name": "backup",
+        "display_name": "Database Backup",
+        "running": False,
+        "last_run": None,
+        "next_run": None,
+        "interval_hours": 24 if backup_enabled else None,
+        "enabled": backup_enabled,
+    })
+
+    return jsonify({"tasks": tasks})
+
+
 @bp.route("/openapi.json", methods=["GET"])
 def openapi_spec():
     """Serve the OpenAPI 3.0.3 specification as JSON."""

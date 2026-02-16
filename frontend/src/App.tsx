@@ -18,6 +18,7 @@ const LibraryPage = lazy(() => import('@/pages/Library').then(m => ({ default: m
 const SeriesDetailPage = lazy(() => import('@/pages/SeriesDetail').then(m => ({ default: m.SeriesDetailPage })))
 const HistoryPage = lazy(() => import('@/pages/History').then(m => ({ default: m.HistoryPage })))
 const BlacklistPage = lazy(() => import('@/pages/Blacklist').then(m => ({ default: m.BlacklistPage })))
+const TasksPage = lazy(() => import('@/pages/Tasks').then(m => ({ default: m.TasksPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFound').then(m => ({ default: m.NotFoundPage })))
 const Onboarding = lazy(() => import('@/pages/Onboarding'))
 
@@ -48,6 +49,7 @@ function AnimatedRoutes() {
           <Route path="/blacklist" element={<BlacklistPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/statistics" element={<StatisticsPage />} />
+          <Route path="/tasks" element={<TasksPage />} />
           <Route path="/logs" element={<LogsPage />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="*" element={<NotFoundPage />} />

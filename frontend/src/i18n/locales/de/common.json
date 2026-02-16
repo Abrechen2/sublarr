@@ -9,7 +9,8 @@
     "blacklist": "Sperrliste",
     "settings": "Einstellungen",
     "logs": "Protokolle",
-    "statistics": "Statistiken"
+    "statistics": "Statistiken",
+    "tasks": "Aufgaben"
   },
   "nav_groups": {
     "content": "Inhalte",
@@ -81,5 +82,25 @@
     "message": "Diese Aktion kann nicht rueckgaengig gemacht werden.",
     "yes": "Ja",
     "no": "Nein"
+  },
+  "tasks": {
+    "title": "Aufgaben",
+    "run_now": "Jetzt starten",
+    "running": "Laeuft",
+    "idle": "Bereit",
+    "last_run": "Letzter Lauf",
+    "next_run": "Naechster Lauf",
+    "interval": "Intervall",
+    "status": "Status",
+    "no_tasks": "Keine Hintergrundaufgaben konfiguriert",
+    "never": "Nie",
+    "pending": "Ausstehend",
+    "manual": "Nur manuell",
+    "every_minutes": "Alle {{count}} Min.",
+    "every_hour": "Jede Stunde",
+    "every_hours": "Alle {{count}} Stunden",
+    "every_day": "Taeglich",
+    "triggered": "{{name}} gestartet",
+    "trigger_failed": "{{name}} konnte nicht gestartet werden"
   }
 }

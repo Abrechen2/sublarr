@@ -14,6 +14,7 @@ import {
   Clock,
   Ban,
   BarChart3,
+  ListChecks,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useHealth } from '@/hooks/useApi'
@@ -54,6 +55,7 @@ const navGroups: NavGroup[] = [
     items: [
       { to: '/settings', labelKey: 'nav.settings', icon: Settings },
       { to: '/statistics', labelKey: 'nav.statistics', icon: BarChart3 },
+      { to: '/tasks', labelKey: 'nav.tasks', icon: ListChecks },
       { to: '/logs', labelKey: 'nav.logs', icon: ScrollText },
     ],
   },

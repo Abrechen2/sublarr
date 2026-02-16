@@ -33,6 +33,7 @@ import {
   createFullBackup, listFullBackups, restoreFullBackup,
   getLogRotation, updateLogRotation,
   runSubtitleTool, previewSubtitle,
+  getTasks,
 } from '@/api/client'
 import type { LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig } from '@/lib/types'
 
@@ -937,5 +938,46 @@ export function useSubtitleTool() {
 export function usePreviewSubtitle() {
   return useMutation({
     mutationFn: (filePath: string) => previewSubtitle(filePath),
+  })
+}
+
+// ─── Scheduler Tasks ────────────────────────────────────────────────────────
+
+export function useTasks() {
+  return useQuery({
+    queryKey: ['tasks'],
+    queryFn: getTasks,
+    refetchInterval: 10000,
+  })
+}
+
+export function useTriggerTask() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (taskName: string) => {
+      // Map task names to their trigger endpoints
+      const triggerMap: Record<string, () => Promise<unknown>> = {
+        wanted_scan: async () => {
+          const { default: api } = await import('@/api/client')
+          return api.post('/wanted/refresh').then(r => r.data)
+        },
+        wanted_search: async () => {
+          const { default: api } = await import('@/api/client')
+          return api.post('/wanted/search-all').then(r => r.data)
+        },
+        backup: async () => {
+          const { default: api } = await import('@/api/client')
+          return api.post('/database/backup').then(r => r.data)
+        },
+      }
+      const trigger = triggerMap[taskName]
+      if (!trigger) throw new Error(`Unknown task: ${taskName}`)
+      return trigger()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['wanted'] })
+      queryClient.invalidateQueries({ queryKey: ['wanted-summary'] })
+    },
   })
 }
