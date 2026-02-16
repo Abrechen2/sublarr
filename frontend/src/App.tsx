@@ -1,21 +1,25 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ToastContainer, toast } from '@/components/shared/Toast'
+import { PageSkeleton } from '@/components/shared/PageSkeleton'
 import { useWebSocket } from '@/hooks/useWebSocket'
-import { Dashboard } from '@/pages/Dashboard'
-import { ActivityPage } from '@/pages/Activity'
-import { WantedPage } from '@/pages/Wanted'
-import { QueuePage } from '@/pages/Queue'
-import { SettingsPage } from '@/pages/Settings'
-import { LogsPage } from '@/pages/Logs'
-import { StatisticsPage } from '@/pages/Statistics'
-import { LibraryPage } from '@/pages/Library'
-import { SeriesDetailPage } from '@/pages/SeriesDetail'
-import { HistoryPage } from '@/pages/History'
-import { BlacklistPage } from '@/pages/Blacklist'
-import { NotFoundPage } from '@/pages/NotFound'
-import Onboarding from '@/pages/Onboarding'
+
+// Route-level code splitting: each page is lazy-loaded as a separate chunk
+const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })))
+const ActivityPage = lazy(() => import('@/pages/Activity').then(m => ({ default: m.ActivityPage })))
+const WantedPage = lazy(() => import('@/pages/Wanted').then(m => ({ default: m.WantedPage })))
+const QueuePage = lazy(() => import('@/pages/Queue').then(m => ({ default: m.QueuePage })))
+const SettingsPage = lazy(() => import('@/pages/Settings').then(m => ({ default: m.SettingsPage })))
+const LogsPage = lazy(() => import('@/pages/Logs').then(m => ({ default: m.LogsPage })))
+const StatisticsPage = lazy(() => import('@/pages/Statistics').then(m => ({ default: m.StatisticsPage })))
+const LibraryPage = lazy(() => import('@/pages/Library').then(m => ({ default: m.LibraryPage })))
+const SeriesDetailPage = lazy(() => import('@/pages/SeriesDetail').then(m => ({ default: m.SeriesDetailPage })))
+const HistoryPage = lazy(() => import('@/pages/History').then(m => ({ default: m.HistoryPage })))
+const BlacklistPage = lazy(() => import('@/pages/Blacklist').then(m => ({ default: m.BlacklistPage })))
+const NotFoundPage = lazy(() => import('@/pages/NotFound').then(m => ({ default: m.NotFoundPage })))
+const Onboarding = lazy(() => import('@/pages/Onboarding'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,21 +36,23 @@ function AnimatedRoutes() {
 
   return (
     <div key={location.pathname} className="page-enter">
-      <Routes location={location}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/library" element={<LibraryPage />} />
-        <Route path="/library/series/:id" element={<SeriesDetailPage />} />
-        <Route path="/activity" element={<ActivityPage />} />
-        <Route path="/wanted" element={<WantedPage />} />
-        <Route path="/queue" element={<QueuePage />} />
-        <Route path="/history" element={<HistoryPage />} />
-        <Route path="/blacklist" element={<BlacklistPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/statistics" element={<StatisticsPage />} />
-        <Route path="/logs" element={<LogsPage />} />
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+      <Suspense fallback={<PageSkeleton />}>
+        <Routes location={location}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/library" element={<LibraryPage />} />
+          <Route path="/library/series/:id" element={<SeriesDetailPage />} />
+          <Route path="/activity" element={<ActivityPage />} />
+          <Route path="/wanted" element={<WantedPage />} />
+          <Route path="/queue" element={<QueuePage />} />
+          <Route path="/history" element={<HistoryPage />} />
+          <Route path="/blacklist" element={<BlacklistPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/statistics" element={<StatisticsPage />} />
+          <Route path="/logs" element={<LogsPage />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
     </div>
   )
 }
