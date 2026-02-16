@@ -9,7 +9,46 @@ logger = logging.getLogger(__name__)
 
 @bp.route("/blacklist", methods=["GET"])
 def list_blacklist():
-    """Get paginated blacklist entries."""
+    """Get paginated blacklist entries.
+    ---
+    get:
+      tags:
+        - Blacklist
+      summary: List blacklist entries
+      description: Returns paginated subtitle blacklist entries. Blacklisted subtitles are excluded from future downloads.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+      responses:
+        200:
+          description: Paginated blacklist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  page:
+                    type: integer
+                  per_page:
+                    type: integer
+                  total:
+                    type: integer
+                  total_pages:
+                    type: integer
+    """
     from db.blacklist import get_blacklist_entries
 
     page = request.args.get("page", 1, type=int)
@@ -20,7 +59,50 @@ def list_blacklist():
 
 @bp.route("/blacklist", methods=["POST"])
 def add_to_blacklist():
-    """Add a subtitle to the blacklist."""
+    """Add a subtitle to the blacklist.
+    ---
+    post:
+      tags:
+        - Blacklist
+      summary: Add subtitle to blacklist
+      description: Blacklists a subtitle so it will not be downloaded again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - provider_name
+                - subtitle_id
+              properties:
+                provider_name:
+                  type: string
+                subtitle_id:
+                  type: string
+                language:
+                  type: string
+                file_path:
+                  type: string
+                title:
+                  type: string
+                reason:
+                  type: string
+      responses:
+        201:
+          description: Entry added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  id:
+                    type: integer
+        400:
+          description: Missing provider_name or subtitle_id
+    """
     from db.blacklist import add_blacklist_entry
 
     data = request.get_json() or {}
@@ -44,7 +126,34 @@ def add_to_blacklist():
 
 @bp.route("/blacklist/<int:entry_id>", methods=["DELETE"])
 def delete_blacklist_entry(entry_id):
-    """Remove a single blacklist entry."""
+    """Remove a single blacklist entry.
+    ---
+    delete:
+      tags:
+        - Blacklist
+      summary: Remove blacklist entry
+      description: Removes a single entry from the subtitle blacklist by ID.
+      parameters:
+        - in: path
+          name: entry_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Entry removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  id:
+                    type: integer
+        404:
+          description: Entry not found
+    """
     from db.blacklist import remove_blacklist_entry
 
     deleted = remove_blacklist_entry(entry_id)
@@ -55,7 +164,36 @@ def delete_blacklist_entry(entry_id):
 
 @bp.route("/blacklist", methods=["DELETE"])
 def clear_all_blacklist():
-    """Clear all blacklist entries. Requires ?confirm=true."""
+    """Clear all blacklist entries. Requires ?confirm=true.
+    ---
+    delete:
+      tags:
+        - Blacklist
+      summary: Clear all blacklist entries
+      description: Removes all entries from the blacklist. Requires confirm=true query parameter as a safety measure.
+      parameters:
+        - in: query
+          name: confirm
+          required: true
+          schema:
+            type: string
+            enum: ["true"]
+          description: Must be "true" to confirm clearing
+      responses:
+        200:
+          description: All entries cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  count:
+                    type: integer
+        400:
+          description: Missing confirm=true parameter
+    """
     from db.blacklist import clear_blacklist
 
     confirm = request.args.get("confirm", "").lower()
@@ -68,7 +206,24 @@ def clear_all_blacklist():
 
 @bp.route("/blacklist/count", methods=["GET"])
 def blacklist_count():
-    """Get blacklist entry count."""
+    """Get blacklist entry count.
+    ---
+    get:
+      tags:
+        - Blacklist
+      summary: Get blacklist count
+      description: Returns the total number of blacklisted subtitles.
+      responses:
+        200:
+          description: Blacklist count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+    """
     from db.blacklist import get_blacklist_count
     return jsonify({"count": get_blacklist_count()})
 
@@ -78,7 +233,56 @@ def blacklist_count():
 
 @bp.route("/history", methods=["GET"])
 def list_history():
-    """Get paginated download history."""
+    """Get paginated download history.
+    ---
+    get:
+      tags:
+        - Blacklist
+      summary: List download history
+      description: Returns paginated subtitle download history with optional provider and language filters.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - in: query
+          name: provider
+          schema:
+            type: string
+          description: Filter by provider name
+        - in: query
+          name: language
+          schema:
+            type: string
+          description: Filter by language code
+      responses:
+        200:
+          description: Paginated history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  page:
+                    type: integer
+                  per_page:
+                    type: integer
+                  total:
+                    type: integer
+                  total_pages:
+                    type: integer
+    """
     from db.library import get_download_history
 
     page = request.args.get("page", 1, type=int)
@@ -95,6 +299,35 @@ def list_history():
 
 @bp.route("/history/stats", methods=["GET"])
 def history_stats():
-    """Get aggregated download statistics."""
+    """Get aggregated download statistics.
+    ---
+    get:
+      tags:
+        - Blacklist
+      summary: Get download statistics
+      description: Returns aggregated download statistics including totals by provider, format, and language.
+      responses:
+        200:
+          description: Download statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_downloads:
+                    type: integer
+                  by_provider:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                  by_format:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                  by_language:
+                    type: object
+                    additionalProperties:
+                      type: integer
+    """
     from db.library import get_download_stats
     return jsonify(get_download_stats())

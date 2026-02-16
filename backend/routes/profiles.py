@@ -9,7 +9,26 @@ logger = logging.getLogger(__name__)
 
 @bp.route("/language-profiles", methods=["GET"])
 def list_language_profiles():
-    """Get all language profiles."""
+    """Get all language profiles.
+    ---
+    get:
+      tags:
+        - Profiles
+      summary: List all language profiles
+      description: Returns all configured language profiles including source/target languages, translation backend, and forced subtitle preference.
+      responses:
+        200:
+          description: List of language profiles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  profiles:
+                    type: array
+                    items:
+                      type: object
+    """
     from db.profiles import get_all_language_profiles
     profiles = get_all_language_profiles()
     return jsonify({"profiles": profiles})
@@ -17,7 +36,63 @@ def list_language_profiles():
 
 @bp.route("/language-profiles", methods=["POST"])
 def create_language_profile_endpoint():
-    """Create a new language profile."""
+    """Create a new language profile.
+    ---
+    post:
+      tags:
+        - Profiles
+      summary: Create a language profile
+      description: Creates a new language profile with source/target languages, translation backend, fallback chain, and forced subtitle preference.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                source_language:
+                  type: string
+                  default: en
+                source_language_name:
+                  type: string
+                  default: English
+                target_languages:
+                  type: array
+                  items:
+                    type: string
+                  default: ["de"]
+                target_language_names:
+                  type: array
+                  items:
+                    type: string
+                  default: ["German"]
+                translation_backend:
+                  type: string
+                  default: ollama
+                fallback_chain:
+                  type: array
+                  items:
+                    type: string
+                forced_preference:
+                  type: string
+                  enum: [disabled, separate, auto]
+                  default: disabled
+      responses:
+        201:
+          description: Profile created
+          content:
+            application/json:
+              schema:
+                type: object
+        400:
+          description: Validation error (missing name or target languages)
+        409:
+          description: Profile name already exists
+    """
     from db.profiles import create_language_profile, get_language_profile
 
     data = request.get_json() or {}
@@ -59,7 +134,63 @@ def create_language_profile_endpoint():
 
 @bp.route("/language-profiles/<int:profile_id>", methods=["PUT"])
 def update_language_profile_endpoint(profile_id):
-    """Update a language profile."""
+    """Update a language profile.
+    ---
+    put:
+      tags:
+        - Profiles
+      summary: Update a language profile
+      description: Updates an existing language profile. Only provided fields are changed.
+      parameters:
+        - in: path
+          name: profile_id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                source_language:
+                  type: string
+                source_language_name:
+                  type: string
+                target_languages:
+                  type: array
+                  items:
+                    type: string
+                target_language_names:
+                  type: array
+                  items:
+                    type: string
+                translation_backend:
+                  type: string
+                fallback_chain:
+                  type: array
+                  items:
+                    type: string
+                forced_preference:
+                  type: string
+                  enum: [disabled, separate, auto]
+      responses:
+        200:
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                type: object
+        400:
+          description: No fields to update or invalid forced_preference
+        404:
+          description: Profile not found
+        409:
+          description: Profile name already exists
+    """
     from db.profiles import get_language_profile, update_language_profile
 
     profile = get_language_profile(profile_id)
@@ -93,7 +224,34 @@ def update_language_profile_endpoint(profile_id):
 
 @bp.route("/language-profiles/<int:profile_id>", methods=["DELETE"])
 def delete_language_profile_endpoint(profile_id):
-    """Delete a language profile (cannot delete default)."""
+    """Delete a language profile (cannot delete default).
+    ---
+    delete:
+      tags:
+        - Profiles
+      summary: Delete a language profile
+      description: Deletes a language profile by ID. The default profile cannot be deleted.
+      parameters:
+        - in: path
+          name: profile_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Profile deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  id:
+                    type: integer
+        400:
+          description: Profile not found or is the default profile
+    """
     from db.profiles import delete_language_profile
 
     deleted = delete_language_profile(profile_id)
@@ -107,6 +265,50 @@ def assign_profile():
     """Assign a language profile to a series or movie.
 
     Body: { type: "series"|"movie", arr_id: int, profile_id: int }
+    ---
+    put:
+      tags:
+        - Profiles
+      summary: Assign profile to series or movie
+      description: Assigns a language profile to a specific series or movie by Arr ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+                - arr_id
+                - profile_id
+              properties:
+                type:
+                  type: string
+                  enum: [series, movie]
+                arr_id:
+                  type: integer
+                profile_id:
+                  type: integer
+      responses:
+        200:
+          description: Profile assigned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  type:
+                    type: string
+                  arr_id:
+                    type: integer
+                  profile_id:
+                    type: integer
+        400:
+          description: Missing required fields or invalid type
+        404:
+          description: Profile not found
     """
     from db.profiles import assign_series_profile, assign_movie_profile, get_language_profile
 
@@ -139,7 +341,41 @@ def assign_profile():
 
 @bp.route("/glossary", methods=["GET"])
 def list_glossary():
-    """Get glossary entries for a series."""
+    """Get glossary entries for a series.
+    ---
+    get:
+      tags:
+        - Profiles
+      summary: List glossary entries
+      description: Returns glossary entries for a series. Optionally filter by search query.
+      parameters:
+        - in: query
+          name: series_id
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: query
+          schema:
+            type: string
+          description: Search filter for glossary terms
+      responses:
+        200:
+          description: Glossary entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                  series_id:
+                    type: integer
+        400:
+          description: series_id is required
+    """
     from db.translation import get_glossary_entries, search_glossary_terms
 
     series_id = request.args.get("series_id", type=int)
@@ -158,7 +394,42 @@ def list_glossary():
 
 @bp.route("/glossary", methods=["POST"])
 def create_glossary_entry():
-    """Create a new glossary entry."""
+    """Create a new glossary entry.
+    ---
+    post:
+      tags:
+        - Profiles
+      summary: Create a glossary entry
+      description: Adds a new source-to-target term mapping for translation consistency.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - series_id
+                - source_term
+                - target_term
+              properties:
+                series_id:
+                  type: integer
+                source_term:
+                  type: string
+                target_term:
+                  type: string
+                notes:
+                  type: string
+      responses:
+        201:
+          description: Entry created
+          content:
+            application/json:
+              schema:
+                type: object
+        400:
+          description: Missing required fields
+    """
     from db.translation import add_glossary_entry, get_glossary_entry
 
     data = request.get_json() or {}
@@ -179,7 +450,44 @@ def create_glossary_entry():
 
 @bp.route("/glossary/<int:entry_id>", methods=["PUT"])
 def update_glossary_entry_endpoint(entry_id):
-    """Update a glossary entry."""
+    """Update a glossary entry.
+    ---
+    put:
+      tags:
+        - Profiles
+      summary: Update a glossary entry
+      description: Updates an existing glossary entry. Only provided fields are changed.
+      parameters:
+        - in: path
+          name: entry_id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                source_term:
+                  type: string
+                target_term:
+                  type: string
+                notes:
+                  type: string
+      responses:
+        200:
+          description: Updated entry
+          content:
+            application/json:
+              schema:
+                type: object
+        400:
+          description: No fields to update
+        404:
+          description: Entry not found
+    """
     from db.translation import get_glossary_entry, update_glossary_entry
 
     entry = get_glossary_entry(entry_id)
@@ -207,7 +515,34 @@ def update_glossary_entry_endpoint(entry_id):
 
 @bp.route("/glossary/<int:entry_id>", methods=["DELETE"])
 def delete_glossary_entry_endpoint(entry_id):
-    """Delete a glossary entry."""
+    """Delete a glossary entry.
+    ---
+    delete:
+      tags:
+        - Profiles
+      summary: Delete a glossary entry
+      description: Removes a glossary entry by ID.
+      parameters:
+        - in: path
+          name: entry_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Entry deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  id:
+                    type: integer
+        404:
+          description: Entry not found
+    """
     from db.translation import delete_glossary_entry
 
     deleted = delete_glossary_entry(entry_id)
@@ -221,7 +556,26 @@ def delete_glossary_entry_endpoint(entry_id):
 
 @bp.route("/prompt-presets", methods=["GET"])
 def list_prompt_presets():
-    """Get all prompt presets."""
+    """Get all prompt presets.
+    ---
+    get:
+      tags:
+        - Profiles
+      summary: List prompt presets
+      description: Returns all configured prompt presets for LLM translation.
+      responses:
+        200:
+          description: List of prompt presets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  presets:
+                    type: array
+                    items:
+                      type: object
+    """
     from db.translation import get_prompt_presets
     presets = get_prompt_presets()
     return jsonify({"presets": presets})
@@ -229,7 +583,23 @@ def list_prompt_presets():
 
 @bp.route("/prompt-presets/default", methods=["GET"])
 def get_default_preset():
-    """Get the default prompt preset."""
+    """Get the default prompt preset.
+    ---
+    get:
+      tags:
+        - Profiles
+      summary: Get default prompt preset
+      description: Returns the prompt preset currently marked as default.
+      responses:
+        200:
+          description: Default preset
+          content:
+            application/json:
+              schema:
+                type: object
+        404:
+          description: No default preset found
+    """
     from db.translation import get_default_prompt_preset
     preset = get_default_prompt_preset()
     if not preset:
@@ -239,7 +609,40 @@ def get_default_preset():
 
 @bp.route("/prompt-presets", methods=["POST"])
 def create_prompt_preset():
-    """Create a new prompt preset."""
+    """Create a new prompt preset.
+    ---
+    post:
+      tags:
+        - Profiles
+      summary: Create a prompt preset
+      description: Creates a new prompt preset for LLM translation. If is_default is true, the previous default is unset.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - prompt_template
+              properties:
+                name:
+                  type: string
+                prompt_template:
+                  type: string
+                is_default:
+                  type: boolean
+                  default: false
+      responses:
+        201:
+          description: Preset created
+          content:
+            application/json:
+              schema:
+                type: object
+        400:
+          description: Missing name or prompt_template
+    """
     from db.translation import add_prompt_preset, get_prompt_preset
     from config import reload_settings
     from db.config import get_all_config_entries
@@ -265,7 +668,44 @@ def create_prompt_preset():
 
 @bp.route("/prompt-presets/<int:preset_id>", methods=["PUT"])
 def update_prompt_preset_endpoint(preset_id):
-    """Update a prompt preset."""
+    """Update a prompt preset.
+    ---
+    put:
+      tags:
+        - Profiles
+      summary: Update a prompt preset
+      description: Updates an existing prompt preset. If is_default is set to true, the previous default is unset.
+      parameters:
+        - in: path
+          name: preset_id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                prompt_template:
+                  type: string
+                is_default:
+                  type: boolean
+      responses:
+        200:
+          description: Updated preset
+          content:
+            application/json:
+              schema:
+                type: object
+        400:
+          description: No fields to update
+        404:
+          description: Preset not found
+    """
     from db.translation import get_prompt_preset, update_prompt_preset
     from config import reload_settings
     from db.config import get_all_config_entries
@@ -301,7 +741,34 @@ def update_prompt_preset_endpoint(preset_id):
 
 @bp.route("/prompt-presets/<int:preset_id>", methods=["DELETE"])
 def delete_prompt_preset_endpoint(preset_id):
-    """Delete a prompt preset."""
+    """Delete a prompt preset.
+    ---
+    delete:
+      tags:
+        - Profiles
+      summary: Delete a prompt preset
+      description: Deletes a prompt preset by ID. Cannot delete the last remaining preset.
+      parameters:
+        - in: path
+          name: preset_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Preset deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  id:
+                    type: integer
+        404:
+          description: Preset not found or cannot delete last preset
+    """
     from db.translation import delete_prompt_preset
 
     deleted = delete_prompt_preset(preset_id)

@@ -13,6 +13,28 @@ def list_plugins():
 
     Returns:
         {"plugins": [...]} or {"plugins": [], "error": "..."} if no plugin manager.
+    ---
+    get:
+      tags:
+        - Plugins
+      summary: List loaded plugins
+      description: Returns all loaded subtitle provider plugins with their manifest info, config fields, and any load errors.
+      responses:
+        200:
+          description: Plugin list with errors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plugins:
+                    type: array
+                    items:
+                      type: object
+                  errors:
+                    type: array
+                    items:
+                      type: string
     """
     from providers.plugins import get_plugin_manager
 
@@ -38,6 +60,30 @@ def reload_plugins():
 
     Returns:
         {"loaded": [...], "errors": [...]}
+    ---
+    post:
+      tags:
+        - Plugins
+      summary: Reload plugins
+      description: Unloads all plugins, re-scans the plugins directory, and re-initializes the ProviderManager.
+      responses:
+        200:
+          description: Reload result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  loaded:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        503:
+          description: Plugin system not initialized
     """
     from providers.plugins import get_plugin_manager
     from providers import invalidate_manager
@@ -66,6 +112,36 @@ def get_plugin_config(name):
 
     Returns:
         {"config": {...}} with the plugin's current config values.
+    ---
+    get:
+      tags:
+        - Plugins
+      summary: Get plugin config
+      description: Returns the current configuration values and field definitions for a specific plugin.
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Plugin config
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  config:
+                    type: object
+                  config_fields:
+                    type: array
+                    items:
+                      type: object
+        404:
+          description: Plugin not found
     """
     from db.plugins import get_plugin_config as db_get_plugin_config
     from providers import _PROVIDER_CLASSES
@@ -99,6 +175,46 @@ def update_plugin_config(name):
 
     Returns:
         {"status": "updated", "keys": [...]}
+    ---
+    put:
+      tags:
+        - Plugins
+      summary: Update plugin config
+      description: Updates configuration for a plugin and invalidates the ProviderManager for re-initialization.
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+      responses:
+        200:
+          description: Config updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  name:
+                    type: string
+                  keys:
+                    type: array
+                    items:
+                      type: string
+        400:
+          description: Invalid request body
+        404:
+          description: Plugin not found
     """
     from db.plugins import set_plugin_config
     from providers import _PROVIDER_CLASSES, invalidate_manager

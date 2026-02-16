@@ -46,6 +46,44 @@ def transcribe():
 
     Accepts JSON: {"file_path": str, "language": str (optional)}
     Returns 202 with job_id and status.
+    ---
+    post:
+      tags:
+        - Whisper
+      summary: Submit transcription job
+      description: Submits an audio/video file for speech-to-text transcription using the configured Whisper backend. Returns immediately with a job ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - file_path
+              properties:
+                file_path:
+                  type: string
+                  description: Path to audio or video file
+                language:
+                  type: string
+                  description: Source language code (defaults to config source_language)
+      responses:
+        202:
+          description: Job queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [queued]
+        400:
+          description: Missing file_path
+        404:
+          description: File not found
     """
     import os
     from whisper import get_whisper_manager
@@ -88,6 +126,34 @@ def list_queue():
     """List all Whisper jobs with progress.
 
     Optional query params: status (filter), limit (default 50).
+    ---
+    get:
+      tags:
+        - Whisper
+      summary: List transcription queue
+      description: Returns Whisper transcription jobs with optional status filter and limit.
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [queued, extracting, loading, transcribing, saving, completed, failed, cancelled]
+          description: Filter by job status
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+      responses:
+        200:
+          description: List of Whisper jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
     """
     from db.whisper import get_whisper_jobs
 
@@ -101,7 +167,29 @@ def list_queue():
 
 @bp.route("/jobs/<job_id>", methods=["GET"])
 def get_job(job_id):
-    """Get a specific job's status and result."""
+    """Get a specific job's status and result.
+    ---
+    get:
+      tags:
+        - Whisper
+      summary: Get transcription job
+      description: Returns the status and result of a specific Whisper transcription job.
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Job details
+          content:
+            application/json:
+              schema:
+                type: object
+        404:
+          description: Job not found
+    """
     from db.whisper import get_whisper_job
 
     job = get_whisper_job(job_id)
@@ -116,6 +204,35 @@ def delete_job(job_id):
 
     If job is queued: mark cancelled.
     If job is completed/failed: delete from DB.
+    ---
+    delete:
+      tags:
+        - Whisper
+      summary: Cancel or delete transcription job
+      description: Cancels a queued job or deletes a completed/failed job from the database.
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Job cancelled or deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  action:
+                    type: string
+                    enum: [cancelled, deleted]
+        404:
+          description: Job not found
+        409:
+          description: Cannot delete job in progress
     """
     from db.whisper import get_whisper_job, delete_whisper_job
 
@@ -145,7 +262,26 @@ def delete_job(job_id):
 
 @bp.route("/backends", methods=["GET"])
 def list_backends():
-    """List available Whisper backends with config."""
+    """List available Whisper backends with config.
+    ---
+    get:
+      tags:
+        - Whisper
+      summary: List Whisper backends
+      description: Returns all available Whisper backends with their configuration fields and status.
+      responses:
+        200:
+          description: List of Whisper backends
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  backends:
+                    type: array
+                    items:
+                      type: object
+    """
     from whisper import get_whisper_manager
 
     manager = get_whisper_manager()
@@ -155,7 +291,34 @@ def list_backends():
 
 @bp.route("/backends/test/<name>", methods=["POST"])
 def test_backend(name):
-    """Test a specific Whisper backend."""
+    """Test a specific Whisper backend.
+    ---
+    post:
+      tags:
+        - Whisper
+      summary: Test Whisper backend
+      description: Tests connectivity and availability of a specific Whisper backend.
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Test result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  healthy:
+                    type: boolean
+                  message:
+                    type: string
+        404:
+          description: Backend not found
+    """
     from whisper import get_whisper_manager
 
     manager = get_whisper_manager()
@@ -174,6 +337,29 @@ def get_backend_config(name):
 
     Reads from config_entries with whisper.<name>.<key> namespacing.
     Masks password fields.
+    ---
+    get:
+      tags:
+        - Whisper
+      summary: Get Whisper backend config
+      description: Returns the configuration for a specific Whisper backend with password fields masked.
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Backend config
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+        404:
+          description: Backend not found
     """
     from whisper import get_whisper_manager
     from db.config import get_all_config_entries
@@ -219,6 +405,40 @@ def save_backend_config(name):
 
     Accepts JSON config dict. Saves to config_entries with whisper.<name>.<key> namespacing.
     Invalidates cached backend instance.
+    ---
+    put:
+      tags:
+        - Whisper
+      summary: Save Whisper backend config
+      description: Saves configuration for a specific Whisper backend and invalidates the cached instance.
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+      responses:
+        200:
+          description: Config saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        400:
+          description: No config data provided
+        404:
+          description: Backend not found
     """
     from whisper import get_whisper_manager
     from db.config import save_config_entry
@@ -250,7 +470,28 @@ def save_backend_config(name):
 
 @bp.route("/config", methods=["GET"])
 def get_whisper_config():
-    """Get global Whisper config."""
+    """Get global Whisper config.
+    ---
+    get:
+      tags:
+        - Whisper
+      summary: Get global Whisper config
+      description: Returns global Whisper configuration including enabled state, active backend, and concurrency limit.
+      responses:
+        200:
+          description: Whisper config
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  whisper_backend:
+                    type: string
+                  max_concurrent_whisper:
+                    type: integer
+                  whisper_enabled:
+                    type: boolean
+    """
     config = {
         "whisper_backend": _get_config("whisper_backend", "subgen"),
         "max_concurrent_whisper": int(_get_config("max_concurrent_whisper", "1")),
@@ -264,6 +505,37 @@ def save_whisper_config():
     """Save global Whisper config.
 
     Accepts JSON: {"whisper_backend": str, "max_concurrent_whisper": int, "whisper_enabled": bool}
+    ---
+    put:
+      tags:
+        - Whisper
+      summary: Save global Whisper config
+      description: Updates global Whisper configuration. Resets the queue singleton if max_concurrent changes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                whisper_backend:
+                  type: string
+                max_concurrent_whisper:
+                  type: integer
+                whisper_enabled:
+                  type: boolean
+      responses:
+        200:
+          description: Config saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        400:
+          description: No config data provided
     """
     from db.config import save_config_entry
 
@@ -293,7 +565,30 @@ def save_whisper_config():
 
 @bp.route("/stats", methods=["GET"])
 def whisper_stats():
-    """Get Whisper statistics."""
+    """Get Whisper statistics.
+    ---
+    get:
+      tags:
+        - Whisper
+      summary: Get Whisper statistics
+      description: Returns aggregated Whisper transcription statistics including total jobs, status breakdown, and average processing time.
+      responses:
+        200:
+          description: Whisper stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  by_status:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                  avg_processing_time:
+                    type: number
+    """
     from db.whisper import get_whisper_stats
 
     stats = get_whisper_stats()
