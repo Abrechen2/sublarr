@@ -204,12 +204,14 @@ Plans:
   3. A detailed health endpoint (/health/detailed) reports status of all subsystems (DB, providers, translation backends, media servers)
   4. Migration guide, user guide, and plugin developer guide are published; community provider repository is set up
   5. v0.9.0-beta is tagged, Docker images published, CHANGELOG written, Unraid template updated
-**Plans**: TBD
+**Plans:** 5 plans
 
 Plans:
-- [ ] 09-01: TBD
-- [ ] 09-02: TBD
-- [ ] 09-03: TBD
+- [ ] 09-01-PLAN.md -- OpenAPI infrastructure (apispec + Swagger UI), version centralization, YAML docstrings for 6 HIGH-priority blueprints
+- [ ] 09-02-PLAN.md -- Backend performance: incremental wanted scan, parallel wanted search, extended /health/detailed
+- [ ] 09-03-PLAN.md -- Frontend performance: React.lazy code splitting, Settings.tsx split into tab components
+- [ ] 09-04-PLAN.md -- Complete OpenAPI docstrings for remaining 9 blueprints, Tasks scheduler page
+- [ ] 09-05-PLAN.md -- Release preparation: CHANGELOG, migration guide, user guide, plugin docs, Unraid template
 
 ### Phase 10: Performance & Scalability
 **Goal**: Users with large libraries can optionally use PostgreSQL instead of SQLite and Redis for caching/job queue, with zero-config SQLite remaining the default
@@ -339,7 +341,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | 6. Forced/Signs Subs | 3/3 | Complete | 2026-02-15 |
 | 7. Events/Hooks + Custom Scoring | 3/3 | Complete | 2026-02-15 |
 | 8. i18n + Backup + Admin Polish | 5/5 | Complete | 2026-02-15 |
-| 9. OpenAPI + Release Preparation | 0/TBD | Not started | - |
+| 9. OpenAPI + Release Preparation | 0/5 | Not started | - |
 | 10. Performance & Scalability | 0/TBD | Not started | - |
 | 11. Subtitle Editor | 0/TBD | Not started | - |
 | 12. Batch Operations + Smart-Filter | 0/TBD | Not started | - |
