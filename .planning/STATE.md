@@ -226,6 +226,11 @@ Recent decisions affecting current work:
 - [08-05]: Onboarding ALL_STEPS uses titleKey/descKey pattern (static const, resolved at render via t())
 - [08-05]: Toast.tsx skipped -- no built-in text labels, only renders dynamic messages from callers
 - [08-05]: Statistics.tsx auto-wrapped (gap from parallel 08-03 execution, translation JSON existed from 08-04)
+- [09-01]: apispec-webframeworks pinned to >=1.0.0 (not >=1.3.0 as planned -- latest available is 1.2.0)
+- [09-01]: OpenAPI spec is module-level singleton -- register_all_paths called once after register_blueprints
+- [09-01]: Version centralized in version.py -- used by health, backup manifest, SPA fallback, and OpenAPI spec
+- [09-01]: YAML docstring pattern: human summary + --- + OpenAPI YAML block in each view function
+- [09-01]: Tag names match blueprint domains: System, Translate, Providers, Wanted, Library, Config
 - [09-02]: Incremental scan uses ISO timestamp comparison on Sonarr lastInfoSync and Radarr movieFile.dateAdded
 - [09-02]: Full cleanup only runs on full scans; incremental scans skip path-based removal to avoid false removals
 - [09-02]: Parallel search uses max_workers=min(4, total) -- bounded to avoid over-parallelization
