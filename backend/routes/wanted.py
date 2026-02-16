@@ -27,7 +27,71 @@ wanted_batch_lock = threading.Lock()
 
 @bp.route("/wanted", methods=["GET"])
 def list_wanted():
-    """Get paginated wanted items."""
+    """Get paginated wanted items.
+    ---
+    get:
+      tags:
+        - Wanted
+      summary: List wanted items
+      description: Returns a paginated list of wanted subtitle items with optional filters for type, status, series, and subtitle type.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+          description: Items per page
+        - in: query
+          name: item_type
+          schema:
+            type: string
+            enum: [episode, movie]
+          description: Filter by item type
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [wanted, ignored, failed, found]
+          description: Filter by item status
+        - in: query
+          name: series_id
+          schema:
+            type: integer
+          description: Filter by Sonarr series ID
+        - in: query
+          name: subtitle_type
+          schema:
+            type: string
+            enum: [full, forced]
+          description: Filter by subtitle type
+      responses:
+        200:
+          description: Paginated wanted items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  per_page:
+                    type: integer
+    """
     from db.wanted import get_wanted_items
 
     page = request.args.get("page", 1, type=int)
@@ -47,7 +111,39 @@ def list_wanted():
 
 @bp.route("/wanted/summary", methods=["GET"])
 def wanted_summary():
-    """Get aggregated wanted stats."""
+    """Get aggregated wanted stats.
+    ---
+    get:
+      tags:
+        - Wanted
+      summary: Get wanted summary
+      description: Returns aggregated wanted statistics including counts by type, status, subtitle type, and scan state.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Wanted summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  by_type:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                  scan_running:
+                    type: boolean
+                  last_scan_at:
+                    type: string
+                    nullable: true
+                  by_subtitle_type:
+                    type: object
+                    additionalProperties:
+                      type: integer
+    """
     from wanted_scanner import get_scanner
     from db.wanted import get_wanted_summary, get_wanted_by_subtitle_type
 
@@ -61,7 +157,40 @@ def wanted_summary():
 
 @bp.route("/wanted/refresh", methods=["POST"])
 def refresh_wanted():
-    """Trigger a wanted scan. Optional body: {series_id: int}"""
+    """Trigger a wanted scan.
+    ---
+    post:
+      tags:
+        - Wanted
+      summary: Trigger wanted scan
+      description: Starts a background wanted scan for all series or a specific series. Results emitted via WebSocket.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                series_id:
+                  type: integer
+                  description: Optional Sonarr series ID to scan (omit for full scan)
+      responses:
+        202:
+          description: Scan started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  series_id:
+                    type: integer
+                    nullable: true
+        409:
+          description: Scan already running
+    """
     from wanted_scanner import get_scanner
 
     scanner = get_scanner()
@@ -86,7 +215,55 @@ def refresh_wanted():
 
 @bp.route("/wanted/<int:item_id>/status", methods=["PUT"])
 def update_wanted_item_status(item_id):
-    """Update a wanted item's status (e.g. ignore/un-ignore)."""
+    """Update a wanted item's status (e.g. ignore/un-ignore).
+    ---
+    put:
+      tags:
+        - Wanted
+      summary: Update wanted item status
+      description: Changes the status of a wanted item (e.g. mark as ignored or re-enable).
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: item_id
+          required: true
+          schema:
+            type: integer
+          description: Wanted item ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [wanted, ignored, failed]
+                error:
+                  type: string
+                  description: Optional error message when setting status to failed
+      responses:
+        200:
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  id:
+                    type: integer
+                  new_status:
+                    type: string
+        400:
+          description: Invalid status value
+        404:
+          description: Item not found
+    """
     from db.wanted import get_wanted_item, update_wanted_status
 
     data = request.get_json() or {}
@@ -105,7 +282,37 @@ def update_wanted_item_status(item_id):
 
 @bp.route("/wanted/<int:item_id>", methods=["DELETE"])
 def delete_wanted(item_id):
-    """Remove a wanted item."""
+    """Remove a wanted item.
+    ---
+    delete:
+      tags:
+        - Wanted
+      summary: Delete wanted item
+      description: Permanently removes a wanted item from the database.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: item_id
+          required: true
+          schema:
+            type: integer
+          description: Wanted item ID
+      responses:
+        200:
+          description: Item deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  id:
+                    type: integer
+        404:
+          description: Item not found
+    """
     from db.wanted import get_wanted_item, delete_wanted_item
 
     item = get_wanted_item(item_id)
@@ -118,7 +325,35 @@ def delete_wanted(item_id):
 
 @bp.route("/wanted/<int:item_id>/search", methods=["POST"])
 def search_wanted(item_id):
-    """Search providers for a specific wanted item."""
+    """Search providers for a specific wanted item.
+    ---
+    post:
+      tags:
+        - Wanted
+      summary: Search for wanted item
+      description: Searches all enabled subtitle providers for a specific wanted item and returns matching results.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: item_id
+          required: true
+          schema:
+            type: integer
+          description: Wanted item ID
+      responses:
+        200:
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        400:
+          description: Search error
+        404:
+          description: Item not found
+    """
     from db.wanted import get_wanted_item
     from wanted_search import search_wanted_item
 
@@ -136,7 +371,37 @@ def search_wanted(item_id):
 
 @bp.route("/wanted/<int:item_id>/process", methods=["POST"])
 def process_wanted(item_id):
-    """Download + translate for a single wanted item (async)."""
+    """Download + translate for a single wanted item (async).
+    ---
+    post:
+      tags:
+        - Wanted
+      summary: Process wanted item
+      description: Downloads the best matching subtitle and translates it for the specified wanted item. Runs asynchronously.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: item_id
+          required: true
+          schema:
+            type: integer
+          description: Wanted item ID
+      responses:
+        202:
+          description: Processing started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  wanted_id:
+                    type: integer
+        404:
+          description: Item not found
+    """
     from db.wanted import get_wanted_item
     from wanted_search import process_wanted_item
 
@@ -161,7 +426,43 @@ def process_wanted(item_id):
 
 @bp.route("/wanted/batch-search", methods=["POST"])
 def wanted_batch_search():
-    """Process all wanted items (async with progress tracking)."""
+    """Process all wanted items (async with progress tracking).
+    ---
+    post:
+      tags:
+        - Wanted
+      summary: Batch search wanted items
+      description: >
+        Processes all wanted items (or specified IDs) asynchronously.
+        Progress is emitted via WebSocket (wanted_batch_progress event).
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                item_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: Optional list of specific item IDs to process. Omit for all.
+      responses:
+        202:
+          description: Batch search started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  total_items:
+                    type: integer
+        409:
+          description: Batch already running
+    """
     from db.wanted import get_wanted_count
     from wanted_search import process_wanted_batch
 
@@ -232,14 +533,67 @@ def wanted_batch_search():
 
 @bp.route("/wanted/batch-search/status", methods=["GET"])
 def wanted_batch_status():
-    """Get wanted batch search progress."""
+    """Get wanted batch search progress.
+    ---
+    get:
+      tags:
+        - Wanted
+      summary: Get batch search status
+      description: Returns the current wanted batch search progress and state.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Batch state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  running:
+                    type: boolean
+                  total:
+                    type: integer
+                  processed:
+                    type: integer
+                  found:
+                    type: integer
+                  failed:
+                    type: integer
+                  skipped:
+                    type: integer
+                  current_item:
+                    type: string
+                    nullable: true
+    """
     with wanted_batch_lock:
         return jsonify(dict(wanted_batch_state))
 
 
 @bp.route("/wanted/search-all", methods=["POST"])
 def wanted_search_all():
-    """Trigger a search-all for wanted items (provider search for all pending items)."""
+    """Trigger a search-all for wanted items (provider search for all pending items).
+    ---
+    post:
+      tags:
+        - Wanted
+      summary: Search all wanted items
+      description: Triggers provider search for all pending wanted items. Progress emitted via WebSocket.
+      security:
+        - apiKeyAuth: []
+      responses:
+        202:
+          description: Search started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        409:
+          description: Search already running
+    """
     from wanted_scanner import get_scanner
 
     scanner = get_scanner()
@@ -258,11 +612,54 @@ def wanted_search_all():
 @bp.route("/wanted/<int:item_id>/extract", methods=["POST"])
 def extract_embedded_sub(item_id):
     """Extract an embedded subtitle stream from an MKV file.
-
-    Body: {
-        "stream_index": int,  // Optional: specific stream index
-        "target_language": "de"  // Optional: target language code
-    }
+    ---
+    post:
+      tags:
+        - Wanted
+      summary: Extract embedded subtitle
+      description: Extracts an embedded subtitle stream from an MKV/MP4 container for the specified wanted item.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: item_id
+          required: true
+          schema:
+            type: integer
+          description: Wanted item ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                stream_index:
+                  type: integer
+                  description: Specific subtitle stream index to extract
+                target_language:
+                  type: string
+                  description: Target language code (defaults to item or global setting)
+      responses:
+        200:
+          description: Subtitle extracted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  output_path:
+                    type: string
+                  format:
+                    type: string
+                    enum: [ass, srt]
+                  language:
+                    type: string
+        400:
+          description: File is not a video container
+        404:
+          description: Item, file, or subtitle stream not found
     """
     from ass_utils import run_ffprobe, select_best_subtitle_stream, extract_subtitle_stream
     from translator import get_output_path_for_lang

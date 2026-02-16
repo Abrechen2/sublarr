@@ -12,7 +12,24 @@ logger = logging.getLogger(__name__)
 
 @bp.route("/config", methods=["GET"])
 def get_config():
-    """Get current configuration (without secrets)."""
+    """Get current configuration (without secrets).
+    ---
+    get:
+      tags:
+        - Config
+      summary: Get configuration
+      description: Returns the current application configuration with secret values masked.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Configuration object
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+    """
     from config import get_settings
     s = get_settings()
     return jsonify(s.get_safe_config())
@@ -20,7 +37,43 @@ def get_config():
 
 @bp.route("/settings/path-mapping/test", methods=["POST"])
 def test_path_mapping():
-    """Test path mapping by mapping a Sonarr/Radarr path to local path."""
+    """Test path mapping by mapping a Sonarr/Radarr path to local path.
+    ---
+    post:
+      tags:
+        - Config
+      summary: Test path mapping
+      description: Maps a remote Sonarr/Radarr path to the local filesystem path and checks if it exists.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [remote_path]
+              properties:
+                remote_path:
+                  type: string
+                  description: Remote path from Sonarr/Radarr
+      responses:
+        200:
+          description: Path mapping result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  remote_path:
+                    type: string
+                  mapped_path:
+                    type: string
+                  exists:
+                    type: boolean
+        400:
+          description: Missing remote_path
+    """
     from config import map_path
 
     data = request.get_json() or {}
@@ -39,7 +92,46 @@ def test_path_mapping():
 
 @bp.route("/config", methods=["PUT"])
 def update_config():
-    """Update configuration values and reload settings."""
+    """Update configuration values and reload settings.
+    ---
+    put:
+      tags:
+        - Config
+      summary: Update configuration
+      description: >
+        Saves partial configuration updates to the database and reloads settings.
+        Invalidates all cached clients (Sonarr, Radarr, providers, media servers).
+        Masked password values ('***configured***') are skipped.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              description: Key-value pairs of config settings to update
+      responses:
+        200:
+          description: Configuration saved and reloaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  updated_keys:
+                    type: array
+                    items:
+                      type: string
+                  config:
+                    type: object
+                    additionalProperties: true
+        400:
+          description: No config values provided
+    """
     from config import Settings, get_settings, reload_settings
     from db.config import save_config_entry, get_all_config_entries
     from wanted_scanner import invalidate_scanner
@@ -112,7 +204,34 @@ def update_config():
 
 @bp.route("/onboarding/status", methods=["GET"])
 def onboarding_status():
-    """Check if onboarding has been completed."""
+    """Check if onboarding has been completed.
+    ---
+    get:
+      tags:
+        - Config
+      summary: Get onboarding status
+      description: Returns whether onboarding has been completed and which services are configured.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Onboarding status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  completed:
+                    type: boolean
+                  has_sonarr:
+                    type: boolean
+                  has_radarr:
+                    type: boolean
+                  has_ollama:
+                    type: boolean
+                  has_providers:
+                    type: boolean
+    """
     from config import get_settings
     from db.config import get_config_entry
 
@@ -129,7 +248,26 @@ def onboarding_status():
 
 @bp.route("/onboarding/complete", methods=["POST"])
 def onboarding_complete():
-    """Mark onboarding as completed."""
+    """Mark onboarding as completed.
+    ---
+    post:
+      tags:
+        - Config
+      summary: Complete onboarding
+      description: Marks the onboarding wizard as completed so it will not show again.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Onboarding marked complete
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+    """
     from db.config import save_config_entry
     save_config_entry("onboarding_completed", "true")
     return jsonify({"status": "completed"})
@@ -137,7 +275,24 @@ def onboarding_complete():
 
 @bp.route("/config/export", methods=["GET"])
 def export_config():
-    """Export current configuration as JSON (without secrets)."""
+    """Export current configuration as JSON (without secrets).
+    ---
+    get:
+      tags:
+        - Config
+      summary: Export configuration
+      description: Exports the current configuration as JSON with secret values masked. Suitable for backup or sharing.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Configuration JSON
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+    """
     from config import get_settings
     s = get_settings()
     return jsonify(s.get_safe_config())
@@ -145,7 +300,49 @@ def export_config():
 
 @bp.route("/config/import", methods=["POST"])
 def import_config():
-    """Import configuration from JSON. Secrets are skipped for safety."""
+    """Import configuration from JSON. Secrets are skipped for safety.
+    ---
+    post:
+      tags:
+        - Config
+      summary: Import configuration
+      description: >
+        Imports configuration from a JSON payload. Secret keys (API keys, passwords) are
+        automatically skipped for safety. Reloads settings and invalidates cached clients after import.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              description: Configuration key-value pairs to import
+      responses:
+        200:
+          description: Configuration imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  imported_keys:
+                    type: array
+                    items:
+                      type: string
+                  skipped_secrets:
+                    type: array
+                    items:
+                      type: string
+                  config:
+                    type: object
+                    additionalProperties: true
+        400:
+          description: No config data provided
+    """
     from config import Settings, reload_settings
     from db.config import save_config_entry, get_all_config_entries
     from wanted_scanner import invalidate_scanner

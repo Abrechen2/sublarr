@@ -9,7 +9,34 @@ logger = logging.getLogger(__name__)
 
 @bp.route("/library", methods=["GET"])
 def get_library():
-    """Get series/movies with subtitle status, profile assignments, and missing counts."""
+    """Get series/movies with subtitle status, profile assignments, and missing counts.
+    ---
+    get:
+      tags:
+        - Library
+      summary: Get library
+      description: Returns all series and movies from Sonarr/Radarr with subtitle status, language profile assignments, and missing subtitle counts.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Library data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  series:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  movies:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+    """
     from db.profiles import get_series_profile_map, get_default_profile
     from db.wanted import get_series_missing_counts
 
@@ -52,7 +79,30 @@ def get_library():
 
 @bp.route("/sonarr/instances", methods=["GET"])
 def get_sonarr_instances():
-    """Get all configured Sonarr instances."""
+    """Get all configured Sonarr instances.
+    ---
+    get:
+      tags:
+        - Library
+      summary: List Sonarr instances
+      description: Returns all configured Sonarr instance connections.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Sonarr instances
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    url:
+                      type: string
+    """
     from config import get_sonarr_instances
     instances = get_sonarr_instances()
     return jsonify(instances)
@@ -60,7 +110,30 @@ def get_sonarr_instances():
 
 @bp.route("/radarr/instances", methods=["GET"])
 def get_radarr_instances():
-    """Get all configured Radarr instances."""
+    """Get all configured Radarr instances.
+    ---
+    get:
+      tags:
+        - Library
+      summary: List Radarr instances
+      description: Returns all configured Radarr instance connections.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Radarr instances
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    url:
+                      type: string
+    """
     from config import get_radarr_instances
     instances = get_radarr_instances()
     return jsonify(instances)
@@ -68,7 +141,46 @@ def get_radarr_instances():
 
 @bp.route("/sonarr/instances/test", methods=["POST"])
 def test_sonarr_instance():
-    """Test connection to a Sonarr instance."""
+    """Test connection to a Sonarr instance.
+    ---
+    post:
+      tags:
+        - Library
+      summary: Test Sonarr connection
+      description: Tests connectivity to a Sonarr instance using the provided URL and API key.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url, api_key]
+              properties:
+                url:
+                  type: string
+                  description: Sonarr base URL
+                api_key:
+                  type: string
+                  description: Sonarr API key
+      responses:
+        200:
+          description: Connection test result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  healthy:
+                    type: boolean
+                  message:
+                    type: string
+        400:
+          description: Missing url or api_key
+        500:
+          description: Connection failed
+    """
     data = request.get_json() or {}
     url = data.get("url")
     api_key = data.get("api_key")
@@ -87,7 +199,46 @@ def test_sonarr_instance():
 
 @bp.route("/radarr/instances/test", methods=["POST"])
 def test_radarr_instance():
-    """Test connection to a Radarr instance."""
+    """Test connection to a Radarr instance.
+    ---
+    post:
+      tags:
+        - Library
+      summary: Test Radarr connection
+      description: Tests connectivity to a Radarr instance using the provided URL and API key.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url, api_key]
+              properties:
+                url:
+                  type: string
+                  description: Radarr base URL
+                api_key:
+                  type: string
+                  description: Radarr API key
+      responses:
+        200:
+          description: Connection test result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  healthy:
+                    type: boolean
+                  message:
+                    type: string
+        400:
+          description: Missing url or api_key
+        500:
+          description: Connection failed
+    """
     data = request.get_json() or {}
     url = data.get("url")
     api_key = data.get("api_key")
@@ -106,7 +257,56 @@ def test_radarr_instance():
 
 @bp.route("/library/series/<int:series_id>", methods=["GET"])
 def get_series_detail(series_id):
-    """Get detailed series info with episodes and subtitle status."""
+    """Get detailed series info with episodes and subtitle status.
+    ---
+    get:
+      tags:
+        - Library
+      summary: Get series detail
+      description: Returns detailed series information including all episodes with subtitle status per target language.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: series_id
+          required: true
+          schema:
+            type: integer
+          description: Sonarr series ID
+      responses:
+        200:
+          description: Series detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  title:
+                    type: string
+                  year:
+                    type: integer
+                  path:
+                    type: string
+                  poster:
+                    type: string
+                  profile_name:
+                    type: string
+                  target_languages:
+                    type: array
+                    items:
+                      type: string
+                  episodes:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+        404:
+          description: Series not found
+        503:
+          description: Sonarr not configured
+    """
     from sonarr_client import get_sonarr_client
     from translator import detect_existing_target_for_lang
     from db.profiles import get_series_profile, get_default_profile
@@ -210,8 +410,35 @@ def get_series_detail(series_id):
 @bp.route("/episodes/<int:episode_id>/search", methods=["POST"])
 def episode_search(episode_id):
     """Search providers for a specific episode's subtitles.
-
-    Finds or creates a wanted item, then runs provider search.
+    ---
+    post:
+      tags:
+        - Library
+      summary: Search episode subtitles
+      description: Finds or creates a wanted item for the episode and searches all providers for matching subtitles.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: episode_id
+          required: true
+          schema:
+            type: integer
+          description: Sonarr episode ID
+      responses:
+        200:
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        400:
+          description: Search error
+        404:
+          description: Episode not found or has no file
+        503:
+          description: Sonarr not configured
     """
     from sonarr_client import get_sonarr_client
     from db.profiles import get_series_profile, get_default_profile
@@ -271,7 +498,38 @@ def episode_search(episode_id):
 
 @bp.route("/episodes/<int:episode_id>/history", methods=["GET"])
 def episode_history(episode_id):
-    """Get download/translation history for a specific episode."""
+    """Get download/translation history for a specific episode.
+    ---
+    get:
+      tags:
+        - Library
+      summary: Get episode history
+      description: Returns the download and translation history for a specific episode, including provider, format, and timestamps.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: episode_id
+          required: true
+          schema:
+            type: integer
+          description: Sonarr episode ID
+      responses:
+        200:
+          description: Episode history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+        503:
+          description: Sonarr not configured
+    """
     from sonarr_client import get_sonarr_client
     from db.cache import get_episode_history
     from config import map_path
