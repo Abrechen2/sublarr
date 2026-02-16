@@ -156,7 +156,55 @@ def _send_callback(url, data):
 
 @bp.route("/translate", methods=["POST"])
 def translate_async():
-    """Start an async translation job."""
+    """Start an async translation job.
+    ---
+    post:
+      tags:
+        - Translate
+      summary: Start async translation
+      description: Queues a file for asynchronous translation. Returns a job_id for tracking progress via /status endpoint or WebSocket.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [file_path]
+              properties:
+                file_path:
+                  type: string
+                  description: Absolute path to the media file
+                force:
+                  type: boolean
+                  default: false
+                  description: Force re-translation even if target exists
+                sonarr_series_id:
+                  type: integer
+                  description: Optional Sonarr series ID for context
+                sonarr_episode_id:
+                  type: integer
+                  description: Optional Sonarr episode ID for context
+      responses:
+        202:
+          description: Job queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                  status:
+                    type: string
+                  file_path:
+                    type: string
+        400:
+          description: Missing file_path
+        404:
+          description: File not found
+    """
     from db.jobs import create_job
     from error_handler import TranslationError
 
@@ -184,7 +232,56 @@ def translate_async():
 
 @bp.route("/translate/sync", methods=["POST"])
 def translate_sync():
-    """Translate a single file synchronously."""
+    """Translate a single file synchronously.
+    ---
+    post:
+      tags:
+        - Translate
+      summary: Translate file synchronously
+      description: Translates a file and waits for completion before returning the result. Use for single-file operations.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [file_path]
+              properties:
+                file_path:
+                  type: string
+                  description: Absolute path to the media file
+                force:
+                  type: boolean
+                  default: false
+                  description: Force re-translation even if target exists
+                sonarr_series_id:
+                  type: integer
+                sonarr_episode_id:
+                  type: integer
+      responses:
+        200:
+          description: Translation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  output_path:
+                    type: string
+                  stats:
+                    type: object
+                    additionalProperties: true
+        400:
+          description: Missing file_path
+        404:
+          description: File not found
+        500:
+          description: Translation failed
+    """
     from translator import translate_file
     from error_handler import TranslationError
 
@@ -218,7 +315,45 @@ def translate_sync():
 
 @bp.route("/status/<job_id>", methods=["GET"])
 def job_status(job_id):
-    """Get the status of a translation job."""
+    """Get the status of a translation job.
+    ---
+    get:
+      tags:
+        - Translate
+      summary: Get job status
+      description: Returns the current status and result of a translation job.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: string
+          description: Translation job ID
+      responses:
+        200:
+          description: Job details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [queued, running, completed, failed]
+                  file_path:
+                    type: string
+                  result:
+                    type: object
+                    additionalProperties: true
+                  error:
+                    type: string
+        404:
+          description: Job not found
+    """
     from db.jobs import get_job
     job = get_job(job_id)
     if not job:
@@ -228,7 +363,54 @@ def job_status(job_id):
 
 @bp.route("/jobs", methods=["GET"])
 def list_jobs():
-    """Get paginated job history."""
+    """Get paginated job history.
+    ---
+    get:
+      tags:
+        - Translate
+      summary: List translation jobs
+      description: Returns a paginated list of translation jobs with optional status filter.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+          description: Items per page
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [queued, running, completed, failed]
+          description: Filter by job status
+      responses:
+        200:
+          description: Paginated job list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobs:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  per_page:
+                    type: integer
+    """
     from db.jobs import get_jobs
     page = request.args.get("page", 1, type=int)
     per_page = min(request.args.get("per_page", 50, type=int), 200)
@@ -239,7 +421,43 @@ def list_jobs():
 
 @bp.route("/jobs/<job_id>/retry", methods=["POST"])
 def retry_job(job_id):
-    """Retry a failed job by creating a new translation job."""
+    """Retry a failed job by creating a new translation job.
+    ---
+    post:
+      tags:
+        - Translate
+      summary: Retry failed job
+      description: Creates a new translation job for a previously failed job. Only failed jobs can be retried.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: string
+          description: Failed job ID to retry
+      responses:
+        202:
+          description: Retry job queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  job_id:
+                    type: string
+                  original_job_id:
+                    type: string
+                  file_path:
+                    type: string
+        400:
+          description: Job is not in failed status
+        404:
+          description: Job or file not found
+    """
     from db.jobs import get_job, create_job
 
     job = get_job(job_id)
@@ -270,7 +488,65 @@ def retry_job(job_id):
 
 @bp.route("/batch", methods=["POST"])
 def batch_start():
-    """Start batch processing of a directory."""
+    """Start batch processing of a directory.
+    ---
+    post:
+      tags:
+        - Translate
+      summary: Start batch translation
+      description: >
+        Scans a directory for media files and translates them asynchronously.
+        Supports dry_run mode to preview files. Progress is emitted via WebSocket (batch_progress event).
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [directory]
+              properties:
+                directory:
+                  type: string
+                  description: Directory path to scan for media files
+                force:
+                  type: boolean
+                  default: false
+                dry_run:
+                  type: boolean
+                  default: false
+                  description: Preview files without processing
+                page:
+                  type: integer
+                  default: 1
+                  description: Page number for dry_run results
+                per_page:
+                  type: integer
+                  default: 100
+                  maximum: 500
+                callback_url:
+                  type: string
+                  description: URL for progress callbacks (SSRF-validated)
+      responses:
+        202:
+          description: Batch started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  total_files:
+                    type: integer
+        400:
+          description: Missing directory or invalid callback URL
+        404:
+          description: Directory not found
+        409:
+          description: Batch already running
+    """
     from translator import translate_file, scan_directory
 
     data = request.get_json() or {}
@@ -422,7 +698,39 @@ def batch_start():
 
 @bp.route("/batch/status", methods=["GET"])
 def batch_status_endpoint():
-    """Get batch processing status."""
+    """Get batch processing status.
+    ---
+    get:
+      tags:
+        - Translate
+      summary: Get batch status
+      description: Returns the current batch processing progress and state.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Batch state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  running:
+                    type: boolean
+                  total:
+                    type: integer
+                  processed:
+                    type: integer
+                  succeeded:
+                    type: integer
+                  failed:
+                    type: integer
+                  skipped:
+                    type: integer
+                  current_file:
+                    type: string
+                    nullable: true
+    """
     with batch_lock:
         return jsonify(dict(batch_state))
 
@@ -432,7 +740,32 @@ def batch_status_endpoint():
 
 @bp.route("/retranslate/status", methods=["GET"])
 def retranslate_status():
-    """Get re-translation status: current config hash and outdated file count."""
+    """Get re-translation status: current config hash and outdated file count.
+    ---
+    get:
+      tags:
+        - Translate
+      summary: Get re-translation status
+      description: Returns the current translation config hash and count of files translated with an older config.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Re-translation status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  current_hash:
+                    type: string
+                  outdated_count:
+                    type: integer
+                  ollama_model:
+                    type: string
+                  target_language:
+                    type: string
+    """
     from db.jobs import get_outdated_jobs_count
     from config import get_settings
 
@@ -450,7 +783,39 @@ def retranslate_status():
 
 @bp.route("/retranslate/<int:job_id>", methods=["POST"])
 def retranslate_single(job_id):
-    """Re-translate a single item (deletes old sub, forces re-translation)."""
+    """Re-translate a single item (deletes old sub, forces re-translation).
+    ---
+    post:
+      tags:
+        - Translate
+      summary: Re-translate single item
+      description: Deletes existing translated subtitle and forces re-translation with current config. Accepts job ID or wanted item ID.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: integer
+          description: Job ID or wanted item ID
+      responses:
+        202:
+          description: Re-translation started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  job_id:
+                    type: string
+                  file_path:
+                    type: string
+        404:
+          description: Item or file not found
+    """
     from db.jobs import get_job, create_job
     from db.wanted import get_wanted_item
     from config import get_settings
@@ -500,7 +865,41 @@ def retranslate_single(job_id):
 
 @bp.route("/retranslate/batch", methods=["POST"])
 def retranslate_batch():
-    """Re-translate all outdated items (async with WebSocket progress)."""
+    """Re-translate all outdated items (async with WebSocket progress).
+    ---
+    post:
+      tags:
+        - Translate
+      summary: Batch re-translate outdated items
+      description: >
+        Re-translates all items that were translated with an older config hash.
+        Progress is emitted via WebSocket (retranslation_progress event).
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Nothing to re-translate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  count:
+                    type: integer
+        202:
+          description: Batch re-translation started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  total:
+                    type: integer
+    """
     from db.jobs import get_outdated_jobs
     from translator import translate_file
     from config import get_settings
@@ -574,7 +973,39 @@ def retranslate_batch():
 
 @bp.route("/backends", methods=["GET"])
 def list_backends():
-    """List all registered translation backends with config status."""
+    """List all registered translation backends with config status.
+    ---
+    get:
+      tags:
+        - Translate
+      summary: List translation backends
+      description: Returns all registered translation backends with their configuration status and capabilities.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Backend list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  backends:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        display_name:
+                          type: string
+                        configured:
+                          type: boolean
+                        config_fields:
+                          type: array
+                          items:
+                            type: object
+    """
     from translation import get_translation_manager
     manager = get_translation_manager()
     backends = manager.get_all_backends()
@@ -583,7 +1014,40 @@ def list_backends():
 
 @bp.route("/backends/test/<name>", methods=["POST"])
 def test_backend(name):
-    """Test a specific translation backend's health."""
+    """Test a specific translation backend's health.
+    ---
+    post:
+      tags:
+        - Translate
+      summary: Test translation backend
+      description: Runs a health check on the specified translation backend and returns status with optional usage info.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+          description: Backend name (e.g. ollama, deepl, openai)
+      responses:
+        200:
+          description: Health check result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  healthy:
+                    type: boolean
+                  message:
+                    type: string
+                  usage:
+                    type: object
+                    additionalProperties: true
+        404:
+          description: Backend not found
+    """
     from translation import get_translation_manager
     manager = get_translation_manager()
     backend = manager.get_backend(name)
@@ -605,9 +1069,44 @@ def test_backend(name):
 @bp.route("/backends/<name>/config", methods=["PUT"])
 def save_backend_config(name):
     """Save configuration for a translation backend.
-
-    Stores each key-value pair in config_entries with backend.<name>.<key> prefix.
-    Invalidates cached backend instance to pick up new config.
+    ---
+    put:
+      tags:
+        - Translate
+      summary: Save backend configuration
+      description: Stores key-value pairs in config_entries with backend.<name>.<key> prefix and invalidates cached instance.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+          description: Backend name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+              description: Key-value config pairs for the backend
+      responses:
+        200:
+          description: Configuration saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        400:
+          description: No configuration data provided
+        404:
+          description: Backend not found
     """
     from translation import get_translation_manager
     from db.config import save_config_entry
@@ -637,9 +1136,32 @@ def save_backend_config(name):
 @bp.route("/backends/<name>/config", methods=["GET"])
 def get_backend_config(name):
     """Get configuration for a translation backend.
-
-    Reads config_entries matching backend.<name>.* prefix.
-    Masks password fields for security.
+    ---
+    get:
+      tags:
+        - Translate
+      summary: Get backend configuration
+      description: Reads config_entries matching backend.<name>.* prefix. Password fields are masked with '***'.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+          description: Backend name
+      responses:
+        200:
+          description: Backend configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+        404:
+          description: Backend not found
     """
     from translation import get_translation_manager
     from db.config import get_all_config_entries
@@ -681,7 +1203,29 @@ def get_backend_config(name):
 
 @bp.route("/backends/stats", methods=["GET"])
 def backend_stats():
-    """Get translation stats for all backends."""
+    """Get translation stats for all backends.
+    ---
+    get:
+      tags:
+        - Translate
+      summary: Get backend statistics
+      description: Returns translation statistics (request count, errors, avg duration) for all translation backends.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Backend statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stats:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+    """
     from db.translation import get_backend_stats
     stats = get_backend_stats()
     return jsonify({"stats": stats})

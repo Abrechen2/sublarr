@@ -9,7 +9,37 @@ logger = logging.getLogger(__name__)
 
 @bp.route("/providers", methods=["GET"])
 def list_providers():
-    """Get status of all subtitle providers."""
+    """Get status of all subtitle providers.
+    ---
+    get:
+      tags:
+        - Providers
+      summary: List all providers
+      description: Returns the status of all registered subtitle providers including health, circuit breaker state, and configuration.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Provider list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        healthy:
+                          type: boolean
+                        enabled:
+                          type: boolean
+                        initialized:
+                          type: boolean
+    """
     from providers import get_provider_manager
     manager = get_provider_manager()
     return jsonify({"providers": manager.get_provider_status()})
@@ -18,16 +48,73 @@ def list_providers():
 @bp.route("/providers/test/<provider_name>", methods=["POST"])
 def test_provider(provider_name):
     """Test a specific provider's connectivity and optionally perform a search.
-
-    Body (optional): {
-        "test_search": true,
-        "query": {
-            "series_title": "...",
-            "season": 1,
-            "episode": 1,
-            "language": "en"
-        }
-    }
+    ---
+    post:
+      tags:
+        - Providers
+      summary: Test a provider
+      description: Runs a health check on the specified provider and optionally performs a test search.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: provider_name
+          required: true
+          schema:
+            type: string
+          description: Provider name (e.g. animetosho, opensubtitles, jimaku, subdl)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                test_search:
+                  type: boolean
+                  default: false
+                  description: Whether to also perform a test search
+                query:
+                  type: object
+                  properties:
+                    series_title:
+                      type: string
+                    title:
+                      type: string
+                    season:
+                      type: integer
+                    episode:
+                      type: integer
+                    language:
+                      type: string
+                      default: en
+      responses:
+        200:
+          description: Test results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  provider:
+                    type: string
+                  initialized:
+                    type: boolean
+                  health_check:
+                    type: object
+                    properties:
+                      healthy:
+                        type: boolean
+                      message:
+                        type: string
+                  search_test:
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                      results_count:
+                        type: integer
+        404:
+          description: Provider not found
     """
     try:
         from providers import get_provider_manager
@@ -118,15 +205,75 @@ def test_provider(provider_name):
 @bp.route("/providers/search", methods=["POST"])
 def search_providers():
     """Search subtitle providers for a specific file.
-
-    Body: {
-        "file_path": "/media/anime/...",
-        "series_title": "...",
-        "season": 1,
-        "episode": 1,
-        "language": "en",
-        "format": "ass"  // optional filter
-    }
+    ---
+    post:
+      tags:
+        - Providers
+      summary: Search providers
+      description: Searches all enabled subtitle providers for matching subtitles. Results are scored and ranked.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                file_path:
+                  type: string
+                  description: Path to the media file
+                series_title:
+                  type: string
+                  description: Series title for search
+                title:
+                  type: string
+                  description: Episode or movie title
+                season:
+                  type: integer
+                episode:
+                  type: integer
+                language:
+                  type: string
+                  default: en
+                  description: Language code (ISO 639-1)
+                imdb_id:
+                  type: string
+                anilist_id:
+                  type: integer
+                anidb_id:
+                  type: integer
+                format:
+                  type: string
+                  enum: [ass, srt]
+                  description: Optional format filter
+      responses:
+        200:
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        provider:
+                          type: string
+                        subtitle_id:
+                          type: string
+                        language:
+                          type: string
+                        format:
+                          type: string
+                        filename:
+                          type: string
+                        score:
+                          type: integer
+                  total:
+                    type: integer
     """
     from providers import get_provider_manager
     from providers.base import VideoQuery, SubtitleFormat
@@ -180,7 +327,33 @@ def search_providers():
 
 @bp.route("/providers/stats", methods=["GET"])
 def provider_stats():
-    """Get cache, download, and performance statistics for all providers."""
+    """Get cache, download, and performance statistics for all providers.
+    ---
+    get:
+      tags:
+        - Providers
+      summary: Get provider statistics
+      description: Returns cache stats, download counts, and performance metrics for all subtitle providers.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Provider statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cache:
+                    type: object
+                    additionalProperties: true
+                  downloads:
+                    type: object
+                    additionalProperties: true
+                  performance:
+                    type: object
+                    additionalProperties: true
+    """
     from db.providers import (
         get_provider_cache_stats, get_provider_download_stats,
         get_provider_stats, get_provider_success_rate, is_provider_auto_disabled,
@@ -205,9 +378,45 @@ def provider_stats():
 @bp.route("/providers/health", methods=["GET"])
 def provider_health():
     """Get health overview for all providers (dashboard-oriented endpoint).
-
-    Returns per-provider: name, healthy, success_rate, avg_response_time_ms,
-    last_response_time_ms, auto_disabled, disabled_until, consecutive_failures.
+    ---
+    get:
+      tags:
+        - Providers
+      summary: Get provider health overview
+      description: >
+        Returns per-provider health data including success rate, response time,
+        auto-disable status, and consecutive failures. Designed for dashboard display.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Provider health data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        healthy:
+                          type: boolean
+                        enabled:
+                          type: boolean
+                        success_rate:
+                          type: number
+                        avg_response_time_ms:
+                          type: number
+                        auto_disabled:
+                          type: boolean
+                        consecutive_failures:
+                          type: integer
+                        total_searches:
+                          type: integer
     """
     from providers import get_provider_manager
     manager = get_provider_manager()
@@ -235,7 +444,38 @@ def provider_health():
 
 @bp.route("/providers/<name>/enable", methods=["POST"])
 def enable_provider(name):
-    """Manually re-enable an auto-disabled provider."""
+    """Manually re-enable an auto-disabled provider.
+    ---
+    post:
+      tags:
+        - Providers
+      summary: Re-enable provider
+      description: Clears auto-disable state and resets consecutive failure count for the specified provider.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+          description: Provider name
+      responses:
+        200:
+          description: Provider re-enabled or already enabled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [enabled, already_enabled]
+                  provider:
+                    type: string
+                  message:
+                    type: string
+    """
     from db.providers import clear_auto_disable, is_provider_auto_disabled
 
     if not is_provider_auto_disabled(name):
@@ -255,7 +495,37 @@ def enable_provider(name):
 
 @bp.route("/providers/cache/clear", methods=["POST"])
 def clear_cache():
-    """Clear provider cache. Optional body: {provider_name: "..."}"""
+    """Clear provider cache.
+    ---
+    post:
+      tags:
+        - Providers
+      summary: Clear provider cache
+      description: Clears the search result cache for all providers or a specific provider.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider_name:
+                  type: string
+                  description: Optional specific provider to clear. Omit to clear all.
+      responses:
+        200:
+          description: Cache cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  provider:
+                    type: string
+    """
     from db.providers import clear_provider_cache
 
     data = request.get_json(silent=True) or {}
