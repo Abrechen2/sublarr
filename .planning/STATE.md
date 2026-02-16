@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 8 complete - i18n + Backup + Admin Polish
+**Current focus:** Phase 9 in progress - OpenAPI + Release Preparation
 
 ## Current Position
 
-Phase: 8 of 16 (i18n + Backup + Admin Polish)
-Plan: 5 of 5 in current phase
-Status: Phase complete
-Last activity: 2026-02-15 -- Completed 08-05-PLAN.md (Remaining pages i18n -- Activity, Queue, History, Blacklist, Onboarding, StatusBadge, Statistics)
+Phase: 9 of 16 (OpenAPI + Release Preparation)
+Plan: 2 of 5 in current phase
+Status: In progress
+Last activity: 2026-02-16 -- Completed 09-02-PLAN.md (Backend Performance + Health)
 
-Progress: [█████████████████████████] 5/5 plans in phase
+Progress: [██████████░░░░░░░░░░░░░░░] 2/5 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 38
+- Total plans completed: 40
 - Average duration: 9 min
-- Total execution time: 357 min
+- Total execution time: 379 min
 
 **By Phase:**
 
@@ -36,10 +36,11 @@ Progress: [███████████████████████
 | 06-forced-signs-subs | 3/3 | 22 min | 7 min |
 | 07-events-hooks-custom-scoring | 3/3 | 46 min | 15 min |
 | 08-i18n-backup-admin-polish | 5/5 | 116 min | 23 min |
+| 09-openapi-release-preparation | 2/5 | 22 min | 11 min |
 
 **Recent Trend:**
-- Last 5 plans: 08-02 (12 min), 08-04 (36 min), 08-03 (42 min), 08-05 (16 min)
-- Trend: 08-05 faster than average -- straightforward JSON creation and component wrapping with established patterns
+- Last 5 plans: 08-03 (42 min), 08-05 (16 min), 09-01 (11 min), 09-02 (11 min)
+- Trend: Phase 9 plans averaging 11 min -- backend optimization and health endpoint work is well-scoped
 
 *Updated after each plan completion*
 
@@ -225,6 +226,12 @@ Recent decisions affecting current work:
 - [08-05]: Onboarding ALL_STEPS uses titleKey/descKey pattern (static const, resolved at render via t())
 - [08-05]: Toast.tsx skipped -- no built-in text labels, only renders dynamic messages from callers
 - [08-05]: Statistics.tsx auto-wrapped (gap from parallel 08-03 execution, translation JSON existed from 08-04)
+- [09-02]: Incremental scan uses ISO timestamp comparison on Sonarr lastInfoSync and Radarr movieFile.dateAdded
+- [09-02]: Full cleanup only runs on full scans; incremental scans skip path-based removal to avoid false removals
+- [09-02]: Parallel search uses max_workers=min(4, total) -- bounded to avoid over-parallelization
+- [09-02]: Whisper backend health reported as healthy=True when whisper is disabled (not a degradation state)
+- [09-02]: Arr connectivity checks iterate all configured instances per get_sonarr_instances/get_radarr_instances
+- [09-02]: _cancel_search flag for graceful mid-batch cancellation without abrupt thread termination
 
 ### Pending Todos
 
@@ -241,10 +248,11 @@ None yet.
 - Phase 6 complete -- all 3 plans executed, all summaries written (data model + detection, scanner + search, API + UI)
 - Phase 7 complete -- all 3 plans executed, all summaries written (event system + engine/dispatcher + API/UI)
 - Phase 8 complete -- all 5 plans executed, all summaries written (theme, backend APIs, frontend pages, core i18n, remaining i18n)
+- Phase 9 in progress -- 2/5 plans executed (OpenAPI infra + backend performance)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
-Last session: 2026-02-15
-Stopped at: Phase 8 complete -- all 5 plans executed, i18n + Backup + Admin Polish fully delivered
-Resume file: .planning/phases/08-i18n-backup-admin-polish/08-05-SUMMARY.md
+Last session: 2026-02-16
+Stopped at: Phase 9 plan 2 of 5 complete -- incremental scan, parallel search, health endpoint extension
+Resume file: .planning/phases/09-openapi-release-preparation/09-02-SUMMARY.md
