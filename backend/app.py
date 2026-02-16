@@ -214,6 +214,19 @@ def create_app(testing=False):
     from routes import register_blueprints
     register_blueprints(app)
 
+    # Register OpenAPI spec (must be after register_blueprints)
+    from openapi import register_all_paths
+    register_all_paths(app)
+
+    # Register Swagger UI blueprint
+    from flask_swagger_ui import get_swaggerui_blueprint
+    swagger_bp = get_swaggerui_blueprint(
+        "/api/docs",
+        "/api/v1/openapi.json",
+        config={"app_name": "Sublarr API", "layout": "BaseLayout"},
+    )
+    app.register_blueprint(swagger_bp)
+
     # Register app-level routes (metrics, SPA fallback)
     _register_app_routes(app)
 
@@ -263,9 +276,10 @@ def _register_app_routes(app):
             return send_from_directory(static_dir, "index.html")
 
         # No frontend built yet — return API info
+        from version import __version__
         return jsonify({
             "name": "Sublarr",
-            "version": "0.1.0",
+            "version": __version__,
             "api": "/api/v1/health",
             "message": "Frontend not built. Run 'npm run build' in frontend/ first.",
         })

@@ -1,5 +1,8 @@
 flask==3.1.0
 flask-socketio==5.4.1
+apispec>=6.9.0
+apispec-webframeworks>=1.0.0
+flask-swagger-ui>=4.0.0
 gunicorn==23.0.0
 pysubs2==1.7.3
 requests==2.32.3

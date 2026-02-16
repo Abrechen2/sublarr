@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, request, jsonify, send_file
 
+from version import __version__
+
 bp = Blueprint("system", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
 
@@ -80,7 +82,7 @@ def health():
     status_code = 200 if healthy else 503
     return jsonify({
         "status": "healthy" if healthy else "unhealthy",
-        "version": "0.1.0",
+        "version": __version__,
         "services": service_status,
     }), status_code
 
@@ -327,7 +329,7 @@ def create_full_backup():
 
     contents = ["manifest.json", "config.json", "sublarr.db"]
     manifest = {
-        "version": "0.1.0",
+        "version": __version__,
         "created_at": now.isoformat(),
         "schema_version": 1,
         "contents": contents,
@@ -790,3 +792,10 @@ def notification_status():
     """Get notification configuration status."""
     from notifier import get_notification_status
     return jsonify(get_notification_status())
+
+
+@bp.route("/openapi.json", methods=["GET"])
+def openapi_spec():
+    """Serve the OpenAPI 3.0.3 specification as JSON."""
+    from openapi import spec
+    return jsonify(spec.to_dict())
