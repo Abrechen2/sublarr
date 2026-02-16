@@ -1,14 +1,16 @@
 """Wanted search module — connects Wanted items with the Provider system.
 
 Builds VideoQueries from wanted items, searches providers, downloads best
-results, and triggers translation. Processes items sequentially to respect
-provider rate limits.
+results, and triggers translation. Supports parallel item processing via
+ThreadPoolExecutor. Provider-level rate limiters and circuit breakers
+handle concurrency safety.
 """
 
 import os
 import re
 import time
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from config import get_settings, map_path
 from db.wanted import get_wanted_item, get_wanted_items, update_wanted_status, update_wanted_search
@@ -19,8 +21,6 @@ from providers.base import VideoQuery, SubtitleFormat
 from translator import get_forced_output_path
 
 logger = logging.getLogger(__name__)
-
-INTER_ITEM_DELAY = 0.5  # seconds between items (rate-limit protection)
 
 # Episode patterns for filename parsing (ordered by specificity)
 _EPISODE_PATTERNS = [
@@ -695,7 +695,11 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
 
 
 def process_wanted_batch(item_ids=None):
-    """Process multiple wanted items sequentially.
+    """Process multiple wanted items with parallel execution.
+
+    Uses ThreadPoolExecutor for parallel processing. Provider-level rate
+    limiters and circuit breakers handle concurrency safety. Error isolation
+    ensures one item failure doesn't abort the batch.
 
     Args:
         item_ids: List of specific IDs, or None for all 'wanted' items.
@@ -725,48 +729,52 @@ def process_wanted_batch(item_ids=None):
     failed = 0
     skipped = 0
 
-    for item in items:
-        item_id = item["id"]
-        display = item.get("title", item.get("file_path", str(item_id)))
+    max_workers = min(4, total) if total > 0 else 1
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_item = {
+            executor.submit(process_wanted_item, item["id"]): item
+            for item in items
+        }
 
-        try:
-            result = process_wanted_item(item_id)
-            processed += 1
+        for future in as_completed(future_to_item):
+            item = future_to_item[future]
+            item_id = item["id"]
+            display = item.get("title", item.get("file_path", str(item_id)))
 
-            if result.get("status") == "found":
-                found += 1
-            elif result.get("status") == "failed":
+            try:
+                result = future.result()
+                processed += 1
+
+                if result.get("status") == "found":
+                    found += 1
+                elif result.get("status") == "failed":
+                    failed += 1
+                else:
+                    skipped += 1
+
+                yield {
+                    "processed": processed,
+                    "total": total,
+                    "found": found,
+                    "failed": failed,
+                    "skipped": skipped,
+                    "current_item": display,
+                    "last_result": result,
+                }
+
+            except Exception as e:
+                processed += 1
                 failed += 1
-            else:
-                skipped += 1
-
-            yield {
-                "processed": processed,
-                "total": total,
-                "found": found,
-                "failed": failed,
-                "skipped": skipped,
-                "current_item": display,
-                "last_result": result,
-            }
-
-        except Exception as e:
-            processed += 1
-            failed += 1
-            logger.exception("Batch: error processing wanted %d: %s", item_id, e)
-            yield {
-                "processed": processed,
-                "total": total,
-                "found": found,
-                "failed": failed,
-                "skipped": skipped,
-                "current_item": display,
-                "last_result": {"wanted_id": item_id, "status": "failed", "error": str(e)},
-            }
-
-        # Rate-limit protection between items
-        if processed < total:
-            time.sleep(INTER_ITEM_DELAY)
+                logger.exception("Batch: error processing wanted %d: %s", item_id, e)
+                yield {
+                    "processed": processed,
+                    "total": total,
+                    "found": found,
+                    "failed": failed,
+                    "skipped": skipped,
+                    "current_item": display,
+                    "last_result": {"wanted_id": item_id, "status": "failed", "error": str(e)},
+                }
 
 
 def _result_to_dict(result) -> dict:
