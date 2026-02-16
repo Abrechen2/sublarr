@@ -27,7 +27,7 @@ Sublarr uses a modular provider system to search and download subtitles from mul
 
 ## Existing Providers
 
-Sublarr includes four built-in providers, each with different strengths:
+Sublarr includes 11 built-in providers, each with different strengths. The first four are the original providers from v1.0.0-beta; the remaining seven were added in v0.9.0-beta via the plugin system.
 
 ### 1. AnimeTosho
 
@@ -185,6 +185,207 @@ SUBLARR_SUBDL_API_KEY=your_api_key_here
 - Relatively new service
 - API key required
 - Download quota enforced
+
+### 5. Gestdown
+
+**Best for**: TV show subtitles via Addic7ed proxy
+
+**Characteristics**
+- No authentication required
+- REST API proxy for Addic7ed content
+- Covers both Addic7ed and Gestdown content in a single provider
+- Language mapping fetched from API with hardcoded fallback
+- Good coverage for popular TV shows
+
+**API Details**
+- Endpoint: Gestdown REST API
+- Rate limit: Moderate
+- Authentication: None
+- Format: SRT
+
+**Configuration**
+```env
+# No API key needed
+```
+
+**Strengths**
+- No authentication or API key required
+- Good TV show coverage via Addic7ed database
+- Clean REST API (no scraping)
+
+**Limitations**
+- TV shows only (limited movie support)
+- SRT format only (no ASS)
+- Depends on Gestdown service availability
+
+### 6. Podnapisi
+
+**Best for**: Multilingual subtitles with large database
+
+**Characteristics**
+- No authentication required
+- XML API with lxml parsing (graceful fallback to stdlib xml.etree)
+- Large multilingual database
+- Good coverage across many languages
+- Free access without rate limits
+
+**API Details**
+- Endpoint: Podnapisi XML API
+- Rate limit: None
+- Authentication: None
+- Format: SRT
+
+**Configuration**
+```env
+# No API key needed
+```
+
+**Strengths**
+- No authentication required
+- Excellent multilingual coverage
+- Large database with many languages
+- No rate limits
+
+**Limitations**
+- SRT format only
+- XML API can be slow for complex queries
+- Quality varies by language
+
+### 7. Kitsunekko
+
+**Best for**: Japanese anime subtitles
+
+**Characteristics**
+- No authentication required
+- HTML scraping with conditional BeautifulSoup import
+- Specializes in Japanese anime subtitles
+- Degrades gracefully if bs4 not installed
+- Good source for raw Japanese subs
+
+**API Details**
+- Endpoint: Kitsunekko website
+- Rate limit: Polite scraping (delays between requests)
+- Authentication: None
+- Format: ASS/SRT
+
+**Configuration**
+```env
+# No API key needed (BeautifulSoup optional dependency)
+```
+
+**Strengths**
+- Excellent Japanese subtitle coverage
+- No authentication needed
+- Good ASS format availability
+
+**Limitations**
+- Japanese-focused only
+- HTML scraping (may break with site changes)
+- Optional BeautifulSoup dependency for best results
+
+### 8. Napisy24
+
+**Best for**: Polish subtitles with file hash matching
+
+**Characteristics**
+- No authentication required
+- MD5 hash of first 10MB for file matching (Bazarr-compatible algorithm)
+- Polish language focus
+- Good quality Polish subtitles
+
+**API Details**
+- Endpoint: Napisy24 API
+- Rate limit: Moderate
+- Authentication: None
+- Matching: MD5 file hash (first 10MB)
+- Format: SRT
+
+**Configuration**
+```env
+# No API key needed
+```
+
+**Strengths**
+- Excellent Polish subtitle coverage
+- File hash matching for precise results
+- No authentication required
+
+**Limitations**
+- Polish language only
+- Requires file access for hash computation
+- SRT format only
+
+### 9. Titrari
+
+**Best for**: Romanian subtitles
+
+**Characteristics**
+- No authentication required
+- Polite scraping with browser-like headers (User-Agent, Accept-Language)
+- Romanian language focus
+- No auth needed
+
+**API Details**
+- Endpoint: Titrari website
+- Rate limit: Polite delays
+- Authentication: None (browser-like UA headers)
+- Format: SRT
+
+**Configuration**
+```env
+# No API key needed
+```
+
+**Strengths**
+- Good Romanian subtitle coverage
+- No authentication required
+- Simple integration
+
+**Limitations**
+- Romanian only
+- HTML scraping approach
+- SRT format only
+
+### 10. LegendasDivx
+
+**Best for**: Portuguese subtitles
+
+**Characteristics**
+- Requires login (username/password)
+- Session-based authentication with lazy login
+- Auto re-authentication on session expiry (302 redirect detection)
+- Daily download limit tracking (140/145 with safety margin)
+- Date-based limit reset
+
+**API Details**
+- Endpoint: LegendasDivx website
+- Rate limit: 145 downloads/day
+- Authentication: Username + password (session cookies)
+- Format: SRT
+
+**Configuration**
+```env
+# Configure via Settings UI -- credentials stored in config_entries DB
+```
+
+**Strengths**
+- Good Portuguese subtitle coverage
+- Automatic session management
+- Daily limit tracking prevents overuse
+
+**Limitations**
+- Portuguese language focus
+- Login required
+- Daily download limit (145/day)
+- HTML scraping approach
+
+### 11. Whisper-Subgen (Deprecated)
+
+**Best for**: Speech-to-text subtitle generation when no subtitles are found
+
+**Note:** This provider is deprecated in v0.9.0-beta. Whisper functionality has been moved to the dedicated Whisper Speech-to-Text system (Settings > Whisper). The provider class remains registered but all methods are no-ops.
+
+For Whisper transcription, see the [User Guide](USER-GUIDE.md) section on Whisper configuration.
 
 ## Provider Architecture
 
@@ -824,24 +1025,193 @@ curl http://localhost:5765/api/v1/providers/stats \
   -H "X-Api-Key: your-api-key"
 ```
 
+## Plugin Development
+
+Since v0.9.0-beta, Sublarr supports loading custom subtitle providers as plugins. This allows you to add new providers without modifying the core codebase.
+
+### Plugin Directory
+
+Place plugin files in `/config/plugins/` (Docker volume mount). Each plugin is a single Python file or a Python package directory.
+
+### Plugin Structure
+
+A minimal plugin requires:
+
+1. A class that extends `SubtitleProvider`
+2. A `register_provider` decorator or a module-level `PROVIDER_NAME` constant
+3. A `config_fields` class attribute for UI configuration
+
+```python
+"""
+My Custom Provider Plugin for Sublarr.
+
+Plugin Name: mycustom
+Description: Search MyCustomSource for subtitles
+Author: Your Name
+Version: 1.0.0
+"""
+
+from typing import List, Optional
+from pathlib import Path
+import logging
+
+from providers.base import SubtitleProvider, VideoQuery, SubtitleResult
+from providers.http_session import RetryingSession
+
+logger = logging.getLogger(__name__)
+
+# Provider name (must be unique, lowercase, no spaces)
+PROVIDER_NAME = "mycustom"
+
+# Configuration fields shown in Settings UI
+# Keys match config_entries DB keys: plugin.mycustom.<key>
+config_fields = [
+    {
+        "key": "api_key",
+        "label": "API Key",
+        "type": "password",
+        "required": True,
+        "description": "Your MyCustomSource API key"
+    },
+    {
+        "key": "base_url",
+        "label": "API URL",
+        "type": "text",
+        "required": False,
+        "default": "https://api.mycustom.com/v1",
+        "description": "API endpoint URL"
+    },
+    {
+        "key": "enabled",
+        "label": "Enabled",
+        "type": "boolean",
+        "required": False,
+        "default": True,
+        "description": "Enable or disable this provider"
+    }
+]
+
+
+class MyCustomProvider(SubtitleProvider):
+    """Subtitle provider for MyCustomSource."""
+
+    def __init__(self, config):
+        super().__init__(config)
+        # Config fields are available via config_entries DB
+        # Access them through the config object
+        self.api_key = getattr(config, "mycustom_api_key", None)
+        self.base_url = getattr(config, "mycustom_base_url", "https://api.mycustom.com/v1")
+
+    def search(self, query: VideoQuery) -> List[SubtitleResult]:
+        """Search for subtitles. Must return list (never raise)."""
+        if not self.api_key:
+            return []
+        try:
+            # Your search implementation here
+            response = self.session.get(
+                f"{self.base_url}/search",
+                params={"q": query.series or query.movie_title},
+                timeout=10
+            )
+            response.raise_for_status()
+            # Parse and return results
+            return []
+        except Exception as e:
+            logger.error(f"MyCustom search error: {e}")
+            return []
+
+    def download(self, result: SubtitleResult, dest: Path) -> Path:
+        """Download subtitle to dest path. May raise on failure."""
+        response = self.session.get(result.download_url, timeout=30)
+        response.raise_for_status()
+        dest.write_bytes(response.content)
+        return dest
+
+    def health_check(self) -> bool:
+        """Return True if the provider API is reachable."""
+        try:
+            resp = self.session.get(f"{self.base_url}/health", timeout=5)
+            return resp.status_code == 200
+        except Exception:
+            return False
+```
+
+### Configuration Fields
+
+The `config_fields` list defines what appears in the Settings UI. Supported field types:
+
+| Type | UI Element | Example |
+|------|-----------|---------|
+| `text` | Text input | API URL, username |
+| `password` | Masked input with show/hide toggle | API key, password |
+| `boolean` | Toggle switch | Enable/disable |
+| `number` | Numeric input | Timeout, limit |
+| `select` | Dropdown | Language, region |
+
+Field keys are stored in the database as `plugin.<provider_name>.<key>`. They are stripped to short parameter names when passed to the provider constructor.
+
+### Testing a Plugin
+
+1. **Place the file** in `/config/plugins/`:
+   ```bash
+   cp mycustom.py /path/to/appdata/sublarr/plugins/
+   ```
+
+2. **Restart Sublarr** (or use hot-reload if enabled):
+   ```bash
+   docker restart sublarr
+   ```
+
+3. **Verify loading** in the logs:
+   ```bash
+   docker logs sublarr | grep -i plugin
+   ```
+
+4. **Test via API:**
+   ```bash
+   curl -X POST http://localhost:5765/api/v1/providers/test/mycustom \
+     -H "X-Api-Key: your-api-key"
+   ```
+
+5. **Check Settings UI:** Your provider should appear in Settings > Providers with its configuration fields.
+
+### Hot-Reload
+
+If `SUBLARR_PLUGIN_HOT_RELOAD=true` is set (and `watchdog` is installed), Sublarr monitors the plugins directory. When a plugin file changes:
+
+1. Watchdog detects the file change
+2. 2-second debounce timer starts (coalesces rapid saves)
+3. Plugin is unloaded and reloaded
+4. New provider class replaces the old one
+
+**Note:** Hot-reload is opt-in to avoid unnecessary filesystem watching in production. Enable it during development.
+
+### Important Rules
+
+- **Name collisions:** Built-in providers always win. If your plugin uses a name like "opensubtitles", it will be rejected.
+- **Safe imports:** Plugin loading catches all exceptions. A broken plugin will not crash Sublarr.
+- **Trust model:** Plugins run with the same permissions as Sublarr (same as Bazarr's plugin model). Only install plugins you trust.
+- **Dependencies:** If your plugin needs additional Python packages, install them in the container manually. Sublarr does not manage plugin dependencies.
+
 ## Provider Roadmap
 
-Potential future providers to consider:
+Providers now available in v0.9.0-beta (previously on roadmap):
+- ~~**Addic7ed**: TV show subtitles~~ -- Available via Gestdown provider
+- ~~**Podnapisi**: Large database~~ -- Built-in provider
+- ~~**Napisy24**: Polish subtitles~~ -- Built-in provider
 
-- **Addic7ed**: TV show subtitles (requires scraping, no official API)
-- **Podnapisi**: Large database (free API available)
-- **Subscene**: Popular but no official API (scraping required)
-- **Napisy24**: Polish subtitles (scraping required)
+Potential future providers:
 - **Argenteam**: Spanish/Latin American subtitles (API available)
 - **Shooter**: Chinese subtitles (API available)
+- **Subscene**: Popular but no official API (scraping required)
 
-If you implement any of these, please contribute back to the project!
+Community contributions welcome! See the [Plugin Development](#plugin-development) section above for how to create a provider plugin.
 
 ## Questions?
 
-- Open a GitHub Issue for provider-related questions
-- Check the API documentation for the target provider
-- Review existing provider implementations as examples
+- Open a [GitHub Issue](https://github.com/denniswittke/sublarr/issues) for provider-related questions
+- Browse the [API documentation](http://localhost:5765/api/docs) via Swagger UI
+- Review existing provider implementations in `backend/providers/` as examples
 - Test thoroughly before submitting a pull request
 
 Thank you for contributing to Sublarr!
