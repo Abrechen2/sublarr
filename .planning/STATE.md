@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 9 of 16 (OpenAPI + Release Preparation)
-Plan: 2 of 5 in current phase
+Plan: 3 of 5 in current phase
 Status: In progress
-Last activity: 2026-02-16 -- Completed 09-02-PLAN.md (Backend Performance + Health)
+Last activity: 2026-02-16 -- Completed 09-03-PLAN.md (Frontend Performance)
 
-Progress: [██████████░░░░░░░░░░░░░░░] 2/5 plans in phase
+Progress: [███████████████░░░░░░░░░░] 3/5 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 40
-- Average duration: 9 min
-- Total execution time: 379 min
+- Total plans completed: 41
+- Average duration: 10 min
+- Total execution time: 394 min
 
 **By Phase:**
 
@@ -36,11 +36,11 @@ Progress: [██████████░░░░░░░░░░░░░
 | 06-forced-signs-subs | 3/3 | 22 min | 7 min |
 | 07-events-hooks-custom-scoring | 3/3 | 46 min | 15 min |
 | 08-i18n-backup-admin-polish | 5/5 | 116 min | 23 min |
-| 09-openapi-release-preparation | 2/5 | 22 min | 11 min |
+| 09-openapi-release-preparation | 3/5 | 37 min | 12 min |
 
 **Recent Trend:**
-- Last 5 plans: 08-03 (42 min), 08-05 (16 min), 09-01 (11 min), 09-02 (11 min)
-- Trend: Phase 9 plans averaging 11 min -- backend optimization and health endpoint work is well-scoped
+- Last 5 plans: 08-05 (16 min), 09-01 (11 min), 09-02 (11 min), 09-03 (15 min)
+- Trend: Phase 9 plans averaging 12 min -- frontend code splitting and Settings decomposition well-scoped
 
 *Updated after each plan completion*
 
@@ -237,6 +237,10 @@ Recent decisions affecting current work:
 - [09-02]: Whisper backend health reported as healthy=True when whisper is disabled (not a degradation state)
 - [09-02]: Arr connectivity checks iterate all configured instances per get_sonarr_instances/get_radarr_instances
 - [09-02]: _cancel_search flag for graceful mid-batch cancellation without abrupt thread termination
+- [09-03]: Named export adapter pattern (.then(m => ({ default: m.ExportName }))) for React.lazy with named exports
+- [09-03]: Settings split into 7 files -- simple field-based tabs stay in index.tsx to avoid prop drilling
+- [09-03]: Self-contained tab components fetch own data via React Query hooks (not parent-passed props)
+- [09-03]: AdvancedTab.tsx groups 4 smaller tabs (LanguageProfiles, LibrarySources, Backup, SubtitleTools)
 
 ### Pending Todos
 
@@ -253,11 +257,11 @@ None yet.
 - Phase 6 complete -- all 3 plans executed, all summaries written (data model + detection, scanner + search, API + UI)
 - Phase 7 complete -- all 3 plans executed, all summaries written (event system + engine/dispatcher + API/UI)
 - Phase 8 complete -- all 5 plans executed, all summaries written (theme, backend APIs, frontend pages, core i18n, remaining i18n)
-- Phase 9 in progress -- 2/5 plans executed (OpenAPI infra + backend performance)
+- Phase 9 in progress -- 3/5 plans executed (OpenAPI infra + backend performance + frontend performance)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Phase 9 plan 2 of 5 complete -- incremental scan, parallel search, health endpoint extension
-Resume file: .planning/phases/09-openapi-release-preparation/09-02-SUMMARY.md
+Stopped at: Phase 9 plan 3 of 5 complete -- React.lazy code splitting, Settings decomposition
+Resume file: .planning/phases/09-openapi-release-preparation/09-03-SUMMARY.md
