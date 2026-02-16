@@ -1,4 +1,4 @@
-"""Subtitle processing tools — /tools/remove-hi, /tools/adjust-timing, /tools/common-fixes, /tools/preview."""
+"""Subtitle processing tools -- /tools/remove-hi, /tools/adjust-timing, /tools/common-fixes, /tools/preview."""
 
 import os
 import re
@@ -53,12 +53,55 @@ def _create_backup(file_path: str) -> str:
     return bak_path
 
 
-# ── Remove HI ─────────────────────────────────────────────────────────────────
+# -- Remove HI -----------------------------------------------------------------
 
 
 @bp.route("/remove-hi", methods=["POST"])
 def remove_hi():
-    """Remove hearing-impaired markers from a subtitle file."""
+    """Remove hearing-impaired markers from a subtitle file.
+    ---
+    post:
+      tags:
+        - Tools
+      summary: Remove HI markers
+      description: Removes hearing-impaired markers (e.g., [music], (laughing)) from a subtitle file. Creates a .bak backup before modifying.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - file_path
+              properties:
+                file_path:
+                  type: string
+                  description: Path to subtitle file (must be under media_path)
+      responses:
+        200:
+          description: HI markers removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  original_lines:
+                    type: integer
+                  cleaned_lines:
+                    type: integer
+                  removed:
+                    type: integer
+        400:
+          description: Invalid file path or unsupported format
+        403:
+          description: File outside media_path
+        404:
+          description: File not found
+        500:
+          description: Processing error
+    """
     from hi_remover import remove_hi_markers, remove_hi_from_srt
 
     data = request.get_json() or {}
@@ -91,7 +134,7 @@ def remove_hi():
         with open(abs_path, "w", encoding="utf-8") as f:
             f.write(cleaned)
 
-        logger.info("HI removal: %s — %d lines -> %d lines", abs_path, original_lines, cleaned_lines)
+        logger.info("HI removal: %s -- %d lines -> %d lines", abs_path, original_lines, cleaned_lines)
 
         return jsonify({
             "status": "cleaned",
@@ -105,7 +148,7 @@ def remove_hi():
         return jsonify({"error": f"HI removal failed: {exc}"}), 500
 
 
-# ── Adjust Timing ──────────────────────────────────────────────────────────────
+# -- Adjust Timing --------------------------------------------------------------
 
 
 _SRT_TIMESTAMP_RE = re.compile(r"(\d{2}):(\d{2}):(\d{2}),(\d{3})")
@@ -141,7 +184,52 @@ def _shift_ass_time(h: int, m: int, s: int, cs: int, offset_ms: int) -> str:
 
 @bp.route("/adjust-timing", methods=["POST"])
 def adjust_timing():
-    """Shift subtitle timestamps by offset_ms."""
+    """Shift subtitle timestamps by offset_ms.
+    ---
+    post:
+      tags:
+        - Tools
+      summary: Adjust subtitle timing
+      description: Shifts all subtitle timestamps by the specified offset in milliseconds. Creates a .bak backup before modifying.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - file_path
+                - offset_ms
+              properties:
+                file_path:
+                  type: string
+                  description: Path to subtitle file (must be under media_path)
+                offset_ms:
+                  type: integer
+                  description: Offset in milliseconds (positive = delay, negative = advance)
+      responses:
+        200:
+          description: Timing adjusted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  lines_modified:
+                    type: integer
+                  offset_ms:
+                    type: integer
+        400:
+          description: Invalid parameters
+        403:
+          description: File outside media_path
+        404:
+          description: File not found
+        500:
+          description: Processing error
+    """
     data = request.get_json() or {}
     file_path = data.get("file_path", "")
     offset_ms = data.get("offset_ms", 0)
@@ -196,7 +284,7 @@ def adjust_timing():
         with open(abs_path, "w", encoding="utf-8") as f:
             f.write(result_content)
 
-        logger.info("Timing adjusted: %s — %d lines shifted by %dms", abs_path, modified_count, offset_ms)
+        logger.info("Timing adjusted: %s -- %d lines shifted by %dms", abs_path, modified_count, offset_ms)
 
         return jsonify({
             "status": "adjusted",
@@ -209,12 +297,64 @@ def adjust_timing():
         return jsonify({"error": f"Timing adjustment failed: {exc}"}), 500
 
 
-# ── Common Fixes ───────────────────────────────────────────────────────────────
+# -- Common Fixes ---------------------------------------------------------------
 
 
 @bp.route("/common-fixes", methods=["POST"])
 def common_fixes():
-    """Apply common subtitle fixes (encoding, whitespace, linebreaks, empty_lines)."""
+    """Apply common subtitle fixes (encoding, whitespace, linebreaks, empty_lines).
+    ---
+    post:
+      tags:
+        - Tools
+      summary: Apply common fixes
+      description: Applies one or more common subtitle fixes. Creates a .bak backup before modifying.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - file_path
+                - fixes
+              properties:
+                file_path:
+                  type: string
+                  description: Path to subtitle file (must be under media_path)
+                fixes:
+                  type: array
+                  items:
+                    type: string
+                    enum: [encoding, whitespace, linebreaks, empty_lines]
+                  description: List of fix types to apply
+      responses:
+        200:
+          description: Fixes applied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  fixes_applied:
+                    type: array
+                    items:
+                      type: string
+                  lines_before:
+                    type: integer
+                  lines_after:
+                    type: integer
+        400:
+          description: Invalid parameters
+        403:
+          description: File outside media_path
+        404:
+          description: File not found
+        500:
+          description: Processing error
+    """
     data = request.get_json() or {}
     file_path = data.get("file_path", "")
     fixes = data.get("fixes", [])
@@ -327,12 +467,53 @@ def common_fixes():
         return jsonify({"error": f"Common fixes failed: {exc}"}), 500
 
 
-# ── Preview ────────────────────────────────────────────────────────────────────
+# -- Preview --------------------------------------------------------------------
 
 
 @bp.route("/preview", methods=["GET"])
 def preview_file():
-    """Preview the first 100 lines of a subtitle file."""
+    """Preview the first 100 lines of a subtitle file.
+    ---
+    get:
+      tags:
+        - Tools
+      summary: Preview subtitle file
+      description: Returns the first 100 lines of a subtitle file with encoding detection.
+      parameters:
+        - in: query
+          name: file_path
+          required: true
+          schema:
+            type: string
+          description: Path to subtitle file (must be under media_path)
+      responses:
+        200:
+          description: File preview
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  format:
+                    type: string
+                    enum: [ass, srt]
+                  lines:
+                    type: array
+                    items:
+                      type: string
+                  total_lines:
+                    type: integer
+                  encoding:
+                    type: string
+        400:
+          description: Invalid file path or unsupported format
+        403:
+          description: File outside media_path
+        404:
+          description: File not found
+        500:
+          description: Processing error
+    """
     file_path = request.args.get("file_path", "")
 
     error, result = _validate_file_path(file_path)

@@ -11,7 +11,32 @@ logger = logging.getLogger(__name__)
 
 @bp.route("/mediaservers/types", methods=["GET"])
 def list_server_types():
-    """Return all registered media server type info (name, display_name, config_fields)."""
+    """Return all registered media server type info (name, display_name, config_fields).
+    ---
+    get:
+      tags:
+        - MediaServers
+      summary: List media server types
+      description: Returns all registered media server types with their display names and configuration field definitions.
+      responses:
+        200:
+          description: List of media server types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    display_name:
+                      type: string
+                    config_fields:
+                      type: array
+                      items:
+                        type: object
+    """
     from mediaserver import get_media_server_manager
 
     manager = get_media_server_manager()
@@ -24,6 +49,28 @@ def get_instances():
     """Return current media server instances from config.
 
     Masks password/token fields in the response (show only last 4 chars).
+    ---
+    get:
+      tags:
+        - MediaServers
+      summary: List media server instances
+      description: Returns all configured media server instances with sensitive fields masked.
+      responses:
+        200:
+          description: List of media server instances
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                    name:
+                      type: string
+                    enabled:
+                      type: boolean
     """
     from db.config import get_config_entry
 
@@ -61,6 +108,41 @@ def save_instances():
 
     Validates each entry has required fields (type, name).
     After saving, invalidates and reloads the media server manager.
+    ---
+    put:
+      tags:
+        - MediaServers
+      summary: Save media server instances
+      description: Replaces the full media server instances array. Validates entries and reloads the media server manager.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                required:
+                  - type
+                  - name
+                properties:
+                  type:
+                    type: string
+                  name:
+                    type: string
+                  enabled:
+                    type: boolean
+      responses:
+        200:
+          description: Instances saved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        400:
+          description: Validation error
     """
     from db.config import save_config_entry
     from mediaserver import invalidate_media_server_manager, get_media_server_manager
@@ -96,6 +178,38 @@ def test_instance():
     Accepts JSON body with type + config (url, token, etc.).
     Creates a temporary instance of the specified type, calls health_check().
     Does NOT persist anything -- this is for the "Test" button in UI.
+    ---
+    post:
+      tags:
+        - MediaServers
+      summary: Test media server connection
+      description: Creates a temporary media server instance and tests connectivity. Does not persist the configuration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+              properties:
+                type:
+                  type: string
+                  description: Media server type (jellyfin, plex, kodi)
+      responses:
+        200:
+          description: Test result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  healthy:
+                    type: boolean
+                  message:
+                    type: string
+        400:
+          description: Missing type field or unknown server type
     """
     from mediaserver import get_media_server_manager
 
@@ -125,7 +239,32 @@ def test_instance():
 
 @bp.route("/mediaservers/health", methods=["GET"])
 def health():
-    """Get health status of all configured media server instances."""
+    """Get health status of all configured media server instances.
+    ---
+    get:
+      tags:
+        - MediaServers
+      summary: Check media server health
+      description: Returns health status for all configured media server instances.
+      responses:
+        200:
+          description: Health results per instance
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    type:
+                      type: string
+                    healthy:
+                      type: boolean
+                    message:
+                      type: string
+    """
     from mediaserver import get_media_server_manager
 
     manager = get_media_server_manager()

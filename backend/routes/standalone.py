@@ -20,7 +20,37 @@ logger = logging.getLogger(__name__)
 
 @bp.route("/folders", methods=["GET"])
 def list_folders():
-    """List all watched folders (enabled_only=False for settings display)."""
+    """List all watched folders (enabled_only=False for settings display).
+    ---
+    get:
+      tags:
+        - Standalone
+      summary: List watched folders
+      description: Returns all configured watched folders for standalone mode, including disabled ones.
+      responses:
+        200:
+          description: List of watched folders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    path:
+                      type: string
+                    label:
+                      type: string
+                    media_type:
+                      type: string
+                      enum: [auto, tv, movie]
+                    enabled:
+                      type: boolean
+        500:
+          description: Server error
+    """
     from db.standalone import get_watched_folders
 
     try:
@@ -36,6 +66,41 @@ def add_folder():
     """Add a new watched folder.
 
     Body: {path: str, label?: str, media_type?: str}
+    ---
+    post:
+      tags:
+        - Standalone
+      summary: Add a watched folder
+      description: Adds a new directory to be watched for media files in standalone mode.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - path
+              properties:
+                path:
+                  type: string
+                  description: Absolute path to directory
+                label:
+                  type: string
+                media_type:
+                  type: string
+                  enum: [auto, tv, movie]
+                  default: auto
+      responses:
+        201:
+          description: Folder added
+          content:
+            application/json:
+              schema:
+                type: object
+        400:
+          description: Invalid path or media_type
+        500:
+          description: Server error
     """
     from db.standalone import upsert_watched_folder, get_watched_folder
 
@@ -70,6 +135,47 @@ def update_folder(folder_id):
     """Update a watched folder.
 
     Body: {path?: str, label?: str, media_type?: str, enabled?: bool}
+    ---
+    put:
+      tags:
+        - Standalone
+      summary: Update a watched folder
+      description: Updates an existing watched folder configuration.
+      parameters:
+        - in: path
+          name: folder_id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                path:
+                  type: string
+                label:
+                  type: string
+                media_type:
+                  type: string
+                  enum: [auto, tv, movie]
+                enabled:
+                  type: boolean
+      responses:
+        200:
+          description: Updated folder
+          content:
+            application/json:
+              schema:
+                type: object
+        400:
+          description: Invalid media_type or path
+        404:
+          description: Folder not found
+        500:
+          description: Server error
     """
     from db.standalone import get_watched_folder, upsert_watched_folder
 
@@ -103,7 +209,34 @@ def update_folder(folder_id):
 
 @bp.route("/folders/<int:folder_id>", methods=["DELETE"])
 def delete_folder(folder_id):
-    """Delete a watched folder."""
+    """Delete a watched folder.
+    ---
+    delete:
+      tags:
+        - Standalone
+      summary: Delete a watched folder
+      description: Removes a watched folder from standalone mode.
+      parameters:
+        - in: path
+          name: folder_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Folder deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        404:
+          description: Folder not found
+        500:
+          description: Server error
+    """
     from db.standalone import get_watched_folder, delete_watched_folder
 
     folder = get_watched_folder(folder_id)
@@ -124,7 +257,25 @@ def delete_folder(folder_id):
 
 @bp.route("/series", methods=["GET"])
 def list_series():
-    """List all standalone series with episode counts and wanted counts."""
+    """List all standalone series with episode counts and wanted counts.
+    ---
+    get:
+      tags:
+        - Standalone
+      summary: List standalone series
+      description: Returns all standalone series with episode counts and the number of wanted subtitle items.
+      responses:
+        200:
+          description: List of standalone series
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        500:
+          description: Server error
+    """
     from db.standalone import get_standalone_series
     from db import get_db, _db_lock
 
@@ -149,7 +300,31 @@ def list_series():
 
 @bp.route("/series/<int:series_id>", methods=["GET"])
 def get_series(series_id):
-    """Get a single standalone series with its files and wanted status."""
+    """Get a single standalone series with its files and wanted status.
+    ---
+    get:
+      tags:
+        - Standalone
+      summary: Get standalone series detail
+      description: Returns a single standalone series with its associated wanted items.
+      parameters:
+        - in: path
+          name: series_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Series with wanted items
+          content:
+            application/json:
+              schema:
+                type: object
+        404:
+          description: Series not found
+        500:
+          description: Server error
+    """
     from db.standalone import get_standalone_series
     from db import get_db, _db_lock
 
@@ -175,7 +350,34 @@ def get_series(series_id):
 
 @bp.route("/series/<int:series_id>", methods=["DELETE"])
 def delete_series(series_id):
-    """Delete a standalone series and its wanted items."""
+    """Delete a standalone series and its wanted items.
+    ---
+    delete:
+      tags:
+        - Standalone
+      summary: Delete standalone series
+      description: Deletes a standalone series and cascades to remove associated wanted items.
+      parameters:
+        - in: path
+          name: series_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Series deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        404:
+          description: Series not found
+        500:
+          description: Server error
+    """
     from db.standalone import get_standalone_series, delete_standalone_series
     from db import get_db, _db_lock
 
@@ -206,7 +408,25 @@ def delete_series(series_id):
 
 @bp.route("/movies", methods=["GET"])
 def list_movies():
-    """List all standalone movies with wanted status."""
+    """List all standalone movies with wanted status.
+    ---
+    get:
+      tags:
+        - Standalone
+      summary: List standalone movies
+      description: Returns all standalone movies with wanted count information.
+      responses:
+        200:
+          description: List of standalone movies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        500:
+          description: Server error
+    """
     from db.standalone import get_standalone_movies
     from db import get_db, _db_lock
 
@@ -231,7 +451,34 @@ def list_movies():
 
 @bp.route("/movies/<int:movie_id>", methods=["DELETE"])
 def delete_movie(movie_id):
-    """Delete a standalone movie and its wanted items."""
+    """Delete a standalone movie and its wanted items.
+    ---
+    delete:
+      tags:
+        - Standalone
+      summary: Delete standalone movie
+      description: Deletes a standalone movie and cascades to remove associated wanted items.
+      parameters:
+        - in: path
+          name: movie_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Movie deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        404:
+          description: Movie not found
+        500:
+          description: Server error
+    """
     from db.standalone import get_standalone_movies, delete_standalone_movie
     from db import get_db, _db_lock
 
@@ -265,6 +512,22 @@ def scan_all():
     """Trigger a full scan of all watched folders.
 
     Runs in a background thread. Returns 202 immediately.
+    ---
+    post:
+      tags:
+        - Standalone
+      summary: Scan all watched folders
+      description: Triggers a full scan of all enabled watched folders in a background thread. Returns immediately with 202.
+      responses:
+        202:
+          description: Scan started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
     """
     def _run_scan():
         try:
@@ -283,6 +546,30 @@ def scan_folder(folder_id):
     """Scan a single watched folder.
 
     Runs in a background thread. Returns 202 immediately.
+    ---
+    post:
+      tags:
+        - Standalone
+      summary: Scan a single folder
+      description: Triggers a scan of a specific watched folder in a background thread. Returns immediately with 202.
+      parameters:
+        - in: path
+          name: folder_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        202:
+          description: Scan started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        404:
+          description: Folder not found
     """
     from db.standalone import get_watched_folder
 
@@ -304,7 +591,32 @@ def scan_folder(folder_id):
 
 @bp.route("/status", methods=["GET"])
 def get_status():
-    """Get standalone mode status from StandaloneManager."""
+    """Get standalone mode status from StandaloneManager.
+    ---
+    get:
+      tags:
+        - Standalone
+      summary: Get standalone mode status
+      description: Returns the current standalone mode status including enabled state, watcher status, and counts.
+      responses:
+        200:
+          description: Standalone status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                  watched_folders:
+                    type: integer
+                  series_count:
+                    type: integer
+                  movie_count:
+                    type: integer
+        500:
+          description: Server error
+    """
     try:
         from standalone import get_standalone_manager
         manager = get_standalone_manager()
@@ -340,6 +652,34 @@ def refresh_series_metadata(series_id):
     """Re-resolve metadata for a standalone series.
 
     Clears cache and re-fetches from TMDB/AniList/TVDB.
+    ---
+    post:
+      tags:
+        - Standalone
+      summary: Refresh series metadata
+      description: Re-resolves metadata for a standalone series from external sources (TMDB, AniList, TVDB).
+      parameters:
+        - in: path
+          name: series_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Metadata refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  series:
+                    type: object
+        404:
+          description: Series not found or no metadata found
+        500:
+          description: Server error
     """
     from db.standalone import get_standalone_series
 

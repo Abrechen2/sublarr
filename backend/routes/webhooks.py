@@ -1,4 +1,4 @@
-"""Webhook routes — /webhook/sonarr, /webhook/radarr."""
+"""Webhook routes -- /webhook/sonarr, /webhook/radarr."""
 
 import time
 import logging
@@ -82,7 +82,7 @@ def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None, mo
             logger.warning("Webhook pipeline: search/process failed: %s", e)
             result_info["steps"].append({"search": {"error": str(e)}})
 
-    # Step 4: Fallback — direct translate if auto_search disabled
+    # Step 4: Fallback -- direct translate if auto_search disabled
     if not s.webhook_auto_search:
         job = create_job(file_path)
         _run_job(job)
@@ -105,7 +105,67 @@ def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None, mo
 
 @bp.route("/webhook/sonarr", methods=["POST"])
 def webhook_sonarr():
-    """Handle Sonarr webhook (OnDownload event)."""
+    """Handle Sonarr webhook (OnDownload event).
+    ---
+    post:
+      tags:
+        - Webhooks
+      summary: Sonarr webhook endpoint
+      description: |
+        Receives webhook notifications from Sonarr. Supports Test and Download event types.
+        On Download events, triggers the auto-pipeline (delay, scan, search, translate) in a background thread.
+
+        Expected payload structure (Sonarr OnDownload):
+        ```json
+        {
+          "eventType": "Download",
+          "series": {"id": 1, "title": "Show Name"},
+          "episodeFile": {"path": "/path/to/file.mkv"}
+        }
+        ```
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                eventType:
+                  type: string
+                  enum: [Test, Download]
+                series:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    title:
+                      type: string
+                episodeFile:
+                  type: object
+                  properties:
+                    path:
+                      type: string
+      responses:
+        200:
+          description: Test webhook acknowledged or event ignored
+        202:
+          description: Download pipeline queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  file_path:
+                    type: string
+                  delay_minutes:
+                    type: integer
+                  auto_pipeline:
+                    type: boolean
+        400:
+          description: Missing file path in payload
+    """
     from config import get_settings, map_path
 
     data = request.get_json() or {}
@@ -148,7 +208,68 @@ def webhook_sonarr():
 
 @bp.route("/webhook/radarr", methods=["POST"])
 def webhook_radarr():
-    """Handle Radarr webhook (OnDownload and MovieFileDelete events)."""
+    """Handle Radarr webhook (OnDownload and MovieFileDelete events).
+    ---
+    post:
+      tags:
+        - Webhooks
+      summary: Radarr webhook endpoint
+      description: |
+        Receives webhook notifications from Radarr. Supports Test, Download, and MovieFileDelete event types.
+        On Download events, triggers the auto-pipeline in a background thread.
+        On MovieFileDelete events, removes associated wanted items.
+
+        Expected payload structure (Radarr OnDownload):
+        ```json
+        {
+          "eventType": "Download",
+          "movie": {"id": 1, "title": "Movie Name"},
+          "movieFile": {"path": "/path/to/file.mkv"}
+        }
+        ```
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                eventType:
+                  type: string
+                  enum: [Test, Download, MovieFileDelete]
+                movie:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    title:
+                      type: string
+                movieFile:
+                  type: object
+                  properties:
+                    path:
+                      type: string
+      responses:
+        200:
+          description: Test acknowledged, event ignored, or file delete processed
+        202:
+          description: Download pipeline queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  file_path:
+                    type: string
+                  delay_minutes:
+                    type: integer
+                  auto_pipeline:
+                    type: boolean
+        400:
+          description: Missing file path in payload
+    """
     from config import get_settings, map_path
 
     data = request.get_json() or {}

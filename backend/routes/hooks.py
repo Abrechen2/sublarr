@@ -16,7 +16,34 @@ logger = logging.getLogger(__name__)
 
 @bp.route("/events/catalog", methods=["GET"])
 def get_event_catalog():
-    """Return the EVENT_CATALOG as a JSON list for UI dropdowns."""
+    """Return the EVENT_CATALOG as a JSON list for UI dropdowns.
+    ---
+    get:
+      tags:
+        - Events
+      summary: Get event catalog
+      description: Returns all available event types with labels, descriptions, and payload key definitions for hook/webhook configuration.
+      responses:
+        200:
+          description: Event catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    label:
+                      type: string
+                    description:
+                      type: string
+                    payload_keys:
+                      type: array
+                      items:
+                        type: string
+    """
     from events.catalog import EVENT_CATALOG
 
     items = []
@@ -34,7 +61,29 @@ def get_event_catalog():
 
 @bp.route("/hooks", methods=["GET"])
 def list_hooks():
-    """List all hook configs, optionally filtered by event_name."""
+    """List all hook configs, optionally filtered by event_name.
+    ---
+    get:
+      tags:
+        - Events
+      summary: List shell hooks
+      description: Returns all shell hook configurations. Optionally filter by event name.
+      parameters:
+        - in: query
+          name: event_name
+          schema:
+            type: string
+          description: Filter hooks by event name
+      responses:
+        200:
+          description: List of hook configs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+    """
     from db.hooks import get_hook_configs
 
     event_name = request.args.get("event_name")
@@ -44,7 +93,44 @@ def list_hooks():
 
 @bp.route("/hooks", methods=["POST"])
 def create_hook():
-    """Create a new hook config."""
+    """Create a new hook config.
+    ---
+    post:
+      tags:
+        - Events
+      summary: Create a shell hook
+      description: Creates a new shell hook that executes a script when the specified event fires.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - event_name
+                - script_path
+              properties:
+                name:
+                  type: string
+                event_name:
+                  type: string
+                  description: Must be a valid event from the catalog
+                script_path:
+                  type: string
+                timeout_seconds:
+                  type: integer
+                  default: 30
+      responses:
+        201:
+          description: Hook created
+          content:
+            application/json:
+              schema:
+                type: object
+        400:
+          description: Validation error (missing fields or invalid event_name)
+    """
     from db.hooks import create_hook_config
     from events.catalog import EVENT_CATALOG
 
@@ -68,7 +154,29 @@ def create_hook():
 
 @bp.route("/hooks/<int:hook_id>", methods=["GET"])
 def get_hook(hook_id):
-    """Get a single hook config by ID."""
+    """Get a single hook config by ID.
+    ---
+    get:
+      tags:
+        - Events
+      summary: Get hook config
+      description: Returns a single shell hook configuration by ID.
+      parameters:
+        - in: path
+          name: hook_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Hook config
+          content:
+            application/json:
+              schema:
+                type: object
+        404:
+          description: Hook not found
+    """
     from db.hooks import get_hook_config
 
     hook = get_hook_config(hook_id)
@@ -79,7 +187,46 @@ def get_hook(hook_id):
 
 @bp.route("/hooks/<int:hook_id>", methods=["PUT"])
 def update_hook(hook_id):
-    """Update a hook config."""
+    """Update a hook config.
+    ---
+    put:
+      tags:
+        - Events
+      summary: Update a shell hook
+      description: Updates an existing shell hook configuration. Only provided fields are changed.
+      parameters:
+        - in: path
+          name: hook_id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                event_name:
+                  type: string
+                script_path:
+                  type: string
+                timeout_seconds:
+                  type: integer
+                enabled:
+                  type: boolean
+      responses:
+        200:
+          description: Updated hook config
+          content:
+            application/json:
+              schema:
+                type: object
+        404:
+          description: Hook not found
+    """
     from db.hooks import get_hook_config, update_hook_config
 
     hook = get_hook_config(hook_id)
@@ -102,7 +249,23 @@ def update_hook(hook_id):
 
 @bp.route("/hooks/<int:hook_id>", methods=["DELETE"])
 def delete_hook(hook_id):
-    """Delete a hook config."""
+    """Delete a hook config.
+    ---
+    delete:
+      tags:
+        - Events
+      summary: Delete a shell hook
+      description: Deletes a shell hook configuration by ID.
+      parameters:
+        - in: path
+          name: hook_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        204:
+          description: Hook deleted
+    """
     from db.hooks import delete_hook_config
 
     delete_hook_config(hook_id)
@@ -111,7 +274,40 @@ def delete_hook(hook_id):
 
 @bp.route("/hooks/<int:hook_id>/test", methods=["POST"])
 def test_hook(hook_id):
-    """Test-fire a hook with sample event data (blocking)."""
+    """Test-fire a hook with sample event data (blocking).
+    ---
+    post:
+      tags:
+        - Events
+      summary: Test a shell hook
+      description: Executes the hook script with sample payload data and returns the result. Blocks until completion.
+      parameters:
+        - in: path
+          name: hook_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Test result with exit code, stdout, stderr
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  exit_code:
+                    type: integer
+                  stdout:
+                    type: string
+                  stderr:
+                    type: string
+                  duration_ms:
+                    type: number
+        404:
+          description: Hook not found
+    """
     from db.hooks import get_hook_config
     from events.hooks import HookEngine
     from events.catalog import EVENT_CATALOG
@@ -134,7 +330,29 @@ def test_hook(hook_id):
 
 @bp.route("/webhooks", methods=["GET"])
 def list_webhooks():
-    """List all webhook configs, optionally filtered by event_name."""
+    """List all webhook configs, optionally filtered by event_name.
+    ---
+    get:
+      tags:
+        - Events
+      summary: List outgoing webhooks
+      description: Returns all outgoing webhook configurations. Optionally filter by event name.
+      parameters:
+        - in: query
+          name: event_name
+          schema:
+            type: string
+          description: Filter webhooks by event name
+      responses:
+        200:
+          description: List of webhook configs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+    """
     from db.hooks import get_webhook_configs
 
     event_name = request.args.get("event_name")
@@ -144,7 +362,51 @@ def list_webhooks():
 
 @bp.route("/webhooks", methods=["POST"])
 def create_webhook():
-    """Create a new webhook config."""
+    """Create a new webhook config.
+    ---
+    post:
+      tags:
+        - Events
+      summary: Create an outgoing webhook
+      description: Creates a new outgoing webhook that sends HTTP POST requests when events fire. Use '*' for event_name to receive all events.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - event_name
+                - url
+              properties:
+                name:
+                  type: string
+                event_name:
+                  type: string
+                  description: Event name from catalog, or '*' for all events
+                url:
+                  type: string
+                  description: Must start with http:// or https://
+                secret:
+                  type: string
+                  description: HMAC signing secret for payload verification
+                retry_count:
+                  type: integer
+                  default: 3
+                timeout_seconds:
+                  type: integer
+                  default: 10
+      responses:
+        201:
+          description: Webhook created
+          content:
+            application/json:
+              schema:
+                type: object
+        400:
+          description: Validation error
+    """
     from db.hooks import create_webhook_config
     from events.catalog import EVENT_CATALOG
 
@@ -172,7 +434,29 @@ def create_webhook():
 
 @bp.route("/webhooks/<int:webhook_id>", methods=["GET"])
 def get_webhook(webhook_id):
-    """Get a single webhook config by ID."""
+    """Get a single webhook config by ID.
+    ---
+    get:
+      tags:
+        - Events
+      summary: Get webhook config
+      description: Returns a single outgoing webhook configuration by ID.
+      parameters:
+        - in: path
+          name: webhook_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Webhook config
+          content:
+            application/json:
+              schema:
+                type: object
+        404:
+          description: Webhook not found
+    """
     from db.hooks import get_webhook_config
 
     webhook = get_webhook_config(webhook_id)
@@ -183,7 +467,50 @@ def get_webhook(webhook_id):
 
 @bp.route("/webhooks/<int:webhook_id>", methods=["PUT"])
 def update_webhook(webhook_id):
-    """Update a webhook config."""
+    """Update a webhook config.
+    ---
+    put:
+      tags:
+        - Events
+      summary: Update an outgoing webhook
+      description: Updates an existing outgoing webhook configuration. Only provided fields are changed.
+      parameters:
+        - in: path
+          name: webhook_id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                event_name:
+                  type: string
+                url:
+                  type: string
+                secret:
+                  type: string
+                retry_count:
+                  type: integer
+                timeout_seconds:
+                  type: integer
+                enabled:
+                  type: boolean
+      responses:
+        200:
+          description: Updated webhook config
+          content:
+            application/json:
+              schema:
+                type: object
+        404:
+          description: Webhook not found
+    """
     from db.hooks import get_webhook_config, update_webhook_config
 
     webhook = get_webhook_config(webhook_id)
@@ -206,7 +533,23 @@ def update_webhook(webhook_id):
 
 @bp.route("/webhooks/<int:webhook_id>", methods=["DELETE"])
 def delete_webhook(webhook_id):
-    """Delete a webhook config."""
+    """Delete a webhook config.
+    ---
+    delete:
+      tags:
+        - Events
+      summary: Delete an outgoing webhook
+      description: Deletes an outgoing webhook configuration by ID.
+      parameters:
+        - in: path
+          name: webhook_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        204:
+          description: Webhook deleted
+    """
     from db.hooks import delete_webhook_config
 
     delete_webhook_config(webhook_id)
@@ -215,7 +558,38 @@ def delete_webhook(webhook_id):
 
 @bp.route("/webhooks/<int:webhook_id>/test", methods=["POST"])
 def test_webhook(webhook_id):
-    """Test-fire a webhook with sample payload (blocking)."""
+    """Test-fire a webhook with sample payload (blocking).
+    ---
+    post:
+      tags:
+        - Events
+      summary: Test an outgoing webhook
+      description: Sends a test HTTP POST to the webhook URL with sample payload and returns the result. Wildcards use 'config_updated' as the sample event.
+      parameters:
+        - in: path
+          name: webhook_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Test result with status code and response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  status_code:
+                    type: integer
+                  error:
+                    type: string
+                  duration_ms:
+                    type: number
+        404:
+          description: Webhook not found
+    """
     from db.hooks import get_webhook_config
     from events.webhooks import WebhookDispatcher
     from events.catalog import EVENT_CATALOG
@@ -240,7 +614,39 @@ def test_webhook(webhook_id):
 
 @bp.route("/hooks/logs", methods=["GET"])
 def list_hook_logs():
-    """List hook execution logs with optional filters."""
+    """List hook execution logs with optional filters.
+    ---
+    get:
+      tags:
+        - Events
+      summary: List hook execution logs
+      description: Returns hook and webhook execution logs with optional filtering by hook or webhook ID.
+      parameters:
+        - in: query
+          name: hook_id
+          schema:
+            type: integer
+          description: Filter logs by hook ID
+        - in: query
+          name: webhook_id
+          schema:
+            type: integer
+          description: Filter logs by webhook ID
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+      responses:
+        200:
+          description: List of execution logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+    """
     from db.hooks import get_hook_logs
 
     hook_id = request.args.get("hook_id", type=int)
@@ -253,7 +659,17 @@ def list_hook_logs():
 
 @bp.route("/hooks/logs", methods=["DELETE"])
 def clear_logs():
-    """Clear all hook logs."""
+    """Clear all hook logs.
+    ---
+    delete:
+      tags:
+        - Events
+      summary: Clear hook logs
+      description: Deletes all hook and webhook execution logs.
+      responses:
+        204:
+          description: Logs cleared
+    """
     from db.hooks import clear_hook_logs
 
     clear_hook_logs()
@@ -264,7 +680,41 @@ def clear_logs():
 
 @bp.route("/scoring/weights", methods=["GET"])
 def get_weights():
-    """Return all scoring weights (episode + movie) merged with defaults."""
+    """Return all scoring weights (episode + movie) merged with defaults.
+    ---
+    get:
+      tags:
+        - Events
+      summary: Get scoring weights
+      description: Returns current scoring weights for episode and movie subtitle matching, along with the default values.
+      responses:
+        200:
+          description: Scoring weights
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  episode:
+                    type: object
+                    additionalProperties:
+                      type: number
+                  movie:
+                    type: object
+                    additionalProperties:
+                      type: number
+                  defaults:
+                    type: object
+                    properties:
+                      episode:
+                        type: object
+                        additionalProperties:
+                          type: number
+                      movie:
+                        type: object
+                        additionalProperties:
+                          type: number
+    """
     from db.scoring import get_all_scoring_weights, _DEFAULT_EPISODE_WEIGHTS, _DEFAULT_MOVIE_WEIGHTS
 
     weights = get_all_scoring_weights()
@@ -280,7 +730,36 @@ def get_weights():
 
 @bp.route("/scoring/weights", methods=["PUT"])
 def update_weights():
-    """Update scoring weights for episode and/or movie types."""
+    """Update scoring weights for episode and/or movie types.
+    ---
+    put:
+      tags:
+        - Events
+      summary: Update scoring weights
+      description: Updates scoring weights for episode and/or movie subtitle matching. Invalidates the scoring cache.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                episode:
+                  type: object
+                  additionalProperties:
+                    type: number
+                movie:
+                  type: object
+                  additionalProperties:
+                    type: number
+      responses:
+        200:
+          description: Updated scoring weights
+          content:
+            application/json:
+              schema:
+                type: object
+    """
     from db.scoring import get_all_scoring_weights, set_scoring_weights
     from providers.base import invalidate_scoring_cache
 
@@ -307,7 +786,17 @@ def update_weights():
 
 @bp.route("/scoring/weights", methods=["DELETE"])
 def reset_weights():
-    """Reset all scoring weights to defaults."""
+    """Reset all scoring weights to defaults.
+    ---
+    delete:
+      tags:
+        - Events
+      summary: Reset scoring weights
+      description: Resets all scoring weights to their default values and invalidates the scoring cache.
+      responses:
+        204:
+          description: Weights reset to defaults
+    """
     from db.scoring import reset_scoring_weights
     from providers.base import invalidate_scoring_cache
 
@@ -320,7 +809,23 @@ def reset_weights():
 
 @bp.route("/scoring/modifiers", methods=["GET"])
 def get_modifiers():
-    """Return all provider score modifiers."""
+    """Return all provider score modifiers.
+    ---
+    get:
+      tags:
+        - Events
+      summary: Get provider score modifiers
+      description: Returns all provider-specific score modifiers (-100 to +100) that adjust subtitle match scoring.
+      responses:
+        200:
+          description: Provider modifiers map
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: integer
+    """
     from db.scoring import get_all_provider_modifiers
 
     modifiers = get_all_provider_modifiers()
@@ -329,7 +834,34 @@ def get_modifiers():
 
 @bp.route("/scoring/modifiers", methods=["PUT"])
 def update_modifiers():
-    """Update provider modifiers from a dict of {provider_name: modifier}."""
+    """Update provider modifiers from a dict of {provider_name: modifier}.
+    ---
+    put:
+      tags:
+        - Events
+      summary: Update provider score modifiers
+      description: Sets score modifiers for one or more providers. Invalidates the scoring cache.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: integer
+              example:
+                animetosho: 20
+                opensubtitles: -10
+      responses:
+        200:
+          description: Updated modifiers
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: integer
+    """
     from db.scoring import set_provider_modifier, get_all_provider_modifiers
     from providers.base import invalidate_scoring_cache
 
@@ -346,7 +878,23 @@ def update_modifiers():
 
 @bp.route("/scoring/modifiers/<provider_name>", methods=["DELETE"])
 def delete_modifier(provider_name):
-    """Delete a single provider modifier."""
+    """Delete a single provider modifier.
+    ---
+    delete:
+      tags:
+        - Events
+      summary: Delete a provider score modifier
+      description: Removes the score modifier for a specific provider, reverting it to the default (0).
+      parameters:
+        - in: path
+          name: provider_name
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: Modifier deleted
+    """
     from db.scoring import delete_provider_modifier
     from providers.base import invalidate_scoring_cache
 
