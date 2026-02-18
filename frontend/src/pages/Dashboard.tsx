@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Activity,
@@ -15,6 +15,8 @@ import { useHealth, useStats, useJobs, useWantedSummary, useRefreshWanted, useSt
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatDuration, formatRelativeTime, truncatePath } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
+
+const HealthDashboardWidget = lazy(() => import('@/components/health/HealthDashboardWidget').then(m => ({ default: m.HealthDashboardWidget })))
 
 function StatCard({ icon: Icon, label, value, color, delay }: {
   icon: typeof Activity
@@ -292,6 +294,11 @@ export function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Subtitle Quality Widget */}
+      <Suspense fallback={<SkeletonCard />}>
+        <HealthDashboardWidget />
+      </Suspense>
 
       {/* Quick Stats */}
       {stats && (
