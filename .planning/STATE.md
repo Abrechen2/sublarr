@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 10 in progress - Performance & Scalability
+**Current focus:** Phase 10 complete - Performance & Scalability
 
 ## Current Position
 
 Phase: 10 of 16 (Performance & Scalability)
-Plan: 7 of 8 in current phase
-Status: In progress
-Last activity: 2026-02-18 -- Completed 10-06-PLAN.md (Operational Tooling: Backup, Health, Docker)
+Plan: 8 of 8 in current phase
+Status: Phase complete
+Last activity: 2026-02-18 -- Completed 10-08-PLAN.md (Cache & Queue Wiring)
 
-Progress: [██████████████████████░░░] 7/8 plans in phase
+Progress: [█████████████████████████] 8/8 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 50
+- Total plans completed: 51
 - Average duration: 9 min
-- Total execution time: 452 min
+- Total execution time: 460 min
 
 **By Phase:**
 
@@ -37,11 +37,11 @@ Progress: [██████████████████████░
 | 07-events-hooks-custom-scoring | 3/3 | 46 min | 15 min |
 | 08-i18n-backup-admin-polish | 5/5 | 116 min | 23 min |
 | 09-openapi-release-preparation | 5/5 | 60 min | 12 min |
-| 10-performance-scalability | 7/8 | 35 min | 5 min |
+| 10-performance-scalability | 8/8 | 43 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 10-04 (3 min), 10-03 (5 min), 10-05 (9 min), 10-07 (3 min), 10-06 (5 min)
-- Trend: Phase 10 nearing completion, only 10-08 remaining
+- Last 5 plans: 10-03 (5 min), 10-05 (9 min), 10-07 (3 min), 10-06 (5 min), 10-08 (8 min)
+- Trend: Phase 10 complete -- all 8 plans executed successfully
 
 *Updated after each plan completion*
 
@@ -281,6 +281,10 @@ Recent decisions affecting current work:
 - [10-07]: DB pool metrics import extensions.db as sa_db to match app.py alias convention from 10-05
 - [10-07]: Redis/queue row collapsed by default on database dashboard (shown only when Redis active)
 - [10-07]: Dashboard JSON uses ${DS_PROMETHEUS} variable for datasource portability
+- [10-08]: Fast cache operations wrapped in try/except so Redis failure never blocks provider search
+- [10-08]: DB cache hits backfill fast cache for subsequent acceleration (write-through on read)
+- [10-08]: Job queue submit functions are additive wrappers -- existing route threading unchanged
+- [10-08]: Business logic (translate_file, process_wanted_item) untouched -- only submission abstracted
 
 ### Pending Todos
 
@@ -298,11 +302,11 @@ None yet.
 - Phase 7 complete -- all 3 plans executed, all summaries written (event system + engine/dispatcher + API/UI)
 - Phase 8 complete -- all 5 plans executed, all summaries written (theme, backend APIs, frontend pages, core i18n, remaining i18n)
 - Phase 9 complete -- all 5 plans executed (OpenAPI infra + backend performance + frontend performance + release docs + remaining blueprints/tasks page)
-- Phase 10 in progress -- 10-01, 10-02, 10-03, 10-04, 10-05, 10-06, 10-07 complete (ORM models + Alembic + repositories + cache/queue + app integration + operational tooling + extended metrics + Grafana dashboards)
+- Phase 10 complete -- all 8 plans executed (ORM models + Alembic + repositories + cache/queue + app integration + operational tooling + extended metrics + Grafana dashboards + cache/queue wiring)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Phase 10 in progress -- 10-06 complete (dialect-aware backup/health + Docker PostgreSQL/Redis)
-Resume file: .planning/phases/10-performance-scalability/10-06-SUMMARY.md
+Stopped at: Phase 10 complete -- 10-08 complete (cache/queue wiring into business logic)
+Resume file: .planning/phases/10-performance-scalability/10-08-SUMMARY.md
