@@ -135,113 +135,156 @@ def create_app(testing=False):
     from auth import init_auth
     init_auth(app)
 
-    # Initialize database
-    from db import init_db
-    init_db()
-
-    # Initialize event system (SocketIO bridge + hook/webhook subscribers)
-    from events import init_event_system
-    from events.hooks import HookEngine, init_hook_subscribers
-    from events.webhooks import WebhookDispatcher, init_webhook_subscribers
-
-    init_event_system(app)
-
-    hook_engine = HookEngine(max_workers=4)
-    init_hook_subscribers(hook_engine)
-
-    webhook_dispatcher = WebhookDispatcher(max_workers=4)
-    init_webhook_subscribers(webhook_dispatcher)
-
-    # Apply DB config overrides on startup (settings saved via UI take precedence)
-    from db.config import get_all_config_entries
-    _db_overrides = get_all_config_entries()
-    if _db_overrides:
-        logger.info("Applying %d config overrides from database", len(_db_overrides))
-        settings = reload_settings(_db_overrides)
+    # ---- Flask-SQLAlchemy + Alembic initialization ----
+    app.config["SQLALCHEMY_DATABASE_URI"] = settings.get_database_url()
+    # Only set pool options for non-SQLite (SQLite uses StaticPool)
+    if settings.database_url and not settings.database_url.startswith("sqlite"):
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_size": settings.db_pool_size,
+            "max_overflow": settings.db_pool_max_overflow,
+            "pool_recycle": settings.db_pool_recycle,
+            "pool_pre_ping": True,
+        }
     else:
-        logger.info("No config overrides in database, using env/defaults")
+        # SQLite: use check_same_thread=False for thread safety
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "connect_args": {"check_same_thread": False},
+        }
 
-    # Initialize plugin system
-    plugins_dir = getattr(settings, "plugins_dir", "")
-    if plugins_dir:
-        os.makedirs(plugins_dir, exist_ok=True)
-        from providers.plugins import init_plugin_manager
-        plugin_mgr = init_plugin_manager(plugins_dir)
-        loaded, plugin_errors = plugin_mgr.discover()
-        if loaded:
-            logger.info("Loaded %d plugins: %s", len(loaded), loaded)
-        if plugin_errors:
-            for err in plugin_errors:
-                logger.warning("Plugin load error: %s -- %s", err["file"], err["error"])
+    from extensions import db as sa_db, migrate as sa_migrate
+    sa_db.init_app(app)
+    sa_migrate.init_app(app, sa_db, directory="db/migrations", render_as_batch=True)
 
-        # Start hot-reload watcher if enabled (optional -- watchdog must be installed)
-        if not testing and getattr(settings, "plugin_hot_reload", False):
-            try:
-                from providers.plugins.watcher import start_plugin_watcher
-                watcher = start_plugin_watcher(plugin_mgr, plugins_dir)
-                logger.info("Plugin hot-reload watcher started on %s", plugins_dir)
-            except ImportError:
-                logger.warning("watchdog not installed, plugin hot-reload disabled")
+    with app.app_context():
+        # Import all models so they register with metadata
+        import db.models  # noqa: F401
+        # For new databases: create all tables
+        sa_db.create_all()
+        # Enable SQLite WAL mode if using SQLite (match existing behavior)
+        if not settings.database_url or settings.database_url.startswith("sqlite"):
+            from sqlalchemy import text
+            with sa_db.engine.connect() as conn:
+                conn.execute(text("PRAGMA journal_mode=WAL"))
+                conn.execute(text("PRAGMA busy_timeout=5000"))
+                conn.commit()
 
-    # Initialize media server manager (loads configured instances)
-    try:
-        from mediaserver import get_media_server_manager
-        ms_manager = get_media_server_manager()
-        ms_manager.load_instances()
-        types = ms_manager.get_all_server_types()
-        logger.info("Media server manager initialized: %d types registered", len(types))
-    except Exception as e:
-        logger.warning("Media server manager initialization failed: %s", e)
-
-    # Initialize standalone manager (folder watching + scanning)
-    try:
-        from config import get_settings as _get_standalone_settings
-        if getattr(_get_standalone_settings(), 'standalone_enabled', False):
-            from standalone import get_standalone_manager
-            standalone_mgr = get_standalone_manager()
-            logger.info("Standalone manager initialized")
-    except Exception as e:
-        logger.warning("Standalone manager initialization failed: %s", e)
-
-    # Bazarr deprecation warning
-    if os.environ.get("SUBLARR_BAZARR_URL") or os.environ.get("SUBLARR_BAZARR_API_KEY"):
-        logger.warning(
-            "DEPRECATION: SUBLARR_BAZARR_URL/SUBLARR_BAZARR_API_KEY are set but Bazarr "
-            "integration has been removed. Sublarr now has its own provider system."
+        # Initialize cache and queue backends
+        from cache import create_cache_backend
+        from job_queue import create_job_queue
+        app.cache_backend = create_cache_backend(
+            settings.redis_url if settings.redis_cache_enabled else ""
+        )
+        app.job_queue = create_job_queue(
+            settings.redis_url if settings.redis_queue_enabled else ""
         )
 
-    # Register blueprints
-    from routes import register_blueprints
-    register_blueprints(app)
+        # Initialize database (legacy -- no-op now that SQLAlchemy handles lifecycle)
+        from db import init_db
+        init_db()
 
-    # Register OpenAPI spec (must be after register_blueprints)
-    from openapi import register_all_paths
-    register_all_paths(app)
+        # Initialize event system (SocketIO bridge + hook/webhook subscribers)
+        from events import init_event_system
+        from events.hooks import HookEngine, init_hook_subscribers
+        from events.webhooks import WebhookDispatcher, init_webhook_subscribers
 
-    # Register Swagger UI blueprint
-    from flask_swagger_ui import get_swaggerui_blueprint
-    swagger_bp = get_swaggerui_blueprint(
-        "/api/docs",
-        "/api/v1/openapi.json",
-        config={"app_name": "Sublarr API", "layout": "BaseLayout"},
-    )
-    app.register_blueprint(swagger_bp)
+        init_event_system(app)
 
-    # Register app-level routes (metrics, SPA fallback)
-    _register_app_routes(app)
+        hook_engine = HookEngine(max_workers=4)
+        init_hook_subscribers(hook_engine)
 
-    # Register SocketIO events
-    @socketio.on("connect")
-    def handle_connect():
-        logger.debug("WebSocket client connected")
+        webhook_dispatcher = WebhookDispatcher(max_workers=4)
+        init_webhook_subscribers(webhook_dispatcher)
 
-    @socketio.on("disconnect")
-    def handle_disconnect():
-        logger.debug("WebSocket client disconnected")
+        # Apply DB config overrides on startup (settings saved via UI take precedence)
+        from db.config import get_all_config_entries
+        _db_overrides = get_all_config_entries()
+        if _db_overrides:
+            logger.info("Applying %d config overrides from database", len(_db_overrides))
+            settings = reload_settings(_db_overrides)
+        else:
+            logger.info("No config overrides in database, using env/defaults")
 
-    # Start schedulers (skip during testing)
-    if not testing:
-        _start_schedulers(settings)
+        # Initialize plugin system
+        plugins_dir = getattr(settings, "plugins_dir", "")
+        if plugins_dir:
+            os.makedirs(plugins_dir, exist_ok=True)
+            from providers.plugins import init_plugin_manager
+            plugin_mgr = init_plugin_manager(plugins_dir)
+            loaded, plugin_errors = plugin_mgr.discover()
+            if loaded:
+                logger.info("Loaded %d plugins: %s", len(loaded), loaded)
+            if plugin_errors:
+                for err in plugin_errors:
+                    logger.warning("Plugin load error: %s -- %s", err["file"], err["error"])
+
+            # Start hot-reload watcher if enabled (optional -- watchdog must be installed)
+            if not testing and getattr(settings, "plugin_hot_reload", False):
+                try:
+                    from providers.plugins.watcher import start_plugin_watcher
+                    watcher = start_plugin_watcher(plugin_mgr, plugins_dir)
+                    logger.info("Plugin hot-reload watcher started on %s", plugins_dir)
+                except ImportError:
+                    logger.warning("watchdog not installed, plugin hot-reload disabled")
+
+        # Initialize media server manager (loads configured instances)
+        try:
+            from mediaserver import get_media_server_manager
+            ms_manager = get_media_server_manager()
+            ms_manager.load_instances()
+            types = ms_manager.get_all_server_types()
+            logger.info("Media server manager initialized: %d types registered", len(types))
+        except Exception as e:
+            logger.warning("Media server manager initialization failed: %s", e)
+
+        # Initialize standalone manager (folder watching + scanning)
+        try:
+            from config import get_settings as _get_standalone_settings
+            if getattr(_get_standalone_settings(), 'standalone_enabled', False):
+                from standalone import get_standalone_manager
+                standalone_mgr = get_standalone_manager()
+                logger.info("Standalone manager initialized")
+        except Exception as e:
+            logger.warning("Standalone manager initialization failed: %s", e)
+
+        # Bazarr deprecation warning
+        if os.environ.get("SUBLARR_BAZARR_URL") or os.environ.get("SUBLARR_BAZARR_API_KEY"):
+            logger.warning(
+                "DEPRECATION: SUBLARR_BAZARR_URL/SUBLARR_BAZARR_API_KEY are set but Bazarr "
+                "integration has been removed. Sublarr now has its own provider system."
+            )
+
+        # Register blueprints
+        from routes import register_blueprints
+        register_blueprints(app)
+
+        # Register OpenAPI spec (must be after register_blueprints)
+        from openapi import register_all_paths
+        register_all_paths(app)
+
+        # Register Swagger UI blueprint
+        from flask_swagger_ui import get_swaggerui_blueprint
+        swagger_bp = get_swaggerui_blueprint(
+            "/api/docs",
+            "/api/v1/openapi.json",
+            config={"app_name": "Sublarr API", "layout": "BaseLayout"},
+        )
+        app.register_blueprint(swagger_bp)
+
+        # Register app-level routes (metrics, SPA fallback)
+        _register_app_routes(app)
+
+        # Register SocketIO events
+        @socketio.on("connect")
+        def handle_connect():
+            logger.debug("WebSocket client connected")
+
+        @socketio.on("disconnect")
+        def handle_disconnect():
+            logger.debug("WebSocket client disconnected")
+
+        # Start schedulers (skip during testing)
+        if not testing:
+            _start_schedulers(settings)
 
     return app
 

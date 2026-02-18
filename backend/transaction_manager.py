@@ -1,7 +1,8 @@
 """Transaction context manager for safe database writes.
 
-Wraps database operations in explicit transactions with automatic
-rollback on failure. Works with the existing _db_lock pattern in database.py.
+Wraps database operations in SQLAlchemy transactions with automatic
+rollback on failure. Backward-compatible: if called with a sqlite3
+connection argument, delegates to the legacy pattern.
 """
 
 import logging
@@ -15,35 +16,56 @@ logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def transaction(db: sqlite3.Connection) -> Generator[sqlite3.Cursor, None, None]:
-    """Execute database writes inside an explicit transaction.
+def transaction(db_conn=None) -> Generator:
+    """Execute database writes inside a transaction.
 
-    Usage::
+    If called without arguments (or with None), uses SQLAlchemy session.
+    If called with a sqlite3.Connection, uses the legacy sqlite3 pattern.
 
-        from transaction_manager import transaction
+    Usage (SQLAlchemy)::
 
-        db = get_db()
-        with _db_lock:
-            with transaction(db) as cursor:
-                cursor.execute("INSERT INTO ...", (...))
-                cursor.execute("UPDATE ...", (...))
-        # commit happens automatically; rollback on any exception
+        with transaction() as session:
+            session.execute(...)
 
-    Args:
-        db: An open sqlite3.Connection (usually from get_db()).
+    Usage (Legacy sqlite3 -- backward compat)::
+
+        with transaction(sqlite3_conn) as cursor:
+            cursor.execute("INSERT INTO ...", (...))
 
     Yields:
-        A sqlite3.Cursor bound to the connection.
+        SQLAlchemy session (no args) or sqlite3.Cursor (with connection arg).
 
     Raises:
         DatabaseError: If the transaction fails and is rolled back.
     """
-    cursor = db.cursor()
+    if db_conn is not None and isinstance(db_conn, sqlite3.Connection):
+        # Legacy sqlite3 path
+        yield from _legacy_transaction(db_conn)
+    else:
+        # SQLAlchemy session path
+        yield from _sqlalchemy_transaction()
+
+
+def _sqlalchemy_transaction():
+    """SQLAlchemy session-based transaction."""
+    from extensions import db
+    try:
+        yield db.session
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        logger.error("Transaction rolled back: %s", exc)
+        raise
+
+
+def _legacy_transaction(db_conn: sqlite3.Connection):
+    """Legacy sqlite3 transaction (kept for backward compatibility)."""
+    cursor = db_conn.cursor()
     try:
         yield cursor
-        db.commit()
+        db_conn.commit()
     except sqlite3.IntegrityError as exc:
-        db.rollback()
+        db_conn.rollback()
         logger.warning("Transaction rolled back (integrity): %s", exc)
         raise DatabaseError(
             str(exc),
@@ -51,14 +73,14 @@ def transaction(db: sqlite3.Connection) -> Generator[sqlite3.Cursor, None, None]
             context={"sqlite_error": type(exc).__name__},
         ) from exc
     except sqlite3.Error as exc:
-        db.rollback()
+        db_conn.rollback()
         logger.error("Transaction rolled back (sqlite): %s", exc)
         raise DatabaseError(
             str(exc),
             context={"sqlite_error": type(exc).__name__},
         ) from exc
     except Exception as exc:
-        db.rollback()
+        db_conn.rollback()
         logger.error("Transaction rolled back (unexpected): %s", exc)
         raise
     finally:

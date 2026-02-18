@@ -149,12 +149,32 @@ class Settings(BaseSettings):
     anidb_custom_field_name: str = "anidb_id"  # Custom field name in Sonarr
     anidb_fallback_to_mapping: bool = True  # Use cache/mapping as fallback
 
+    # Database (PERF-01, PERF-02)
+    database_url: str = ""  # Empty = SQLite at db_path. Set to postgresql://... for PG.
+    db_pool_size: int = 5           # SQLAlchemy pool_size (ignored for SQLite)
+    db_pool_max_overflow: int = 10  # SQLAlchemy max_overflow (ignored for SQLite)
+    db_pool_recycle: int = 3600     # Recycle connections after N seconds
+
+    # Redis (PERF-04, PERF-06)
+    redis_url: str = ""             # Empty = no Redis. e.g., redis://localhost:6379/0
+    redis_cache_enabled: bool = True   # Use Redis for provider cache (when redis_url set)
+    redis_queue_enabled: bool = True   # Use Redis+RQ for job queue (when redis_url set)
+
     model_config = {
         "env_prefix": "SUBLARR_",
         "env_file": ".env",
         "env_file_encoding": "utf-8",
         "extra": "ignore",
     }
+
+    def get_database_url(self) -> str:
+        """Get the SQLAlchemy database URL.
+
+        Returns database_url if set, otherwise constructs a SQLite URL from db_path.
+        """
+        if self.database_url:
+            return self.database_url
+        return f"sqlite:///{self.db_path}"
 
     def get_prompt_template(self) -> str:
         """Get the translation prompt template.
