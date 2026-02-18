@@ -244,11 +244,13 @@ Plans:
   2. User can open an inline editor (CodeMirror) for any subtitle file with undo/redo and real-time validation
   3. Editing a subtitle automatically creates a backup of the original before saving changes
   4. Editor supports live preview, diff view against previous version, and find-and-replace
-**Plans**: TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] 11-01: TBD
-- [ ] 11-02: TBD
+- [ ] 11-01-PLAN.md -- Backend API endpoints (content, backup, validate, parse) + CodeMirror deps + ASS/SRT tokenizers + editor theme
+- [ ] 11-02-PLAN.md -- TypeScript types, API hooks, SubtitlePreview component, SubtitleTimeline component
+- [ ] 11-03-PLAN.md -- SubtitleEditor component (CodeMirror, toolbar, validation, save) + SubtitleDiff component
+- [ ] 11-04-PLAN.md -- SubtitleEditorModal (lazy loading) + integration into SeriesDetail, Wanted, History pages
 
 ### Phase 12: Batch Operations + Smart-Filter
 **Goal**: Users can perform bulk actions across library, wanted, and history pages, with saved filter presets and global search
