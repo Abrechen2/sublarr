@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 10 of 16 (Performance & Scalability)
-Plan: 4 of 8 in current phase
+Plan: 5 of 8 in current phase
 Status: In progress
-Last activity: 2026-02-18 -- Completed 10-04-PLAN.md (Cache & Job Queue Abstraction)
+Last activity: 2026-02-18 -- Completed 10-03-PLAN.md (Complex Repository Layer)
 
-Progress: [████████████░░░░░░░░░░░░░] 4/8 plans in phase
+Progress: [███████████████░░░░░░░░░░] 5/8 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 46
+- Total plans completed: 47
 - Average duration: 9 min
-- Total execution time: 432 min
+- Total execution time: 437 min
 
 **By Phase:**
 
@@ -37,11 +37,11 @@ Progress: [████████████░░░░░░░░░░░
 | 07-events-hooks-custom-scoring | 3/3 | 46 min | 15 min |
 | 08-i18n-backup-admin-polish | 5/5 | 116 min | 23 min |
 | 09-openapi-release-preparation | 5/5 | 60 min | 12 min |
-| 10-performance-scalability | 4/8 | 15 min | 4 min |
+| 10-performance-scalability | 5/8 | 20 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 09-04 (16 min), 10-01 (9 min), 10-02 (3 min), 10-04 (3 min)
-- Trend: Phase 10 progressing efficiently, 10-04 completed in 3 min
+- Last 5 plans: 10-01 (9 min), 10-02 (3 min), 10-04 (3 min), 10-03 (5 min)
+- Trend: Phase 10 progressing efficiently, 10-03 completed in 5 min
 
 *Updated after each plan completion*
 
@@ -260,6 +260,10 @@ Recent decisions affecting current work:
 - [10-02]: TranslationRepository preserves weighted running average formula exactly for backend stats
 - [10-02]: BlacklistRepository uses check-then-insert (no INSERT OR IGNORE equivalent in SQLAlchemy)
 - [10-02]: LibraryRepository uses sqlalchemy.text() for SQLite datetime() in time-based aggregation
+- [10-03]: StandaloneRepository upsert methods return full dict (not just row_id) for ORM pattern consistency
+- [10-03]: HookRepository cascade-deletes hook_log entries via explicit DELETE before hook/webhook deletion
+- [10-03]: ProviderRepository separates record_search from record_download to match existing API granularity
+- [10-03]: All 15 repository classes (1 base + 14 domain) re-exported from db.repositories.__init__
 - [10-04]: Package named job_queue (not queue) to avoid shadowing Python stdlib queue module
 - [10-04]: Redis key prefix 'sublarr:' for namespace isolation in shared Redis instances
 - [10-04]: MemoryCacheBackend evicts expired entries every 100 accesses to prevent memory growth
@@ -282,11 +286,11 @@ None yet.
 - Phase 7 complete -- all 3 plans executed, all summaries written (event system + engine/dispatcher + API/UI)
 - Phase 8 complete -- all 5 plans executed, all summaries written (theme, backend APIs, frontend pages, core i18n, remaining i18n)
 - Phase 9 complete -- all 5 plans executed (OpenAPI infra + backend performance + frontend performance + release docs + remaining blueprints/tasks page)
-- Phase 10 in progress -- 10-01, 10-02, 10-04 complete (ORM models + Alembic + 8 repository classes + cache/queue abstraction)
+- Phase 10 in progress -- 10-01, 10-02, 10-03, 10-04 complete (ORM models + Alembic + complete repository layer (15 classes) + cache/queue abstraction)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Phase 10 in progress -- 10-04 complete (cache + job queue abstraction layers with Redis/memory fallbacks)
-Resume file: .planning/phases/10-performance-scalability/10-04-SUMMARY.md
+Stopped at: Phase 10 in progress -- 10-03 complete (complete repository layer: 15 classes covering all db/ modules)
+Resume file: .planning/phases/10-performance-scalability/10-03-SUMMARY.md
