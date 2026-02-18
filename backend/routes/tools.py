@@ -1,4 +1,4 @@
-"""Subtitle processing tools -- /tools/remove-hi, /tools/adjust-timing, /tools/common-fixes, /tools/preview, /tools/content, /tools/backup, /tools/validate, /tools/parse."""
+"""Subtitle processing tools -- /tools/remove-hi, /tools/adjust-timing, /tools/common-fixes, /tools/preview, /tools/content, /tools/backup, /tools/validate, /tools/parse, /tools/health-check, /tools/health-fix, /tools/advanced-sync, /tools/compare, /tools/quality-trends."""
 
 import os
 import re
@@ -1066,3 +1066,643 @@ def parse_cues():
     except Exception as exc:
         logger.error("Parse failed for %s: %s", abs_path, exc)
         return jsonify({"error": f"Parse failed: {exc}"}), 500
+
+
+# -- Health Check ---------------------------------------------------------------
+
+
+@bp.route("/health-check", methods=["POST"])
+def health_check():
+    """Run health checks on one or more subtitle files and persist results.
+    ---
+    post:
+      tags:
+        - Tools
+      summary: Run subtitle health checks
+      description: Runs 10 quality checks on subtitle file(s), calculates a 0-100 score, and persists results. Accepts a single file_path or a batch of file_paths (max 50).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                file_path:
+                  type: string
+                  description: Single file path to check
+                file_paths:
+                  type: array
+                  items:
+                    type: string
+                  description: Batch of file paths to check (max 50)
+      responses:
+        200:
+          description: Health check results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  file_path:
+                    type: string
+                  checks_run:
+                    type: integer
+                  issues:
+                    type: array
+                    items:
+                      type: object
+                  score:
+                    type: integer
+                  checked_at:
+                    type: string
+        400:
+          description: Invalid parameters
+        403:
+          description: File outside media_path
+        404:
+          description: File not found
+        500:
+          description: Processing error
+    """
+    import json as json_mod
+    from health_checker import run_health_checks
+    from db.quality import save_health_result
+
+    data = request.get_json() or {}
+    file_path = data.get("file_path", "")
+    file_paths = data.get("file_paths", [])
+
+    # Single file mode
+    if file_path and not file_paths:
+        error, result = _validate_file_path(file_path)
+        if error:
+            return jsonify({"error": error}), result
+
+        abs_path = result
+
+        try:
+            check_result = run_health_checks(abs_path)
+
+            # Persist result
+            try:
+                save_health_result(
+                    file_path=abs_path,
+                    score=check_result["score"],
+                    issues_json=json_mod.dumps(check_result["issues"]),
+                    checks_run=check_result["checks_run"],
+                    checked_at=check_result["checked_at"],
+                )
+            except Exception as e:
+                logger.warning("Failed to persist health result for %s: %s", abs_path, e)
+
+            return jsonify(check_result)
+
+        except Exception as exc:
+            logger.error("Health check failed for %s: %s", abs_path, exc)
+            return jsonify({"error": f"Health check failed: {exc}"}), 500
+
+    # Batch mode
+    if file_paths:
+        if len(file_paths) > 50:
+            return jsonify({"error": "Maximum 50 files per batch"}), 400
+
+        results = []
+        total_issues = 0
+        total_score = 0
+
+        for fp in file_paths:
+            error, result = _validate_file_path(fp)
+            if error:
+                results.append({
+                    "file_path": fp,
+                    "error": error,
+                    "score": 0,
+                    "issues": [],
+                    "checks_run": 0,
+                })
+                continue
+
+            abs_path = result
+            try:
+                check_result = run_health_checks(abs_path)
+
+                try:
+                    save_health_result(
+                        file_path=abs_path,
+                        score=check_result["score"],
+                        issues_json=json_mod.dumps(check_result["issues"]),
+                        checks_run=check_result["checks_run"],
+                        checked_at=check_result["checked_at"],
+                    )
+                except Exception as e:
+                    logger.warning("Failed to persist health result for %s: %s", abs_path, e)
+
+                results.append(check_result)
+                total_issues += len(check_result["issues"])
+                total_score += check_result["score"]
+
+            except Exception as exc:
+                logger.error("Health check failed for %s: %s", abs_path, exc)
+                results.append({
+                    "file_path": fp,
+                    "error": str(exc),
+                    "score": 0,
+                    "issues": [],
+                    "checks_run": 0,
+                })
+
+        valid_count = sum(1 for r in results if "error" not in r)
+        avg_score = round(total_score / valid_count, 1) if valid_count > 0 else 0.0
+
+        return jsonify({
+            "results": results,
+            "summary": {
+                "total": len(results),
+                "avg_score": avg_score,
+                "total_issues": total_issues,
+            },
+        })
+
+    return jsonify({"error": "file_path or file_paths is required"}), 400
+
+
+# -- Health Fix -----------------------------------------------------------------
+
+
+@bp.route("/health-fix", methods=["POST"])
+def health_fix():
+    """Apply auto-fixes for detected health issues and re-check quality.
+    ---
+    post:
+      tags:
+        - Tools
+      summary: Auto-fix subtitle health issues
+      description: Applies specified auto-fixes to a subtitle file. Creates a .bak backup before modifying. Re-runs health check after fixes and persists updated result.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - file_path
+                - fixes
+              properties:
+                file_path:
+                  type: string
+                  description: Path to subtitle file (must be under media_path)
+                fixes:
+                  type: array
+                  items:
+                    type: string
+                    enum: [duplicate_lines, timing_overlaps, missing_styles, empty_events, negative_timing, zero_duration]
+                  description: List of fix names to apply
+      responses:
+        200:
+          description: Fixes applied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  fixes_applied:
+                    type: array
+                    items:
+                      type: string
+                  counts:
+                    type: object
+                  new_score:
+                    type: integer
+                  remaining_issues:
+                    type: integer
+        400:
+          description: Invalid parameters
+        403:
+          description: File outside media_path
+        404:
+          description: File not found
+        500:
+          description: Processing error
+    """
+    import json as json_mod
+    from health_checker import apply_fixes, run_health_checks, FIXABLE_CHECKS
+    from db.quality import save_health_result
+
+    data = request.get_json() or {}
+    file_path = data.get("file_path", "")
+    fixes = data.get("fixes", [])
+
+    if not isinstance(fixes, list) or not fixes:
+        return jsonify({"error": "fixes must be a non-empty array of fix names"}), 400
+
+    invalid = set(fixes) - FIXABLE_CHECKS
+    if invalid:
+        return jsonify({
+            "error": f"Invalid fix names: {invalid}. Valid: {sorted(FIXABLE_CHECKS)}"
+        }), 400
+
+    error, result = _validate_file_path(file_path)
+    if error:
+        return jsonify({"error": error}), result
+
+    abs_path = result
+
+    try:
+        fix_result = apply_fixes(abs_path, fixes)
+
+        # Re-run health check and persist
+        check_result = run_health_checks(abs_path)
+        try:
+            save_health_result(
+                file_path=abs_path,
+                score=check_result["score"],
+                issues_json=json_mod.dumps(check_result["issues"]),
+                checks_run=check_result["checks_run"],
+                checked_at=check_result["checked_at"],
+            )
+        except Exception as e:
+            logger.warning("Failed to persist health result for %s: %s", abs_path, e)
+
+        logger.info("Health fix applied to %s: %s", abs_path, fix_result["fixes_applied"])
+
+        return jsonify({
+            "status": "fixed",
+            "fixes_applied": fix_result["fixes_applied"],
+            "counts": fix_result["counts"],
+            "new_score": check_result["score"],
+            "remaining_issues": len(check_result["issues"]),
+        })
+
+    except Exception as exc:
+        logger.error("Health fix failed for %s: %s", abs_path, exc)
+        return jsonify({"error": f"Health fix failed: {exc}"}), 500
+
+
+# -- Advanced Sync --------------------------------------------------------------
+
+
+@bp.route("/advanced-sync", methods=["POST"])
+def advanced_sync():
+    """Apply advanced sync operations (offset, speed, framerate) via pysubs2.
+    ---
+    post:
+      tags:
+        - Tools
+      summary: Advanced subtitle sync
+      description: Applies advanced timing sync operations to a subtitle file using pysubs2. Supports offset (ms shift), speed (playback rate adjustment), and framerate conversion. Creates a .bak backup before modifying. Supports preview mode.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - file_path
+                - operation
+              properties:
+                file_path:
+                  type: string
+                  description: Path to subtitle file (must be under media_path)
+                operation:
+                  type: string
+                  enum: [offset, speed, framerate]
+                  description: Sync operation type
+                offset_ms:
+                  type: integer
+                  description: Offset in milliseconds (for operation=offset)
+                speed_factor:
+                  type: number
+                  description: Speed multiplier 0.5-2.0 (for operation=speed)
+                in_fps:
+                  type: number
+                  description: Source framerate (for operation=framerate)
+                out_fps:
+                  type: number
+                  description: Target framerate (for operation=framerate)
+                preview:
+                  type: boolean
+                  description: If true, return preview of changes without saving
+                  default: false
+      responses:
+        200:
+          description: Sync applied or preview returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  operation:
+                    type: string
+                  events:
+                    type: integer
+        400:
+          description: Invalid parameters
+        403:
+          description: File outside media_path
+        404:
+          description: File not found
+        500:
+          description: Processing error
+    """
+    import pysubs2
+
+    data = request.get_json() or {}
+    file_path = data.get("file_path", "")
+    operation = data.get("operation", "")
+    preview = data.get("preview", False)
+
+    if operation not in ("offset", "speed", "framerate"):
+        return jsonify({"error": "operation must be one of: offset, speed, framerate"}), 400
+
+    error, result = _validate_file_path(file_path)
+    if error:
+        return jsonify({"error": error}), result
+
+    abs_path = result
+
+    try:
+        subs = pysubs2.load(abs_path)
+        event_count = len([e for e in subs.events if not e.is_comment])
+
+        if operation == "offset":
+            offset_ms = data.get("offset_ms")
+            if offset_ms is None or not isinstance(offset_ms, (int, float)):
+                return jsonify({"error": "offset_ms (integer) is required for offset operation"}), 400
+            offset_ms = int(offset_ms)
+
+            if preview:
+                return _sync_preview(subs, lambda s: s.shift(ms=offset_ms), operation, offset_ms=offset_ms)
+
+            _create_backup(abs_path)
+            subs.shift(ms=offset_ms)
+            subs.save(abs_path)
+
+            logger.info("Advanced sync (offset %dms) applied to %s", offset_ms, abs_path)
+            return jsonify({"status": "synced", "operation": "offset", "events": event_count, "offset_ms": offset_ms})
+
+        elif operation == "speed":
+            speed_factor = data.get("speed_factor")
+            if speed_factor is None or not isinstance(speed_factor, (int, float)):
+                return jsonify({"error": "speed_factor (float) is required for speed operation"}), 400
+            speed_factor = float(speed_factor)
+            if not (0.5 <= speed_factor <= 2.0):
+                return jsonify({"error": "speed_factor must be between 0.5 and 2.0"}), 400
+
+            def apply_speed(s):
+                for event in s.events:
+                    event.start = round(event.start / speed_factor)
+                    event.end = round(event.end / speed_factor)
+
+            if preview:
+                return _sync_preview(subs, apply_speed, operation, speed_factor=speed_factor)
+
+            _create_backup(abs_path)
+            apply_speed(subs)
+            subs.save(abs_path)
+
+            logger.info("Advanced sync (speed %.2fx) applied to %s", speed_factor, abs_path)
+            return jsonify({"status": "synced", "operation": "speed", "events": event_count, "speed_factor": speed_factor})
+
+        elif operation == "framerate":
+            in_fps = data.get("in_fps")
+            out_fps = data.get("out_fps")
+            if in_fps is None or out_fps is None:
+                return jsonify({"error": "in_fps and out_fps are required for framerate operation"}), 400
+            in_fps = float(in_fps)
+            out_fps = float(out_fps)
+            if in_fps <= 0 or out_fps <= 0:
+                return jsonify({"error": "in_fps and out_fps must be positive"}), 400
+
+            if preview:
+                return _sync_preview(subs, lambda s: s.transform_framerate(in_fps, out_fps), operation,
+                                     in_fps=in_fps, out_fps=out_fps)
+
+            _create_backup(abs_path)
+            subs.transform_framerate(in_fps, out_fps)
+            subs.save(abs_path)
+
+            logger.info("Advanced sync (framerate %.3f->%.3f) applied to %s", in_fps, out_fps, abs_path)
+            return jsonify({"status": "synced", "operation": "framerate", "events": event_count,
+                            "in_fps": in_fps, "out_fps": out_fps})
+
+    except Exception as exc:
+        logger.error("Advanced sync failed for %s: %s", abs_path, exc)
+        return jsonify({"error": f"Advanced sync failed: {exc}"}), 500
+
+
+def _sync_preview(subs, apply_fn, operation, **params):
+    """Generate a preview of sync operation on 5 representative events.
+
+    Returns before/after timestamps for first, 25%, 50%, 75%, last events.
+    """
+    non_comment = [e for e in subs.events if not e.is_comment]
+    if not non_comment:
+        return jsonify({"status": "preview", "operation": operation, "events": []})
+
+    # Select 5 representative indices
+    n = len(non_comment)
+    indices = sorted(set([
+        0,
+        max(0, n // 4),
+        max(0, n // 2),
+        max(0, 3 * n // 4),
+        n - 1,
+    ]))
+
+    # Capture before timestamps
+    before = []
+    for i in indices:
+        e = non_comment[i]
+        before.append({"index": i, "start": e.start, "end": e.end, "text": e.plaintext[:60]})
+
+    # Apply operation
+    apply_fn(subs)
+
+    # Capture after timestamps
+    non_comment_after = [e for e in subs.events if not e.is_comment]
+    preview_events = []
+    for idx, b in enumerate(before):
+        i = b["index"]
+        if i < len(non_comment_after):
+            a = non_comment_after[i]
+            preview_events.append({
+                "index": i,
+                "text": b["text"],
+                "before": {"start": b["start"], "end": b["end"]},
+                "after": {"start": a.start, "end": a.end},
+            })
+
+    return jsonify({
+        "status": "preview",
+        "operation": operation,
+        "events": preview_events,
+        **params,
+    })
+
+
+# -- Compare -------------------------------------------------------------------
+
+
+@bp.route("/compare", methods=["POST"])
+def compare_files():
+    """Compare 2-4 subtitle files side by side.
+    ---
+    post:
+      tags:
+        - Tools
+      summary: Compare subtitle files
+      description: Returns the content of 2-4 subtitle files in a single response for side-by-side comparison. Detects encoding and format for each file.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - file_paths
+              properties:
+                file_paths:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 2
+                  maxItems: 4
+                  description: 2-4 subtitle file paths to compare
+      responses:
+        200:
+          description: File contents for comparison
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  panels:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        path:
+                          type: string
+                        content:
+                          type: string
+                        format:
+                          type: string
+                          enum: [ass, srt]
+                        encoding:
+                          type: string
+                        total_lines:
+                          type: integer
+        400:
+          description: Invalid parameters
+        403:
+          description: File outside media_path
+        404:
+          description: File not found
+        500:
+          description: Processing error
+    """
+    data = request.get_json() or {}
+    file_paths = data.get("file_paths", [])
+
+    if not isinstance(file_paths, list) or len(file_paths) < 2 or len(file_paths) > 4:
+        return jsonify({"error": "file_paths must be an array of 2-4 paths"}), 400
+
+    panels = []
+    for fp in file_paths:
+        error, result = _validate_file_path(fp)
+        if error:
+            return jsonify({"error": f"File '{fp}': {error}"}), result
+
+        abs_path = result
+
+        try:
+            # Detect encoding
+            detected_encoding = "utf-8"
+            try:
+                import chardet
+                with open(abs_path, "rb") as f:
+                    raw = f.read()
+                det = chardet.detect(raw)
+                detected_encoding = det.get("encoding", "utf-8") or "utf-8"
+            except ImportError:
+                pass
+
+            with open(abs_path, "r", encoding=detected_encoding, errors="replace") as f:
+                content = f.read()
+
+            ext = os.path.splitext(abs_path)[1].lower()
+            fmt = "ass" if ext in (".ass", ".ssa") else "srt"
+
+            panels.append({
+                "path": abs_path,
+                "content": content,
+                "format": fmt,
+                "encoding": detected_encoding,
+                "total_lines": len(content.splitlines()),
+            })
+
+        except Exception as exc:
+            logger.error("Compare read failed for %s: %s", abs_path, exc)
+            return jsonify({"error": f"Failed to read {fp}: {exc}"}), 500
+
+    return jsonify({"panels": panels})
+
+
+# -- Quality Trends -------------------------------------------------------------
+
+
+@bp.route("/quality-trends", methods=["GET"])
+def quality_trends():
+    """Get quality score trends over time.
+    ---
+    get:
+      tags:
+        - Tools
+      summary: Get quality trends
+      description: Returns daily average quality scores and check counts for the specified number of days.
+      parameters:
+        - in: query
+          name: days
+          schema:
+            type: integer
+            default: 30
+          description: Number of days to look back
+      responses:
+        200:
+          description: Quality trends
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trends:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                        avg_score:
+                          type: number
+                        check_count:
+                          type: integer
+                  days:
+                    type: integer
+        500:
+          description: Processing error
+    """
+    from db.quality import get_quality_trends
+
+    days = request.args.get("days", 30, type=int)
+    days = max(1, min(365, days))  # Clamp to reasonable range
+
+    try:
+        trends = get_quality_trends(days)
+        return jsonify({"trends": trends, "days": days})
+    except Exception as exc:
+        logger.error("Quality trends failed: %s", exc)
+        return jsonify({"error": f"Quality trends failed: {exc}"}), 500
