@@ -22,6 +22,7 @@ from db.repositories.hooks import HookRepository
 from db.repositories.standalone import StandaloneRepository
 from db.repositories.whisper import WhisperRepository
 from db.repositories.translation import TranslationRepository
+from db.repositories.quality import QualityRepository
 
 __all__ = [
     # Base
@@ -43,6 +44,7 @@ __all__ = [
     "LibraryRepository",
     "WhisperRepository",
     "TranslationRepository",
+    "QualityRepository",
     # Config convenience functions
     "save_config_entry",
     "get_config_entry",
@@ -112,6 +114,12 @@ __all__ = [
     "get_backend_stats",
     "get_backend_stat",
     "reset_backend_stats",
+    # Quality convenience functions
+    "save_health_result",
+    "get_health_result",
+    "get_health_results_for_series",
+    "get_quality_trends",
+    "delete_health_results",
 ]
 
 
@@ -461,3 +469,33 @@ def get_backend_stat(backend_name: str):
 def reset_backend_stats(backend_name: str) -> bool:
     """Reset stats for a backend. Returns True if a row was deleted."""
     return TranslationRepository().reset_backend_stats(backend_name)
+
+
+# ---- Quality convenience functions -----------------------------------------------
+
+def save_health_result(file_path: str, score: int, issues_json: str,
+                       checks_run: int, checked_at: str) -> dict:
+    """Save a health check result to the database."""
+    return QualityRepository().save_health_result(
+        file_path, score, issues_json, checks_run, checked_at
+    )
+
+
+def get_health_result(file_path: str):
+    """Get the most recent health result for a file path."""
+    return QualityRepository().get_health_result(file_path)
+
+
+def get_health_results_for_series(path_prefix: str) -> list:
+    """Get all health results for files under a series path prefix."""
+    return QualityRepository().get_health_results_for_series(path_prefix)
+
+
+def get_quality_trends(days: int = 30) -> list:
+    """Get daily average score and issue count for trend tracking."""
+    return QualityRepository().get_quality_trends(days)
+
+
+def delete_health_results(file_path: str) -> int:
+    """Delete all health results for a file path."""
+    return QualityRepository().delete_health_results(file_path)
