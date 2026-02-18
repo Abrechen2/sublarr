@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 Phase: 10 of 16 (Performance & Scalability)
 Plan: 7 of 8 in current phase
 Status: In progress
-Last activity: 2026-02-18 -- Completed 10-07-PLAN.md (Extended Metrics & Grafana Dashboards)
+Last activity: 2026-02-18 -- Completed 10-06-PLAN.md (Operational Tooling: Backup, Health, Docker)
 
 Progress: [██████████████████████░░░] 7/8 plans in phase
 
@@ -40,8 +40,8 @@ Progress: [██████████████████████░
 | 10-performance-scalability | 7/8 | 35 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 10-02 (3 min), 10-04 (3 min), 10-03 (5 min), 10-05 (9 min), 10-07 (3 min)
-- Trend: Phase 10 nearing completion, 10-07 (metrics + dashboards) completed in 3 min
+- Last 5 plans: 10-04 (3 min), 10-03 (5 min), 10-05 (9 min), 10-07 (3 min), 10-06 (5 min)
+- Trend: Phase 10 nearing completion, only 10-08 remaining
 
 *Updated after each plan completion*
 
@@ -273,6 +273,11 @@ Recent decisions affecting current work:
 - [10-05]: db/config.py rewritten in Task 1 (not Task 2a) because app startup depends on get_all_config_entries()
 - [10-05]: Thin wrapper pattern: global _repo with lazy _get_repo() for each db/ module
 - [10-05]: SQLAlchemy import aliased as sa_db to avoid name collision with db package
+- [10-06]: pg_dump -Fc (custom format) for compressed PostgreSQL backups with pg_restore compatibility
+- [10-06]: Backup file extension .pgdump for PostgreSQL, .db for SQLite -- restore dispatches by extension
+- [10-06]: pg_restore exit code non-zero includes warnings; check stderr for ERROR keyword instead
+- [10-06]: ZIP backup manifest includes db_backend field so restore knows which format to expect
+- [10-06]: PostgreSQL pool stats exposed via get_pool_stats() -- returns None for SQLite (StaticPool)
 - [10-07]: DB pool metrics import extensions.db as sa_db to match app.py alias convention from 10-05
 - [10-07]: Redis/queue row collapsed by default on database dashboard (shown only when Redis active)
 - [10-07]: Dashboard JSON uses ${DS_PROMETHEUS} variable for datasource portability
@@ -293,11 +298,11 @@ None yet.
 - Phase 7 complete -- all 3 plans executed, all summaries written (event system + engine/dispatcher + API/UI)
 - Phase 8 complete -- all 5 plans executed, all summaries written (theme, backend APIs, frontend pages, core i18n, remaining i18n)
 - Phase 9 complete -- all 5 plans executed (OpenAPI infra + backend performance + frontend performance + release docs + remaining blueprints/tasks page)
-- Phase 10 in progress -- 10-01, 10-02, 10-03, 10-04, 10-05, 10-07 complete (ORM models + Alembic + repositories + cache/queue + app integration + extended metrics + Grafana dashboards)
+- Phase 10 in progress -- 10-01, 10-02, 10-03, 10-04, 10-05, 10-06, 10-07 complete (ORM models + Alembic + repositories + cache/queue + app integration + operational tooling + extended metrics + Grafana dashboards)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Phase 10 in progress -- 10-07 complete (extended Prometheus metrics + Grafana dashboards)
-Resume file: .planning/phases/10-performance-scalability/10-07-SUMMARY.md
+Stopped at: Phase 10 in progress -- 10-06 complete (dialect-aware backup/health + Docker PostgreSQL/Redis)
+Resume file: .planning/phases/10-performance-scalability/10-06-SUMMARY.md
