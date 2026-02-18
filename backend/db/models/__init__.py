@@ -42,6 +42,7 @@ from db.models.standalone import (
     MetadataCache,
     AnidbMapping,
 )
+from db.models.quality import SubtitleHealthResult
 
 __all__ = [
     # core
@@ -77,4 +78,6 @@ __all__ = [
     "StandaloneMovie",
     "MetadataCache",
     "AnidbMapping",
+    # quality
+    "SubtitleHealthResult",
 ]
