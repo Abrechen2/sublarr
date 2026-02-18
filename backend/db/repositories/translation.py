@@ -1,0 +1,359 @@
+"""Translation config, glossary, prompt preset, and backend stats repository.
+
+Replaces the raw sqlite3 queries in db/translation.py with SQLAlchemy ORM
+operations. Return types match the existing functions exactly.
+
+The backend_stats functions preserve the weighted running average logic
+for avg_response_time_ms exactly as in the original module.
+"""
+
+import logging
+from typing import Optional
+
+from sqlalchemy import select, func
+
+from db.models.translation import (
+    TranslationConfigHistory,
+    GlossaryEntry,
+    PromptPreset,
+    TranslationBackendStats,
+)
+from db.repositories.base import BaseRepository
+
+logger = logging.getLogger(__name__)
+
+
+class TranslationRepository(BaseRepository):
+    """Repository for translation-related table operations."""
+
+    # ---- Translation Config History ------------------------------------------
+
+    def record_translation_config(self, config_hash: str, ollama_model: str,
+                                   prompt_template: str, target_language: str):
+        """Record or update a translation config hash."""
+        now = self._now()
+
+        existing = self.session.execute(
+            select(TranslationConfigHistory)
+            .where(TranslationConfigHistory.config_hash == config_hash)
+        ).scalar_one_or_none()
+
+        if existing:
+            existing.last_used_at = now
+        else:
+            entry = TranslationConfigHistory(
+                config_hash=config_hash,
+                ollama_model=ollama_model,
+                prompt_template=prompt_template,
+                target_language=target_language,
+                first_used_at=now,
+                last_used_at=now,
+            )
+            self.session.add(entry)
+        self._commit()
+
+    def get_translation_config_history(self) -> list[dict]:
+        """Get translation config history entries."""
+        stmt = select(TranslationConfigHistory).order_by(
+            TranslationConfigHistory.last_used_at.desc()
+        )
+        entries = self.session.execute(stmt).scalars().all()
+        return [self._to_dict(e) for e in entries]
+
+    # ---- Glossary Operations -------------------------------------------------
+
+    def add_glossary_entry(self, series_id: int, source_term: str,
+                           target_term: str, notes: str = "") -> int:
+        """Add a new glossary entry for a series. Returns the entry ID."""
+        now = self._now()
+        entry = GlossaryEntry(
+            series_id=series_id,
+            source_term=source_term.strip(),
+            target_term=target_term.strip(),
+            notes=notes.strip(),
+            created_at=now,
+            updated_at=now,
+        )
+        self.session.add(entry)
+        self._commit()
+        return entry.id
+
+    def get_glossary_entries(self, series_id: int) -> list[dict]:
+        """Get all glossary entries for a series."""
+        stmt = (
+            select(GlossaryEntry)
+            .where(GlossaryEntry.series_id == series_id)
+            .order_by(GlossaryEntry.source_term.asc(), GlossaryEntry.created_at.asc())
+        )
+        entries = self.session.execute(stmt).scalars().all()
+        return [self._to_dict(e) for e in entries]
+
+    def get_glossary_for_series(self, series_id: int) -> list[dict]:
+        """Get glossary entries for a series, optimized for translation pipeline.
+
+        Returns:
+            List of {source_term, target_term} dicts, limited to 15 most recent.
+        """
+        stmt = (
+            select(GlossaryEntry.source_term, GlossaryEntry.target_term)
+            .where(GlossaryEntry.series_id == series_id)
+            .order_by(GlossaryEntry.updated_at.desc(), GlossaryEntry.created_at.desc())
+            .limit(15)
+        )
+        rows = self.session.execute(stmt).all()
+        return [{"source_term": r.source_term, "target_term": r.target_term} for r in rows]
+
+    def get_glossary_entry(self, entry_id: int) -> Optional[dict]:
+        """Get a single glossary entry by ID."""
+        entry = self.session.get(GlossaryEntry, entry_id)
+        return self._to_dict(entry)
+
+    def update_glossary_entry(self, entry_id: int, source_term: str = None,
+                              target_term: str = None, notes: str = None) -> bool:
+        """Update a glossary entry. Returns True if updated."""
+        entry = self.session.get(GlossaryEntry, entry_id)
+        if entry is None:
+            return False
+
+        updated = False
+        if source_term is not None:
+            entry.source_term = source_term.strip()
+            updated = True
+        if target_term is not None:
+            entry.target_term = target_term.strip()
+            updated = True
+        if notes is not None:
+            entry.notes = notes.strip()
+            updated = True
+
+        if not updated:
+            return False
+
+        entry.updated_at = self._now()
+        self._commit()
+        return True
+
+    def delete_glossary_entry(self, entry_id: int) -> bool:
+        """Delete a glossary entry. Returns True if deleted."""
+        entry = self.session.get(GlossaryEntry, entry_id)
+        if entry is None:
+            return False
+        self.session.delete(entry)
+        self._commit()
+        return True
+
+    def delete_glossary_entries_for_series(self, series_id: int) -> int:
+        """Delete all glossary entries for a series. Returns count deleted."""
+        from sqlalchemy import delete as sa_delete
+        result = self.session.execute(
+            sa_delete(GlossaryEntry).where(GlossaryEntry.series_id == series_id)
+        )
+        self._commit()
+        return result.rowcount
+
+    def search_glossary_terms(self, series_id: int, query: str) -> list[dict]:
+        """Search glossary entries by source or target term (case-insensitive)."""
+        search_pattern = f"%{query}%"
+        stmt = (
+            select(GlossaryEntry)
+            .where(
+                GlossaryEntry.series_id == series_id,
+                (GlossaryEntry.source_term.like(search_pattern) |
+                 GlossaryEntry.target_term.like(search_pattern)),
+            )
+            .order_by(GlossaryEntry.source_term.asc())
+        )
+        entries = self.session.execute(stmt).scalars().all()
+        return [self._to_dict(e) for e in entries]
+
+    # ---- Prompt Presets Operations -------------------------------------------
+
+    def add_prompt_preset(self, name: str, prompt_template: str,
+                          is_default: bool = False) -> int:
+        """Add a new prompt preset. Returns the preset ID."""
+        now = self._now()
+
+        # If this is set as default, unset other defaults
+        if is_default:
+            self._unset_default_presets()
+
+        entry = PromptPreset(
+            name=name.strip(),
+            prompt_template=prompt_template.strip(),
+            is_default=1 if is_default else 0,
+            created_at=now,
+            updated_at=now,
+        )
+        self.session.add(entry)
+        self._commit()
+        return entry.id
+
+    def get_prompt_presets(self) -> list[dict]:
+        """Get all prompt presets."""
+        stmt = select(PromptPreset).order_by(
+            PromptPreset.is_default.desc(), PromptPreset.name.asc()
+        )
+        entries = self.session.execute(stmt).scalars().all()
+        return [self._to_dict(e) for e in entries]
+
+    def get_prompt_preset(self, preset_id: int) -> Optional[dict]:
+        """Get a single prompt preset by ID."""
+        entry = self.session.get(PromptPreset, preset_id)
+        return self._to_dict(entry)
+
+    def get_default_prompt_preset(self) -> Optional[dict]:
+        """Get the default prompt preset."""
+        stmt = select(PromptPreset).where(PromptPreset.is_default == 1).limit(1)
+        entry = self.session.execute(stmt).scalar_one_or_none()
+        return self._to_dict(entry)
+
+    def update_prompt_preset(self, preset_id: int, name: str = None,
+                             prompt_template: str = None,
+                             is_default: bool = None) -> bool:
+        """Update a prompt preset. Returns True if updated."""
+        entry = self.session.get(PromptPreset, preset_id)
+        if entry is None:
+            return False
+
+        # If setting as default, unset other defaults
+        if is_default:
+            self._unset_default_presets(exclude_id=preset_id)
+
+        updated = False
+        if name is not None:
+            entry.name = name.strip()
+            updated = True
+        if prompt_template is not None:
+            entry.prompt_template = prompt_template.strip()
+            updated = True
+        if is_default is not None:
+            entry.is_default = 1 if is_default else 0
+            updated = True
+
+        if not updated:
+            return False
+
+        entry.updated_at = self._now()
+        self._commit()
+        return True
+
+    def delete_prompt_preset(self, preset_id: int) -> bool:
+        """Delete a prompt preset. Returns True if deleted.
+
+        Cannot delete if it's the only preset.
+        """
+        count = self.session.execute(
+            select(func.count()).select_from(PromptPreset)
+        ).scalar() or 0
+
+        if count <= 1:
+            return False
+
+        entry = self.session.get(PromptPreset, preset_id)
+        if entry is None:
+            return False
+
+        self.session.delete(entry)
+        self._commit()
+        return True
+
+    def _unset_default_presets(self, exclude_id: int = None):
+        """Set is_default=0 for all presets, optionally excluding one."""
+        stmt = select(PromptPreset).where(PromptPreset.is_default == 1)
+        if exclude_id is not None:
+            stmt = stmt.where(PromptPreset.id != exclude_id)
+        presets = self.session.execute(stmt).scalars().all()
+        for p in presets:
+            p.is_default = 0
+        self._commit()
+
+    # ---- Translation Backend Stats Operations --------------------------------
+
+    def record_backend_success(self, backend_name: str, response_time_ms: float,
+                               characters_used: int):
+        """Record a successful translation for a backend.
+
+        Uses upsert logic. Updates running average response time using
+        weighted formula: (old_avg * (n-1) + new) / n.
+        """
+        now = self._now()
+        existing = self.session.get(TranslationBackendStats, backend_name)
+
+        if existing:
+            total = existing.total_requests or 0
+            old_avg = existing.avg_response_time_ms or 0
+            new_total = total + 1
+            new_avg = (old_avg * total + response_time_ms) / new_total if new_total > 0 else response_time_ms
+
+            existing.total_requests = new_total
+            existing.successful_translations = (existing.successful_translations or 0) + 1
+            existing.total_characters = (existing.total_characters or 0) + characters_used
+            existing.avg_response_time_ms = new_avg
+            existing.last_response_time_ms = response_time_ms
+            existing.last_success_at = now
+            existing.consecutive_failures = 0
+            existing.updated_at = now
+        else:
+            entry = TranslationBackendStats(
+                backend_name=backend_name,
+                total_requests=1,
+                successful_translations=1,
+                total_characters=characters_used,
+                avg_response_time_ms=response_time_ms,
+                last_response_time_ms=response_time_ms,
+                last_success_at=now,
+                consecutive_failures=0,
+                updated_at=now,
+            )
+            self.session.add(entry)
+        self._commit()
+
+    def record_backend_failure(self, backend_name: str, error_msg: str):
+        """Record a failed translation for a backend.
+
+        Uses upsert logic. Increments consecutive failures and records error.
+        """
+        now = self._now()
+        existing = self.session.get(TranslationBackendStats, backend_name)
+
+        if existing:
+            existing.total_requests = (existing.total_requests or 0) + 1
+            existing.failed_translations = (existing.failed_translations or 0) + 1
+            existing.consecutive_failures = (existing.consecutive_failures or 0) + 1
+            existing.last_failure_at = now
+            existing.last_error = error_msg[:500]
+            existing.updated_at = now
+        else:
+            entry = TranslationBackendStats(
+                backend_name=backend_name,
+                total_requests=1,
+                failed_translations=1,
+                consecutive_failures=1,
+                last_failure_at=now,
+                last_error=error_msg[:500],
+                updated_at=now,
+            )
+            self.session.add(entry)
+        self._commit()
+
+    def get_backend_stats(self) -> list[dict]:
+        """Get stats for all translation backends."""
+        stmt = select(TranslationBackendStats).order_by(
+            TranslationBackendStats.backend_name.asc()
+        )
+        entries = self.session.execute(stmt).scalars().all()
+        return [self._to_dict(e) for e in entries]
+
+    def get_backend_stat(self, backend_name: str) -> Optional[dict]:
+        """Get stats for a single translation backend."""
+        entry = self.session.get(TranslationBackendStats, backend_name)
+        return self._to_dict(entry)
+
+    def reset_backend_stats(self, backend_name: str) -> bool:
+        """Reset stats for a backend. Returns True if a row was deleted."""
+        entry = self.session.get(TranslationBackendStats, backend_name)
+        if entry is None:
+            return False
+        self.session.delete(entry)
+        self._commit()
+        return True
