@@ -1,7 +1,11 @@
-"""SQLite database backup with rotation and verification.
+"""Dialect-aware database backup with rotation and verification.
 
-Uses the SQLite Online Backup API (``source.backup(target)``) for safe,
-consistent backups without blocking writes.
+Supports both SQLite and PostgreSQL backends:
+
+- **SQLite:** Uses the Online Backup API (``source.backup(target)``) for safe,
+  consistent backups without blocking writes.
+- **PostgreSQL:** Uses ``pg_dump`` / ``pg_restore`` subprocess calls with
+  custom format (``-Fc``) for compressed backups.
 
 Backup rotation:
     - daily:   keep N most recent  (default 7)
@@ -11,21 +15,59 @@ Backup rotation:
 
 import os
 import re
-import time
 import shutil
 import sqlite3
 import logging
+import subprocess
 import threading
 from datetime import datetime, timezone
 from typing import Optional
+from urllib.parse import urlparse
 
 from error_handler import DatabaseBackupError, DatabaseRestoreError
 
 logger = logging.getLogger(__name__)
 
 
+def _is_postgresql() -> bool:
+    """Detect if the current database backend is PostgreSQL."""
+    try:
+        from extensions import db
+        return db.engine.dialect.name == "postgresql"
+    except Exception:
+        return False
+
+
+def _parse_pg_url(database_url: str) -> dict:
+    """Parse a PostgreSQL URL into connection components.
+
+    Returns dict with host, port, dbname, user, password.
+    """
+    parsed = urlparse(database_url)
+    return {
+        "host": parsed.hostname or "localhost",
+        "port": str(parsed.port or 5432),
+        "dbname": (parsed.path or "/sublarr").lstrip("/"),
+        "user": parsed.username or "sublarr",
+        "password": parsed.password or "",
+    }
+
+
+def _get_database_url() -> str:
+    """Get the current database URL from config."""
+    try:
+        from config import get_settings
+        return get_settings().get_database_url()
+    except Exception:
+        return ""
+
+
 class DatabaseBackup:
-    """Manages backup creation, verification, rotation, and restore."""
+    """Manages backup creation, verification, rotation, and restore.
+
+    Automatically dispatches to SQLite or PostgreSQL backend based on the
+    active SQLAlchemy dialect.
+    """
 
     def __init__(
         self,
@@ -43,20 +85,38 @@ class DatabaseBackup:
 
         os.makedirs(self.backup_dir, exist_ok=True)
 
+    # ── Dialect detection ─────────────────────────────────────────────────
+
+    @property
+    def is_postgresql(self) -> bool:
+        """True if the active database backend is PostgreSQL."""
+        return _is_postgresql()
+
     # ── Create backup ────────────────────────────────────────────────────
 
     def create_backup(self, label: str = "daily") -> dict:
-        """Create a verified backup using the SQLite backup API.
+        """Create a verified backup.
+
+        Dispatches to SQLite backup API or pg_dump based on the active dialect.
 
         Args:
-            label: Rotation bucket — ``daily``, ``weekly``, or ``monthly``.
+            label: Rotation bucket -- ``daily``, ``weekly``, or ``monthly``.
 
         Returns:
-            Dict with ``path``, ``size_bytes``, ``verified``, ``timestamp``.
+            Dict with ``path``, ``size_bytes``, ``verified``, ``timestamp``,
+            ``label``, ``backend``.
 
         Raises:
             DatabaseBackupError: On any failure.
         """
+        if self.is_postgresql:
+            return self._backup_postgresql(label)
+        return self._backup_sqlite(label)
+
+    # ── SQLite backup ─────────────────────────────────────────────────────
+
+    def _backup_sqlite(self, label: str = "daily") -> dict:
+        """Create a backup using the SQLite backup API."""
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         filename = f"sublarr_{label}_{timestamp}.db"
         dest = os.path.join(self.backup_dir, filename)
@@ -76,16 +136,16 @@ class DatabaseBackup:
                 except OSError:
                     pass
             raise DatabaseBackupError(
-                f"Backup failed: {exc}",
+                f"SQLite backup failed: {exc}",
                 context={"dest": dest},
             ) from exc
 
         # Verify
-        verified = self._verify_backup(dest)
+        verified = self._verify_sqlite_backup(dest)
         size = os.path.getsize(dest)
 
         logger.info(
-            "Backup created: %s (%d bytes, verified=%s)", dest, size, verified
+            "SQLite backup created: %s (%d bytes, verified=%s)", dest, size, verified
         )
         return {
             "path": dest,
@@ -94,13 +154,93 @@ class DatabaseBackup:
             "verified": verified,
             "timestamp": timestamp,
             "label": label,
+            "backend": "sqlite",
+        }
+
+    # ── PostgreSQL backup ─────────────────────────────────────────────────
+
+    def _backup_postgresql(self, label: str = "daily") -> dict:
+        """Create a backup using pg_dump (custom format for compression)."""
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        filename = f"sublarr_{label}_{timestamp}.pgdump"
+        dest = os.path.join(self.backup_dir, filename)
+
+        database_url = _get_database_url()
+        if not database_url:
+            raise DatabaseBackupError(
+                "No database URL configured for PostgreSQL backup",
+            )
+
+        pg = _parse_pg_url(database_url)
+        env = os.environ.copy()
+        env["PGPASSWORD"] = pg["password"]
+
+        cmd = [
+            "pg_dump",
+            "-h", pg["host"],
+            "-p", pg["port"],
+            "-U", pg["user"],
+            "-Fc",  # Custom format (compressed)
+            "-f", dest,
+            pg["dbname"],
+        ]
+
+        try:
+            result = subprocess.run(
+                cmd,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=300,  # 5 minute timeout
+            )
+            if result.returncode != 0:
+                raise DatabaseBackupError(
+                    f"pg_dump failed (exit {result.returncode}): {result.stderr}",
+                    context={"dest": dest, "stderr": result.stderr},
+                )
+        except subprocess.TimeoutExpired:
+            if os.path.exists(dest):
+                try:
+                    os.remove(dest)
+                except OSError:
+                    pass
+            raise DatabaseBackupError(
+                "pg_dump timed out after 300 seconds",
+                context={"dest": dest},
+            )
+        except DatabaseBackupError:
+            raise
+        except Exception as exc:
+            if os.path.exists(dest):
+                try:
+                    os.remove(dest)
+                except OSError:
+                    pass
+            raise DatabaseBackupError(
+                f"PostgreSQL backup failed: {exc}",
+                context={"dest": dest},
+            ) from exc
+
+        size = os.path.getsize(dest) if os.path.exists(dest) else 0
+
+        logger.info(
+            "PostgreSQL backup created: %s (%d bytes)", dest, size
+        )
+        return {
+            "path": dest,
+            "filename": filename,
+            "size_bytes": size,
+            "verified": True,  # pg_dump exit 0 is sufficient verification
+            "timestamp": timestamp,
+            "label": label,
+            "backend": "postgresql",
         }
 
     # ── Verify ───────────────────────────────────────────────────────────
 
     @staticmethod
-    def _verify_backup(path: str) -> bool:
-        """Run ``PRAGMA integrity_check`` on a backup file."""
+    def _verify_sqlite_backup(path: str) -> bool:
+        """Run ``PRAGMA integrity_check`` on a SQLite backup file."""
         try:
             conn = sqlite3.connect(path)
             result = conn.execute("PRAGMA integrity_check").fetchone()
@@ -110,12 +250,20 @@ class DatabaseBackup:
             logger.warning("Backup verification failed for %s: %s", path, exc)
             return False
 
+    # Backward-compatible alias
+    _verify_backup = _verify_sqlite_backup
+
     # ── List backups ─────────────────────────────────────────────────────
 
     def list_backups(self) -> list[dict]:
-        """Return metadata for every backup file in the backup directory."""
+        """Return metadata for every backup file in the backup directory.
+
+        Matches both SQLite (.db) and PostgreSQL (.pgdump) backup files.
+        """
         backups: list[dict] = []
-        pattern = re.compile(r"^sublarr_(daily|weekly|monthly)_(\d{8}_\d{6})\.db$")
+        pattern = re.compile(
+            r"^sublarr_(daily|weekly|monthly|manual)_(\d{8}_\d{6})\.(db|pgdump)$"
+        )
 
         if not os.path.isdir(self.backup_dir):
             return backups
@@ -129,12 +277,15 @@ class DatabaseBackup:
                 size = os.path.getsize(path)
             except OSError:
                 size = 0
+
+            ext = match.group(3)
             backups.append({
                 "filename": name,
                 "path": path,
                 "label": match.group(1),
                 "timestamp": match.group(2),
                 "size_bytes": size,
+                "backend": "postgresql" if ext == "pgdump" else "sqlite",
             })
 
         return backups
@@ -142,15 +293,18 @@ class DatabaseBackup:
     # ── Restore ──────────────────────────────────────────────────────────
 
     def restore_backup(self, backup_path: str) -> dict:
-        """Restore a backup by replacing the current database file.
+        """Restore a backup, dispatching based on file extension.
 
-        Creates a safety backup of the current DB before restoring.
+        For SQLite (.db): Replaces the database file after integrity check.
+        For PostgreSQL (.pgdump): Uses pg_restore subprocess.
+
+        Creates a safety backup before restoring (SQLite only).
 
         Args:
             backup_path: Absolute path to the backup file.
 
         Returns:
-            Dict with ``restored_from``, ``safety_backup``.
+            Dict with ``restored_from`` and ``backend``.
 
         Raises:
             DatabaseRestoreError: On any failure.
@@ -161,8 +315,14 @@ class DatabaseBackup:
                 context={"backup_path": backup_path},
             )
 
+        if backup_path.endswith(".pgdump"):
+            return self._restore_postgresql(backup_path)
+        return self._restore_sqlite(backup_path)
+
+    def _restore_sqlite(self, backup_path: str) -> dict:
+        """Restore a SQLite backup by replacing the current database file."""
         # Verify the backup before restoring
-        if not self._verify_backup(backup_path):
+        if not self._verify_sqlite_backup(backup_path):
             raise DatabaseRestoreError(
                 "Backup file failed integrity check",
                 context={"backup_path": backup_path},
@@ -197,10 +357,67 @@ class DatabaseBackup:
                 context={"backup_path": backup_path},
             ) from exc
 
-        logger.info("Database restored from %s (safety backup at %s)", backup_path, safety_path)
+        logger.info("SQLite database restored from %s (safety backup at %s)", backup_path, safety_path)
         return {
             "restored_from": backup_path,
             "safety_backup": safety_path,
+            "backend": "sqlite",
+        }
+
+    def _restore_postgresql(self, backup_path: str) -> dict:
+        """Restore a PostgreSQL backup using pg_restore."""
+        database_url = _get_database_url()
+        if not database_url:
+            raise DatabaseRestoreError(
+                "No database URL configured for PostgreSQL restore",
+            )
+
+        pg = _parse_pg_url(database_url)
+        env = os.environ.copy()
+        env["PGPASSWORD"] = pg["password"]
+
+        cmd = [
+            "pg_restore",
+            "-h", pg["host"],
+            "-p", pg["port"],
+            "-U", pg["user"],
+            "-d", pg["dbname"],
+            "--clean",
+            "--if-exists",
+            backup_path,
+        ]
+
+        try:
+            result = subprocess.run(
+                cmd,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+            # pg_restore returns non-zero for warnings too; check stderr for errors
+            if result.returncode != 0 and "ERROR" in result.stderr:
+                raise DatabaseRestoreError(
+                    f"pg_restore failed (exit {result.returncode}): {result.stderr}",
+                    context={"backup_path": backup_path, "stderr": result.stderr},
+                )
+        except DatabaseRestoreError:
+            raise
+        except subprocess.TimeoutExpired:
+            raise DatabaseRestoreError(
+                "pg_restore timed out after 300 seconds",
+                context={"backup_path": backup_path},
+            )
+        except Exception as exc:
+            raise DatabaseRestoreError(
+                f"PostgreSQL restore failed: {exc}",
+                context={"backup_path": backup_path},
+            ) from exc
+
+        logger.info("PostgreSQL database restored from %s", backup_path)
+        return {
+            "restored_from": backup_path,
+            "backend": "postgresql",
         }
 
     # ── Rotation ─────────────────────────────────────────────────────────

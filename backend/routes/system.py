@@ -741,18 +741,21 @@ def create_full_backup():
     now = datetime.now(timezone.utc)
     timestamp = now.strftime("%Y%m%d_%H%M%S")
 
-    contents = ["manifest.json", "config.json", "sublarr.db"]
+    db_backend = db_result.get("backend", "sqlite")
+    db_archive_name = "sublarr.db" if db_backend == "sqlite" else "sublarr.pgdump"
+    contents = ["manifest.json", "config.json", db_archive_name]
     manifest = {
         "version": __version__,
         "created_at": now.isoformat(),
         "schema_version": 1,
         "contents": contents,
+        "db_backend": db_backend,
     }
 
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("manifest.json", json.dumps(manifest, indent=2))
         zf.writestr("config.json", json.dumps(safe_config, indent=2))
-        zf.write(db_backup_path, "sublarr.db")
+        zf.write(db_backup_path, db_archive_name)
 
     buffer.seek(0)
 
@@ -907,11 +910,15 @@ def restore_full_backup():
                         save_config_entry(key, str(value))
                         imported_keys.append(key)
 
-            # Restore DB if present
-            if "sublarr.db" in zf.namelist():
+            # Restore DB if present (dialect-aware via manifest)
+            backup_backend = manifest.get("db_backend", "sqlite")
+            db_archive_name = "sublarr.pgdump" if backup_backend == "postgresql" else "sublarr.db"
+            suffix = ".pgdump" if backup_backend == "postgresql" else ".db"
+
+            if db_archive_name in zf.namelist():
                 import tempfile
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tmp:
-                    tmp.write(zf.read("sublarr.db"))
+                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                    tmp.write(zf.read(db_archive_name))
                     tmp_path = tmp.name
 
                 try:
