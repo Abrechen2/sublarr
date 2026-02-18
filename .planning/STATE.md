@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 11 complete - Subtitle Editor
+**Current focus:** Phase 13 in progress - Comparison + Sync + Health-Check
 
 ## Current Position
 
-Phase: 11 of 16 (Subtitle Editor)
-Plan: 4 of 4 in current phase
-Status: Phase complete
-Last activity: 2026-02-18 -- Completed 11-04-PLAN.md (SubtitleEditorModal & Page Integration)
+Phase: 13 of 16 (Comparison + Sync + Health-Check)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-18 -- Completed 13-01-PLAN.md (Backend Health-Check, Quality DB, Advanced Sync & Compare)
 
-Progress: [█████████████████████████] 4/4 plans in phase
+Progress: [████████░░░░░░░░░░░░░░░░░] 1/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 55
+- Total plans completed: 56
 - Average duration: 9 min
-- Total execution time: 481 min
+- Total execution time: 486 min
 
 **By Phase:**
 
@@ -39,10 +39,11 @@ Progress: [███████████████████████
 | 09-openapi-release-preparation | 5/5 | 60 min | 12 min |
 | 10-performance-scalability | 8/8 | 43 min | 5 min |
 | 11-subtitle-editor | 4/4 | 21 min | 5 min |
+| 13-comparison-sync-health-check | 1/3 | 5 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 10-08 (8 min), 11-01 (5 min), 11-02 (4 min), 11-03 (4 min), 11-04 (8 min)
-- Trend: Phase 11 complete -- all editor components built and integrated into pages
+- Last 5 plans: 11-01 (5 min), 11-02 (4 min), 11-03 (4 min), 11-04 (8 min), 13-01 (5 min)
+- Trend: Phase 13 started -- backend health-check engine and API endpoints complete
 
 *Updated after each plan completion*
 
@@ -304,6 +305,11 @@ Recent decisions affecting current work:
 - [11-04]: History page shows preview and diff (GitCompare) buttons per entry
 - [11-04]: deriveSubtitlePath helper replaces video extension with .{lang}.{format}
 - [11-04]: Unsaved changes guard on Escape key, overlay click, and close button
+- [13-01]: Quality score: 100 minus penalties (10/error, 3/warning, 1/info), clamped to 0
+- [13-01]: Health results stored as new records each time (not upsert) for trend tracking
+- [13-01]: Advanced sync preview returns 5 representative events (first, 25%, 50%, 75%, last)
+- [13-01]: Batch health-check limited to 50 files per request
+- [13-01]: apply_fixes creates backup via shutil.copy2 directly (same .bak pattern as tools.py)
 
 ### Pending Todos
 
@@ -328,5 +334,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Phase 11 complete -- 11-04 complete (SubtitleEditorModal & Page Integration)
-Resume file: .planning/phases/11-subtitle-editor/11-04-SUMMARY.md
+Stopped at: Phase 13 in progress -- 13-01 complete (Backend Health-Check, Quality DB, Advanced Sync & Compare)
+Resume file: .planning/phases/13-comparison-sync-health-check/13-01-SUMMARY.md
