@@ -1,368 +1,136 @@
-"""Provider cache and statistics database operations."""
+"""Provider cache and statistics database operations -- delegating to SQLAlchemy repository."""
 
-import logging
-from datetime import datetime
 from typing import Optional
 
-from db import get_db, _db_lock
+from db.repositories.providers import ProviderRepository
 
-logger = logging.getLogger(__name__)
+_repo = None
 
+
+def _get_repo():
+    global _repo
+    if _repo is None:
+        _repo = ProviderRepository()
+    return _repo
+
+
+# ---- Provider Cache ----
 
 def cache_provider_results(provider_name: str, query_hash: str, results_json: str,
                           ttl_hours: int = 6, format_filter: str = None):
-    """Cache provider search results.
-
-    Args:
-        provider_name: Name of the provider
-        query_hash: Hash of the query (should include format_filter if applicable)
-        results_json: JSON-encoded results
-        ttl_hours: Time-to-live in hours (default: 6, configurable via settings)
-        format_filter: Optional format filter for cache key differentiation
-    """
-    now = datetime.utcnow()
-    expires = now + __import__("datetime").timedelta(hours=ttl_hours)
-    db = get_db()
-    with _db_lock:
-        db.execute(
-            """INSERT INTO provider_cache (provider_name, query_hash, results_json, cached_at, expires_at)
-               VALUES (?, ?, ?, ?, ?)""",
-            (provider_name, query_hash, results_json, now.isoformat(), expires.isoformat()),
-        )
-        db.commit()
+    """Cache provider search results."""
+    return _get_repo().cache_provider_results(
+        provider_name, query_hash, results_json, ttl_hours, format_filter
+    )
 
 
-def get_cached_results(provider_name: str, query_hash: str, format_filter: str = None) -> Optional[str]:
-    """Get cached provider results if not expired.
-
-    Args:
-        provider_name: Name of the provider
-        query_hash: Hash of the query (should include format_filter if applicable)
-        format_filter: Optional format filter (for cache key matching)
-
-    Returns:
-        Cached results JSON string or None
-    """
-    now = datetime.utcnow().isoformat()
-    db = get_db()
-    with _db_lock:
-        row = db.execute(
-            """SELECT results_json FROM provider_cache
-               WHERE provider_name=? AND query_hash=? AND expires_at > ?
-               ORDER BY cached_at DESC LIMIT 1""",
-            (provider_name, query_hash, now),
-        ).fetchone()
-    return row[0] if row else None
+def get_cached_results(provider_name: str, query_hash: str,
+                       format_filter: str = None) -> Optional[str]:
+    """Get cached provider results if not expired."""
+    return _get_repo().get_cached_results(provider_name, query_hash, format_filter)
 
 
 def cleanup_expired_cache():
     """Remove expired cache entries."""
-    now = datetime.utcnow().isoformat()
-    db = get_db()
-    with _db_lock:
-        db.execute("DELETE FROM provider_cache WHERE expires_at < ?", (now,))
-        db.commit()
+    return _get_repo().cleanup_expired_cache()
 
 
 def get_provider_cache_stats() -> dict:
     """Get aggregated cache stats per provider (total entries, active/expired)."""
-    now = datetime.utcnow().isoformat()
-    db = get_db()
-    with _db_lock:
-        rows = db.execute(
-            """SELECT provider_name, COUNT(*) as total,
-                      SUM(CASE WHEN expires_at > ? THEN 1 ELSE 0 END) as active
-               FROM provider_cache GROUP BY provider_name""",
-            (now,),
-        ).fetchall()
-    return {row[0]: {"total": row[1], "active": row[2]} for row in rows}
+    return _get_repo().get_provider_cache_stats()
 
 
 def get_provider_download_stats() -> dict:
     """Get download counts per provider, broken down by format."""
-    db = get_db()
-    with _db_lock:
-        rows = db.execute(
-            """SELECT provider_name, format, COUNT(*) as count
-               FROM subtitle_downloads GROUP BY provider_name, format"""
-        ).fetchall()
-
-    stats: dict = {}
-    for row in rows:
-        name = row[0]
-        fmt = row[1] or "unknown"
-        count = row[2]
-        if name not in stats:
-            stats[name] = {"total": 0, "by_format": {}}
-        stats[name]["total"] += count
-        stats[name]["by_format"][fmt] = count
-    return stats
+    return _get_repo().get_provider_download_stats()
 
 
 def clear_provider_cache(provider_name: str = None):
     """Clear provider cache. If provider_name is given, only clear that provider."""
-    db = get_db()
-    with _db_lock:
-        if provider_name:
-            db.execute("DELETE FROM provider_cache WHERE provider_name=?", (provider_name,))
-        else:
-            db.execute("DELETE FROM provider_cache")
-        db.commit()
+    return _get_repo().clear_provider_cache(provider_name)
 
 
 def record_subtitle_download(provider_name: str, subtitle_id: str, language: str,
                               fmt: str, file_path: str, score: int):
     """Record a subtitle download for history tracking."""
-    now = datetime.utcnow().isoformat()
-    db = get_db()
-    with _db_lock:
-        db.execute(
-            """INSERT INTO subtitle_downloads
-               (provider_name, subtitle_id, language, format, file_path, score, downloaded_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (provider_name, subtitle_id, language, fmt, file_path, score, now),
-        )
-        db.commit()
+    return _get_repo().record_subtitle_download(
+        provider_name, subtitle_id, language, fmt, file_path, score
+    )
 
 
-# ─── Provider Statistics Operations ─────────────────────────────────────────────
-
+# ---- Provider Statistics ----
 
 def update_provider_stats(provider_name: str, success: bool, score: int = 0,
                           response_time_ms: float = None):
-    """Update provider statistics after a search/download attempt.
+    """Update provider statistics after a search/download attempt."""
+    _get_repo().record_search(provider_name, success, response_time_ms)
+    if success and score > 0:
+        _get_repo().record_download(provider_name, score)
 
-    Args:
-        provider_name: Name of the provider
-        success: True if download was successful, False otherwise
-        score: Score of the downloaded subtitle (0 if failed)
-        response_time_ms: Response time in milliseconds (optional)
-    """
-    now = datetime.utcnow().isoformat()
-    db = get_db()
-    with _db_lock:
-        # Get existing stats or create new entry
-        row = db.execute(
-            "SELECT * FROM provider_stats WHERE provider_name=?", (provider_name,)
-        ).fetchone()
 
-        if row:
-            # Update existing stats
-            stats = dict(row)
-            total_searches = stats["total_searches"] + 1
-            successful_downloads = stats["successful_downloads"] + (1 if success else 0)
-            failed_downloads = stats["failed_downloads"] + (0 if success else 1)
-            consecutive_failures = 0 if success else (stats["consecutive_failures"] + 1)
+def record_search(provider_name: str, success: bool,
+                  response_time_ms: float = None):
+    """Record a search attempt."""
+    return _get_repo().record_search(provider_name, success, response_time_ms)
 
-            # Calculate new average score
-            if success and score > 0:
-                total_score = stats["avg_score"] * stats["successful_downloads"] + score
-                avg_score = total_score / successful_downloads if successful_downloads > 0 else 0
-            else:
-                avg_score = stats["avg_score"]
 
-            last_success_at = now if success else stats["last_success_at"]
-            last_failure_at = now if not success else stats["last_failure_at"]
+def record_download(provider_name: str, score: int):
+    """Record a successful download."""
+    return _get_repo().record_download(provider_name, score)
 
-            # Calculate response time averages
-            avg_response_time_ms = stats.get("avg_response_time_ms", 0) or 0
-            last_response_time_ms = stats.get("last_response_time_ms", 0) or 0
-            if response_time_ms is not None:
-                last_response_time_ms = response_time_ms
-                # Weighted running average: new_avg = (old_avg * (n-1) + new_value) / n
-                if total_searches > 1:
-                    avg_response_time_ms = (avg_response_time_ms * (total_searches - 1) + response_time_ms) / total_searches
-                else:
-                    avg_response_time_ms = response_time_ms
 
-            db.execute(
-                """UPDATE provider_stats SET
-                   total_searches=?, successful_downloads=?, failed_downloads=?,
-                   avg_score=?, last_success_at=?, last_failure_at=?,
-                   consecutive_failures=?, avg_response_time_ms=?,
-                   last_response_time_ms=?, updated_at=?
-                   WHERE provider_name=?""",
-                (total_searches, successful_downloads, failed_downloads,
-                 avg_score, last_success_at, last_failure_at,
-                 consecutive_failures, avg_response_time_ms,
-                 last_response_time_ms, now, provider_name),
-            )
-        else:
-            # Create new stats entry
-            successful_downloads = 1 if success else 0
-            failed_downloads = 0 if success else 1
-            avg_score = score if success else 0
-            consecutive_failures = 0 if success else 1
-
-            db.execute(
-                """INSERT INTO provider_stats
-                   (provider_name, total_searches, successful_downloads, failed_downloads,
-                    avg_score, last_success_at, last_failure_at, consecutive_failures,
-                    avg_response_time_ms, last_response_time_ms, updated_at)
-                   VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (provider_name, successful_downloads, failed_downloads,
-                 avg_score, now if success else None, now if not success else None,
-                 consecutive_failures,
-                 response_time_ms or 0, response_time_ms or 0, now),
-            )
-        db.commit()
+def record_download_failure(provider_name: str):
+    """Record a failed download attempt."""
+    return _get_repo().record_download_failure(provider_name)
 
 
 def get_provider_stats(provider_name: str = None) -> dict:
-    """Get provider statistics.
+    """Get provider statistics."""
+    return _get_repo().get_provider_stats(provider_name)
 
-    Args:
-        provider_name: Optional provider name to get stats for specific provider.
-                      If None, returns stats for all providers.
 
-    Returns:
-        Dict with provider stats. If provider_name is None, returns dict keyed by provider_name.
-    """
-    db = get_db()
-    with _db_lock:
-        if provider_name:
-            row = db.execute(
-                "SELECT * FROM provider_stats WHERE provider_name=?", (provider_name,)
-            ).fetchone()
-            if not row:
-                return {}
-            return dict(row)
-        else:
-            rows = db.execute("SELECT * FROM provider_stats").fetchall()
-            return {row["provider_name"]: dict(row) for row in rows}
+def get_all_provider_stats() -> list:
+    """Get all provider stats as a list of dicts."""
+    return _get_repo().get_all_provider_stats()
 
+
+def clear_provider_stats(provider_name: str) -> bool:
+    """Clear stats for a specific provider. Returns True if deleted."""
+    return _get_repo().clear_provider_stats(provider_name)
+
+
+# ---- Auto-disable ----
 
 def auto_disable_provider(provider_name: str, cooldown_minutes: int = 30):
-    """Auto-disable a provider with a cooldown period.
-
-    Args:
-        provider_name: Name of the provider to disable
-        cooldown_minutes: Minutes until the provider is automatically re-enabled
-    """
-    now = datetime.utcnow()
-    disabled_until = (now + __import__("datetime").timedelta(minutes=cooldown_minutes)).isoformat()
-    db = get_db()
-    with _db_lock:
-        row = db.execute(
-            "SELECT 1 FROM provider_stats WHERE provider_name=?", (provider_name,)
-        ).fetchone()
-        if row:
-            db.execute(
-                """UPDATE provider_stats SET auto_disabled=1, disabled_until=?, updated_at=?
-                   WHERE provider_name=?""",
-                (disabled_until, now.isoformat(), provider_name),
-            )
-        else:
-            db.execute(
-                """INSERT INTO provider_stats
-                   (provider_name, auto_disabled, disabled_until, updated_at)
-                   VALUES (?, 1, ?, ?)""",
-                (provider_name, disabled_until, now.isoformat()),
-            )
-        db.commit()
-    logger.warning("Provider %s auto-disabled until %s (%d min cooldown)",
-                   provider_name, disabled_until, cooldown_minutes)
+    """Auto-disable a provider with a cooldown period."""
+    return _get_repo().auto_disable_provider(provider_name, cooldown_minutes)
 
 
 def is_provider_auto_disabled(provider_name: str) -> bool:
-    """Check if a provider is currently auto-disabled.
-
-    If the disabled_until time has passed, automatically clears the auto-disable flag.
-
-    Args:
-        provider_name: Name of the provider
-
-    Returns:
-        True if the provider is currently auto-disabled, False otherwise
-    """
-    db = get_db()
-    with _db_lock:
-        row = db.execute(
-            "SELECT auto_disabled, disabled_until FROM provider_stats WHERE provider_name=?",
-            (provider_name,),
-        ).fetchone()
-        if not row:
-            return False
-        if not row["auto_disabled"]:
-            return False
-        # Check if cooldown has expired
-        disabled_until = row["disabled_until"]
-        if disabled_until:
-            now = datetime.utcnow().isoformat()
-            if disabled_until < now:
-                # Cooldown expired, clear auto-disable
-                db.execute(
-                    "UPDATE provider_stats SET auto_disabled=0, disabled_until='' WHERE provider_name=?",
-                    (provider_name,),
-                )
-                db.commit()
-                logger.info("Provider %s auto-disable expired, re-enabled", provider_name)
-                return False
-        return True
+    """Check if a provider is currently auto-disabled."""
+    return _get_repo().is_auto_disabled(provider_name)
 
 
 def clear_auto_disable(provider_name: str):
-    """Manually clear the auto-disable flag for a provider.
+    """Manually clear the auto-disable flag for a provider."""
+    return _get_repo().clear_auto_disable(provider_name)
 
-    Args:
-        provider_name: Name of the provider to re-enable
-    """
-    db = get_db()
-    with _db_lock:
-        db.execute(
-            "UPDATE provider_stats SET auto_disabled=0, disabled_until='', consecutive_failures=0 WHERE provider_name=?",
-            (provider_name,),
-        )
-        db.commit()
-    logger.info("Provider %s manually re-enabled (auto-disable cleared)", provider_name)
+
+def check_auto_disable(provider_name: str, threshold: int) -> bool:
+    """Check if consecutive_failures >= threshold. If so, auto-disable."""
+    return _get_repo().check_auto_disable(provider_name, threshold)
+
+
+def get_disabled_providers() -> list:
+    """Get all currently auto-disabled providers."""
+    return _get_repo().get_disabled_providers()
 
 
 def get_provider_health_history(provider_name: str = None, days: int = 7) -> list:
-    """Get provider health history as daily aggregates.
-
-    Args:
-        provider_name: Optional filter by provider name. If None, returns all providers.
-        days: Number of days to look back (default: 7)
-
-    Returns:
-        List of dicts with provider_name, date, total_searches, successful_downloads,
-        failed_downloads, avg_response_time_ms
-    """
-    db = get_db()
-    cutoff = (datetime.utcnow() - __import__("datetime").timedelta(days=days)).isoformat()
-    with _db_lock:
-        if provider_name:
-            rows = db.execute(
-                """SELECT provider_name, total_searches, successful_downloads,
-                          failed_downloads, avg_response_time_ms, updated_at
-                   FROM provider_stats
-                   WHERE provider_name=? AND updated_at >= ?""",
-                (provider_name, cutoff),
-            ).fetchall()
-        else:
-            rows = db.execute(
-                """SELECT provider_name, total_searches, successful_downloads,
-                          failed_downloads, avg_response_time_ms, updated_at
-                   FROM provider_stats
-                   WHERE updated_at >= ?""",
-                (cutoff,),
-            ).fetchall()
-    return [dict(row) for row in rows]
+    """Get provider health history as daily aggregates."""
+    return _get_repo().get_provider_health_history(provider_name, days)
 
 
 def get_provider_success_rate(provider_name: str) -> float:
-    """Get success rate for a provider (0.0 to 1.0).
-
-    Args:
-        provider_name: Name of the provider
-
-    Returns:
-        Success rate as float between 0.0 and 1.0, or 0.0 if no stats available
-    """
-    stats = get_provider_stats(provider_name)
-    if not stats or stats.get("total_searches", 0) == 0:
-        return 0.0
-
-    total = stats["total_searches"]
-    successful = stats.get("successful_downloads", 0)
-    return successful / total if total > 0 else 0.0
+    """Get success rate for a provider (0.0 to 1.0)."""
+    return _get_repo().get_provider_success_rate(provider_name)
