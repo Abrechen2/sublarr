@@ -1122,3 +1122,69 @@ def scan_directory(directory, force=False):
                 "size_mb": os.path.getsize(mkv_path) / (1024 * 1024),
             })
     return files
+
+
+# ─── Job Queue Integration ────────────────────────────────────────────────────
+
+
+def _get_job_queue():
+    """Get the app-level job queue backend, or None.
+
+    Uses Flask's current_app to access the job_queue. Returns None if called
+    outside Flask context or if job_queue is not configured. Never raises.
+    """
+    try:
+        from flask import current_app
+        return getattr(current_app, 'job_queue', None)
+    except (RuntimeError, ImportError):
+        return None
+
+
+def submit_translation_job(file_path, force=False, arr_context=None,
+                           target_language=None, target_language_name=None,
+                           job_id=None):
+    """Submit a translation job via the app job queue.
+
+    When a job queue is available (RQ with Redis, or MemoryJobQueue), the
+    translate_file function is enqueued for background execution. When no
+    queue is available (outside Flask context, during testing), falls back
+    to direct synchronous execution.
+
+    The translate_file function itself is unchanged -- only the submission
+    mechanism is abstracted. For RQ, translate_file must be importable by
+    the worker process (it is a module-level function, not a closure).
+
+    Args:
+        file_path: Path to the media file.
+        force: Force re-translation even if target exists.
+        arr_context: Optional dict with sonarr_series_id or radarr_movie_id.
+        target_language: Override target language.
+        target_language_name: Override target language name.
+        job_id: Optional custom job ID. Auto-generated if not provided.
+
+    Returns:
+        str: Job ID if enqueued via queue, or the result dict if executed directly.
+    """
+    queue = _get_job_queue()
+    if queue:
+        try:
+            return queue.enqueue(
+                translate_file,
+                file_path,
+                force=force,
+                arr_context=arr_context,
+                target_language=target_language,
+                target_language_name=target_language_name,
+                job_id=job_id,
+            )
+        except Exception as e:
+            logger.warning("Job queue submission failed, executing directly: %s", e)
+
+    # Fallback: direct synchronous execution
+    return translate_file(
+        file_path,
+        force=force,
+        arr_context=arr_context,
+        target_language=target_language,
+        target_language_name=target_language_name,
+    )

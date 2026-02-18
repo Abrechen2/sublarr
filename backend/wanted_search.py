@@ -790,3 +790,88 @@ def _result_to_dict(result) -> dict:
         "hearing_impaired": result.hearing_impaired,
         "matches": list(result.matches),
     }
+
+
+# ─── Job Queue Integration ────────────────────────────────────────────────────
+
+
+def _get_job_queue():
+    """Get the app-level job queue backend, or None.
+
+    Uses Flask's current_app to access the job_queue. Returns None if called
+    outside Flask context or if job_queue is not configured. Never raises.
+    """
+    try:
+        from flask import current_app
+        return getattr(current_app, 'job_queue', None)
+    except (RuntimeError, ImportError):
+        return None
+
+
+def submit_wanted_search(item_id, job_id=None):
+    """Submit a wanted search job via the app job queue.
+
+    When a job queue is available (RQ with Redis, or MemoryJobQueue), the
+    process_wanted_item function is enqueued for background execution. When
+    no queue is available, falls back to direct synchronous execution.
+
+    For the MemoryJobQueue fallback, this behaves identically to the current
+    ThreadPoolExecutor pattern. For RQ, jobs survive container restarts and
+    can be monitored via the queue API.
+
+    Args:
+        item_id: Wanted item ID to process.
+        job_id: Optional custom job ID. Defaults to "wanted-{item_id}".
+
+    Returns:
+        str: Job ID if enqueued via queue, or the result dict if executed directly.
+    """
+    queue = _get_job_queue()
+    if queue:
+        try:
+            _job_id = job_id or f"wanted-{item_id}"
+            return queue.enqueue(
+                process_wanted_item,
+                item_id,
+                job_id=_job_id,
+            )
+        except Exception as e:
+            logger.warning("Job queue submission failed for wanted %d, executing directly: %s",
+                           item_id, e)
+
+    # Fallback: direct synchronous execution
+    return process_wanted_item(item_id)
+
+
+def submit_wanted_batch_search(item_ids=None):
+    """Submit wanted batch search jobs via the app job queue.
+
+    When a job queue is available, each item is submitted as a separate job
+    for independent execution and monitoring. When no queue is available,
+    falls back to the existing process_wanted_batch() generator.
+
+    Args:
+        item_ids: List of specific item IDs, or None for all 'wanted' items.
+
+    Returns:
+        list[str]: List of job IDs if enqueued via queue, or processes directly.
+    """
+    queue = _get_job_queue()
+    if queue and item_ids:
+        try:
+            return [
+                queue.enqueue(
+                    process_wanted_item,
+                    iid,
+                    job_id=f"wanted-{iid}",
+                )
+                for iid in item_ids
+            ]
+        except Exception as e:
+            logger.warning("Job queue batch submission failed, executing directly: %s", e)
+
+    # Fallback: direct execution via existing batch processor
+    results = []
+    for progress in process_wanted_batch(item_ids):
+        results.append(progress)
+    return results
