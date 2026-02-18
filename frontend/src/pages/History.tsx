@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { useHistory, useHistoryStats, useAddToBlacklist } from '@/hooks/useApi'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
 import {
-  Clock, Download, ChevronLeft, ChevronRight, Ban,
+  Clock, Download, ChevronLeft, ChevronRight, Ban, Eye, GitCompare,
 } from 'lucide-react'
+import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 
 const PROVIDER_FILTERS = ['all', 'animetosho', 'jimaku', 'opensubtitles', 'subdl'] as const
 
@@ -36,6 +37,8 @@ export function HistoryPage() {
   const { t } = useTranslation('activity')
   const [page, setPage] = useState(1)
   const [providerFilter, setProviderFilter] = useState<string | undefined>()
+  const [editorFilePath, setEditorFilePath] = useState<string | null>(null)
+  const [editorMode, setEditorMode] = useState<'preview' | 'edit' | 'diff'>('preview')
 
   const { data: history, isLoading } = useHistory(page, 50, providerFilter)
   const { data: stats } = useHistoryStats()
@@ -178,23 +181,59 @@ export function HistoryPage() {
                       {entry.downloaded_at ? formatRelativeTime(entry.downloaded_at) : ''}
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      <button
-                        onClick={() => addBlacklist.mutate({
-                          provider_name: entry.provider_name,
-                          subtitle_id: entry.subtitle_id,
-                          language: entry.language,
-                          file_path: entry.file_path,
-                          reason: t('history.blacklisted_from_history'),
-                        })}
-                        disabled={addBlacklist.isPending}
-                        className="p-1 rounded transition-colors duration-150"
-                        title={t('history.add_to_blacklist')}
-                        style={{ color: 'var(--text-muted)' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--error)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-                      >
-                        <Ban size={14} />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        {entry.format && entry.language && entry.file_path && (
+                          <>
+                            <button
+                              onClick={() => {
+                                const lastDot = entry.file_path.lastIndexOf('.')
+                                const base = lastDot > 0 ? entry.file_path.substring(0, lastDot) : entry.file_path
+                                setEditorFilePath(`${base}.${entry.language}.${entry.format}`)
+                                setEditorMode('preview')
+                              }}
+                              className="p-1 rounded transition-colors duration-150"
+                              title="Preview subtitle"
+                              style={{ color: 'var(--text-muted)' }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                            >
+                              <Eye size={14} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                const lastDot = entry.file_path.lastIndexOf('.')
+                                const base = lastDot > 0 ? entry.file_path.substring(0, lastDot) : entry.file_path
+                                setEditorFilePath(`${base}.${entry.language}.${entry.format}`)
+                                setEditorMode('diff')
+                              }}
+                              className="p-1 rounded transition-colors duration-150"
+                              title="View diff with backup"
+                              style={{ color: 'var(--text-muted)' }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                            >
+                              <GitCompare size={14} />
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => addBlacklist.mutate({
+                            provider_name: entry.provider_name,
+                            subtitle_id: entry.subtitle_id,
+                            language: entry.language,
+                            file_path: entry.file_path,
+                            reason: t('history.blacklisted_from_history'),
+                          })}
+                          disabled={addBlacklist.isPending}
+                          className="p-1 rounded transition-colors duration-150"
+                          title={t('history.add_to_blacklist')}
+                          style={{ color: 'var(--text-muted)' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--error)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                        >
+                          <Ban size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -247,6 +286,15 @@ export function HistoryPage() {
           </div>
         )}
       </div>
+
+      {/* Subtitle Editor Modal */}
+      {editorFilePath && (
+        <SubtitleEditorModal
+          filePath={editorFilePath}
+          initialMode={editorMode}
+          onClose={() => setEditorFilePath(null)}
+        />
+      )}
     </div>
   )
 }
