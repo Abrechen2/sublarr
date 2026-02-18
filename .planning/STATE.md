@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 13 in progress - Comparison + Sync + Health-Check
+**Current focus:** Phase 13 complete - Comparison + Sync + Health-Check
 
 ## Current Position
 
 Phase: 13 of 16 (Comparison + Sync + Health-Check)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-18 -- Completed 13-02-PLAN.md (Frontend Comparison & Sync Components)
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-02-18 -- Completed 13-03-PLAN.md (Frontend Health UI, Charts, Dashboard & SeriesDetail Integration)
 
-Progress: [████████████████░░░░░░░░░] 2/3 plans in phase
+Progress: [█████████████████████████] 3/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 57
+- Total plans completed: 58
 - Average duration: 9 min
-- Total execution time: 493 min
+- Total execution time: 500 min
 
 **By Phase:**
 
@@ -39,11 +39,11 @@ Progress: [████████████████░░░░░░░
 | 09-openapi-release-preparation | 5/5 | 60 min | 12 min |
 | 10-performance-scalability | 8/8 | 43 min | 5 min |
 | 11-subtitle-editor | 4/4 | 21 min | 5 min |
-| 13-comparison-sync-health-check | 2/3 | 12 min | 6 min |
+| 13-comparison-sync-health-check | 3/3 | 19 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 11-02 (4 min), 11-03 (4 min), 11-04 (8 min), 13-01 (5 min), 13-02 (7 min)
-- Trend: Phase 13 frontend components complete -- comparison and sync UI integrated into SeriesDetail
+- Last 5 plans: 11-03 (4 min), 11-04 (8 min), 13-01 (5 min), 13-02 (7 min), 13-03 (7 min)
+- Trend: Phase 13 complete -- health badges, auto-fix panel, quality charts, and dashboard widget integrated
 
 *Updated after each plan completion*
 
@@ -316,6 +316,13 @@ Recent decisions affecting current work:
 - [13-02]: Actions column widened from w-20 to w-32 to accommodate Compare and Sync buttons
 - [13-02]: Compare button only shown when episode has 2+ subtitle files; Sync only when at least 1 file
 - [13-02]: SubtitleComparison and SyncControls use React.lazy for code splitting
+- [13-03]: HealthBadge color thresholds: green >= 80, amber >= 50, red < 50, gray with "?" for null
+- [13-03]: HealthCheckPanel sorts issues by severity (errors first, then warnings, then info)
+- [13-03]: Batch fix requires explicit confirmation step showing all fixes to be applied
+- [13-03]: HealthDashboardWidget uses Recharts LineChart sparkline (no axes) for compact display
+- [13-03]: Actions column widened from w-32 to w-40 to accommodate Health button
+- [13-03]: healthScores tracked in local state per SeriesDetail, updated on fix via API re-fetch
+- [13-03]: Recharts Tooltip formatter uses unknown params to match existing chart type patterns
 
 ### Pending Todos
 
@@ -335,10 +342,11 @@ None yet.
 - Phase 9 complete -- all 5 plans executed (OpenAPI infra + backend performance + frontend performance + release docs + remaining blueprints/tasks page)
 - Phase 10 complete -- all 8 plans executed (ORM models + Alembic + repositories + cache/queue + app integration + operational tooling + extended metrics + Grafana dashboards + cache/queue wiring)
 - Phase 11 complete -- all 4 plans executed (editor API + preview/timeline + editor/diff + modal/page integration)
+- Phase 13 complete -- all 3 plans executed (backend health/sync/compare + frontend types/hooks/comparison/sync + frontend health UI/charts/dashboard)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Phase 13 in progress -- 13-02 complete (Frontend Comparison & Sync Components)
-Resume file: .planning/phases/13-comparison-sync-health-check/13-02-SUMMARY.md
+Stopped at: Phase 13 complete -- 13-03 complete (Frontend Health UI, Charts, Dashboard & SeriesDetail Integration)
+Resume file: .planning/phases/13-comparison-sync-health-check/13-03-SUMMARY.md
