@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 10 of 16 (Performance & Scalability)
-Plan: 1 of 8 in current phase
+Plan: 2 of 8 in current phase
 Status: In progress
-Last activity: 2026-02-16 -- Completed 10-01-PLAN.md (SQLAlchemy ORM Models + Alembic)
+Last activity: 2026-02-18 -- Completed 10-02-PLAN.md (Repository Pattern for 8 DB Modules)
 
-Progress: [███░░░░░░░░░░░░░░░░░░░░░░] 1/8 plans in phase
+Progress: [██████░░░░░░░░░░░░░░░░░░░] 2/8 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 44
+- Total plans completed: 45
 - Average duration: 10 min
-- Total execution time: 426 min
+- Total execution time: 429 min
 
 **By Phase:**
 
@@ -37,11 +37,11 @@ Progress: [███░░░░░░░░░░░░░░░░░░░░
 | 07-events-hooks-custom-scoring | 3/3 | 46 min | 15 min |
 | 08-i18n-backup-admin-polish | 5/5 | 116 min | 23 min |
 | 09-openapi-release-preparation | 5/5 | 60 min | 12 min |
-| 10-performance-scalability | 1/8 | 9 min | 9 min |
+| 10-performance-scalability | 2/8 | 12 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 09-03 (15 min), 09-05 (7 min), 09-04 (16 min), 10-01 (9 min)
-- Trend: Phase 10 started, 10-01 completed in 9 min
+- Last 5 plans: 09-05 (7 min), 09-04 (16 min), 10-01 (9 min), 10-02 (3 min)
+- Trend: Phase 10 progressing, 10-02 completed in 3 min
 
 *Updated after each plan completion*
 
@@ -254,6 +254,12 @@ Recent decisions affecting current work:
 - [10-01]: Flask-SQLAlchemy/Migrate imports guarded with try/except ImportError for graceful degradation
 - [10-01]: stamp_existing_db_if_needed() uses 'jobs' table as sentinel for pre-existing databases
 - [10-01]: Alembic render_as_batch=True for all migration contexts (required for SQLite ALTER TABLE)
+- [10-02]: Convenience functions in __init__.py instantiate fresh repository per call -- stateless bridge pattern
+- [10-02]: CacheRepository covers ffprobe_cache + episode_history + anidb_mappings (mirrors db/cache.py scope)
+- [10-02]: ScoringRepository self-contains default weight dicts for merge logic (not imported from providers/base.py)
+- [10-02]: TranslationRepository preserves weighted running average formula exactly for backend stats
+- [10-02]: BlacklistRepository uses check-then-insert (no INSERT OR IGNORE equivalent in SQLAlchemy)
+- [10-02]: LibraryRepository uses sqlalchemy.text() for SQLite datetime() in time-based aggregation
 
 ### Pending Todos
 
@@ -271,11 +277,11 @@ None yet.
 - Phase 7 complete -- all 3 plans executed, all summaries written (event system + engine/dispatcher + API/UI)
 - Phase 8 complete -- all 5 plans executed, all summaries written (theme, backend APIs, frontend pages, core i18n, remaining i18n)
 - Phase 9 complete -- all 5 plans executed (OpenAPI infra + backend performance + frontend performance + release docs + remaining blueprints/tasks page)
-- Phase 10 in progress -- 10-01 complete (ORM models + Alembic infrastructure)
+- Phase 10 in progress -- 10-01, 10-02 complete (ORM models + Alembic + 8 repository classes)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
-Last session: 2026-02-16
-Stopped at: Phase 10 in progress -- 10-01 complete (28 ORM models + Alembic migration infrastructure)
-Resume file: .planning/phases/10-performance-scalability/10-01-SUMMARY.md
+Last session: 2026-02-18
+Stopped at: Phase 10 in progress -- 10-02 complete (8 repository classes for simple db/ modules)
+Resume file: .planning/phases/10-performance-scalability/10-02-SUMMARY.md
