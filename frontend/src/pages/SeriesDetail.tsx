@@ -6,16 +6,18 @@ import {
   ArrowLeft, Loader2, ChevronDown, ChevronRight,
   Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search, Clock,
   Download, X, ChevronUp, BookOpen, Plus, Edit2, Trash2, Check,
-  Eye, Pencil, Columns2, Timer,
+  Eye, Pencil, Columns2, Timer, ShieldCheck,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { ComparisonSelector } from '@/components/comparison/ComparisonSelector'
+import { HealthBadge } from '@/components/health/HealthBadge'
 import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry } from '@/lib/types'
 
 const SubtitleComparison = lazy(() => import('@/components/comparison/SubtitleComparison').then(m => ({ default: m.SubtitleComparison })))
 const SyncControls = lazy(() => import('@/components/sync/SyncControls').then(m => ({ default: m.SyncControls })))
+const HealthCheckPanel = lazy(() => import('@/components/health/HealthCheckPanel').then(m => ({ default: m.HealthCheckPanel })))
 
 /** Derive subtitle file path from media path + language + format. */
 function deriveSubtitlePath(mediaPath: string, lang: string, format: string): string {
@@ -526,7 +528,7 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
 
 // ─── Season Group ──────────────────────────────────────────────────────────
 
-function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onHistory, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, t }: {
+function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onHistory, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onHealthCheck, healthScores, t }: {
   season: number
   episodes: EpisodeInfo[]
   targetLanguages: string[]
@@ -543,6 +545,8 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
   onEditSub: (filePath: string) => void
   onCompare: (ep: EpisodeInfo) => void
   onSync: (filePath: string) => void
+  onHealthCheck: (filePath: string) => void
+  healthScores: Record<string, number | null>
   t: (key: string, opts?: Record<string, unknown>) => string
 }) {
   const [expanded, setExpanded] = useState(true)
@@ -656,6 +660,7 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                               <SubBadge lang={lang} format={subFormat} />
                               {hasFile && (
                                 <>
+                                  <HealthBadge score={healthScores[deriveSubtitlePath(ep.file_path, lang, subFormat)] ?? null} size="sm" />
                                   <button
                                     onClick={() => onPreviewSub(deriveSubtitlePath(ep.file_path, lang, subFormat))}
                                     className="p-0.5 rounded transition-colors"
@@ -689,7 +694,7 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                     </div>
 
                     {/* Actions */}
-                    <div className="w-32 flex-shrink-0 flex gap-1 justify-end">
+                    <div className="w-40 flex-shrink-0 flex gap-1 justify-end">
                       {isExpanded && (
                         <button
                           onClick={onClose}
@@ -752,6 +757,32 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                             }}
                           >
                             <Timer size={14} />
+                          </button>
+                        )
+                      })()}
+                      {/* Health button: only show when at least 1 subtitle file */}
+                      {(() => {
+                        const hasAnySub = ep.has_file && Object.values(ep.subtitles).some(f => f === 'ass' || f === 'srt')
+                        if (!hasAnySub) return null
+                        const firstLang = Object.entries(ep.subtitles).find(([, f]) => f === 'ass' || f === 'srt')
+                        if (!firstLang) return null
+                        const healthPath = deriveSubtitlePath(ep.file_path, firstLang[0], firstLang[1])
+                        return (
+                          <button
+                            onClick={() => onHealthCheck(healthPath)}
+                            className="p-1.5 rounded transition-colors"
+                            style={{ color: 'var(--text-muted)' }}
+                            title="Health check"
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = 'var(--accent)'
+                              e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = 'var(--text-muted)'
+                              e.currentTarget.style.backgroundColor = ''
+                            }}
+                          >
+                            <ShieldCheck size={14} />
                           </button>
                         )
                       })()}
@@ -865,6 +896,10 @@ export function SeriesDetailPage() {
   const [syncFilePath, setSyncFilePath] = useState<string | null>(null)
   const [compareSelectorEp, setCompareSelectorEp] = useState<EpisodeInfo | null>(null)
 
+  // Health check state
+  const [healthCheckPath, setHealthCheckPath] = useState<string | null>(null)
+  const [healthScores, setHealthScores] = useState<Record<string, number | null>>({})
+
   const episodeSearch = useEpisodeSearch()
   const episodeHistory = useEpisodeHistory(expandedEp?.mode === 'history' ? expandedEp.id : 0)
   const processItem = useProcessWantedItem()
@@ -923,6 +958,10 @@ export function SeriesDetailPage() {
 
   const handleSync = useCallback((filePath: string) => {
     setSyncFilePath(filePath)
+  }, [])
+
+  const handleHealthCheck = useCallback((filePath: string) => {
+    setHealthCheckPath(filePath)
   }, [])
 
   // Group episodes by season
@@ -1200,7 +1239,7 @@ export function SeriesDetailPage() {
             {t('series_detail.subtitles')}
           </div>
           <div
-            className="w-32 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider text-right"
+            className="w-40 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider text-right"
             style={{ color: 'var(--text-secondary)' }}
           >
             {t('series_detail.actions')}
@@ -1227,6 +1266,8 @@ export function SeriesDetailPage() {
             onEditSub={(path) => { setEditorFilePath(path); setEditorMode('edit') }}
             onCompare={handleCompare}
             onSync={handleSync}
+            onHealthCheck={handleHealthCheck}
+            healthScores={healthScores}
             t={t}
           />
         ))}
@@ -1321,6 +1362,43 @@ export function SeriesDetailPage() {
                 filePath={syncFilePath}
                 onSynced={() => setSyncFilePath(null)}
                 onClose={() => setSyncFilePath(null)}
+              />
+            </Suspense>
+          </div>
+        </div>
+      )}
+
+      {/* Health Check Panel Modal */}
+      {healthCheckPath && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setHealthCheckPath(null)
+          }}
+        >
+          <div className="w-full max-w-lg mx-4">
+            <Suspense
+              fallback={
+                <div
+                  className="rounded-lg p-8 flex items-center justify-center"
+                  style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+                >
+                  <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent)' }} />
+                </div>
+              }
+            >
+              <HealthCheckPanel
+                filePath={healthCheckPath}
+                onClose={() => setHealthCheckPath(null)}
+                onFixed={() => {
+                  // Update health scores cache when a fix is applied
+                  import('@/api/client').then(({ runHealthCheck }) => {
+                    runHealthCheck(healthCheckPath).then((result) => {
+                      setHealthScores((prev) => ({ ...prev, [healthCheckPath]: result.score }))
+                    }).catch(() => { /* ignore */ })
+                  })
+                }}
               />
             </Suspense>
           </div>
