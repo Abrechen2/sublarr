@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 10 complete - Performance & Scalability
+**Current focus:** Phase 11 in progress - Subtitle Editor
 
 ## Current Position
 
-Phase: 10 of 16 (Performance & Scalability)
-Plan: 8 of 8 in current phase
-Status: Phase complete
-Last activity: 2026-02-18 -- Completed 10-08-PLAN.md (Cache & Queue Wiring)
+Phase: 11 of 16 (Subtitle Editor)
+Plan: 1 of 4 in current phase
+Status: In progress
+Last activity: 2026-02-18 -- Completed 11-01-PLAN.md (Editor API & CodeMirror Infrastructure)
 
-Progress: [█████████████████████████] 8/8 plans in phase
+Progress: [██████░░░░░░░░░░░░░░░░░░░] 1/4 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 51
+- Total plans completed: 52
 - Average duration: 9 min
-- Total execution time: 460 min
+- Total execution time: 465 min
 
 **By Phase:**
 
@@ -38,10 +38,11 @@ Progress: [███████████████████████
 | 08-i18n-backup-admin-polish | 5/5 | 116 min | 23 min |
 | 09-openapi-release-preparation | 5/5 | 60 min | 12 min |
 | 10-performance-scalability | 8/8 | 43 min | 5 min |
+| 11-subtitle-editor | 1/4 | 5 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 10-03 (5 min), 10-05 (9 min), 10-07 (3 min), 10-06 (5 min), 10-08 (8 min)
-- Trend: Phase 10 complete -- all 8 plans executed successfully
+- Last 5 plans: 10-05 (9 min), 10-07 (3 min), 10-06 (5 min), 10-08 (8 min), 11-01 (5 min)
+- Trend: Phase 11 started -- editor API and CodeMirror infrastructure complete
 
 *Updated after each plan completion*
 
@@ -285,6 +286,10 @@ Recent decisions affecting current work:
 - [10-08]: DB cache hits backfill fast cache for subsequent acceleration (write-through on read)
 - [10-08]: Job queue submit functions are additive wrappers -- existing route threading unchanged
 - [10-08]: Business logic (translate_file, process_wanted_item) untouched -- only submission abstracted
+- [11-01]: Optimistic concurrency via mtime comparison with 0.01s tolerance (no file locking)
+- [11-01]: pysubs2 lazy-imported at function level to match existing tools.py pattern
+- [11-01]: classify_styles from ass_utils used for /parse endpoint style classification (dialog vs signs)
+- [11-01]: Editor theme uses hardcoded hex colors (not CSS vars) for reliable CodeMirror rendering
 
 ### Pending Todos
 
@@ -303,10 +308,11 @@ None yet.
 - Phase 8 complete -- all 5 plans executed, all summaries written (theme, backend APIs, frontend pages, core i18n, remaining i18n)
 - Phase 9 complete -- all 5 plans executed (OpenAPI infra + backend performance + frontend performance + release docs + remaining blueprints/tasks page)
 - Phase 10 complete -- all 8 plans executed (ORM models + Alembic + repositories + cache/queue + app integration + operational tooling + extended metrics + Grafana dashboards + cache/queue wiring)
+- Phase 11 in progress -- 11-01 complete (editor API endpoints + CodeMirror infrastructure)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Phase 10 complete -- 10-08 complete (cache/queue wiring into business logic)
-Resume file: .planning/phases/10-performance-scalability/10-08-SUMMARY.md
+Stopped at: Phase 11 in progress -- 11-01 complete (editor API & CodeMirror infrastructure)
+Resume file: .planning/phases/11-subtitle-editor/11-01-SUMMARY.md
