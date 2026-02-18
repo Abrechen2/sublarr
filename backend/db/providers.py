@@ -46,7 +46,18 @@ def get_provider_download_stats() -> dict:
 
 
 def clear_provider_cache(provider_name: str = None):
-    """Clear provider cache. If provider_name is given, only clear that provider."""
+    """Clear provider cache. If provider_name is given, only clear that provider.
+
+    Also clears the fast app cache layer (Redis or memory) so stale
+    entries are not served from the fast tier.
+    """
+    # Clear fast cache layer
+    try:
+        from db.repositories.cache import CacheRepository
+        prefix = f"provider:{provider_name}:" if provider_name else "provider:"
+        CacheRepository.invalidate_app_cache(prefix=prefix)
+    except Exception:
+        pass  # Non-blocking -- DB cache clear proceeds regardless
     return _get_repo().clear_provider_cache(provider_name)
 
 

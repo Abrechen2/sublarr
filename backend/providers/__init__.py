@@ -3,6 +3,10 @@
 The ProviderManager orchestrates searches across enabled providers,
 scores results, and returns the best match.
 
+Two-tier caching:
+- Fast layer: app.cache_backend (Redis or in-memory) for sub-millisecond lookups
+- Persistent layer: DB provider_cache table for audit trail and UI stats
+
 Usage:
     from providers import get_provider_manager
 
@@ -420,6 +424,41 @@ class ProviderManager:
         timestamps.append(now)
         return True
 
+    @staticmethod
+    def _get_cache_backend():
+        """Get the app-level cache backend (Redis or memory), or None.
+
+        Uses Flask's current_app to access the cache_backend. Returns None
+        if called outside Flask context or if cache_backend is not configured.
+        Never raises -- safe to call from any context.
+        """
+        try:
+            from flask import current_app
+            return getattr(current_app, 'cache_backend', None)
+        except (RuntimeError, ImportError):
+            # Outside Flask app context or Flask not available
+            return None
+
+    @staticmethod
+    def _deserialize_results(cached_data: list) -> list:
+        """Deserialize a list of dicts into SubtitleResult objects."""
+        results = []
+        for r_data in cached_data:
+            result = SubtitleResult(
+                provider_name=r_data["provider_name"],
+                subtitle_id=r_data["subtitle_id"],
+                language=r_data["language"],
+                format=SubtitleFormat(r_data.get("format", "unknown")),
+                filename=r_data.get("filename", ""),
+                download_url=r_data.get("download_url", ""),
+                release_info=r_data.get("release_info", ""),
+                hearing_impaired=r_data.get("hearing_impaired", False),
+                forced=r_data.get("forced", False),
+                score=r_data.get("score", 0),
+            )
+            results.append(result)
+        return results
+
     def _make_cache_key(self, query: VideoQuery, format_filter: Optional[SubtitleFormat] = None) -> str:
         """Generate a cache key for a query."""
         key_parts = [
@@ -520,31 +559,42 @@ class ProviderManager:
         Returns:
             List of SubtitleResult sorted by score (highest first)
         """
-        # Check cache first
+        # Check cache first (two-tier: fast app cache, then persistent DB cache)
         cache_key = self._make_cache_key(query, format_filter)
         cache_ttl_minutes = getattr(self.settings, "provider_cache_ttl_minutes", 5)
-        
+
+        # Tier 1: Fast cache lookup (Redis or in-memory)
+        app_cache_key = f"provider:combined:{cache_key}"
+        cache_backend = self._get_cache_backend()
+        if cache_backend:
+            try:
+                fast_cached = cache_backend.get(app_cache_key)
+                if fast_cached:
+                    try:
+                        cached_data = json.loads(fast_cached)
+                        cached_results = self._deserialize_results(cached_data)
+                        logger.info("Returning %d results from fast cache", len(cached_results))
+                        return cached_results
+                    except Exception as e:
+                        logger.debug("Failed to parse fast cached results: %s", e)
+            except Exception as e:
+                logger.debug("Fast cache lookup failed (non-blocking): %s", e)
+
+        # Tier 2: Persistent DB cache lookup
         from db.providers import get_cached_results, cache_provider_results
         cached_json = get_cached_results("combined", cache_key, format_filter.value if format_filter else None)
         if cached_json:
             try:
                 cached_data = json.loads(cached_json)
-                cached_results = []
-                for r_data in cached_data:
-                    result = SubtitleResult(
-                        provider_name=r_data["provider_name"],
-                        subtitle_id=r_data["subtitle_id"],
-                        language=r_data["language"],
-                        format=SubtitleFormat(r_data.get("format", "unknown")),
-                        filename=r_data.get("filename", ""),
-                        download_url=r_data.get("download_url", ""),
-                        release_info=r_data.get("release_info", ""),
-                        hearing_impaired=r_data.get("hearing_impaired", False),
-                        forced=r_data.get("forced", False),
-                        score=r_data.get("score", 0),
-                    )
-                    cached_results.append(result)
-                logger.info("Returning %d cached results", len(cached_results))
+                cached_results = self._deserialize_results(cached_data)
+                logger.info("Returning %d cached results from DB", len(cached_results))
+                # Backfill fast cache so next lookup is faster
+                if cache_backend:
+                    try:
+                        cache_backend.set(app_cache_key, cached_json,
+                                          ttl_seconds=int(cache_ttl_minutes * 60))
+                    except Exception as e:
+                        logger.debug("Fast cache backfill failed (non-blocking): %s", e)
                 return cached_results
             except Exception as e:
                 logger.warning("Failed to parse cached results: %s", e)
@@ -679,7 +729,7 @@ class ProviderManager:
             -r.score  # Then by score descending
         ))
 
-        # Cache results
+        # Cache results in both tiers
         try:
             cache_data = [{
                 "provider_name": r.provider_name,
@@ -693,7 +743,16 @@ class ProviderManager:
                 "forced": r.forced,
                 "score": r.score,
             } for r in all_results]
-            cache_provider_results("combined", cache_key, json.dumps(cache_data), 
+            cache_json = json.dumps(cache_data)
+            # Tier 1: Fast cache (Redis or in-memory)
+            if cache_backend:
+                try:
+                    cache_backend.set(app_cache_key, cache_json,
+                                      ttl_seconds=int(cache_ttl_minutes * 60))
+                except Exception as e:
+                    logger.debug("Fast cache write failed (non-blocking): %s", e)
+            # Tier 2: Persistent DB cache (audit trail + UI stats)
+            cache_provider_results("combined", cache_key, cache_json,
                                  ttl_hours=cache_ttl_minutes / 60)
         except Exception as e:
             logger.debug("Failed to cache results: %s", e)
@@ -948,7 +1007,15 @@ class ProviderManager:
         return []
 
     def shutdown(self):
-        """Terminate all providers."""
+        """Terminate all providers and clear fast cache."""
+        # Clear fast cache for provider results
+        cache_backend = self._get_cache_backend()
+        if cache_backend:
+            try:
+                cache_backend.clear(prefix="provider:")
+            except Exception as e:
+                logger.debug("Failed to clear fast cache on shutdown: %s", e)
+
         for name, provider in self._providers.items():
             try:
                 provider.terminate()

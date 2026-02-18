@@ -23,6 +23,34 @@ logger = logging.getLogger(__name__)
 class CacheRepository(BaseRepository):
     """Repository for ffprobe_cache, episode history, and anidb_mappings operations."""
 
+    # ---- App-level cache invalidation ----------------------------------------
+
+    @staticmethod
+    def invalidate_app_cache(prefix: str = "provider:") -> int:
+        """Clear entries from the app-level fast cache (Redis or memory).
+
+        Ensures that when DB cache is cleared, the fast cache layer is also
+        invalidated. Safe to call from any context -- a Redis failure never
+        blocks the caller.
+
+        Args:
+            prefix: Key prefix to clear. Defaults to "provider:" which covers
+                    all provider search result cache entries.
+
+        Returns:
+            Number of keys cleared, or 0 if cache_backend is unavailable.
+        """
+        try:
+            from flask import current_app
+            cache_backend = getattr(current_app, 'cache_backend', None)
+            if cache_backend:
+                return cache_backend.clear(prefix=prefix)
+        except (RuntimeError, ImportError):
+            pass  # Outside Flask context or Flask not available
+        except Exception as e:
+            logger.debug("App cache invalidation failed (non-blocking): %s", e)
+        return 0
+
     # ---- FFprobe Cache -------------------------------------------------------
 
     def get_ffprobe_cache(self, file_path: str, mtime: float) -> Optional[dict]:
