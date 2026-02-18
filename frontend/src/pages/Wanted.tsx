@@ -14,6 +14,14 @@ import {
   ArrowUpCircle, EyeOff, Eye, Play, Loader2, ChevronUp, Ban,
   CheckSquare, Square, MinusSquare, Download,
 } from 'lucide-react'
+import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
+
+/** Derive subtitle file path from media path + language + format. */
+function deriveSubtitlePath(mediaPath: string, lang: string, format: string): string {
+  const lastDot = mediaPath.lastIndexOf('.')
+  const base = lastDot > 0 ? mediaPath.substring(0, lastDot) : mediaPath
+  return `${base}.${lang}.${format}`
+}
 
 const STATUS_FILTERS = ['all', 'wanted', 'failed', 'ignored'] as const
 const TYPE_FILTERS = ['all', 'episode', 'movie'] as const
@@ -181,6 +189,7 @@ export function WantedPage() {
   const [expandedItem, setExpandedItem] = useState<number | null>(null)
   const [searchResults, setSearchResults] = useState<Record<number, WantedSearchResponse>>({})
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [previewFilePath, setPreviewFilePath] = useState<string | null>(null)
 
   const { data: summary } = useWantedSummary()
   const { data: wanted, isLoading } = useWantedItems(page, 50, typeFilter, statusFilter, subtitleTypeFilter)
@@ -701,6 +710,18 @@ export function WantedPage() {
                       </td>
                       <td className="px-4 py-2.5 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {(item.existing_sub === 'ass' || item.existing_sub === 'srt') && item.file_path && item.target_language && (
+                            <button
+                              onClick={() => setPreviewFilePath(deriveSubtitlePath(item.file_path, item.target_language, item.existing_sub))}
+                              className="p-1 rounded transition-colors duration-150"
+                              title="Preview subtitle"
+                              style={{ color: 'var(--text-muted)' }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                            >
+                              <Eye size={14} />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleSearch(item.id)}
                             disabled={searchItem.isPending && expandedItem === item.id}
@@ -849,6 +870,15 @@ export function WantedPage() {
           </div>
         )}
       </div>
+
+      {/* Subtitle Preview Modal */}
+      {previewFilePath && (
+        <SubtitleEditorModal
+          filePath={previewFilePath}
+          initialMode="preview"
+          onClose={() => setPreviewFilePath(null)}
+        />
+      )}
     </div>
   )
 }

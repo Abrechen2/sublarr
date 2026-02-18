@@ -6,10 +6,19 @@ import {
   ArrowLeft, Loader2, ChevronDown, ChevronRight,
   Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search, Clock,
   Download, X, ChevronUp, BookOpen, Plus, Edit2, Trash2, Check,
+  Eye, Pencil,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
+import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry } from '@/lib/types'
+
+/** Derive subtitle file path from media path + language + format. */
+function deriveSubtitlePath(mediaPath: string, lang: string, format: string): string {
+  const lastDot = mediaPath.lastIndexOf('.')
+  const base = lastDot > 0 ? mediaPath.substring(0, lastDot) : mediaPath
+  return `${base}.${lang}.${format}`
+}
 
 function SubBadge({ lang, format }: { lang: string; format: string }) {
   const hasFile = format === 'ass' || format === 'srt'
@@ -513,7 +522,7 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
 
 // ─── Season Group ──────────────────────────────────────────────────────────
 
-function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onHistory, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, t }: {
+function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onHistory, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, t }: {
   season: number
   episodes: EpisodeInfo[]
   targetLanguages: string[]
@@ -526,6 +535,8 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
   historyEntries: EpisodeHistoryEntry[]
   historyLoading: boolean
   onProcess: (wantedId: number) => void
+  onPreviewSub: (filePath: string) => void
+  onEditSub: (filePath: string) => void
   t: (key: string, opts?: Record<string, unknown>) => string
 }) {
   const [expanded, setExpanded] = useState(true)
@@ -629,15 +640,41 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                     </div>
 
                     {/* Subtitles */}
-                    <div className="w-40 flex-shrink-0 flex gap-1 flex-wrap">
+                    <div className="w-40 flex-shrink-0 flex gap-1 flex-wrap items-center">
                       {ep.has_file && targetLanguages.length > 0 ? (
-                        targetLanguages.map((lang) => (
-                          <SubBadge
-                            key={lang}
-                            lang={lang}
-                            format={ep.subtitles[lang] || ''}
-                          />
-                        ))
+                        targetLanguages.map((lang) => {
+                          const subFormat = ep.subtitles[lang] || ''
+                          const hasFile = subFormat === 'ass' || subFormat === 'srt'
+                          return (
+                            <span key={lang} className="inline-flex items-center gap-0.5">
+                              <SubBadge lang={lang} format={subFormat} />
+                              {hasFile && (
+                                <>
+                                  <button
+                                    onClick={() => onPreviewSub(deriveSubtitlePath(ep.file_path, lang, subFormat))}
+                                    className="p-0.5 rounded transition-colors"
+                                    style={{ color: 'var(--text-muted)' }}
+                                    title="Preview subtitle"
+                                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
+                                  >
+                                    <Eye size={12} />
+                                  </button>
+                                  <button
+                                    onClick={() => onEditSub(deriveSubtitlePath(ep.file_path, lang, subFormat))}
+                                    className="p-0.5 rounded transition-colors"
+                                    style={{ color: 'var(--text-muted)' }}
+                                    title="Edit subtitle"
+                                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
+                                  >
+                                    <Pencil size={12} />
+                                  </button>
+                                </>
+                              )}
+                            </span>
+                          )
+                        })
                       ) : (
                         <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
                           {ep.has_file ? '\u2014' : 'No file'}
@@ -763,6 +800,10 @@ export function SeriesDetailPage() {
   const [showGlossary, setShowGlossary] = useState(false)
   const [searchResults, setSearchResults] = useState<Record<number, WantedSearchResponse>>({})
   const [historyEntries, setHistoryEntries] = useState<Record<number, EpisodeHistoryEntry[]>>({})
+
+  // Subtitle editor modal state
+  const [editorFilePath, setEditorFilePath] = useState<string | null>(null)
+  const [editorMode, setEditorMode] = useState<'preview' | 'edit'>('preview')
 
   const episodeSearch = useEpisodeSearch()
   const episodeHistory = useEpisodeHistory(expandedEp?.mode === 'history' ? expandedEp.id : 0)
@@ -1114,6 +1155,8 @@ export function SeriesDetailPage() {
             historyEntries={expandedEp ? historyEntries[expandedEp.id] ?? [] : []}
             historyLoading={expandedEp?.mode === 'history' && !(expandedEp.id in historyEntries)}
             onProcess={handleProcess}
+            onPreviewSub={(path) => { setEditorFilePath(path); setEditorMode('preview') }}
+            onEditSub={(path) => { setEditorFilePath(path); setEditorMode('edit') }}
             t={t}
           />
         ))}
@@ -1124,6 +1167,15 @@ export function SeriesDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Subtitle Editor Modal */}
+      {editorFilePath && (
+        <SubtitleEditorModal
+          filePath={editorFilePath}
+          initialMode={editorMode}
+          onClose={() => setEditorFilePath(null)}
+        />
+      )}
     </div>
   )
 }
