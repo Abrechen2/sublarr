@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 11 of 16 (Subtitle Editor)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-18 -- Completed 11-01-PLAN.md (Editor API & CodeMirror Infrastructure)
+Last activity: 2026-02-18 -- Completed 11-02-PLAN.md (SubtitlePreview & SubtitleTimeline Components)
 
-Progress: [██████░░░░░░░░░░░░░░░░░░░] 1/4 plans in phase
+Progress: [████████████░░░░░░░░░░░░░] 2/4 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 52
+- Total plans completed: 53
 - Average duration: 9 min
-- Total execution time: 465 min
+- Total execution time: 469 min
 
 **By Phase:**
 
@@ -38,11 +38,11 @@ Progress: [██████░░░░░░░░░░░░░░░░░
 | 08-i18n-backup-admin-polish | 5/5 | 116 min | 23 min |
 | 09-openapi-release-preparation | 5/5 | 60 min | 12 min |
 | 10-performance-scalability | 8/8 | 43 min | 5 min |
-| 11-subtitle-editor | 1/4 | 5 min | 5 min |
+| 11-subtitle-editor | 2/4 | 9 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 10-05 (9 min), 10-07 (3 min), 10-06 (5 min), 10-08 (8 min), 11-01 (5 min)
-- Trend: Phase 11 started -- editor API and CodeMirror infrastructure complete
+- Last 5 plans: 10-07 (3 min), 10-06 (5 min), 10-08 (8 min), 11-01 (5 min), 11-02 (4 min)
+- Trend: Phase 11 progressing -- preview components and typed API layer complete
 
 *Updated after each plan completion*
 
@@ -290,6 +290,10 @@ Recent decisions affecting current work:
 - [11-01]: pysubs2 lazy-imported at function level to match existing tools.py pattern
 - [11-01]: classify_styles from ass_utils used for /parse endpoint style classification (dialog vs signs)
 - [11-01]: Editor theme uses hardcoded hex colors (not CSS vars) for reliable CodeMirror rendering
+- [11-02]: SubtitlePreview uses ReactCodeMirrorRef for view access instead of EditorView.updateListener
+- [11-02]: Timeline cue-to-line mapping uses format-aware estimation (ASS: header offset + index, SRT: index * 4)
+- [11-02]: Timeline label count auto-scales: one label per ~5min, clamped 2-10 labels
+- [11-02]: Cue color-coding: teal for dialog, amber for signs/songs -- matches SubtitleTimeline styles prop
 
 ### Pending Todos
 
@@ -308,11 +312,11 @@ None yet.
 - Phase 8 complete -- all 5 plans executed, all summaries written (theme, backend APIs, frontend pages, core i18n, remaining i18n)
 - Phase 9 complete -- all 5 plans executed (OpenAPI infra + backend performance + frontend performance + release docs + remaining blueprints/tasks page)
 - Phase 10 complete -- all 8 plans executed (ORM models + Alembic + repositories + cache/queue + app integration + operational tooling + extended metrics + Grafana dashboards + cache/queue wiring)
-- Phase 11 in progress -- 11-01 complete (editor API endpoints + CodeMirror infrastructure)
+- Phase 11 in progress -- 11-01, 11-02 complete (editor API + CodeMirror + preview components + typed API layer)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Phase 11 in progress -- 11-01 complete (editor API & CodeMirror infrastructure)
-Resume file: .planning/phases/11-subtitle-editor/11-01-SUMMARY.md
+Stopped at: Phase 11 in progress -- 11-02 complete (SubtitlePreview & SubtitleTimeline components)
+Resume file: .planning/phases/11-subtitle-editor/11-02-SUMMARY.md
