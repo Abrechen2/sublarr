@@ -20,13 +20,16 @@ LABEL org.opencontainers.image.description="Standalone Subtitle Manager & Transl
 LABEL org.opencontainers.image.source="https://github.com/denniswittke/sublarr"
 LABEL org.opencontainers.image.licenses="GPL-3.0"
 
+# Install system dependencies
+# postgresql-client provides pg_dump/pg_restore for optional PostgreSQL backup support
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg curl unrar-free && \
+    apt-get install -y --no-install-recommends ffmpeg curl unrar-free postgresql-client && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # Install Python dependencies
+# Includes psycopg2-binary (PostgreSQL) and redis/rq (Redis) for optional backends
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
