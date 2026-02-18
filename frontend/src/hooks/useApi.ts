@@ -33,6 +33,7 @@ import {
   createFullBackup, listFullBackups, restoreFullBackup,
   getLogRotation, updateLogRotation,
   runSubtitleTool, previewSubtitle,
+  getSubtitleContent, saveSubtitleContent, getSubtitleBackup, validateSubtitle, parseSubtitleCues,
   getTasks,
 } from '@/api/client'
 import type { LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig } from '@/lib/types'
@@ -938,6 +939,51 @@ export function useSubtitleTool() {
 export function usePreviewSubtitle() {
   return useMutation({
     mutationFn: (filePath: string) => previewSubtitle(filePath),
+  })
+}
+
+export function useSubtitleContent(filePath: string | null) {
+  return useQuery({
+    queryKey: ['subtitle-content', filePath],
+    queryFn: () => getSubtitleContent(filePath!),
+    enabled: !!filePath,
+    staleTime: 0,  // Always refetch (file may change externally)
+  })
+}
+
+export function useSubtitleParse(filePath: string | null) {
+  return useQuery({
+    queryKey: ['subtitle-parse', filePath],
+    queryFn: () => parseSubtitleCues(filePath!),
+    enabled: !!filePath,
+    staleTime: 30_000,  // Cue data unlikely to change frequently
+  })
+}
+
+export function useSubtitleBackup(filePath: string | null) {
+  return useQuery({
+    queryKey: ['subtitle-backup', filePath],
+    queryFn: () => getSubtitleBackup(filePath!),
+    enabled: !!filePath,
+  })
+}
+
+export function useSaveSubtitle() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ filePath, content, lastModified }: { filePath: string; content: string; lastModified: number }) =>
+      saveSubtitleContent(filePath, content, lastModified),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['subtitle-content', variables.filePath] })
+      queryClient.invalidateQueries({ queryKey: ['subtitle-backup', variables.filePath] })
+    },
+  })
+}
+
+export function useValidateSubtitle() {
+  return useMutation({
+    mutationFn: ({ content, format, filePath }: { content: string; format?: string; filePath?: string }) =>
+      validateSubtitle(content, format, filePath),
   })
 }
 
