@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 11 of 16 (Subtitle Editor)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-18 -- Completed 11-02-PLAN.md (SubtitlePreview & SubtitleTimeline Components)
+Last activity: 2026-02-18 -- Completed 11-03-PLAN.md (SubtitleEditor & SubtitleDiff Components)
 
-Progress: [████████████░░░░░░░░░░░░░] 2/4 plans in phase
+Progress: [██████████████████░░░░░░░] 3/4 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 53
+- Total plans completed: 54
 - Average duration: 9 min
-- Total execution time: 469 min
+- Total execution time: 473 min
 
 **By Phase:**
 
@@ -38,11 +38,11 @@ Progress: [████████████░░░░░░░░░░░
 | 08-i18n-backup-admin-polish | 5/5 | 116 min | 23 min |
 | 09-openapi-release-preparation | 5/5 | 60 min | 12 min |
 | 10-performance-scalability | 8/8 | 43 min | 5 min |
-| 11-subtitle-editor | 2/4 | 9 min | 5 min |
+| 11-subtitle-editor | 3/4 | 13 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 10-07 (3 min), 10-06 (5 min), 10-08 (8 min), 11-01 (5 min), 11-02 (4 min)
-- Trend: Phase 11 progressing -- preview components and typed API layer complete
+- Last 5 plans: 10-06 (5 min), 10-08 (8 min), 11-01 (5 min), 11-02 (4 min), 11-03 (4 min)
+- Trend: Phase 11 progressing -- editor and diff components complete, one plan remaining
 
 *Updated after each plan completion*
 
@@ -294,6 +294,10 @@ Recent decisions affecting current work:
 - [11-02]: Timeline cue-to-line mapping uses format-aware estimation (ASS: header offset + index, SRT: index * 4)
 - [11-02]: Timeline label count auto-scales: one label per ~5min, clamped 2-10 labels
 - [11-02]: Cue color-coding: teal for dialog, amber for signs/songs -- matches SubtitleTimeline styles prop
+- [11-03]: CodeMirror value prop set once (uncontrolled) to avoid cursor position reset on re-render
+- [11-03]: Save tracks currentMtime in state, updated after each successful save, for correct multi-save concurrency
+- [11-03]: DiffHeader extracted as shared sub-component for loading/error/404/success states
+- [11-03]: Both diff panes use EditorState.readOnly to prevent accidental edits in comparison view
 
 ### Pending Todos
 
@@ -312,11 +316,11 @@ None yet.
 - Phase 8 complete -- all 5 plans executed, all summaries written (theme, backend APIs, frontend pages, core i18n, remaining i18n)
 - Phase 9 complete -- all 5 plans executed (OpenAPI infra + backend performance + frontend performance + release docs + remaining blueprints/tasks page)
 - Phase 10 complete -- all 8 plans executed (ORM models + Alembic + repositories + cache/queue + app integration + operational tooling + extended metrics + Grafana dashboards + cache/queue wiring)
-- Phase 11 in progress -- 11-01, 11-02 complete (editor API + CodeMirror + preview components + typed API layer)
+- Phase 11 in progress -- 11-01, 11-02, 11-03 complete (editor API + CodeMirror + preview + timeline + editor + diff)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Phase 11 in progress -- 11-02 complete (SubtitlePreview & SubtitleTimeline components)
-Resume file: .planning/phases/11-subtitle-editor/11-02-SUMMARY.md
+Stopped at: Phase 11 in progress -- 11-03 complete (SubtitleEditor & SubtitleDiff components)
+Resume file: .planning/phases/11-subtitle-editor/11-03-SUMMARY.md
