@@ -11,6 +11,7 @@ import type {
   HookConfig, WebhookConfig,
   StatisticsData, FullBackupInfo, SubtitleToolResult, LogRotationConfig,
   TasksResponse,
+  SubtitleContent, SubtitleSaveResult, SubtitleBackup, SubtitleValidation, SubtitleParseResult,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -642,6 +643,31 @@ export async function runSubtitleTool(tool: string, params: Record<string, unkno
 
 export async function previewSubtitle(filePath: string): Promise<{ format: string; lines: string[]; total_lines: number }> {
   const { data } = await api.get('/tools/preview', { params: { file_path: filePath } })
+  return data
+}
+
+export async function getSubtitleContent(filePath: string): Promise<SubtitleContent> {
+  const { data } = await api.get('/tools/content', { params: { file_path: filePath } })
+  return data
+}
+
+export async function saveSubtitleContent(filePath: string, content: string, lastModified: number): Promise<SubtitleSaveResult> {
+  const { data } = await api.put('/tools/content', { file_path: filePath, content, last_modified: lastModified })
+  return data
+}
+
+export async function getSubtitleBackup(filePath: string): Promise<SubtitleBackup> {
+  const { data } = await api.get('/tools/backup', { params: { file_path: filePath } })
+  return data
+}
+
+export async function validateSubtitle(content: string, format?: string, filePath?: string): Promise<SubtitleValidation> {
+  const { data } = await api.post('/tools/validate', { content, format, file_path: filePath })
+  return data
+}
+
+export async function parseSubtitleCues(filePath: string): Promise<SubtitleParseResult> {
+  const { data } = await api.post('/tools/parse', { file_path: filePath })
   return data
 }
 

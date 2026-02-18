@@ -639,3 +639,49 @@ export interface SchedulerTask {
 export interface TasksResponse {
   tasks: SchedulerTask[]
 }
+
+// ─── Subtitle Editor ──────────────────────────────────────────────────────────
+
+export interface SubtitleContent {
+  format: 'ass' | 'srt'
+  content: string
+  encoding: string
+  size_bytes: number
+  total_lines: number
+  last_modified: number
+}
+
+export interface SubtitleSaveResult {
+  status: string
+  backup_path: string
+  new_mtime: number
+}
+
+export interface SubtitleBackup {
+  content: string
+  encoding: string
+  backup_path: string
+}
+
+export interface SubtitleValidation {
+  valid: boolean
+  error?: string
+  event_count?: number
+  style_count?: number
+  warnings: string[]
+}
+
+export interface SubtitleCue {
+  start: number    // seconds
+  end: number      // seconds
+  text: string
+  style: string
+}
+
+export interface SubtitleParseResult {
+  cues: SubtitleCue[]
+  total_duration: number
+  cue_count: number
+  format: string
+  styles: Record<string, string> | null  // style_name -> "dialog"|"signs"|"songs"
+}
