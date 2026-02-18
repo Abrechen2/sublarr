@@ -685,3 +685,83 @@ export interface SubtitleParseResult {
   format: string
   styles: Record<string, string> | null  // style_name -> "dialog"|"signs"|"songs"
 }
+
+// ─── Health Check & Quality ─────────────────────────────────────────────────
+
+export interface HealthIssue {
+  check: string
+  severity: 'error' | 'warning' | 'info'
+  message: string
+  line: number | null
+  auto_fixable: boolean
+  fix: string | null
+}
+
+export interface HealthCheckResult {
+  file_path: string
+  checks_run: number
+  issues: HealthIssue[]
+  score: number
+  checked_at: string
+}
+
+export interface HealthCheckBatchResult {
+  results: HealthCheckResult[]
+  summary: {
+    total: number
+    avg_score: number
+    total_issues: number
+  }
+}
+
+export interface HealthFixResult {
+  status: string
+  fixes_applied: string[]
+  counts: Record<string, number>
+  new_score: number
+  remaining_issues: number
+}
+
+export interface QualityTrend {
+  date: string
+  avg_score: number
+  issues_count: number
+  files_checked: number
+}
+
+// ─── Comparison ─────────────────────────────────────────────────────────────
+
+export interface ComparisonPanel {
+  path: string
+  content: string
+  format: 'ass' | 'srt'
+  encoding: string
+  total_lines: number
+}
+
+export interface ComparisonResponse {
+  panels: ComparisonPanel[]
+}
+
+// ─── Sync ───────────────────────────────────────────────────────────────────
+
+export interface SyncPreviewEvent {
+  index: number
+  before_start: string
+  before_end: string
+  after_start: string
+  after_end: string
+  text: string
+}
+
+export interface SyncResult {
+  status: string
+  operation: string
+  events: number
+}
+
+export interface SyncPreviewResult {
+  preview: SyncPreviewEvent[]
+  operation: string
+  total_events: number
+}

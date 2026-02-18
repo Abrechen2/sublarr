@@ -12,6 +12,8 @@ import type {
   StatisticsData, FullBackupInfo, SubtitleToolResult, LogRotationConfig,
   TasksResponse,
   SubtitleContent, SubtitleSaveResult, SubtitleBackup, SubtitleValidation, SubtitleParseResult,
+  HealthCheckResult, HealthCheckBatchResult, HealthFixResult, QualityTrend,
+  ComparisonResponse, SyncResult, SyncPreviewResult,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -675,6 +677,48 @@ export async function parseSubtitleCues(filePath: string): Promise<SubtitleParse
 
 export async function getTasks(): Promise<TasksResponse> {
   const { data } = await api.get('/tasks')
+  return data
+}
+
+// ─── Health Check & Sync ────────────────────────────────────────────────────
+
+export async function runHealthCheck(filePath: string): Promise<HealthCheckResult> {
+  const { data } = await api.post('/tools/health-check', { file_path: filePath })
+  return data
+}
+
+export async function runHealthCheckBatch(filePaths: string[]): Promise<HealthCheckBatchResult> {
+  const { data } = await api.post('/tools/health-check', { file_paths: filePaths })
+  return data
+}
+
+export async function applyHealthFix(filePath: string, fixes: string[]): Promise<HealthFixResult> {
+  const { data } = await api.post('/tools/health-fix', { file_path: filePath, fixes })
+  return data
+}
+
+export async function getQualityTrends(days?: number): Promise<{ trends: QualityTrend[]; days: number }> {
+  const { data } = await api.get('/tools/quality-trends', { params: { days } })
+  return data
+}
+
+export async function compareSubtitles(filePaths: string[]): Promise<ComparisonResponse> {
+  const { data } = await api.post('/tools/compare', { file_paths: filePaths })
+  return data
+}
+
+export async function advancedSync(
+  filePath: string,
+  operation: 'offset' | 'speed' | 'framerate',
+  params: Record<string, number>,
+  preview?: boolean
+): Promise<SyncResult | SyncPreviewResult> {
+  const { data } = await api.post('/tools/advanced-sync', {
+    file_path: filePath,
+    operation,
+    ...params,
+    preview: preview ?? false,
+  })
   return data
 }
 
