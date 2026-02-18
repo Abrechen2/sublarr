@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 10 of 16 (Performance & Scalability)
-Plan: 2 of 8 in current phase
+Plan: 4 of 8 in current phase
 Status: In progress
-Last activity: 2026-02-18 -- Completed 10-02-PLAN.md (Repository Pattern for 8 DB Modules)
+Last activity: 2026-02-18 -- Completed 10-04-PLAN.md (Cache & Job Queue Abstraction)
 
-Progress: [██████░░░░░░░░░░░░░░░░░░░] 2/8 plans in phase
+Progress: [████████████░░░░░░░░░░░░░] 4/8 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 45
-- Average duration: 10 min
-- Total execution time: 429 min
+- Total plans completed: 46
+- Average duration: 9 min
+- Total execution time: 432 min
 
 **By Phase:**
 
@@ -37,11 +37,11 @@ Progress: [██████░░░░░░░░░░░░░░░░░
 | 07-events-hooks-custom-scoring | 3/3 | 46 min | 15 min |
 | 08-i18n-backup-admin-polish | 5/5 | 116 min | 23 min |
 | 09-openapi-release-preparation | 5/5 | 60 min | 12 min |
-| 10-performance-scalability | 2/8 | 12 min | 6 min |
+| 10-performance-scalability | 4/8 | 15 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 09-05 (7 min), 09-04 (16 min), 10-01 (9 min), 10-02 (3 min)
-- Trend: Phase 10 progressing, 10-02 completed in 3 min
+- Last 5 plans: 09-04 (16 min), 10-01 (9 min), 10-02 (3 min), 10-04 (3 min)
+- Trend: Phase 10 progressing efficiently, 10-04 completed in 3 min
 
 *Updated after each plan completion*
 
@@ -260,6 +260,11 @@ Recent decisions affecting current work:
 - [10-02]: TranslationRepository preserves weighted running average formula exactly for backend stats
 - [10-02]: BlacklistRepository uses check-then-insert (no INSERT OR IGNORE equivalent in SQLAlchemy)
 - [10-02]: LibraryRepository uses sqlalchemy.text() for SQLite datetime() in time-based aggregation
+- [10-04]: Package named job_queue (not queue) to avoid shadowing Python stdlib queue module
+- [10-04]: Redis key prefix 'sublarr:' for namespace isolation in shared Redis instances
+- [10-04]: MemoryCacheBackend evicts expired entries every 100 accesses to prevent memory growth
+- [10-04]: MemoryJobQueue retains job metadata for 24h with periodic cleanup every 50 enqueues
+- [10-04]: RQJobQueue only enqueues -- separate rq worker process required for execution
 
 ### Pending Todos
 
@@ -277,11 +282,11 @@ None yet.
 - Phase 7 complete -- all 3 plans executed, all summaries written (event system + engine/dispatcher + API/UI)
 - Phase 8 complete -- all 5 plans executed, all summaries written (theme, backend APIs, frontend pages, core i18n, remaining i18n)
 - Phase 9 complete -- all 5 plans executed (OpenAPI infra + backend performance + frontend performance + release docs + remaining blueprints/tasks page)
-- Phase 10 in progress -- 10-01, 10-02 complete (ORM models + Alembic + 8 repository classes)
+- Phase 10 in progress -- 10-01, 10-02, 10-04 complete (ORM models + Alembic + 8 repository classes + cache/queue abstraction)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Phase 10 in progress -- 10-02 complete (8 repository classes for simple db/ modules)
-Resume file: .planning/phases/10-performance-scalability/10-02-SUMMARY.md
+Stopped at: Phase 10 in progress -- 10-04 complete (cache + job queue abstraction layers with Redis/memory fallbacks)
+Resume file: .planning/phases/10-performance-scalability/10-04-SUMMARY.md
