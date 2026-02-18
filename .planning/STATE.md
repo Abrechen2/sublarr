@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 11 in progress - Subtitle Editor
+**Current focus:** Phase 11 complete - Subtitle Editor
 
 ## Current Position
 
 Phase: 11 of 16 (Subtitle Editor)
-Plan: 3 of 4 in current phase
-Status: In progress
-Last activity: 2026-02-18 -- Completed 11-03-PLAN.md (SubtitleEditor & SubtitleDiff Components)
+Plan: 4 of 4 in current phase
+Status: Phase complete
+Last activity: 2026-02-18 -- Completed 11-04-PLAN.md (SubtitleEditorModal & Page Integration)
 
-Progress: [██████████████████░░░░░░░] 3/4 plans in phase
+Progress: [█████████████████████████] 4/4 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 54
+- Total plans completed: 55
 - Average duration: 9 min
-- Total execution time: 473 min
+- Total execution time: 481 min
 
 **By Phase:**
 
@@ -38,11 +38,11 @@ Progress: [██████████████████░░░░░
 | 08-i18n-backup-admin-polish | 5/5 | 116 min | 23 min |
 | 09-openapi-release-preparation | 5/5 | 60 min | 12 min |
 | 10-performance-scalability | 8/8 | 43 min | 5 min |
-| 11-subtitle-editor | 3/4 | 13 min | 4 min |
+| 11-subtitle-editor | 4/4 | 21 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 10-06 (5 min), 10-08 (8 min), 11-01 (5 min), 11-02 (4 min), 11-03 (4 min)
-- Trend: Phase 11 progressing -- editor and diff components complete, one plan remaining
+- Last 5 plans: 10-08 (8 min), 11-01 (5 min), 11-02 (4 min), 11-03 (4 min), 11-04 (8 min)
+- Trend: Phase 11 complete -- all editor components built and integrated into pages
 
 *Updated after each plan completion*
 
@@ -298,6 +298,12 @@ Recent decisions affecting current work:
 - [11-03]: Save tracks currentMtime in state, updated after each successful save, for correct multi-save concurrency
 - [11-03]: DiffHeader extracted as shared sub-component for loading/error/404/success states
 - [11-03]: Both diff panes use EditorState.readOnly to prevent accidental edits in comparison view
+- [11-04]: SubtitleEditorModal uses default export for direct lazy import compatibility
+- [11-04]: Named export adapter pattern for SubtitleEditor and SubtitleDiff lazy imports
+- [11-04]: Wanted page shows preview only (not edit) since items are missing/incomplete subs
+- [11-04]: History page shows preview and diff (GitCompare) buttons per entry
+- [11-04]: deriveSubtitlePath helper replaces video extension with .{lang}.{format}
+- [11-04]: Unsaved changes guard on Escape key, overlay click, and close button
 
 ### Pending Todos
 
@@ -316,11 +322,11 @@ None yet.
 - Phase 8 complete -- all 5 plans executed, all summaries written (theme, backend APIs, frontend pages, core i18n, remaining i18n)
 - Phase 9 complete -- all 5 plans executed (OpenAPI infra + backend performance + frontend performance + release docs + remaining blueprints/tasks page)
 - Phase 10 complete -- all 8 plans executed (ORM models + Alembic + repositories + cache/queue + app integration + operational tooling + extended metrics + Grafana dashboards + cache/queue wiring)
-- Phase 11 in progress -- 11-01, 11-02, 11-03 complete (editor API + CodeMirror + preview + timeline + editor + diff)
+- Phase 11 complete -- all 4 plans executed (editor API + preview/timeline + editor/diff + modal/page integration)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Phase 11 in progress -- 11-03 complete (SubtitleEditor & SubtitleDiff components)
-Resume file: .planning/phases/11-subtitle-editor/11-03-SUMMARY.md
+Stopped at: Phase 11 complete -- 11-04 complete (SubtitleEditorModal & Page Integration)
+Resume file: .planning/phases/11-subtitle-editor/11-04-SUMMARY.md
