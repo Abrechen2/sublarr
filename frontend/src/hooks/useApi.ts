@@ -35,6 +35,8 @@ import {
   runSubtitleTool, previewSubtitle,
   getSubtitleContent, saveSubtitleContent, getSubtitleBackup, validateSubtitle, parseSubtitleCues,
   getTasks,
+  runHealthCheck, applyHealthFix, getQualityTrends,
+  compareSubtitles, advancedSync,
 } from '@/api/client'
 import type { LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig } from '@/lib/types'
 
@@ -1025,5 +1027,61 @@ export function useTriggerTask() {
       queryClient.invalidateQueries({ queryKey: ['wanted'] })
       queryClient.invalidateQueries({ queryKey: ['wanted-summary'] })
     },
+  })
+}
+
+// ─── Health Check ────────────────────────────────────────────────────────────
+
+export function useHealthCheck(filePath: string | null) {
+  return useQuery({
+    queryKey: ['health-check', filePath],
+    queryFn: () => runHealthCheck(filePath!),
+    enabled: !!filePath,
+    staleTime: 5 * 60 * 1000, // 5 min cache
+  })
+}
+
+export function useHealthFix() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ filePath, fixes }: { filePath: string; fixes: string[] }) =>
+      applyHealthFix(filePath, fixes),
+    onSuccess: (_data, variables) => {
+      void qc.invalidateQueries({ queryKey: ['health-check', variables.filePath] })
+    },
+  })
+}
+
+export function useQualityTrends(days?: number) {
+  return useQuery({
+    queryKey: ['quality-trends', days],
+    queryFn: () => getQualityTrends(days),
+    staleTime: 10 * 60 * 1000, // 10 min cache
+  })
+}
+
+// ─── Comparison ──────────────────────────────────────────────────────────────
+
+export function useCompareSubtitles() {
+  return useMutation({
+    mutationFn: (filePaths: string[]) => compareSubtitles(filePaths),
+  })
+}
+
+// ─── Sync ────────────────────────────────────────────────────────────────────
+
+export function useAdvancedSync() {
+  return useMutation({
+    mutationFn: ({
+      filePath,
+      operation,
+      params,
+      preview,
+    }: {
+      filePath: string
+      operation: 'offset' | 'speed' | 'framerate'
+      params: Record<string, number>
+      preview?: boolean
+    }) => advancedSync(filePath, operation, params, preview),
   })
 }
