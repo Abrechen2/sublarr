@@ -23,7 +23,7 @@ import { srtLanguage } from './lang-srt'
 import { sublarrTheme } from './editor-theme'
 import { useSaveSubtitle, useValidateSubtitle } from '@/hooks/useApi'
 import { toast } from '@/components/shared/Toast'
-import type { SubtitleValidation } from '@/api/client'
+import type { SubtitleValidation } from '@/lib/types'
 import {
   Save, CheckCircle, Search, Undo2, Redo2,
   GitCompare, X, AlertTriangle, Loader2,
