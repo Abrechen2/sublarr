@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 10 of 16 (Performance & Scalability)
-Plan: 5 of 8 in current phase
+Plan: 7 of 8 in current phase
 Status: In progress
-Last activity: 2026-02-18 -- Completed 10-05-PLAN.md (App Integration)
+Last activity: 2026-02-18 -- Completed 10-07-PLAN.md (Extended Metrics & Grafana Dashboards)
 
-Progress: [███████████████████░░░░░░] 5/8 plans in phase
+Progress: [██████████████████████░░░] 7/8 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 48
+- Total plans completed: 50
 - Average duration: 9 min
-- Total execution time: 446 min
+- Total execution time: 452 min
 
 **By Phase:**
 
@@ -37,11 +37,11 @@ Progress: [███████████████████░░░░
 | 07-events-hooks-custom-scoring | 3/3 | 46 min | 15 min |
 | 08-i18n-backup-admin-polish | 5/5 | 116 min | 23 min |
 | 09-openapi-release-preparation | 5/5 | 60 min | 12 min |
-| 10-performance-scalability | 5/8 | 29 min | 6 min |
+| 10-performance-scalability | 7/8 | 35 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 10-01 (9 min), 10-02 (3 min), 10-04 (3 min), 10-03 (5 min), 10-05 (9 min)
-- Trend: Phase 10 progressing efficiently, 10-05 (app integration) completed in 9 min
+- Last 5 plans: 10-02 (3 min), 10-04 (3 min), 10-03 (5 min), 10-05 (9 min), 10-07 (3 min)
+- Trend: Phase 10 nearing completion, 10-07 (metrics + dashboards) completed in 3 min
 
 *Updated after each plan completion*
 
@@ -273,6 +273,9 @@ Recent decisions affecting current work:
 - [10-05]: db/config.py rewritten in Task 1 (not Task 2a) because app startup depends on get_all_config_entries()
 - [10-05]: Thin wrapper pattern: global _repo with lazy _get_repo() for each db/ module
 - [10-05]: SQLAlchemy import aliased as sa_db to avoid name collision with db package
+- [10-07]: DB pool metrics import extensions.db as sa_db to match app.py alias convention from 10-05
+- [10-07]: Redis/queue row collapsed by default on database dashboard (shown only when Redis active)
+- [10-07]: Dashboard JSON uses ${DS_PROMETHEUS} variable for datasource portability
 
 ### Pending Todos
 
@@ -290,11 +293,11 @@ None yet.
 - Phase 7 complete -- all 3 plans executed, all summaries written (event system + engine/dispatcher + API/UI)
 - Phase 8 complete -- all 5 plans executed, all summaries written (theme, backend APIs, frontend pages, core i18n, remaining i18n)
 - Phase 9 complete -- all 5 plans executed (OpenAPI infra + backend performance + frontend performance + release docs + remaining blueprints/tasks page)
-- Phase 10 in progress -- 10-01, 10-02, 10-03, 10-04, 10-05 complete (ORM models + Alembic + complete repository layer (15 classes) + cache/queue abstraction + app integration with all 14 db/ modules delegating to repositories)
+- Phase 10 in progress -- 10-01, 10-02, 10-03, 10-04, 10-05, 10-07 complete (ORM models + Alembic + repositories + cache/queue + app integration + extended metrics + Grafana dashboards)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Phase 10 in progress -- 10-05 complete (app integration: all 14 db/ modules delegating to SQLAlchemy repositories)
-Resume file: .planning/phases/10-performance-scalability/10-05-SUMMARY.md
+Stopped at: Phase 10 in progress -- 10-07 complete (extended Prometheus metrics + Grafana dashboards)
+Resume file: .planning/phases/10-performance-scalability/10-07-SUMMARY.md
