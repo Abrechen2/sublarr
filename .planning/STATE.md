@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 13 of 16 (Comparison + Sync + Health-Check)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-18 -- Completed 13-01-PLAN.md (Backend Health-Check, Quality DB, Advanced Sync & Compare)
+Last activity: 2026-02-18 -- Completed 13-02-PLAN.md (Frontend Comparison & Sync Components)
 
-Progress: [████████░░░░░░░░░░░░░░░░░] 1/3 plans in phase
+Progress: [████████████████░░░░░░░░░] 2/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 56
+- Total plans completed: 57
 - Average duration: 9 min
-- Total execution time: 486 min
+- Total execution time: 493 min
 
 **By Phase:**
 
@@ -39,11 +39,11 @@ Progress: [████████░░░░░░░░░░░░░░░
 | 09-openapi-release-preparation | 5/5 | 60 min | 12 min |
 | 10-performance-scalability | 8/8 | 43 min | 5 min |
 | 11-subtitle-editor | 4/4 | 21 min | 5 min |
-| 13-comparison-sync-health-check | 1/3 | 5 min | 5 min |
+| 13-comparison-sync-health-check | 2/3 | 12 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 11-01 (5 min), 11-02 (4 min), 11-03 (4 min), 11-04 (8 min), 13-01 (5 min)
-- Trend: Phase 13 started -- backend health-check engine and API endpoints complete
+- Last 5 plans: 11-02 (4 min), 11-03 (4 min), 11-04 (8 min), 13-01 (5 min), 13-02 (7 min)
+- Trend: Phase 13 frontend components complete -- comparison and sync UI integrated into SeriesDetail
 
 *Updated after each plan completion*
 
@@ -310,6 +310,12 @@ Recent decisions affecting current work:
 - [13-01]: Advanced sync preview returns 5 representative events (first, 25%, 50%, 75%, last)
 - [13-01]: Batch health-check limited to 50 files per request
 - [13-01]: apply_fixes creates backup via shutil.copy2 directly (same .bak pattern as tools.py)
+- [13-02]: ComparisonPanel reuses existing CodeMirror setup (sublarrTheme, assLanguage, srtLanguage) for visual consistency
+- [13-02]: Scroll synchronization uses debounced DOM scroll events (50ms) to prevent cascading
+- [13-02]: SyncControls has two-step apply: Preview first, then confirm with warning about file modification
+- [13-02]: Actions column widened from w-20 to w-32 to accommodate Compare and Sync buttons
+- [13-02]: Compare button only shown when episode has 2+ subtitle files; Sync only when at least 1 file
+- [13-02]: SubtitleComparison and SyncControls use React.lazy for code splitting
 
 ### Pending Todos
 
@@ -334,5 +340,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Phase 13 in progress -- 13-01 complete (Backend Health-Check, Quality DB, Advanced Sync & Compare)
-Resume file: .planning/phases/13-comparison-sync-health-check/13-01-SUMMARY.md
+Stopped at: Phase 13 in progress -- 13-02 complete (Frontend Comparison & Sync Components)
+Resume file: .planning/phases/13-comparison-sync-health-check/13-02-SUMMARY.md
