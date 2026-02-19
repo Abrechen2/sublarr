@@ -26,11 +26,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: Forced/Signs Subtitle Management** - Forced subtitle detection, search, and per-series config
 - [x] **Phase 7: Events/Hooks + Custom Scoring** - Internal event bus, script hooks, outgoing webhooks, scoring config
 - [x] **Phase 8: i18n + Backup + Admin Polish** - UI internationalization, backup/restore, statistics, theming
-- [ ] **Phase 9: OpenAPI + Release Preparation** - API documentation, performance tuning, community launch
-- [ ] **Phase 10: Performance & Scalability** - SQLAlchemy/PostgreSQL option, Redis caching, RQ job queue
-- [ ] **Phase 11: Subtitle Editor** - ASS/SRT preview component and inline editor with CodeMirror
-- [ ] **Phase 12: Batch Operations + Smart-Filter** - Multi-select bulk actions, saved filters, global search
-- [ ] **Phase 13: Comparison + Sync + Health-Check** - Side-by-side diff, timing sync, subtitle health analysis
+- [x] **Phase 9: OpenAPI + Release Preparation** - API documentation, performance tuning, community launch
+- [x] **Phase 10: Performance & Scalability** - SQLAlchemy/PostgreSQL option, Redis caching, RQ job queue
+- [x] **Phase 11: Subtitle Editor** - ASS/SRT preview component and inline editor with CodeMirror
+- [x] **Phase 12: Batch Operations + Smart-Filter** - Multi-select bulk actions, saved filters, global search
+- [x] **Phase 13: Comparison + Sync + Health-Check** - Side-by-side diff, timing sync, subtitle health analysis
 - [ ] **Phase 14: Dashboard Widgets + Quick-Actions** - Drag-and-drop widgets, keyboard shortcuts, FAB toolbar
 - [ ] **Phase 15: API-Key Mgmt + Notifications + Cleanup** - Key management, notification templates, deduplication
 - [ ] **Phase 16: External Integrations** - Bazarr migration, Plex/Kodi compatibility, export formats

@@ -256,14 +256,15 @@ export function WantedPage() {
   const forcedCount = summary?.by_subtitle_type?.forced ?? 0
 
   // Extract unique languages from data
+  const wantedData = wanted?.data
   const availableLanguages = useMemo(() => {
-    if (!wanted?.data) return []
+    if (!wantedData) return []
     const langs = new Set<string>()
-    for (const item of wanted.data) {
+    for (const item of wantedData) {
       if (item.target_language) langs.add(item.target_language)
     }
     return Array.from(langs).sort()
-  }, [wanted?.data])
+  }, [wantedData])
 
   // Client-side filters + search + sort
   const filteredData = useMemo(() => {
