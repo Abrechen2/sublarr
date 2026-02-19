@@ -309,12 +309,14 @@ Plans:
   3. User can create notification templates with variables, assign them per service and event type, and preview before saving
   4. Quiet hours prevent notifications during configured time windows (with exceptions for critical events)
   5. Deduplication engine scans for duplicate subtitles by content hash, groups them in a UI, and supports batch deletion with disk space analysis
-**Plans**: TBD
+**Plans:** 5 plans
 
 Plans:
-- [ ] 15-01: TBD
-- [ ] 15-02: TBD
-- [ ] 15-03: TBD
+- [ ] 15-01-PLAN.md -- API key registry Blueprint, export/import endpoints, Bazarr migration module
+- [ ] 15-02-PLAN.md -- Notification DB models + repository, templates API Blueprint, notifier.py Jinja2 rendering + quiet hours
+- [ ] 15-03-PLAN.md -- Cleanup DB models + repository, dedup engine, cleanup scheduler, cleanup API Blueprint
+- [ ] 15-04-PLAN.md -- Frontend: ApiKeysTab, NotificationTemplatesTab, template editor/preview/quiet hours components, i18n
+- [ ] 15-05-PLAN.md -- Frontend: CleanupTab, DedupGroupList, DiskSpaceWidget, dashboard widget, i18n
 
 ### Phase 16: External Integrations
 **Goal**: Users migrating from other tools have a smooth path, and Sublarr config can be exported in formats compatible with other subtitle managers
@@ -355,7 +357,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | 12. Batch Operations + Smart-Filter | 3/3 | Complete | 2026-02-19 |
 | 13. Comparison + Sync + Health-Check | 3/3 | Complete | 2026-02-18 |
 | 14. Dashboard Widgets + Quick-Actions | 2/2 | Complete | 2026-02-19 |
-| 15. API-Key Mgmt + Notifications + Cleanup | 0/TBD | Not started | - |
+| 15. API-Key Mgmt + Notifications + Cleanup | 0/5 | In Progress | - |
 | 16. External Integrations | 0/TBD | Not started | - |
 
 ## Dependency Graph
@@ -382,4 +384,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-19 (Phase 14 complete -- Dashboard Widgets + Quick-Actions)*
+*Last updated: 2026-02-19 (Phase 15 planned -- API-Key Mgmt + Notifications + Cleanup)*
