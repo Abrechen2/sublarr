@@ -1,10 +1,11 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState, useEffect, useCallback } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ToastContainer, toast } from '@/components/shared/Toast'
 import { PageSkeleton } from '@/components/shared/PageSkeleton'
 import { useWebSocket } from '@/hooks/useWebSocket'
+import { GlobalSearchModal } from '@/components/search/GlobalSearchModal'
 
 // Route-level code splitting: each page is lazy-loaded as a separate chunk
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })))
@@ -93,6 +94,20 @@ function GlobalWebSocketListener() {
 }
 
 function App() {
+  const [searchOpen, setSearchOpen] = useState(false)
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault()
+      setSearchOpen((prev) => !prev)
+    }
+  }, [])
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
@@ -103,6 +118,7 @@ function App() {
             <AnimatedRoutes />
           </main>
         </div>
+        <GlobalSearchModal open={searchOpen} onOpenChange={setSearchOpen} />
         <ToastContainer />
       </BrowserRouter>
     </QueryClientProvider>
