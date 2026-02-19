@@ -102,5 +102,30 @@
     "every_day": "Taeglich",
     "triggered": "{{name}} gestartet",
     "trigger_failed": "{{name}} konnte nicht gestartet werden"
+  },
+  "filters": {
+    "addFilter": "Filter hinzufuegen",
+    "clearAll": "Alle loeschen",
+    "presets": "Voreinstellungen",
+    "saveCurrentFilters": "Aktuelle Filter speichern",
+    "presetName": "Name der Voreinstellung...",
+    "noPresets": "Keine Voreinstellungen gespeichert"
+  },
+  "batch": {
+    "itemsSelected": "{{count}} ausgewaehlt",
+    "ignore": "Ignorieren",
+    "unignore": "Aktivieren",
+    "blacklist": "Sperrliste",
+    "export": "Exportieren",
+    "clearSelection": "Auswahl aufheben"
+  },
+  "search": {
+    "placeholder": "Serien, Episoden, Untertitel suchen...",
+    "shortcut": "Strg+K",
+    "noResults": "Keine Ergebnisse fuer \"{{query}}\"",
+    "minChars": "Mindestens 2 Zeichen eingeben...",
+    "series": "Serien",
+    "episodes": "Episoden",
+    "subtitles": "Untertitel"
   }
 }

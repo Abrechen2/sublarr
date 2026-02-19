@@ -71,7 +71,16 @@
     "page_of": "Page {{page}} of {{totalPages}} ({{total}} total)",
     "searching_providers": "Searching providers...",
     "no_results_found": "No results found from any provider.",
-    "blacklist_subtitle": "Blacklist this subtitle"
+    "blacklist_subtitle": "Blacklist this subtitle",
+    "sortBy": "Sort by",
+    "search_placeholder": "Search wanted items...",
+    "sortFields": {
+      "added_at": "Date added",
+      "title": "Title",
+      "last_search_at": "Last searched",
+      "current_score": "Score",
+      "search_count": "Search count"
+    }
   },
   "series_detail": {
     "back_to_library": "Back to Library",

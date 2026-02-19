@@ -102,5 +102,30 @@
     "every_day": "Every day",
     "triggered": "{{name}} triggered",
     "trigger_failed": "Failed to trigger {{name}}"
+  },
+  "filters": {
+    "addFilter": "Add filter",
+    "clearAll": "Clear all",
+    "presets": "Presets",
+    "saveCurrentFilters": "Save current filters",
+    "presetName": "Preset name...",
+    "noPresets": "No saved presets"
+  },
+  "batch": {
+    "itemsSelected": "{{count}} selected",
+    "ignore": "Ignore",
+    "unignore": "Unignore",
+    "blacklist": "Blacklist",
+    "export": "Export",
+    "clearSelection": "Clear selection"
+  },
+  "search": {
+    "placeholder": "Search series, episodes, subtitles...",
+    "shortcut": "Ctrl+K",
+    "noResults": "No results for \"{{query}}\"",
+    "minChars": "Type at least 2 characters to search...",
+    "series": "Series",
+    "episodes": "Episodes",
+    "subtitles": "Subtitles"
   }
 }
