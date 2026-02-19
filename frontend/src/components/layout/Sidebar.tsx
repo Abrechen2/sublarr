@@ -123,6 +123,41 @@ export function Sidebar() {
         {/* Divider */}
         <div className="mx-4 mb-1" style={{ borderTop: '1px solid var(--border)' }} />
 
+        {/* Search Trigger */}
+        <button
+          onClick={() => {
+            // Dispatch Ctrl+K event to open GlobalSearchModal (handled in App.tsx)
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))
+          }}
+          className="mx-3 mb-2 flex items-center gap-2.5 px-3 py-2 rounded-md text-xs transition-all duration-150"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            color: 'var(--text-muted)',
+            border: '1px solid var(--border)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--accent-dim)'
+            e.currentTarget.style.color = 'var(--text-secondary)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border)'
+            e.currentTarget.style.color = 'var(--text-muted)'
+          }}
+        >
+          <Search size={14} />
+          <span className="flex-1 text-left">{t('search.placeholder', 'Search...')}</span>
+          <kbd
+            className="text-[10px] px-1.5 py-0.5 rounded"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            {navigator.platform?.includes('Mac') ? '\u2318K' : 'Ctrl+K'}
+          </kbd>
+        </button>
+
         {/* Navigation */}
         <nav className="flex-1 px-3 py-1 overflow-y-auto">
           {navGroups.map((group) => (
