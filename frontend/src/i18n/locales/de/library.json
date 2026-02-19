@@ -71,7 +71,16 @@
     "page_of": "Seite {{page}} von {{totalPages}} ({{total}} gesamt)",
     "searching_providers": "Provider werden durchsucht...",
     "no_results_found": "Keine Ergebnisse von Providern gefunden.",
-    "blacklist_subtitle": "Diesen Untertitel sperren"
+    "blacklist_subtitle": "Diesen Untertitel sperren",
+    "sortBy": "Sortieren nach",
+    "search_placeholder": "Gesuchte Eintraege durchsuchen...",
+    "sortFields": {
+      "added_at": "Hinzugefuegt",
+      "title": "Titel",
+      "last_search_at": "Zuletzt gesucht",
+      "current_score": "Score",
+      "search_count": "Anzahl Suchen"
+    }
   },
   "series_detail": {
     "back_to_library": "Zurueck zur Bibliothek",
