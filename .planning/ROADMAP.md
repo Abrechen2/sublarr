@@ -261,11 +261,12 @@ Plans:
   2. Filter system supports multiple criteria combined with AND/OR logic across all list pages
   3. User can save filter configurations as named presets and apply them with one click
   4. Global search bar (Ctrl+K) finds series, episodes, and subtitles across the entire application with fuzzy matching
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 12-01: TBD
-- [ ] 12-02: TBD
+- [x] 12-01-PLAN.md -- Backend: FTS5 search tables, filter presets CRUD, batch action endpoints
+- [x] 12-02-PLAN.md -- Frontend: FilterBar, BatchActionBar, GlobalSearchModal (cmdk), Zustand selection store
+- [x] 12-03-PLAN.md -- Page integration: Wanted/History/Library batch+filter wiring, Sidebar search trigger, i18n, backend tests
 
 ### Phase 13: Comparison + Sync + Health-Check
 **Goal**: Users can compare subtitle versions side-by-side, adjust subtitle timing, and run health checks that detect and auto-fix common problems
@@ -280,9 +281,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 13-01-PLAN.md -- Backend: health_checker.py engine + quality DB model/repository + advanced-sync + health-check/compare API endpoints
-- [ ] 13-02-PLAN.md -- Frontend: TypeScript types + API hooks + SubtitleComparison (multi-panel) + SyncControls + SeriesDetail integration
-- [ ] 13-03-PLAN.md -- Frontend: HealthBadge + HealthCheckPanel + auto-fix UI + quality charts + Dashboard/SeriesDetail integration
+- [x] 13-01-PLAN.md -- Backend: health_checker.py engine + quality DB model/repository + advanced-sync + health-check/compare API endpoints
+- [x] 13-02-PLAN.md -- Frontend: TypeScript types + API hooks + SubtitleComparison (multi-panel) + SyncControls + SeriesDetail integration
+- [x] 13-03-PLAN.md -- Frontend: HealthBadge + HealthCheckPanel + auto-fix UI + quality charts + Dashboard/SeriesDetail integration
 
 ### Phase 14: Dashboard Widgets + Quick-Actions
 **Goal**: Users can customize their dashboard layout with drag-and-drop widgets and access common actions via keyboard shortcuts and a floating action button
@@ -292,11 +293,11 @@ Plans:
   1. User can rearrange, resize, and toggle visibility of dashboard widgets via drag-and-drop
   2. At least 8 predefined widget types are available (activity feed, provider status, translation stats, wanted count, etc.)
   3. Quick-actions toolbar (floating action button) provides context-specific actions with keyboard shortcuts on every page
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 14-01: TBD
-- [ ] 14-02: TBD
+- [ ] 14-01-PLAN.md -- Widget system: react-grid-layout v2 grid, Zustand layout store, 8 widget components, settings modal, Dashboard.tsx rewrite
+- [ ] 14-02-PLAN.md -- Quick-actions: react-hotkeys-hook, FAB component, keyboard shortcuts modal, App.tsx integration, i18n
 
 ### Phase 15: API-Key Mgmt + Notifications + Cleanup
 **Goal**: Users have centralized key management, customizable notification templates with quiet hours, and tools to deduplicate and clean up subtitle files
@@ -353,7 +354,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | 11. Subtitle Editor | 4/4 | Complete | 2026-02-18 |
 | 12. Batch Operations + Smart-Filter | 3/3 | Complete | 2026-02-19 |
 | 13. Comparison + Sync + Health-Check | 3/3 | Complete | 2026-02-18 |
-| 14. Dashboard Widgets + Quick-Actions | 0/TBD | Not started | - |
+| 14. Dashboard Widgets + Quick-Actions | 0/2 | Not started | - |
 | 15. API-Key Mgmt + Notifications + Cleanup | 0/TBD | Not started | - |
 | 16. External Integrations | 0/TBD | Not started | - |
 
@@ -381,4 +382,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-19 (Phase 12 complete -- Batch Operations + Smart-Filter)*
+*Last updated: 2026-02-19 (Phase 14 planned -- Dashboard Widgets + Quick-Actions)*
