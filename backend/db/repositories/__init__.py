@@ -23,6 +23,7 @@ from db.repositories.standalone import StandaloneRepository
 from db.repositories.whisper import WhisperRepository
 from db.repositories.translation import TranslationRepository
 from db.repositories.quality import QualityRepository
+from db.repositories.search import SearchRepository
 
 __all__ = [
     # Base
@@ -45,6 +46,7 @@ __all__ = [
     "WhisperRepository",
     "TranslationRepository",
     "QualityRepository",
+    "SearchRepository",
     # Config convenience functions
     "save_config_entry",
     "get_config_entry",
