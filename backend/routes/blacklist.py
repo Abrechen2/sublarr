@@ -262,6 +262,41 @@ def list_history():
           schema:
             type: string
           description: Filter by language code
+        - in: query
+          name: format
+          schema:
+            type: string
+            enum: [ass, srt]
+          description: Filter by subtitle format
+        - in: query
+          name: score_min
+          schema:
+            type: integer
+          description: Minimum score filter
+        - in: query
+          name: score_max
+          schema:
+            type: integer
+          description: Maximum score filter
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Text search in file_path and provider_name
+        - in: query
+          name: sort_by
+          schema:
+            type: string
+            default: downloaded_at
+            enum: [downloaded_at, score, provider_name, language]
+          description: Sort field
+        - in: query
+          name: sort_dir
+          schema:
+            type: string
+            default: desc
+            enum: [asc, desc]
+          description: Sort direction
       responses:
         200:
           description: Paginated history
@@ -289,10 +324,18 @@ def list_history():
     per_page = min(request.args.get("per_page", 50, type=int), 200)
     provider = request.args.get("provider")
     language = request.args.get("language")
+    format_filter = request.args.get("format") or None
+    score_min = request.args.get("score_min", type=int)
+    score_max = request.args.get("score_max", type=int)
+    search = request.args.get("search") or None
+    sort_by = request.args.get("sort_by", "downloaded_at")
+    sort_dir = request.args.get("sort_dir", "desc")
 
     result = get_download_history(
         page=page, per_page=per_page,
         provider=provider, language=language,
+        format=format_filter, score_min=score_min, score_max=score_max,
+        search=search, sort_by=sort_by, sort_dir=sort_dir,
     )
     return jsonify(result)
 

@@ -289,9 +289,19 @@ def delete_provider_modifier(provider_name: str) -> None:
 # ---- Library convenience functions ----------------------------------------------
 
 def get_download_history(page: int = 1, per_page: int = 50,
-                         provider: str = None, language: str = None) -> dict:
+                         provider: str = None, language: str = None,
+                         format: str = None,
+                         score_min: int = None,
+                         score_max: int = None,
+                         search: str = None,
+                         sort_by: str = "downloaded_at",
+                         sort_dir: str = "desc") -> dict:
     """Get paginated download history with optional filters."""
-    return LibraryRepository().get_download_history(page, per_page, provider, language)
+    return LibraryRepository().get_download_history(
+        page, per_page, provider, language,
+        format=format, score_min=score_min, score_max=score_max,
+        search=search, sort_by=sort_by, sort_dir=sort_dir,
+    )
 
 
 def get_download_stats() -> dict:

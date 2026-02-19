@@ -73,6 +73,25 @@ def list_wanted():
             type: string
             enum: [full, forced]
           description: Filter by subtitle type
+        - in: query
+          name: sort_by
+          schema:
+            type: string
+            default: added_at
+            enum: [added_at, title, last_search_at, current_score, search_count]
+          description: Sort field
+        - in: query
+          name: sort_dir
+          schema:
+            type: string
+            default: desc
+            enum: [asc, desc]
+          description: Sort direction
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Text search in title and file_path
       responses:
         200:
           description: Paginated wanted items
@@ -100,11 +119,15 @@ def list_wanted():
     status_filter = request.args.get("status")
     series_id = request.args.get("series_id", type=int)
     subtitle_type = request.args.get("subtitle_type")
+    sort_by = request.args.get("sort_by", "added_at")
+    sort_dir = request.args.get("sort_dir", "desc")
+    search = request.args.get("search") or None
 
     result = get_wanted_items(
         page=page, per_page=per_page,
         item_type=item_type, status=status_filter,
         series_id=series_id, subtitle_type=subtitle_type,
+        sort_by=sort_by, sort_dir=sort_dir, search=search,
     )
     return jsonify(result)
 

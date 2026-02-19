@@ -13,9 +13,19 @@ def _get_repo():
 
 
 def get_download_history(page: int = 1, per_page: int = 50,
-                         provider: str = None, language: str = None) -> dict:
-    """Get paginated download history with optional filters."""
-    return _get_repo().get_download_history(page, per_page, provider, language)
+                         provider: str = None, language: str = None,
+                         format: str = None,
+                         score_min: int = None,
+                         score_max: int = None,
+                         search: str = None,
+                         sort_by: str = "downloaded_at",
+                         sort_dir: str = "desc") -> dict:
+    """Get paginated download history with optional filters, sorting, and text search."""
+    return _get_repo().get_download_history(
+        page, per_page, provider, language,
+        format=format, score_min=score_min, score_max=score_max,
+        search=search, sort_by=sort_by, sort_dir=sort_dir,
+    )
 
 
 def get_download_stats() -> dict:
