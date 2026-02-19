@@ -22,6 +22,8 @@ def register_blueprints(app):
     from routes.standalone import bp as standalone_bp
     from routes.hooks import bp as hooks_bp
     from routes.tools import bp as tools_bp
+    from routes.search import bp as search_bp
+    from routes.filter_presets import bp as filter_presets_bp
 
     for blueprint in [
         translate_bp,
@@ -39,5 +41,7 @@ def register_blueprints(app):
         standalone_bp,
         hooks_bp,
         tools_bp,
+        search_bp,
+        filter_presets_bp,
     ]:
         app.register_blueprint(blueprint)
