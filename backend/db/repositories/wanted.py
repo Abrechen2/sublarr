@@ -12,7 +12,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import select, func, delete, and_, or_
+from sqlalchemy import select, func, delete, and_, or_, asc, desc
 
 from db.models.core import WantedItem
 from db.repositories.base import BaseRepository
@@ -134,11 +134,24 @@ class WantedRepository(BaseRepository):
         self._commit()
         return row_id
 
+    # Sort field allowlist for get_wanted_items
+    _SORT_FIELDS = {
+        "added_at":       WantedItem.added_at,
+        "title":          WantedItem.title,
+        "last_search_at": WantedItem.last_search_at,
+        "current_score":  WantedItem.current_score,
+        "search_count":   WantedItem.search_count,
+    }
+
     def get_wanted_items(self, page: int = 1, per_page: int = 50,
                          item_type: str = None, status: str = None,
                          series_id: int = None,
-                         subtitle_type: str = None) -> dict:
-        """Get paginated wanted items with optional filters."""
+                         subtitle_type: str = None,
+                         sort_by: str = "added_at",
+                         sort_dir: str = "desc",
+                         search: str = None,
+                         preset_conditions: dict = None) -> dict:
+        """Get paginated wanted items with optional filters, sorting, and text search."""
         offset = (page - 1) * per_page
 
         conditions = []
@@ -151,16 +164,46 @@ class WantedRepository(BaseRepository):
         if subtitle_type:
             conditions.append(WantedItem.subtitle_type == subtitle_type)
 
+        # Text search on title and file_path
+        if search:
+            search_term = f"%{search}%"
+            conditions.append(
+                or_(
+                    WantedItem.title.ilike(search_term),
+                    WantedItem.file_path.ilike(search_term),
+                )
+            )
+
+        # Preset condition tree (AND/OR filter presets)
+        if preset_conditions is not None:
+            from db.repositories.presets import FilterPresetsRepository
+            wanted_field_map = {
+                "status": WantedItem.status,
+                "item_type": WantedItem.item_type,
+                "subtitle_type": WantedItem.subtitle_type,
+                "target_language": WantedItem.target_language,
+                "upgrade_candidate": WantedItem.upgrade_candidate,
+                "title": WantedItem.title,
+            }
+            clause = FilterPresetsRepository().build_clause(
+                preset_conditions, wanted_field_map
+            )
+            conditions.append(clause)
+
         # Count query
         count_stmt = select(func.count()).select_from(WantedItem)
         if conditions:
             count_stmt = count_stmt.where(*conditions)
         count = self.session.execute(count_stmt).scalar()
 
+        # Determine sort column and direction
+        sort_col = self._SORT_FIELDS.get(sort_by, WantedItem.added_at)
+        order = asc(sort_col) if sort_dir == "asc" else desc(sort_col)
+
         # Data query
         data_stmt = (
             select(WantedItem)
-            .order_by(WantedItem.added_at.desc())
+            .order_by(order)
             .limit(per_page)
             .offset(offset)
         )

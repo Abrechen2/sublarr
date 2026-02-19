@@ -17,19 +17,25 @@ _SEARCH_SCHEMA = [
 ]
 
 
+def _get_engine():
+    """Get the SQLAlchemy engine from Flask-SQLAlchemy extension."""
+    from extensions import db as sa_db
+    return sa_db.engine
+
+
 class SearchRepository(BaseRepository):
     """Full-text search across series, episodes, and subtitles using FTS5."""
 
     def init_search_tables(self) -> None:
         """Create FTS5 virtual tables. Call from app.py after db.create_all()."""
-        with self.session.bind.connect() as conn:
+        with _get_engine().connect() as conn:
             for stmt in _SEARCH_SCHEMA:
                 conn.execute(text(stmt))
             conn.commit()
 
     def rebuild_index(self) -> None:
         """Rebuild FTS5 tables from subtitle_downloads. Call after library sync."""
-        with self.session.bind.connect() as conn:
+        with _get_engine().connect() as conn:
             # subtitle_downloads is the primary DB-backed entity for search
             conn.execute(text("DELETE FROM search_subtitles"))
             conn.execute(text("""
@@ -68,7 +74,7 @@ class SearchRepository(BaseRepository):
             return {"series": [], "episodes": [], "subtitles": []}
 
         like_term = f"%{query.strip()}%"
-        with self.session.bind.connect() as conn:
+        with _get_engine().connect() as conn:
             series = conn.execute(
                 text("SELECT id, title FROM search_series WHERE title LIKE :q LIMIT :lim"),
                 {"q": like_term, "lim": limit}
