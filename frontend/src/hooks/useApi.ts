@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import {
   getHealth, getStats, getJobs,
   getBatchStatus, getConfig, updateConfig, getLibrary, getSeriesDetail,
@@ -37,8 +37,10 @@ import {
   getTasks,
   runHealthCheck, applyHealthFix, getQualityTrends,
   compareSubtitles, advancedSync,
+  searchGlobal, getFilterPresets, createFilterPreset, deleteFilterPreset,
+  batchAction,
 } from '@/api/client'
-import type { LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig } from '@/lib/types'
+import type { LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig, FilterScope, BatchAction } from '@/lib/types'
 
 // ─── Health ──────────────────────────────────────────────────────────────────
 
@@ -1083,5 +1085,53 @@ export function useAdvancedSync() {
       params: Record<string, number>
       preview?: boolean
     }) => advancedSync(filePath, operation, params, preview),
+  })
+}
+
+// ─── Phase 12: Search + Filter Presets + Batch Actions ────────────────────
+
+export function useGlobalSearch(query: string) {
+  return useQuery({
+    queryKey: ['search', query],
+    queryFn: () => searchGlobal(query),
+    enabled: query.trim().length >= 2,
+    staleTime: 10_000,
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useFilterPresets(scope: FilterScope) {
+  return useQuery({
+    queryKey: ['filter-presets', scope],
+    queryFn: () => getFilterPresets(scope),
+    staleTime: 60_000,
+  })
+}
+
+export function useCreateFilterPreset() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (preset: Parameters<typeof createFilterPreset>[0]) => createFilterPreset(preset),
+    onSuccess: (data) => qc.invalidateQueries({ queryKey: ['filter-presets', data.scope] }),
+  })
+}
+
+export function useDeleteFilterPreset(scope: FilterScope) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => deleteFilterPreset(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['filter-presets', scope] }),
+  })
+}
+
+export function useBatchAction() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ itemIds, action }: { itemIds: number[]; action: BatchAction }) =>
+      batchAction(itemIds, action),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['wanted'] })
+      qc.invalidateQueries({ queryKey: ['library'] })
+    },
   })
 }
