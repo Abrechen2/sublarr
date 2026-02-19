@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 12 complete - Batch Operations & Smart Filter
+**Current focus:** Phase 14 in progress - Dashboard Widgets + Quick-Actions
 
 ## Current Position
 
-Phase: 12 of 16 (Batch Operations & Smart Filter)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-19 -- Completed 12-03-PLAN.md (Page Integration)
+Phase: 14 of 16 (Dashboard Widgets + Quick-Actions)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-19 -- Completed 14-01-PLAN.md (Dashboard Widget System)
 
-Progress: [█████████████████████████] 3/3 plans in phase
+Progress: [████████░░░░░░░░░░░░░░░░░] 1/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 61
+- Total plans completed: 62
 - Average duration: 9 min
-- Total execution time: 533 min
+- Total execution time: 541 min
 
 **By Phase:**
 
@@ -41,10 +41,11 @@ Progress: [███████████████████████
 | 11-subtitle-editor | 4/4 | 21 min | 5 min |
 | 13-comparison-sync-health-check | 3/3 | 19 min | 6 min |
 | 12-batch-operations-smart-filter | 3/3 | 33 min | 11 min |
+| 14-dashboard-widgets-quick-actions | 1/3 | 8 min | 8 min |
 
 **Recent Trend:**
-- Last 5 plans: 13-02 (7 min), 13-03 (7 min), 12-01 (11 min), 12-02 (10 min), 12-03 (12 min)
-- Trend: Phase 12 complete -- all page integrations wired (Wanted, History, Sidebar trigger, i18n, backend tests)
+- Last 5 plans: 13-03 (7 min), 12-01 (11 min), 12-02 (10 min), 12-03 (12 min), 14-01 (8 min)
+- Trend: Phase 14 started -- dashboard widget system with drag-and-drop grid infrastructure
 
 *Updated after each plan completion*
 
@@ -339,6 +340,13 @@ Recent decisions affecting current work:
 - [12-03]: Sidebar search trigger dispatches synthetic Ctrl+K keydown event (no prop drilling)
 - [12-03]: Library page already had search + sort -- no changes needed (Task 3 was a no-op)
 - [12-03]: i18n locale files are at frontend/src/i18n/locales/ (not frontend/public/locales/ as plan suggested)
+- [14-01]: react-grid-layout v2 with built-in TypeScript types (no @types needed)
+- [14-01]: hiddenWidgets stored as string[] (not Set) for JSON serialization compatibility
+- [14-01]: Widgets are self-contained: each fetches own data via React Query hooks (no prop drilling)
+- [14-01]: StatCardsWidget has noPadding=true for grid-within-grid card layout pattern
+- [14-01]: Layout persisted via onLayoutChange for all breakpoints (not per-pixel onDragStop)
+- [14-01]: useContainerWidth hook for responsive container measurement with mounted guard
+- [14-01]: QualityWidget wraps existing HealthDashboardWidget via lazy import adapter pattern
 
 ### Pending Todos
 
@@ -360,10 +368,11 @@ None yet.
 - Phase 11 complete -- all 4 plans executed (editor API + preview/timeline + editor/diff + modal/page integration)
 - Phase 13 complete -- all 3 plans executed (backend health/sync/compare + frontend types/hooks/comparison/sync + frontend health UI/charts/dashboard)
 - Phase 12 complete -- all 3 plans executed (backend FTS5/presets/batch API + frontend FilterBar/BatchActionBar/GlobalSearchModal/selectionStore + page integration/i18n/tests)
+- Phase 14 in progress -- Plan 01 complete (widget infrastructure + 8 widget components + Dashboard rewrite)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Phase 12 complete -- 12-03 complete (Page Integration for Batch Ops & Smart Filter)
-Resume file: .planning/phases/12-batch-operations-smart-filter/12-03-SUMMARY.md
+Stopped at: Phase 14 plan 01 complete -- Dashboard Widget System
+Resume file: .planning/phases/14-dashboard-widgets-quick-actions/14-01-SUMMARY.md
