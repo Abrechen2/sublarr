@@ -6,7 +6,7 @@
  * - Debounce: TanStack Query enabled only when query.length >= 2
  * - Navigation: Enter on series navigates to /library/:id, episodes to /wanted, subtitles to /history
  */
-import { useEffect, useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Command } from 'cmdk'
 import { useNavigate } from 'react-router-dom'
 import { Search, Tv, Film, FileText, Loader2 } from 'lucide-react'
@@ -22,10 +22,11 @@ export function GlobalSearchModal({ open, onOpenChange }: Props) {
   const navigate = useNavigate()
   const { data, isFetching } = useGlobalSearch(query)
 
-  // Reset query when closed
-  useEffect(() => {
-    if (!open) setQuery('')
-  }, [open])
+  // Wrap onOpenChange to reset query when dialog closes
+  const handleOpenChange = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) setQuery('')
+    onOpenChange(nextOpen)
+  }, [onOpenChange])
 
   const hasSeries = (data?.series?.length ?? 0) > 0
   const hasEpisodes = (data?.episodes?.length ?? 0) > 0
@@ -33,10 +34,15 @@ export function GlobalSearchModal({ open, onOpenChange }: Props) {
   const hasResults = hasSeries || hasEpisodes || hasSubtitles
   const showEmpty = query.length >= 2 && !isFetching && !hasResults
 
+  const selectAndClose = (path: string) => {
+    void navigate(path)
+    handleOpenChange(false)
+  }
+
   return (
     <Command.Dialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleOpenChange}
       shouldFilter={false}
       label="Global search"
       overlayClassName="fixed inset-0 bg-black/50 backdrop-blur-sm"
@@ -73,7 +79,7 @@ export function GlobalSearchModal({ open, onOpenChange }: Props) {
                 <Command.Item
                   key={`series-${s.id}`}
                   value={`series-${s.id}`}
-                  onSelect={() => { navigate(`/library/series/${s.id}`); onOpenChange(false) }}
+                  onSelect={() => selectAndClose(`/library/series/${String(s.id)}`)}
                   className="flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer hover:bg-accent aria-selected:bg-accent"
                 >
                   <Tv className="h-3.5 w-3.5 text-teal-500 shrink-0" />
@@ -89,7 +95,7 @@ export function GlobalSearchModal({ open, onOpenChange }: Props) {
                 <Command.Item
                   key={`ep-${ep.id}`}
                   value={`ep-${ep.id}`}
-                  onSelect={() => { navigate('/wanted'); onOpenChange(false) }}
+                  onSelect={() => selectAndClose('/wanted')}
                   className="flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer hover:bg-accent aria-selected:bg-accent"
                 >
                   <Film className="h-3.5 w-3.5 text-blue-500 shrink-0" />
@@ -108,7 +114,7 @@ export function GlobalSearchModal({ open, onOpenChange }: Props) {
                 <Command.Item
                   key={`sub-${sub.id}`}
                   value={`sub-${sub.id}`}
-                  onSelect={() => { navigate('/history'); onOpenChange(false) }}
+                  onSelect={() => selectAndClose('/history')}
                   className="flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer hover:bg-accent aria-selected:bg-accent"
                 >
                   <FileText className="h-3.5 w-3.5 text-green-500 shrink-0" />
