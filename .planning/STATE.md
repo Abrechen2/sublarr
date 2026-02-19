@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 12 of 16 (Batch Operations & Smart Filter)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-19 -- Completed 12-01-PLAN.md (Backend Infrastructure)
+Last activity: 2026-02-19 -- Completed 12-02-PLAN.md (Frontend Core Infrastructure)
 
-Progress: [████████░░░░░░░░░░░░░░░░░] 1/3 plans in phase
+Progress: [████████████████░░░░░░░░░] 2/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 59
+- Total plans completed: 60
 - Average duration: 9 min
-- Total execution time: 511 min
+- Total execution time: 521 min
 
 **By Phase:**
 
@@ -40,11 +40,11 @@ Progress: [████████░░░░░░░░░░░░░░░
 | 10-performance-scalability | 8/8 | 43 min | 5 min |
 | 11-subtitle-editor | 4/4 | 21 min | 5 min |
 | 13-comparison-sync-health-check | 3/3 | 19 min | 6 min |
-| 12-batch-operations-smart-filter | 1/3 | 11 min | 11 min |
+| 12-batch-operations-smart-filter | 2/3 | 21 min | 11 min |
 
 **Recent Trend:**
-- Last 5 plans: 11-04 (8 min), 13-01 (5 min), 13-02 (7 min), 13-03 (7 min), 12-01 (11 min)
-- Trend: Phase 12 started -- backend infrastructure with FTS5 search, filter presets, batch actions
+- Last 5 plans: 13-01 (5 min), 13-02 (7 min), 13-03 (7 min), 12-01 (11 min), 12-02 (10 min)
+- Trend: Phase 12 progressing -- frontend core infrastructure (Zustand, cmdk, FilterBar, BatchActionBar)
 
 *Updated after each plan completion*
 
@@ -328,6 +328,11 @@ Recent decisions affecting current work:
 - [12-01]: SearchRepository uses db.engine directly instead of session.bind for test compatibility
 - [12-01]: Condition tree builder uses field allowlist per scope to prevent injection
 - [12-01]: Alembic migration written manually due to stamp_existing_db_if_needed incompatibility
+- [12-02]: cmdk Command.Dialog with shouldFilter=false -- all filtering done server-side via FTS5
+- [12-02]: Zustand per-scope selection store (wanted/library/history) with independent selection sets
+- [12-02]: Ctrl+K handler in App.tsx (not Sidebar) for global scope accessibility
+- [12-02]: onOpenChange callback wrapper for query reset (avoids React 19 strict lint useEffect-setState)
+- [12-02]: navigate() calls wrapped with void operator for floating promise lint compliance
 
 ### Pending Todos
 
@@ -353,5 +358,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Phase 12 in progress -- 12-01 complete (Backend Infrastructure for Batch Ops & Smart Filter)
-Resume file: .planning/phases/12-batch-operations-smart-filter/12-01-SUMMARY.md
+Stopped at: Phase 12 in progress -- 12-02 complete (Frontend Core Infrastructure for Batch Ops & Smart Filter)
+Resume file: .planning/phases/12-batch-operations-smart-filter/12-02-SUMMARY.md
