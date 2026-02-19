@@ -765,3 +765,65 @@ export interface SyncPreviewResult {
   operation: string
   total_events: number
 }
+
+// ─── Phase 12: Batch Operations + Smart-Filter ────────────────────────────
+
+export type FilterOperator = 'eq' | 'neq' | 'contains' | 'starts' | 'gt' | 'lt' | 'in'
+export type FilterScope = 'wanted' | 'library' | 'history'
+
+export interface FilterCondition {
+  field: string
+  op: FilterOperator
+  value: string | string[] | number | boolean
+}
+
+export interface FilterGroup {
+  logic: 'AND' | 'OR'
+  conditions: (FilterCondition | FilterGroup)[]
+}
+
+export interface FilterPreset {
+  id: number
+  name: string
+  scope: FilterScope
+  conditions: FilterGroup
+  is_default: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface SearchResultSeries {
+  id: number
+  title: string
+}
+
+export interface SearchResultEpisode {
+  id: number
+  series_id: number
+  title: string
+  season_episode: string
+}
+
+export interface SearchResultSubtitle {
+  id: number
+  file_path: string
+  provider_name: string
+  language: string
+}
+
+export interface GlobalSearchResults {
+  query: string
+  series: SearchResultSeries[]
+  episodes: SearchResultEpisode[]
+  subtitles: SearchResultSubtitle[]
+}
+
+export type BatchAction = 'ignore' | 'unignore' | 'blacklist' | 'export'
+
+export interface BatchActionResult {
+  success: boolean
+  action: BatchAction
+  affected: number
+  item_ids: number[]
+  warning?: string
+}
