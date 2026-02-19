@@ -168,6 +168,10 @@ def create_app(testing=False):
                 conn.execute(text("PRAGMA busy_timeout=5000"))
                 conn.commit()
 
+        # Initialize FTS5 search tables (virtual tables for global search)
+        from db.search import init_search_tables
+        init_search_tables()
+
         # Initialize cache and queue backends
         from cache import create_cache_backend
         from job_queue import create_job_queue
