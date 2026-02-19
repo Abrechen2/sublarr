@@ -351,8 +351,8 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | 9. OpenAPI + Release Preparation | 5/5 | Complete | 2026-02-18 |
 | 10. Performance & Scalability | 8/8 | Complete | 2026-02-18 |
 | 11. Subtitle Editor | 4/4 | Complete | 2026-02-18 |
-| 12. Batch Operations + Smart-Filter | 0/TBD | Not started | - |
-| 13. Comparison + Sync + Health-Check | 0/3 | Planning complete | - |
+| 12. Batch Operations + Smart-Filter | 3/3 | Complete | 2026-02-19 |
+| 13. Comparison + Sync + Health-Check | 3/3 | Complete | 2026-02-18 |
 | 14. Dashboard Widgets + Quick-Actions | 0/TBD | Not started | - |
 | 15. API-Key Mgmt + Notifications + Cleanup | 0/TBD | Not started | - |
 | 16. External Integrations | 0/TBD | Not started | - |
@@ -381,4 +381,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-18 (Phase 13 planned -- Comparison + Sync + Health-Check)*
+*Last updated: 2026-02-19 (Phase 12 complete -- Batch Operations + Smart-Filter)*
