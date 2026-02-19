@@ -51,5 +51,20 @@
     "title": "Letzte Aktivitaet",
     "view_all": "Alle anzeigen",
     "no_activity": "Keine aktuelle Aktivitaet"
+  },
+  "widgets": {
+    "stat_cards": "Status-Uebersicht",
+    "quick_actions": "Schnellaktionen",
+    "service_status": "Dienst-Verbindungen",
+    "provider_health": "Untertitel-Provider",
+    "quality": "Untertitel-Qualitaet",
+    "translation_stats": "Uebersetzungs-Statistiken",
+    "wanted_summary": "Gesuchte-Zusammenfassung",
+    "recent_activity": "Letzte Aktivitaet",
+    "customize": "Anpassen",
+    "settings_title": "Dashboard-Widgets",
+    "settings_description": "Widgets ein- oder ausschalten. Widgets zum Anordnen ziehen.",
+    "reset_layout": "Auf Standard zuruecksetzen",
+    "no_widgets": "Keine Widgets sichtbar. Verwende Anpassen, um Widgets hinzuzufuegen."
   }
 }

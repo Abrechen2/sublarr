@@ -51,5 +51,20 @@
     "title": "Recent Activity",
     "view_all": "View All",
     "no_activity": "No recent activity"
+  },
+  "widgets": {
+    "stat_cards": "Status Overview",
+    "quick_actions": "Quick Actions",
+    "service_status": "Service Connections",
+    "provider_health": "Subtitle Providers",
+    "quality": "Subtitle Quality",
+    "translation_stats": "Translation Stats",
+    "wanted_summary": "Wanted Summary",
+    "recent_activity": "Recent Activity",
+    "customize": "Customize",
+    "settings_title": "Dashboard Widgets",
+    "settings_description": "Toggle widgets on or off. Drag widgets to rearrange.",
+    "reset_layout": "Reset to Default",
+    "no_widgets": "No widgets visible. Use Customize to add widgets."
   }
 }
