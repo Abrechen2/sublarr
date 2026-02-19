@@ -1,13 +1,36 @@
-import { useState } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useHistory, useHistoryStats, useAddToBlacklist } from '@/hooks/useApi'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
 import {
   Clock, Download, ChevronLeft, ChevronRight, Ban, Eye, GitCompare,
+  CheckSquare, Square, MinusSquare,
 } from 'lucide-react'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
+import { FilterBar } from '@/components/filters/FilterBar'
+import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
+import { BatchActionBar } from '@/components/batch/BatchActionBar'
+import { useSelectionStore } from '@/stores/selectionStore'
+import type { FilterCondition } from '@/lib/types'
 
 const PROVIDER_FILTERS = ['all', 'animetosho', 'jimaku', 'opensubtitles', 'subdl'] as const
+
+const SCOPE = 'history' as const
+
+const HISTORY_FILTERS: FilterDef[] = [
+  { key: 'provider', label: 'Provider', type: 'select' as const, options: [
+    { value: 'animetosho', label: 'AnimeTosho' },
+    { value: 'jimaku',     label: 'Jimaku' },
+    { value: 'opensubtitles', label: 'OpenSubtitles' },
+    { value: 'subdl',      label: 'SubDL' },
+  ]},
+  { key: 'format', label: 'Format', type: 'select' as const, options: [
+    { value: 'ass', label: 'ASS' },
+    { value: 'srt', label: 'SRT' },
+  ]},
+  { key: 'language', label: 'Language', type: 'text' as const },
+  { key: 'file_path', label: 'File Path', type: 'text' as const },
+]
 
 function SummaryCard({ icon: Icon, label, value, color }: {
   icon: typeof Clock
@@ -37,16 +60,60 @@ export function HistoryPage() {
   const { t } = useTranslation('activity')
   const [page, setPage] = useState(1)
   const [providerFilter, setProviderFilter] = useState<string | undefined>()
+  const [languageFilter, setLanguageFilter] = useState<string | undefined>()
   const [editorFilePath, setEditorFilePath] = useState<string | null>(null)
   const [editorMode, setEditorMode] = useState<'preview' | 'edit' | 'diff'>('preview')
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([])
 
-  const { data: history, isLoading } = useHistory(page, 50, providerFilter)
+  // Zustand selection store
+  const { toggleItem, selectAll, clearSelection, isSelected } = useSelectionStore()
+
+  const { data: history, isLoading } = useHistory(page, 50, providerFilter, languageFilter)
   const { data: stats } = useHistoryStats()
   const addBlacklist = useAddToBlacklist()
 
   const topProvider = stats?.by_provider
     ? Object.entries(stats.by_provider).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '-'
     : '-'
+
+  // Client-side filtering by format and file_path from FilterBar
+  const filteredData = useMemo(() => {
+    let data = history?.data
+    if (!data) return data
+    const formatFilter = activeFilters.find(f => f.key === 'format')?.value
+    if (formatFilter) {
+      data = data.filter((entry) => entry.format === formatFilter)
+    }
+    const pathFilter = activeFilters.find(f => f.key === 'file_path')?.value
+    if (pathFilter) {
+      const q = pathFilter.toLowerCase()
+      data = data.filter((entry) => entry.file_path.toLowerCase().includes(q))
+    }
+    return data
+  }, [history?.data, activeFilters])
+
+  // Visible IDs for selection
+  const visibleIds = useMemo(() => filteredData?.map((d) => d.id) ?? [], [filteredData])
+  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => isSelected(SCOPE, id))
+  const someSelected = visibleIds.some((id) => isSelected(SCOPE, id))
+
+  const toggleSelectAll = useCallback(() => {
+    if (allSelected) {
+      clearSelection(SCOPE)
+    } else {
+      selectAll(SCOPE, visibleIds)
+    }
+  }, [allSelected, visibleIds, clearSelection, selectAll])
+
+  const handleFiltersChange = useCallback((filters: ActiveFilter[]) => {
+    setActiveFilters(filters)
+    setPage(1)
+    // Sync provider and language filters to API query params
+    const providerVal = filters.find(f => f.key === 'provider')?.value
+    setProviderFilter(providerVal)
+    const langVal = filters.find(f => f.key === 'language')?.value
+    setLanguageFilter(langVal)
+  }, [])
 
   return (
     <div className="space-y-5">
@@ -66,14 +133,26 @@ export function HistoryPage() {
         <SummaryCard icon={Download} label={t('history.top_provider')} value={topProvider} color="var(--text-secondary)" />
       </div>
 
-      {/* Filters */}
+      {/* Provider Filter Buttons */}
       <div className="flex flex-wrap items-center gap-1.5">
         {PROVIDER_FILTERS.map((p) => {
           const isActive = (p === 'all' && !providerFilter) || providerFilter === p
           return (
             <button
               key={p}
-              onClick={() => { setProviderFilter(p === 'all' ? undefined : p); setPage(1) }}
+              onClick={() => {
+                setProviderFilter(p === 'all' ? undefined : p)
+                setPage(1)
+                // Sync to FilterBar activeFilters
+                if (p === 'all') {
+                  setActiveFilters(prev => prev.filter(f => f.key !== 'provider'))
+                } else {
+                  setActiveFilters(prev => {
+                    const without = prev.filter(f => f.key !== 'provider')
+                    return [...without, { key: 'provider', op: 'eq' as const, value: p, label: 'Provider' }]
+                  })
+                }
+              }}
               className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
               style={{
                 backgroundColor: isActive ? 'var(--accent-bg)' : 'var(--bg-surface)',
@@ -87,6 +166,25 @@ export function HistoryPage() {
         })}
       </div>
 
+      {/* FilterBar */}
+      <FilterBar
+        scope={SCOPE}
+        filters={HISTORY_FILTERS}
+        activeFilters={activeFilters}
+        onFiltersChange={handleFiltersChange}
+        onPresetLoad={(conditions) => {
+          if (conditions.logic === 'AND') {
+            const filters = conditions.conditions
+              .filter((c): c is FilterCondition => 'field' in c)
+              .map((c) => {
+                const def = HISTORY_FILTERS.find(f => f.key === c.field)
+                return { key: c.field, op: c.op, value: String(c.value), label: def?.label ?? c.field }
+              })
+            handleFiltersChange(filters)
+          }
+        }}
+      />
+
       {/* Table */}
       <div
         className="rounded-lg overflow-hidden"
@@ -96,6 +194,17 @@ export function HistoryPage() {
           <table className="w-full min-w-[600px]">
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                <th className="text-left px-3 py-2.5 w-8">
+                  <button onClick={toggleSelectAll} className="p-0.5" style={{ color: 'var(--text-muted)' }}>
+                    {allSelected ? (
+                      <CheckSquare size={14} style={{ color: 'var(--accent)' }} />
+                    ) : someSelected ? (
+                      <MinusSquare size={14} style={{ color: 'var(--accent)' }} />
+                    ) : (
+                      <Square size={14} />
+                    )}
+                  </button>
+                </th>
                 <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.file')}</th>
                 <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.provider')}</th>
                 <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.lang')}</th>
@@ -109,6 +218,7 @@ export function HistoryPage() {
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td className="px-3 py-3"><div className="skeleton h-4 w-4 rounded" /></td>
                     <td className="px-4 py-3"><div className="skeleton h-4 w-48 rounded" /></td>
                     <td className="px-3 py-3"><div className="skeleton h-4 w-20 rounded" /></td>
                     <td className="px-3 py-3"><div className="skeleton h-4 w-8 rounded" /></td>
@@ -118,8 +228,8 @@ export function HistoryPage() {
                     <td className="px-4 py-3"><div className="skeleton h-4 w-6 rounded ml-auto" /></td>
                   </tr>
                 ))
-              ) : history?.data?.length ? (
-                history.data.map((entry) => (
+              ) : filteredData?.length ? (
+                filteredData.map((entry, index) => (
                   <tr
                     key={entry.id}
                     className="transition-colors duration-100"
@@ -127,6 +237,21 @@ export function HistoryPage() {
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)')}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                   >
+                    <td className="px-3 py-2.5 w-8">
+                      <button
+                        onClick={(e) => {
+                          toggleItem(SCOPE, entry.id, index, e.shiftKey, visibleIds)
+                        }}
+                        className="p-0.5"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        {isSelected(SCOPE, entry.id) ? (
+                          <CheckSquare size={14} style={{ color: 'var(--accent)' }} />
+                        ) : (
+                          <Square size={14} />
+                        )}
+                      </button>
+                    </td>
                     <td className="px-4 py-2.5" title={entry.file_path}>
                       <span
                         className="truncate max-w-xs text-sm block"
@@ -239,7 +364,7 @@ export function HistoryPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
                     {t('history.no_history')}
                   </td>
                 </tr>
@@ -286,6 +411,9 @@ export function HistoryPage() {
           </div>
         )}
       </div>
+
+      {/* Floating BatchActionBar */}
+      <BatchActionBar scope={SCOPE} actions={['export']} />
 
       {/* Subtitle Editor Modal */}
       {editorFilePath && (
