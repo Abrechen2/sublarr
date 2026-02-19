@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, Fragment } from 'react'
+import { useState, useMemo, useCallback, useEffect, Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   useWantedItems, useWantedSummary, useRefreshWanted, useUpdateWantedStatus,
@@ -8,13 +8,17 @@ import {
 import { StatusBadge, SubtitleTypeBadge } from '@/components/shared/StatusBadge'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
-import type { WantedSearchResponse } from '@/lib/types'
+import type { WantedSearchResponse, FilterCondition } from '@/lib/types'
 import {
   RefreshCw, ChevronLeft, ChevronRight, Search, Film, Tv,
   ArrowUpCircle, EyeOff, Eye, Play, Loader2, ChevronUp, Ban,
-  CheckSquare, Square, MinusSquare, Download,
+  CheckSquare, Square, MinusSquare, Download, ArrowUp, ArrowDown,
 } from 'lucide-react'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
+import { FilterBar } from '@/components/filters/FilterBar'
+import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
+import { BatchActionBar } from '@/components/batch/BatchActionBar'
+import { useSelectionStore } from '@/stores/selectionStore'
 
 /** Derive subtitle file path from media path + language + format. */
 function deriveSubtitlePath(mediaPath: string, lang: string, format: string): string {
@@ -26,6 +30,34 @@ function deriveSubtitlePath(mediaPath: string, lang: string, format: string): st
 const STATUS_FILTERS = ['all', 'wanted', 'failed', 'ignored'] as const
 const TYPE_FILTERS = ['all', 'episode', 'movie'] as const
 const SUBTITLE_TYPE_FILTERS = ['all', 'full', 'forced'] as const
+
+const SCOPE = 'wanted' as const
+
+const WANTED_FILTERS: FilterDef[] = [
+  { key: 'status', label: 'Status', type: 'select' as const, options: [
+    { value: 'wanted', label: 'Wanted' },
+    { value: 'ignored', label: 'Ignored' },
+    { value: 'failed', label: 'Failed' },
+    { value: 'found', label: 'Found' },
+  ]},
+  { key: 'item_type', label: 'Type', type: 'select' as const, options: [
+    { value: 'episode', label: 'Episode' },
+    { value: 'movie', label: 'Movie' },
+  ]},
+  { key: 'subtitle_type', label: 'Subtitle Type', type: 'select' as const, options: [
+    { value: 'full', label: 'Full' },
+    { value: 'forced', label: 'Forced' },
+  ]},
+  { key: 'title', label: 'Title', type: 'text' as const },
+]
+
+const SORT_FIELDS = [
+  { value: 'added_at', labelKey: 'wanted.sortFields.added_at' },
+  { value: 'title', labelKey: 'wanted.sortFields.title' },
+  { value: 'last_search_at', labelKey: 'wanted.sortFields.last_search_at' },
+  { value: 'current_score', labelKey: 'wanted.sortFields.current_score' },
+  { value: 'search_count', labelKey: 'wanted.sortFields.search_count' },
+] as const
 
 function SummaryCard({ icon: Icon, label, value, color }: {
   icon: typeof Search
@@ -188,9 +220,23 @@ export function WantedPage() {
   const [languageFilter, setLanguageFilter] = useState<string | undefined>()
   const [expandedItem, setExpandedItem] = useState<number | null>(null)
   const [searchResults, setSearchResults] = useState<Record<number, WantedSearchResponse>>({})
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [previewFilePath, setPreviewFilePath] = useState<string | null>(null)
 
+  // FilterBar state
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([])
+  const [sortBy, setSortBy] = useState('added_at')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [searchText, setSearchText] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchText), 300)
+    return () => clearTimeout(timer)
+  }, [searchText])
+
+  // Zustand selection store
+  const { toggleItem, selectAll, clearSelection, isSelected } = useSelectionStore()
   const { data: summary } = useWantedSummary()
   const { data: wanted, isLoading } = useWantedItems(page, 50, typeFilter, statusFilter, subtitleTypeFilter)
   const refreshWanted = useRefreshWanted()
@@ -219,7 +265,7 @@ export function WantedPage() {
     return Array.from(langs).sort()
   }, [wanted?.data])
 
-  // Client-side filters
+  // Client-side filters + search + sort
   const filteredData = useMemo(() => {
     let data = wanted?.data
     if (!data) return data
@@ -229,58 +275,58 @@ export function WantedPage() {
     if (languageFilter) {
       data = data.filter((item) => item.target_language === languageFilter)
     }
-    return data
-  }, [wanted?.data, upgradeFilter, languageFilter])
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase()
+      data = data.filter((item) =>
+        (item.title && item.title.toLowerCase().includes(q)) ||
+        (item.file_path && item.file_path.toLowerCase().includes(q))
+      )
+    }
+    // Client-side sort
+    const sorted = [...data]
+    sorted.sort((a, b) => {
+      let cmp = 0
+      if (sortBy === 'title') {
+        cmp = (a.title || '').localeCompare(b.title || '')
+      } else if (sortBy === 'added_at') {
+        cmp = (a.added_at || '').localeCompare(b.added_at || '')
+      } else if (sortBy === 'last_search_at') {
+        cmp = (a.last_search_at || '').localeCompare(b.last_search_at || '')
+      } else if (sortBy === 'current_score') {
+        cmp = (a.current_score ?? 0) - (b.current_score ?? 0)
+      } else if (sortBy === 'search_count') {
+        cmp = (a.search_count ?? 0) - (b.search_count ?? 0)
+      }
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+    return sorted
+  }, [wanted?.data, upgradeFilter, languageFilter, debouncedSearch, sortBy, sortDir])
 
-  // Bulk selection helpers
+  // Bulk selection helpers using Zustand store
   const visibleIds = useMemo(() => filteredData?.map((d) => d.id) ?? [], [filteredData])
-  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id))
-  const someSelected = visibleIds.some((id) => selectedIds.has(id))
+  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => isSelected(SCOPE, id))
+  const someSelected = visibleIds.some((id) => isSelected(SCOPE, id))
 
   const toggleSelectAll = useCallback(() => {
     if (allSelected) {
-      setSelectedIds(new Set())
+      clearSelection(SCOPE)
     } else {
-      setSelectedIds(new Set(visibleIds))
+      selectAll(SCOPE, visibleIds)
     }
-  }, [allSelected, visibleIds])
+  }, [allSelected, visibleIds, clearSelection, selectAll])
 
-  const toggleSelect = useCallback((id: number) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
+  // Handle FilterBar filter changes -- sync relevant filters with existing filter state
+  const handleFiltersChange = useCallback((filters: ActiveFilter[]) => {
+    setActiveFilters(filters)
+    setPage(1)
+    // Sync FilterBar selections back to existing filter buttons
+    const statusVal = filters.find(f => f.key === 'status')?.value
+    setStatusFilter(statusVal)
+    const typeVal = filters.find(f => f.key === 'item_type')?.value
+    setTypeFilter(typeVal)
+    const subTypeVal = filters.find(f => f.key === 'subtitle_type')?.value
+    setSubtitleTypeFilter(subTypeVal)
   }, [])
-
-  const [bulkRunning, setBulkRunning] = useState(false)
-
-  const handleBulkAction = useCallback(async (action: 'ignore' | 'unignore' | 'search') => {
-    const ids = Array.from(selectedIds)
-    if (ids.length === 0) return
-    setBulkRunning(true)
-    try {
-      for (const id of ids) {
-        if (action === 'ignore') {
-          await updateStatus.mutateAsync({ itemId: id, status: 'ignored' })
-        } else if (action === 'unignore') {
-          await updateStatus.mutateAsync({ itemId: id, status: 'wanted' })
-        } else if (action === 'search') {
-          await searchItem.mutateAsync(id)
-        }
-      }
-      toast(`${action === 'search' ? 'Searched' : action === 'ignore' ? 'Ignored' : 'Un-ignored'} ${ids.length} items`)
-      setSelectedIds(new Set())
-    } catch {
-      toast('Bulk action failed', 'error')
-    } finally {
-      setBulkRunning(false)
-    }
-  }, [selectedIds, updateStatus, searchItem])
 
   const handleSearch = (itemId: number) => {
     if (expandedItem === itemId) {
@@ -506,53 +552,79 @@ export function WantedPage() {
         )}
       </div>
 
-      {/* Bulk Action Bar */}
-      {selectedIds.size > 0 && (
-        <div
-          className="rounded-lg p-3 flex items-center justify-between flex-wrap gap-2"
-          style={{ backgroundColor: 'var(--accent-bg)', border: '1px solid var(--accent-dim)' }}
-        >
-          <span className="text-sm font-medium" style={{ color: 'var(--accent)' }}>
-            {t('wanted.selected', { count: selectedIds.size })}
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleBulkAction('ignore')}
-              disabled={bulkRunning}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150"
-              style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-            >
-              <EyeOff size={12} />
-              {t('wanted.ignore')}
-            </button>
-            <button
-              onClick={() => handleBulkAction('unignore')}
-              disabled={bulkRunning}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150"
-              style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-            >
-              <Eye size={12} />
-              {t('wanted.un_ignore')}
-            </button>
-            <button
-              onClick={() => handleBulkAction('search')}
-              disabled={bulkRunning}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150"
-              style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-            >
-              {bulkRunning ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
-              {t('common:actions.search')}
-            </button>
-            <button
-              onClick={() => setSelectedIds(new Set())}
-              className="px-2 py-1.5 rounded text-xs"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              {t('wanted.clear')}
-            </button>
-          </div>
+      {/* Search + Sort Controls */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative">
+          <Search
+            size={14}
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+            style={{ color: 'var(--text-muted)' }}
+          />
+          <input
+            type="text"
+            placeholder={t('wanted.search_placeholder', 'Search wanted items...')}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="pl-8 pr-3 py-1.5 rounded-md text-xs w-52 focus:outline-none transition-all"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+            }}
+          />
         </div>
-      )}
+
+        <div className="flex items-center gap-1.5 ml-auto">
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {t('wanted.sortBy', 'Sort by')}:
+          </span>
+          <select
+            value={sortBy}
+            onChange={(e) => { setSortBy(e.target.value); setPage(1) }}
+            className="text-xs px-2 py-1.5 rounded-md cursor-pointer"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            {SORT_FIELDS.map((f) => (
+              <option key={f.value} value={f.value}>{t(f.labelKey, f.value)}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setSortDir((d) => d === 'asc' ? 'desc' : 'asc')}
+            className="p-1.5 rounded-md transition-all duration-150"
+            title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              color: 'var(--accent)',
+            }}
+          >
+            {sortDir === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+          </button>
+        </div>
+      </div>
+
+      {/* FilterBar */}
+      <FilterBar
+        scope={SCOPE}
+        filters={WANTED_FILTERS}
+        activeFilters={activeFilters}
+        onFiltersChange={handleFiltersChange}
+        onPresetLoad={(conditions) => {
+          if (conditions.logic === 'AND') {
+            const filters = conditions.conditions
+              .filter((c): c is FilterCondition => 'field' in c)
+              .map((c) => {
+                const def = WANTED_FILTERS.find(f => f.key === c.field)
+                return { key: c.field, op: c.op, value: String(c.value), label: def?.label ?? c.field }
+              })
+            handleFiltersChange(filters)
+          }
+        }}
+      />
 
       {/* Table */}
       <div
@@ -610,11 +682,14 @@ export function WantedPage() {
                     >
                       <td className="px-3 py-2.5 w-8">
                         <button
-                          onClick={() => toggleSelect(item.id)}
+                          onClick={(e) => {
+                            const idx = visibleIds.indexOf(item.id)
+                            toggleItem(SCOPE, item.id, idx, e.shiftKey, visibleIds)
+                          }}
                           className="p-0.5"
                           style={{ color: 'var(--text-muted)' }}
                         >
-                          {selectedIds.has(item.id) ? (
+                          {isSelected(SCOPE, item.id) ? (
                             <CheckSquare size={14} style={{ color: 'var(--accent)' }} />
                           ) : (
                             <Square size={14} />
@@ -870,6 +945,9 @@ export function WantedPage() {
           </div>
         )}
       </div>
+
+      {/* Floating BatchActionBar */}
+      <BatchActionBar scope={SCOPE} actions={['ignore', 'unignore', 'blacklist', 'export']} />
 
       {/* Subtitle Preview Modal */}
       {previewFilePath && (
