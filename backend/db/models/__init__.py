@@ -15,6 +15,7 @@ from db.models.core import (
     MovieLanguageProfile,
     FfprobeCache,
     BlacklistEntry,
+    FilterPreset,
 )
 from db.models.providers import (
     ProviderCache,
@@ -80,4 +81,6 @@ __all__ = [
     "AnidbMapping",
     # quality
     "SubtitleHealthResult",
+    # filter presets
+    "FilterPreset",
 ]
