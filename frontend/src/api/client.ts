@@ -14,6 +14,7 @@ import type {
   SubtitleContent, SubtitleSaveResult, SubtitleBackup, SubtitleValidation, SubtitleParseResult,
   HealthCheckResult, HealthCheckBatchResult, HealthFixResult, QualityTrend,
   ComparisonResponse, SyncResult, SyncPreviewResult,
+  GlobalSearchResults, FilterPreset, FilterScope, BatchAction, BatchActionResult,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -720,6 +721,37 @@ export async function advancedSync(
     preview: preview ?? false,
   })
   return data
+}
+
+// ─── Phase 12: Search + Filter Presets + Batch Actions ────────────────────
+
+export async function searchGlobal(q: string, limit = 20): Promise<GlobalSearchResults> {
+  const res = await api.get('/search', { params: { q, limit } })
+  return res.data
+}
+
+export async function getFilterPresets(scope: FilterScope): Promise<FilterPreset[]> {
+  const res = await api.get('/filter-presets', { params: { scope } })
+  return res.data
+}
+
+export async function createFilterPreset(preset: Omit<FilterPreset, 'id' | 'created_at' | 'updated_at'>): Promise<FilterPreset> {
+  const res = await api.post('/filter-presets', preset)
+  return res.data
+}
+
+export async function updateFilterPreset(id: number, data: Partial<Pick<FilterPreset, 'name' | 'conditions' | 'is_default'>>): Promise<FilterPreset> {
+  const res = await api.put(`/filter-presets/${id}`, data)
+  return res.data
+}
+
+export async function deleteFilterPreset(id: number): Promise<void> {
+  await api.delete(`/filter-presets/${id}`)
+}
+
+export async function batchAction(itemIds: number[], action: BatchAction): Promise<BatchActionResult> {
+  const res = await api.post('/wanted/batch-action', { item_ids: itemIds, action })
+  return res.data
 }
 
 export default api
