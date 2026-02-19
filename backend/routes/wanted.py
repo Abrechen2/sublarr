@@ -609,6 +609,133 @@ def wanted_search_all():
     return jsonify({"status": "search_started"}), 202
 
 
+@bp.route("/wanted/batch-action", methods=["POST"])
+def wanted_batch_action():
+    """Perform a batch action on multiple wanted items.
+    ---
+    post:
+      tags:
+        - Wanted
+      summary: Batch action on wanted items
+      description: >
+        Performs a bulk action (ignore, unignore, blacklist, export) on
+        a list of wanted item IDs.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [item_ids, action]
+              properties:
+                item_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: List of wanted item IDs (max 500)
+                action:
+                  type: string
+                  enum: [ignore, unignore, blacklist, export]
+                  description: Action to perform
+      responses:
+        200:
+          description: Action completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  action:
+                    type: string
+                  affected:
+                    type: integer
+                  item_ids:
+                    type: array
+                    items:
+                      type: integer
+        400:
+          description: Invalid input
+    """
+    from db.wanted import get_wanted_item, update_wanted_status
+
+    ALLOWED_ACTIONS = {"ignore", "unignore", "blacklist", "export"}
+
+    data = request.get_json() or {}
+    item_ids = data.get("item_ids")
+    action = data.get("action", "")
+
+    # Validation
+    if not item_ids or not isinstance(item_ids, list):
+        return jsonify({"error": "item_ids must be a non-empty list of integers"}), 400
+    if len(item_ids) > 500:
+        return jsonify({"error": "Maximum 500 items per batch action"}), 400
+    if not all(isinstance(i, int) for i in item_ids):
+        return jsonify({"error": "item_ids must contain only integers"}), 400
+    if action not in ALLOWED_ACTIONS:
+        return jsonify({"error": f"action must be one of: {', '.join(sorted(ALLOWED_ACTIONS))}"}), 400
+
+    # Export action: return item data without DB changes
+    if action == "export":
+        items = []
+        for item_id in item_ids:
+            item = get_wanted_item(item_id)
+            if item:
+                items.append(item)
+        return jsonify({"success": True, "action": "export", "data": items})
+
+    # Process each item
+    affected = 0
+    warning = None
+
+    if action == "ignore":
+        for item_id in item_ids:
+            if update_wanted_status(item_id, "ignored"):
+                affected += 1
+
+    elif action == "unignore":
+        for item_id in item_ids:
+            item = get_wanted_item(item_id)
+            if item and item.get("status") == "ignored":
+                if update_wanted_status(item_id, "wanted"):
+                    affected += 1
+
+    elif action == "blacklist":
+        try:
+            from db.blacklist import add_blacklist_entry
+            for item_id in item_ids:
+                item = get_wanted_item(item_id)
+                if item:
+                    add_blacklist_entry(
+                        provider_name="manual",
+                        subtitle_id=str(item_id),
+                        file_path=item.get("file_path", ""),
+                        title=item.get("title", ""),
+                        reason="batch_blacklist",
+                    )
+                    update_wanted_status(item_id, "ignored")
+                    affected += 1
+        except ImportError:
+            # Blacklist module not available -- fall back to ignore
+            warning = "Blacklist module not available, items set to ignored instead"
+            for item_id in item_ids:
+                if update_wanted_status(item_id, "ignored"):
+                    affected += 1
+
+    result = {
+        "success": True,
+        "action": action,
+        "affected": affected,
+        "item_ids": item_ids[:affected] if affected < len(item_ids) else item_ids,
+    }
+    if warning:
+        result["warning"] = warning
+    return jsonify(result)
+
+
 @bp.route("/wanted/<int:item_id>/extract", methods=["POST"])
 def extract_embedded_sub(item_id):
     """Extract an embedded subtitle stream from an MKV file.
