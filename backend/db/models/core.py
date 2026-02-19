@@ -208,6 +208,23 @@ class BlacklistEntry(db.Model):
     )
 
 
+class FilterPreset(db.Model):
+    """Saved filter configurations per page scope."""
+    __tablename__ = "filter_presets"
+
+    id:          Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name:        Mapped[str] = mapped_column(String(100), nullable=False)
+    scope:       Mapped[str] = mapped_column(String(50), nullable=False)   # 'wanted'|'library'|'history'
+    conditions:  Mapped[str] = mapped_column(Text, nullable=False, default="{}")  # JSON condition tree
+    is_default:  Mapped[int] = mapped_column(Integer, nullable=False, default=0)   # 1 = auto-apply
+    created_at:  Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at:  Mapped[str] = mapped_column(Text, nullable=False)
+
+    __table_args__ = (
+        Index("idx_filter_presets_scope", "scope"),
+    )
+
+
 __all__ = [
     "Job",
     "DailyStats",
@@ -219,4 +236,5 @@ __all__ = [
     "MovieLanguageProfile",
     "FfprobeCache",
     "BlacklistEntry",
+    "FilterPreset",
 ]
