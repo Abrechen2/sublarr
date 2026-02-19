@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 13 complete - Comparison + Sync + Health-Check
+**Current focus:** Phase 12 in progress - Batch Operations & Smart Filter
 
 ## Current Position
 
-Phase: 13 of 16 (Comparison + Sync + Health-Check)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-18 -- Completed 13-03-PLAN.md (Frontend Health UI, Charts, Dashboard & SeriesDetail Integration)
+Phase: 12 of 16 (Batch Operations & Smart Filter)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-19 -- Completed 12-01-PLAN.md (Backend Infrastructure)
 
-Progress: [█████████████████████████] 3/3 plans in phase
+Progress: [████████░░░░░░░░░░░░░░░░░] 1/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 58
+- Total plans completed: 59
 - Average duration: 9 min
-- Total execution time: 500 min
+- Total execution time: 511 min
 
 **By Phase:**
 
@@ -40,10 +40,11 @@ Progress: [███████████████████████
 | 10-performance-scalability | 8/8 | 43 min | 5 min |
 | 11-subtitle-editor | 4/4 | 21 min | 5 min |
 | 13-comparison-sync-health-check | 3/3 | 19 min | 6 min |
+| 12-batch-operations-smart-filter | 1/3 | 11 min | 11 min |
 
 **Recent Trend:**
-- Last 5 plans: 11-03 (4 min), 11-04 (8 min), 13-01 (5 min), 13-02 (7 min), 13-03 (7 min)
-- Trend: Phase 13 complete -- health badges, auto-fix panel, quality charts, and dashboard widget integrated
+- Last 5 plans: 11-04 (8 min), 13-01 (5 min), 13-02 (7 min), 13-03 (7 min), 12-01 (11 min)
+- Trend: Phase 12 started -- backend infrastructure with FTS5 search, filter presets, batch actions
 
 *Updated after each plan completion*
 
@@ -323,6 +324,10 @@ Recent decisions affecting current work:
 - [13-03]: Actions column widened from w-32 to w-40 to accommodate Health button
 - [13-03]: healthScores tracked in local state per SeriesDetail, updated on fix via API re-fetch
 - [13-03]: Recharts Tooltip formatter uses unknown params to match existing chart type patterns
+- [12-01]: FTS5 trigram tables use LIKE queries (not MATCH) for 2+ char search support
+- [12-01]: SearchRepository uses db.engine directly instead of session.bind for test compatibility
+- [12-01]: Condition tree builder uses field allowlist per scope to prevent injection
+- [12-01]: Alembic migration written manually due to stamp_existing_db_if_needed incompatibility
 
 ### Pending Todos
 
@@ -347,6 +352,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-18
-Stopped at: Phase 13 complete -- 13-03 complete (Frontend Health UI, Charts, Dashboard & SeriesDetail Integration)
-Resume file: .planning/phases/13-comparison-sync-health-check/13-03-SUMMARY.md
+Last session: 2026-02-19
+Stopped at: Phase 12 in progress -- 12-01 complete (Backend Infrastructure for Batch Ops & Smart Filter)
+Resume file: .planning/phases/12-batch-operations-smart-filter/12-01-SUMMARY.md
