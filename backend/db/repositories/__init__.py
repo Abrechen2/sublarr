@@ -24,6 +24,7 @@ from db.repositories.whisper import WhisperRepository
 from db.repositories.translation import TranslationRepository
 from db.repositories.quality import QualityRepository
 from db.repositories.search import SearchRepository
+from db.repositories.presets import FilterPresetsRepository
 
 __all__ = [
     # Base
@@ -47,6 +48,7 @@ __all__ = [
     "TranslationRepository",
     "QualityRepository",
     "SearchRepository",
+    "FilterPresetsRepository",
     # Config convenience functions
     "save_config_entry",
     "get_config_entry",
