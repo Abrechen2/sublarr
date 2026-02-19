@@ -6,7 +6,7 @@ operations. Return types match the existing functions exactly.
 
 import logging
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_, asc, desc
 
 from db.models.core import UpgradeHistory
 from db.models.providers import SubtitleDownload
@@ -18,10 +18,24 @@ logger = logging.getLogger(__name__)
 class LibraryRepository(BaseRepository):
     """Repository for subtitle_downloads and upgrade_history table operations."""
 
+    # Sort field allowlist for get_download_history
+    _HISTORY_SORT_FIELDS = {
+        "downloaded_at":  SubtitleDownload.downloaded_at,
+        "score":          SubtitleDownload.score,
+        "provider_name":  SubtitleDownload.provider_name,
+        "language":       SubtitleDownload.language,
+    }
+
     # ---- Download History ----------------------------------------------------
 
     def get_download_history(self, page: int = 1, per_page: int = 50,
-                             provider: str = None, language: str = None) -> dict:
+                             provider: str = None, language: str = None,
+                             format: str = None,
+                             score_min: int = None,
+                             score_max: int = None,
+                             search: str = None,
+                             sort_by: str = "downloaded_at",
+                             sort_dir: str = "desc") -> dict:
         """Get paginated download history with optional filters.
 
         Returns:
@@ -35,6 +49,22 @@ class LibraryRepository(BaseRepository):
             conditions.append(SubtitleDownload.provider_name == provider)
         if language:
             conditions.append(SubtitleDownload.language == language)
+        if format:
+            conditions.append(SubtitleDownload.format == format)
+        if score_min is not None:
+            conditions.append(SubtitleDownload.score >= score_min)
+        if score_max is not None:
+            conditions.append(SubtitleDownload.score <= score_max)
+
+        # Text search on file_path and provider_name
+        if search:
+            search_term = f"%{search}%"
+            conditions.append(
+                or_(
+                    SubtitleDownload.file_path.ilike(search_term),
+                    SubtitleDownload.provider_name.ilike(search_term),
+                )
+            )
 
         # Count query
         count_stmt = select(func.count()).select_from(SubtitleDownload)
@@ -42,10 +72,14 @@ class LibraryRepository(BaseRepository):
             count_stmt = count_stmt.where(cond)
         count = self.session.execute(count_stmt).scalar() or 0
 
+        # Determine sort column and direction
+        sort_col = self._HISTORY_SORT_FIELDS.get(sort_by, SubtitleDownload.downloaded_at)
+        order = asc(sort_col) if sort_dir == "asc" else desc(sort_col)
+
         # Data query
         data_stmt = (
             select(SubtitleDownload)
-            .order_by(SubtitleDownload.downloaded_at.desc())
+            .order_by(order)
             .limit(per_page)
             .offset(offset)
         )
