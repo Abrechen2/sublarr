@@ -127,5 +127,29 @@
     "series": "Series",
     "episodes": "Episodes",
     "subtitles": "Subtitles"
+  },
+  "shortcuts": {
+    "title": "Keyboard Shortcuts",
+    "navigation": "Navigation",
+    "global": "Global",
+    "page_actions": "Page Actions",
+    "go_dashboard": "Go to Dashboard",
+    "go_library": "Go to Library",
+    "go_wanted": "Go to Wanted",
+    "go_settings": "Go to Settings",
+    "go_activity": "Go to Activity",
+    "go_history": "Go to History",
+    "search": "Global Search",
+    "help": "Show Shortcuts",
+    "no_page_actions": "No shortcuts for this page"
+  },
+  "quick_actions": {
+    "scan_library": "Scan Library",
+    "search_wanted": "Search Wanted",
+    "refresh_scan": "Refresh Scan",
+    "search_all": "Search All",
+    "select_all": "Select All",
+    "health_check": "Health Check",
+    "no_actions": "No actions for this page"
   }
 }
