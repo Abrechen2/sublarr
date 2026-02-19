@@ -40,10 +40,15 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
 def get_wanted_items(page: int = 1, per_page: int = 50,
                      item_type: str = None, status: str = None,
                      series_id: int = None,
-                     subtitle_type: str = None) -> dict:
-    """Get paginated wanted items with optional filters."""
-    return _get_repo().get_wanted_items(page, per_page, item_type, status,
-                                        series_id, subtitle_type)
+                     subtitle_type: str = None,
+                     sort_by: str = "added_at",
+                     sort_dir: str = "desc",
+                     search: str = None) -> dict:
+    """Get paginated wanted items with optional filters, sorting, and text search."""
+    return _get_repo().get_wanted_items(
+        page, per_page, item_type, status, series_id, subtitle_type,
+        sort_by=sort_by, sort_dir=sort_dir, search=search,
+    )
 
 
 def get_wanted_item(item_id: int) -> Optional[dict]:
