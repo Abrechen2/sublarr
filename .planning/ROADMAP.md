@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 11: Subtitle Editor** - ASS/SRT preview component and inline editor with CodeMirror
 - [x] **Phase 12: Batch Operations + Smart-Filter** - Multi-select bulk actions, saved filters, global search
 - [x] **Phase 13: Comparison + Sync + Health-Check** - Side-by-side diff, timing sync, subtitle health analysis
-- [ ] **Phase 14: Dashboard Widgets + Quick-Actions** - Drag-and-drop widgets, keyboard shortcuts, FAB toolbar
+- [x] **Phase 14: Dashboard Widgets + Quick-Actions** - Drag-and-drop widgets, keyboard shortcuts, FAB toolbar
 - [ ] **Phase 15: API-Key Mgmt + Notifications + Cleanup** - Key management, notification templates, deduplication
 - [ ] **Phase 16: External Integrations** - Bazarr migration, Plex/Kodi compatibility, export formats
 
@@ -354,7 +354,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | 11. Subtitle Editor | 4/4 | Complete | 2026-02-18 |
 | 12. Batch Operations + Smart-Filter | 3/3 | Complete | 2026-02-19 |
 | 13. Comparison + Sync + Health-Check | 3/3 | Complete | 2026-02-18 |
-| 14. Dashboard Widgets + Quick-Actions | 0/2 | Not started | - |
+| 14. Dashboard Widgets + Quick-Actions | 2/2 | Complete | 2026-02-19 |
 | 15. API-Key Mgmt + Notifications + Cleanup | 0/TBD | Not started | - |
 | 16. External Integrations | 0/TBD | Not started | - |
 
@@ -382,4 +382,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-19 (Phase 14 planned -- Dashboard Widgets + Quick-Actions)*
+*Last updated: 2026-02-19 (Phase 14 complete -- Dashboard Widgets + Quick-Actions)*
