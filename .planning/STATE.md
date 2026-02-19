@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 12 in progress - Batch Operations & Smart Filter
+**Current focus:** Phase 12 complete - Batch Operations & Smart Filter
 
 ## Current Position
 
 Phase: 12 of 16 (Batch Operations & Smart Filter)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-19 -- Completed 12-02-PLAN.md (Frontend Core Infrastructure)
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-02-19 -- Completed 12-03-PLAN.md (Page Integration)
 
-Progress: [████████████████░░░░░░░░░] 2/3 plans in phase
+Progress: [█████████████████████████] 3/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 60
+- Total plans completed: 61
 - Average duration: 9 min
-- Total execution time: 521 min
+- Total execution time: 533 min
 
 **By Phase:**
 
@@ -40,11 +40,11 @@ Progress: [████████████████░░░░░░░
 | 10-performance-scalability | 8/8 | 43 min | 5 min |
 | 11-subtitle-editor | 4/4 | 21 min | 5 min |
 | 13-comparison-sync-health-check | 3/3 | 19 min | 6 min |
-| 12-batch-operations-smart-filter | 2/3 | 21 min | 11 min |
+| 12-batch-operations-smart-filter | 3/3 | 33 min | 11 min |
 
 **Recent Trend:**
-- Last 5 plans: 13-01 (5 min), 13-02 (7 min), 13-03 (7 min), 12-01 (11 min), 12-02 (10 min)
-- Trend: Phase 12 progressing -- frontend core infrastructure (Zustand, cmdk, FilterBar, BatchActionBar)
+- Last 5 plans: 13-02 (7 min), 13-03 (7 min), 12-01 (11 min), 12-02 (10 min), 12-03 (12 min)
+- Trend: Phase 12 complete -- all page integrations wired (Wanted, History, Sidebar trigger, i18n, backend tests)
 
 *Updated after each plan completion*
 
@@ -333,6 +333,12 @@ Recent decisions affecting current work:
 - [12-02]: Ctrl+K handler in App.tsx (not Sidebar) for global scope accessibility
 - [12-02]: onOpenChange callback wrapper for query reset (avoids React 19 strict lint useEffect-setState)
 - [12-02]: navigate() calls wrapped with void operator for floating promise lint compliance
+- [12-03]: Wanted page Zustand store replaces local selectedIds for cross-component compatibility with BatchActionBar
+- [12-03]: FilterBar coexists with existing button filters -- activeFilters synced bidirectionally
+- [12-03]: Sort/search on Wanted page is client-side (backend API does not accept sort_by/search params on wanted endpoint)
+- [12-03]: Sidebar search trigger dispatches synthetic Ctrl+K keydown event (no prop drilling)
+- [12-03]: Library page already had search + sort -- no changes needed (Task 3 was a no-op)
+- [12-03]: i18n locale files are at frontend/src/i18n/locales/ (not frontend/public/locales/ as plan suggested)
 
 ### Pending Todos
 
@@ -353,10 +359,11 @@ None yet.
 - Phase 10 complete -- all 8 plans executed (ORM models + Alembic + repositories + cache/queue + app integration + operational tooling + extended metrics + Grafana dashboards + cache/queue wiring)
 - Phase 11 complete -- all 4 plans executed (editor API + preview/timeline + editor/diff + modal/page integration)
 - Phase 13 complete -- all 3 plans executed (backend health/sync/compare + frontend types/hooks/comparison/sync + frontend health UI/charts/dashboard)
+- Phase 12 complete -- all 3 plans executed (backend FTS5/presets/batch API + frontend FilterBar/BatchActionBar/GlobalSearchModal/selectionStore + page integration/i18n/tests)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Phase 12 in progress -- 12-02 complete (Frontend Core Infrastructure for Batch Ops & Smart Filter)
-Resume file: .planning/phases/12-batch-operations-smart-filter/12-02-SUMMARY.md
+Stopped at: Phase 12 complete -- 12-03 complete (Page Integration for Batch Ops & Smart Filter)
+Resume file: .planning/phases/12-batch-operations-smart-filter/12-03-SUMMARY.md
