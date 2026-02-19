@@ -6,6 +6,9 @@ import { ToastContainer, toast } from '@/components/shared/Toast'
 import { PageSkeleton } from '@/components/shared/PageSkeleton'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { GlobalSearchModal } from '@/components/search/GlobalSearchModal'
+import { QuickActionsFAB } from '@/components/quick-actions/QuickActionsFAB'
+import { KeyboardShortcutsModal } from '@/components/quick-actions/KeyboardShortcutsModal'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 
 // Route-level code splitting: each page is lazy-loaded as a separate chunk
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })))
@@ -93,8 +96,15 @@ function GlobalWebSocketListener() {
   return null
 }
 
+/** Renders no UI -- just registers global keyboard shortcuts inside BrowserRouter context. */
+function GlobalShortcuts({ onToggleShortcutsModal }: { onToggleShortcutsModal: () => void }) {
+  useKeyboardShortcuts({ onToggleShortcutsModal })
+  return null
+}
+
 function App() {
   const [searchOpen, setSearchOpen] = useState(false)
+  const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false)
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
@@ -108,10 +118,19 @@ function App() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
+  const toggleShortcutsModal = useCallback(() => {
+    setShortcutsModalOpen((prev) => !prev)
+  }, [])
+
+  const closeShortcutsModal = useCallback(() => {
+    setShortcutsModalOpen(false)
+  }, [])
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <GlobalWebSocketListener />
+        <GlobalShortcuts onToggleShortcutsModal={toggleShortcutsModal} />
         <div className="flex min-h-screen">
           <Sidebar />
           <main className="flex-1 p-4 md:p-6 lg:p-8 pt-16 md:pt-6 lg:pt-8 min-h-screen">
@@ -120,6 +139,8 @@ function App() {
         </div>
         <GlobalSearchModal open={searchOpen} onOpenChange={setSearchOpen} />
         <ToastContainer />
+        <QuickActionsFAB />
+        <KeyboardShortcutsModal open={shortcutsModalOpen} onClose={closeShortcutsModal} />
       </BrowserRouter>
     </QueryClientProvider>
   )

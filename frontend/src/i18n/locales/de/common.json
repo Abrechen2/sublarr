@@ -127,5 +127,29 @@
     "series": "Serien",
     "episodes": "Episoden",
     "subtitles": "Untertitel"
+  },
+  "shortcuts": {
+    "title": "Tastenkuerzel",
+    "navigation": "Navigation",
+    "global": "Global",
+    "page_actions": "Seitenaktionen",
+    "go_dashboard": "Zum Dashboard",
+    "go_library": "Zur Bibliothek",
+    "go_wanted": "Zu Gesucht",
+    "go_settings": "Zu Einstellungen",
+    "go_activity": "Zur Aktivitaet",
+    "go_history": "Zum Verlauf",
+    "search": "Globale Suche",
+    "help": "Kuerzel anzeigen",
+    "no_page_actions": "Keine Kuerzel fuer diese Seite"
+  },
+  "quick_actions": {
+    "scan_library": "Bibliothek scannen",
+    "search_wanted": "Gesuchte durchsuchen",
+    "refresh_scan": "Scan aktualisieren",
+    "search_all": "Alle durchsuchen",
+    "select_all": "Alle auswaehlen",
+    "health_check": "Qualitaetspruefung",
+    "no_actions": "Keine Aktionen fuer diese Seite"
   }
 }
