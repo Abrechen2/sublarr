@@ -50,7 +50,8 @@ export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blackl
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `sublarr-export-${scope}-${Date.now()}.json`
+      const timestamp = new Date().getTime()
+      a.download = `sublarr-export-${scope}-${String(timestamp)}.json`
       a.click()
       URL.revokeObjectURL(url)
       onActionComplete?.(action, result)
