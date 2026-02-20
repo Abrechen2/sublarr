@@ -34,7 +34,12 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-/** Returns the shared Socket.IO instance (null if used outside <WebSocketProvider>). */
+/** Returns the shared Socket.IO instance (null if used outside <WebSocketProvider> or if dispatcher is null). */
 export function useSocket(): Socket | null {
-  return useContext(WebSocketContext)
+  try {
+    return useContext(WebSocketContext)
+  } catch {
+    // dispatcher is null when multiple React instances exist (e.g. some deps bundle their own React)
+    return null
+  }
 }
