@@ -770,6 +770,140 @@ def wanted_batch_action():
     return jsonify(result)
 
 
+@bp.route("/wanted/<int:item_id>/search-providers", methods=["GET"])
+def search_providers_interactive(item_id):
+    """Return all provider results for interactive subtitle selection.
+    ---
+    get:
+      tags:
+        - Wanted
+      summary: Interactive provider search
+      description: Searches all providers and returns every result for the user to pick from manually.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: item_id
+          required: true
+          schema:
+            type: integer
+          description: Wanted item ID
+      responses:
+        200:
+          description: All provider results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+                  item:
+                    type: object
+        404:
+          description: Item not found
+    """
+    from db.wanted import get_wanted_item
+    from wanted_search import search_providers_for_item
+
+    item = get_wanted_item(item_id)
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+
+    result = search_providers_for_item(item_id)
+    return jsonify(result)
+
+
+@bp.route("/wanted/<int:item_id>/download-specific", methods=["POST"])
+def download_specific(item_id):
+    """Download a specific subtitle result chosen by the user.
+    ---
+    post:
+      tags:
+        - Wanted
+      summary: Download specific subtitle
+      description: Downloads a specific provider result and optionally translates it.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: item_id
+          required: true
+          schema:
+            type: integer
+          description: Wanted item ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider_name, subtitle_id, language]
+              properties:
+                provider_name:
+                  type: string
+                subtitle_id:
+                  type: string
+                language:
+                  type: string
+                translate:
+                  type: boolean
+                  default: false
+      responses:
+        200:
+          description: Subtitle downloaded (and optionally translated)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  path:
+                    type: string
+                  format:
+                    type: string
+                  translated:
+                    type: boolean
+        400:
+          description: Validation error or download/translation failed
+        404:
+          description: Item not found
+    """
+    from db.wanted import get_wanted_item
+    from wanted_search import download_specific_for_item
+
+    item = get_wanted_item(item_id)
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+
+    data = request.get_json() or {}
+    provider_name = (data.get("provider_name") or "").strip()
+    subtitle_id = (data.get("subtitle_id") or "").strip()
+    language = (data.get("language") or "").strip()
+    translate = bool(data.get("translate", False))
+
+    if not provider_name or not subtitle_id or not language:
+        return jsonify({"error": "provider_name, subtitle_id, and language are required"}), 400
+
+    result = download_specific_for_item(item_id, provider_name, subtitle_id, language, translate)
+
+    if not result.get("success"):
+        return jsonify(result), 400
+
+    emit_event("wanted_item_processed", {
+        "wanted_id": item_id,
+        "status": "found",
+        "output_path": result.get("path"),
+        "provider": provider_name,
+    })
+    return jsonify(result)
+
+
 @bp.route("/wanted/<int:item_id>/extract", methods=["POST"])
 def extract_embedded_sub(item_id):
     """Extract an embedded subtitle stream from an MKV file.

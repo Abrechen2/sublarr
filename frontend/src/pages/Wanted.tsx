@@ -12,9 +12,10 @@ import type { WantedSearchResponse, FilterCondition } from '@/lib/types'
 import {
   RefreshCw, ChevronLeft, ChevronRight, Search, Film, Tv,
   ArrowUpCircle, EyeOff, Eye, Play, Loader2, ChevronUp, Ban,
-  CheckSquare, Square, MinusSquare, Download, ArrowUp, ArrowDown,
+  CheckSquare, Square, MinusSquare, Download, ArrowUp, ArrowDown, ScanSearch,
 } from 'lucide-react'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
+import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
 import { FilterBar } from '@/components/filters/FilterBar'
 import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
 import { BatchActionBar } from '@/components/batch/BatchActionBar'
@@ -221,6 +222,7 @@ export function WantedPage() {
   const [expandedItem, setExpandedItem] = useState<number | null>(null)
   const [searchResults, setSearchResults] = useState<Record<number, WantedSearchResponse>>({})
   const [previewFilePath, setPreviewFilePath] = useState<string | null>(null)
+  const [interactiveItem, setInteractiveItem] = useState<{ id: number; title: string } | null>(null)
 
   // FilterBar state
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([])
@@ -833,6 +835,16 @@ export function WantedPage() {
                             </button>
                           )}
                           <button
+                            onClick={() => setInteractiveItem({ id: item.id, title: item.title })}
+                            className="p-1 rounded transition-colors duration-150"
+                            title="Interaktive Suche"
+                            style={{ color: 'var(--text-muted)' }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                          >
+                            <ScanSearch size={14} />
+                          </button>
+                          <button
                             onClick={() => handleProcess(item.id)}
                             disabled={processItem.isPending || item.status === 'searching'}
                             className="p-1 rounded transition-colors duration-150"
@@ -963,6 +975,15 @@ export function WantedPage() {
           onClose={() => setPreviewFilePath(null)}
         />
       )}
+
+      {/* Interactive Search Modal */}
+      <InteractiveSearchModal
+        open={!!interactiveItem}
+        itemId={interactiveItem?.id}
+        itemTitle={interactiveItem?.title ?? ''}
+        onClose={() => setInteractiveItem(null)}
+        onDownloaded={() => setInteractiveItem(null)}
+      />
     </div>
   )
 }
