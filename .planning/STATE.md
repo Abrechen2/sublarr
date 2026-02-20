@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 15 of 16 (API-Key Mgmt + Notifications + Cleanup)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-20 -- Completed 15-01-PLAN.md (API Key Management + Bazarr Migration)
+Last activity: 2026-02-20 -- Completed 15-02-PLAN.md (Notification Management Backend)
 
-Progress: [████████░░░░░░░░░░░░░░░░░] 1/3 plans in phase
+Progress: [█████████████████░░░░░░░░] 2/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 64
+- Total plans completed: 65
 - Average duration: 9 min
-- Total execution time: 552 min
+- Total execution time: 558 min
 
 **By Phase:**
 
@@ -42,11 +42,11 @@ Progress: [████████░░░░░░░░░░░░░░░
 | 13-comparison-sync-health-check | 3/3 | 19 min | 6 min |
 | 12-batch-operations-smart-filter | 3/3 | 33 min | 11 min |
 | 14-dashboard-widgets-quick-actions | 2/2 | 15 min | 8 min |
-| 15-api-key-mgmt-notifications-cleanup | 1/3 | 4 min | 4 min |
+| 15-api-key-mgmt-notifications-cleanup | 2/3 | 10 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 12-03 (12 min), 14-01 (8 min), 14-02 (7 min), 15-01 (4 min)
-- Trend: Phase 15 started -- API key management + Bazarr migration backend
+- Last 5 plans: 14-01 (8 min), 14-02 (7 min), 15-01 (4 min), 15-02 (6 min)
+- Trend: Phase 15 progressing -- notification management backend with templates + quiet hours
 
 *Updated after each plan completion*
 
@@ -359,6 +359,12 @@ Recent decisions affecting current work:
 - [15-01]: Test dispatch via _TEST_DISPATCH dict with lazy-imported functions to avoid circular imports
 - [15-01]: Bazarr config auto-detection: YAML first, then INI fallback when extension unknown
 - [15-01]: Bazarr DB opened read-only (file:...?mode=ro) with per-table try/except for version tolerance
+- [15-02]: Template fallback chain: specific (service+event) > event-only > default (both null)
+- [15-02]: SandboxedEnvironment for Jinja2 template rendering prevents template injection attacks
+- [15-02]: Quiet hours is_quiet_hours checks all enabled configs with overnight range support (start > end)
+- [15-02]: Notification history logged on every send attempt including failures for audit trail
+- [15-02]: Event filters stored as config_entries with notification_filter_* prefix for consistency
+- [15-02]: Template rendering failure falls back to original title/body (backward compatible)
 
 ### Pending Todos
 
@@ -381,11 +387,11 @@ None yet.
 - Phase 13 complete -- all 3 plans executed (backend health/sync/compare + frontend types/hooks/comparison/sync + frontend health UI/charts/dashboard)
 - Phase 12 complete -- all 3 plans executed (backend FTS5/presets/batch API + frontend FilterBar/BatchActionBar/GlobalSearchModal/selectionStore + page integration/i18n/tests)
 - Phase 14 complete -- all 2 plans executed (dashboard widget system + quick-actions FAB + keyboard shortcuts)
-- Phase 15 in progress -- 1/3 plans executed (API key management + Bazarr migration)
+- Phase 15 in progress -- 2/3 plans executed (API key management + Bazarr migration, notification management backend)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Phase 15, Plan 01 complete -- API Key Management + Bazarr Migration
-Resume file: .planning/phases/15-api-key-mgmt-notifications-cleanup/15-01-SUMMARY.md
+Stopped at: Phase 15, Plan 02 complete -- Notification Management Backend
+Resume file: .planning/phases/15-api-key-mgmt-notifications-cleanup/15-02-SUMMARY.md
