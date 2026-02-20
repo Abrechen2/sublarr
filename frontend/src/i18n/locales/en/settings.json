@@ -20,7 +20,8 @@
     "subtitle_tools": "Subtitle Tools",
     "cleanup": "Cleanup",
     "notification_templates": "Notification Templates",
-    "prompt_presets": "Prompt Presets"
+    "prompt_presets": "Prompt Presets",
+    "integrations": "Integrations"
   },
   "general": {
     "port": "Port",
@@ -254,6 +255,49 @@
       "confirm": "Confirm Delete",
       "confirming": "Deleting...",
       "cancel": "Cancel"
+    }
+  },
+  "integrations": {
+    "title": "Integrations",
+    "bazarr": {
+      "title": "Bazarr Migration",
+      "dbPath": "Bazarr Database Path",
+      "dbPathHelp": "Path to your Bazarr SQLite database file (bazarr.db)",
+      "generateReport": "Generate Mapping Report",
+      "reportTitle": "Mapping Report",
+      "compatibility": "Compatibility",
+      "summary": "Migration Summary",
+      "tables": "Database Tables",
+      "proceedToImport": "Proceed to Import"
+    },
+    "compat": {
+      "title": "Compatibility Check",
+      "target": "Target Player",
+      "videoPath": "Video File Path",
+      "subtitlePaths": "Subtitle File Paths (one per line)",
+      "runCheck": "Run Check",
+      "compatible": "compatible",
+      "incompatible": "incompatible"
+    },
+    "health": {
+      "title": "Extended Health Diagnostics",
+      "runDiagnostics": "Run Diagnostics",
+      "connection": "Connection",
+      "version": "Version",
+      "libraryAccess": "Library Access",
+      "webhookStatus": "Webhook Status",
+      "healthIssues": "Health Issues",
+      "noIssues": "No issues detected"
+    },
+    "export": {
+      "title": "Export Configuration",
+      "format": "Export Format",
+      "includeSecrets": "Include secrets (API keys, passwords)",
+      "secretsWarning": "Warning: exported file will contain sensitive credentials",
+      "export": "Export",
+      "exportAll": "Export All (ZIP)",
+      "recommended": "Generic JSON is the recommended primary export format",
+      "bazarrNote": "Bazarr-compatible format (not guaranteed exact match)"
     }
   }
 }

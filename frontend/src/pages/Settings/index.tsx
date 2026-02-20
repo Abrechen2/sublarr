@@ -19,6 +19,7 @@ import { LanguageProfilesTab, LibrarySourcesTab, BackupTab, SubtitleToolsTab } f
 import { ApiKeysTab } from './ApiKeysTab'
 import { NotificationTemplatesTab } from './NotificationTemplatesTab'
 import { CleanupTab } from './CleanupTab'
+import { IntegrationsTab } from './IntegrationsTab'
 
 const TABS = [
   'General',
@@ -39,6 +40,7 @@ const TABS = [
   'Backup',
   'Subtitle Tools',
   'Cleanup',
+  'Integrations',
   'Notification Templates',
   'Prompt Presets',
 ]
@@ -463,6 +465,7 @@ const TAB_KEYS: Record<string, string> = {
   'Backup': 'tabs.backup',
   'Subtitle Tools': 'tabs.subtitle_tools',
   'Cleanup': 'tabs.cleanup',
+  'Integrations': 'tabs.integrations',
   'Notification Templates': 'tabs.notification_templates',
   'Prompt Presets': 'tabs.prompt_presets',
 }
@@ -590,6 +593,7 @@ export function SettingsPage() {
   const isBackupTab = activeTab === 'Backup'
   const isSubtitleToolsTab = activeTab === 'Subtitle Tools'
   const isCleanupTab = activeTab === 'Cleanup'
+  const isIntegrationsTab = activeTab === 'Integrations'
   const isApiKeysTab = activeTab === 'API Keys'
 
   if (isLoading) {
@@ -693,6 +697,8 @@ export function SettingsPage() {
             <SubtitleToolsTab />
           ) : isCleanupTab ? (
             <CleanupTab />
+          ) : isIntegrationsTab ? (
+            <IntegrationsTab />
           ) : activeTab === 'Notification Templates' ? (
             <NotificationTemplatesTab />
           ) : (

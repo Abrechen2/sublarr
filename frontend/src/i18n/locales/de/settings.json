@@ -20,7 +20,8 @@
     "subtitle_tools": "Untertitel-Werkzeuge",
     "cleanup": "Bereinigung",
     "notification_templates": "Benachrichtigungs-Vorlagen",
-    "prompt_presets": "Prompt-Vorlagen"
+    "prompt_presets": "Prompt-Vorlagen",
+    "integrations": "Integrationen"
   },
   "general": {
     "port": "Port",
@@ -254,6 +255,49 @@
       "confirm": "Loeschen bestaetigen",
       "confirming": "Wird geloescht...",
       "cancel": "Abbrechen"
+    }
+  },
+  "integrations": {
+    "title": "Integrationen",
+    "bazarr": {
+      "title": "Bazarr Migration",
+      "dbPath": "Bazarr Datenbankpfad",
+      "dbPathHelp": "Pfad zur Bazarr SQLite-Datenbankdatei (bazarr.db)",
+      "generateReport": "Zuordnungsbericht erstellen",
+      "reportTitle": "Zuordnungsbericht",
+      "compatibility": "Kompatibilitaet",
+      "summary": "Migrations-Zusammenfassung",
+      "tables": "Datenbanktabellen",
+      "proceedToImport": "Weiter zum Import"
+    },
+    "compat": {
+      "title": "Kompatibilitaetspruefung",
+      "target": "Ziel-Player",
+      "videoPath": "Video-Dateipfad",
+      "subtitlePaths": "Untertitel-Dateipfade (einer pro Zeile)",
+      "runCheck": "Pruefung starten",
+      "compatible": "kompatibel",
+      "incompatible": "inkompatibel"
+    },
+    "health": {
+      "title": "Erweiterte Gesundheitsdiagnostik",
+      "runDiagnostics": "Diagnose starten",
+      "connection": "Verbindung",
+      "version": "Version",
+      "libraryAccess": "Bibliothekszugriff",
+      "webhookStatus": "Webhook-Status",
+      "healthIssues": "Probleme",
+      "noIssues": "Keine Probleme erkannt"
+    },
+    "export": {
+      "title": "Konfiguration exportieren",
+      "format": "Exportformat",
+      "includeSecrets": "Geheimnisse einschliessen (API-Schluessel, Passwoerter)",
+      "secretsWarning": "Warnung: Die exportierte Datei enthaelt sensible Zugangsdaten",
+      "export": "Exportieren",
+      "exportAll": "Alle exportieren (ZIP)",
+      "recommended": "Generisches JSON ist das empfohlene primaere Exportformat",
+      "bazarrNote": "Bazarr-kompatibles Format (keine Garantie fuer exakte Uebereinstimmung)"
     }
   }
 }
