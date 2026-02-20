@@ -17,6 +17,7 @@ import {
   Languages,
   AlertCircle,
   Activity,
+  HardDrive,
 } from 'lucide-react'
 import type { LayoutItem } from 'react-grid-layout'
 
@@ -91,6 +92,13 @@ export const WIDGET_REGISTRY: readonly WidgetDefinition[] = [
     icon: Activity,
     defaultLayout: { w: 4, h: 4, x: 8, y: 10, minW: 4, minH: 3 },
     component: lazy(() => import('./widgets/RecentActivityWidget')),
+  },
+  {
+    id: 'disk-space',
+    titleKey: 'widgets.disk_space',
+    icon: HardDrive,
+    defaultLayout: { w: 4, h: 3, x: 0, y: 14, minW: 3, minH: 2 },
+    component: lazy(() => import('./widgets/DiskSpaceWidget')),
   },
 ] as const
 
