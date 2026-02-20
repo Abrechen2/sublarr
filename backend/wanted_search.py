@@ -478,8 +478,7 @@ def process_wanted_item(item_id: int) -> dict:
             except (OSError, RuntimeError) as save_error:
                 logger.error("Wanted %d: Failed to save source ASS from %s: %s",
                              item_id, result.provider_name, save_error)
-                # Fall through to next step
-                continue
+                raise  # skip to next step
             
             # Build arr_context for glossary lookup
             arr_context = {}
@@ -500,21 +499,21 @@ def process_wanted_item(item_id: int) -> dict:
             except Exception as trans_error:
                 logger.error("Wanted %d: Translation failed for source ASS: %s",
                              item_id, trans_error, exc_info=True)
-                # Clean up and fall through
+                # Clean up and skip to next step
                 try:
                     if os.path.exists(tmp_source_path):
                         os.remove(tmp_source_path)
                 except Exception:
                     pass
-                continue
-            
+                raise  # skip to next step
+
             # Clean up temporary source file
             try:
                 if os.path.exists(tmp_source_path):
                     os.remove(tmp_source_path)
             except Exception:
                 pass
-            
+
             if translate_result and translate_result.get("success"):
                 logger.info("Wanted %d: Translated source ASS from provider %s",
                            item_id, result.provider_name)
@@ -569,8 +568,7 @@ def process_wanted_item(item_id: int) -> dict:
             except (OSError, RuntimeError) as save_error:
                 logger.error("Wanted %d: Failed to save source SRT from %s: %s",
                              item_id, result.provider_name, save_error)
-                # Fall through to next step
-                continue
+                raise  # skip to next step
             
             # Build arr_context for glossary lookup
             arr_context = {}
@@ -591,21 +589,21 @@ def process_wanted_item(item_id: int) -> dict:
             except Exception as trans_error:
                 logger.error("Wanted %d: Translation failed for source SRT: %s",
                              item_id, trans_error, exc_info=True)
-                # Clean up and fall through
+                # Clean up and skip to next step
                 try:
                     if os.path.exists(tmp_source_path):
                         os.remove(tmp_source_path)
                 except Exception:
                     pass
-                continue
-            
+                raise  # skip to next step
+
             # Clean up temporary source file
             try:
                 if os.path.exists(tmp_source_path):
                     os.remove(tmp_source_path)
             except Exception:
                 pass
-            
+
             if translate_result and translate_result.get("success"):
                 logger.info("Wanted %d: Translated source SRT from provider %s",
                            item_id, result.provider_name)
