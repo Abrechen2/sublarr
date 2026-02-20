@@ -199,8 +199,8 @@ export function useExtractEmbeddedSub() {
 export function useStartWantedBatch() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ itemIds, seriesId }: { itemIds?: number[]; seriesId?: number } = {}) =>
-      startWantedBatchSearch(itemIds, seriesId),
+    mutationFn: (vars?: { itemIds?: number[]; seriesId?: number }) =>
+      startWantedBatchSearch(vars?.itemIds, vars?.seriesId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wanted-batch-status'] })
     },
