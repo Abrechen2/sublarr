@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 15 fully complete - API Keys + Notification Templates + Cleanup Frontend
+**Current focus:** Phase 16 in progress - External Integrations (compat checker, export, integrations API)
 
 ## Current Position
 
-Phase: 15 of 16 (API-Key Mgmt + Notifications + Cleanup)
-Plan: 5 of 5 in current phase (wave 2 cleanup frontend)
-Status: Phase complete
-Last activity: 2026-02-20 -- Completed 15-05-PLAN.md (Cleanup Frontend)
+Phase: 16 of 16 (External Integrations)
+Plan: 2 of 3 in current phase (compat checker + export + integrations API)
+Status: In progress
+Last activity: 2026-02-20 -- Completed 16-02-PLAN.md (Compat Checker, Export Manager, Integrations API)
 
-Progress: [█████████████████████████] 5/5 plans in phase
+Progress: [████████████████░░░░░░░░░] 2/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 68
+- Total plans completed: 70
 - Average duration: 9 min
-- Total execution time: 587 min
+- Total execution time: 597 min
 
 **By Phase:**
 
@@ -43,10 +43,11 @@ Progress: [███████████████████████
 | 12-batch-operations-smart-filter | 3/3 | 33 min | 11 min |
 | 14-dashboard-widgets-quick-actions | 2/2 | 15 min | 8 min |
 | 15-api-key-mgmt-notifications-cleanup | 5/5 | 39 min | 8 min |
+| 16-external-integrations | 2/3 | 10 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 15-01 (4 min), 15-02 (6 min), 15-03 (8 min), 15-04 (10 min), 15-05 (11 min)
-- Trend: Phase 15 fully complete -- API Keys + Notification Templates + Cleanup Frontend
+- Last 5 plans: 15-03 (8 min), 15-04 (10 min), 15-05 (11 min), 16-01 (5 min), 16-02 (5 min)
+- Trend: Phase 16 in progress -- External Integrations (compat checker + export + API)
 
 *Updated after each plan completion*
 
@@ -386,6 +387,12 @@ Recent decisions affecting current work:
 - [15-05]: DedupGroupList initializes first file as KEEP by default, rest as DELETE -- matches user expectation for keep-best
 - [15-05]: Dashboard DiskSpaceWidget uses compact donut chart without tooltips -- minimal footprint matching existing widget patterns
 
+- [16-02]: ISO 639-1/2 codes hardcoded as Python sets (~80+130 codes) for zero external dependencies in compat_checker
+- [16-02]: Compat checker validates relative path positioning (not absolute paths) to handle Docker volume mappings
+- [16-02]: Export manager limits subtitle file scanning to 1000 files to prevent excessive I/O on large libraries
+- [16-02]: Kodi checker accepts BCP 47 with underscore separator and English language names per Kodi 22+ docs
+- [16-02]: Media server health endpoint uses extended_health_check if available, falls back to basic health_check
+
 ### Pending Todos
 
 None yet.
@@ -413,5 +420,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Phase 15 fully complete -- Cleanup Frontend (last plan in phase)
-Resume file: .planning/phases/15-api-key-mgmt-notifications-cleanup/15-05-SUMMARY.md
+Stopped at: Phase 16 plan 2 of 3 complete -- Compat Checker, Export Manager, Integrations API
+Resume file: .planning/phases/16-external-integrations/16-02-SUMMARY.md
