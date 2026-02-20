@@ -44,6 +44,16 @@ from db.models.standalone import (
     AnidbMapping,
 )
 from db.models.quality import SubtitleHealthResult
+from db.models.cleanup import (
+    SubtitleHash,
+    CleanupRule,
+    CleanupHistory,
+)
+from db.models.notifications import (
+    NotificationTemplate,
+    NotificationHistory,
+    QuietHoursConfig,
+)
 
 __all__ = [
     # core
@@ -83,4 +93,12 @@ __all__ = [
     "SubtitleHealthResult",
     # filter presets
     "FilterPreset",
+    # cleanup
+    "SubtitleHash",
+    "CleanupRule",
+    "CleanupHistory",
+    # notifications
+    "NotificationTemplate",
+    "NotificationHistory",
+    "QuietHoursConfig",
 ]
