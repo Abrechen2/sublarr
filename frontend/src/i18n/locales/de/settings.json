@@ -2,6 +2,7 @@
   "title": "Einstellungen",
   "tabs": {
     "general": "Allgemein",
+    "api_keys": "API Keys",
     "translation": "Uebersetzung",
     "translation_backends": "Uebersetzungs-Backends",
     "languages": "Sprachen",
@@ -17,7 +18,7 @@
     "scoring": "Scoring",
     "backup": "Backup",
     "subtitle_tools": "Untertitel-Werkzeuge",
-    "notifications": "Benachrichtigungen",
+    "notification_templates": "Benachrichtigungs-Vorlagen",
     "prompt_presets": "Prompt-Vorlagen"
   },
   "general": {
@@ -76,7 +77,54 @@
     "on_upgrade": "Benachrichtigung bei Upgrade",
     "on_batch_complete": "Benachrichtigung bei Batch-Abschluss",
     "on_error": "Benachrichtigung bei Fehler",
-    "manual_actions": "Manuelle Aktionen benachrichtigen"
+    "manual_actions": "Manuelle Aktionen benachrichtigen",
+    "toggles": "Benachrichtigungs-Events",
+    "templates": {
+      "title": "Vorlagen",
+      "create": "Neue Vorlage",
+      "edit": "Vorlage bearbeiten",
+      "preview": "Vorschau",
+      "previewHint": "Speichern Sie eine Vorlage, um die Vorschau zu sehen.",
+      "name": "Vorlagenname",
+      "titleTemplate": "Titel-Vorlage",
+      "bodyTemplate": "Text-Vorlage",
+      "eventType": "Event-Typ",
+      "serviceName": "Dienstname",
+      "variables": "Verfuegbare Variablen"
+    },
+    "quietHours": {
+      "title": "Ruhezeiten",
+      "name": "Name",
+      "startTime": "Startzeit",
+      "endTime": "Endzeit",
+      "days": "Aktive Tage",
+      "exceptions": "Ausnahme-Events (immer senden)"
+    },
+    "history": {
+      "title": "Benachrichtigungs-Verlauf",
+      "resend": "Erneut senden",
+      "clear": "Verlauf loeschen",
+      "status": "Status"
+    },
+    "filters": {
+      "title": "Event-Filter",
+      "include": "Nur einschliessen (wenn gesetzt, nur diese Events)",
+      "exclude": "Events ausschliessen",
+      "content": "Inhaltsfilter"
+    }
+  },
+  "apiKeys": {
+    "title": "API-Key-Verwaltung",
+    "description": "Alle API Keys zentral verwalten. Verbindungen testen, Keys rotieren und Konfigurationen importieren/exportieren.",
+    "export": "Keys exportieren",
+    "import": "Keys importieren",
+    "bazarrImport": "Bazarr-Migration",
+    "noServices": "Keine API-Key-Dienste gefunden.",
+    "keyUpdated": "Key erfolgreich aktualisiert",
+    "keyUpdateFailed": "Key-Aktualisierung fehlgeschlagen",
+    "exportSuccess": "API Keys exportiert",
+    "exportFailed": "Export fehlgeschlagen",
+    "importFailed": "Import fehlgeschlagen"
   },
   "actions": {
     "save": "Speichern",

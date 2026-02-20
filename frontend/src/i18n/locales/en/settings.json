@@ -2,6 +2,7 @@
   "title": "Settings",
   "tabs": {
     "general": "General",
+    "api_keys": "API Keys",
     "translation": "Translation",
     "translation_backends": "Translation Backends",
     "languages": "Languages",
@@ -17,7 +18,7 @@
     "scoring": "Scoring",
     "backup": "Backup",
     "subtitle_tools": "Subtitle Tools",
-    "notifications": "Notifications",
+    "notification_templates": "Notification Templates",
     "prompt_presets": "Prompt Presets"
   },
   "general": {
@@ -76,7 +77,54 @@
     "on_upgrade": "Notify on Upgrade",
     "on_batch_complete": "Notify on Batch Complete",
     "on_error": "Notify on Error",
-    "manual_actions": "Notify Manual Actions"
+    "manual_actions": "Notify Manual Actions",
+    "toggles": "Notification Events",
+    "templates": {
+      "title": "Templates",
+      "create": "New Template",
+      "edit": "Edit Template",
+      "preview": "Preview",
+      "previewHint": "Save a template to see its preview.",
+      "name": "Template Name",
+      "titleTemplate": "Title Template",
+      "bodyTemplate": "Body Template",
+      "eventType": "Event Type",
+      "serviceName": "Service Name",
+      "variables": "Available Variables"
+    },
+    "quietHours": {
+      "title": "Quiet Hours",
+      "name": "Name",
+      "startTime": "Start Time",
+      "endTime": "End Time",
+      "days": "Active Days",
+      "exceptions": "Exception Events (always send)"
+    },
+    "history": {
+      "title": "Notification History",
+      "resend": "Re-send",
+      "clear": "Clear History",
+      "status": "Status"
+    },
+    "filters": {
+      "title": "Event Filters",
+      "include": "Include Only (if set, only these events)",
+      "exclude": "Exclude Events",
+      "content": "Content Filters"
+    }
+  },
+  "apiKeys": {
+    "title": "API Key Management",
+    "description": "Manage all API keys in one place. Test connections, rotate keys, and import/export configurations.",
+    "export": "Export Keys",
+    "import": "Import Keys",
+    "bazarrImport": "Bazarr Migration",
+    "noServices": "No API key services found.",
+    "keyUpdated": "Key updated successfully",
+    "keyUpdateFailed": "Failed to update key",
+    "exportSuccess": "API keys exported",
+    "exportFailed": "Export failed",
+    "importFailed": "Import failed"
   },
   "actions": {
     "save": "Save",

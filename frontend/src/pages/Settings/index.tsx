@@ -17,6 +17,8 @@ import { MediaServersTab } from './MediaServersTab'
 import { EventsHooksTab, ScoringTab } from './EventsTab'
 import { LanguageProfilesTab, LibrarySourcesTab, BackupTab, SubtitleToolsTab } from './AdvancedTab'
 import { ApiKeysTab } from './ApiKeysTab'
+import { NotificationTemplatesTab } from './NotificationTemplatesTab'
+import { CleanupTab } from './CleanupTab'
 
 const TABS = [
   'General',
@@ -36,7 +38,8 @@ const TABS = [
   'Scoring',
   'Backup',
   'Subtitle Tools',
-  'Notifications',
+  'Cleanup',
+  'Notification Templates',
   'Prompt Presets',
 ]
 
@@ -94,12 +97,6 @@ const FIELDS: FieldConfig[] = [
   { key: 'tvdb_pin', label: 'TVDB PIN (Optional)', type: 'password', tab: 'Library Sources' },
   { key: 'standalone_scan_interval_hours', label: 'Scan Interval (hours, 0=disabled)', type: 'number', placeholder: '6', tab: 'Library Sources' },
   { key: 'standalone_debounce_seconds', label: 'File Detection Debounce (seconds)', type: 'number', placeholder: '10', tab: 'Library Sources' },
-  // Notifications
-  { key: 'notify_on_download', label: 'Notify on Download', type: 'text', placeholder: 'true', tab: 'Notifications' },
-  { key: 'notify_on_upgrade', label: 'Notify on Upgrade', type: 'text', placeholder: 'true', tab: 'Notifications' },
-  { key: 'notify_on_batch_complete', label: 'Notify on Batch Complete', type: 'text', placeholder: 'true', tab: 'Notifications' },
-  { key: 'notify_on_error', label: 'Notify on Error', type: 'text', placeholder: 'true', tab: 'Notifications' },
-  { key: 'notify_manual_actions', label: 'Notify Manual Actions', type: 'text', placeholder: 'false', tab: 'Notifications' },
 ]
 
 // ─── Path Mapping Editor ────────────────────────────────────────────────────
@@ -465,7 +462,8 @@ const TAB_KEYS: Record<string, string> = {
   'Scoring': 'tabs.scoring',
   'Backup': 'tabs.backup',
   'Subtitle Tools': 'tabs.subtitle_tools',
-  'Notifications': 'tabs.notifications',
+  'Cleanup': 'tabs.cleanup',
+  'Notification Templates': 'tabs.notification_templates',
   'Prompt Presets': 'tabs.prompt_presets',
 }
 
@@ -591,6 +589,7 @@ export function SettingsPage() {
   const isScoringTab = activeTab === 'Scoring'
   const isBackupTab = activeTab === 'Backup'
   const isSubtitleToolsTab = activeTab === 'Subtitle Tools'
+  const isCleanupTab = activeTab === 'Cleanup'
   const isApiKeysTab = activeTab === 'API Keys'
 
   if (isLoading) {
@@ -692,6 +691,10 @@ export function SettingsPage() {
             <BackupTab />
           ) : isSubtitleToolsTab ? (
             <SubtitleToolsTab />
+          ) : isCleanupTab ? (
+            <CleanupTab />
+          ) : activeTab === 'Notification Templates' ? (
+            <NotificationTemplatesTab />
           ) : (
             <div
               className="rounded-lg p-5 space-y-4"
@@ -766,73 +769,6 @@ export function SettingsPage() {
                       </span>
                     </div>
                   )}
-                </div>
-              )}
-
-              {activeTab === 'Notifications' && (
-                <div className="pt-3 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                      Notification URLs (Apprise)
-                    </label>
-                    <textarea
-                      value={values.notification_urls_json ?? ''}
-                      onChange={(e) => setValues((v) => ({ ...v, notification_urls_json: e.target.value }))}
-                      placeholder={'One URL per line, e.g.:\npushover://user@token\ndiscord://webhook_id/webhook_token\ntgram://bot_token/chat_id'}
-                      rows={4}
-                      className="w-full px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none resize-y"
-                      style={{
-                        backgroundColor: 'var(--bg-primary)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--text-primary)',
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '13px',
-                      }}
-                    />
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      Supports Pushover, Discord, Telegram, Gotify, Email, and many more.{' '}
-                      <a
-                        href="https://github.com/caronc/apprise/wiki"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: 'var(--accent)' }}
-                      >
-                        See Apprise docs
-                      </a>
-                    </p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      try {
-                        const { testNotification } = await import('@/api/client')
-                        const result = await testNotification()
-                        if (result.success) {
-                          toast('Test notification sent!')
-                        } else {
-                          toast(result.message || 'Test failed', 'error')
-                        }
-                      } catch {
-                        toast('Failed to send test notification', 'error')
-                      }
-                    }}
-                    className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
-                    style={{
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-secondary)',
-                      backgroundColor: 'var(--bg-primary)',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--accent-dim)'
-                      e.currentTarget.style.color = 'var(--accent)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--border)'
-                      e.currentTarget.style.color = 'var(--text-secondary)'
-                    }}
-                  >
-                    <TestTube size={14} />
-                    Send Test Notification
-                  </button>
                 </div>
               )}
 
