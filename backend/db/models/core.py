@@ -97,6 +97,10 @@ class WantedItem(db.Model):
         Index("idx_wanted_sonarr_series", "sonarr_series_id"),
         Index("idx_wanted_sonarr_episode", "sonarr_episode_id"),
         Index("idx_wanted_radarr_movie", "radarr_movie_id"),
+        # Composite index for the most common multi-filter pattern:
+        # get_wanted_items() filters by both status and item_type together.
+        # Avoids SQLite merging two single-column index scans.
+        Index("idx_wanted_composite", "status", "item_type"),
     )
 
 
