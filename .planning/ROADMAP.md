@@ -327,11 +327,12 @@ Plans:
   2. Plex compatibility check validates that subtitle file naming and placement match Plex conventions
   3. Sonarr/Radarr and Jellyfin/Emby health checks report extended diagnostics (connection, API version, library access, webhook status)
   4. Config and subtitle data can be exported in formats compatible with Bazarr, Plex, Kodi, and a generic JSON format
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 16-01: TBD
-- [ ] 16-02: TBD
+- [ ] 16-01-PLAN.md -- Extended health checks for all clients (Sonarr, Radarr, Jellyfin, Plex, Kodi) + Bazarr migration deepening with mapping report
+- [ ] 16-02-PLAN.md -- Compat checker (Plex/Kodi naming validation) + Export manager (4 formats + ZIP) + Integrations API blueprint
+- [ ] 16-03-PLAN.md -- Frontend IntegrationsTab with migration UI, compat check, extended health diagnostics, multi-format export, i18n
 
 ## Progress
 
@@ -358,7 +359,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | 13. Comparison + Sync + Health-Check | 3/3 | Complete | 2026-02-18 |
 | 14. Dashboard Widgets + Quick-Actions | 2/2 | Complete | 2026-02-19 |
 | 15. API-Key Mgmt + Notifications + Cleanup | 5/5 | Complete | 2026-02-20 |
-| 16. External Integrations | 0/TBD | Not started | - |
+| 16. External Integrations | 0/3 | Not started | - |
 
 ## Dependency Graph
 
@@ -384,4 +385,4 @@ Phase 0 (Architecture)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-19 (Phase 15 planned -- API-Key Mgmt + Notifications + Cleanup)*
+*Last updated: 2026-02-20 (Phase 16 planned -- External Integrations)*
