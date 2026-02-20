@@ -43,6 +43,7 @@ Progress: [████████████████░░░░░░░
 | 12-batch-operations-smart-filter | 3/3 | 33 min | 11 min |
 | 14-dashboard-widgets-quick-actions | 2/2 | 15 min | 8 min |
 | 15-api-key-mgmt-notifications-cleanup | 5/5 | 39 min | 8 min |
+| 16-external-integrations | 1/3 | 3 min | 3 min |
 | 16-external-integrations | 2/3 | 10 min | 5 min |
 
 **Recent Trend:**
@@ -387,6 +388,12 @@ Recent decisions affecting current work:
 - [15-05]: DedupGroupList initializes first file as KEEP by default, rest as DELETE -- matches user expectation for keep-best
 - [15-05]: Dashboard DiskSpaceWidget uses compact donut chart without tooltips -- minimal footprint matching existing widget patterns
 
+- [16-01]: extended_health_check() added as new method -- existing health_check() completely untouched
+- [16-01]: Bazarr _get_table_info() uses PRAGMA table_info for schema-tolerant column discovery
+- [16-01]: generate_mapping_report() masks sensitive fields (apikey, password, token, secret) in sample rows
+- [16-01]: Kodi JSON-RPC version extracted via JSONRPC.Version method (major.minor.patch)
+- [16-01]: _read_history limited to 1000 rows DESC for performance on large Bazarr databases
+
 - [16-02]: ISO 639-1/2 codes hardcoded as Python sets (~80+130 codes) for zero external dependencies in compat_checker
 - [16-02]: Compat checker validates relative path positioning (not absolute paths) to handle Docker volume mappings
 - [16-02]: Export manager limits subtitle file scanning to 1000 files to prevent excessive I/O on large libraries
@@ -415,6 +422,7 @@ None yet.
 - Phase 12 complete -- all 3 plans executed (backend FTS5/presets/batch API + frontend FilterBar/BatchActionBar/GlobalSearchModal/selectionStore + page integration/i18n/tests)
 - Phase 14 complete -- all 2 plans executed (dashboard widget system + quick-actions FAB + keyboard shortcuts)
 - Phase 15 complete -- all 5 plans executed (API key management + Bazarr migration, notification management backend, cleanup system backend, frontend Settings tabs, cleanup frontend)
+- Phase 16 in progress -- plan 01 complete (extended health checks + Bazarr migration depth)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
