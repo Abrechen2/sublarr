@@ -5,7 +5,7 @@
 # ═══════════════════════════════════════════════════════════════
 
 # Stage 1: Build React Frontend
-FROM --platform=$BUILDPLATFORM node:20-alpine AS frontend
+FROM --platform=$BUILDPLATFORM node:25-alpine AS frontend
 WORKDIR /build
 COPY frontend/package*.json ./
 RUN npm ci
