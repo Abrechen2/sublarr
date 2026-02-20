@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 15 frontend complete - API Keys + Notification Templates UI
+**Current focus:** Phase 15 fully complete - API Keys + Notification Templates + Cleanup Frontend
 
 ## Current Position
 
 Phase: 15 of 16 (API-Key Mgmt + Notifications + Cleanup)
-Plan: 4 of 4 in current phase (wave 2 frontend)
+Plan: 5 of 5 in current phase (wave 2 cleanup frontend)
 Status: Phase complete
-Last activity: 2026-02-20 -- Completed 15-04-PLAN.md (Frontend Settings Tabs)
+Last activity: 2026-02-20 -- Completed 15-05-PLAN.md (Cleanup Frontend)
 
-Progress: [█████████████████████████] 4/4 plans in phase
+Progress: [█████████████████████████] 5/5 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 67
+- Total plans completed: 68
 - Average duration: 9 min
-- Total execution time: 576 min
+- Total execution time: 587 min
 
 **By Phase:**
 
@@ -42,11 +42,11 @@ Progress: [███████████████████████
 | 13-comparison-sync-health-check | 3/3 | 19 min | 6 min |
 | 12-batch-operations-smart-filter | 3/3 | 33 min | 11 min |
 | 14-dashboard-widgets-quick-actions | 2/2 | 15 min | 8 min |
-| 15-api-key-mgmt-notifications-cleanup | 4/4 | 28 min | 7 min |
+| 15-api-key-mgmt-notifications-cleanup | 5/5 | 39 min | 8 min |
 
 **Recent Trend:**
-- Last 5 plans: 14-02 (7 min), 15-01 (4 min), 15-02 (6 min), 15-03 (8 min), 15-04 (10 min)
-- Trend: Phase 15 complete -- API Keys + Notification Templates frontend tabs
+- Last 5 plans: 15-01 (4 min), 15-02 (6 min), 15-03 (8 min), 15-04 (10 min), 15-05 (11 min)
+- Trend: Phase 15 fully complete -- API Keys + Notification Templates + Cleanup Frontend
 
 *Updated after each plan completion*
 
@@ -381,6 +381,11 @@ Recent decisions affecting current work:
 - [15-04]: TemplatePreview debounces at 500ms to avoid excessive API calls on rapid editing
 - [15-04]: QuietHoursConfig includes 24h timeline bar visualization for overnight range support
 
+- [15-05]: Polling-based scan progress (2s interval via useCleanupScanStatus) instead of WebSocket -- useWebSocket hook has no generic event listener pattern
+- [15-05]: CleanupTab uses collapsible Section component for all five sections -- History collapsed by default to reduce clutter
+- [15-05]: DedupGroupList initializes first file as KEEP by default, rest as DELETE -- matches user expectation for keep-best
+- [15-05]: Dashboard DiskSpaceWidget uses compact donut chart without tooltips -- minimal footprint matching existing widget patterns
+
 ### Pending Todos
 
 None yet.
@@ -402,11 +407,11 @@ None yet.
 - Phase 13 complete -- all 3 plans executed (backend health/sync/compare + frontend types/hooks/comparison/sync + frontend health UI/charts/dashboard)
 - Phase 12 complete -- all 3 plans executed (backend FTS5/presets/batch API + frontend FilterBar/BatchActionBar/GlobalSearchModal/selectionStore + page integration/i18n/tests)
 - Phase 14 complete -- all 2 plans executed (dashboard widget system + quick-actions FAB + keyboard shortcuts)
-- Phase 15 complete -- all 4 plans executed (API key management + Bazarr migration, notification management backend, cleanup system backend, frontend Settings tabs)
+- Phase 15 complete -- all 5 plans executed (API key management + Bazarr migration, notification management backend, cleanup system backend, frontend Settings tabs, cleanup frontend)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Phase 15 complete -- Frontend Settings Tabs (API Keys + Notification Templates)
-Resume file: .planning/phases/15-api-key-mgmt-notifications-cleanup/15-04-SUMMARY.md
+Stopped at: Phase 15 fully complete -- Cleanup Frontend (last plan in phase)
+Resume file: .planning/phases/15-api-key-mgmt-notifications-cleanup/15-05-SUMMARY.md
