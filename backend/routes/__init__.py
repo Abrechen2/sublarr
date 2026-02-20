@@ -25,6 +25,7 @@ def register_blueprints(app):
     from routes.search import bp as search_bp
     from routes.filter_presets import bp as filter_presets_bp
     from routes.api_keys import bp as api_keys_bp
+    from routes.notifications_mgmt import bp as notifications_mgmt_bp
 
     for blueprint in [
         translate_bp,
@@ -45,5 +46,6 @@ def register_blueprints(app):
         search_bp,
         filter_presets_bp,
         api_keys_bp,
+        notifications_mgmt_bp,
     ]:
         app.register_blueprint(blueprint)
