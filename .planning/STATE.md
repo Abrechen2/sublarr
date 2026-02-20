@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 14 complete - Dashboard Widgets + Quick-Actions
+**Current focus:** Phase 15 in progress - API-Key Mgmt + Notifications + Cleanup
 
 ## Current Position
 
-Phase: 14 of 16 (Dashboard Widgets + Quick-Actions)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-19 -- Completed 14-02-PLAN.md (Quick-Actions FAB + Keyboard Shortcuts)
+Phase: 15 of 16 (API-Key Mgmt + Notifications + Cleanup)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-20 -- Completed 15-01-PLAN.md (API Key Management + Bazarr Migration)
 
-Progress: [█████████████████████████] 2/2 plans in phase
+Progress: [████████░░░░░░░░░░░░░░░░░] 1/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 63
+- Total plans completed: 64
 - Average duration: 9 min
-- Total execution time: 548 min
+- Total execution time: 552 min
 
 **By Phase:**
 
@@ -42,10 +42,11 @@ Progress: [███████████████████████
 | 13-comparison-sync-health-check | 3/3 | 19 min | 6 min |
 | 12-batch-operations-smart-filter | 3/3 | 33 min | 11 min |
 | 14-dashboard-widgets-quick-actions | 2/2 | 15 min | 8 min |
+| 15-api-key-mgmt-notifications-cleanup | 1/3 | 4 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 12-01 (11 min), 12-02 (10 min), 12-03 (12 min), 14-01 (8 min), 14-02 (7 min)
-- Trend: Phase 14 complete -- dashboard widgets + quick-actions FAB + keyboard shortcuts
+- Last 5 plans: 12-03 (12 min), 14-01 (8 min), 14-02 (7 min), 15-01 (4 min)
+- Trend: Phase 15 started -- API key management + Bazarr migration backend
 
 *Updated after each plan completion*
 
@@ -353,6 +354,11 @@ Recent decisions affecting current work:
 - [14-02]: Ctrl+K handler preserved in App.tsx as-is -- not re-registered in useKeyboardShortcuts to avoid double-fire
 - [14-02]: FAB hides entirely when no actions available for current route
 - [14-02]: Page-specific hotkeys registered dynamically based on current route actions
+- [15-01]: API_KEY_REGISTRY maps 10 services to config_entries keys and optional test functions
+- [15-01]: _mask_value shows first4+***+last4 (all *** if <=8 chars) for consistent secret masking
+- [15-01]: Test dispatch via _TEST_DISPATCH dict with lazy-imported functions to avoid circular imports
+- [15-01]: Bazarr config auto-detection: YAML first, then INI fallback when extension unknown
+- [15-01]: Bazarr DB opened read-only (file:...?mode=ro) with per-table try/except for version tolerance
 
 ### Pending Todos
 
@@ -375,10 +381,11 @@ None yet.
 - Phase 13 complete -- all 3 plans executed (backend health/sync/compare + frontend types/hooks/comparison/sync + frontend health UI/charts/dashboard)
 - Phase 12 complete -- all 3 plans executed (backend FTS5/presets/batch API + frontend FilterBar/BatchActionBar/GlobalSearchModal/selectionStore + page integration/i18n/tests)
 - Phase 14 complete -- all 2 plans executed (dashboard widget system + quick-actions FAB + keyboard shortcuts)
+- Phase 15 in progress -- 1/3 plans executed (API key management + Bazarr migration)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
-Last session: 2026-02-19
-Stopped at: Phase 14 complete -- Quick-Actions FAB + Keyboard Shortcuts
-Resume file: .planning/phases/14-dashboard-widgets-quick-actions/14-02-SUMMARY.md
+Last session: 2026-02-20
+Stopped at: Phase 15, Plan 01 complete -- API Key Management + Bazarr Migration
+Resume file: .planning/phases/15-api-key-mgmt-notifications-cleanup/15-01-SUMMARY.md
