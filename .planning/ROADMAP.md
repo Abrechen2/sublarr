@@ -1,348 +1,40 @@
-# Roadmap: Sublarr Phase 2+3
-
-## Overview
-
-Sublarr Phase 2 transforms the subtitle manager from a monolithic Ollama-only tool into an open platform with plugin extensibility, multi-backend translation, Whisper speech-to-text, and media server abstraction. Phase 3 adds advanced UX features: a subtitle editor, batch operations, comparison tools, and dashboard customization. The journey starts with architecture refactoring (Application Factory, Blueprints) that unblocks everything else, progresses through core platform capabilities, and culminates in polish and external integrations.
+# Roadmap: Sublarr
 
 ## Milestones
 
-- 📋 **Phase 2: Open Platform** - Phases 0-10 (architecture through performance)
-- 📋 **Phase 3: Advanced Features & UX** - Phases 11-16 (editor through integrations)
+- ✅ **v0.9.0-beta — Open Platform + Advanced Features** — Phases 0-16 (shipped 2026-02-20)
 
 ## Phases
 
-**Phase Numbering:**
-- Integer phases (0-16): Planned milestone work
-- Decimal phases (e.g., 2.1): Urgent insertions (marked with INSERTED)
+<details>
+<summary>✅ v0.9.0-beta — Open Platform + Advanced Features (Phases 0-16) — SHIPPED 2026-02-20</summary>
 
-Decimal phases appear between their surrounding integers in numeric order.
+- [x] Phase 0: Architecture Refactoring (3/3 plans) — Convert monolith to Application Factory + Blueprints — completed 2026-02-15
+- [x] Phase 1: Provider Plugin + Expansion (6/6 plans) — Plugin system and 8 new built-in providers — completed 2026-02-15
+- [x] Phase 2: Translation Multi-Backend (6/6 plans) — ABC-based multi-backend translation with fallback chains — completed 2026-02-15
+- [x] Phase 3: Media-Server Abstraction (3/3 plans) — Plex, Kodi support alongside existing Jellyfin/Emby — completed 2026-02-15
+- [x] Phase 4: Whisper Speech-to-Text (3/3 plans) — faster-whisper and Subgen integration as translation fallback — completed 2026-02-15
+- [x] Phase 5: Standalone Mode (5/5 plans) — Folder-watch operation without Sonarr/Radarr dependency — completed 2026-02-15
+- [x] Phase 6: Forced/Signs Subtitle Management (3/3 plans) — Forced subtitle detection, search, and per-series config — completed 2026-02-15
+- [x] Phase 7: Events/Hooks + Custom Scoring (3/3 plans) — Internal event bus, script hooks, outgoing webhooks, scoring config — completed 2026-02-15
+- [x] Phase 8: i18n + Backup + Admin Polish (5/5 plans) — UI internationalization, backup/restore, statistics, theming — completed 2026-02-15
+- [x] Phase 9: OpenAPI + Release Preparation (5/5 plans) — API documentation, performance tuning, community launch — completed 2026-02-18
+- [x] Phase 10: Performance & Scalability (8/8 plans) — SQLAlchemy/PostgreSQL option, Redis caching, RQ job queue — completed 2026-02-18
+- [x] Phase 11: Subtitle Editor (4/4 plans) — ASS/SRT preview component and inline editor with CodeMirror — completed 2026-02-18
+- [x] Phase 12: Batch Operations + Smart-Filter (3/3 plans) — Multi-select bulk actions, saved filters, global search — completed 2026-02-19
+- [x] Phase 13: Comparison + Sync + Health-Check (3/3 plans) — Side-by-side diff, timing sync, subtitle health analysis — completed 2026-02-18
+- [x] Phase 14: Dashboard Widgets + Quick-Actions (2/2 plans) — Drag-and-drop widgets, keyboard shortcuts, FAB toolbar — completed 2026-02-19
+- [x] Phase 15: API-Key Mgmt + Notifications + Cleanup (5/5 plans) — Key management, notification templates, deduplication — completed 2026-02-20
+- [x] Phase 16: External Integrations (3/3 plans) — Bazarr migration, Plex/Kodi compatibility, export formats — completed 2026-02-20
 
-- [x] **Phase 0: Architecture Refactoring** - Convert monolith to Application Factory + Blueprints
-- [x] **Phase 1: Provider Plugin + Expansion** - Plugin system and 8 new built-in providers
-- [x] **Phase 2: Translation Multi-Backend** - ABC-based multi-backend translation with fallback chains
-- [x] **Phase 3: Media-Server Abstraction** - Plex, Kodi support alongside existing Jellyfin/Emby
-- [x] **Phase 4: Whisper Speech-to-Text** - faster-whisper and Subgen integration as translation fallback
-- [x] **Phase 5: Standalone Mode** - Folder-watch operation without Sonarr/Radarr dependency
-- [x] **Phase 6: Forced/Signs Subtitle Management** - Forced subtitle detection, search, and per-series config
-- [x] **Phase 7: Events/Hooks + Custom Scoring** - Internal event bus, script hooks, outgoing webhooks, scoring config
-- [x] **Phase 8: i18n + Backup + Admin Polish** - UI internationalization, backup/restore, statistics, theming
-- [x] **Phase 9: OpenAPI + Release Preparation** - API documentation, performance tuning, community launch
-- [x] **Phase 10: Performance & Scalability** - SQLAlchemy/PostgreSQL option, Redis caching, RQ job queue
-- [x] **Phase 11: Subtitle Editor** - ASS/SRT preview component and inline editor with CodeMirror
-- [x] **Phase 12: Batch Operations + Smart-Filter** - Multi-select bulk actions, saved filters, global search
-- [x] **Phase 13: Comparison + Sync + Health-Check** - Side-by-side diff, timing sync, subtitle health analysis
-- [x] **Phase 14: Dashboard Widgets + Quick-Actions** - Drag-and-drop widgets, keyboard shortcuts, FAB toolbar
-- [x] **Phase 15: API-Key Mgmt + Notifications + Cleanup** - Key management, notification templates, deduplication
-- [x] **Phase 16: External Integrations** - Bazarr migration, Plex/Kodi compatibility, export formats
-
-## Phase Details
-
-### Phase 0: Architecture Refactoring
-**Goal**: Codebase supports Application Factory pattern and Blueprint-based routing so plugins, backends, and media servers can register cleanly
-**Depends on**: Nothing (prerequisite for everything)
-**Requirements**: ARCH-01, ARCH-02, ARCH-03, ARCH-04
-**Success Criteria** (what must be TRUE):
-  1. Application starts via `create_app()` factory function, not module-level globals
-  2. API routes are organized in separate Blueprint files (translate, providers, library, wanted, config, webhooks, system) instead of one monolithic server.py
-  3. Database access uses Flask app context instead of module-level singletons, and database.py is split into focused modules
-  4. All existing tests pass without modification (backward compatibility preserved)
-**Plans:** 3 plans
-
-Plans:
-- [x] 00-01-PLAN.md -- Split database.py into db/ package (9 domain modules)
-- [x] 00-02-PLAN.md -- Create extensions.py, app.py factory, routes/ package (9 blueprints)
-- [x] 00-03-PLAN.md -- Update all imports, entry points, delete old files, verify tests
-
-### Phase 1: Provider Plugin + Expansion
-**Goal**: Users can install third-party provider plugins and access 8 additional built-in providers, expanding subtitle coverage across languages and sources
-**Depends on**: Phase 0 (needs Application Factory for plugin registration)
-**Requirements**: PLUG-01, PLUG-02, PLUG-03, PLUG-04, PLUG-05, PROV-01, PROV-02, PROV-03, PROV-04, PROV-05, PROV-06, PROV-07, PROV-08, PROV-09, PROV-10
-**Success Criteria** (what must be TRUE):
-  1. User can drop a Python file into the plugins directory and it appears as a usable provider after restart (or hot-reload)
-  2. User can configure plugin-specific settings (credentials, options) through the Settings UI without code changes
-  3. User can search and download subtitles from at least 8 new providers (Addic7ed, Podnapisi, Gestdown, Kitsunekko, Whisper-Subgen, Napisy24, Titrari, LegendasDivx)
-  4. Provider health dashboard shows per-provider success rate, response time, and download count; unhealthy providers auto-disable with cooldown
-  5. Plugin developer documentation and template enable creating a new provider in under 30 minutes
-**Plans:** 6 plans
-
-Plans:
-- [x] 01-01-PLAN.md -- Plugin infrastructure: declarative config_fields, plugin discovery, manifest validation, DB config storage, API endpoints
-- [x] 01-02-PLAN.md -- Provider health monitoring: response time tracking, auto-disable with cooldown, frontend stats display
-- [x] 01-03-PLAN.md -- Plugin hot-reload (watchdog file watcher + API endpoint) and developer template with documentation
-- [x] 01-04-PLAN.md -- REST/XML providers: Gestdown (Addic7ed proxy) and Podnapisi
-- [x] 01-05-PLAN.md -- Specialized providers: Kitsunekko (Japanese scraping), Napisy24 (Polish hash), Whisper-Subgen (external ASR)
-- [x] 01-06-PLAN.md -- Scraping providers: Titrari (Romanian) and LegendasDivx (Portuguese with session auth)
-
-### Phase 2: Translation Multi-Backend
-**Goal**: Users can translate subtitles using any of 5 backends (Ollama, DeepL, LibreTranslate, OpenAI-compatible, Google) with per-profile backend selection and automatic fallback
-**Depends on**: Phase 0 (needs Application Factory for backend registration)
-**Requirements**: TRAN-01, TRAN-02, TRAN-03, TRAN-04, TRAN-05, TRAN-06, TRAN-07, TRAN-08, TRAN-09, TRAN-10
-**Success Criteria** (what must be TRUE):
-  1. User can configure and test multiple translation backends (Ollama, DeepL, LibreTranslate, OpenAI-compatible, Google) from the Settings page
-  2. User can assign a specific translation backend to each language profile, so different series use different translation services
-  3. When the primary backend fails, translation automatically falls through a user-configured fallback chain to the next available backend
-  4. Translation quality metrics are tracked per backend and visible in a dashboard widget, showing success rate and error history
-**Plans:** 6 plans
-
-Plans:
-- [x] 02-01-PLAN.md -- TranslationBackend ABC, TranslationManager, shared LLM utilities, OllamaBackend migration, DB schema extension
-- [x] 02-02-PLAN.md -- API backends: DeepL (with glossary) and LibreTranslate (self-hosted)
-- [x] 02-03-PLAN.md -- LLM + API backends: OpenAI-compatible (multi-endpoint) and Google Cloud Translation
-- [x] 02-04-PLAN.md -- Rewire translator.py to use TranslationManager, backend management API endpoints, profile integration
-- [x] 02-05-PLAN.md -- Frontend: Translation Backends settings tab, profile backend selector, fallback chain editor, stats display
-- [x] 02-06-PLAN.md -- Test suite for translation multi-backend system
-
-### Phase 3: Media-Server Abstraction
-**Goal**: Users can connect Plex and Kodi (in addition to Jellyfin/Emby) for library refresh notifications, with multi-server support
-**Depends on**: Phase 0 (needs Application Factory for media server registration)
-**Requirements**: MSRV-01, MSRV-02, MSRV-03, MSRV-04, MSRV-05, MSRV-06, MSRV-07
-**Success Criteria** (what must be TRUE):
-  1. User can configure Plex, Kodi, Jellyfin, and/or Emby instances from a unified media server settings page with test buttons
-  2. After subtitle download or translation, all configured media servers receive a library refresh notification for the affected item
-  3. User can configure multiple media servers of different types simultaneously (e.g., Plex + Jellyfin)
-  4. Onboarding wizard offers media server selection with multi-server configuration
-**Plans:** 3 plans
-
-Plans:
-- [x] 03-01-PLAN.md -- MediaServer ABC, MediaServerManager, JellyfinEmby migration, Plex and Kodi backends
-- [x] 03-02-PLAN.md -- API blueprint, translator.py rewire, config invalidation, health endpoint, legacy migration
-- [x] 03-03-PLAN.md -- Frontend Media Servers settings tab, onboarding wizard media server step
-
-### Phase 4: Whisper Speech-to-Text
-**Goal**: When no subtitles are found from any provider, Sublarr can generate them from audio using Whisper, creating a complete fallback chain
-**Depends on**: Phase 2 (Whisper uses TranslationBackend ABC for post-transcription translation)
-**Requirements**: WHSP-01, WHSP-02, WHSP-03, WHSP-04, WHSP-05, WHSP-06, WHSP-07, WHSP-08
-**Success Criteria** (what must be TRUE):
-  1. User can configure faster-whisper (local GPU/CPU) or Subgen API (external) as Whisper backends from Settings
-  2. When all subtitle providers fail, the translation pipeline automatically falls back to Whisper transcription (Case D) for the source language
-  3. Whisper jobs appear in a dedicated queue with progress updates via WebSocket, respecting max-concurrent limits
-  4. Whisper correctly extracts the Japanese audio track (or user-configured source language track) from media files via ffmpeg
-  5. Transcription results include language detection that is validated against the expected source language
-**Plans:** 3 plans
-
-Plans:
-- [x] 04-01-PLAN.md -- Whisper package: WhisperBackend ABC, WhisperManager, audio extraction, queue system, DB schema, faster-whisper + Subgen backends
-- [x] 04-02-PLAN.md -- Whisper API blueprint, translator.py Case D integration, WhisperSubgenProvider deprecation
-- [x] 04-03-PLAN.md -- Frontend Whisper Settings tab with backend cards, global config, TypeScript types and hooks
-
-### Phase 5: Standalone Mode
-**Goal**: Users without Sonarr/Radarr can use Sublarr by pointing it at media folders, with automatic file detection and metadata lookup
-**Depends on**: Phase 0 (needs Application Factory)
-**Requirements**: STND-01, STND-02, STND-03, STND-04, STND-05, STND-06, STND-07, STND-08, STND-09
-**Success Criteria** (what must be TRUE):
-  1. User can configure watched folders in Settings and new media files are automatically detected and added to the library
-  2. Media files are parsed and grouped into series/movies with correct metadata from TMDB, AniList, or TVDB
-  3. Standalone-detected items appear in the Wanted list and go through the same search/download/translate pipeline as Sonarr/Radarr items
-  4. Onboarding wizard offers a standalone setup path that skips Sonarr/Radarr configuration entirely
-**Plans:** 5 plans
-
-Plans:
-- [x] 05-01-PLAN.md -- DB schema (4 tables + migrations), config settings, media file parser (guessit + anime detection)
-- [x] 05-02-PLAN.md -- Metadata package: TMDB, AniList, TVDB API clients + MetadataResolver orchestrator
-- [x] 05-03-PLAN.md -- StandaloneManager, filesystem watcher (watchdog), directory scanner, wanted_scanner integration
-- [x] 05-04-PLAN.md -- Standalone API Blueprint (/api/v1/standalone/*), wanted_search metadata enrichment
-- [x] 05-05-PLAN.md -- Frontend: Library Sources settings tab, TypeScript types/hooks, Onboarding standalone path
-
-### Phase 6: Forced/Signs Subtitle Management
-**Goal**: Users can separately manage forced/signs subtitles per series, with automatic detection and dedicated search
-**Depends on**: Phase 1 (needs provider search parameter support)
-**Requirements**: FRCD-01, FRCD-02, FRCD-03, FRCD-04, FRCD-05
-**Success Criteria** (what must be TRUE):
-  1. Forced subtitles are tracked as a separate category in the database and displayed with distinct badges in the UI
-  2. Provider search can specifically target forced/signs subtitles when enabled for a series
-  3. Existing subtitles are analyzed (ffprobe flags, ASS style analysis, naming patterns) to detect whether they are forced/signs
-  4. User can set forced subtitle preference (disabled/separate/auto) per series in the language profile
-**Plans:** 3 plans
-
-Plans:
-- [x] 06-01-PLAN.md -- DB schema migrations (subtitle_type, forced_preference), forced_detection.py module, VideoQuery/profiles/wanted extensions
-- [x] 06-02-PLAN.md -- Scanner forced item creation, provider forced search (OpenSubtitles foreign_parts_only), search pipeline classification
-- [x] 06-03-PLAN.md -- Profile and Wanted API endpoints, frontend forced preference UI, wanted forced badges and filter
-
-### Phase 7: Events/Hooks + Custom Scoring
-**Goal**: Users can extend Sublarr behavior through shell scripts, outgoing webhooks, and custom scoring weights without modifying code
-**Depends on**: Phase 0 (needs Application Factory for event bus)
-**Requirements**: EVNT-01, EVNT-02, EVNT-03, EVNT-04, SCOR-01, SCOR-02
-**Success Criteria** (what must be TRUE):
-  1. Internal events (subtitle downloaded, translation complete, provider failed, etc.) are published on an event bus that hooks can subscribe to
-  2. User can configure shell scripts that execute on specific events, with environment variables carrying event data and configurable timeouts
-  3. User can configure outgoing webhooks (HTTP POST with JSON payload) for any event, with retry logic on failure
-  4. User can adjust scoring weights (hash, series, year, season, episode, release_group, ASS bonus) and set per-provider score modifiers from Settings
-**Plans:** 3 plans
-
-Plans:
-- [x] 07-01-PLAN.md -- Event bus (blinker catalog + SocketIO bridge), DB schema (5 tables), CRUD modules, configurable scoring in compute_score
-- [x] 07-02-PLAN.md -- HookEngine (shell scripts) + WebhookDispatcher (HTTP POST with retry), rewire 22+ socketio.emit calls to event bus
-- [x] 07-03-PLAN.md -- API Blueprint for hooks/webhooks/scoring, frontend Settings tabs (Events & Hooks, Scoring)
-
-### Phase 8: i18n + Backup + Admin Polish
-**Goal**: UI is available in English and German, config can be backed up and restored, and the admin experience is polished with statistics, log improvements, and theming
-**Depends on**: Phase 0 (needs Blueprints for consistent i18n integration)
-**Requirements**: I18N-01, I18N-02, I18N-03, BKUP-01, BKUP-02, BKUP-03, ADMN-01, ADMN-02, ADMN-03, ADMN-04
-**Success Criteria** (what must be TRUE):
-  1. User can switch the entire UI between English and German, with the preference persisted across sessions
-  2. User can create a full backup (config + database as ZIP) manually or on a schedule, and download it from the UI
-  3. User can restore from a backup ZIP (uploaded via UI), with schema validation and merge strategy
-  4. Statistics page shows charts with time-range filters for translations, downloads, provider usage, and can be exported
-  5. User can toggle between dark and light theme, and logs page supports level filtering, download, and rotation config
-**Plans:** 5 plans
-
-Plans:
-- [x] 08-01-PLAN.md -- Theme system (dark/light CSS variables, useTheme hook, ThemeToggle) and i18n infrastructure (react-i18next, common namespace, LanguageSwitcher)
-- [x] 08-02-PLAN.md -- Backend APIs: ZIP backup/restore, statistics with time-range, log download/rotation, subtitle tools Blueprint
-- [x] 08-03-PLAN.md -- Statistics page (Recharts charts), Backup Settings tab, Subtitle Tools tab, Logs enhancements
-- [x] 08-04-PLAN.md -- i18n Part 1: EN/DE JSON files + useTranslation wrapping for Sidebar, Dashboard, Settings, Logs, Library, Wanted, SeriesDetail, Statistics
-- [x] 08-05-PLAN.md -- i18n Part 2: EN/DE JSON files + useTranslation wrapping for Activity, Queue, History, Blacklist, Onboarding, StatusBadge
-
-### Phase 9: OpenAPI + Release Preparation
-**Goal**: API is fully documented with Swagger UI, performance is optimized, and the project is ready for community launch as v0.9.0-beta
-**Depends on**: Phase 8 (i18n should be complete before community launch)
-**Requirements**: OAPI-01, OAPI-02, OAPI-03, OAPI-04, OAPI-05, OAPI-06, RELS-01, RELS-02, RELS-03, RELS-04, RELS-05
-**Success Criteria** (what must be TRUE):
-  1. All API endpoints are documented in an OpenAPI spec accessible via Swagger UI at /api/docs
-  2. Wanted scan runs incrementally (only changed items) and provider search runs with parallelism and connection pooling
-  3. A detailed health endpoint (/health/detailed) reports status of all subsystems (DB, providers, translation backends, media servers)
-  4. Migration guide, user guide, and plugin developer guide are published; community provider repository is set up
-  5. v0.9.0-beta is tagged, Docker images published, CHANGELOG written, Unraid template updated
-**Plans:** 5 plans
-
-Plans:
-- [ ] 09-01-PLAN.md -- OpenAPI infrastructure (apispec + Swagger UI), version centralization, YAML docstrings for 6 HIGH-priority blueprints
-- [ ] 09-02-PLAN.md -- Backend performance: incremental wanted scan, parallel wanted search, extended /health/detailed
-- [ ] 09-03-PLAN.md -- Frontend performance: React.lazy code splitting, Settings.tsx split into tab components
-- [ ] 09-04-PLAN.md -- Complete OpenAPI docstrings for remaining 9 blueprints, Tasks scheduler page
-- [ ] 09-05-PLAN.md -- Release preparation: CHANGELOG, migration guide, user guide, plugin docs, Unraid template
-
-### Phase 10: Performance & Scalability
-**Goal**: Users with large libraries can optionally use PostgreSQL instead of SQLite and Redis for caching/job queue, with zero-config SQLite remaining the default
-**Depends on**: Phase 9 (release stabilization before database layer changes)
-**Requirements**: PERF-01, PERF-02, PERF-03, PERF-04, PERF-05 (deferred), PERF-06, PERF-07, PERF-08, PERF-09
-**Success Criteria** (what must be TRUE):
-  1. User can switch database backend to PostgreSQL via environment variable while SQLite remains the zero-config default
-  2. Database access uses SQLAlchemy ORM with connection pooling, and migrations run automatically via Alembic on startup
-  3. Redis can optionally be used for provider cache and job queue, with graceful fallback when Redis is unavailable (PERF-05 sessions/rate-limiting deferred -- app uses stateless API-key auth, no sessions needed yet)
-  4. Job queue uses Redis + RQ for persistent jobs that survive container restarts (falling back to in-process queue without Redis)
-  5. Predefined Grafana dashboards and extended Prometheus metrics are available for monitoring at scale
-**Plans:** 8 plans
-
-Plans:
-- [ ] 10-01-PLAN.md -- SQLAlchemy ORM models for all 25+ tables + Flask-SQLAlchemy/Alembic infrastructure
-- [ ] 10-02-PLAN.md -- Repository layer Part 1: config, blacklist, cache, plugins, scoring, library, whisper, translation
-- [ ] 10-03-PLAN.md -- Repository layer Part 2: jobs, wanted, profiles, providers, hooks, standalone
-- [ ] 10-04-PLAN.md -- Cache abstraction (Redis + memory fallback) + Job queue abstraction (RQ + ThreadPoolExecutor fallback)
-- [ ] 10-05-PLAN.md -- Integration wiring: app factory, config settings, db/__init__.py rewrite, import redirection
-- [ ] 10-06-PLAN.md -- Dialect-aware database backup/health + Docker PostgreSQL/Redis compose
-- [ ] 10-07-PLAN.md -- Extended Prometheus metrics + Grafana dashboard provisioning
-- [ ] 10-08-PLAN.md -- Wire cache/queue backends into provider search, translator, and wanted search
-
-### Phase 11: Subtitle Editor
-**Goal**: Users can preview and edit subtitle files directly in the browser with syntax highlighting, live preview, and version diffing
-**Depends on**: Phase 0 (needs stable API structure)
-**Requirements**: EDIT-01, EDIT-02, EDIT-03, EDIT-04, EDIT-05
-**Success Criteria** (what must be TRUE):
-  1. User can preview any ASS or SRT subtitle file with syntax highlighting and a visual timeline in the Wanted, History, and Series Detail pages
-  2. User can open an inline editor (CodeMirror) for any subtitle file with undo/redo and real-time validation
-  3. Editing a subtitle automatically creates a backup of the original before saving changes
-  4. Editor supports live preview, diff view against previous version, and find-and-replace
-**Plans:** 4 plans
-
-Plans:
-- [ ] 11-01-PLAN.md -- Backend API endpoints (content, backup, validate, parse) + CodeMirror deps + ASS/SRT tokenizers + editor theme
-- [ ] 11-02-PLAN.md -- TypeScript types, API hooks, SubtitlePreview component, SubtitleTimeline component
-- [ ] 11-03-PLAN.md -- SubtitleEditor component (CodeMirror, toolbar, validation, save) + SubtitleDiff component
-- [ ] 11-04-PLAN.md -- SubtitleEditorModal (lazy loading) + integration into SeriesDetail, Wanted, History pages
-
-### Phase 12: Batch Operations + Smart-Filter
-**Goal**: Users can perform bulk actions across library, wanted, and history pages, with saved filter presets and global search
-**Depends on**: Phase 0 (needs stable API structure)
-**Requirements**: BATC-01, BATC-02, BATC-03, BATC-04, BATC-05, BATC-06, BATC-07
-**Success Criteria** (what must be TRUE):
-  1. User can multi-select items in Library, Wanted, and History pages and apply bulk actions (search, process, blacklist, export)
-  2. Filter system supports multiple criteria combined with AND/OR logic across all list pages
-  3. User can save filter configurations as named presets and apply them with one click
-  4. Global search bar (Ctrl+K) finds series, episodes, and subtitles across the entire application with fuzzy matching
-**Plans:** 3 plans
-
-Plans:
-- [x] 12-01-PLAN.md -- Backend: FTS5 search tables, filter presets CRUD, batch action endpoints
-- [x] 12-02-PLAN.md -- Frontend: FilterBar, BatchActionBar, GlobalSearchModal (cmdk), Zustand selection store
-- [x] 12-03-PLAN.md -- Page integration: Wanted/History/Library batch+filter wiring, Sidebar search trigger, i18n, backend tests
-
-### Phase 13: Comparison + Sync + Health-Check
-**Goal**: Users can compare subtitle versions side-by-side, adjust subtitle timing, and run health checks that detect and auto-fix common problems
-**Depends on**: Phase 11 (comparison uses the subtitle parser from the editor)
-**Requirements**: COMP-01, COMP-02, COMP-03, COMP-04, COMP-05, SYNC-01, SYNC-02, SYNC-03, SYNC-04, SYNC-05
-**Success Criteria** (what must be TRUE):
-  1. User can compare two subtitle files side-by-side with diff highlighting, and up to four versions simultaneously
-  2. User can adjust subtitle timing (offset, speed multiplier, frame rate) with a sync UI on the Series Detail page
-  3. Health check engine detects duplicate lines, encoding issues, timing overlaps, and missing styles, displayed as badges and dashboard widgets
-  4. Per-series and global quality metrics (score trends, provider success rates) are visible in the dashboard
-  5. Auto-fix options allow one-click resolution of detected problems with preview before applying
-**Plans:** 3 plans
-
-Plans:
-- [x] 13-01-PLAN.md -- Backend: health_checker.py engine + quality DB model/repository + advanced-sync + health-check/compare API endpoints
-- [x] 13-02-PLAN.md -- Frontend: TypeScript types + API hooks + SubtitleComparison (multi-panel) + SyncControls + SeriesDetail integration
-- [x] 13-03-PLAN.md -- Frontend: HealthBadge + HealthCheckPanel + auto-fix UI + quality charts + Dashboard/SeriesDetail integration
-
-### Phase 14: Dashboard Widgets + Quick-Actions
-**Goal**: Users can customize their dashboard layout with drag-and-drop widgets and access common actions via keyboard shortcuts and a floating action button
-**Depends on**: Phase 0 (needs stable frontend architecture)
-**Requirements**: DASH-01, DASH-02, DASH-03, DASH-04
-**Success Criteria** (what must be TRUE):
-  1. User can rearrange, resize, and toggle visibility of dashboard widgets via drag-and-drop
-  2. At least 8 predefined widget types are available (activity feed, provider status, translation stats, wanted count, etc.)
-  3. Quick-actions toolbar (floating action button) provides context-specific actions with keyboard shortcuts on every page
-**Plans:** 2 plans
-
-Plans:
-- [ ] 14-01-PLAN.md -- Widget system: react-grid-layout v2 grid, Zustand layout store, 8 widget components, settings modal, Dashboard.tsx rewrite
-- [ ] 14-02-PLAN.md -- Quick-actions: react-hotkeys-hook, FAB component, keyboard shortcuts modal, App.tsx integration, i18n
-
-### Phase 15: API-Key Mgmt + Notifications + Cleanup
-**Goal**: Users have centralized key management, customizable notification templates with quiet hours, and tools to deduplicate and clean up subtitle files
-**Depends on**: Phase 0 (needs stable API structure)
-**Requirements**: KEYS-01, KEYS-02, KEYS-03, KEYS-04, KEYS-05, NOTF-01, NOTF-02, NOTF-03, NOTF-04, NOTF-05, DEDU-01, DEDU-02, DEDU-03, DEDU-04, DEDU-05
-**Success Criteria** (what must be TRUE):
-  1. User can view, test, rotate, and export/import all API keys from a centralized management page with masked display
-  2. Bazarr migration tool imports configuration, language profiles, and blacklist from a Bazarr installation
-  3. User can create notification templates with variables, assign them per service and event type, and preview before saving
-  4. Quiet hours prevent notifications during configured time windows (with exceptions for critical events)
-  5. Deduplication engine scans for duplicate subtitles by content hash, groups them in a UI, and supports batch deletion with disk space analysis
-**Plans:** 5 plans
-
-Plans:
-- [ ] 15-01-PLAN.md -- API key registry Blueprint, export/import endpoints, Bazarr migration module
-- [ ] 15-02-PLAN.md -- Notification DB models + repository, templates API Blueprint, notifier.py Jinja2 rendering + quiet hours
-- [ ] 15-03-PLAN.md -- Cleanup DB models + repository, dedup engine, cleanup scheduler, cleanup API Blueprint
-- [ ] 15-04-PLAN.md -- Frontend: ApiKeysTab, NotificationTemplatesTab, template editor/preview/quiet hours components, i18n
-- [ ] 15-05-PLAN.md -- Frontend: CleanupTab, DedupGroupList, DiskSpaceWidget, dashboard widget, i18n
-
-### Phase 16: External Integrations
-**Goal**: Users migrating from other tools have a smooth path, and Sublarr config can be exported in formats compatible with other subtitle managers
-**Depends on**: Phase 3 (needs media server abstraction for Plex/Kodi compatibility checks)
-**Requirements**: INTG-01, INTG-02, INTG-03, INTG-04, INTG-05
-**Success Criteria** (what must be TRUE):
-  1. Extended Bazarr migration reads the Bazarr database directly and produces a detailed mapping report before import
-  2. Plex compatibility check validates that subtitle file naming and placement match Plex conventions
-  3. Sonarr/Radarr and Jellyfin/Emby health checks report extended diagnostics (connection, API version, library access, webhook status)
-  4. Config and subtitle data can be exported in formats compatible with Bazarr, Plex, Kodi, and a generic JSON format
-**Plans:** 3 plans
-
-Plans:
-- [ ] 16-01-PLAN.md -- Extended health checks for all clients (Sonarr, Radarr, Jellyfin, Plex, Kodi) + Bazarr migration deepening with mapping report
-- [ ] 16-02-PLAN.md -- Compat checker (Plex/Kodi naming validation) + Export manager (4 formats + ZIP) + Integrations API blueprint
-- [ ] 16-03-PLAN.md -- Frontend IntegrationsTab with migration UI, compat check, extended health diagnostics, multi-format export, i18n
+</details>
 
 ## Progress
 
-**Execution Order:**
-Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11 -> 12 -> 13 -> 14 -> 15 -> 16
+**All phases shipped as v0.9.0-beta (2026-02-20)**
 
-**Parallelization note:** Phases 1, 2, and 3 can execute in parallel after Phase 0 completes (independent feature tracks). All other phases are sequential.
-
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
+| Phase | Plans | Status | Completed |
+|-------|-------|--------|-----------|
 | 0. Architecture Refactoring | 3/3 | Complete | 2026-02-15 |
 | 1. Provider Plugin + Expansion | 6/6 | Complete | 2026-02-15 |
 | 2. Translation Multi-Backend | 6/6 | Complete | 2026-02-15 |
@@ -361,28 +53,8 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | 15. API-Key Mgmt + Notifications + Cleanup | 5/5 | Complete | 2026-02-20 |
 | 16. External Integrations | 3/3 | Complete | 2026-02-20 |
 
-## Dependency Graph
-
-```
-Phase 0 (Architecture)
-  ├── Phase 1 (Plugins)
-  │     └── Phase 6 (Forced Subs)
-  ├── Phase 2 (Translation)
-  │     └── Phase 4 (Whisper)
-  ├── Phase 3 (Media-Server)
-  │     └── Phase 16 (External Integrations)
-  ├── Phase 5 (Standalone)
-  ├── Phase 7 (Events/Hooks)
-  ├── Phase 8 (i18n + Backup + Admin)
-  │     └── Phase 9 (OpenAPI + Release)
-  │           └── Phase 10 (Performance)
-  ├── Phase 11 (Editor)
-  │     └── Phase 13 (Comparison + Sync)
-  ├── Phase 12 (Batch + Filter)
-  ├── Phase 14 (Dashboard Widgets)
-  └── Phase 15 (Keys + Notifications + Cleanup)
-```
+See `.planning/milestones/v0.9.0-beta-ROADMAP.md` for full phase details.
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-20 (Phase 16 complete -- All phases executed)*
+*Last updated: 2026-02-20 — v0.9.0-beta milestone complete*

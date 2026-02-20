@@ -2,10 +2,11 @@
 
 ## What This Is
 
-Sublarr ist ein eigenstaendiger Subtitle-Manager fuer Anime und Media mit integrierter LLM-Uebersetzung.
-Es durchsucht Provider (AnimeTosho, Jimaku, OpenSubtitles, SubDL), downloadt die besten Subs
-(ASS bevorzugt, Scoring-System) und uebersetzt automatisch via Ollama. Zielgruppe: Self-Hosted/Homelab-User,
-insbesondere Anime-Fans die hochwertige ASS-Untertitel mit korrekter Style-Behandlung brauchen.
+Sublarr ist eine open platform fuer Anime/Media Subtitle-Management mit LLM-Uebersetzung.
+Es sucht Untertitel bei 12+ Providern (AnimeTosho, Jimaku, OpenSubtitles, SubDL + 8 Plugins),
+downloadet die besten ASS/SRT-Dateien, uebersetzt via 5 konfigurierbaren Backends (Ollama, DeepL, LibreTranslate, OpenAI, Google)
+und bietet Browser-Editor, Batch-Operationen, Whisper-Fallback und vollstaendige Bazarr-Migration.
+Zielgruppe: Self-Hosted/Homelab-User, die ohne Sonarr/Radarr oder damit arbeiten.
 
 ## Core Value
 
@@ -17,7 +18,6 @@ herunterladen und in die Zielsprache uebersetzen, ohne Styles oder Signs/Songs z
 ### Validated
 
 <!-- Phase 1 (v1.0-beta) — shipped and working -->
-
 - ✓ Provider-System mit 4 Built-in Providern (AnimeTosho, Jimaku, OpenSubtitles, SubDL) — M1+M6
 - ✓ Provider-Scoring (hash, series, year, season, episode, release_group, ASS-Bonus) — M1
 - ✓ Provider-Cache + Download-History — M1
@@ -47,33 +47,33 @@ herunterladen und in die Zielsprache uebersetzen, ohne Styles oder Signs/Songs z
 - ✓ Prometheus Metrics (graceful degradation) — S7
 - ✓ CI/CD Pipeline (GitHub Actions, pytest, vitest, ruff, mypy, ESLint) — S1+S2
 
+<!-- Phase 2+3 (v0.9.0-beta) — all shipped -->
+- ✓ Application Factory + 9 Blueprint-Routen, database.py in 9 Module aufgeteilt — v0.9.0-beta (Phase 0)
+- ✓ Plugin-System mit Auto-Discovery, Hot-Reload, declarative config_fields — v0.9.0-beta (Phase 1)
+- ✓ 8 neue Built-in Provider (Gestdown, Podnapisi, Kitsunekko, Napisy24, Titrari, LegendasDivx, WhisperSubgen) — v0.9.0-beta (Phase 1)
+- ✓ Provider Health-Monitoring (Response Time, Auto-Disable, Cooldown) — v0.9.0-beta (Phase 1)
+- ✓ 5 Translation Backends (Ollama, DeepL, LibreTranslate, OpenAI-compatible, Google Cloud) — v0.9.0-beta (Phase 2)
+- ✓ Backend-Auswahl pro Language-Profile + konfigurierbarer Fallback-Chain — v0.9.0-beta (Phase 2)
+- ✓ Plex und Kodi Backend + Multi-Server Config (JSON-Array) — v0.9.0-beta (Phase 3)
+- ✓ Whisper Case D: faster-whisper + Subgen API als Fallback wenn alle Provider scheitern — v0.9.0-beta (Phase 4)
+- ✓ Standalone-Modus: Folder-Watch, guessit Parser, TMDB/AniList/TVDB Metadata-Lookup — v0.9.0-beta (Phase 5)
+- ✓ Forced/Signs Subtitle Detection, Suche und per-Series Konfiguration — v0.9.0-beta (Phase 6)
+- ✓ Event-Bus (blinker), Shell-Script Hooks, Outgoing Webhooks, Custom Scoring-Gewichtungen — v0.9.0-beta (Phase 7)
+- ✓ EN/DE i18n (react-i18next), ZIP Backup/Restore, Recharts Statistiken, Dark/Light Theme — v0.9.0-beta (Phase 8)
+- ✓ OpenAPI/Swagger UI at /api/docs, inkrementeller Scan, React.lazy Code-Splitting — v0.9.0-beta (Phase 9)
+- ✓ SQLAlchemy ORM + Alembic Migrations, optionales PostgreSQL/Redis/RQ-Fallback — v0.9.0-beta (Phase 10)
+- ✓ ASS/SRT Inline-Editor (CodeMirror, Timeline, Diff, Backup) — v0.9.0-beta (Phase 11)
+- ✓ Multi-Select Batch-Operations, FTS5 Global-Search (Ctrl+K), Saved Filter Presets — v0.9.0-beta (Phase 12)
+- ✓ Side-by-Side Subtitle Comparison, Timing-Sync, Health-Check mit Auto-Fix — v0.9.0-beta (Phase 13)
+- ✓ Drag-and-Drop Dashboard Widgets (react-grid-layout), FAB Quick-Actions, Keyboard Shortcuts — v0.9.0-beta (Phase 14)
+- ✓ API-Key Management, Jinja2 Notification Templates, Subtitle Deduplication Engine — v0.9.0-beta (Phase 15)
+- ✓ Extended Health Diagnostics (alle 5 Clients), Bazarr DB Mapping Report, Plex/Kodi Compat Check, Multi-Format Export — v0.9.0-beta (Phase 16)
+
 ### Active
 
-<!-- Phase 2 + 3: Milestones 13-32 -->
+(none — all v0.9.0-beta requirements shipped. Awaiting next milestone definition.)
 
-**Phase 2: Open Platform**
-- [ ] Provider Plugin-Architektur + 8 neue Built-in Provider (M13)
-- [ ] Translation Multi-Backend: DeepL, LibreTranslate, OpenAI-Compat, Google (M14)
-- [ ] Whisper Speech-to-Text Integration (faster-whisper, Subgen-API) (M15)
-- [ ] Media-Server Abstraction: Plex, Kodi (+ Jellyfin/Emby Migration) (M16)
-- [ ] Standalone-Modus: Folder-Watch, TMDB/AniList/TVDB Metadata (M17)
-- [ ] Forced/Signs Subtitle Management (M18)
-- [ ] Event-System, Script-Hooks, Outgoing Webhooks, Custom Scoring (M19)
-- [ ] UI i18n (EN/DE), Backup/Restore, Statistics-Page, Dark/Light Theme (M20)
-- [ ] OpenAPI/Swagger, Performance-Optimierung, Tasks-Page, Health-Endpoint (M21)
-- [ ] v0.9.0-beta Release + Community-Launch, Dokumentation (M22)
-- [ ] Performance & Scalability: PostgreSQL-Option, Redis, RQ Job Queue (M23)
-
-**Phase 3: Advanced Features & UX**
-- [ ] Subtitle-Vorschau & Inline-Editor (M24)
-- [ ] Batch-Operations & Smart-Filter, Global-Search (M25)
-- [ ] Subtitle-Vergleichstool & Quality-Metrics (M26)
-- [ ] Subtitle-Sync & Health-Check Tools (M27)
-- [ ] Konfigurierbare Dashboard-Widgets & Quick-Actions (M28)
-- [ ] API-Key-Management & Export/Import-Erweiterungen, Bazarr-Migration (M29)
-- [ ] Notification-Templates & Advanced-Filter, Quiet-Hours (M30)
-- [ ] Subtitle-Deduplizierung & Cleanup-Tools (M31)
-- [ ] Externe Tool-Integrationen & Migration-Tools (M32)
+### Out of Scope (unchanged)
 
 ### Out of Scope
 
@@ -82,6 +82,23 @@ herunterladen und in die Zielsprache uebersetzen, ohne Styles oder Signs/Songs z
 - Multi-User/RBAC — Single-User Self-Hosted Fokus
 - subliminal als Dependency — Eigenes leichtgewichtiges Provider-System
 - Bezahl-Provider — Nur kostenlose/API-Key-basierte Provider
+
+## Context
+
+**v0.9.0-beta shipped 2026-02-20:** Phase 2+3 vollstaendig abgeschlossen.
+~50.000 Zeilen Python Backend + ~24.000 Zeilen TypeScript Frontend.
+17 Phasen, 71 Plans in 7 Tagen (2026-02-13 → 2026-02-20).
+
+**Architektur (nach Phase 0 Refactoring):**
+- Flask 3.1 App Factory (app.py) + 9 Blueprint-Routen (routes/) + 9 DB-Module (db/)
+- React 19 + TypeScript + Tailwind v4 + TanStack Query Frontend
+- SQLAlchemy ORM + Alembic Migrations (SQLite default, PostgreSQL optional)
+- 12+ Provider (4 built-in + 8 neue + Plugin-System), 5 Translation Backends, 3 Whisper Backends
+
+**Bekannte technische Schulden nach v0.9.0-beta:**
+- 28 pre-existing test failures in integration/performance tests (existed before Phase 0)
+- PERF-05 (Redis Sessions/Rate-Limiting) deferred — stateless API-key Auth reicht
+- SQLite StaticPool fuer Tests (kein echter Pool) — unkritisch
 
 ## Context
 
@@ -126,8 +143,15 @@ primaere Referenz fuer die GSD-Phase-Planung.
 | ASS-Bonus im Scoring (+50) | ASS bewahrt Styles, wichtig fuer Anime | ✓ Good |
 | SQLite mit WAL + _db_lock | Einfach, keine externe DB noetig, ausreichend fuer Single-Instance | ✓ Good |
 | Flask statt FastAPI | Einfacher, Flask-SocketIO gut integriert, bestehende Codebase | ✓ Good |
-| Hybrid GSD-Phase-Mapping | Grosse Milestones einzeln, kleine gruppiert — balanciert Granularitaet | — Pending |
-| 1:1 Wave-Reihenfolge | Bestehende Abhaengigkeitsanalyse beibehalten | — Pending |
+| Hybrid GSD-Phase-Mapping | Grosse Milestones einzeln, kleine gruppiert — balanciert Granularitaet | ✓ Good |
+| 1:1 Wave-Reihenfolge | Bestehende Abhaengigkeitsanalyse beibehalten | ✓ Good |
+| Plugin-Config via config_entries | plugin.<name>.<key> Namespacing statt eigenem Table | ✓ Good |
+| Lazy Backend Creation | Misconfigured backends blockieren nicht andere | ✓ Good |
+| SQLAlchemy + Alembic | render_as_batch=True fuer SQLite ALTER TABLE Compat | ✓ Good |
+| Single active Whisper backend | Kein Fallback-Chain fuer Whisper (nur ein Modell aktiviert) | ✓ Good |
+| FTS5 Trigram fuer Global Search | LIKE queries (nicht MATCH) fuer 2+ char Suche | ✓ Good |
+| react-grid-layout v2 | Built-in TypeScript, responsive containers | ✓ Good |
+| Jinja2 SandboxedEnvironment | Template Injection Prevention fuer Notification Templates | ✓ Good |
 
 ---
-*Last updated: 2026-02-15 after initialization*
+*Last updated: 2026-02-20 after v0.9.0-beta milestone*

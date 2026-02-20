@@ -2,17 +2,16 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-15)
+See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 16 complete - External Integrations (all 3 plans executed)
+**Current focus:** v0.9.0-beta milestone complete — planning next milestone
 
 ## Current Position
 
-Phase: 16 of 16 (External Integrations)
-Plan: 3 of 3 in current phase (Frontend IntegrationsTab)
-Status: Phase complete -- ALL PHASES COMPLETE
-Last activity: 2026-02-20 -- Completed 16-03-PLAN.md (Frontend IntegrationsTab)
+Phase: ALL PHASES SHIPPED (v0.9.0-beta — 2026-02-20)
+Status: Milestone complete — 17 phases, 71 plans executed
+Last activity: 2026-02-20 — Completed v0.9.0-beta milestone archival
 
 Progress: [█████████████████████████] 3/3 plans in phase -- ROADMAP COMPLETE
 
