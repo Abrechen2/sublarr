@@ -18,6 +18,7 @@
     "scoring": "Scoring",
     "backup": "Backup",
     "subtitle_tools": "Untertitel-Werkzeuge",
+    "cleanup": "Bereinigung",
     "notification_templates": "Benachrichtigungs-Vorlagen",
     "prompt_presets": "Prompt-Vorlagen"
   },
@@ -171,5 +172,88 @@
     "import_warning": "Dies ueberschreibt die aktuellen Einstellungen. API Keys muessen erneut eingegeben werden.",
     "export_success": "Konfiguration erfolgreich exportiert",
     "import_success": "Konfiguration erfolgreich importiert"
+  },
+  "cleanup": {
+    "dedup": {
+      "title": "Deduplizierung",
+      "scanButton": "Nach Duplikaten suchen",
+      "scanning": "Wird gescannt...",
+      "scanStarted": "Duplikat-Scan gestartet",
+      "scanFailed": "Scan konnte nicht gestartet werden",
+      "progress": "Fortschritt",
+      "noResults": "Keine Duplikate gefunden. Fuehren Sie einen Scan durch.",
+      "groupsFound": "Duplikatgruppen",
+      "filesToDelete": "Dateien zum Loeschen",
+      "files": "Dateien",
+      "keepLabel": "Behalten",
+      "deleteLabel": "Loeschen",
+      "deleteAll": "Alle Ausgewaehlten loeschen",
+      "deleting": "Wird geloescht..."
+    },
+    "orphaned": {
+      "title": "Verwaiste Untertitel",
+      "scanButton": "Nach Verwaisten suchen",
+      "scanStarted": "Scan fuer verwaiste Dateien gestartet",
+      "scanFailed": "Scan fehlgeschlagen",
+      "noResults": "Keine verwaisten Untertitel gefunden.",
+      "deleteSelected": "Ausgewaehlte loeschen"
+    },
+    "rules": {
+      "title": "Bereinigungsregeln",
+      "create": "Regel erstellen",
+      "created": "Regel erstellt",
+      "deleted": "Regel geloescht",
+      "running": "Regelausfuehrung gestartet",
+      "configured": "Regeln konfiguriert",
+      "noRules": "Keine Bereinigungsregeln konfiguriert. Erstellen Sie eine zur Automatisierung.",
+      "namePlaceholder": "Regelname",
+      "enabled": "Aktiviert",
+      "disable": "Deaktivieren",
+      "enable": "Aktivieren",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "delete": "Loeschen",
+      "runNow": "Jetzt ausfuehren",
+      "schedule": "Zeitplan",
+      "types": {
+        "dedup": "Deduplizierung",
+        "orphaned": "Verwaiste Dateien",
+        "old_backups": "Alte Backups"
+      }
+    },
+    "history": {
+      "title": "Bereinigungsverlauf",
+      "date": "Datum",
+      "action": "Aktion",
+      "processed": "Verarbeitet",
+      "deleted": "Geloescht",
+      "freed": "Freigegeben",
+      "empty": "Noch kein Bereinigungsverlauf",
+      "prev": "Zurueck",
+      "next": "Weiter"
+    },
+    "diskSpace": {
+      "title": "Speicherplatzanalyse",
+      "noData": "Fuehren Sie einen Scan durch, um die Speicherplatzanalyse zu sehen",
+      "totalFiles": "Dateien gesamt",
+      "totalSize": "Gesamtgroesse",
+      "duplicates": "Duplikate",
+      "savings": "Moegliche Einsparung",
+      "byFormat": "Nach Format",
+      "storageBreakdown": "Speicheraufteilung",
+      "uniqueData": "Einzigartig",
+      "duplicateData": "Duplikat",
+      "trends": "Bereinigungs-Trends (30T)",
+      "noTrends": "Noch kein Bereinigungsverlauf",
+      "bytesFreed": "Freigegeben"
+    },
+    "preview": {
+      "title": "Bereinigungs-Vorschau",
+      "files": "Dateien",
+      "willBeFreed": "werden freigegeben",
+      "confirm": "Loeschen bestaetigen",
+      "confirming": "Wird geloescht...",
+      "cancel": "Abbrechen"
+    }
   }
 }

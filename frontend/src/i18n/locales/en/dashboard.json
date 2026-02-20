@@ -65,6 +65,11 @@
     "settings_title": "Dashboard Widgets",
     "settings_description": "Toggle widgets on or off. Drag widgets to rearrange.",
     "reset_layout": "Reset to Default",
-    "no_widgets": "No widgets visible. Use Customize to add widgets."
+    "no_widgets": "No widgets visible. Use Customize to add widgets.",
+    "disk_space": "Disk Space",
+    "disk_space_no_data": "No cleanup data",
+    "disk_space_files": "Files",
+    "disk_space_duplicates": "Duplicates",
+    "disk_space_savings": "savings available"
   }
 }
