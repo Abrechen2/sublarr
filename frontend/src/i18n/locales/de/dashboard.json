@@ -65,6 +65,11 @@
     "settings_title": "Dashboard-Widgets",
     "settings_description": "Widgets ein- oder ausschalten. Widgets zum Anordnen ziehen.",
     "reset_layout": "Auf Standard zuruecksetzen",
-    "no_widgets": "Keine Widgets sichtbar. Verwende Anpassen, um Widgets hinzuzufuegen."
+    "no_widgets": "Keine Widgets sichtbar. Verwende Anpassen, um Widgets hinzuzufuegen.",
+    "disk_space": "Speicherplatz",
+    "disk_space_no_data": "Keine Bereinigungsdaten",
+    "disk_space_files": "Dateien",
+    "disk_space_duplicates": "Duplikate",
+    "disk_space_savings": "Einsparung moeglich"
   }
 }

@@ -18,6 +18,7 @@
     "scoring": "Scoring",
     "backup": "Backup",
     "subtitle_tools": "Subtitle Tools",
+    "cleanup": "Cleanup",
     "notification_templates": "Notification Templates",
     "prompt_presets": "Prompt Presets"
   },
@@ -171,5 +172,88 @@
     "import_warning": "This will overwrite your current settings. API keys will need to be re-entered.",
     "export_success": "Config exported successfully",
     "import_success": "Config imported successfully"
+  },
+  "cleanup": {
+    "dedup": {
+      "title": "Deduplication",
+      "scanButton": "Scan for Duplicates",
+      "scanning": "Scanning...",
+      "scanStarted": "Duplicate scan started",
+      "scanFailed": "Failed to start scan",
+      "progress": "Progress",
+      "noResults": "No duplicates found. Run a scan to check.",
+      "groupsFound": "duplicate groups",
+      "filesToDelete": "files to delete",
+      "files": "files",
+      "keepLabel": "Keep",
+      "deleteLabel": "Delete",
+      "deleteAll": "Delete All Selected",
+      "deleting": "Deleting..."
+    },
+    "orphaned": {
+      "title": "Orphaned Subtitles",
+      "scanButton": "Scan for Orphaned",
+      "scanStarted": "Orphaned scan started",
+      "scanFailed": "Failed to scan for orphaned files",
+      "noResults": "No orphaned subtitles found.",
+      "deleteSelected": "Delete Selected"
+    },
+    "rules": {
+      "title": "Cleanup Rules",
+      "create": "Create Rule",
+      "created": "Rule created",
+      "deleted": "Rule deleted",
+      "running": "Rule execution started",
+      "configured": "rules configured",
+      "noRules": "No cleanup rules configured. Create one to automate cleanup.",
+      "namePlaceholder": "Rule name",
+      "enabled": "Enabled",
+      "disable": "Disable",
+      "enable": "Enable",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "runNow": "Run Now",
+      "schedule": "Schedule",
+      "types": {
+        "dedup": "Deduplication",
+        "orphaned": "Orphaned Files",
+        "old_backups": "Old Backups"
+      }
+    },
+    "history": {
+      "title": "Cleanup History",
+      "date": "Date",
+      "action": "Action",
+      "processed": "Processed",
+      "deleted": "Deleted",
+      "freed": "Freed",
+      "empty": "No cleanup history yet",
+      "prev": "Previous",
+      "next": "Next"
+    },
+    "diskSpace": {
+      "title": "Disk Space Analysis",
+      "noData": "Run a scan to see disk space analysis",
+      "totalFiles": "Total Files",
+      "totalSize": "Total Size",
+      "duplicates": "Duplicates",
+      "savings": "Potential Savings",
+      "byFormat": "By Format",
+      "storageBreakdown": "Storage Breakdown",
+      "uniqueData": "Unique",
+      "duplicateData": "Duplicate",
+      "trends": "Cleanup Trends (30d)",
+      "noTrends": "No cleanup history yet",
+      "bytesFreed": "Freed"
+    },
+    "preview": {
+      "title": "Cleanup Preview",
+      "files": "files",
+      "willBeFreed": "will be freed",
+      "confirm": "Confirm Delete",
+      "confirming": "Deleting...",
+      "cancel": "Cancel"
+    }
   }
 }
