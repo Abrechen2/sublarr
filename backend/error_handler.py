@@ -172,12 +172,13 @@ def register_error_handlers(app: object) -> None:
     @flask_app.errorhandler(SublarrError)
     def _handle_sublarr_error(error: SublarrError):  # type: ignore[return]
         """Return structured JSON for known application errors."""
+        request_id = getattr(g, "request_id", "?")
         logger.warning(
             "[%s] %s: %s (request_id=%s)",
             error.code,
             error.__class__.__name__,
             error,
-            getattr(g, "request_id", "?"),
+            request_id,
         )
         return jsonify(_build_error_response(error)), error.http_status
 

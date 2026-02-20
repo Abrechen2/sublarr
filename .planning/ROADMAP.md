@@ -58,3 +58,9 @@ See `.planning/milestones/v0.9.0-beta-ROADMAP.md` for full phase details.
 ---
 *Roadmap created: 2026-02-15*
 *Last updated: 2026-02-20 — v0.9.0-beta milestone complete*
+
+## Phase 17: Performance Optimizations
+
+- [x] Plan 17-01: Quick Wins — DONE — Debug interceptor removal, polling intervals, provider timeouts
+- [x] Plan 17-02: Backend N+1 Fixes — DONE — Provider stats batch query, composite DB index
+- [x] Plan 17-03: Frontend Bundle — DONE — Vite code splitting, lazy routes, staleTime fix
