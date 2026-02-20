@@ -805,10 +805,10 @@ class ProviderManager:
             return []
         
         try:
-            from ass_utils import run_ffprobe, has_target_language_stream
+            from ass_utils import get_media_streams, has_target_language_stream
             from providers.base import SubtitleResult, SubtitleFormat
-            
-            probe_data = run_ffprobe(query.file_path)
+
+            probe_data = get_media_streams(query.file_path)
             if not probe_data:
                 return []
             

@@ -346,7 +346,7 @@ def select_best_subtitle_stream(ffprobe_data, format_filter=None):
 
 
 def run_ffprobe(file_path, use_cache=True):
-    """Run ffprobe and return parsed JSON data for subtitle streams.
+    """Run ffprobe and return parsed JSON data for audio and subtitle streams.
 
     Uses cache if available and file hasn't changed (mtime check).
 
@@ -355,7 +355,8 @@ def run_ffprobe(file_path, use_cache=True):
         use_cache: If True, check cache first and store result
 
     Returns:
-        dict: Parsed ffprobe JSON data
+        dict: Parsed ffprobe JSON data with {"streams": [...]} containing both
+              audio and subtitle streams (codec_type "audio" / "subtitle").
 
     Raises:
         RuntimeError: If ffprobe fails, times out, or returns invalid JSON
@@ -374,12 +375,14 @@ def run_ffprobe(file_path, use_cache=True):
         except (OSError, Exception) as e:
             logger.debug("Cache check failed for %s: %s", file_path, e)
 
-    # Run ffprobe
+    # Run ffprobe — no -select_streams filter so both audio and subtitle streams
+    # are returned. Consumers filter by codec_type themselves. Previously this used
+    # -select_streams s which caused has_target_language_audio() to never find
+    # audio streams (bug fix).
     cmd = [
         "ffprobe", "-v", "quiet",
         "-print_format", "json",
         "-show_streams",
-        "-select_streams", "s",
         file_path,
     ]
     try:
@@ -402,6 +405,73 @@ def run_ffprobe(file_path, use_cache=True):
             logger.debug("Cache store failed for %s: %s", file_path, e)
 
     return probe_data
+
+
+def get_media_streams(file_path, use_cache=True):
+    """Unified entry point for media stream metadata — engine-agnostic.
+
+    Reads scan_metadata_engine from config and routes to ffprobe or mediainfo.
+    Both engines return the same normalized {"streams": [...]} format, so the
+    cache is engine-agnostic: an entry written by one engine is valid for another.
+
+    Args:
+        file_path: Path to the video file
+        use_cache: If True, check cache before probing and store result after
+
+    Returns:
+        dict: {"streams": [...]} with audio and subtitle stream objects.
+
+    Raises:
+        RuntimeError: On probe failure (engine-specific errors propagate).
+        FileNotFoundError: If engine=mediainfo and mediainfo is not installed.
+    """
+    import os
+    from db.cache import get_ffprobe_cache, set_ffprobe_cache
+    from config import get_settings
+
+    settings = get_settings()
+    engine = getattr(settings, "scan_metadata_engine", "auto")
+
+    # Cache check — shared across all engines (same format, engine-agnostic)
+    if use_cache:
+        try:
+            mtime = os.path.getmtime(file_path)
+            cached = get_ffprobe_cache(file_path, mtime)
+            if cached:
+                logger.debug("Cache hit for %s (engine=%s)", file_path, engine)
+                return cached
+        except (OSError, Exception) as e:
+            logger.debug("Cache check failed for %s: %s", file_path, e)
+
+    probe_data = _run_engine(file_path, engine)
+
+    if use_cache:
+        try:
+            mtime = os.path.getmtime(file_path)
+            set_ffprobe_cache(file_path, mtime, probe_data)
+        except (OSError, Exception) as e:
+            logger.debug("Cache store failed for %s: %s", file_path, e)
+
+    return probe_data
+
+
+def _run_engine(file_path, engine):
+    """Dispatch to the configured metadata engine with fallback logic for 'auto'."""
+    from mediainfo_utils import _is_mediainfo_available, run_mediainfo
+
+    if engine == "mediainfo":
+        return run_mediainfo(file_path)
+
+    if engine == "auto":
+        if _is_mediainfo_available():
+            try:
+                return run_mediainfo(file_path)
+            except Exception as e:
+                logger.warning("MediaInfo failed for %s, falling back to ffprobe: %s", file_path, e)
+        return run_ffprobe(file_path, use_cache=False)
+
+    # engine == "ffprobe" or unknown
+    return run_ffprobe(file_path, use_cache=False)
 
 
 def extract_subtitle_stream(mkv_path, stream_info, output_path):
