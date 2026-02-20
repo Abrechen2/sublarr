@@ -704,9 +704,12 @@ class ProviderManager:
         if query.languages:
             all_results = [r for r in all_results if r.language in query.languages]
 
-        # Filter by format
+        # Filter by format — include UNKNOWN since some providers omit format metadata
         if format_filter:
-            all_results = [r for r in all_results if r.format == format_filter]
+            all_results = [
+                r for r in all_results
+                if r.format == format_filter or r.format == SubtitleFormat.UNKNOWN
+            ]
 
         # Filter by min score
         if min_score > 0:
