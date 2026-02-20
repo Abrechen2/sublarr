@@ -13,7 +13,7 @@ COPY frontend/ .
 RUN npm run build
 
 # Stage 2: Python Backend + Frontend Bundle
-FROM python:3.14-slim
+FROM python:3.12-slim
 
 LABEL org.opencontainers.image.title="Sublarr"
 LABEL org.opencontainers.image.description="Standalone Subtitle Manager & Translator for Anime/Media"
