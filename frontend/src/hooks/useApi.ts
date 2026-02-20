@@ -51,6 +51,8 @@ import {
   scanOrphaned, getOrphanedFiles, deleteOrphaned,
   getCleanupRules, createCleanupRule, updateCleanupRule, deleteCleanupRule, runCleanupRule,
   getCleanupHistory, getCleanupPreview,
+  getBazarrMappingReport, runCompatCheck, getExtendedHealthAll,
+  exportIntegrationConfig, exportIntegrationConfigZip,
 } from '@/api/client'
 import type {
   LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig, FilterScope, BatchAction,
@@ -1453,5 +1455,42 @@ export function useCleanupHistory(page = 1) {
 export function useCleanupPreview() {
   return useMutation({
     mutationFn: (ruleId?: number) => getCleanupPreview(ruleId),
+  })
+}
+
+// ─── External Integrations ──────────────────────────────────────────────────
+
+export function useBazarrMappingReport() {
+  return useMutation({
+    mutationFn: (dbPath: string) => getBazarrMappingReport(dbPath),
+  })
+}
+
+export function useCompatCheck() {
+  return useMutation({
+    mutationFn: ({ subtitlePaths, videoPath, target }: { subtitlePaths: string[]; videoPath: string; target: string }) =>
+      runCompatCheck(subtitlePaths, videoPath, target),
+  })
+}
+
+export function useExtendedHealthAll() {
+  return useQuery({
+    queryKey: ['extended-health-all'],
+    queryFn: getExtendedHealthAll,
+    enabled: false,
+  })
+}
+
+export function useExportIntegrationConfig() {
+  return useMutation({
+    mutationFn: ({ format, includeSecrets }: { format: string; includeSecrets: boolean }) =>
+      exportIntegrationConfig(format, includeSecrets),
+  })
+}
+
+export function useExportIntegrationConfigZip() {
+  return useMutation({
+    mutationFn: ({ formats, includeSecrets }: { formats: string[]; includeSecrets: boolean }) =>
+      exportIntegrationConfigZip(formats, includeSecrets),
   })
 }

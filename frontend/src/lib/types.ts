@@ -963,3 +963,86 @@ export interface OrphanedFile {
   language: string | null
   last_modified: string
 }
+
+// ─── External Integrations ──────────────────────────────────────────────────
+
+export interface ExtendedHealthCheck {
+  connection: { healthy: boolean; message: string }
+  api_version?: { version: string; branch: string; app_name: string }
+  server_info?: {
+    server_name?: string
+    friendly_name?: string
+    version: string
+    product_name?: string
+    platform?: string
+    os?: string
+    name?: string
+    jsonrpc_version?: string
+  }
+  library_access: {
+    series_count?: number
+    movie_count?: number
+    library_count?: number
+    section_count?: number
+    video_sources_count?: number
+    accessible: boolean
+    libraries?: Array<{ name: string; collectionType?: string }>
+    sections?: Array<{ title: string; type: string }>
+    video_sources?: Array<{ label: string }>
+  }
+  webhook_status?: {
+    configured: boolean
+    sublarr_webhooks: Array<{ name: string }>
+  }
+  health_issues: Array<{ type: string; message: string }>
+}
+
+export interface ExtendedHealthAllResponse {
+  sonarr: Array<{ name: string } & ExtendedHealthCheck>
+  radarr: Array<{ name: string } & ExtendedHealthCheck>
+  jellyfin: ExtendedHealthCheck | null
+  media_servers: Array<{ name: string; type: string } & ExtendedHealthCheck>
+}
+
+export interface BazarrMappingReport {
+  tables_found: string[]
+  table_details: Record<string, {
+    row_count: number
+    columns: string[]
+    sample_row: Record<string, unknown> | null
+  }>
+  migration_summary: {
+    profiles_count: number
+    blacklist_count: number
+    shows_count: number
+    movies_count: number
+    history_count: number
+    has_sonarr_config: boolean
+    has_radarr_config: boolean
+  }
+  compatibility: {
+    bazarr_version: string | null
+    schema_version: string | null
+  }
+  warnings: string[]
+}
+
+export interface CompatCheckResult {
+  compatible: boolean
+  issues: string[]
+  warnings: string[]
+  recommendations: string[]
+}
+
+export interface CompatBatchResult {
+  results: Array<{ path: string } & CompatCheckResult>
+  summary: { total: number; compatible: number; incompatible: number }
+}
+
+export interface ExportResult {
+  format: string
+  data: unknown
+  filename: string
+  content_type: string
+  warnings: string[]
+}
