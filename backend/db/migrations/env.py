@@ -28,6 +28,13 @@ if config.config_file_name is not None:
 target_metadata = current_app.extensions["migrate"].db.metadata
 
 
+_stamp_done = False
+
+# Revision to stamp when DB exists but has no alembic_version (one before head so
+# the next run applies the latest migration, e.g. retry_after).
+_STAMP_REVISION = "b3c2a1d4e5f6"
+
+
 def stamp_existing_db_if_needed(connection):
     """Stamp an existing database at 'head' to prevent re-creating existing tables.
 
@@ -37,8 +44,12 @@ def stamp_existing_db_if_needed(connection):
       so future migrations only apply incremental changes.
     - If alembic_version exists: Do nothing (already managed by Alembic).
     - If neither exists: Do nothing (fresh database, upgrade will create everything).
+    Uses direct SQL to avoid re-entering Alembic (command.stamp would reload env).
     """
-    from sqlalchemy import inspect
+    global _stamp_done
+    if _stamp_done:
+        return
+    from sqlalchemy import inspect, text
 
     inspector = inspect(connection)
     table_names = inspector.get_table_names()
@@ -47,12 +58,14 @@ def stamp_existing_db_if_needed(connection):
     has_app_tables = "jobs" in table_names  # Use 'jobs' as sentinel for existing DB
 
     if not has_alembic and has_app_tables:
-        # Existing DB without Alembic -- stamp at head
+        _stamp_done = True
         logger.info(
             "Existing database detected without alembic_version table. "
             "Stamping at 'head' to skip initial migration."
         )
-        context.stamp(config, "head")
+        connection.execute(text("CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) NOT NULL PRIMARY KEY)"))
+        connection.execute(text("INSERT INTO alembic_version (version_num) VALUES (:rev)"), {"rev": _STAMP_REVISION})
+        connection.commit()
         logger.info("Database stamped at 'head' successfully.")
 
 

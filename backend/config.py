@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     port: int = 5765
     api_key: str = ""  # Empty = no auth required
     log_level: str = "INFO"
-    log_file: str = "/config/sublarr.log"
+    log_file: str = "log/sublarr.log"  # In-Repo default; Docker: set SUBLARR_LOG_FILE=/config/sublarr.log
     media_path: str = "/media"
     db_path: str = "/config/sublarr.db"
 
@@ -47,6 +47,14 @@ class Settings(BaseSettings):
     provider_cache_ttl_minutes: int = 5  # Cache TTL for provider search results
     provider_auto_prioritize: bool = True  # Auto-prioritize providers based on success rate
     provider_rate_limit_enabled: bool = True  # Enable rate limiting per provider
+
+    # Dynamic Provider Timeouts (Phase 3)
+    provider_dynamic_timeout_enabled: bool = True
+    provider_dynamic_timeout_min_samples: int = 5
+    provider_dynamic_timeout_multiplier: float = 3.0
+    provider_dynamic_timeout_buffer_secs: float = 2.0
+    provider_dynamic_timeout_min_secs: int = 5
+    provider_dynamic_timeout_max_secs: int = 30
 
     # OpenSubtitles.com (API v2)
     opensubtitles_api_key: str = ""
@@ -112,6 +120,14 @@ class Settings(BaseSettings):
     wanted_search_interval_hours: int = 24  # 0 = disabled
     wanted_search_on_startup: bool = False
     wanted_search_max_items_per_run: int = 50
+
+    # Wanted Adaptive Backoff
+    wanted_adaptive_backoff_enabled: bool = True
+    wanted_backoff_base_hours: float = 1.0
+    wanted_backoff_cap_hours: int = 168  # 7 days
+
+    # Wanted Early Exit
+    wanted_skip_srt_on_no_ass: bool = True  # Skip SRT steps if no ASS found in steps 1+2
 
     # Notifications (Apprise)
     notification_urls_json: str = ""  # JSON array or newline-separated Apprise URLs

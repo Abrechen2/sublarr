@@ -89,6 +89,7 @@ class WantedItem(db.Model):
     standalone_series_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     standalone_movie_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     subtitle_type: Mapped[Optional[str]] = mapped_column(String(20), default="full")
+    retry_after: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
 
     __table_args__ = (
         Index("idx_wanted_status", "status"),
@@ -101,6 +102,7 @@ class WantedItem(db.Model):
         # get_wanted_items() filters by both status and item_type together.
         # Avoids SQLite merging two single-column index scans.
         Index("idx_wanted_composite", "status", "item_type"),
+        Index("idx_wanted_retry_after", "retry_after"),
     )
 
 

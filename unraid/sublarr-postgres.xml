@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>sublarr-postgres</Name>
+  <Repository>postgres:16-alpine</Repository>
+  <Registry>https://hub.docker.com/_/postgres</Registry>
+  <Network>sublarr_net</Network>
+  <Privileged>false</Privileged>
+  <Overview>PostgreSQL 16 Datenbank-Backend für Sublarr.</Overview>
+  <Category>Tools:</Category>
+  <ExtraParams/>
+  <Config Name="Data Path" Target="/var/lib/postgresql/data" Default="/mnt/user/appdata/sublarr-postgres"
+    Mode="rw" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/sublarr-postgres</Config>
+  <Config Name="DB Name" Target="POSTGRES_DB" Default="sublarr" Type="Variable" Display="always" Required="true" Mask="false">sublarr</Config>
+  <Config Name="DB User" Target="POSTGRES_USER" Default="sublarr" Type="Variable" Display="always" Required="true" Mask="false">sublarr</Config>
+  <Config Name="DB Password" Target="POSTGRES_PASSWORD" Default="" Type="Variable" Display="always" Required="true" Mask="true"/>
+</Container>
