@@ -92,10 +92,10 @@ class ProviderManager:
 
     # Provider-specific timeouts (seconds)
     PROVIDER_TIMEOUTS = {
-        "animetosho": 20,
-        "opensubtitles": 15,
-        "jimaku": 30,
-        "subdl": 15,
+        "animetosho": 10,
+        "opensubtitles": 10,
+        "jimaku": 12,
+        "subdl": 10,
     }
 
     # Provider-specific retry counts
@@ -201,15 +201,19 @@ class ProviderManager:
 
         # Auto-prioritize based on success rate if enabled
         if getattr(self.settings, "provider_auto_prioritize", True):
-            from db.providers import get_provider_stats, get_provider_success_rate
-            
-            # Get stats for all enabled providers
+            from db.providers import get_provider_stats
+
+            # Batch fetch all provider stats in a single query (avoids N×2 DB hits)
+            all_stats = get_provider_stats()  # returns {name: stats_dict}
+
+            # Compute success rates from batch data (no extra per-provider queries)
             provider_success_rates = {}
             for name in enabled_set:
                 if name in _PROVIDER_CLASSES:
-                    stats = get_provider_stats(name)
+                    stats = all_stats.get(name, {})
                     if stats and stats.get("total_searches", 0) >= 10:  # Minimum 10 searches for auto-prioritization
-                        success_rate = get_provider_success_rate(name)
+                        total = stats.get("total_searches", 0) or 1
+                        success_rate = (stats.get("successful_downloads", 0) or 0) / total
                         provider_success_rates[name] = success_rate
             
             # Sort by success rate (descending), then by manual priority
@@ -633,7 +637,7 @@ class ProviderManager:
             max_timeout = max(
                 (self._get_timeout(n) for n in self._providers if n in {futures[f] for f in futures}),
                 default=self.settings.provider_search_timeout,
-            ) + 5
+            ) + 3
             for future in as_completed(futures, timeout=max_timeout):
                 name = futures[future]
                 try:
@@ -943,7 +947,7 @@ class ProviderManager:
 
     def get_provider_status(self) -> list[dict]:
         """Get status of all providers (for API/UI) with priority, downloads, config_fields, and stats."""
-        from db.providers import get_provider_download_stats, get_provider_stats, get_provider_success_rate, is_provider_auto_disabled
+        from db.providers import get_provider_download_stats, get_provider_stats
 
         # Build priority order (use current priority list from _init_providers)
         priority_str = getattr(self.settings, "provider_priorities", "animetosho,jimaku,opensubtitles,subdl")
@@ -956,9 +960,10 @@ class ProviderManager:
         else:
             enabled_set = set(_PROVIDER_CLASSES.keys())
 
-        # Download stats from DB
+        # Download stats from DB (single batch query)
         download_stats = get_provider_download_stats()
-        # Performance stats
+        # Performance stats (single batch query — includes auto_disabled, disabled_until,
+        # consecutive_failures, successful_downloads, total_searches, etc.)
         performance_stats = get_provider_stats()
 
         statuses = []
@@ -966,13 +971,17 @@ class ProviderManager:
             priority = priority_list.index(name) if name in priority_list else len(priority_list)
             downloads = download_stats.get(name, {}).get("total", 0)
             config_fields = self._get_provider_config_fields(name)
-            
-            # Get performance stats
-            perf_stats = performance_stats.get(name, {})
-            success_rate = get_provider_success_rate(name)
 
-            # Build common stats dict with response time and auto-disable info
-            auto_disabled = is_provider_auto_disabled(name)
+            # Read all stats from the already-fetched batch (no extra per-provider queries)
+            perf_stats = performance_stats.get(name, {})
+            total_searches = perf_stats.get("total_searches", 0) or 0
+            successful_downloads = perf_stats.get("successful_downloads", 0) or 0
+            success_rate = successful_downloads / total_searches if total_searches > 0 else 0.0
+
+            # auto_disabled is stored as int (0/1) in the ORM model; cast to bool.
+            # Note: cooldown expiry side-effect (clearing the flag) runs on next actual
+            # is_auto_disabled() call; for the status view, the batch value is sufficient.
+            auto_disabled = bool(perf_stats.get("auto_disabled", 0))
             stats_dict = {
                 "total_searches": perf_stats.get("total_searches", 0),
                 "successful_downloads": perf_stats.get("successful_downloads", 0),
