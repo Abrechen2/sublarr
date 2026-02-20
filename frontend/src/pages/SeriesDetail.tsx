@@ -6,11 +6,12 @@ import {
   ArrowLeft, Loader2, ChevronDown, ChevronRight,
   Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search, Clock,
   Download, X, ChevronUp, BookOpen, Plus, Edit2, Trash2, Check,
-  Eye, Pencil, Columns2, Timer, ShieldCheck,
+  Eye, Pencil, Columns2, Timer, ShieldCheck, ScanSearch,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
+import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
 import { ComparisonSelector } from '@/components/comparison/ComparisonSelector'
 import { HealthBadge } from '@/components/health/HealthBadge'
 import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry } from '@/lib/types'
@@ -528,12 +529,13 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
 
 // ─── Season Group ──────────────────────────────────────────────────────────
 
-function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onHistory, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onHealthCheck, healthScores, t }: {
+function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onInteractiveSearch, onHistory, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onHealthCheck, healthScores, t }: {
   season: number
   episodes: EpisodeInfo[]
   targetLanguages: string[]
   expandedEp: { id: number; mode: 'search' | 'history' | 'glossary' } | null
   onSearch: (ep: EpisodeInfo) => void
+  onInteractiveSearch: (ep: EpisodeInfo) => void
   onHistory: (ep: EpisodeInfo) => void
   onClose: () => void
   searchResults: WantedSearchResponse | null
@@ -815,6 +817,28 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                         )}
                       </button>
                       <button
+                        onClick={() => onInteractiveSearch(ep)}
+                        disabled={!ep.has_file}
+                        className="p-1.5 rounded transition-colors"
+                        style={{
+                          color: 'var(--text-muted)',
+                          opacity: ep.has_file ? 1 : 0.4,
+                        }}
+                        title="Interaktive Suche"
+                        onMouseEnter={(e) => {
+                          if (ep.has_file) {
+                            e.currentTarget.style.color = 'var(--accent)'
+                            e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = 'var(--text-muted)'
+                          e.currentTarget.style.backgroundColor = ''
+                        }}
+                      >
+                        <ScanSearch size={14} />
+                      </button>
+                      <button
                         onClick={() => onHistory(ep)}
                         disabled={!ep.has_file}
                         className="p-1.5 rounded transition-colors"
@@ -899,6 +923,9 @@ export function SeriesDetailPage() {
   // Health check state
   const [healthCheckPath, setHealthCheckPath] = useState<string | null>(null)
   const [healthScores, setHealthScores] = useState<Record<string, number | null>>({})
+
+  // Interactive search modal state
+  const [interactiveEp, setInteractiveEp] = useState<{ id: number; title: string } | null>(null)
 
   const episodeSearch = useEpisodeSearch()
   const episodeHistory = useEpisodeHistory(expandedEp?.mode === 'history' ? expandedEp.id : 0)
@@ -1287,6 +1314,7 @@ export function SeriesDetailPage() {
             targetLanguages={series.target_languages}
             expandedEp={expandedEp as { id: number; mode: 'search' | 'history' | 'glossary' } | null}
             onSearch={handleSearch}
+            onInteractiveSearch={(ep) => setInteractiveEp({ id: ep.id, title: `${series.title} ${ep.title ? `– ${ep.title}` : ''}`.trim() })}
             onHistory={handleHistory}
             onClose={handleClose}
             searchResults={expandedEp ? searchResults[expandedEp.id] ?? null : null}
@@ -1399,6 +1427,15 @@ export function SeriesDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Interactive Search Modal */}
+      <InteractiveSearchModal
+        open={!!interactiveEp}
+        episodeId={interactiveEp?.id}
+        itemTitle={interactiveEp?.title ?? ''}
+        onClose={() => setInteractiveEp(null)}
+        onDownloaded={() => setInteractiveEp(null)}
+      />
 
       {/* Health Check Panel Modal */}
       {healthCheckPath && (

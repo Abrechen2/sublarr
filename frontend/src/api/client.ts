@@ -300,6 +300,62 @@ export async function episodeHistory(episodeId: number): Promise<{ entries: Epis
   return data
 }
 
+// ─── Interactive Search ───────────────────────────────────────────────────────
+
+export interface InteractiveSearchResult {
+  provider_name: string
+  subtitle_id: string
+  language: string
+  format: string
+  filename: string
+  release_info: string
+  score: number
+  hearing_impaired: boolean
+  forced: boolean
+  matches: string[]
+}
+
+export interface InteractiveSearchResponse {
+  results: InteractiveSearchResult[]
+  total: number
+  item: { id: number; title: string; item_type: string }
+}
+
+export interface DownloadSpecificPayload {
+  provider_name: string
+  subtitle_id: string
+  language: string
+  translate: boolean
+}
+
+export interface DownloadSpecificResult {
+  success: boolean
+  path?: string
+  format?: string
+  translated?: boolean
+  error?: string
+}
+
+export async function searchInteractive(itemId: number): Promise<InteractiveSearchResponse> {
+  const { data } = await api.get(`/wanted/${itemId}/search-providers`)
+  return data
+}
+
+export async function searchInteractiveEpisode(episodeId: number): Promise<InteractiveSearchResponse> {
+  const { data } = await api.get(`/episodes/${episodeId}/search-providers`)
+  return data
+}
+
+export async function downloadSpecific(itemId: number, payload: DownloadSpecificPayload): Promise<DownloadSpecificResult> {
+  const { data } = await api.post(`/wanted/${itemId}/download-specific`, payload)
+  return data
+}
+
+export async function downloadSpecificEpisode(episodeId: number, payload: DownloadSpecificPayload): Promise<DownloadSpecificResult> {
+  const { data } = await api.post(`/episodes/${episodeId}/download-specific`, payload)
+  return data
+}
+
 // ─── Job Retry ───────────────────────────────────────────────────────────────
 
 export async function retryJob(jobId: string): Promise<{ status: string; job_id: string }> {

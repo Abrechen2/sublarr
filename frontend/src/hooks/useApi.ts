@@ -14,6 +14,7 @@ import {
   getBlacklist, addToBlacklist, removeFromBlacklist, clearBlacklist,
   getHistory, getHistoryStats,
   episodeSearch, episodeHistory, retryJob,
+  searchInteractive, searchInteractiveEpisode, downloadSpecific, downloadSpecificEpisode,
   exportConfig, importConfig,
   getGlossaryEntries, createGlossaryEntry, updateGlossaryEntry, deleteGlossaryEntry,
   getPromptPresets, getDefaultPromptPreset, createPromptPreset, updatePromptPreset, deletePromptPreset,
@@ -64,6 +65,7 @@ import type {
   NotificationTemplate, QuietHoursConfig, NotificationFilter, BazarrMigrationPreview,
   CleanupRule,
 } from '@/lib/types'
+import type { DownloadSpecificPayload } from '@/api/client'
 
 // ─── Health ──────────────────────────────────────────────────────────────────
 
@@ -467,6 +469,51 @@ export function useEpisodeHistory(episodeId: number) {
     queryKey: ['episode-history', episodeId],
     queryFn: () => episodeHistory(episodeId),
     enabled: false,
+  })
+}
+
+// ─── Interactive Search ───────────────────────────────────────────────────────
+
+export function useSearchInteractive(itemId: number | null, enabled = false) {
+  return useQuery({
+    queryKey: ['interactive-search', 'wanted', itemId],
+    queryFn: () => searchInteractive(itemId!),
+    enabled: enabled && !!itemId,
+    staleTime: 0,
+    gcTime: 0,
+  })
+}
+
+export function useSearchInteractiveEpisode(episodeId: number | null, enabled = false) {
+  return useQuery({
+    queryKey: ['interactive-search', 'episode', episodeId],
+    queryFn: () => searchInteractiveEpisode(episodeId!),
+    enabled: enabled && !!episodeId,
+    staleTime: 0,
+    gcTime: 0,
+  })
+}
+
+export function useDownloadSpecific() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ itemId, payload }: { itemId: number; payload: DownloadSpecificPayload }) =>
+      downloadSpecific(itemId, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['wanted'] })
+      qc.invalidateQueries({ queryKey: ['wanted-summary'] })
+    },
+  })
+}
+
+export function useDownloadSpecificEpisode() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ episodeId, payload }: { episodeId: number; payload: DownloadSpecificPayload }) =>
+      downloadSpecificEpisode(episodeId, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['series'] })
+    },
   })
 }
 

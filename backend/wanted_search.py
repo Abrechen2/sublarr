@@ -852,6 +852,209 @@ def _result_to_dict(result) -> dict:
     }
 
 
+# ─── Interactive Search ───────────────────────────────────────────────────────
+
+
+def search_providers_for_item(item_id: int) -> dict:
+    """Search all providers for a wanted item, returning all results for interactive selection.
+
+    Unlike search_wanted_item(), this searches all formats and both target+source
+    languages in a single pass, returning a flat result list sorted by score.
+    Used by the interactive search modal (arr-style manual search).
+
+    Returns:
+        dict: {results, total, item}
+    """
+    item = get_wanted_item(item_id)
+    if not item:
+        return {"error": "Item not found", "wanted_id": item_id}
+
+    settings = get_settings()
+    manager = get_provider_manager()
+    item_lang = item.get("target_language") or settings.target_language
+    source_lang = settings.source_language
+
+    # Search both languages in a single pass (deduplicated set)
+    query = build_query_from_wanted(item)
+    query.languages = list({item_lang, source_lang})
+
+    all_results = []
+    try:
+        results = manager.search(query, early_exit=False)
+        all_results.extend(results)
+    except Exception as e:
+        logger.error("Interactive search failed for wanted %d: %s", item_id, e)
+
+    # Deduplicate by (provider_name, subtitle_id)
+    seen = set()
+    unique_results = []
+    for r in all_results:
+        key = (r.provider_name, r.subtitle_id)
+        if key not in seen:
+            seen.add(key)
+            unique_results.append(r)
+
+    # Sort: ASS first, then by score descending
+    unique_results.sort(key=lambda r: (0 if r.format.value == "ass" else 1, -r.score))
+
+    update_wanted_search(item_id)
+
+    return {
+        "results": [_result_to_dict_interactive(r) for r in unique_results],
+        "total": len(unique_results),
+        "item": {
+            "id": item["id"],
+            "title": item.get("title", ""),
+            "item_type": item.get("item_type", "episode"),
+        },
+    }
+
+
+def download_specific_for_item(
+    item_id: int,
+    provider_name: str,
+    subtitle_id: str,
+    language: str,
+    translate: bool,
+) -> dict:
+    """Download a specific subtitle result and optionally translate it.
+
+    Re-searches providers to find the specific result by provider_name + subtitle_id,
+    downloads it, saves it to disk, and optionally runs the translation pipeline.
+    When translate=True and language != item_lang, the subtitle is saved as a
+    temporary source file and the translation pipeline is triggered.
+
+    Returns:
+        dict: {success, path, format, translated, error}
+    """
+    item = get_wanted_item(item_id)
+    if not item:
+        return {"success": False, "error": "Item not found"}
+
+    settings = get_settings()
+    item_lang = item.get("target_language") or settings.target_language
+    manager = get_provider_manager()
+    file_path = item["file_path"]
+
+    # Build query for the given language and re-search to find the specific result
+    query = build_query_from_wanted(item)
+    query.languages = [language]
+
+    try:
+        results = manager.search(query)
+    except Exception as e:
+        logger.error("Search failed during download_specific for wanted %d: %s", item_id, e)
+        return {"success": False, "error": f"Search failed: {e}"}
+
+    target_result = None
+    for r in results:
+        if r.provider_name == provider_name and r.subtitle_id == subtitle_id:
+            target_result = r
+            break
+
+    if not target_result:
+        return {"success": False, "error": f"Result not found: {provider_name}/{subtitle_id}"}
+
+    content = manager.download(target_result)
+    if content is None:
+        return {"success": False, "error": "Download failed"}
+
+    from translator import get_output_path_for_lang
+    fmt_ext = target_result.format.value if target_result.format.value != "unknown" else "srt"
+
+    # When translate=True and we have a non-target language: save + translate
+    if translate and language != item_lang:
+        base = os.path.splitext(file_path)[0]
+        tmp_source_path = f"{base}.{language}.{fmt_ext}"
+
+        try:
+            actual_source_path = manager.save_subtitle(target_result, tmp_source_path)
+        except (OSError, RuntimeError) as e:
+            return {"success": False, "error": f"Failed to save subtitle: {e}"}
+
+        arr_context = {}
+        for key in ("sonarr_series_id", "sonarr_episode_id", "radarr_movie_id"):
+            if item.get(key):
+                arr_context[key] = item[key]
+
+        try:
+            if actual_source_path.endswith(".ass"):
+                from translator import _translate_external_ass
+                translate_result = _translate_external_ass(
+                    file_path, actual_source_path,
+                    target_language=item_lang,
+                    target_language_name=settings.target_language_name,
+                    arr_context=arr_context or None,
+                )
+            else:
+                from translator import translate_srt_from_file
+                translate_result = translate_srt_from_file(
+                    file_path, actual_source_path,
+                    source="provider_interactive",
+                    target_language=item_lang,
+                    arr_context=arr_context or None,
+                )
+        except Exception as e:
+            logger.error("Translation failed in download_specific for wanted %d: %s", item_id, e, exc_info=True)
+            try:
+                if os.path.exists(actual_source_path):
+                    os.remove(actual_source_path)
+            except Exception:
+                pass
+            return {"success": False, "error": f"Translation failed: {e}"}
+
+        try:
+            if os.path.exists(actual_source_path):
+                os.remove(actual_source_path)
+        except Exception:
+            pass
+
+        if not translate_result or not translate_result.get("success"):
+            return {"success": False, "error": translate_result.get("error", "Translation failed")}
+
+        update_wanted_status(item_id, "found")
+        return {
+            "success": True,
+            "path": translate_result.get("output_path"),
+            "format": "ass",
+            "translated": True,
+        }
+
+    # Download only (no translation)
+    output_path = get_output_path_for_lang(file_path, fmt_ext, language)
+    try:
+        actual_path = manager.save_subtitle(target_result, output_path)
+    except (OSError, RuntimeError) as e:
+        return {"success": False, "error": f"Failed to save subtitle: {e}"}
+
+    update_wanted_status(item_id, "found")
+    return {
+        "success": True,
+        "path": actual_path,
+        "format": fmt_ext,
+        "translated": False,
+    }
+
+
+def _result_to_dict_interactive(result) -> dict:
+    """Convert a SubtitleResult to a JSON-serializable dict for the interactive search API.
+
+    Uses provider_name key (not provider) for consistency with the download-specific endpoint.
+    """
+    return {
+        "provider_name": result.provider_name,
+        "subtitle_id": result.subtitle_id,
+        "language": result.language,
+        "format": result.format.value,
+        "filename": result.filename,
+        "release_info": result.release_info,
+        "score": result.score,
+        "hearing_impaired": result.hearing_impaired,
+        "forced": result.forced,
+        "matches": list(result.matches),
+    }
+
+
 # ─── Job Queue Integration ────────────────────────────────────────────────────
 
 
