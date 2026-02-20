@@ -10,7 +10,7 @@ import logging
 import requests
 
 from config import get_settings
-from database import get_glossary_for_series
+from db.translation import get_glossary_for_series
 
 logger = logging.getLogger(__name__)
 

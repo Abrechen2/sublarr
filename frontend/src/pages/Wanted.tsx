@@ -1,21 +1,63 @@
-import { useState, useMemo, useCallback, Fragment } from 'react'
+import { useState, useMemo, useCallback, useEffect, Fragment } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   useWantedItems, useWantedSummary, useRefreshWanted, useUpdateWantedStatus,
   useSearchWantedItem, useProcessWantedItem, useStartWantedBatch, useWantedBatchStatus,
   useRetranslateSingle, useAddToBlacklist, useExtractEmbeddedSub,
 } from '@/hooks/useApi'
-import { StatusBadge } from '@/components/shared/StatusBadge'
+import { StatusBadge, SubtitleTypeBadge } from '@/components/shared/StatusBadge'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
-import type { WantedSearchResponse } from '@/lib/types'
+import type { WantedSearchResponse, FilterCondition } from '@/lib/types'
 import {
   RefreshCw, ChevronLeft, ChevronRight, Search, Film, Tv,
   ArrowUpCircle, EyeOff, Eye, Play, Loader2, ChevronUp, Ban,
-  CheckSquare, Square, MinusSquare, Download,
+  CheckSquare, Square, MinusSquare, Download, ArrowUp, ArrowDown,
 } from 'lucide-react'
+import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
+import { FilterBar } from '@/components/filters/FilterBar'
+import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
+import { BatchActionBar } from '@/components/batch/BatchActionBar'
+import { useSelectionStore } from '@/stores/selectionStore'
+
+/** Derive subtitle file path from media path + language + format. */
+function deriveSubtitlePath(mediaPath: string, lang: string, format: string): string {
+  const lastDot = mediaPath.lastIndexOf('.')
+  const base = lastDot > 0 ? mediaPath.substring(0, lastDot) : mediaPath
+  return `${base}.${lang}.${format}`
+}
 
 const STATUS_FILTERS = ['all', 'wanted', 'failed', 'ignored'] as const
 const TYPE_FILTERS = ['all', 'episode', 'movie'] as const
+const SUBTITLE_TYPE_FILTERS = ['all', 'full', 'forced'] as const
+
+const SCOPE = 'wanted' as const
+
+const WANTED_FILTERS: FilterDef[] = [
+  { key: 'status', label: 'Status', type: 'select' as const, options: [
+    { value: 'wanted', label: 'Wanted' },
+    { value: 'ignored', label: 'Ignored' },
+    { value: 'failed', label: 'Failed' },
+    { value: 'found', label: 'Found' },
+  ]},
+  { key: 'item_type', label: 'Type', type: 'select' as const, options: [
+    { value: 'episode', label: 'Episode' },
+    { value: 'movie', label: 'Movie' },
+  ]},
+  { key: 'subtitle_type', label: 'Subtitle Type', type: 'select' as const, options: [
+    { value: 'full', label: 'Full' },
+    { value: 'forced', label: 'Forced' },
+  ]},
+  { key: 'title', label: 'Title', type: 'text' as const },
+]
+
+const SORT_FIELDS = [
+  { value: 'added_at', labelKey: 'wanted.sortFields.added_at' },
+  { value: 'title', labelKey: 'wanted.sortFields.title' },
+  { value: 'last_search_at', labelKey: 'wanted.sortFields.last_search_at' },
+  { value: 'current_score', labelKey: 'wanted.sortFields.current_score' },
+  { value: 'search_count', labelKey: 'wanted.sortFields.search_count' },
+] as const
 
 function SummaryCard({ icon: Icon, label, value, color }: {
   icon: typeof Search
@@ -53,10 +95,11 @@ function ScoreBadge({ score }: { score: number }) {
   )
 }
 
-function SearchResultsRow({ results, isLoading, onBlacklist }: {
+function SearchResultsRow({ results, isLoading, onBlacklist, t }: {
   results: WantedSearchResponse | null
   isLoading: boolean
   onBlacklist: (providerName: string, subtitleId: string, language: string) => void
+  t: (key: string, opts?: Record<string, unknown>) => string
 }) {
   if (isLoading) {
     return (
@@ -64,7 +107,7 @@ function SearchResultsRow({ results, isLoading, onBlacklist }: {
         <td colSpan={9} className="px-6 py-4">
           <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
             <Loader2 size={14} className="animate-spin" />
-            Searching providers...
+            {t('wanted.searching_providers')}
           </div>
         </td>
       </tr>
@@ -82,7 +125,7 @@ function SearchResultsRow({ results, isLoading, onBlacklist }: {
     return (
       <tr style={{ backgroundColor: 'var(--bg-primary)' }}>
         <td colSpan={9} className="px-6 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>
-          No results found from any provider.
+          {t('wanted.no_results_found')}
         </td>
       </tr>
     )
@@ -149,7 +192,7 @@ function SearchResultsRow({ results, isLoading, onBlacklist }: {
                     <button
                       onClick={() => onBlacklist(r.provider, r.subtitle_id, r.language)}
                       className="p-0.5 rounded transition-colors duration-150"
-                      title="Blacklist this subtitle"
+                      title={t('wanted.blacklist_subtitle')}
                       style={{ color: 'var(--text-muted)' }}
                       onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--error)')}
                       onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
@@ -168,17 +211,34 @@ function SearchResultsRow({ results, isLoading, onBlacklist }: {
 }
 
 export function WantedPage() {
+  const { t } = useTranslation('library')
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const [typeFilter, setTypeFilter] = useState<string | undefined>()
+  const [subtitleTypeFilter, setSubtitleTypeFilter] = useState<string | undefined>()
   const [upgradeFilter, setUpgradeFilter] = useState(false)
   const [languageFilter, setLanguageFilter] = useState<string | undefined>()
   const [expandedItem, setExpandedItem] = useState<number | null>(null)
   const [searchResults, setSearchResults] = useState<Record<number, WantedSearchResponse>>({})
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [previewFilePath, setPreviewFilePath] = useState<string | null>(null)
 
+  // FilterBar state
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([])
+  const [sortBy, setSortBy] = useState('added_at')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [searchText, setSearchText] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchText), 300)
+    return () => clearTimeout(timer)
+  }, [searchText])
+
+  // Zustand selection store
+  const { toggleItem, selectAll, clearSelection, isSelected } = useSelectionStore()
   const { data: summary } = useWantedSummary()
-  const { data: wanted, isLoading } = useWantedItems(page, 50, typeFilter, statusFilter)
+  const { data: wanted, isLoading } = useWantedItems(page, 50, typeFilter, statusFilter, subtitleTypeFilter)
   const refreshWanted = useRefreshWanted()
   const updateStatus = useUpdateWantedStatus()
   const searchItem = useSearchWantedItem()
@@ -193,18 +253,20 @@ export function WantedPage() {
   const totalEpisodes = summary?.by_type?.episode ?? 0
   const totalMovies = summary?.by_type?.movie ?? 0
   const upgradeable = summary?.upgradeable ?? 0
+  const forcedCount = summary?.by_subtitle_type?.forced ?? 0
 
   // Extract unique languages from data
+  const wantedData = wanted?.data
   const availableLanguages = useMemo(() => {
-    if (!wanted?.data) return []
+    if (!wantedData) return []
     const langs = new Set<string>()
-    for (const item of wanted.data) {
+    for (const item of wantedData) {
       if (item.target_language) langs.add(item.target_language)
     }
     return Array.from(langs).sort()
-  }, [wanted?.data])
+  }, [wantedData])
 
-  // Client-side filters
+  // Client-side filters + search + sort
   const filteredData = useMemo(() => {
     let data = wanted?.data
     if (!data) return data
@@ -214,58 +276,61 @@ export function WantedPage() {
     if (languageFilter) {
       data = data.filter((item) => item.target_language === languageFilter)
     }
-    return data
-  }, [wanted?.data, upgradeFilter, languageFilter])
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase()
+      data = data.filter((item) =>
+        (item.title && item.title.toLowerCase().includes(q)) ||
+        (item.file_path && item.file_path.toLowerCase().includes(q))
+      )
+    }
+    // Client-side sort
+    const sorted = [...data]
+    sorted.sort((a, b) => {
+      let cmp = 0
+      if (sortBy === 'title') {
+        cmp = (a.title || '').localeCompare(b.title || '')
+      } else if (sortBy === 'added_at') {
+        cmp = (a.added_at || '').localeCompare(b.added_at || '')
+      } else if (sortBy === 'last_search_at') {
+        cmp = (a.last_search_at || '').localeCompare(b.last_search_at || '')
+      } else if (sortBy === 'current_score') {
+        cmp = (a.current_score ?? 0) - (b.current_score ?? 0)
+      } else if (sortBy === 'search_count') {
+        cmp = (a.search_count ?? 0) - (b.search_count ?? 0)
+      }
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+    return sorted
+  }, [wanted?.data, upgradeFilter, languageFilter, debouncedSearch, sortBy, sortDir])
 
-  // Bulk selection helpers
+  // Bulk selection helpers using Zustand store
   const visibleIds = useMemo(() => filteredData?.map((d) => d.id) ?? [], [filteredData])
-  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id))
-  const someSelected = visibleIds.some((id) => selectedIds.has(id))
+  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => isSelected(SCOPE, id))
+  const someSelected = visibleIds.some((id) => isSelected(SCOPE, id))
 
   const toggleSelectAll = useCallback(() => {
     if (allSelected) {
-      setSelectedIds(new Set())
+      clearSelection(SCOPE)
     } else {
-      setSelectedIds(new Set(visibleIds))
+      selectAll(SCOPE, visibleIds)
     }
-  }, [allSelected, visibleIds])
+  }, [allSelected, visibleIds, clearSelection, selectAll])
 
-  const toggleSelect = useCallback((id: number) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
+  // Handle FilterBar filter changes -- sync relevant filters with existing filter state
+  const handleFiltersChange = useCallback((filters: ActiveFilter[]) => {
+    setActiveFilters(filters)
+    setPage(1)
+    // Sync FilterBar selections back to existing filter buttons
+    const statusVal = filters.find(f => f.key === 'status')?.value
+    setStatusFilter(statusVal)
+    const typeVal = filters.find(f => f.key === 'item_type')?.value
+    setTypeFilter(typeVal)
+    const subTypeVal = filters.find(f => f.key === 'subtitle_type')?.value
+    setSubtitleTypeFilter(subTypeVal)
+    // Sync title filter from FilterBar into the search text box (C9 fix)
+    const titleVal = filters.find(f => f.key === 'title')?.value
+    setSearchText(titleVal ?? '')
   }, [])
-
-  const [bulkRunning, setBulkRunning] = useState(false)
-
-  const handleBulkAction = useCallback(async (action: 'ignore' | 'unignore' | 'search') => {
-    const ids = Array.from(selectedIds)
-    if (ids.length === 0) return
-    setBulkRunning(true)
-    try {
-      for (const id of ids) {
-        if (action === 'ignore') {
-          await updateStatus.mutateAsync({ itemId: id, status: 'ignored' })
-        } else if (action === 'unignore') {
-          await updateStatus.mutateAsync({ itemId: id, status: 'wanted' })
-        } else if (action === 'search') {
-          await searchItem.mutateAsync(id)
-        }
-      }
-      toast(`${action === 'search' ? 'Searched' : action === 'ignore' ? 'Ignored' : 'Un-ignored'} ${ids.length} items`)
-      setSelectedIds(new Set())
-    } catch {
-      toast('Bulk action failed', 'error')
-    } finally {
-      setBulkRunning(false)
-    }
-  }, [selectedIds, updateStatus, searchItem])
 
   const handleSearch = (itemId: number) => {
     if (expandedItem === itemId) {
@@ -281,7 +346,9 @@ export function WantedPage() {
   }
 
   const handleProcess = (itemId: number) => {
-    processItem.mutate(itemId)
+    processItem.mutate(itemId, {
+      onError: (e: Error) => toast(e.message, 'error'),
+    })
   }
 
   const handleExtract = (itemId: number, targetLanguage?: string) => {
@@ -313,7 +380,7 @@ export function WantedPage() {
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--accent)' }}>
               <Loader2 size={14} className="animate-spin" />
-              Processing: {batchStatus.current_item || 'Starting...'}
+              {t('wanted.processing', { item: batchStatus.current_item || t('wanted.starting') })}
             </div>
             <span className="text-xs tabular-nums" style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
               {batchStatus.processed}/{batchStatus.total}
@@ -329,9 +396,9 @@ export function WantedPage() {
             />
           </div>
           <div className="flex gap-4 mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            <span>Found: {batchStatus.found}</span>
-            <span>Failed: {batchStatus.failed}</span>
-            <span>Skipped: {batchStatus.skipped}</span>
+            <span>{t('wanted.found')}: {batchStatus.found}</span>
+            <span>{t('wanted.failed')}: {batchStatus.failed}</span>
+            <span>{t('wanted.skipped')}: {batchStatus.skipped}</span>
           </div>
         </div>
       )}
@@ -339,9 +406,9 @@ export function WantedPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1>Wanted</h1>
+          <h1>{t('wanted.title')}</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-            {summary?.total ?? 0} items missing subtitles
+            {t('wanted.items_missing', { count: summary?.total ?? 0 })}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -356,7 +423,7 @@ export function WantedPage() {
             }}
           >
             <Search size={14} />
-            {batchStatus?.running ? 'Searching...' : 'Search All'}
+            {batchStatus?.running ? t('wanted.searching') : t('wanted.search_all')}
           </button>
           <button
             onClick={() => refreshWanted.mutate(undefined)}
@@ -368,17 +435,17 @@ export function WantedPage() {
               size={14}
               className={refreshWanted.isPending || summary?.scan_running ? 'animate-spin' : ''}
             />
-            {summary?.scan_running ? 'Scanning...' : 'Refresh'}
+            {summary?.scan_running ? t('wanted.scanning') : t('wanted.refresh')}
           </button>
         </div>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <SummaryCard icon={Search} label="Total Wanted" value={totalWanted} color="var(--warning)" />
-        <SummaryCard icon={Tv} label="Episodes" value={totalEpisodes} color="var(--accent)" />
-        <SummaryCard icon={Film} label="Movies" value={totalMovies} color="var(--text-secondary)" />
-        <SummaryCard icon={ArrowUpCircle} label="SRT Upgradeable" value={upgradeable} color="var(--success)" />
+        <SummaryCard icon={Search} label={t('wanted.total_wanted')} value={totalWanted} color="var(--warning)" />
+        <SummaryCard icon={Tv} label={t('wanted.episodes')} value={totalEpisodes} color="var(--accent)" />
+        <SummaryCard icon={Film} label={t('wanted.movies')} value={totalMovies} color="var(--text-secondary)" />
+        <SummaryCard icon={ArrowUpCircle} label={t('wanted.srt_upgradeable')} value={upgradeable} color="var(--success)" />
       </div>
 
       {/* Filters */}
@@ -421,6 +488,28 @@ export function WantedPage() {
             )
           })}
         </div>
+        {forcedCount > 0 && (
+          <div className="flex gap-1.5">
+            {SUBTITLE_TYPE_FILTERS.map((st) => {
+              const isActive = (st === 'all' && !subtitleTypeFilter) || subtitleTypeFilter === st
+              return (
+                <button
+                  key={st}
+                  onClick={() => { setSubtitleTypeFilter(st === 'all' ? undefined : st); setPage(1) }}
+                  className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
+                  style={{
+                    backgroundColor: isActive ? 'var(--accent-bg)' : 'var(--bg-surface)',
+                    color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                    border: `1px solid ${isActive ? 'var(--accent-dim)' : 'var(--border)'}`,
+                  }}
+                >
+                  {st === 'all' ? 'All Subs' : st.charAt(0).toUpperCase() + st.slice(1)}
+                  {st === 'forced' && ` (${forcedCount})`}
+                </button>
+              )
+            })}
+          </div>
+        )}
         {availableLanguages.length > 1 && (
           <div className="flex gap-1.5">
             <button
@@ -469,53 +558,79 @@ export function WantedPage() {
         )}
       </div>
 
-      {/* Bulk Action Bar */}
-      {selectedIds.size > 0 && (
-        <div
-          className="rounded-lg p-3 flex items-center justify-between flex-wrap gap-2"
-          style={{ backgroundColor: 'var(--accent-bg)', border: '1px solid var(--accent-dim)' }}
-        >
-          <span className="text-sm font-medium" style={{ color: 'var(--accent)' }}>
-            {selectedIds.size} selected
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleBulkAction('ignore')}
-              disabled={bulkRunning}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150"
-              style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-            >
-              <EyeOff size={12} />
-              Ignore
-            </button>
-            <button
-              onClick={() => handleBulkAction('unignore')}
-              disabled={bulkRunning}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150"
-              style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-            >
-              <Eye size={12} />
-              Un-ignore
-            </button>
-            <button
-              onClick={() => handleBulkAction('search')}
-              disabled={bulkRunning}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150"
-              style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-            >
-              {bulkRunning ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
-              Search
-            </button>
-            <button
-              onClick={() => setSelectedIds(new Set())}
-              className="px-2 py-1.5 rounded text-xs"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              Clear
-            </button>
-          </div>
+      {/* Search + Sort Controls */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative">
+          <Search
+            size={14}
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+            style={{ color: 'var(--text-muted)' }}
+          />
+          <input
+            type="text"
+            placeholder={t('wanted.search_placeholder', 'Search wanted items...')}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="pl-8 pr-3 py-1.5 rounded-md text-xs w-52 focus:outline-none transition-all"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+            }}
+          />
         </div>
-      )}
+
+        <div className="flex items-center gap-1.5 ml-auto">
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {t('wanted.sortBy', 'Sort by')}:
+          </span>
+          <select
+            value={sortBy}
+            onChange={(e) => { setSortBy(e.target.value); setPage(1) }}
+            className="text-xs px-2 py-1.5 rounded-md cursor-pointer"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            {SORT_FIELDS.map((f) => (
+              <option key={f.value} value={f.value}>{t(f.labelKey, f.value)}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setSortDir((d) => d === 'asc' ? 'desc' : 'asc')}
+            className="p-1.5 rounded-md transition-all duration-150"
+            title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              color: 'var(--accent)',
+            }}
+          >
+            {sortDir === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+          </button>
+        </div>
+      </div>
+
+      {/* FilterBar */}
+      <FilterBar
+        scope={SCOPE}
+        filters={WANTED_FILTERS}
+        activeFilters={activeFilters}
+        onFiltersChange={handleFiltersChange}
+        onPresetLoad={(conditions) => {
+          if (conditions.logic === 'AND') {
+            const filters = conditions.conditions
+              .filter((c): c is FilterCondition => 'field' in c)
+              .map((c) => {
+                const def = WANTED_FILTERS.find(f => f.key === c.field)
+                return { key: c.field, op: c.op, value: String(c.value), label: def?.label ?? c.field }
+              })
+            handleFiltersChange(filters)
+          }
+        }}
+      />
 
       {/* Table */}
       <div
@@ -537,14 +652,14 @@ export function WantedPage() {
                     )}
                   </button>
                 </th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>Title</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>S/E</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>Status</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>Existing</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>Searches</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>Last Search</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>Added</th>
-                <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>Actions</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.title_col')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.se_col')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.status_col')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.existing_col')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.searches_col')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.last_search_col')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.added_col')}</th>
+                <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.actions_col')}</th>
               </tr>
             </thead>
             <tbody>
@@ -573,11 +688,14 @@ export function WantedPage() {
                     >
                       <td className="px-3 py-2.5 w-8">
                         <button
-                          onClick={() => toggleSelect(item.id)}
+                          onClick={(e) => {
+                            const idx = visibleIds.indexOf(item.id)
+                            toggleItem(SCOPE, item.id, idx, e.shiftKey, visibleIds)
+                          }}
                           className="p-0.5"
                           style={{ color: 'var(--text-muted)' }}
                         >
-                          {selectedIds.has(item.id) ? (
+                          {isSelected(SCOPE, item.id) ? (
                             <CheckSquare size={14} style={{ color: 'var(--accent)' }} />
                           ) : (
                             <Square size={14} />
@@ -620,11 +738,14 @@ export function WantedPage() {
                       </td>
                       <td className="px-3 py-2.5">
                         <span className="text-xs" style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-                          {item.season_episode || (item.item_type === 'movie' ? 'Movie' : '\u2014')}
+                          {item.season_episode || (item.item_type === 'movie' ? t('wanted.movie') : '\u2014')}
                         </span>
                       </td>
                       <td className="px-3 py-2.5">
-                        <StatusBadge status={item.status} />
+                        <div className="flex items-center gap-1.5">
+                          <StatusBadge status={item.status} />
+                          <SubtitleTypeBadge subtitleType={item.subtitle_type} />
+                        </div>
                       </td>
                       <td className="px-3 py-2.5 hidden sm:table-cell">
                         <div className="flex items-center gap-1.5">
@@ -660,7 +781,7 @@ export function WantedPage() {
                         className="px-3 py-2.5 text-xs tabular-nums hidden lg:table-cell"
                         style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}
                       >
-                        {item.last_search_at ? formatRelativeTime(item.last_search_at) : 'Never'}
+                        {item.last_search_at ? formatRelativeTime(item.last_search_at) : t('wanted.never')}
                       </td>
                       <td
                         className="px-3 py-2.5 text-xs tabular-nums hidden lg:table-cell"
@@ -670,11 +791,23 @@ export function WantedPage() {
                       </td>
                       <td className="px-4 py-2.5 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {(item.existing_sub === 'ass' || item.existing_sub === 'srt') && item.file_path && item.target_language && (
+                            <button
+                              onClick={() => setPreviewFilePath(deriveSubtitlePath(item.file_path, item.target_language, item.existing_sub))}
+                              className="p-1 rounded transition-colors duration-150"
+                              title="Preview subtitle"
+                              style={{ color: 'var(--text-muted)' }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                            >
+                              <Eye size={14} />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleSearch(item.id)}
                             disabled={searchItem.isPending && expandedItem === item.id}
                             className="p-1 rounded transition-colors duration-150"
-                            title="Search providers"
+                            title={t('wanted.search_providers')}
                             style={{ color: expandedItem === item.id ? 'var(--accent)' : 'var(--text-muted)' }}
                             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
                             onMouseLeave={(e) => {
@@ -691,7 +824,7 @@ export function WantedPage() {
                               onClick={() => handleExtract(item.id, item.target_language)}
                               disabled={extractItem.isPending}
                               className="p-1 rounded transition-colors duration-150"
-                              title="Extract embedded subtitle"
+                              title={t('wanted.extract_embedded')}
                               style={{ color: 'var(--text-muted)' }}
                               onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
                               onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
@@ -703,7 +836,7 @@ export function WantedPage() {
                             onClick={() => handleProcess(item.id)}
                             disabled={processItem.isPending || item.status === 'searching'}
                             className="p-1 rounded transition-colors duration-150"
-                            title="Download + translate"
+                            title={t('wanted.download_translate')}
                             style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--success)')}
                             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
@@ -714,7 +847,7 @@ export function WantedPage() {
                             onClick={() => retranslateItem.mutate(item.id)}
                             disabled={retranslateItem.isPending}
                             className="p-1 rounded transition-colors duration-150"
-                            title="Re-translate"
+                            title={t('wanted.re_translate')}
                             style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--warning)')}
                             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
@@ -727,7 +860,7 @@ export function WantedPage() {
                               status: item.status === 'ignored' ? 'wanted' : 'ignored',
                             })}
                             className="p-1 rounded transition-colors duration-150"
-                            title={item.status === 'ignored' ? 'Un-ignore' : 'Ignore'}
+                            title={item.status === 'ignored' ? t('wanted.un_ignore_action') : t('wanted.ignore_action')}
                             style={{ color: 'var(--text-muted)' }}
                             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
                             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
@@ -742,6 +875,7 @@ export function WantedPage() {
                       <SearchResultsRow
                         results={searchResults[item.id] ?? null}
                         isLoading={searchItem.isPending}
+                        t={t}
                         onBlacklist={(providerName, subtitleId, language) => {
                           addBlacklist.mutate({
                             provider_name: providerName,
@@ -759,7 +893,7 @@ export function WantedPage() {
               ) : (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    {statusFilter || typeFilter || languageFilter ? 'No items match the current filters' : 'No wanted items — run a scan to detect missing subtitles'}
+                    {statusFilter || typeFilter || subtitleTypeFilter || languageFilter ? t('wanted.no_match_filters') : t('wanted.no_wanted_items')}
                   </td>
                 </tr>
               )}
@@ -817,6 +951,18 @@ export function WantedPage() {
           </div>
         )}
       </div>
+
+      {/* Floating BatchActionBar */}
+      <BatchActionBar scope={SCOPE} actions={['ignore', 'unignore', 'blacklist', 'export']} />
+
+      {/* Subtitle Preview Modal */}
+      {previewFilePath && (
+        <SubtitleEditorModal
+          filePath={previewFilePath}
+          initialMode="preview"
+          onClose={() => setPreviewFilePath(null)}
+        />
+      )}
     </div>
   )
 }

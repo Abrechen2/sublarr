@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useLibrary, useLanguageProfiles, useAssignProfile } from '@/hooks/useApi'
 import { Tv, Film, Loader2, Settings, ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -65,7 +66,7 @@ function SortIcon({ sortKey, currentSort, currentDir }: { sortKey: SortKey; curr
     : <ArrowDown size={11} style={{ color: 'var(--accent)' }} />
 }
 
-function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sortKey, sortDir, onSort }: {
+function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sortKey, sortDir, onSort, t }: {
   items: (SeriesInfo | MovieInfo)[]
   type: Tab
   profiles: LanguageProfile[]
@@ -74,6 +75,7 @@ function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sort
   sortKey: SortKey
   sortDir: SortDir
   onSort: (key: SortKey) => void
+  t: (key: string, opts?: Record<string, unknown>) => string
 }) {
   const isSeries = type === 'series'
 
@@ -91,7 +93,7 @@ function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sort
               onClick={() => onSort('title')}
             >
               <span className="inline-flex items-center gap-1.5">
-                Name <SortIcon sortKey="title" currentSort={sortKey} currentDir={sortDir} />
+                {t('table.name')} <SortIcon sortKey="title" currentSort={sortKey} currentDir={sortDir} />
               </span>
             </th>
             {isSeries && (
@@ -101,7 +103,7 @@ function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sort
                 onClick={() => onSort('missing')}
               >
                 <span className="inline-flex items-center gap-1.5">
-                  Missing <SortIcon sortKey="missing" currentSort={sortKey} currentDir={sortDir} />
+                  {t('table.missing')} <SortIcon sortKey="missing" currentSort={sortKey} currentDir={sortDir} />
                 </span>
               </th>
             )}
@@ -109,7 +111,7 @@ function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sort
               className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 w-40"
               style={{ color: 'var(--text-secondary)' }}
             >
-              Profile
+              {t('table.profile')}
             </th>
             <th
               className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 w-44 cursor-pointer select-none"
@@ -117,7 +119,7 @@ function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sort
               onClick={() => onSort('episodes')}
             >
               <span className="inline-flex items-center gap-1.5">
-                {isSeries ? 'Episodes' : 'Status'} <SortIcon sortKey="episodes" currentSort={sortKey} currentDir={sortDir} />
+                {isSeries ? t('table.episodes') : t('table.status')} <SortIcon sortKey="episodes" currentSort={sortKey} currentDir={sortDir} />
               </span>
             </th>
           </tr>
@@ -167,7 +169,7 @@ function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sort
                   </select>
                 ) : (
                   <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    {(item as SeriesInfo).profile_name || 'Default'}
+                    {(item as SeriesInfo).profile_name || t('table.default_profile')}
                   </span>
                 )}
               </td>
@@ -185,7 +187,7 @@ function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sort
                       color: (item as MovieInfo).has_file ? 'var(--success)' : 'var(--error)',
                     }}
                   >
-                    {(item as MovieInfo).has_file ? 'On Disk' : 'Missing'}
+                    {(item as MovieInfo).has_file ? t('table.on_disk') : t('table.missing_file')}
                   </span>
                 )}
               </td>
@@ -197,12 +199,13 @@ function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sort
   )
 }
 
-function Pagination({ page, totalPages, total, pageSize, onPageChange }: {
+function Pagination({ page, totalPages, total, pageSize, onPageChange, t }: {
   page: number
   totalPages: number
   total: number
   pageSize: number
   onPageChange: (p: number) => void
+  t: (key: string, opts?: Record<string, unknown>) => string
 }) {
   const start = (page - 1) * pageSize + 1
   const end = Math.min(page * pageSize, total)
@@ -223,7 +226,7 @@ function Pagination({ page, totalPages, total, pageSize, onPageChange }: {
   return (
     <div className="flex items-center justify-between flex-wrap gap-3 mt-3">
       <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-        Show {start} to {end} of {total} entries
+        {t('pagination.show', { start, end, total })}
       </span>
       <div className="flex items-center gap-1">
         <button
@@ -266,6 +269,7 @@ function Pagination({ page, totalPages, total, pageSize, onPageChange }: {
 }
 
 export function LibraryPage() {
+  const { t } = useTranslation('library')
   const { data: library, isLoading } = useLibrary()
   const { data: profiles } = useLanguageProfiles()
   const assignProfile = useAssignProfile()
@@ -357,7 +361,7 @@ export function LibraryPage() {
   if (isEmpty) {
     return (
       <div className="space-y-5">
-        <h1>Library</h1>
+        <h1>{t('title')}</h1>
         <div
           className="rounded-lg p-8 text-center"
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
@@ -368,9 +372,9 @@ export function LibraryPage() {
           >
             <Tv size={24} style={{ color: 'var(--text-muted)' }} />
           </div>
-          <h2 className="text-base font-semibold mb-2">No Library Data</h2>
+          <h2 className="text-base font-semibold mb-2">{t('empty.title')}</h2>
           <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-            Configure Sonarr and/or Radarr in Settings to see your library.
+            {t('empty.message')}
           </p>
           <button
             onClick={() => navigate('/settings')}
@@ -378,7 +382,7 @@ export function LibraryPage() {
             style={{ backgroundColor: 'var(--accent)' }}
           >
             <Settings size={14} />
-            Go to Settings
+            {t('empty.go_to_settings')}
           </button>
         </div>
       </div>
@@ -388,7 +392,7 @@ export function LibraryPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <h1>Library</h1>
+        <h1>{t('title')}</h1>
         <div className="flex items-center gap-3">
           {/* Search Input */}
           <div className="relative">
@@ -401,7 +405,7 @@ export function LibraryPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setPage(1) }}
-              placeholder="Search..."
+              placeholder={t('search_placeholder')}
               className="pl-8 pr-3 py-1.5 rounded-md text-xs w-48 focus:outline-none transition-all"
               style={{
                 backgroundColor: 'var(--bg-surface)',
@@ -422,7 +426,7 @@ export function LibraryPage() {
               }}
             >
               <Tv size={12} />
-              Series ({series.length})
+              {t('series_tab', { count: series.length })}
             </button>
             <button
               onClick={() => handleTabChange('movies')}
@@ -434,7 +438,7 @@ export function LibraryPage() {
               }}
             >
               <Film size={12} />
-              Movies ({movies.length})
+              {t('movies_tab', { count: movies.length })}
             </button>
           </div>
         </div>
@@ -447,8 +451,8 @@ export function LibraryPage() {
         >
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             {searchQuery
-              ? `No results for "${searchQuery}"`
-              : `No ${activeTab} found. Configure ${activeTab === 'series' ? 'Sonarr' : 'Radarr'} in Settings.`}
+              ? t('no_results', { query: searchQuery })
+              : t('no_items', { type: activeTab, source: activeTab === 'series' ? 'Sonarr' : 'Radarr' })}
           </p>
         </div>
       ) : (
@@ -462,6 +466,7 @@ export function LibraryPage() {
             sortKey={sortKey}
             sortDir={sortDir}
             onSort={handleSort}
+            t={t}
           />
           {totalPages > 1 && (
             <Pagination
@@ -470,6 +475,7 @@ export function LibraryPage() {
               total={processedItems.length}
               pageSize={PAGE_SIZE}
               onPageChange={setPage}
+              t={t}
             />
           )}
         </>

@@ -1,0 +1,303 @@
+{
+  "title": "Einstellungen",
+  "tabs": {
+    "general": "Allgemein",
+    "api_keys": "API Keys",
+    "translation": "Uebersetzung",
+    "translation_backends": "Uebersetzungs-Backends",
+    "languages": "Sprachen",
+    "automation": "Automatisierung",
+    "wanted": "Gesucht",
+    "providers": "Provider",
+    "sonarr": "Sonarr",
+    "radarr": "Radarr",
+    "library_sources": "Bibliotheksquellen",
+    "media_servers": "Medienserver",
+    "whisper": "Whisper",
+    "events_hooks": "Events & Hooks",
+    "scoring": "Scoring",
+    "backup": "Backup",
+    "subtitle_tools": "Untertitel-Werkzeuge",
+    "cleanup": "Bereinigung",
+    "notification_templates": "Benachrichtigungs-Vorlagen",
+    "prompt_presets": "Prompt-Vorlagen",
+    "integrations": "Integrationen"
+  },
+  "general": {
+    "port": "Port",
+    "api_key": "API Key",
+    "api_key_placeholder": "Leer lassen zum Deaktivieren",
+    "log_level": "Log-Stufe",
+    "media_path": "Medienpfad",
+    "db_path": "Datenbankpfad"
+  },
+  "translation": {
+    "source_language_code": "Quellsprache (Code)",
+    "target_language_code": "Zielsprache (Code)",
+    "source_language_name": "Quellsprache (Name)",
+    "target_language_name": "Zielsprache (Name)",
+    "hi_removal": "Untertitel fuer Hoergeschaedigte entfernen"
+  },
+  "automation": {
+    "upgrade_enabled": "Upgrade aktiviert",
+    "prefer_ass": "ASS gegenueber SRT bevorzugen",
+    "min_score_delta": "Mindest-Score-Differenz",
+    "upgrade_window": "Upgrade-Fenster (Tage)",
+    "webhook_delay": "Webhook-Verzoegerung (Minuten)",
+    "auto_scan": "Auto-Scan nach Download",
+    "auto_search": "Auto-Suche bei Providern",
+    "auto_translate": "Gefundene Untertitel automatisch uebersetzen",
+    "search_interval": "Suchintervall (Stunden, 0=deaktiviert)",
+    "search_on_startup": "Suche beim Start",
+    "max_items_per_run": "Max. Eintraege pro Suchlauf"
+  },
+  "wanted_tab": {
+    "scan_interval": "Scan-Intervall (Stunden, 0=deaktiviert)",
+    "anime_only": "Nur Anime (Sonarr)",
+    "anime_movies_only": "Nur Anime-Filme (Radarr)",
+    "scan_on_startup": "Scan beim Start",
+    "max_search_attempts": "Max. Suchversuche"
+  },
+  "sonarr": {
+    "url": "Sonarr URL",
+    "api_key": "Sonarr API Key"
+  },
+  "radarr": {
+    "url": "Radarr URL",
+    "api_key": "Radarr API Key"
+  },
+  "library_sources": {
+    "standalone_enabled": "Standalone-Modus aktivieren",
+    "tmdb_api_key": "TMDB API Key (Bearer Token)",
+    "tvdb_api_key": "TVDB API Key (Optional)",
+    "tvdb_pin": "TVDB PIN (Optional)",
+    "scan_interval": "Scan-Intervall (Stunden, 0=deaktiviert)",
+    "debounce": "Datei-Erkennungs-Debounce (Sekunden)"
+  },
+  "notifications": {
+    "on_download": "Benachrichtigung bei Download",
+    "on_upgrade": "Benachrichtigung bei Upgrade",
+    "on_batch_complete": "Benachrichtigung bei Batch-Abschluss",
+    "on_error": "Benachrichtigung bei Fehler",
+    "manual_actions": "Manuelle Aktionen benachrichtigen",
+    "toggles": "Benachrichtigungs-Events",
+    "templates": {
+      "title": "Vorlagen",
+      "create": "Neue Vorlage",
+      "edit": "Vorlage bearbeiten",
+      "preview": "Vorschau",
+      "previewHint": "Speichern Sie eine Vorlage, um die Vorschau zu sehen.",
+      "name": "Vorlagenname",
+      "titleTemplate": "Titel-Vorlage",
+      "bodyTemplate": "Text-Vorlage",
+      "eventType": "Event-Typ",
+      "serviceName": "Dienstname",
+      "variables": "Verfuegbare Variablen"
+    },
+    "quietHours": {
+      "title": "Ruhezeiten",
+      "name": "Name",
+      "startTime": "Startzeit",
+      "endTime": "Endzeit",
+      "days": "Aktive Tage",
+      "exceptions": "Ausnahme-Events (immer senden)"
+    },
+    "history": {
+      "title": "Benachrichtigungs-Verlauf",
+      "resend": "Erneut senden",
+      "clear": "Verlauf loeschen",
+      "status": "Status"
+    },
+    "filters": {
+      "title": "Event-Filter",
+      "include": "Nur einschliessen (wenn gesetzt, nur diese Events)",
+      "exclude": "Events ausschliessen",
+      "content": "Inhaltsfilter"
+    }
+  },
+  "apiKeys": {
+    "title": "API-Key-Verwaltung",
+    "description": "Alle API Keys zentral verwalten. Verbindungen testen, Keys rotieren und Konfigurationen importieren/exportieren.",
+    "export": "Keys exportieren",
+    "import": "Keys importieren",
+    "bazarrImport": "Bazarr-Migration",
+    "noServices": "Keine API-Key-Dienste gefunden.",
+    "keyUpdated": "Key erfolgreich aktualisiert",
+    "keyUpdateFailed": "Key-Aktualisierung fehlgeschlagen",
+    "exportSuccess": "API Keys exportiert",
+    "exportFailed": "Export fehlgeschlagen",
+    "importFailed": "Import fehlgeschlagen"
+  },
+  "actions": {
+    "save": "Speichern",
+    "test": "Testen",
+    "test_connection": "Verbindung testen",
+    "reset_defaults": "Standardwerte zuruecksetzen",
+    "add_mapping": "Zuordnung hinzufuegen",
+    "add_instance": "Instanz hinzufuegen",
+    "enabled": "Aktiviert",
+    "disabled": "Deaktiviert"
+  },
+  "path_mapping": {
+    "title": "Pfadzuordnung (Remote \u2192 Lokal)",
+    "remote_path": "Remote-Pfad",
+    "local_path": "Lokaler Pfad",
+    "test_title": "Pfadzuordnung testen",
+    "mapped_to": "Zugeordnet zu:",
+    "file_exists": "Datei existiert",
+    "file_not_found": "Datei nicht gefunden"
+  },
+  "instances": {
+    "title": "{{label}}-Instanzen",
+    "instance_n": "Instanz {{n}}",
+    "legacy_note": "Mehrere {{label}}-Instanzen konfigurieren. Wenn leer, wird die Legacy-URL/Key oben verwendet."
+  },
+  "providers_tab": {
+    "healthy": "Gesund",
+    "error": "Fehler",
+    "disabled": "Deaktiviert",
+    "not_initialized": "Nicht initialisiert",
+    "enabled": "Aktiviert",
+    "test_provider": "Provider testen",
+    "move_up": "Nach oben (hoehere Prioritaet)",
+    "move_down": "Nach unten (niedrigere Prioritaet)",
+    "cache_entries": "Cache-Eintraege",
+    "clear_cache": "Cache leeren",
+    "re_enable": "Wieder aktivieren",
+    "auto_disabled": "Automatisch deaktiviert"
+  },
+  "config_export": {
+    "title": "Konfigurationsverwaltung",
+    "export": "Konfiguration exportieren",
+    "import": "Konfiguration importieren",
+    "import_warning": "Dies ueberschreibt die aktuellen Einstellungen. API Keys muessen erneut eingegeben werden.",
+    "export_success": "Konfiguration erfolgreich exportiert",
+    "import_success": "Konfiguration erfolgreich importiert"
+  },
+  "cleanup": {
+    "dedup": {
+      "title": "Deduplizierung",
+      "scanButton": "Nach Duplikaten suchen",
+      "scanning": "Wird gescannt...",
+      "scanStarted": "Duplikat-Scan gestartet",
+      "scanFailed": "Scan konnte nicht gestartet werden",
+      "progress": "Fortschritt",
+      "noResults": "Keine Duplikate gefunden. Fuehren Sie einen Scan durch.",
+      "groupsFound": "Duplikatgruppen",
+      "filesToDelete": "Dateien zum Loeschen",
+      "files": "Dateien",
+      "keepLabel": "Behalten",
+      "deleteLabel": "Loeschen",
+      "deleteAll": "Alle Ausgewaehlten loeschen",
+      "deleting": "Wird geloescht..."
+    },
+    "orphaned": {
+      "title": "Verwaiste Untertitel",
+      "scanButton": "Nach Verwaisten suchen",
+      "scanStarted": "Scan fuer verwaiste Dateien gestartet",
+      "scanFailed": "Scan fehlgeschlagen",
+      "noResults": "Keine verwaisten Untertitel gefunden.",
+      "deleteSelected": "Ausgewaehlte loeschen"
+    },
+    "rules": {
+      "title": "Bereinigungsregeln",
+      "create": "Regel erstellen",
+      "created": "Regel erstellt",
+      "deleted": "Regel geloescht",
+      "running": "Regelausfuehrung gestartet",
+      "configured": "Regeln konfiguriert",
+      "noRules": "Keine Bereinigungsregeln konfiguriert. Erstellen Sie eine zur Automatisierung.",
+      "namePlaceholder": "Regelname",
+      "enabled": "Aktiviert",
+      "disable": "Deaktivieren",
+      "enable": "Aktivieren",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "delete": "Loeschen",
+      "runNow": "Jetzt ausfuehren",
+      "schedule": "Zeitplan",
+      "types": {
+        "dedup": "Deduplizierung",
+        "orphaned": "Verwaiste Dateien",
+        "old_backups": "Alte Backups"
+      }
+    },
+    "history": {
+      "title": "Bereinigungsverlauf",
+      "date": "Datum",
+      "action": "Aktion",
+      "processed": "Verarbeitet",
+      "deleted": "Geloescht",
+      "freed": "Freigegeben",
+      "empty": "Noch kein Bereinigungsverlauf",
+      "prev": "Zurueck",
+      "next": "Weiter"
+    },
+    "diskSpace": {
+      "title": "Speicherplatzanalyse",
+      "noData": "Fuehren Sie einen Scan durch, um die Speicherplatzanalyse zu sehen",
+      "totalFiles": "Dateien gesamt",
+      "totalSize": "Gesamtgroesse",
+      "duplicates": "Duplikate",
+      "savings": "Moegliche Einsparung",
+      "byFormat": "Nach Format",
+      "storageBreakdown": "Speicheraufteilung",
+      "uniqueData": "Einzigartig",
+      "duplicateData": "Duplikat",
+      "trends": "Bereinigungs-Trends (30T)",
+      "noTrends": "Noch kein Bereinigungsverlauf",
+      "bytesFreed": "Freigegeben"
+    },
+    "preview": {
+      "title": "Bereinigungs-Vorschau",
+      "files": "Dateien",
+      "willBeFreed": "werden freigegeben",
+      "confirm": "Loeschen bestaetigen",
+      "confirming": "Wird geloescht...",
+      "cancel": "Abbrechen"
+    }
+  },
+  "integrations": {
+    "title": "Integrationen",
+    "bazarr": {
+      "title": "Bazarr Migration",
+      "dbPath": "Bazarr Datenbankpfad",
+      "dbPathHelp": "Pfad zur Bazarr SQLite-Datenbankdatei (bazarr.db)",
+      "generateReport": "Zuordnungsbericht erstellen",
+      "reportTitle": "Zuordnungsbericht",
+      "compatibility": "Kompatibilitaet",
+      "summary": "Migrations-Zusammenfassung",
+      "tables": "Datenbanktabellen",
+      "proceedToImport": "Weiter zum Import"
+    },
+    "compat": {
+      "title": "Kompatibilitaetspruefung",
+      "target": "Ziel-Player",
+      "videoPath": "Video-Dateipfad",
+      "subtitlePaths": "Untertitel-Dateipfade (einer pro Zeile)",
+      "runCheck": "Pruefung starten",
+      "compatible": "kompatibel",
+      "incompatible": "inkompatibel"
+    },
+    "health": {
+      "title": "Erweiterte Gesundheitsdiagnostik",
+      "runDiagnostics": "Diagnose starten",
+      "connection": "Verbindung",
+      "version": "Version",
+      "libraryAccess": "Bibliothekszugriff",
+      "webhookStatus": "Webhook-Status",
+      "healthIssues": "Probleme",
+      "noIssues": "Keine Probleme erkannt"
+    },
+    "export": {
+      "title": "Konfiguration exportieren",
+      "format": "Exportformat",
+      "includeSecrets": "Geheimnisse einschliessen (API-Schluessel, Passwoerter)",
+      "secretsWarning": "Warnung: Die exportierte Datei enthaelt sensible Zugangsdaten",
+      "export": "Exportieren",
+      "exportAll": "Alle exportieren (ZIP)",
+      "recommended": "Generisches JSON ist das empfohlene primaere Exportformat",
+      "bazarrNote": "Bazarr-kompatibles Format (keine Garantie fuer exakte Uebereinstimmung)"
+    }
+  }
+}

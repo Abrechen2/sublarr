@@ -47,19 +47,20 @@ def init_auth(app):
     """Initialize authentication for the Flask app.
 
     Adds a before_request hook that checks API key for all /api/ routes
-    except /api/v1/health.
+    except /api/v1/health. The key is read on each request so DB overrides
+    (config changes via UI) take effect immediately without a restart.
     """
-    settings = get_settings()
-
-    if not settings.api_key:
-        logger.info("API key authentication disabled (no SUBLARR_API_KEY set)")
-        return
-
-    logger.info("API key authentication enabled")
+    logger.info("API key authentication hook registered (active when SUBLARR_API_KEY is set)")
 
     @app.before_request
     def check_api_key():
         """Check API key for /api/ routes (except health)."""
+        # Read settings on every request to pick up runtime config changes
+        current_settings = get_settings()
+        if not current_settings.api_key:
+            # No API key configured — allow all requests
+            return None
+
         path = request.path
 
         # Skip auth for non-API routes (frontend, static files)
@@ -82,7 +83,7 @@ def init_auth(app):
         if not provided_key:
             return jsonify({"error": "API key required"}), 401
 
-        if not hmac.compare_digest(provided_key, settings.api_key):
+        if not hmac.compare_digest(provided_key, current_settings.api_key):
             return jsonify({"error": "Invalid API key"}), 401
 
         return None

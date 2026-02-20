@@ -1,0 +1,38 @@
+# License Whitelist for Sublarr
+# Only dependencies with these licenses are allowed
+# GPL-3.0 compatible licenses
+
+# Permissive Licenses (always allowed)
+MIT
+Apache-2.0
+BSD-2-Clause
+BSD-3-Clause
+ISC
+Unlicense
+0BSD
+
+# GPL-Compatible Licenses
+GPL-2.0
+GPL-2.0+
+GPL-3.0
+GPL-3.0+
+LGPL-2.1
+LGPL-2.1+
+LGPL-3.0
+LGPL-3.0+
+AGPL-3.0
+AGPL-3.0+
+
+# Python-Specific
+PSF
+Python-2.0
+
+# Other Compatible
+MPL-2.0
+CC0-1.0
+Artistic-2.0
+
+# Notes:
+# - Proprietary licenses are NOT allowed
+# - AGPL is allowed but should be reviewed carefully
+# - If a dependency has a non-whitelisted license, it must be replaced or an exception must be documented

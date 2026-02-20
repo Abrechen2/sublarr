@@ -6,6 +6,7 @@ or via a .env file. Example: SUBLARR_PORT=8080
 
 import os
 import hashlib
+import threading
 
 from pydantic_settings import BaseSettings
 from pydantic import Field
@@ -72,6 +73,9 @@ class Settings(BaseSettings):
     jellyfin_url: str = ""
     jellyfin_api_key: str = ""
 
+    # Media Servers (multi-backend: Jellyfin, Plex, Kodi)
+    media_servers_json: str = ""  # JSON array of media server instances
+
     # Path Mapping (remote → local, for when *arr apps run on different host)
     # Format: "remote_prefix=local_prefix" (semicolon-separated for multiple)
     # Example: "/data/media=Z:\Media;/anime=Z:\Anime"
@@ -113,11 +117,49 @@ class Settings(BaseSettings):
     notify_on_error: bool = True
     notify_manual_actions: bool = False
 
+    # Circuit Breaker
+    circuit_breaker_failure_threshold: int = 5  # Consecutive failures before opening
+    circuit_breaker_cooldown_seconds: int = 60  # Seconds in OPEN before HALF_OPEN probe
+    provider_auto_disable_cooldown_minutes: int = 30  # Minutes before auto-disabled provider is re-enabled
+
+    # Logging
+    log_format: str = "text"  # "text" or "json" (structured JSON for log aggregation)
+
+    # Database Backup
+    backup_dir: str = "/config/backups"
+    backup_retention_daily: int = 7
+    backup_retention_weekly: int = 4
+    backup_retention_monthly: int = 3
+
+    # Plugin System
+    plugins_dir: str = "/config/plugins"
+    plugin_hot_reload: bool = False  # Enable watchdog file watcher for plugins directory
+
+    # Standalone Mode
+    standalone_enabled: bool = False
+    standalone_scan_interval_hours: int = 6  # 0 = disabled
+    standalone_debounce_seconds: int = 10
+    tmdb_api_key: str = ""  # TMDB API v3 Bearer token
+    tvdb_api_key: str = ""  # TVDB API v4 key (optional)
+    tvdb_pin: str = ""  # TVDB PIN (optional)
+    metadata_cache_ttl_days: int = 30
+
     # AniDB Integration
     anidb_enabled: bool = True  # Enable AniDB ID resolution
     anidb_cache_ttl_days: int = 30  # Cache TTL for TVDB → AniDB mappings
     anidb_custom_field_name: str = "anidb_id"  # Custom field name in Sonarr
     anidb_fallback_to_mapping: bool = True  # Use cache/mapping as fallback
+
+    # Database (PERF-01, PERF-02)
+    database_url: str = ""  # Empty = SQLite at db_path. Set to postgresql://... for PG.
+    db_pool_size: int = 5           # SQLAlchemy pool_size (ignored for SQLite)
+    db_pool_max_overflow: int = 10  # SQLAlchemy max_overflow (ignored for SQLite)
+    db_pool_recycle: int = 3600     # Recycle connections after N seconds
+
+    # Redis (PERF-04, PERF-06)
+    redis_url: str = ""             # Empty = no Redis. e.g., redis://localhost:6379/0
+    redis_cache_enabled: bool = True   # Use Redis for provider cache (when redis_url set)
+    redis_queue_enabled: bool = True   # Use Redis+RQ for job queue (when redis_url set)
 
     model_config = {
         "env_prefix": "SUBLARR_",
@@ -125,6 +167,15 @@ class Settings(BaseSettings):
         "env_file_encoding": "utf-8",
         "extra": "ignore",
     }
+
+    def get_database_url(self) -> str:
+        """Get the SQLAlchemy database URL.
+
+        Returns database_url if set, otherwise constructs a SQLite URL from db_path.
+        """
+        if self.database_url:
+            return self.database_url
+        return f"sqlite:///{self.db_path}"
 
     def get_prompt_template(self) -> str:
         """Get the translation prompt template.
@@ -136,7 +187,7 @@ class Settings(BaseSettings):
         """
         # Try to get default preset from database
         try:
-            from database import get_default_prompt_preset
+            from db.translation import get_default_prompt_preset
             preset = get_default_prompt_preset()
             if preset and preset.get("prompt_template"):
                 return preset["prompt_template"]
@@ -177,16 +228,28 @@ class Settings(BaseSettings):
         """Get all language tags for the source language."""
         return _get_language_tags(self.source_language)
 
-    def get_translation_config_hash(self) -> str:
-        """SHA256 hash of model+prompt+target_language (first 12 chars)."""
-        content = f"{self.ollama_model}|{self.get_prompt_template()}|{self.target_language}"
+    def get_translation_config_hash(self, backend_name: str = "ollama") -> str:
+        """SHA256 hash of backend+model+prompt+target_language (first 12 chars).
+
+        For Ollama backends, includes the model name and prompt template.
+        For non-Ollama backends (DeepL, Google, etc.), model is not relevant
+        so the hash is based on backend name and target language only.
+
+        Args:
+            backend_name: Translation backend name (default "ollama")
+        """
+        if backend_name == "ollama":
+            content = f"{backend_name}|{self.ollama_model}|{self.get_prompt_template()[:50]}|{self.target_language}"
+        else:
+            content = f"{backend_name}||{self.target_language}"
         return hashlib.sha256(content.encode()).hexdigest()[:12]
 
     def get_safe_config(self) -> dict:
-        """Get config dict without sensitive values (API keys)."""
+        """Get config dict without sensitive values (API keys, passwords, tokens)."""
+        _SENSITIVE_PARTS = {"password", "pin", "secret", "token", "api_key"}
         data = self.model_dump()
         for key in list(data.keys()):
-            if "api_key" in key or "key" in key.split("_"):
+            if "api_key" in key or "key" in key.split("_") or any(s in key for s in _SENSITIVE_PARTS):
                 if data[key]:
                     data[key] = "***configured***"
                 else:
@@ -264,14 +327,19 @@ def _get_language_tags(lang_code: str) -> set[str]:
 
 # Singleton settings instance
 _settings: Optional[Settings] = None
+_settings_lock = threading.Lock()
 
 
 def get_settings() -> Settings:
-    """Get or create the singleton Settings instance."""
+    """Get or create the singleton Settings instance (thread-safe)."""
     global _settings
-    if _settings is None:
+    if _settings is not None:
+        return _settings
+    with _settings_lock:
+        if _settings is not None:
+            return _settings
         _settings = Settings()
-    return _settings
+        return _settings
 
 
 def reload_settings(overrides: dict = None) -> Settings:
@@ -369,5 +437,47 @@ def get_radarr_instances() -> list[dict]:
             "api_key": settings.radarr_api_key,
             "path_mapping": settings.path_mapping,
         }]
-    
+
+    return []
+
+
+def get_media_server_instances() -> list[dict]:
+    """Get media server instances from config, with fallback to legacy Jellyfin settings.
+
+    Checks config_entries for media_servers_json first.
+    If not found, auto-migrates legacy jellyfin_url + jellyfin_api_key to the new format.
+
+    Returns list of instance dicts:
+        [{"type": "jellyfin", "name": "...", "enabled": true, "url": "...", "api_key": "..."}]
+    """
+    import json
+    from db.config import get_config_entry, save_config_entry
+
+    # Try new multi-instance config from DB
+    raw = get_config_entry("media_servers_json")
+    if raw:
+        try:
+            instances = json.loads(raw)
+            if isinstance(instances, list) and len(instances) > 0:
+                return instances
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    # Fallback to legacy single-instance Jellyfin config
+    settings = get_settings()
+    if settings.jellyfin_url and settings.jellyfin_api_key:
+        migrated = [{
+            "type": "jellyfin",
+            "name": "Jellyfin",
+            "enabled": True,
+            "url": settings.jellyfin_url,
+            "api_key": settings.jellyfin_api_key,
+        }]
+        # One-time migration: store back into config_entries
+        try:
+            save_config_entry("media_servers_json", json.dumps(migrated))
+        except Exception:
+            pass  # Migration is best-effort
+        return migrated
+
     return []

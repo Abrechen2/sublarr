@@ -1,0 +1,27 @@
+{
+  "title": "Statistiken",
+  "range": {
+    "7d": "7 Tage",
+    "30d": "30 Tage",
+    "90d": "90 Tage",
+    "365d": "1 Jahr"
+  },
+  "export": "Exportieren",
+  "export_json": "Als JSON exportieren",
+  "export_csv": "Als CSV exportieren",
+  "charts": {
+    "translations": "Uebersetzungen im Zeitverlauf",
+    "translated": "Uebersetzt",
+    "failed": "Fehlgeschlagen",
+    "providers": "Provider-Nutzung",
+    "searches": "Suchen",
+    "downloads": "Downloads",
+    "format": "Untertitelformat-Verteilung",
+    "downloads_by_provider": "Downloads nach Provider",
+    "count": "Anzahl",
+    "avg_score": "Durchschn. Score"
+  },
+  "no_data": "Noch keine Statistikdaten. Starte Untertitel-Uebersetzungen, um hier Diagramme zu sehen.",
+  "exported": "Statistiken als {{format}} exportiert",
+  "export_failed": "Export fehlgeschlagen"
+}

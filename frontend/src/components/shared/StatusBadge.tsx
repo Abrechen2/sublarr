@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { useTranslation } from 'react-i18next'
 
 interface StatusBadgeProps {
   status: string
@@ -20,9 +21,32 @@ const statusStyles: Record<string, { bg: string; text: string; dot: string }> = 
   skipped:          { bg: 'rgba(124,130,147,0.08)', text: 'var(--text-secondary)', dot: 'var(--text-muted)' },
 }
 
+// Map API status strings to common:status translation keys
+const statusTranslationKeys: Record<string, string> = {
+  healthy: 'status.healthy',
+  completed: 'status.completed',
+  running: 'status.running',
+  queued: 'status.queued',
+  failed: 'status.failed',
+  unhealthy: 'status.unhealthy',
+  wanted: 'status.wanted',
+  searching: 'status.searching',
+  found: 'status.found',
+  ignored: 'status.ignored',
+  'not configured': 'status.not_configured',
+  skipped: 'status.skipped',
+  online: 'status.online',
+  offline: 'status.offline',
+  enabled: 'status.enabled',
+  disabled: 'status.disabled',
+}
+
 export function StatusBadge({ status, className }: StatusBadgeProps) {
+  const { t } = useTranslation('common')
   const style = statusStyles[status.toLowerCase()] || statusStyles['not configured']
   const isRunning = status.toLowerCase() === 'running'
+  const translationKey = statusTranslationKeys[status.toLowerCase()]
+  const label = translationKey ? t(translationKey) : status
 
   return (
     <span
@@ -40,7 +64,28 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
           animation: isRunning ? 'dotGlow 2s ease-in-out infinite' : undefined,
         }}
       />
-      {status}
+      {label}
+    </span>
+  )
+}
+
+/**
+ * Compact badge for subtitle type indication.
+ * Only renders for "forced" type -- "full" is the default and shows nothing.
+ */
+export function SubtitleTypeBadge({ subtitleType, className }: { subtitleType: string; className?: string }) {
+  const { t } = useTranslation('common')
+  if (subtitleType !== 'forced') return null
+
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium',
+        className
+      )}
+      style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
+    >
+      {t('status.forced', 'Forced')}
     </span>
   )
 }

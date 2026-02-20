@@ -1,6 +1,10 @@
 services:
   sublarr:
-    build: .
+    build:
+      context: .
+      args:
+        PUID: ${PUID:-1000}
+        PGID: ${PGID:-1000}
     container_name: sublarr
     ports:
       - "${SUBLARR_PORT:-5765}:5765"
@@ -9,3 +13,25 @@ services:
       - ${SUBLARR_MEDIA_PATH:-/media}:/media:rw
     env_file: .env
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

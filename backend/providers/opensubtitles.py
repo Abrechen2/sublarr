@@ -16,6 +16,8 @@ from providers.base import (
     SubtitleResult,
     SubtitleFormat,
     VideoQuery,
+    ProviderAuthError,
+    ProviderRateLimitError,
 )
 from providers import register_provider
 from providers.http_session import create_session
@@ -77,6 +79,16 @@ class OpenSubtitlesProvider(SubtitleProvider):
         "th", "vi", "id", "hi",
     }
 
+    # Plugin system attributes
+    config_fields = [
+        {"key": "opensubtitles_api_key", "label": "API Key", "type": "password", "required": True},
+        {"key": "opensubtitles_username", "label": "Username", "type": "text", "required": False},
+        {"key": "opensubtitles_password", "label": "Password", "type": "password", "required": False},
+    ]
+    rate_limit = (40, 10)
+    timeout = 15
+    max_retries = 3
+
     def __init__(self, api_key: str = "", username: str = "", password: str = "", **kwargs):
         super().__init__(**kwargs)
         self.api_key = api_key
@@ -87,9 +99,10 @@ class OpenSubtitlesProvider(SubtitleProvider):
 
     def initialize(self):
         if not self.api_key:
-            logger.debug("OpenSubtitles: no API key configured, skipping")
+            logger.warning("OpenSubtitles: no API key configured, provider will be disabled")
             return
 
+        logger.debug("OpenSubtitles: initializing with API key (length: %d)", len(self.api_key))
         self.session = create_session(
             max_retries=2,
             backoff_factor=1.0,
@@ -103,7 +116,10 @@ class OpenSubtitlesProvider(SubtitleProvider):
 
         # Login if credentials provided (gives higher download limits)
         if self.username and self.password:
+            logger.debug("OpenSubtitles: attempting login with username")
             self._login()
+        else:
+            logger.debug("OpenSubtitles: initialized without user login (using API key only)")
 
     def _login(self):
         """Authenticate to get a user token (higher rate limits)."""
@@ -151,8 +167,12 @@ class OpenSubtitlesProvider(SubtitleProvider):
 
     def search(self, query: VideoQuery) -> list[SubtitleResult]:
         if not self.session or not self.api_key:
+            logger.warning("OpenSubtitles: cannot search - session=%s, api_key=%s", 
+                          self.session is not None, bool(self.api_key))
             return []
 
+        logger.debug("OpenSubtitles: searching for %s (languages: %s)", 
+                    query.display_name, query.languages)
         results = []
 
         # Build search params
@@ -186,16 +206,31 @@ class OpenSubtitlesProvider(SubtitleProvider):
                 params["query"] = query.title
 
         if not params.get("query") and not params.get("imdb_id") and not params.get("moviehash"):
-            logger.debug("OpenSubtitles: insufficient search criteria")
+            logger.warning("OpenSubtitles: insufficient search criteria - params: %s", params)
             return []
 
+        logger.debug("OpenSubtitles: API request params: %s", params)
         try:
             resp = self.session.get(f"{API_BASE}/subtitles", params=params)
+            logger.debug("OpenSubtitles: API response status: %d", resp.status_code)
+            
+            if resp.status_code == 401 or resp.status_code == 403:
+                error_msg = f"OpenSubtitles authentication failed: HTTP {resp.status_code}"
+                logger.error(error_msg)
+                raise ProviderAuthError(error_msg)
+            
+            if resp.status_code == 429:
+                error_msg = f"OpenSubtitles rate limit exceeded: HTTP {resp.status_code}"
+                logger.warning(error_msg)
+                raise ProviderRateLimitError(error_msg)
+            
             if resp.status_code != 200:
-                logger.warning("OpenSubtitles search failed: HTTP %d", resp.status_code)
+                logger.warning("OpenSubtitles search failed: HTTP %d, response: %s", 
+                              resp.status_code, resp.text[:200])
                 return []
 
             data = resp.json()
+            logger.debug("OpenSubtitles: API returned %d items", len(data.get("data", [])))
             for item in data.get("data", []):
                 attrs = item.get("attributes", {})
                 files = attrs.get("files", [])
@@ -204,6 +239,17 @@ class OpenSubtitlesProvider(SubtitleProvider):
                 hi = attrs.get("hearing_impaired", False)
                 fps = attrs.get("fps", 0)
                 feature = attrs.get("feature_details", {})
+
+                # Detect if this subtitle is forced (foreign parts only)
+                is_forced = bool(attrs.get("foreign_parts_only", False))
+
+                # Filter based on forced_only flag:
+                # - forced_only=True: skip non-forced results
+                # - forced_only=False: skip forced results (don't mix forced into full)
+                if query.forced_only and not is_forced:
+                    continue
+                if not query.forced_only and is_forced:
+                    continue
 
                 for f in files:
                     file_id = f.get("file_id")
@@ -241,16 +287,20 @@ class OpenSubtitlesProvider(SubtitleProvider):
                         filename=filename,
                         release_info=release,
                         hearing_impaired=hi,
+                        forced=is_forced,
                         fps=fps if fps else None,
                         matches=matches,
-                        provider_data={"file_id": file_id},
+                        provider_data={"file_id": file_id, "foreign_parts_only": is_forced},
                     )
                     results.append(result)
 
         except Exception as e:
-            logger.error("OpenSubtitles search error: %s", e)
+            logger.error("OpenSubtitles search error: %s", e, exc_info=True)
 
         logger.info("OpenSubtitles: found %d results", len(results))
+        if results:
+            logger.debug("OpenSubtitles: top result - %s (score: %d, format: %s, language: %s)",
+                        results[0].filename, results[0].score, results[0].format.value, results[0].language)
         return results
 
     def download(self, result: SubtitleResult) -> bytes:

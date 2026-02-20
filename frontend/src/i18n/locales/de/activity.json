@@ -1,0 +1,90 @@
+{
+  "title": "Aktivitaet",
+  "filter": {
+    "all": "Alle",
+    "completed": "Abgeschlossen",
+    "failed": "Fehlgeschlagen",
+    "running": "Laeuft",
+    "queued": "Wartend"
+  },
+  "table": {
+    "file": "Datei",
+    "status": "Status",
+    "format": "Format",
+    "time": "Zeit",
+    "error": "Fehler",
+    "actions": "Aktionen"
+  },
+  "expanded": {
+    "full_path": "Vollstaendiger Pfad",
+    "output": "Ausgabe",
+    "format": "Format",
+    "force": "Erzwingen",
+    "force_yes": "Ja",
+    "force_no": "Nein",
+    "created": "Erstellt",
+    "completed": "Abgeschlossen",
+    "error": "Fehler",
+    "stats": "Statistiken"
+  },
+  "no_jobs": "Keine Aufgaben gefunden",
+  "retry_started": "Wiederholung gestartet",
+  "retry_failed": "Wiederholung fehlgeschlagen",
+  "retry_job": "Aufgabe wiederholen",
+  "page_info": "Seite {{page}} von {{totalPages}} ({{total}} gesamt)",
+  "queue": {
+    "title": "Warteschlange",
+    "batch_processing": "Stapelverarbeitung",
+    "total": "Gesamt",
+    "processed": "Verarbeitet",
+    "succeeded": "Erfolgreich",
+    "failed": "Fehlgeschlagen",
+    "skipped": "Uebersprungen",
+    "current": "Aktuell",
+    "running": "Aktiv",
+    "running_count": "Aktiv ({{count}})",
+    "queued": "Wartend",
+    "queued_count": "Wartend ({{count}})",
+    "no_active": "Keine aktiven Uebersetzungen",
+    "no_queued": "Keine wartenden Aufgaben"
+  },
+  "history": {
+    "title": "Verlauf",
+    "subtitle": "Untertitel-Download-Verlauf aller Provider",
+    "total_downloads": "Downloads gesamt",
+    "last_24h": "Letzte 24 Std.",
+    "last_7d": "Letzte 7 Tage",
+    "top_provider": "Top Provider",
+    "all_providers": "Alle Provider",
+    "table": {
+      "file": "Datei",
+      "provider": "Provider",
+      "lang": "Sprache",
+      "format": "Format",
+      "score": "Score",
+      "date": "Datum",
+      "actions": "Aktionen"
+    },
+    "no_history": "Noch kein Download-Verlauf",
+    "add_to_blacklist": "Zur Sperrliste hinzufuegen",
+    "blacklisted_from_history": "Aus dem Verlauf gesperrt"
+  },
+  "blacklist": {
+    "title": "Sperrliste",
+    "subtitle": "{{count}} gesperrte Untertitel werden aus den Suchergebnissen ausgeschlossen",
+    "blocked_subtitles": "Gesperrte Untertitel",
+    "clear_all": "Alle leeren",
+    "clear_confirm": "Alle Eintraege leeren?",
+    "table": {
+      "provider": "Provider",
+      "subtitle_id": "Untertitel-ID",
+      "lang": "Sprache",
+      "title_path": "Titel / Pfad",
+      "reason": "Grund",
+      "added": "Hinzugefuegt",
+      "actions": "Aktionen"
+    },
+    "no_items": "Keine gesperrten Untertitel. Verwende den Sperren-Button bei Suchergebnissen oder im Verlauf, um unerwuenschte Untertitel zu blockieren.",
+    "remove_from_blacklist": "Von Sperrliste entfernen"
+  }
+}

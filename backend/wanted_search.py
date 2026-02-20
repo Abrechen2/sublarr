@@ -1,29 +1,103 @@
 """Wanted search module — connects Wanted items with the Provider system.
 
 Builds VideoQueries from wanted items, searches providers, downloads best
-results, and triggers translation. Processes items sequentially to respect
-provider rate limits.
+results, and triggers translation. Supports parallel item processing via
+ThreadPoolExecutor. Provider-level rate limiters and circuit breakers
+handle concurrency safety.
 """
 
 import os
+import re
 import time
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from config import get_settings, map_path
-from database import (
-    get_wanted_item,
-    get_wanted_items,
-    update_wanted_status,
-    update_wanted_search,
-    record_upgrade,
-)
+from db.wanted import get_wanted_item, get_wanted_items, update_wanted_status, update_wanted_search
+from db.library import record_upgrade
 from upgrade_scorer import should_upgrade
 from providers import get_provider_manager
 from providers.base import VideoQuery, SubtitleFormat
+from translator import get_forced_output_path
 
 logger = logging.getLogger(__name__)
 
-INTER_ITEM_DELAY = 0.5  # seconds between items (rate-limit protection)
+# Episode patterns for filename parsing (ordered by specificity)
+_EPISODE_PATTERNS = [
+    re.compile(r'[Ss](\d+)[Ee](\d+)'),           # S01E02
+    re.compile(r'(\d+)x(\d+)'),                    # 1x02
+    re.compile(r'[Ee](?:pisode)?\s*(\d+)', re.I),  # E02, Episode 02
+    re.compile(r' - (\d{2,3})(?:\s|\.|\[|$)'),     # " - 02" (anime absolute)
+]
+
+
+def _parse_filename_for_metadata(file_path: str) -> dict:
+    """Parse filename to extract series title, season, episode, year.
+
+    Tries guessit first if available (via standalone.parser), then falls back
+    to regex patterns. Standalone items typically have metadata from DB, so
+    this fallback is rarely exercised for them.
+
+    Returns dict with: series_title, season, episode, year, title
+    """
+    # Try guessit first if available (more robust than regex patterns)
+    try:
+        from standalone.parser import parse_media_file
+        parsed = parse_media_file(file_path)
+        if parsed.get("title"):
+            return {
+                "series_title": parsed["title"] if parsed["type"] == "episode" else "",
+                "title": parsed["title"] if parsed["type"] == "movie" else "",
+                "season": parsed.get("season"),
+                "episode": parsed.get("episode"),
+                "year": parsed.get("year"),
+            }
+    except ImportError:
+        pass  # standalone.parser not available, fall through to regex
+
+    filename = os.path.basename(file_path)
+    name_without_ext = os.path.splitext(filename)[0]
+    
+    result = {
+        "series_title": "",
+        "title": "",
+        "season": None,
+        "episode": None,
+        "year": None,
+    }
+    
+    # Try to extract season/episode
+    for pattern in _EPISODE_PATTERNS:
+        match = pattern.search(name_without_ext)
+        if match:
+            if len(match.groups()) == 2:
+                result["season"] = int(match.group(1))
+                result["episode"] = int(match.group(2))
+            else:
+                result["episode"] = int(match.group(1))
+            break
+    
+    # Extract year (4 digits, likely between 1900-2100)
+    year_match = re.search(r'\b(19|20)\d{2}\b', name_without_ext)
+    if year_match:
+        result["year"] = int(year_match.group(0))
+    
+    # Extract series/movie title (everything before season/episode/year)
+    # Remove common release group tags and quality indicators
+    title_parts = re.split(r'[Ss]\d+[Ee]\d+|\.\d{4}\.|\[.*?\]|\(.*?\)', name_without_ext)
+    if title_parts:
+        clean_title = title_parts[0].strip(' .-_')
+        # Remove quality tags (1080p, 720p, etc.)
+        clean_title = re.sub(r'\b\d+p\b', '', clean_title, flags=re.IGNORECASE).strip(' .-_')
+        # Remove codec tags (x264, x265, etc.)
+        clean_title = re.sub(r'\b(x264|x265|h264|h265|hevc)\b', '', clean_title, flags=re.IGNORECASE).strip(' .-_')
+        
+        if result["season"] is not None:
+            result["series_title"] = clean_title
+        else:
+            result["title"] = clean_title
+    
+    return result
 
 
 def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
@@ -32,6 +106,7 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
     Fetches series/movie metadata from the relevant *arr client to enrich
     the query with titles, IDs, season/episode numbers, etc.
     Uses target_language from the wanted item (language profile aware).
+    Falls back to filename parsing if metadata is unavailable.
     """
     settings = get_settings()
     # Use item's target_language if set, otherwise fall back to global config
@@ -41,6 +116,8 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
         file_path=wanted_item["file_path"],
         languages=[item_lang],
     )
+
+    metadata_available = False
 
     if wanted_item["item_type"] == "episode":
         series_id = wanted_item.get("sonarr_series_id")
@@ -62,9 +139,40 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
                         query.tvdb_id = meta.get("tvdb_id")
                         query.anidb_id = meta.get("anidb_id")
                         query.anilist_id = meta.get("anilist_id")
+                        metadata_available = True
+                        logger.debug("Built query from Sonarr metadata: %s S%02dE%02d", 
+                                   query.series_title, query.season or 0, query.episode or 0)
             except Exception as e:
                 logger.warning("Failed to get Sonarr metadata for wanted %d: %s",
                                wanted_item["id"], e)
+
+        # Try standalone metadata if no Sonarr metadata
+        if not metadata_available:
+            standalone_sid = wanted_item.get("standalone_series_id")
+            if standalone_sid:
+                try:
+                    from db.standalone import get_standalone_series
+                    series = get_standalone_series(standalone_sid)
+                    if series:
+                        query.series_title = series.get("title", "")
+                        query.year = series.get("year")
+                        query.imdb_id = series.get("imdb_id", "")
+                        query.tvdb_id = series.get("tvdb_id")
+                        query.tmdb_id = series.get("tmdb_id")
+                        query.anilist_id = series.get("anilist_id")
+                        # Parse season/episode from wanted item's season_episode field
+                        se = wanted_item.get("season_episode", "")
+                        if se:
+                            se_match = re.match(r'S(\d+)E(\d+)', se, re.IGNORECASE)
+                            if se_match:
+                                query.season = int(se_match.group(1))
+                                query.episode = int(se_match.group(2))
+                        metadata_available = True
+                        logger.debug("Built query from standalone series metadata: %s",
+                                     query.series_title)
+                except Exception as e:
+                    logger.warning("Failed to get standalone series metadata for wanted %d: %s",
+                                   wanted_item["id"], e)
 
     elif wanted_item["item_type"] == "movie":
         movie_id = wanted_item.get("radarr_movie_id")
@@ -81,9 +189,68 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
                         query.imdb_id = meta.get("imdb_id", "")
                         query.tmdb_id = meta.get("tmdb_id")
                         query.genres = meta.get("genres", [])
+                        metadata_available = True
+                        logger.debug("Built query from Radarr metadata: %s (%s)", 
+                                   query.title, query.year or "no year")
             except Exception as e:
                 logger.warning("Failed to get Radarr metadata for wanted %d: %s",
                                wanted_item["id"], e)
+
+        # Try standalone metadata if no Radarr metadata
+        if not metadata_available:
+            standalone_mid = wanted_item.get("standalone_movie_id")
+            if standalone_mid:
+                try:
+                    from db.standalone import get_standalone_movies
+                    movie = get_standalone_movies(standalone_mid)
+                    if movie and isinstance(movie, dict):
+                        query.title = movie.get("title", "")
+                        query.year = movie.get("year")
+                        query.imdb_id = movie.get("imdb_id", "")
+                        query.tmdb_id = movie.get("tmdb_id")
+                        metadata_available = True
+                        logger.debug("Built query from standalone movie metadata: %s (%s)",
+                                     query.title, query.year)
+                except Exception as e:
+                    logger.warning("Failed to get standalone movie metadata for wanted %d: %s",
+                                   wanted_item["id"], e)
+
+    # Fallback to filename parsing if metadata unavailable
+    if not metadata_available:
+        logger.debug("Metadata unavailable, parsing filename: %s", wanted_item["file_path"])
+        parsed = _parse_filename_for_metadata(wanted_item["file_path"])
+        
+        if not query.series_title and parsed["series_title"]:
+            query.series_title = parsed["series_title"]
+        if not query.title and parsed["title"]:
+            query.title = parsed["title"]
+        if query.season is None and parsed["season"] is not None:
+            query.season = parsed["season"]
+        if query.episode is None and parsed["episode"] is not None:
+            query.episode = parsed["episode"]
+        if query.year is None and parsed["year"] is not None:
+            query.year = parsed["year"]
+        
+        logger.debug("Parsed from filename: series=%s, title=%s, S%02dE%02d, year=%s",
+                     query.series_title or "N/A", query.title or "N/A", 
+                     query.season or 0, query.episode or 0, query.year or "N/A")
+
+    # Set forced_only based on wanted item's subtitle_type
+    if wanted_item.get("subtitle_type", "full") == "forced":
+        query.forced_only = True
+
+    # Validate query has minimum required data
+    has_minimum_data = False
+    if wanted_item["item_type"] == "episode":
+        has_minimum_data = bool(query.series_title or query.title) and query.season is not None and query.episode is not None
+    else:
+        has_minimum_data = bool(query.title)
+
+    if not has_minimum_data:
+        logger.warning("Query for wanted item %d lacks minimum required data: file_path=%s, series_title=%s, title=%s, season=%s, episode=%s",
+                      wanted_item["id"], query.file_path, query.series_title, query.title, query.season, query.episode)
+    else:
+        logger.debug("Query validated: %s", query.display_name)
 
     return query
 
@@ -124,10 +291,10 @@ def search_wanted_item(item_id: int) -> dict:
     item_lang = item.get("target_language") or settings.target_language
     source_lang = settings.source_language
 
-    # Build queries
+    # Build queries (forced_only is set by build_query_from_wanted based on subtitle_type)
     target_query = build_query_from_wanted(item)
     target_query.languages = [item_lang]
-    
+
     source_query = build_query_from_wanted(item)
     source_query.languages = [source_lang]
 
@@ -138,28 +305,32 @@ def search_wanted_item(item_id: int) -> dict:
         results = manager.search(target_query, format_filter=SubtitleFormat.ASS)
         all_results.extend([_result_to_dict(r) for r in results[:20]])
     except Exception as e:
-        logger.warning("Target ASS search failed for wanted %d: %s", item_id, e)
+        logger.warning("Target ASS search failed for wanted %d: %s", item_id, e, exc_info=True)
+        # Continue with other searches - don't fail entire operation
 
     # Search 2: source_language ASS (Priority 2)
     try:
         results = manager.search(source_query, format_filter=SubtitleFormat.ASS)
         all_results.extend([_result_to_dict(r) for r in results[:20]])
     except Exception as e:
-        logger.warning("Source ASS search failed for wanted %d: %s", item_id, e)
+        logger.warning("Source ASS search failed for wanted %d: %s", item_id, e, exc_info=True)
+        # Continue with other searches - don't fail entire operation
 
     # Search 3: target_language SRT (Priority 3)
     try:
         results = manager.search(target_query, format_filter=SubtitleFormat.SRT)
         all_results.extend([_result_to_dict(r) for r in results[:20]])
     except Exception as e:
-        logger.warning("Target SRT search failed for wanted %d: %s", item_id, e)
+        logger.warning("Target SRT search failed for wanted %d: %s", item_id, e, exc_info=True)
+        # Continue with other searches - don't fail entire operation
 
     # Search 4: source_language SRT (Priority 4)
     try:
         results = manager.search(source_query, format_filter=SubtitleFormat.SRT)
         all_results.extend([_result_to_dict(r) for r in results[:20]])
     except Exception as e:
-        logger.warning("Source SRT search failed for wanted %d: %s", item_id, e)
+        logger.warning("Source SRT search failed for wanted %d: %s", item_id, e, exc_info=True)
+        # Continue with other searches - don't fail entire operation
 
     # Sort by priority: target.ass > source.ass > target.srt > source.srt
     all_results.sort(key=lambda r: _get_priority_key(r, item_lang, source_lang))
@@ -214,7 +385,12 @@ def process_wanted_item(item_id: int) -> dict:
 
     is_upgrade = bool(item.get("upgrade_candidate"))
     current_score = item.get("current_score", 0)
+    subtitle_type = item.get("subtitle_type", "full")
     manager = get_provider_manager()
+
+    # Forced subtitle handling: download-only, no translation
+    if subtitle_type == "forced":
+        return _process_forced_wanted_item(item, item_id, item_lang, manager)
 
     # Step 1: Try to find target language ASS directly from providers (Priority 1)
     query = build_query_from_wanted(item)
@@ -265,19 +441,24 @@ def process_wanted_item(item_id: int) -> dict:
                     upgrade_reason=f"SRT->ASS via {result.provider_name}",
                 )
 
-            manager.save_subtitle(result, output_path)
-            logger.info("Wanted %d: Provider %s delivered target ASS directly",
-                         item_id, result.provider_name)
-            update_wanted_status(item_id, "found")
-            return {
-                "wanted_id": item_id,
-                "status": "found",
-                "output_path": output_path,
-                "provider": result.provider_name,
-                "upgraded": is_upgrade,
-            }
+            try:
+                manager.save_subtitle(result, output_path)
+                logger.info("Wanted %d: Provider %s delivered target ASS directly",
+                             item_id, result.provider_name)
+                update_wanted_status(item_id, "found")
+                return {
+                    "wanted_id": item_id,
+                    "status": "found",
+                    "output_path": output_path,
+                    "provider": result.provider_name,
+                    "upgraded": is_upgrade,
+                }
+            except (OSError, RuntimeError) as save_error:
+                logger.error("Wanted %d: Failed to save subtitle from %s: %s",
+                             item_id, result.provider_name, save_error)
+                # Fall through to next step
     except Exception as e:
-        logger.warning("Wanted %d: Direct target ASS search failed: %s", item_id, e)
+        logger.warning("Wanted %d: Direct target ASS search failed: %s", item_id, e, exc_info=True)
 
     # Step 2: Try to find source language ASS for translation (Priority 2)
     source_query = build_query_from_wanted(item)
@@ -292,7 +473,13 @@ def process_wanted_item(item_id: int) -> dict:
             from translator import get_output_path_for_lang, _translate_external_ass
             base = os.path.splitext(file_path)[0]
             tmp_source_path = f"{base}.{settings.source_language}.ass"
-            manager.save_subtitle(result, tmp_source_path)
+            try:
+                manager.save_subtitle(result, tmp_source_path)
+            except (OSError, RuntimeError) as save_error:
+                logger.error("Wanted %d: Failed to save source ASS from %s: %s",
+                             item_id, result.provider_name, save_error)
+                # Fall through to next step
+                continue
             
             # Build arr_context for glossary lookup
             arr_context = {}
@@ -303,12 +490,23 @@ def process_wanted_item(item_id: int) -> dict:
             if item.get("radarr_movie_id"):
                 arr_context["radarr_movie_id"] = item["radarr_movie_id"]
 
-            translate_result = _translate_external_ass(
-                file_path, tmp_source_path,
-                target_language=item_lang,
-                target_language_name=settings.target_language_name,
-                arr_context=arr_context if arr_context else None
-            )
+            try:
+                translate_result = _translate_external_ass(
+                    file_path, tmp_source_path,
+                    target_language=item_lang,
+                    target_language_name=settings.target_language_name,
+                    arr_context=arr_context if arr_context else None
+                )
+            except Exception as trans_error:
+                logger.error("Wanted %d: Translation failed for source ASS: %s",
+                             item_id, trans_error, exc_info=True)
+                # Clean up and fall through
+                try:
+                    if os.path.exists(tmp_source_path):
+                        os.remove(tmp_source_path)
+                except Exception:
+                    pass
+                continue
             
             # Clean up temporary source file
             try:
@@ -328,7 +526,7 @@ def process_wanted_item(item_id: int) -> dict:
                     "provider": f"{result.provider_name} (translated)",
                 }
     except Exception as e:
-        logger.warning("Wanted %d: Source ASS search/translation failed: %s", item_id, e)
+        logger.warning("Wanted %d: Source ASS search/translation failed: %s", item_id, e, exc_info=True)
 
     # Step 3: Try to find target language SRT directly (Priority 3)
     try:
@@ -338,18 +536,23 @@ def process_wanted_item(item_id: int) -> dict:
         if result and result.content:
             from translator import get_output_path_for_lang
             output_path = get_output_path_for_lang(file_path, "srt", item_lang)
-            manager.save_subtitle(result, output_path)
-            logger.info("Wanted %d: Provider %s delivered target SRT directly",
-                         item_id, result.provider_name)
-            update_wanted_status(item_id, "found")
-            return {
-                "wanted_id": item_id,
-                "status": "found",
-                "output_path": output_path,
-                "provider": result.provider_name,
-            }
+            try:
+                manager.save_subtitle(result, output_path)
+                logger.info("Wanted %d: Provider %s delivered target SRT directly",
+                             item_id, result.provider_name)
+                update_wanted_status(item_id, "found")
+                return {
+                    "wanted_id": item_id,
+                    "status": "found",
+                    "output_path": output_path,
+                    "provider": result.provider_name,
+                }
+            except (OSError, RuntimeError) as save_error:
+                logger.error("Wanted %d: Failed to save target SRT from %s: %s",
+                             item_id, result.provider_name, save_error)
+                # Fall through to next step
     except Exception as e:
-        logger.warning("Wanted %d: Direct target SRT search failed: %s", item_id, e)
+        logger.warning("Wanted %d: Direct target SRT search failed: %s", item_id, e, exc_info=True)
 
     # Step 4: Try to find source language SRT for translation (Priority 4)
     try:
@@ -361,7 +564,13 @@ def process_wanted_item(item_id: int) -> dict:
             from translator import get_output_path_for_lang, translate_srt_from_file
             base = os.path.splitext(file_path)[0]
             tmp_source_path = f"{base}.{settings.source_language}.srt"
-            manager.save_subtitle(result, tmp_source_path)
+            try:
+                manager.save_subtitle(result, tmp_source_path)
+            except (OSError, RuntimeError) as save_error:
+                logger.error("Wanted %d: Failed to save source SRT from %s: %s",
+                             item_id, result.provider_name, save_error)
+                # Fall through to next step
+                continue
             
             # Build arr_context for glossary lookup
             arr_context = {}
@@ -372,12 +581,23 @@ def process_wanted_item(item_id: int) -> dict:
             if item.get("radarr_movie_id"):
                 arr_context["radarr_movie_id"] = item["radarr_movie_id"]
 
-            translate_result = translate_srt_from_file(
-                file_path, tmp_source_path,
-                source="provider_source_srt",
-                target_language=item_lang,
-                arr_context=arr_context if arr_context else None
-            )
+            try:
+                translate_result = translate_srt_from_file(
+                    file_path, tmp_source_path,
+                    source="provider_source_srt",
+                    target_language=item_lang,
+                    arr_context=arr_context if arr_context else None
+                )
+            except Exception as trans_error:
+                logger.error("Wanted %d: Translation failed for source SRT: %s",
+                             item_id, trans_error, exc_info=True)
+                # Clean up and fall through
+                try:
+                    if os.path.exists(tmp_source_path):
+                        os.remove(tmp_source_path)
+                except Exception:
+                    pass
+                continue
             
             # Clean up temporary source file
             try:
@@ -397,7 +617,7 @@ def process_wanted_item(item_id: int) -> dict:
                     "provider": f"{result.provider_name} (translated)",
                 }
     except Exception as e:
-        logger.warning("Wanted %d: Source SRT search/translation failed: %s", item_id, e)
+        logger.warning("Wanted %d: Source SRT search/translation failed: %s", item_id, e, exc_info=True)
 
     # Step 5: Fall back to translate_file() which handles embedded subtitles (B1/C1-C4)
     try:
@@ -447,8 +667,99 @@ def process_wanted_item(item_id: int) -> dict:
         }
 
 
+def _process_forced_wanted_item(item, item_id, item_lang, manager):
+    """Process a forced wanted item: search with forced_only, download, skip translation.
+
+    Forced subtitles are download-only (no translation per research recommendation).
+    Saves to the forced output path (.lang.forced.ext).
+
+    Returns:
+        dict: {wanted_id, status, output_path, provider, error}
+    """
+    file_path = item["file_path"]
+
+    # Build forced query
+    query = build_query_from_wanted(item)
+    query.languages = [item_lang]
+    query.forced_only = True
+
+    # Try target language forced ASS first, then forced SRT
+    for fmt in (SubtitleFormat.ASS, SubtitleFormat.SRT):
+        try:
+            result = manager.search_and_download_best(query, format_filter=fmt)
+            if result and result.content:
+                ext = result.format.value if result.format != SubtitleFormat.UNKNOWN else fmt.value
+                output_path = get_forced_output_path(file_path, fmt=ext, target_language=item_lang)
+                try:
+                    manager.save_subtitle(result, output_path)
+                    logger.info("Wanted %d: Forced subtitle downloaded from %s, skipping translation",
+                               item_id, result.provider_name)
+                    update_wanted_status(item_id, "found")
+                    return {
+                        "wanted_id": item_id,
+                        "status": "found",
+                        "output_path": output_path,
+                        "provider": result.provider_name,
+                        "forced": True,
+                    }
+                except (OSError, RuntimeError) as save_error:
+                    logger.error("Wanted %d: Failed to save forced subtitle from %s: %s",
+                                 item_id, result.provider_name, save_error)
+                    # Try next format
+                    continue
+        except Exception as e:
+            logger.warning("Wanted %d: Forced %s search failed: %s", item_id, fmt.value, e, exc_info=True)
+
+    # Also try source language forced subtitles (download-only, no translation)
+    settings = get_settings()
+    source_lang = settings.source_language
+    source_query = build_query_from_wanted(item)
+    source_query.languages = [source_lang]
+    source_query.forced_only = True
+
+    for fmt in (SubtitleFormat.ASS, SubtitleFormat.SRT):
+        try:
+            result = manager.search_and_download_best(source_query, format_filter=fmt)
+            if result and result.content:
+                ext = result.format.value if result.format != SubtitleFormat.UNKNOWN else fmt.value
+                output_path = get_forced_output_path(file_path, fmt=ext, target_language=source_lang)
+                try:
+                    manager.save_subtitle(result, output_path)
+                    logger.info("Wanted %d: Forced subtitle (source lang) downloaded from %s, skipping translation",
+                               item_id, result.provider_name)
+                    update_wanted_status(item_id, "found")
+                    return {
+                        "wanted_id": item_id,
+                        "status": "found",
+                        "output_path": output_path,
+                        "provider": result.provider_name,
+                        "forced": True,
+                    }
+                except (OSError, RuntimeError) as save_error:
+                    logger.error("Wanted %d: Failed to save forced subtitle (source) from %s: %s",
+                                 item_id, result.provider_name, save_error)
+                    # Try next format
+                    continue
+        except Exception as e:
+            logger.warning("Wanted %d: Forced source %s search failed: %s", item_id, fmt.value, e, exc_info=True)
+
+    # No forced subtitle found
+    error = "No forced subtitle found from any provider"
+    update_wanted_status(item_id, "failed", error=error)
+    return {
+        "wanted_id": item_id,
+        "status": "failed",
+        "error": error,
+        "forced": True,
+    }
+
+
 def process_wanted_batch(item_ids=None):
-    """Process multiple wanted items sequentially.
+    """Process multiple wanted items with parallel execution.
+
+    Uses ThreadPoolExecutor for parallel processing. Provider-level rate
+    limiters and circuit breakers handle concurrency safety. Error isolation
+    ensures one item failure doesn't abort the batch.
 
     Args:
         item_ids: List of specific IDs, or None for all 'wanted' items.
@@ -478,48 +789,52 @@ def process_wanted_batch(item_ids=None):
     failed = 0
     skipped = 0
 
-    for item in items:
-        item_id = item["id"]
-        display = item.get("title", item.get("file_path", str(item_id)))
+    max_workers = min(4, total) if total > 0 else 1
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_item = {
+            executor.submit(process_wanted_item, item["id"]): item
+            for item in items
+        }
 
-        try:
-            result = process_wanted_item(item_id)
-            processed += 1
+        for future in as_completed(future_to_item):
+            item = future_to_item[future]
+            item_id = item["id"]
+            display = item.get("title", item.get("file_path", str(item_id)))
 
-            if result.get("status") == "found":
-                found += 1
-            elif result.get("status") == "failed":
+            try:
+                result = future.result()
+                processed += 1
+
+                if result.get("status") == "found":
+                    found += 1
+                elif result.get("status") == "failed":
+                    failed += 1
+                else:
+                    skipped += 1
+
+                yield {
+                    "processed": processed,
+                    "total": total,
+                    "found": found,
+                    "failed": failed,
+                    "skipped": skipped,
+                    "current_item": display,
+                    "last_result": result,
+                }
+
+            except Exception as e:
+                processed += 1
                 failed += 1
-            else:
-                skipped += 1
-
-            yield {
-                "processed": processed,
-                "total": total,
-                "found": found,
-                "failed": failed,
-                "skipped": skipped,
-                "current_item": display,
-                "last_result": result,
-            }
-
-        except Exception as e:
-            processed += 1
-            failed += 1
-            logger.exception("Batch: error processing wanted %d: %s", item_id, e)
-            yield {
-                "processed": processed,
-                "total": total,
-                "found": found,
-                "failed": failed,
-                "skipped": skipped,
-                "current_item": display,
-                "last_result": {"wanted_id": item_id, "status": "failed", "error": str(e)},
-            }
-
-        # Rate-limit protection between items
-        if processed < total:
-            time.sleep(INTER_ITEM_DELAY)
+                logger.exception("Batch: error processing wanted %d: %s", item_id, e)
+                yield {
+                    "processed": processed,
+                    "total": total,
+                    "found": found,
+                    "failed": failed,
+                    "skipped": skipped,
+                    "current_item": display,
+                    "last_result": {"wanted_id": item_id, "status": "failed", "error": str(e)},
+                }
 
 
 def _result_to_dict(result) -> dict:
@@ -535,3 +850,88 @@ def _result_to_dict(result) -> dict:
         "hearing_impaired": result.hearing_impaired,
         "matches": list(result.matches),
     }
+
+
+# ─── Job Queue Integration ────────────────────────────────────────────────────
+
+
+def _get_job_queue():
+    """Get the app-level job queue backend, or None.
+
+    Uses Flask's current_app to access the job_queue. Returns None if called
+    outside Flask context or if job_queue is not configured. Never raises.
+    """
+    try:
+        from flask import current_app
+        return getattr(current_app, 'job_queue', None)
+    except (RuntimeError, ImportError):
+        return None
+
+
+def submit_wanted_search(item_id, job_id=None):
+    """Submit a wanted search job via the app job queue.
+
+    When a job queue is available (RQ with Redis, or MemoryJobQueue), the
+    process_wanted_item function is enqueued for background execution. When
+    no queue is available, falls back to direct synchronous execution.
+
+    For the MemoryJobQueue fallback, this behaves identically to the current
+    ThreadPoolExecutor pattern. For RQ, jobs survive container restarts and
+    can be monitored via the queue API.
+
+    Args:
+        item_id: Wanted item ID to process.
+        job_id: Optional custom job ID. Defaults to "wanted-{item_id}".
+
+    Returns:
+        str: Job ID if enqueued via queue, or the result dict if executed directly.
+    """
+    queue = _get_job_queue()
+    if queue:
+        try:
+            _job_id = job_id or f"wanted-{item_id}"
+            return queue.enqueue(
+                process_wanted_item,
+                item_id,
+                job_id=_job_id,
+            )
+        except Exception as e:
+            logger.warning("Job queue submission failed for wanted %d, executing directly: %s",
+                           item_id, e)
+
+    # Fallback: direct synchronous execution
+    return process_wanted_item(item_id)
+
+
+def submit_wanted_batch_search(item_ids=None):
+    """Submit wanted batch search jobs via the app job queue.
+
+    When a job queue is available, each item is submitted as a separate job
+    for independent execution and monitoring. When no queue is available,
+    falls back to the existing process_wanted_batch() generator.
+
+    Args:
+        item_ids: List of specific item IDs, or None for all 'wanted' items.
+
+    Returns:
+        list[str]: List of job IDs if enqueued via queue, or processes directly.
+    """
+    queue = _get_job_queue()
+    if queue and item_ids:
+        try:
+            return [
+                queue.enqueue(
+                    process_wanted_item,
+                    iid,
+                    job_id=f"wanted-{iid}",
+                )
+                for iid in item_ids
+            ]
+        except Exception as e:
+            logger.warning("Job queue batch submission failed, executing directly: %s", e)
+
+    # Fallback: direct execution via existing batch processor
+    results = []
+    for progress in process_wanted_batch(item_ids):
+        results.append(progress)
+    return results

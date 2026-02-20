@@ -1,0 +1,303 @@
+{
+  "title": "Settings",
+  "tabs": {
+    "general": "General",
+    "api_keys": "API Keys",
+    "translation": "Translation",
+    "translation_backends": "Translation Backends",
+    "languages": "Languages",
+    "automation": "Automation",
+    "wanted": "Wanted",
+    "providers": "Providers",
+    "sonarr": "Sonarr",
+    "radarr": "Radarr",
+    "library_sources": "Library Sources",
+    "media_servers": "Media Servers",
+    "whisper": "Whisper",
+    "events_hooks": "Events & Hooks",
+    "scoring": "Scoring",
+    "backup": "Backup",
+    "subtitle_tools": "Subtitle Tools",
+    "cleanup": "Cleanup",
+    "notification_templates": "Notification Templates",
+    "prompt_presets": "Prompt Presets",
+    "integrations": "Integrations"
+  },
+  "general": {
+    "port": "Port",
+    "api_key": "API Key",
+    "api_key_placeholder": "Leave empty to disable",
+    "log_level": "Log Level",
+    "media_path": "Media Path",
+    "db_path": "Database Path"
+  },
+  "translation": {
+    "source_language_code": "Source Language Code",
+    "target_language_code": "Target Language Code",
+    "source_language_name": "Source Language Name",
+    "target_language_name": "Target Language Name",
+    "hi_removal": "Remove Hearing Impaired Tags"
+  },
+  "automation": {
+    "upgrade_enabled": "Upgrade Enabled",
+    "prefer_ass": "Prefer ASS over SRT",
+    "min_score_delta": "Min Score Delta",
+    "upgrade_window": "Upgrade Window (days)",
+    "webhook_delay": "Webhook Delay (minutes)",
+    "auto_scan": "Auto-Scan after Download",
+    "auto_search": "Auto-Search Providers",
+    "auto_translate": "Auto-Translate Found Subs",
+    "search_interval": "Search Interval (hours, 0=disabled)",
+    "search_on_startup": "Search on Startup",
+    "max_items_per_run": "Max Items per Search Run"
+  },
+  "wanted_tab": {
+    "scan_interval": "Scan Interval (hours, 0=disabled)",
+    "anime_only": "Anime Only (Sonarr)",
+    "anime_movies_only": "Anime Movies Only (Radarr)",
+    "scan_on_startup": "Scan on Startup",
+    "max_search_attempts": "Max Search Attempts"
+  },
+  "sonarr": {
+    "url": "Sonarr URL",
+    "api_key": "Sonarr API Key"
+  },
+  "radarr": {
+    "url": "Radarr URL",
+    "api_key": "Radarr API Key"
+  },
+  "library_sources": {
+    "standalone_enabled": "Enable Standalone Mode",
+    "tmdb_api_key": "TMDB API Key (Bearer Token)",
+    "tvdb_api_key": "TVDB API Key (Optional)",
+    "tvdb_pin": "TVDB PIN (Optional)",
+    "scan_interval": "Scan Interval (hours, 0=disabled)",
+    "debounce": "File Detection Debounce (seconds)"
+  },
+  "notifications": {
+    "on_download": "Notify on Download",
+    "on_upgrade": "Notify on Upgrade",
+    "on_batch_complete": "Notify on Batch Complete",
+    "on_error": "Notify on Error",
+    "manual_actions": "Notify Manual Actions",
+    "toggles": "Notification Events",
+    "templates": {
+      "title": "Templates",
+      "create": "New Template",
+      "edit": "Edit Template",
+      "preview": "Preview",
+      "previewHint": "Save a template to see its preview.",
+      "name": "Template Name",
+      "titleTemplate": "Title Template",
+      "bodyTemplate": "Body Template",
+      "eventType": "Event Type",
+      "serviceName": "Service Name",
+      "variables": "Available Variables"
+    },
+    "quietHours": {
+      "title": "Quiet Hours",
+      "name": "Name",
+      "startTime": "Start Time",
+      "endTime": "End Time",
+      "days": "Active Days",
+      "exceptions": "Exception Events (always send)"
+    },
+    "history": {
+      "title": "Notification History",
+      "resend": "Re-send",
+      "clear": "Clear History",
+      "status": "Status"
+    },
+    "filters": {
+      "title": "Event Filters",
+      "include": "Include Only (if set, only these events)",
+      "exclude": "Exclude Events",
+      "content": "Content Filters"
+    }
+  },
+  "apiKeys": {
+    "title": "API Key Management",
+    "description": "Manage all API keys in one place. Test connections, rotate keys, and import/export configurations.",
+    "export": "Export Keys",
+    "import": "Import Keys",
+    "bazarrImport": "Bazarr Migration",
+    "noServices": "No API key services found.",
+    "keyUpdated": "Key updated successfully",
+    "keyUpdateFailed": "Failed to update key",
+    "exportSuccess": "API keys exported",
+    "exportFailed": "Export failed",
+    "importFailed": "Import failed"
+  },
+  "actions": {
+    "save": "Save",
+    "test": "Test",
+    "test_connection": "Test Connection",
+    "reset_defaults": "Reset to Defaults",
+    "add_mapping": "Add Mapping",
+    "add_instance": "Add Instance",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
+  },
+  "path_mapping": {
+    "title": "Path Mapping (Remote \u2192 Local)",
+    "remote_path": "Remote Path",
+    "local_path": "Local Path",
+    "test_title": "Test Path Mapping",
+    "mapped_to": "Mapped to:",
+    "file_exists": "File exists",
+    "file_not_found": "File not found"
+  },
+  "instances": {
+    "title": "{{label}} Instances",
+    "instance_n": "Instance {{n}}",
+    "legacy_note": "Configure multiple {{label}} instances. If empty, the legacy URL/Key above is used."
+  },
+  "providers_tab": {
+    "healthy": "Healthy",
+    "error": "Error",
+    "disabled": "Disabled",
+    "not_initialized": "Not initialized",
+    "enabled": "Enabled",
+    "test_provider": "Test provider",
+    "move_up": "Move up (higher priority)",
+    "move_down": "Move down (lower priority)",
+    "cache_entries": "cache entries",
+    "clear_cache": "Clear Cache",
+    "re_enable": "Re-enable",
+    "auto_disabled": "Auto-disabled"
+  },
+  "config_export": {
+    "title": "Configuration Management",
+    "export": "Export Config",
+    "import": "Import Config",
+    "import_warning": "This will overwrite your current settings. API keys will need to be re-entered.",
+    "export_success": "Config exported successfully",
+    "import_success": "Config imported successfully"
+  },
+  "cleanup": {
+    "dedup": {
+      "title": "Deduplication",
+      "scanButton": "Scan for Duplicates",
+      "scanning": "Scanning...",
+      "scanStarted": "Duplicate scan started",
+      "scanFailed": "Failed to start scan",
+      "progress": "Progress",
+      "noResults": "No duplicates found. Run a scan to check.",
+      "groupsFound": "duplicate groups",
+      "filesToDelete": "files to delete",
+      "files": "files",
+      "keepLabel": "Keep",
+      "deleteLabel": "Delete",
+      "deleteAll": "Delete All Selected",
+      "deleting": "Deleting..."
+    },
+    "orphaned": {
+      "title": "Orphaned Subtitles",
+      "scanButton": "Scan for Orphaned",
+      "scanStarted": "Orphaned scan started",
+      "scanFailed": "Failed to scan for orphaned files",
+      "noResults": "No orphaned subtitles found.",
+      "deleteSelected": "Delete Selected"
+    },
+    "rules": {
+      "title": "Cleanup Rules",
+      "create": "Create Rule",
+      "created": "Rule created",
+      "deleted": "Rule deleted",
+      "running": "Rule execution started",
+      "configured": "rules configured",
+      "noRules": "No cleanup rules configured. Create one to automate cleanup.",
+      "namePlaceholder": "Rule name",
+      "enabled": "Enabled",
+      "disable": "Disable",
+      "enable": "Enable",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "runNow": "Run Now",
+      "schedule": "Schedule",
+      "types": {
+        "dedup": "Deduplication",
+        "orphaned": "Orphaned Files",
+        "old_backups": "Old Backups"
+      }
+    },
+    "history": {
+      "title": "Cleanup History",
+      "date": "Date",
+      "action": "Action",
+      "processed": "Processed",
+      "deleted": "Deleted",
+      "freed": "Freed",
+      "empty": "No cleanup history yet",
+      "prev": "Previous",
+      "next": "Next"
+    },
+    "diskSpace": {
+      "title": "Disk Space Analysis",
+      "noData": "Run a scan to see disk space analysis",
+      "totalFiles": "Total Files",
+      "totalSize": "Total Size",
+      "duplicates": "Duplicates",
+      "savings": "Potential Savings",
+      "byFormat": "By Format",
+      "storageBreakdown": "Storage Breakdown",
+      "uniqueData": "Unique",
+      "duplicateData": "Duplicate",
+      "trends": "Cleanup Trends (30d)",
+      "noTrends": "No cleanup history yet",
+      "bytesFreed": "Freed"
+    },
+    "preview": {
+      "title": "Cleanup Preview",
+      "files": "files",
+      "willBeFreed": "will be freed",
+      "confirm": "Confirm Delete",
+      "confirming": "Deleting...",
+      "cancel": "Cancel"
+    }
+  },
+  "integrations": {
+    "title": "Integrations",
+    "bazarr": {
+      "title": "Bazarr Migration",
+      "dbPath": "Bazarr Database Path",
+      "dbPathHelp": "Path to your Bazarr SQLite database file (bazarr.db)",
+      "generateReport": "Generate Mapping Report",
+      "reportTitle": "Mapping Report",
+      "compatibility": "Compatibility",
+      "summary": "Migration Summary",
+      "tables": "Database Tables",
+      "proceedToImport": "Proceed to Import"
+    },
+    "compat": {
+      "title": "Compatibility Check",
+      "target": "Target Player",
+      "videoPath": "Video File Path",
+      "subtitlePaths": "Subtitle File Paths (one per line)",
+      "runCheck": "Run Check",
+      "compatible": "compatible",
+      "incompatible": "incompatible"
+    },
+    "health": {
+      "title": "Extended Health Diagnostics",
+      "runDiagnostics": "Run Diagnostics",
+      "connection": "Connection",
+      "version": "Version",
+      "libraryAccess": "Library Access",
+      "webhookStatus": "Webhook Status",
+      "healthIssues": "Health Issues",
+      "noIssues": "No issues detected"
+    },
+    "export": {
+      "title": "Export Configuration",
+      "format": "Export Format",
+      "includeSecrets": "Include secrets (API keys, passwords)",
+      "secretsWarning": "Warning: exported file will contain sensitive credentials",
+      "export": "Export",
+      "exportAll": "Export All (ZIP)",
+      "recommended": "Generic JSON is the recommended primary export format",
+      "bazarrNote": "Bazarr-compatible format (not guaranteed exact match)"
+    }
+  }
+}

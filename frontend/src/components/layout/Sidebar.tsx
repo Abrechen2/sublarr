@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   LayoutDashboard,
   Activity,
@@ -12,50 +13,58 @@ import {
   Tv,
   Clock,
   Ban,
+  BarChart3,
+  ListChecks,
+  Heart,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useHealth } from '@/hooks/useApi'
+import { ThemeToggle } from '@/components/shared/ThemeToggle'
+import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher'
 
 interface NavItem {
   to: string
-  label: string
+  labelKey: string
   icon: typeof LayoutDashboard
 }
 
 interface NavGroup {
-  title: string
+  titleKey: string
   items: NavItem[]
 }
 
 const navGroups: NavGroup[] = [
   {
-    title: 'Content',
+    titleKey: 'nav_groups.content',
     items: [
-      { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-      { to: '/library', label: 'Library', icon: Tv },
-      { to: '/wanted', label: 'Wanted', icon: Search },
+      { to: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+      { to: '/library', labelKey: 'nav.library', icon: Tv },
+      { to: '/wanted', labelKey: 'nav.wanted', icon: Search },
     ],
   },
   {
-    title: 'Activity',
+    titleKey: 'nav_groups.activity',
     items: [
-      { to: '/activity', label: 'Activity', icon: Activity },
-      { to: '/queue', label: 'Queue', icon: ListOrdered },
-      { to: '/history', label: 'History', icon: Clock },
-      { to: '/blacklist', label: 'Blacklist', icon: Ban },
+      { to: '/activity', labelKey: 'nav.activity', icon: Activity },
+      { to: '/queue', labelKey: 'nav.queue', icon: ListOrdered },
+      { to: '/history', labelKey: 'nav.history', icon: Clock },
+      { to: '/blacklist', labelKey: 'nav.blacklist', icon: Ban },
     ],
   },
   {
-    title: 'System',
+    titleKey: 'nav_groups.system',
     items: [
-      { to: '/settings', label: 'Settings', icon: Settings },
-      { to: '/logs', label: 'Logs', icon: ScrollText },
+      { to: '/settings', labelKey: 'nav.settings', icon: Settings },
+      { to: '/statistics', labelKey: 'nav.statistics', icon: BarChart3 },
+      { to: '/tasks', labelKey: 'nav.tasks', icon: ListChecks },
+      { to: '/logs', labelKey: 'nav.logs', icon: ScrollText },
     ],
   },
 ]
 
 export function Sidebar() {
   const { data: health } = useHealth()
+  const { t } = useTranslation('common')
   const [mobileOpen, setMobileOpen] = useState(false)
   const isHealthy = health?.status === 'healthy'
 
@@ -115,17 +124,52 @@ export function Sidebar() {
         {/* Divider */}
         <div className="mx-4 mb-1" style={{ borderTop: '1px solid var(--border)' }} />
 
+        {/* Search Trigger */}
+        <button
+          onClick={() => {
+            // Dispatch Ctrl+K event to open GlobalSearchModal (handled in App.tsx)
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))
+          }}
+          className="mx-3 mb-2 flex items-center gap-2.5 px-3 py-2 rounded-md text-xs transition-all duration-150"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            color: 'var(--text-muted)',
+            border: '1px solid var(--border)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--accent-dim)'
+            e.currentTarget.style.color = 'var(--text-secondary)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border)'
+            e.currentTarget.style.color = 'var(--text-muted)'
+          }}
+        >
+          <Search size={14} />
+          <span className="flex-1 text-left">{t('search.placeholder', 'Search...')}</span>
+          <kbd
+            className="text-[10px] px-1.5 py-0.5 rounded"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            {navigator.platform?.includes('Mac') ? '\u2318K' : 'Ctrl+K'}
+          </kbd>
+        </button>
+
         {/* Navigation */}
         <nav className="flex-1 px-3 py-1 overflow-y-auto">
           {navGroups.map((group) => (
-            <div key={group.title} className="mb-3">
+            <div key={group.titleKey} className="mb-3">
               <div
                 className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest"
                 style={{ color: 'var(--text-muted)' }}
               >
-                {group.title}
+                {t(group.titleKey)}
               </div>
-              {group.items.map(({ to, label, icon: Icon }) => (
+              {group.items.map(({ to, labelKey, icon: Icon }) => (
                 <NavLink
                   key={to}
                   to={to}
@@ -152,7 +196,7 @@ export function Sidebar() {
                         />
                       )}
                       <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
-                      {label}
+                      {t(labelKey)}
                     </>
                   )}
                 </NavLink>
@@ -163,6 +207,33 @@ export function Sidebar() {
 
         {/* Footer */}
         <div className="px-4 py-3" style={{ borderTop: '1px solid var(--border)' }}>
+          {/* Donate */}
+          <a
+            href="https://www.paypal.com/donate?hosted_button_id=GLXYTD3FV9Y78"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 w-full mb-2.5 py-1.5 rounded-md text-[11px] font-medium transition-all duration-150"
+            style={{
+              color: 'var(--text-muted)',
+              border: '1px solid var(--border)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#e85d8a'
+              e.currentTarget.style.color = '#e85d8a'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border)'
+              e.currentTarget.style.color = 'var(--text-muted)'
+            }}
+          >
+            <Heart size={12} />
+            Donate
+          </a>
+
+          <div className="flex items-center justify-end gap-1.5 mb-2">
+            <ThemeToggle />
+            <LanguageSwitcher />
+          </div>
           <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
             <div
               className="w-2 h-2 rounded-full shrink-0"
@@ -173,7 +244,7 @@ export function Sidebar() {
               }}
             />
             <span className="truncate">
-              {isHealthy ? 'Online' : 'Offline'}
+              {isHealthy ? t('app.online') : t('app.offline')}
             </span>
             <span
               className="ml-auto tabular-nums"

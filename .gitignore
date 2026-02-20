@@ -48,3 +48,9 @@ test-media/
 
 # Build artifacts
 *.tar.gz
+
+# Test & coverage artifacts
+.coverage
+coverage.xml
+htmlcov/
+frontend/lint-results.json
