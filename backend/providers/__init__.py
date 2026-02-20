@@ -624,9 +624,6 @@ class ProviderManager:
                     logger.debug("Skipping provider %s due to rate limit", name)
                     continue
 
-                # Get provider-specific timeout (used for overall as_completed wait)
-                timeout = self._get_timeout(name)
-
                 # Submit search task
                 future = executor.submit(self._search_provider_with_retry, name, provider, query)
                 futures[future] = name
@@ -644,16 +641,12 @@ class ProviderManager:
                     all_results.extend(results)
 
                     # Update circuit breaker and stats
+                    # NOTE: empty results are NOT a failure — the provider responded
+                    # correctly, it just found nothing for this query.
                     cb = self._circuit_breakers.get(name)
                     if cb:
-                        if results:
-                            cb.record_success()
-                            update_provider_stats(name, success=True, score=0, response_time_ms=elapsed_ms)
-                        else:
-                            cb.record_failure()
-                            update_provider_stats(name, success=False, score=0, response_time_ms=elapsed_ms)
-                            # Auto-disable check: if consecutive failures >= 2x CB threshold
-                            self._check_auto_disable(name)
+                        cb.record_success()
+                    update_provider_stats(name, success=True, score=0, response_time_ms=elapsed_ms)
 
                     # Check for perfect match (early exit)
                     if early_exit and results:
