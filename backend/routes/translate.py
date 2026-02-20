@@ -412,11 +412,15 @@ def list_jobs():
                     type: integer
     """
     from db.jobs import get_jobs
-    page = request.args.get("page", 1, type=int)
-    per_page = min(request.args.get("per_page", 50, type=int), 200)
-    status_filter = request.args.get("status")
-    result = get_jobs(page=page, per_page=per_page, status=status_filter)
-    return jsonify(result)
+    try:
+        page = request.args.get("page", 1, type=int)
+        per_page = min(request.args.get("per_page", 50, type=int), 200)
+        status_filter = request.args.get("status")
+        result = get_jobs(page=page, per_page=per_page, status=status_filter)
+        return jsonify(result)
+    except Exception as e:
+        logger.exception("GET /jobs failed: %s", e)
+        return jsonify({"error": str(e), "detail": "list_jobs_failed"}), 500
 
 
 @bp.route("/jobs/<job_id>/retry", methods=["POST"])

@@ -394,16 +394,48 @@ class ProviderManager:
                 return class_limit
         return self.PROVIDER_RATE_LIMITS.get(provider_name, (0, 0))
 
-    def _get_timeout(self, provider_name: str) -> int:
+    def _compute_dynamic_timeout(self, provider_name: str, stats: dict) -> Optional[int]:
+        """Compute a dynamic timeout from provider stats (avg response time × multiplier + buffer).
+
+        Returns None if dynamic timeouts are disabled or there are too few samples.
+        Formula: max(min_s, min(avg_ms * multiplier / 1000 + buffer, max_s))
+        """
+        if not getattr(self.settings, "provider_dynamic_timeout_enabled", True):
+            return None
+        total = stats.get("total_searches", 0) or 0
+        min_samples = getattr(self.settings, "provider_dynamic_timeout_min_samples", 5)
+        if total < min_samples:
+            return None
+        avg_ms = stats.get("avg_response_time_ms", 0) or 0
+        if avg_ms <= 0:
+            return None
+        multiplier = getattr(self.settings, "provider_dynamic_timeout_multiplier", 3.0)
+        buffer = getattr(self.settings, "provider_dynamic_timeout_buffer_secs", 2.0)
+        min_s = getattr(self.settings, "provider_dynamic_timeout_min_secs", 5)
+        max_s = getattr(self.settings, "provider_dynamic_timeout_max_secs", 30)
+        return int(max(min_s, min((avg_ms * multiplier / 1000) + buffer, max_s)))
+
+    def _get_timeout(self, provider_name: str, all_stats: Optional[dict] = None) -> int:
         """Get timeout for a provider (seconds).
 
-        Prefers class attribute, falls back to hardcoded dict, then global setting.
+        Priority:
+        1. Dynamic timeout computed from historical avg_response_time_ms (when enabled + 5+ samples)
+        2. Class attribute (provider-specific hardcoded timeout)
+        3. Hardcoded per-provider dict (PROVIDER_TIMEOUTS)
+        4. Global provider_search_timeout setting
         """
+        # 1. Dynamic timeout from stats
+        if all_stats and provider_name in all_stats:
+            dynamic = self._compute_dynamic_timeout(provider_name, all_stats[provider_name])
+            if dynamic:
+                return dynamic
+        # 2. Class attribute
         cls = _PROVIDER_CLASSES.get(provider_name)
         if cls:
             class_timeout = getattr(cls, "timeout", 0)
             if class_timeout > 0:
                 return class_timeout
+        # 3. Hardcoded dict, 4. Global setting
         return self.PROVIDER_TIMEOUTS.get(provider_name, self.settings.provider_search_timeout)
 
     def _get_retries(self, provider_name: str) -> int:
@@ -627,6 +659,16 @@ class ProviderManager:
         # Parallel search with ThreadPoolExecutor
         from db.providers import update_provider_stats, auto_disable_provider, is_provider_auto_disabled
 
+        # Batch-fetch provider stats for dynamic timeout computation (single DB query)
+        _dyn_stats: dict = {}
+        if getattr(self.settings, "provider_dynamic_timeout_enabled", True):
+            try:
+                from db.providers import get_all_provider_stats
+                stats_list = get_all_provider_stats()
+                _dyn_stats = {s["provider_name"]: s for s in stats_list if s.get("provider_name")}
+            except Exception:
+                pass
+
         with ThreadPoolExecutor(max_workers=len(self._providers)) as executor:
             futures = {}
             for name, provider in self._providers.items():
@@ -652,8 +694,9 @@ class ProviderManager:
 
             # Collect results as they complete
             # Use max timeout across all active providers + buffer
+            active_names = {futures[f] for f in futures}
             max_timeout = max(
-                (self._get_timeout(n) for n in self._providers if n in {futures[f] for f in futures}),
+                (self._get_timeout(n, _dyn_stats) for n in self._providers if n in active_names),
                 default=self.settings.provider_search_timeout,
             ) + 3
             for future in as_completed(futures, timeout=max_timeout):

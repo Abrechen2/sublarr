@@ -39,6 +39,7 @@ NDH6SA~*
 # Dev runtime
 dev.log
 dev-pids.txt
+log/
 
 # Test data
 test-media/

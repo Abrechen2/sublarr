@@ -285,25 +285,27 @@ class JobRepository(BaseRepository):
     def _row_to_job(self, job: Job) -> dict:
         """Convert a Job model to a dict matching existing format."""
         d = self._to_dict(job)
+        if not d:
+            return {}
 
-        # Parse JSON fields
-        if d.get("stats_json"):
+        # Parse JSON fields (pop to avoid KeyError if column missing in legacy DB)
+        stats_raw = d.pop("stats_json", None)
+        if stats_raw:
             try:
-                d["stats"] = json.loads(d["stats_json"])
+                d["stats"] = json.loads(stats_raw)
             except json.JSONDecodeError:
                 d["stats"] = {}
         else:
             d["stats"] = {}
-        del d["stats_json"]
 
-        if d.get("bazarr_context_json"):
+        context_raw = d.pop("bazarr_context_json", None)
+        if context_raw:
             try:
-                d["arr_context"] = json.loads(d["bazarr_context_json"])
+                d["arr_context"] = json.loads(context_raw)
             except json.JSONDecodeError:
                 d["arr_context"] = None
         else:
             d["arr_context"] = None
-        del d["bazarr_context_json"]
 
         d["force"] = bool(d.get("force", 0))
         return d
