@@ -26,6 +26,7 @@ def register_blueprints(app):
     from routes.filter_presets import bp as filter_presets_bp
     from routes.api_keys import bp as api_keys_bp
     from routes.notifications_mgmt import bp as notifications_mgmt_bp
+    from routes.cleanup import bp as cleanup_bp
 
     for blueprint in [
         translate_bp,
@@ -47,5 +48,6 @@ def register_blueprints(app):
         filter_presets_bp,
         api_keys_bp,
         notifications_mgmt_bp,
+        cleanup_bp,
     ]:
         app.register_blueprint(blueprint)

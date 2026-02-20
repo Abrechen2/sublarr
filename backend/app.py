@@ -288,7 +288,7 @@ def create_app(testing=False):
 
         # Start schedulers (skip during testing)
         if not testing:
-            _start_schedulers(settings)
+            _start_schedulers(settings, app)
 
     return app
 
@@ -332,8 +332,8 @@ def _register_app_routes(app):
         })
 
 
-def _start_schedulers(settings):
-    """Start background schedulers (wanted scanner, database backup, standalone watcher)."""
+def _start_schedulers(settings, app=None):
+    """Start background schedulers (wanted scanner, database backup, standalone watcher, cleanup)."""
     from wanted_scanner import get_scanner
     scanner = get_scanner()
     scanner.start_scheduler(socketio=socketio)
@@ -352,6 +352,14 @@ def _start_schedulers(settings):
             standalone_mgr.start(socketio=socketio)
         except Exception as e:
             logging.getLogger(__name__).warning("Standalone watcher start failed: %s", e)
+
+    # Start cleanup scheduler
+    if app is not None:
+        try:
+            from cleanup_scheduler import start_cleanup_scheduler
+            start_cleanup_scheduler(app, socketio)
+        except Exception as e:
+            logging.getLogger(__name__).warning("Cleanup scheduler start failed: %s", e)
 
 
 if __name__ == "__main__":
