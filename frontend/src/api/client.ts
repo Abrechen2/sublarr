@@ -147,8 +147,10 @@ export async function extractEmbeddedSub(itemId: number, options?: { stream_inde
   return data
 }
 
-export async function startWantedBatchSearch(itemIds?: number[]): Promise<{ status: string; total_items: number }> {
-  const body = itemIds ? { item_ids: itemIds } : {}
+export async function startWantedBatchSearch(itemIds?: number[], seriesId?: number): Promise<{ status: string; total_items: number }> {
+  const body: Record<string, unknown> = {}
+  if (itemIds) body.item_ids = itemIds
+  if (seriesId) body.series_id = seriesId
   const { data } = await api.post('/wanted/batch-search', body)
   return data
 }
