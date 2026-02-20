@@ -16,6 +16,7 @@ import {
   BarChart3,
   ListChecks,
   Heart,
+  Star,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useHealth } from '@/hooks/useApi'
@@ -207,28 +208,51 @@ export function Sidebar() {
 
         {/* Footer */}
         <div className="px-4 py-3" style={{ borderTop: '1px solid var(--border)' }}>
-          {/* Donate */}
-          <a
-            href="https://www.paypal.com/donate?hosted_button_id=GLXYTD3FV9Y78"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 w-full mb-2.5 py-1.5 rounded-md text-[11px] font-medium transition-all duration-150"
-            style={{
-              color: 'var(--text-muted)',
-              border: '1px solid var(--border)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#e85d8a'
-              e.currentTarget.style.color = '#e85d8a'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border)'
-              e.currentTarget.style.color = 'var(--text-muted)'
-            }}
-          >
-            <Heart size={12} />
-            Donate
-          </a>
+          {/* Donate + Star */}
+          <div className="flex gap-2 mb-2.5">
+            <a
+              href="https://www.paypal.com/donate?hosted_button_id=GLXYTD3FV9Y78"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 flex-1 py-1.5 rounded-md text-[11px] font-medium transition-all duration-150"
+              style={{
+                color: 'var(--text-muted)',
+                border: '1px solid var(--border)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#e85d8a'
+                e.currentTarget.style.color = '#e85d8a'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border)'
+                e.currentTarget.style.color = 'var(--text-muted)'
+              }}
+            >
+              <Heart size={12} style={{ color: '#e85d8a' }} />
+              Donate
+            </a>
+            <a
+              href="https://github.com/Abrechen2/sublarr"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 flex-1 py-1.5 rounded-md text-[11px] font-medium transition-all duration-150"
+              style={{
+                color: 'var(--text-muted)',
+                border: '1px solid var(--border)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#f5a623'
+                e.currentTarget.style.color = '#f5a623'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border)'
+                e.currentTarget.style.color = 'var(--text-muted)'
+              }}
+            >
+              <Star size={12} style={{ color: '#f5a623' }} />
+              Star
+            </a>
+          </div>
 
           <div className="flex items-center justify-end gap-1.5 mb-2">
             <ThemeToggle />
