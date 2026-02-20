@@ -500,6 +500,13 @@ def wanted_batch_search():
 
         data = request.get_json(silent=True) or {}
         item_ids = data.get("item_ids")
+        series_id = data.get("series_id")
+
+        # If series_id provided, resolve to item IDs for that series
+        if series_id and not item_ids:
+            from db.wanted import get_wanted_for_series
+            series_items = get_wanted_for_series(series_id)
+            item_ids = [item["id"] for item in series_items if item.get("status") == "wanted"]
 
         # Determine total count upfront — inside lock to prevent TOCTOU
         if item_ids:

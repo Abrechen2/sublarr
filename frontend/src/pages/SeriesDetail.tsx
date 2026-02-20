@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry } from '@/hooks/useApi'
+import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry, useStartWantedBatch } from '@/hooks/useApi'
 import {
   ArrowLeft, Loader2, ChevronDown, ChevronRight,
   Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search, Clock,
@@ -903,6 +903,18 @@ export function SeriesDetailPage() {
   const episodeSearch = useEpisodeSearch()
   const episodeHistory = useEpisodeHistory(expandedEp?.mode === 'history' ? expandedEp.id : 0)
   const processItem = useProcessWantedItem()
+  const startSeriesSearch = useStartWantedBatch()
+  const [seriesSearchStarted, setSeriesSearchStarted] = useState(false)
+
+  const handleSearchAllEpisodes = useCallback(() => {
+    startSeriesSearch.mutate({ seriesId }, {
+      onSuccess: (data) => {
+        setSeriesSearchStarted(true)
+        toast(`Suche gestartet für ${data.total_items} Episoden`, 'success')
+      },
+      onError: () => toast('Suche konnte nicht gestartet werden', 'error'),
+    })
+  }, [seriesId, startSeriesSearch])
 
   const handleSearch = useCallback((ep: EpisodeInfo) => {
     if (expandedEp?.id === ep.id && expandedEp?.mode === 'search') {
@@ -1178,6 +1190,26 @@ export function SeriesDetailPage() {
                 <BookOpen size={11} />
                 {t('series_detail.glossary')}
               </button>
+
+              {missingCount > 0 && (
+                <button
+                  onClick={handleSearchAllEpisodes}
+                  disabled={startSeriesSearch.isPending || seriesSearchStarted}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors font-medium"
+                  style={{
+                    backgroundColor: seriesSearchStarted ? 'var(--success-bg)' : 'var(--accent-bg)',
+                    color: seriesSearchStarted ? 'var(--success)' : 'var(--accent)',
+                    opacity: startSeriesSearch.isPending ? 0.7 : 1,
+                    cursor: startSeriesSearch.isPending || seriesSearchStarted ? 'default' : 'pointer',
+                  }}
+                >
+                  {startSeriesSearch.isPending
+                    ? <Loader2 size={11} className="animate-spin" />
+                    : <Search size={11} />
+                  }
+                  {seriesSearchStarted ? 'Suche läuft...' : `Alle ${missingCount} suchen`}
+                </button>
+              )}
             </div>
 
             {/* Overview */}
