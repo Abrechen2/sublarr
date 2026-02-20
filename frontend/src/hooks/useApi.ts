@@ -81,7 +81,7 @@ export function useStats() {
   return useQuery({
     queryKey: ['stats'],
     queryFn: getStats,
-    refetchInterval: 10000,
+    refetchInterval: 30000,
   })
 }
 
@@ -91,7 +91,7 @@ export function useJobs(page = 1, perPage = 50, status?: string) {
   return useQuery({
     queryKey: ['jobs', page, perPage, status],
     queryFn: () => getJobs(page, perPage, status),
-    refetchInterval: 5000,
+    refetchInterval: 15000,
   })
 }
 
@@ -101,7 +101,7 @@ export function useBatchStatus() {
   return useQuery({
     queryKey: ['batch-status'],
     queryFn: getBatchStatus,
-    refetchInterval: 5000,
+    refetchInterval: 15000,
   })
 }
 
@@ -208,7 +208,7 @@ export function useWantedBatchStatus() {
   return useQuery({
     queryKey: ['wanted-batch-status'],
     queryFn: getWantedBatchStatus,
-    refetchInterval: 3000,
+    refetchInterval: 10000,
   })
 }
 
@@ -719,7 +719,7 @@ export function useSaveWhisperConfig() {
   })
 }
 export function useWhisperQueue(params?: { status?: string; limit?: number }) {
-  return useQuery({ queryKey: ['whisper-queue', params], queryFn: () => getWhisperQueue(params), refetchInterval: 5000 })
+  return useQuery({ queryKey: ['whisper-queue', params], queryFn: () => getWhisperQueue(params), refetchInterval: 15000 })
 }
 export function useWhisperStats() {
   return useQuery({ queryKey: ['whisper-stats'], queryFn: getWhisperStats })
@@ -767,7 +767,7 @@ export function useTriggerStandaloneScan() {
 }
 
 export function useStandaloneStatus() {
-  return useQuery({ queryKey: ['standaloneStatus'], queryFn: getStandaloneStatus, refetchInterval: 10000 })
+  return useQuery({ queryKey: ['standaloneStatus'], queryFn: getStandaloneStatus, refetchInterval: 30000 })
 }
 
 export function useRefreshSeriesMetadata() {
@@ -974,7 +974,7 @@ export function useSubtitleContent(filePath: string | null) {
     queryKey: ['subtitle-content', filePath],
     queryFn: () => getSubtitleContent(filePath!),
     enabled: !!filePath,
-    staleTime: 0,  // Always refetch (file may change externally)
+    staleTime: 30_000,  // 30s cache — user can manually refresh if needed
   })
 }
 
@@ -1020,7 +1020,7 @@ export function useTasks() {
   return useQuery({
     queryKey: ['tasks'],
     queryFn: getTasks,
-    refetchInterval: 10000,
+    refetchInterval: 30000,
   })
 }
 
@@ -1348,7 +1348,7 @@ export function useCleanupScanStatus(enabled = false) {
   return useQuery({
     queryKey: ['cleanup-scan-status'],
     queryFn: getCleanupScanStatus,
-    refetchInterval: enabled ? 2000 : false,
+    refetchInterval: enabled ? 5000 : false,
     enabled,
   })
 }
