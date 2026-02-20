@@ -166,6 +166,9 @@ def migrate_bazarr_db(db_path: str) -> dict:
         "blacklist": [],
         "sonarr_config": {},
         "radarr_config": {},
+        "history": [],
+        "shows": [],
+        "movies": [],
         "warnings": [],
     }
 
@@ -188,6 +191,11 @@ def migrate_bazarr_db(db_path: str) -> dict:
 
         # Read Radarr settings
         result["radarr_config"] = _read_settings_table(conn, "table_settings_radarr", result["warnings"])
+
+        # Read history, shows, movies
+        result["history"] = _read_history(conn, result["warnings"])
+        result["shows"] = _read_shows(conn, result["warnings"])
+        result["movies"] = _read_movies(conn, result["warnings"])
     finally:
         conn.close()
 
@@ -260,6 +268,250 @@ def _read_settings_table(conn: sqlite3.Connection, table_name: str, warnings: li
     except sqlite3.OperationalError as exc:
         warnings.append(f"{table_name} not found: {exc}")
     return {}
+
+
+def _get_table_info(conn: sqlite3.Connection, table_name: str) -> list:
+    """Get column names for a table via PRAGMA table_info.
+
+    Returns:
+        List of column name strings, or empty list if table does not exist.
+    """
+    try:
+        cursor = conn.execute(f"PRAGMA table_info({table_name})")
+        return [row[1] for row in cursor]
+    except sqlite3.OperationalError:
+        return []
+
+
+def _read_history(conn: sqlite3.Connection, warnings: list) -> list:
+    """Read download history from Bazarr database.
+
+    Reads the most recent 1000 entries from table_history.
+    Uses column discovery to handle schema differences across Bazarr versions.
+
+    Returns:
+        List of history entry dicts.
+    """
+    history = []
+    columns = _get_table_info(conn, "table_history")
+    if not columns:
+        warnings.append("table_history not found or has no columns")
+        return history
+
+    target_fields = ["provider", "score", "subs_id", "video_path", "language", "timestamp"]
+    select_fields = [f for f in target_fields if f in columns]
+    if not select_fields:
+        warnings.append("table_history has none of the expected columns")
+        return history
+
+    order_col = "timestamp" if "timestamp" in columns else select_fields[0]
+
+    try:
+        query = f"SELECT {', '.join(select_fields)} FROM table_history ORDER BY {order_col} DESC LIMIT 1000"
+        cursor = conn.execute(query)
+        for row in cursor:
+            row_dict = dict(zip(select_fields, row))
+            history.append({f: row_dict.get(f, "") for f in target_fields})
+    except sqlite3.OperationalError as exc:
+        warnings.append(f"Failed to read table_history: {exc}")
+
+    return history
+
+
+def _read_shows(conn: sqlite3.Connection, warnings: list) -> list:
+    """Read show entries from Bazarr database.
+
+    Extracts title, path, profileId, audio_language, and sonarrSeriesId
+    from table_shows. Uses column discovery for version tolerance.
+
+    Returns:
+        List of show dicts.
+    """
+    shows = []
+    columns = _get_table_info(conn, "table_shows")
+    if not columns:
+        warnings.append("table_shows not found or has no columns")
+        return shows
+
+    target_fields = ["title", "path", "profileId", "audio_language", "sonarrSeriesId"]
+    select_fields = [f for f in target_fields if f in columns]
+    if not select_fields:
+        warnings.append("table_shows has none of the expected columns")
+        return shows
+
+    try:
+        query = f"SELECT {', '.join(select_fields)} FROM table_shows"
+        cursor = conn.execute(query)
+        for row in cursor:
+            row_dict = dict(zip(select_fields, row))
+            shows.append({f: row_dict.get(f, "") for f in target_fields})
+    except sqlite3.OperationalError as exc:
+        warnings.append(f"Failed to read table_shows: {exc}")
+
+    return shows
+
+
+def _read_movies(conn: sqlite3.Connection, warnings: list) -> list:
+    """Read movie entries from Bazarr database.
+
+    Extracts title, path, profileId, audio_language, radarrId, and tmdbId
+    from table_movies. Uses column discovery for version tolerance.
+
+    Returns:
+        List of movie dicts.
+    """
+    movies = []
+    columns = _get_table_info(conn, "table_movies")
+    if not columns:
+        warnings.append("table_movies not found or has no columns")
+        return movies
+
+    target_fields = ["title", "path", "profileId", "audio_language", "radarrId", "tmdbId"]
+    select_fields = [f for f in target_fields if f in columns]
+    if not select_fields:
+        warnings.append("table_movies has none of the expected columns")
+        return movies
+
+    try:
+        query = f"SELECT {', '.join(select_fields)} FROM table_movies"
+        cursor = conn.execute(query)
+        for row in cursor:
+            row_dict = dict(zip(select_fields, row))
+            movies.append({f: row_dict.get(f, "") for f in target_fields})
+    except sqlite3.OperationalError as exc:
+        warnings.append(f"Failed to read table_movies: {exc}")
+
+    return movies
+
+
+# ---------------------------------------------------------------------------
+# Mapping Report
+# ---------------------------------------------------------------------------
+
+# Fields that may contain sensitive data and should be masked in reports
+_SENSITIVE_FIELDS = {"apikey", "api_key", "password", "token", "secret"}
+
+
+def generate_mapping_report(db_path: str) -> dict:
+    """Generate a detailed mapping report of a Bazarr database.
+
+    Opens the database read-only and inventories all tables, providing
+    per-table row counts, column lists, and a sample row (with secrets masked).
+    Also generates a migration summary and compatibility information.
+
+    Args:
+        db_path: Path to the Bazarr SQLite database file.
+
+    Returns:
+        Dict with tables_found, table_details, migration_summary,
+        compatibility, and warnings.
+    """
+    report = {
+        "tables_found": [],
+        "table_details": {},
+        "migration_summary": {
+            "profiles_count": 0,
+            "blacklist_count": 0,
+            "shows_count": 0,
+            "movies_count": 0,
+            "history_count": 0,
+            "has_sonarr_config": False,
+            "has_radarr_config": False,
+        },
+        "compatibility": {
+            "bazarr_version": "",
+            "schema_version": "",
+        },
+        "warnings": [],
+    }
+
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+    except sqlite3.Error as exc:
+        report["warnings"].append(f"Cannot open database: {exc}")
+        return report
+
+    try:
+        # Discover all tables
+        try:
+            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            report["tables_found"] = [row[0] for row in cursor]
+        except sqlite3.OperationalError as exc:
+            report["warnings"].append(f"Cannot read table list: {exc}")
+            return report
+
+        # Per-table details
+        for table_name in report["tables_found"]:
+            detail = {"row_count": 0, "columns": [], "sample_row": None}
+
+            columns = _get_table_info(conn, table_name)
+            detail["columns"] = columns
+
+            try:
+                count_cursor = conn.execute(f"SELECT COUNT(*) FROM [{table_name}]")
+                detail["row_count"] = count_cursor.fetchone()[0]
+            except sqlite3.OperationalError:
+                pass
+
+            # Get a sample row with secrets masked
+            if detail["row_count"] > 0 and columns:
+                try:
+                    sample_cursor = conn.execute(f"SELECT * FROM [{table_name}] LIMIT 1")
+                    sample_row = sample_cursor.fetchone()
+                    if sample_row:
+                        masked = {}
+                        for col_name in columns:
+                            val = sample_row[col_name] if col_name in sample_row.keys() else None
+                            if col_name.lower() in _SENSITIVE_FIELDS and val:
+                                masked[col_name] = "***"
+                            else:
+                                masked[col_name] = val
+                        detail["sample_row"] = masked
+                except sqlite3.OperationalError:
+                    pass
+
+            report["table_details"][table_name] = detail
+
+        # Migration summary counts
+        profiles_detail = report["table_details"].get("table_languages_profiles", {})
+        report["migration_summary"]["profiles_count"] = profiles_detail.get("row_count", 0)
+
+        blacklist_detail = report["table_details"].get("table_blacklist", {})
+        report["migration_summary"]["blacklist_count"] = blacklist_detail.get("row_count", 0)
+
+        shows_detail = report["table_details"].get("table_shows", {})
+        report["migration_summary"]["shows_count"] = shows_detail.get("row_count", 0)
+
+        movies_detail = report["table_details"].get("table_movies", {})
+        report["migration_summary"]["movies_count"] = movies_detail.get("row_count", 0)
+
+        history_detail = report["table_details"].get("table_history", {})
+        report["migration_summary"]["history_count"] = history_detail.get("row_count", 0)
+
+        sonarr_detail = report["table_details"].get("table_settings_sonarr", {})
+        report["migration_summary"]["has_sonarr_config"] = sonarr_detail.get("row_count", 0) > 0
+
+        radarr_detail = report["table_details"].get("table_settings_radarr", {})
+        report["migration_summary"]["has_radarr_config"] = radarr_detail.get("row_count", 0) > 0
+
+        # Compatibility: try to read Bazarr version info
+        try:
+            general_detail = report["table_details"].get("table_settings_general", {})
+            if general_detail.get("row_count", 0) > 0:
+                gen_cursor = conn.execute("SELECT * FROM table_settings_general LIMIT 1")
+                gen_row = gen_cursor.fetchone()
+                if gen_row:
+                    gen_dict = dict(gen_row)
+                    report["compatibility"]["bazarr_version"] = str(gen_dict.get("bazarr_version", ""))
+                    report["compatibility"]["schema_version"] = str(gen_dict.get("db_version", gen_dict.get("schema_version", "")))
+        except sqlite3.OperationalError:
+            pass
+
+    finally:
+        conn.close()
+
+    return report
 
 
 # ---------------------------------------------------------------------------
@@ -346,6 +598,11 @@ def preview_migration(config_data: dict, db_data: dict) -> dict:
 
     # Blacklist count
     preview["blacklist_count"] = len(db_data.get("blacklist", []))
+
+    # Extended counts from deeper DB reading
+    preview["shows_count"] = len(db_data.get("shows", []))
+    preview["movies_count"] = len(db_data.get("movies", []))
+    preview["history_count"] = len(db_data.get("history", []))
 
     return preview
 
