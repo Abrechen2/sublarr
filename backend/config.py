@@ -81,6 +81,10 @@ class Settings(BaseSettings):
     # Example: "/data/media=Z:\Media;/anime=Z:\Anime"
     path_mapping: str = ""
 
+    # Scan Metadata Engine
+    scan_metadata_engine: str = "auto"  # "ffprobe" | "mediainfo" | "auto"
+    scan_metadata_max_workers: int = 4  # Parallel workers for batch metadata scans
+
     # Wanted System
     wanted_scan_interval_hours: int = 6  # 0 = disabled
     wanted_anime_only: bool = True

@@ -97,7 +97,7 @@ class TestCaseA:
         Path(target).write_text(MINIMAL_ASS, encoding="utf-8")
 
         with patch("translator.get_settings", return_value=mock_settings), \
-             patch("translator.run_ffprobe", return_value=None):
+             patch("translator.get_media_streams", return_value=None):
             from translator import translate_file
             result = translate_file(mkv_path)
 
@@ -113,7 +113,7 @@ class TestCaseB:
     """Target SRT found — try to upgrade to ASS via provider or translate."""
 
     @patch("translator.get_settings")
-    @patch("translator.run_ffprobe", return_value=None)
+    @patch("translator.get_media_streams", return_value=None)
     def test_b1_provider_upgrade_to_ass(self, mock_probe, mock_gs, mkv_path, mock_settings):
         """B1: Provider finds ASS upgrade for existing SRT."""
         mock_gs.return_value = mock_settings
@@ -141,7 +141,7 @@ class TestCaseB:
         manager.search_and_download_best.assert_called()
 
     @patch("translator.get_settings")
-    @patch("translator.run_ffprobe")
+    @patch("translator.get_media_streams")
     @patch("translator.translate_all")
     def test_b2_translate_existing_srt(self, mock_translate, mock_probe, mock_gs,
                                         mkv_path, mock_settings):
@@ -173,7 +173,7 @@ class TestCaseC:
     """No target subtitle — full pipeline."""
 
     @patch("translator.get_settings")
-    @patch("translator.run_ffprobe")
+    @patch("translator.get_media_streams")
     @patch("translator.select_best_subtitle_stream")
     @patch("translator.extract_subtitle_stream")
     @patch("translator.translate_all")
@@ -210,7 +210,7 @@ class TestCaseC:
     def test_c4_no_source_no_provider_fails(self, mkv_path, mock_settings):
         """C4: No source subtitle, no provider result → fail."""
         with patch("translator.get_settings", return_value=mock_settings), \
-             patch("translator.run_ffprobe", return_value=None), \
+             patch("translator.get_media_streams", return_value=None), \
              patch("translator.get_provider_manager") as mock_pm:
             manager = MagicMock()
             manager.search_and_download_best.return_value = None
@@ -240,7 +240,7 @@ class TestErrorHandling:
                 translate_file("/nonexistent/file.mkv")
 
     @patch("translator.get_settings")
-    @patch("translator.run_ffprobe")
+    @patch("translator.get_media_streams")
     @patch("translator.translate_all", side_effect=Exception("Ollama timeout"))
     @patch("translator.select_best_subtitle_stream")
     @patch("translator.extract_subtitle_stream")

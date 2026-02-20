@@ -956,7 +956,7 @@ def extract_embedded_sub(item_id):
         404:
           description: Item, file, or subtitle stream not found
     """
-    from ass_utils import run_ffprobe, select_best_subtitle_stream, extract_subtitle_stream
+    from ass_utils import get_media_streams, select_best_subtitle_stream, extract_subtitle_stream
     from translator import get_output_path_for_lang
     from db.wanted import get_wanted_item, delete_wanted_item
     from config import get_settings
@@ -978,8 +978,8 @@ def extract_embedded_sub(item_id):
     target_language = data.get("target_language") or item.get("target_language") or settings.target_language
 
     try:
-        # Get ffprobe data
-        probe_data = run_ffprobe(file_path, use_cache=True)
+        # Get media stream metadata
+        probe_data = get_media_streams(file_path, use_cache=True)
 
         # Select stream
         stream_info = None
