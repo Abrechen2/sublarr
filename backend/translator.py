@@ -15,7 +15,7 @@ import pysubs2
 
 from config import get_settings
 from ass_utils import (
-    run_ffprobe,
+    get_media_streams,
     has_target_language_stream,
     select_best_subtitle_stream,
     extract_subtitle_stream,
@@ -826,7 +826,7 @@ def translate_file(mkv_path, force=False, arr_context=None,
         raise FileNotFoundError(f"File not found: {mkv_path}")
 
     logger.info("Processing: %s (target: %s)", mkv_path, tgt_lang)
-    probe_data = run_ffprobe(mkv_path)
+    probe_data = get_media_streams(mkv_path)
 
     if not force:
         target_status = detect_existing_target_for_lang(mkv_path, tgt_lang, probe_data)

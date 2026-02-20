@@ -19,7 +19,7 @@ from datetime import datetime
 from config import get_settings, map_path
 from translator import detect_existing_target_for_lang, get_output_path_for_lang
 from upgrade_scorer import score_existing_subtitle
-from ass_utils import run_ffprobe, has_target_language_stream, has_target_language_audio
+from ass_utils import get_media_streams, has_target_language_stream, has_target_language_audio
 from db.wanted import upsert_wanted_item, get_all_wanted_file_paths
 from db.profiles import get_series_profile, get_movie_profile, get_default_profile
 from forced_detection import is_forced_external_sub
@@ -29,8 +29,6 @@ logger = logging.getLogger(__name__)
 # Every Nth scan cycle forces a full scan regardless of incremental mode
 FULL_SCAN_INTERVAL = 6
 
-# Max workers for parallel ffprobe calls
-FFPROBE_MAX_WORKERS = 4
 
 _scanner = None
 _scanner_lock = threading.Lock()
@@ -339,7 +337,7 @@ class WantedScanner:
         probe_data = None
         if settings.use_embedded_subs and mapped_path.lower().endswith(('.mkv', '.mp4', '.m4v')):
             try:
-                probe_data = run_ffprobe(mapped_path, use_cache=True)
+                probe_data = get_media_streams(mapped_path, use_cache=True)
             except Exception as e:
                 logger.debug("ffprobe failed for %s: %s", mapped_path, e)
 
@@ -471,8 +469,11 @@ class WantedScanner:
 
         return total_added, total_updated, all_paths
 
-    def _batch_ffprobe(self, paths):
-        """Run ffprobe on multiple paths in parallel using ThreadPoolExecutor.
+    def _batch_probe(self, paths):
+        """Run metadata probing on multiple paths in parallel using ThreadPoolExecutor.
+
+        Uses the configured scan_metadata_engine (via get_media_streams) and
+        scan_metadata_max_workers from settings.
 
         Args:
             paths: List of file paths to probe.
@@ -480,10 +481,12 @@ class WantedScanner:
         Returns:
             Dict mapping path -> probe_data (or None on error).
         """
+        from config import get_settings
+        max_workers = getattr(get_settings(), "scan_metadata_max_workers", 4)
         results = {}
-        with ThreadPoolExecutor(max_workers=FFPROBE_MAX_WORKERS) as executor:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_path = {
-                executor.submit(run_ffprobe, p, True): p
+                executor.submit(get_media_streams, p, True): p
                 for p in paths
             }
             for future in as_completed(future_to_path):
@@ -491,7 +494,7 @@ class WantedScanner:
                 try:
                     results[path] = future.result()
                 except Exception as e:
-                    logger.debug("ffprobe failed for %s: %s", path, e)
+                    logger.debug("probe failed for %s: %s", path, e)
                     results[path] = None
         return results
 
@@ -547,7 +550,7 @@ class WantedScanner:
                 if mp.lower().endswith(('.mkv', '.mp4', '.m4v'))
             ]
             if probeable:
-                probe_results = self._batch_ffprobe(probeable)
+                probe_results = self._batch_probe(probeable)
 
         for ep, mapped_path in episode_data:
             scanned_paths.add(mapped_path)
