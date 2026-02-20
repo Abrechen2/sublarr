@@ -534,7 +534,9 @@ function ExportConfigSection() {
   const handleExport = useCallback(() => {
     exportConfig.mutate({ format, includeSecrets }, {
       onSuccess: (data: ExportResult) => {
-        const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: data.content_type })
+        const isJson = data.content_type?.includes('json')
+        const content = isJson ? JSON.stringify(data.data, null, 2) : String(data.data)
+        const blob = new Blob([content], { type: data.content_type })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url

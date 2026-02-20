@@ -7,6 +7,7 @@ and tracks per-backend statistics via circuit breakers.
 
 import time
 import logging
+import threading
 from typing import Optional
 
 from translation.base import TranslationBackend, TranslationResult
@@ -27,6 +28,7 @@ class TranslationManager:
         self._backend_classes: dict[str, type[TranslationBackend]] = {}
         self._backends: dict[str, TranslationBackend] = {}
         self._circuit_breakers: dict[str, CircuitBreaker] = {}
+        self._backends_lock = threading.Lock()
 
     def register_backend(self, cls: type[TranslationBackend]) -> None:
         """Register a backend class by its name attribute."""
@@ -34,29 +36,30 @@ class TranslationManager:
         logger.debug("Registered translation backend: %s", cls.name)
 
     def get_backend(self, name: str) -> Optional[TranslationBackend]:
-        """Get or create a backend instance by name (lazy creation).
+        """Get or create a backend instance by name (lazy, thread-safe creation).
 
         Config is loaded from config_entries DB table using
         backend.<name>.<key> namespacing. For Ollama, falls back to
         Pydantic Settings values (migration compatibility).
         """
-        if name in self._backends:
-            return self._backends[name]
+        with self._backends_lock:
+            if name in self._backends:
+                return self._backends[name]
 
-        cls = self._backend_classes.get(name)
-        if not cls:
-            logger.warning("Unknown translation backend: %s", name)
-            return None
+            cls = self._backend_classes.get(name)
+            if not cls:
+                logger.warning("Unknown translation backend: %s", name)
+                return None
 
-        config = self._load_backend_config(name)
-        try:
-            instance = cls(**config)
-            self._backends[name] = instance
-            logger.info("Created translation backend instance: %s", name)
-            return instance
-        except Exception as e:
-            logger.error("Failed to create backend %s: %s", name, e)
-            return None
+            config = self._load_backend_config(name)
+            try:
+                instance = cls(**config)
+                self._backends[name] = instance
+                logger.info("Created translation backend instance: %s", name)
+                return instance
+            except Exception as e:
+                logger.error("Failed to create backend %s: %s", name, e)
+                return None
 
     def get_all_backends(self) -> list[dict]:
         """Return info about all registered backends.

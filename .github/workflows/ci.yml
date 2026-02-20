@@ -48,8 +48,8 @@ jobs:
       - name: Run mypy (type checking)
         working-directory: ./backend
         run: |
-          mypy . --config-file mypy.ini || true  # Don't fail on type errors initially
-        continue-on-error: true  # Allow mypy to fail initially
+          mypy . --config-file mypy.ini
+        # Removed continue-on-error: type checking is now mandatory for reliability
 
       - name: Run pytest with coverage
         working-directory: ./backend
@@ -64,6 +64,7 @@ jobs:
           name: backend-coverage
           fail_ci_if_error: false
         continue-on-error: true
+        # Coverage upload is informational, not blocking
 
       - name: Upload coverage HTML report
         uses: actions/upload-artifact@v4
@@ -120,6 +121,7 @@ jobs:
           name: frontend-coverage
           fail_ci_if_error: false
         continue-on-error: true
+        # Coverage upload is informational, not blocking
 
       - name: Upload coverage HTML report
         uses: actions/upload-artifact@v4
@@ -286,6 +288,7 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:5765
         continue-on-error: true
+        # E2E tests are flaky in CI - keep optional for now, but track failures
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -385,16 +388,18 @@ jobs:
         working-directory: ./backend
         run: |
           pip-audit --desc --format json --output pip-audit-report.json || true
-          pip-audit --desc || true
+          pip-audit --desc --fail-on=high || true
         continue-on-error: true
+        # Security scans: fail on high/critical, but don't block CI yet
 
       # Node.js Security Scan
       - name: Run npm audit (Node.js vulnerabilities)
         working-directory: ./frontend
         run: |
           npm audit --json > npm-audit-report.json || true
-          npm audit || true
+          npm audit --audit-level=high || true
         continue-on-error: true
+        # Security scans: fail on high/critical, but don't block CI yet
 
       # Container Security Scan
       - name: Install Trivy
@@ -494,10 +499,37 @@ EOF
     needs: [backend, frontend, code-quality, security-scan, license-check, integration-tests]
     if: always()
     steps:
-      - name: Check job results
+      - name: Check critical job results
         run: |
-          if [ "${{ needs.backend.result }}" != "success" ] || [ "${{ needs.frontend.result }}" != "success" ]; then
-            echo "One or more CI jobs failed"
+          # Critical jobs that must pass
+          CRITICAL_JOBS="backend frontend integration-tests"
+          FAILED_JOBS=""
+          
+          for job in $CRITICAL_JOBS; do
+            result=$(echo "${{ needs.$job.result }}" | tr '[:upper:]' '[:lower:]')
+            if [ "$result" != "success" ]; then
+              FAILED_JOBS="$FAILED_JOBS $job"
+            fi
+          done
+          
+          if [ -n "$FAILED_JOBS" ]; then
+            echo "❌ Critical CI jobs failed:$FAILED_JOBS"
             exit 1
           fi
-          echo "All CI jobs passed successfully"
+          
+          # Warn about optional job failures
+          OPTIONAL_JOBS="code-quality security-scan license-check"
+          WARNINGS=""
+          
+          for job in $OPTIONAL_JOBS; do
+            result=$(echo "${{ needs.$job.result }}" | tr '[:upper:]' '[:lower:]')
+            if [ "$result" != "success" ]; then
+              WARNINGS="$WARNINGS $job"
+            fi
+          done
+          
+          if [ -n "$WARNINGS" ]; then
+            echo "⚠️  Optional CI jobs had issues:$WARNINGS (not blocking)"
+          fi
+          
+          echo "✅ All critical CI jobs passed successfully"

@@ -28,6 +28,11 @@ def register_blueprints(app):
     from routes.notifications_mgmt import bp as notifications_mgmt_bp
     from routes.cleanup import bp as cleanup_bp
     from routes.integrations import bp as integrations_bp
+    from routes.audio import bp as audio_bp
+    from routes.spell import bp as spell_bp
+    from routes.ocr import bp as ocr_bp
+    from routes.marketplace import bp as marketplace_bp
+    from routes.video import bp as video_bp
 
     for blueprint in [
         translate_bp,
@@ -51,5 +56,10 @@ def register_blueprints(app):
         notifications_mgmt_bp,
         cleanup_bp,
         integrations_bp,
+        audio_bp,
+        spell_bp,
+        ocr_bp,
+        marketplace_bp,
+        video_bp,
     ]:
         app.register_blueprint(blueprint)

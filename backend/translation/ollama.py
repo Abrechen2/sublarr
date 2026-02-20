@@ -103,9 +103,9 @@ class OllamaBackend(TranslationBackend):
             for key, default_value in defaults.items():
                 if key not in self.config or not self.config[key]:
                     self.config[key] = default_value
-        except Exception:
-            # If settings can't be loaded, use hardcoded defaults
-            pass
+        except Exception as e:
+            logger.warning("Failed to load settings for Ollama backend: %s", e)
+            # Fall through to use hardcoded defaults in property accessors
 
     @property
     def _url(self) -> str:

@@ -305,28 +305,32 @@ def search_wanted_item(item_id: int) -> dict:
         results = manager.search(target_query, format_filter=SubtitleFormat.ASS)
         all_results.extend([_result_to_dict(r) for r in results[:20]])
     except Exception as e:
-        logger.warning("Target ASS search failed for wanted %d: %s", item_id, e)
+        logger.warning("Target ASS search failed for wanted %d: %s", item_id, e, exc_info=True)
+        # Continue with other searches - don't fail entire operation
 
     # Search 2: source_language ASS (Priority 2)
     try:
         results = manager.search(source_query, format_filter=SubtitleFormat.ASS)
         all_results.extend([_result_to_dict(r) for r in results[:20]])
     except Exception as e:
-        logger.warning("Source ASS search failed for wanted %d: %s", item_id, e)
+        logger.warning("Source ASS search failed for wanted %d: %s", item_id, e, exc_info=True)
+        # Continue with other searches - don't fail entire operation
 
     # Search 3: target_language SRT (Priority 3)
     try:
         results = manager.search(target_query, format_filter=SubtitleFormat.SRT)
         all_results.extend([_result_to_dict(r) for r in results[:20]])
     except Exception as e:
-        logger.warning("Target SRT search failed for wanted %d: %s", item_id, e)
+        logger.warning("Target SRT search failed for wanted %d: %s", item_id, e, exc_info=True)
+        # Continue with other searches - don't fail entire operation
 
     # Search 4: source_language SRT (Priority 4)
     try:
         results = manager.search(source_query, format_filter=SubtitleFormat.SRT)
         all_results.extend([_result_to_dict(r) for r in results[:20]])
     except Exception as e:
-        logger.warning("Source SRT search failed for wanted %d: %s", item_id, e)
+        logger.warning("Source SRT search failed for wanted %d: %s", item_id, e, exc_info=True)
+        # Continue with other searches - don't fail entire operation
 
     # Sort by priority: target.ass > source.ass > target.srt > source.srt
     all_results.sort(key=lambda r: _get_priority_key(r, item_lang, source_lang))
@@ -437,19 +441,24 @@ def process_wanted_item(item_id: int) -> dict:
                     upgrade_reason=f"SRT->ASS via {result.provider_name}",
                 )
 
-            manager.save_subtitle(result, output_path)
-            logger.info("Wanted %d: Provider %s delivered target ASS directly",
-                         item_id, result.provider_name)
-            update_wanted_status(item_id, "found")
-            return {
-                "wanted_id": item_id,
-                "status": "found",
-                "output_path": output_path,
-                "provider": result.provider_name,
-                "upgraded": is_upgrade,
-            }
+            try:
+                manager.save_subtitle(result, output_path)
+                logger.info("Wanted %d: Provider %s delivered target ASS directly",
+                             item_id, result.provider_name)
+                update_wanted_status(item_id, "found")
+                return {
+                    "wanted_id": item_id,
+                    "status": "found",
+                    "output_path": output_path,
+                    "provider": result.provider_name,
+                    "upgraded": is_upgrade,
+                }
+            except (OSError, RuntimeError) as save_error:
+                logger.error("Wanted %d: Failed to save subtitle from %s: %s",
+                             item_id, result.provider_name, save_error)
+                # Fall through to next step
     except Exception as e:
-        logger.warning("Wanted %d: Direct target ASS search failed: %s", item_id, e)
+        logger.warning("Wanted %d: Direct target ASS search failed: %s", item_id, e, exc_info=True)
 
     # Step 2: Try to find source language ASS for translation (Priority 2)
     source_query = build_query_from_wanted(item)
@@ -464,7 +473,13 @@ def process_wanted_item(item_id: int) -> dict:
             from translator import get_output_path_for_lang, _translate_external_ass
             base = os.path.splitext(file_path)[0]
             tmp_source_path = f"{base}.{settings.source_language}.ass"
-            manager.save_subtitle(result, tmp_source_path)
+            try:
+                manager.save_subtitle(result, tmp_source_path)
+            except (OSError, RuntimeError) as save_error:
+                logger.error("Wanted %d: Failed to save source ASS from %s: %s",
+                             item_id, result.provider_name, save_error)
+                # Fall through to next step
+                continue
             
             # Build arr_context for glossary lookup
             arr_context = {}
@@ -475,12 +490,23 @@ def process_wanted_item(item_id: int) -> dict:
             if item.get("radarr_movie_id"):
                 arr_context["radarr_movie_id"] = item["radarr_movie_id"]
 
-            translate_result = _translate_external_ass(
-                file_path, tmp_source_path,
-                target_language=item_lang,
-                target_language_name=settings.target_language_name,
-                arr_context=arr_context if arr_context else None
-            )
+            try:
+                translate_result = _translate_external_ass(
+                    file_path, tmp_source_path,
+                    target_language=item_lang,
+                    target_language_name=settings.target_language_name,
+                    arr_context=arr_context if arr_context else None
+                )
+            except Exception as trans_error:
+                logger.error("Wanted %d: Translation failed for source ASS: %s",
+                             item_id, trans_error, exc_info=True)
+                # Clean up and fall through
+                try:
+                    if os.path.exists(tmp_source_path):
+                        os.remove(tmp_source_path)
+                except Exception:
+                    pass
+                continue
             
             # Clean up temporary source file
             try:
@@ -500,7 +526,7 @@ def process_wanted_item(item_id: int) -> dict:
                     "provider": f"{result.provider_name} (translated)",
                 }
     except Exception as e:
-        logger.warning("Wanted %d: Source ASS search/translation failed: %s", item_id, e)
+        logger.warning("Wanted %d: Source ASS search/translation failed: %s", item_id, e, exc_info=True)
 
     # Step 3: Try to find target language SRT directly (Priority 3)
     try:
@@ -510,18 +536,23 @@ def process_wanted_item(item_id: int) -> dict:
         if result and result.content:
             from translator import get_output_path_for_lang
             output_path = get_output_path_for_lang(file_path, "srt", item_lang)
-            manager.save_subtitle(result, output_path)
-            logger.info("Wanted %d: Provider %s delivered target SRT directly",
-                         item_id, result.provider_name)
-            update_wanted_status(item_id, "found")
-            return {
-                "wanted_id": item_id,
-                "status": "found",
-                "output_path": output_path,
-                "provider": result.provider_name,
-            }
+            try:
+                manager.save_subtitle(result, output_path)
+                logger.info("Wanted %d: Provider %s delivered target SRT directly",
+                             item_id, result.provider_name)
+                update_wanted_status(item_id, "found")
+                return {
+                    "wanted_id": item_id,
+                    "status": "found",
+                    "output_path": output_path,
+                    "provider": result.provider_name,
+                }
+            except (OSError, RuntimeError) as save_error:
+                logger.error("Wanted %d: Failed to save target SRT from %s: %s",
+                             item_id, result.provider_name, save_error)
+                # Fall through to next step
     except Exception as e:
-        logger.warning("Wanted %d: Direct target SRT search failed: %s", item_id, e)
+        logger.warning("Wanted %d: Direct target SRT search failed: %s", item_id, e, exc_info=True)
 
     # Step 4: Try to find source language SRT for translation (Priority 4)
     try:
@@ -533,7 +564,13 @@ def process_wanted_item(item_id: int) -> dict:
             from translator import get_output_path_for_lang, translate_srt_from_file
             base = os.path.splitext(file_path)[0]
             tmp_source_path = f"{base}.{settings.source_language}.srt"
-            manager.save_subtitle(result, tmp_source_path)
+            try:
+                manager.save_subtitle(result, tmp_source_path)
+            except (OSError, RuntimeError) as save_error:
+                logger.error("Wanted %d: Failed to save source SRT from %s: %s",
+                             item_id, result.provider_name, save_error)
+                # Fall through to next step
+                continue
             
             # Build arr_context for glossary lookup
             arr_context = {}
@@ -544,12 +581,23 @@ def process_wanted_item(item_id: int) -> dict:
             if item.get("radarr_movie_id"):
                 arr_context["radarr_movie_id"] = item["radarr_movie_id"]
 
-            translate_result = translate_srt_from_file(
-                file_path, tmp_source_path,
-                source="provider_source_srt",
-                target_language=item_lang,
-                arr_context=arr_context if arr_context else None
-            )
+            try:
+                translate_result = translate_srt_from_file(
+                    file_path, tmp_source_path,
+                    source="provider_source_srt",
+                    target_language=item_lang,
+                    arr_context=arr_context if arr_context else None
+                )
+            except Exception as trans_error:
+                logger.error("Wanted %d: Translation failed for source SRT: %s",
+                             item_id, trans_error, exc_info=True)
+                # Clean up and fall through
+                try:
+                    if os.path.exists(tmp_source_path):
+                        os.remove(tmp_source_path)
+                except Exception:
+                    pass
+                continue
             
             # Clean up temporary source file
             try:
@@ -569,7 +617,7 @@ def process_wanted_item(item_id: int) -> dict:
                     "provider": f"{result.provider_name} (translated)",
                 }
     except Exception as e:
-        logger.warning("Wanted %d: Source SRT search/translation failed: %s", item_id, e)
+        logger.warning("Wanted %d: Source SRT search/translation failed: %s", item_id, e, exc_info=True)
 
     # Step 5: Fall back to translate_file() which handles embedded subtitles (B1/C1-C4)
     try:
@@ -642,19 +690,25 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
             if result and result.content:
                 ext = result.format.value if result.format != SubtitleFormat.UNKNOWN else fmt.value
                 output_path = get_forced_output_path(file_path, fmt=ext, target_language=item_lang)
-                manager.save_subtitle(result, output_path)
-                logger.info("Wanted %d: Forced subtitle downloaded from %s, skipping translation",
-                           item_id, result.provider_name)
-                update_wanted_status(item_id, "found")
-                return {
-                    "wanted_id": item_id,
-                    "status": "found",
-                    "output_path": output_path,
-                    "provider": result.provider_name,
-                    "forced": True,
-                }
+                try:
+                    manager.save_subtitle(result, output_path)
+                    logger.info("Wanted %d: Forced subtitle downloaded from %s, skipping translation",
+                               item_id, result.provider_name)
+                    update_wanted_status(item_id, "found")
+                    return {
+                        "wanted_id": item_id,
+                        "status": "found",
+                        "output_path": output_path,
+                        "provider": result.provider_name,
+                        "forced": True,
+                    }
+                except (OSError, RuntimeError) as save_error:
+                    logger.error("Wanted %d: Failed to save forced subtitle from %s: %s",
+                                 item_id, result.provider_name, save_error)
+                    # Try next format
+                    continue
         except Exception as e:
-            logger.warning("Wanted %d: Forced %s search failed: %s", item_id, fmt.value, e)
+            logger.warning("Wanted %d: Forced %s search failed: %s", item_id, fmt.value, e, exc_info=True)
 
     # Also try source language forced subtitles (download-only, no translation)
     settings = get_settings()
@@ -668,20 +722,26 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
             result = manager.search_and_download_best(source_query, format_filter=fmt)
             if result and result.content:
                 ext = result.format.value if result.format != SubtitleFormat.UNKNOWN else fmt.value
-                output_path = get_forced_output_path(file_path, fmt=ext, target_language=item_lang)
-                manager.save_subtitle(result, output_path)
-                logger.info("Wanted %d: Forced subtitle (source lang) downloaded from %s, skipping translation",
-                           item_id, result.provider_name)
-                update_wanted_status(item_id, "found")
-                return {
-                    "wanted_id": item_id,
-                    "status": "found",
-                    "output_path": output_path,
-                    "provider": result.provider_name,
-                    "forced": True,
-                }
+                output_path = get_forced_output_path(file_path, fmt=ext, target_language=source_lang)
+                try:
+                    manager.save_subtitle(result, output_path)
+                    logger.info("Wanted %d: Forced subtitle (source lang) downloaded from %s, skipping translation",
+                               item_id, result.provider_name)
+                    update_wanted_status(item_id, "found")
+                    return {
+                        "wanted_id": item_id,
+                        "status": "found",
+                        "output_path": output_path,
+                        "provider": result.provider_name,
+                        "forced": True,
+                    }
+                except (OSError, RuntimeError) as save_error:
+                    logger.error("Wanted %d: Failed to save forced subtitle (source) from %s: %s",
+                                 item_id, result.provider_name, save_error)
+                    # Try next format
+                    continue
         except Exception as e:
-            logger.warning("Wanted %d: Forced source %s search failed: %s", item_id, fmt.value, e)
+            logger.warning("Wanted %d: Forced source %s search failed: %s", item_id, fmt.value, e, exc_info=True)
 
     # No forced subtitle found
     error = "No forced subtitle found from any provider"

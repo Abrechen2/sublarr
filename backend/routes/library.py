@@ -478,7 +478,7 @@ def episode_search(episode_id):
         se = f"S{episode.get('seasonNumber', 0):02d}E{episode.get('episodeNumber', 0):02d}"
 
         # Create a wanted item
-        item_id = upsert_wanted_item(
+        item_id, _ = upsert_wanted_item(
             item_type="episode",
             file_path=file_path,
             title=title,

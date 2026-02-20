@@ -5,9 +5,16 @@ import {
   useRetranslateStatus, useRetranslateBatch,
   useExportConfig, useImportConfig,
 } from '@/hooks/useApi'
-import { Save, Loader2, TestTube, Trash2, Plus, RefreshCw, Upload, FileDown, X, Check } from 'lucide-react'
+import {
+  Save, Loader2, TestTube, Trash2, Plus, RefreshCw, Upload, FileDown, X, Check,
+  Settings2, Download, Server, Languages, Zap, Globe, Cog,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { getHealth } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
+import { Toggle } from '@/components/shared/Toggle'
+import { SettingRow } from '@/components/shared/SettingRow'
+import { HELP_TEXT } from './settingsHelpText'
 
 // Tab sub-components
 import { ProvidersTab } from './ProvidersTab'
@@ -20,35 +27,33 @@ import { ApiKeysTab } from './ApiKeysTab'
 import { NotificationTemplatesTab } from './NotificationTemplatesTab'
 import { CleanupTab } from './CleanupTab'
 import { IntegrationsTab } from './IntegrationsTab'
+import { MigrationTab } from './MigrationTab'
 
-const TABS = [
-  'General',
-  'API Keys',
-  'Translation',
-  'Translation Backends',
-  'Languages',
-  'Automation',
-  'Wanted',
-  'Providers',
-  'Sonarr',
-  'Radarr',
-  'Library Sources',
-  'Media Servers',
-  'Whisper',
-  'Events & Hooks',
-  'Scoring',
-  'Backup',
-  'Subtitle Tools',
-  'Cleanup',
-  'Integrations',
-  'Notification Templates',
-  'Prompt Presets',
+// ─── Navigation Groups ────────────────────────────────────────────────────────
+
+interface NavGroup {
+  title: string
+  icon: LucideIcon
+  items: string[]
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  { title: 'General',     icon: Settings2,  items: ['General', 'API Keys'] },
+  { title: 'Download',    icon: Download,   items: ['Sonarr', 'Radarr', 'Library Sources'] },
+  { title: 'Servers',     icon: Server,     items: ['Media Servers'] },
+  { title: 'Translation', icon: Languages,  items: ['Translation', 'Translation Backends', 'Prompt Presets', 'Languages'] },
+  { title: 'Automation',  icon: Zap,        items: ['Automation', 'Wanted', 'Whisper'] },
+  { title: 'Providers',   icon: Globe,      items: ['Providers', 'Scoring'] },
+  { title: 'System',      icon: Cog,        items: ['Events & Hooks', 'Backup', 'Subtitle Tools', 'Cleanup', 'Integrations', 'Notification Templates', 'Migration'] },
 ]
+
+// Flat list derived from groups (preserves ordering for legacy code)
+const TABS = NAV_GROUPS.flatMap((g) => g.items)
 
 export interface FieldConfig {
   key: string
   label: string
-  type: 'text' | 'number' | 'password'
+  type: 'text' | 'number' | 'password' | 'toggle'
   placeholder?: string
   tab: string
 }
@@ -65,26 +70,26 @@ const FIELDS: FieldConfig[] = [
   { key: 'target_language', label: 'Target Language Code', type: 'text', placeholder: 'de', tab: 'Translation' },
   { key: 'source_language_name', label: 'Source Language Name', type: 'text', placeholder: 'English', tab: 'Translation' },
   { key: 'target_language_name', label: 'Target Language Name', type: 'text', placeholder: 'German', tab: 'Translation' },
-  { key: 'hi_removal_enabled', label: 'Remove Hearing Impaired Tags', type: 'text', placeholder: 'false', tab: 'Translation' },
+  { key: 'hi_removal_enabled', label: 'Remove Hearing Impaired Tags', type: 'toggle', tab: 'Translation' },
   // Automation — Upgrade
-  { key: 'upgrade_enabled', label: 'Upgrade Enabled', type: 'text', placeholder: 'true', tab: 'Automation' },
-  { key: 'upgrade_prefer_ass', label: 'Prefer ASS over SRT', type: 'text', placeholder: 'true', tab: 'Automation' },
+  { key: 'upgrade_enabled', label: 'Upgrade Enabled', type: 'toggle', tab: 'Automation' },
+  { key: 'upgrade_prefer_ass', label: 'Prefer ASS over SRT', type: 'toggle', tab: 'Automation' },
   { key: 'upgrade_min_score_delta', label: 'Min Score Delta', type: 'number', placeholder: '50', tab: 'Automation' },
   { key: 'upgrade_window_days', label: 'Upgrade Window (days)', type: 'number', placeholder: '7', tab: 'Automation' },
   // Automation — Webhook
   { key: 'webhook_delay_minutes', label: 'Webhook Delay (minutes)', type: 'number', placeholder: '5', tab: 'Automation' },
-  { key: 'webhook_auto_scan', label: 'Auto-Scan after Download', type: 'text', placeholder: 'true', tab: 'Automation' },
-  { key: 'webhook_auto_search', label: 'Auto-Search Providers', type: 'text', placeholder: 'true', tab: 'Automation' },
-  { key: 'webhook_auto_translate', label: 'Auto-Translate Found Subs', type: 'text', placeholder: 'true', tab: 'Automation' },
+  { key: 'webhook_auto_scan', label: 'Auto-Scan after Download', type: 'toggle', tab: 'Automation' },
+  { key: 'webhook_auto_search', label: 'Auto-Search Providers', type: 'toggle', tab: 'Automation' },
+  { key: 'webhook_auto_translate', label: 'Auto-Translate Found Subs', type: 'toggle', tab: 'Automation' },
   // Automation — Search Scheduler
   { key: 'wanted_search_interval_hours', label: 'Search Interval (hours, 0=disabled)', type: 'number', placeholder: '24', tab: 'Automation' },
-  { key: 'wanted_search_on_startup', label: 'Search on Startup', type: 'text', placeholder: 'false', tab: 'Automation' },
+  { key: 'wanted_search_on_startup', label: 'Search on Startup', type: 'toggle', tab: 'Automation' },
   { key: 'wanted_search_max_items_per_run', label: 'Max Items per Search Run', type: 'number', placeholder: '50', tab: 'Automation' },
   // Wanted
   { key: 'wanted_scan_interval_hours', label: 'Scan Interval (hours, 0=disabled)', type: 'number', placeholder: '6', tab: 'Wanted' },
-  { key: 'wanted_anime_only', label: 'Anime Only (Sonarr)', type: 'text', placeholder: 'true', tab: 'Wanted' },
-  { key: 'wanted_anime_movies_only', label: 'Anime Movies Only (Radarr)', type: 'text', placeholder: 'false', tab: 'Wanted' },
-  { key: 'wanted_scan_on_startup', label: 'Scan on Startup', type: 'text', placeholder: 'true', tab: 'Wanted' },
+  { key: 'wanted_anime_only', label: 'Anime Only (Sonarr)', type: 'toggle', tab: 'Wanted' },
+  { key: 'wanted_anime_movies_only', label: 'Anime Movies Only (Radarr)', type: 'toggle', tab: 'Wanted' },
+  { key: 'wanted_scan_on_startup', label: 'Scan on Startup', type: 'toggle', tab: 'Wanted' },
   { key: 'wanted_max_search_attempts', label: 'Max Search Attempts', type: 'number', placeholder: '3', tab: 'Wanted' },
   // Sonarr
   { key: 'sonarr_url', label: 'Sonarr URL', type: 'text', placeholder: 'http://localhost:8989', tab: 'Sonarr' },
@@ -93,7 +98,7 @@ const FIELDS: FieldConfig[] = [
   { key: 'radarr_url', label: 'Radarr URL', type: 'text', placeholder: 'http://localhost:7878', tab: 'Radarr' },
   { key: 'radarr_api_key', label: 'Radarr API Key', type: 'password', tab: 'Radarr' },
   // Library Sources (Standalone Mode)
-  { key: 'standalone_enabled', label: 'Enable Standalone Mode', type: 'text', placeholder: 'false', tab: 'Library Sources' },
+  { key: 'standalone_enabled', label: 'Enable Standalone Mode', type: 'toggle', tab: 'Library Sources' },
   { key: 'tmdb_api_key', label: 'TMDB API Key (Bearer Token)', type: 'password', tab: 'Library Sources' },
   { key: 'tvdb_api_key', label: 'TVDB API Key (Optional)', type: 'password', tab: 'Library Sources' },
   { key: 'tvdb_pin', label: 'TVDB PIN (Optional)', type: 'password', tab: 'Library Sources' },
@@ -118,20 +123,13 @@ function PathMappingEditor({
     if (!testPath.trim()) return
     setIsTesting(true)
     try {
-      const response = await fetch('/api/v1/settings/path-mapping/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ remote_path: testPath }),
-      })
-      const data = await response.json()
-      if (response.ok) {
-        setTestResult(data)
-      } else {
-        toast(data.error || 'Path mapping test failed', 'error')
-        setTestResult(null)
-      }
-    } catch (error) {
-      toast('Failed to test path mapping', 'error')
+      const { default: api } = await import('@/api/client')
+      const { data } = await api.post('/settings/path-mapping/test', { remote_path: testPath })
+      setTestResult(data)
+    } catch (error: unknown) {
+      const msg = (error as { response?: { data?: { error?: string } } })?.response?.data?.error
+        ?? 'Path mapping test failed'
+      toast(msg, 'error')
       setTestResult(null)
     } finally {
       setIsTesting(false)
@@ -595,6 +593,8 @@ export function SettingsPage() {
   const isCleanupTab = activeTab === 'Cleanup'
   const isIntegrationsTab = activeTab === 'Integrations'
   const isApiKeysTab = activeTab === 'API Keys'
+  const isMigrationTab = activeTab === 'Migration'
+  const isNotificationTemplatesTab = activeTab === 'Notification Templates'
 
   if (isLoading) {
     return (
@@ -629,37 +629,57 @@ export function SettingsPage() {
       </div>
 
       <div className="flex flex-col md:flex-row gap-5">
-        {/* Tabs */}
-        <div className="w-full md:w-40 shrink-0 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible">
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab
+        {/* Grouped Navigation Sidebar */}
+        <nav className="w-full md:w-52 shrink-0 flex flex-row md:flex-col gap-0 overflow-x-auto md:overflow-x-visible">
+          {NAV_GROUPS.map((group) => {
+            const Icon = group.icon
             return (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className="text-left px-3 py-2 rounded-md text-[13px] font-medium transition-all duration-150 whitespace-nowrap relative"
-                style={{
-                  backgroundColor: isActive ? 'var(--accent-bg)' : 'transparent',
-                  color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'
-                }}
-              >
-                {isActive && (
-                  <div
-                    className="hidden md:block absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
-                    style={{ backgroundColor: 'var(--accent)' }}
-                  />
-                )}
-                {TAB_KEYS[tab] ? t(TAB_KEYS[tab]) : tab}
-              </button>
+              <div key={group.title} className="mb-1">
+                {/* Group header — non-clickable label with icon */}
+                <div
+                  className="hidden md:flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider select-none"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  <Icon size={12} />
+                  {group.title}
+                </div>
+                {/* Tab items */}
+                <div className="flex flex-row md:flex-col gap-0.5">
+                  {group.items.map((tab) => {
+                    const isActive = activeTab === tab
+                    return (
+                      <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className="text-left px-3 py-2 rounded-md text-[13px] font-medium transition-all duration-150 whitespace-nowrap relative"
+                        style={{
+                          backgroundColor: isActive ? 'var(--accent-bg)' : 'transparent',
+                          color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isActive) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'
+                        }}
+                      >
+                        {isActive && (
+                          <div
+                            className="hidden md:block absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
+                            style={{ backgroundColor: 'var(--accent)' }}
+                          />
+                        )}
+                        <span className="md:pl-1">
+                          {TAB_KEYS[tab] ? t(TAB_KEYS[tab]) : tab}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             )
           })}
-        </div>
+        </nav>
 
         {/* Content */}
         <div className="flex-1">
@@ -699,7 +719,9 @@ export function SettingsPage() {
             <CleanupTab />
           ) : isIntegrationsTab ? (
             <IntegrationsTab />
-          ) : activeTab === 'Notification Templates' ? (
+          ) : isMigrationTab ? (
+            <MigrationTab />
+          ) : isNotificationTemplatesTab ? (
             <NotificationTemplatesTab />
           ) : (
             <div
@@ -707,25 +729,33 @@ export function SettingsPage() {
               style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
             >
               {tabFields.map((field) => (
-                <div key={field.key} className="space-y-1.5">
-                  <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                    {field.label}
-                  </label>
-                  <input
-                    type={field.type}
-                    value={values[field.key] === '***configured***' ? '' : (values[field.key] ?? '')}
-                    onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
-                    placeholder={values[field.key] === '***configured***' ? '(configured \u2014 enter new value to change)' : field.placeholder}
-                    className="w-full px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
-                    style={{
-                      backgroundColor: 'var(--bg-primary)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-primary)',
-                      fontFamily: field.type === 'text' ? 'var(--font-mono)' : undefined,
-                      fontSize: '13px',
-                    }}
-                  />
-                </div>
+                <SettingRow
+                  key={field.key}
+                  label={field.label}
+                  helpText={HELP_TEXT[field.key]}
+                >
+                  {field.type === 'toggle' ? (
+                    <Toggle
+                      checked={values[field.key] === 'true'}
+                      onChange={(v) => setValues((prev) => ({ ...prev, [field.key]: String(v) }))}
+                    />
+                  ) : (
+                    <input
+                      type={field.type}
+                      value={values[field.key] === '***configured***' ? '' : (values[field.key] ?? '')}
+                      onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
+                      placeholder={values[field.key] === '***configured***' ? '(configured \u2014 enter new value to change)' : field.placeholder}
+                      className="w-full px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
+                      style={{
+                        backgroundColor: 'var(--bg-primary)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-primary)',
+                        fontFamily: field.type === 'text' ? 'var(--font-mono)' : undefined,
+                        fontSize: '13px',
+                      }}
+                    />
+                  )}
+                </SettingRow>
               ))}
 
               {/* Path Mapping Table (General tab only) */}
@@ -963,3 +993,6 @@ export function SettingsPage() {
     </div>
   )
 }
+
+// Re-export TABS for backward compat (used by nothing currently, but safe to keep)
+export { TABS }

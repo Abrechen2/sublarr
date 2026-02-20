@@ -6,6 +6,7 @@ or via a .env file. Example: SUBLARR_PORT=8080
 
 import os
 import hashlib
+import threading
 
 from pydantic_settings import BaseSettings
 from pydantic import Field
@@ -244,10 +245,11 @@ class Settings(BaseSettings):
         return hashlib.sha256(content.encode()).hexdigest()[:12]
 
     def get_safe_config(self) -> dict:
-        """Get config dict without sensitive values (API keys)."""
+        """Get config dict without sensitive values (API keys, passwords, tokens)."""
+        _SENSITIVE_PARTS = {"password", "pin", "secret", "token", "api_key"}
         data = self.model_dump()
         for key in list(data.keys()):
-            if "api_key" in key or "key" in key.split("_"):
+            if "api_key" in key or "key" in key.split("_") or any(s in key for s in _SENSITIVE_PARTS):
                 if data[key]:
                     data[key] = "***configured***"
                 else:
@@ -325,14 +327,19 @@ def _get_language_tags(lang_code: str) -> set[str]:
 
 # Singleton settings instance
 _settings: Optional[Settings] = None
+_settings_lock = threading.Lock()
 
 
 def get_settings() -> Settings:
-    """Get or create the singleton Settings instance."""
+    """Get or create the singleton Settings instance (thread-safe)."""
     global _settings
-    if _settings is None:
+    if _settings is not None:
+        return _settings
+    with _settings_lock:
+        if _settings is not None:
+            return _settings
         _settings = Settings()
-    return _settings
+        return _settings
 
 
 def reload_settings(overrides: dict = None) -> Settings:

@@ -327,6 +327,9 @@ export function WantedPage() {
     setTypeFilter(typeVal)
     const subTypeVal = filters.find(f => f.key === 'subtitle_type')?.value
     setSubtitleTypeFilter(subTypeVal)
+    // Sync title filter from FilterBar into the search text box (C9 fix)
+    const titleVal = filters.find(f => f.key === 'title')?.value
+    setSearchText(titleVal ?? '')
   }, [])
 
   const handleSearch = (itemId: number) => {
@@ -343,7 +346,9 @@ export function WantedPage() {
   }
 
   const handleProcess = (itemId: number) => {
-    processItem.mutate(itemId)
+    processItem.mutate(itemId, {
+      onError: (e: Error) => toast(e.message, 'error'),
+    })
   }
 
   const handleExtract = (itemId: number, targetLanguage?: string) => {

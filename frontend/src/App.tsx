@@ -5,10 +5,12 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { ToastContainer, toast } from '@/components/shared/Toast'
 import { PageSkeleton } from '@/components/shared/PageSkeleton'
 import { useWebSocket } from '@/hooks/useWebSocket'
+import { WebSocketProvider } from '@/contexts/WebSocketContext'
 import { GlobalSearchModal } from '@/components/search/GlobalSearchModal'
 import { QuickActionsFAB } from '@/components/quick-actions/QuickActionsFAB'
 import { KeyboardShortcutsModal } from '@/components/quick-actions/KeyboardShortcutsModal'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { ScanProgressIndicator } from '@/components/shared/ScanProgressIndicator'
 
 // Route-level code splitting: each page is lazy-loaded as a separate chunk
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })))
@@ -23,6 +25,7 @@ const SeriesDetailPage = lazy(() => import('@/pages/SeriesDetail').then(m => ({ 
 const HistoryPage = lazy(() => import('@/pages/History').then(m => ({ default: m.HistoryPage })))
 const BlacklistPage = lazy(() => import('@/pages/Blacklist').then(m => ({ default: m.BlacklistPage })))
 const TasksPage = lazy(() => import('@/pages/Tasks').then(m => ({ default: m.TasksPage })))
+const PluginsPage = lazy(() => import('@/pages/Plugins').then(m => ({ default: m.PluginsPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFound').then(m => ({ default: m.NotFoundPage })))
 const Onboarding = lazy(() => import('@/pages/Onboarding'))
 
@@ -54,6 +57,7 @@ function AnimatedRoutes() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/statistics" element={<StatisticsPage />} />
           <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/plugins" element={<PluginsPage />} />
           <Route path="/logs" element={<LogsPage />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="*" element={<NotFoundPage />} />
@@ -128,6 +132,7 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <WebSocketProvider>
       <BrowserRouter>
         <GlobalWebSocketListener />
         <GlobalShortcuts onToggleShortcutsModal={toggleShortcutsModal} />
@@ -139,9 +144,11 @@ function App() {
         </div>
         <GlobalSearchModal open={searchOpen} onOpenChange={setSearchOpen} />
         <ToastContainer />
+        <ScanProgressIndicator />
         <QuickActionsFAB />
         <KeyboardShortcutsModal open={shortcutsModalOpen} onClose={closeShortcutsModal} />
       </BrowserRouter>
+      </WebSocketProvider>
     </QueryClientProvider>
   )
 }

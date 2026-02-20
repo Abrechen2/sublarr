@@ -9,6 +9,8 @@ import {
 } from '@/hooks/useApi'
 import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Plus, Edit2, X, Check, Eye, EyeOff, CheckCircle, XCircle, RotateCcw } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
+import { Toggle } from '@/components/shared/Toggle'
+import { SettingSection } from '@/components/shared/SettingSection'
 import type { EventCatalogItem, HookConfig, WebhookConfig, HookLog, ScoringWeights } from '@/lib/types'
 
 // ─── Events & Hooks Tab ──────────────────────────────────────────────────────
@@ -91,7 +93,7 @@ export function EventsHooksTab() {
           {hooksOpen ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
         </button>
         {hooksOpen && (
-          <div className="px-4 pb-4 space-y-3">
+          <div className="px-4 pb-4 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
             {hookList.map((hook) => (
               <div key={hook.id} className="rounded-md p-3 space-y-2" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)' }}>
                 <div className="flex items-center justify-between">
@@ -101,18 +103,11 @@ export function EventsHooksTab() {
                       {hook.event_name}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => updateHook.mutate({ id: hook.id, data: { enabled: !hook.enabled } })}
-                      className="px-2 py-1 rounded text-[11px] font-medium"
-                      style={{
-                        backgroundColor: hook.enabled ? 'var(--success)' : 'var(--bg-surface)',
-                        color: hook.enabled ? 'white' : 'var(--text-muted)',
-                        border: hook.enabled ? 'none' : '1px solid var(--border)',
-                      }}
-                    >
-                      {hook.enabled ? 'ON' : 'OFF'}
-                    </button>
+                  <div className="flex items-center gap-2">
+                    <Toggle
+                      checked={hook.enabled}
+                      onChange={() => updateHook.mutate({ id: hook.id, data: { enabled: !hook.enabled } })}
+                    />
                     <button
                       onClick={() => { setEditingHookId(hook.id); setHookForm({ name: hook.name, event_name: hook.event_name, script_path: hook.script_path, timeout_seconds: hook.timeout_seconds }) }}
                       className="p-1 rounded hover:opacity-80" style={{ color: 'var(--text-muted)' }}
@@ -198,7 +193,7 @@ export function EventsHooksTab() {
           {webhooksOpen ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
         </button>
         {webhooksOpen && (
-          <div className="px-4 pb-4 space-y-3">
+          <div className="px-4 pb-4 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
             {webhookList.map((wh) => (
               <div key={wh.id} className="rounded-md p-3 space-y-2" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)' }}>
                 <div className="flex items-center justify-between">
@@ -216,18 +211,11 @@ export function EventsHooksTab() {
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => updateWebhook.mutate({ id: wh.id, data: { enabled: !wh.enabled } })}
-                      className="px-2 py-1 rounded text-[11px] font-medium"
-                      style={{
-                        backgroundColor: wh.enabled ? 'var(--success)' : 'var(--bg-surface)',
-                        color: wh.enabled ? 'white' : 'var(--text-muted)',
-                        border: wh.enabled ? 'none' : '1px solid var(--border)',
-                      }}
-                    >
-                      {wh.enabled ? 'ON' : 'OFF'}
-                    </button>
+                  <div className="flex items-center gap-2">
+                    <Toggle
+                      checked={wh.enabled}
+                      onChange={() => updateWebhook.mutate({ id: wh.id, data: { enabled: !wh.enabled } })}
+                    />
                     <button
                       onClick={() => { setEditingWebhookId(wh.id); setWebhookForm({ name: wh.name, event_name: wh.event_name, url: wh.url, secret: wh.secret, retry_count: wh.retry_count, timeout_seconds: wh.timeout_seconds }) }}
                       className="p-1 rounded hover:opacity-80" style={{ color: 'var(--text-muted)' }}
@@ -337,9 +325,9 @@ export function EventsHooksTab() {
           {logsOpen ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
         </button>
         {logsOpen && (
-          <div className="px-4 pb-4 space-y-3">
+          <div className="px-4 pb-4 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
             {logList.length > 0 && (
-              <div className="flex justify-end">
+              <div className="flex justify-end pt-2">
                 <button
                   onClick={() => { if (confirm('Clear all execution logs?')) clearLogs.mutate(undefined, { onSuccess: () => toast('Logs cleared') }) }}
                   className="flex items-center gap-1 px-2 py-1 rounded text-[11px]" style={{ color: 'var(--error)' }}
@@ -517,40 +505,39 @@ export function ScoringTab() {
   return (
     <div className="space-y-4">
       {/* Scoring Weights */}
-      <div className="rounded-lg p-5 space-y-4" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Scoring Weights</h3>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleResetWeights}
-              disabled={resetWeights.isPending}
-              className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
-            >
-              <RotateCcw size={11} /> Reset to Defaults
-            </button>
-            <button
-              onClick={handleSaveWeights}
-              disabled={updateWeights.isPending}
-              className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}
-            >
-              {updateWeights.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-              Save
-            </button>
-          </div>
+      <SettingSection
+        title="Scoring Weights"
+        description="Higher weights = more important match criteria. Default values shown in grey."
+      >
+        <div className="flex items-center justify-end gap-2 -mt-1">
+          <button
+            onClick={handleResetWeights}
+            disabled={resetWeights.isPending}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+          >
+            <RotateCcw size={11} /> Reset to Defaults
+          </button>
+          <button
+            onClick={handleSaveWeights}
+            disabled={updateWeights.isPending}
+            className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}
+          >
+            {updateWeights.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+            Save
+          </button>
         </div>
-        <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-          Higher weights = more important match criteria. Default values shown in grey.
-        </p>
         <div className="flex flex-wrap gap-6">
           {renderWeightTable('Episode Weights', episodeWeights, setEpisodeWeights, weights?.defaults?.episode)}
           {renderWeightTable('Movie Weights', movieWeights, setMovieWeights, weights?.defaults?.movie)}
         </div>
-      </div>
+      </SettingSection>
 
       {/* Provider Modifiers */}
-      <div className="rounded-lg p-5 space-y-4" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Provider Modifiers</h3>
+      <SettingSection
+        title="Provider Modifiers"
+        description="Add bonus (positive) or penalty (negative) to all results from a specific provider."
+      >
+        <div className="flex items-center justify-end -mt-1">
           <button
             onClick={handleSaveModifiers}
             disabled={updateModifiers.isPending}
@@ -560,9 +547,6 @@ export function ScoringTab() {
             Save All
           </button>
         </div>
-        <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-          Provider modifiers add bonus (positive) or penalty (negative) to all results from that provider.
-        </p>
         <div className="space-y-2">
           {Object.entries(providerMods).sort(([a], [b]) => a.localeCompare(b)).map(([name, mod]) => (
             <div key={name} className="flex items-center justify-between gap-3">
@@ -586,7 +570,7 @@ export function ScoringTab() {
             <p className="text-center text-xs py-3" style={{ color: 'var(--text-muted)' }}>No providers available.</p>
           )}
         </div>
-      </div>
+      </SettingSection>
     </div>
   )
 }

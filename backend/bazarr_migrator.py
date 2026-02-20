@@ -722,3 +722,162 @@ def apply_migration(config_data: dict, db_data: dict) -> dict:
         result["warnings"].append(f"Settings reload failed: {exc}")
 
     return result
+
+
+def import_bazarr_history(db_data: dict) -> dict:
+    """Import Bazarr download history.
+
+    Args:
+        db_data: Parsed DB dict from migrate_bazarr_db
+
+    Returns:
+        Dict with counts of imported history entries
+    """
+    result = {
+        "history_imported": 0,
+        "warnings": [],
+    }
+
+    try:
+        from db.repositories import add_history_entry
+
+        history_entries = db_data.get("history", [])
+        for entry in history_entries:
+            try:
+                # Map Bazarr history to Sublarr format
+                add_history_entry(
+                    file_path=entry.get("video_path", ""),
+                    provider_name=entry.get("provider", "unknown"),
+                    subtitle_id=entry.get("subs_id", ""),
+                    language=entry.get("language", ""),
+                    score=entry.get("score", 0),
+                    downloaded_at=entry.get("timestamp", ""),
+                )
+                result["history_imported"] += 1
+            except Exception as exc:
+                result["warnings"].append(f"Failed to import history entry: {exc}")
+
+    except ImportError as exc:
+        result["warnings"].append(f"History import unavailable: {exc}")
+
+    return result
+
+
+def map_bazarr_provider_settings(config_data: dict) -> dict:
+    """Map Bazarr provider settings to Sublarr provider configuration.
+
+    Args:
+        config_data: Parsed config dict from parse_bazarr_config
+
+    Returns:
+        Dict with provider mappings and settings
+    """
+    result = {
+        "provider_mappings": {},
+        "settings_imported": 0,
+        "warnings": [],
+    }
+
+    # Bazarr provider name -> Sublarr provider name mapping
+    provider_map = {
+        "opensubtitles": "OpenSubtitles",
+        "addic7ed": "Addic7ed",
+        "subscene": "Subscene",
+        "podnapisi": "Podnapisi",
+        "legendasdivx": "LegendasDivx",
+        "subscenter": "SubsCenter",
+        "thesubdb": "TheSubDB",
+        "tvsubtitles": "TVSubtitles",
+    }
+
+    general = config_data.get("general", {})
+
+    # Map OpenSubtitles settings
+    if general.get("opensubtitles_api_key"):
+        result["provider_mappings"]["OpenSubtitles"] = {
+            "api_key": general["opensubtitles_api_key"],
+            "username": general.get("opensubtitles_username"),
+            "password": general.get("opensubtitles_password"),
+        }
+        result["settings_imported"] += 1
+
+    # Map other provider settings (if available in config)
+    for bazarr_name, sublarr_name in provider_map.items():
+        if bazarr_name == "opensubtitles":
+            continue  # Already handled
+
+        # Check for provider-specific settings in config
+        provider_key = f"{bazarr_name}_api_key"
+        if general.get(provider_key):
+            result["provider_mappings"][sublarr_name] = {
+                "api_key": general[provider_key],
+            }
+            result["settings_imported"] += 1
+
+    return result
+
+
+def batch_migrate_bazarr_instances(instances: list[dict]) -> dict:
+    """Batch migrate multiple Bazarr instances.
+
+    Args:
+        instances: List of dicts with "config_path" and/or "db_path" keys
+
+    Returns:
+        Dict with migration results for each instance
+    """
+    results = {
+        "total": len(instances),
+        "successful": 0,
+        "failed": 0,
+        "instances": [],
+    }
+
+    for i, instance in enumerate(instances):
+        instance_result = {
+            "index": i,
+            "config_path": instance.get("config_path"),
+            "db_path": instance.get("db_path"),
+            "status": "pending",
+            "error": None,
+            "imported": {},
+        }
+
+        try:
+            # Parse config if provided
+            config_data = {}
+            if instance.get("config_path"):
+                with open(instance["config_path"], "r", encoding="utf-8") as f:
+                    config_content = f.read()
+                config_data = parse_bazarr_config(config_content, instance["config_path"])
+
+            # Parse DB if provided
+            db_data = {}
+            if instance.get("db_path"):
+                db_data = migrate_bazarr_db(instance["db_path"])
+
+            # Apply migration
+            migration_result = apply_migration(config_data, db_data)
+
+            # Import history
+            if db_data:
+                history_result = import_bazarr_history(db_data)
+                migration_result.update(history_result)
+
+            # Map provider settings
+            provider_result = map_bazarr_provider_settings(config_data)
+            migration_result["provider_mappings"] = provider_result["provider_mappings"]
+
+            instance_result["status"] = "success"
+            instance_result["imported"] = migration_result
+            results["successful"] += 1
+
+        except Exception as e:
+            instance_result["status"] = "failed"
+            instance_result["error"] = str(e)
+            results["failed"] += 1
+            logger.exception("Batch migration failed for instance %d", i)
+
+        results["instances"].append(instance_result)
+
+    return results
