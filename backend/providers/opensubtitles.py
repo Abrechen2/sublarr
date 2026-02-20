@@ -255,10 +255,14 @@ class OpenSubtitlesProvider(SubtitleProvider):
                     file_id = f.get("file_id")
                     filename = f.get("file_name", "")
 
-                    # Detect format from filename
+                    # Detect format from filename extension, fall back to attributes.format
                     fmt = SubtitleFormat.UNKNOWN
                     ext = os.path.splitext(filename)[1].lower().lstrip(".")
-                    fmt = _FORMAT_MAP.get(ext, SubtitleFormat.UNKNOWN)
+                    if ext:
+                        fmt = _FORMAT_MAP.get(ext, SubtitleFormat.UNKNOWN)
+                    if fmt == SubtitleFormat.UNKNOWN:
+                        api_fmt = attrs.get("format", "").lower()
+                        fmt = _FORMAT_MAP.get(api_fmt, SubtitleFormat.UNKNOWN)
 
                     # Build matches
                     matches = set()
