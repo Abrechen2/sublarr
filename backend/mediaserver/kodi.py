@@ -145,6 +145,83 @@ class KodiServer(MediaServer):
 
         return True, "Kodi (version unknown)"
 
+    def extended_health_check(self) -> dict:
+        """Extended diagnostic health check for Kodi.
+
+        Returns a structured dict with connection status, server info,
+        video library sources, and health issues. Each sub-query is wrapped
+        in try/except for graceful degradation.
+
+        Returns:
+            dict with keys: connection, server_info, library_access,
+                  health_issues
+        """
+        report = {
+            "connection": {"healthy": False, "message": ""},
+            "server_info": {"name": "", "version": "", "jsonrpc_version": ""},
+            "library_access": {"video_sources_count": 0, "video_sources": [], "accessible": False},
+            "health_issues": [],
+        }
+
+        # 1. Ping
+        try:
+            ping = self._rpc("JSONRPC.Ping")
+            if ping != "pong":
+                report["connection"]["message"] = f"Kodi ping returned unexpected result: {ping}"
+                return report
+        except Exception as exc:
+            report["connection"]["message"] = f"Cannot connect to Kodi at {self.url}: {exc}"
+            return report
+
+        report["connection"]["healthy"] = True
+        report["connection"]["message"] = "OK"
+
+        # 2. Application properties (name + version)
+        try:
+            props = self._rpc(
+                "Application.GetProperties",
+                {"properties": ["name", "version"]},
+            )
+            if props:
+                report["server_info"]["name"] = props.get("name", "")
+                version = props.get("version", {})
+                major = version.get("major", "?")
+                minor = version.get("minor", "?")
+                patch = version.get("revision", version.get("patch", "?"))
+                report["server_info"]["version"] = f"{major}.{minor}.{patch}"
+        except Exception as exc:
+            logger.debug("Extended health check: application properties failed: %s", exc)
+
+        # 3. JSON-RPC version
+        try:
+            rpc_version = self._rpc("JSONRPC.Version")
+            if rpc_version and isinstance(rpc_version, dict):
+                ver = rpc_version.get("version", {})
+                if isinstance(ver, dict):
+                    major = ver.get("major", "?")
+                    minor = ver.get("minor", "?")
+                    patch = ver.get("patch", "?")
+                    report["server_info"]["jsonrpc_version"] = f"{major}.{minor}.{patch}"
+        except Exception as exc:
+            logger.debug("Extended health check: JSONRPC.Version failed: %s", exc)
+
+        # 4. Video sources
+        try:
+            sources_result = self._rpc("Files.GetSources", {"media": "video"})
+            if sources_result and isinstance(sources_result, dict):
+                sources = sources_result.get("sources", [])
+                report["library_access"]["accessible"] = True
+                report["library_access"]["video_sources_count"] = len(sources)
+                for source in sources:
+                    report["library_access"]["video_sources"].append({
+                        "label": source.get("label", ""),
+                        "file": source.get("file", ""),
+                    })
+        except Exception as exc:
+            logger.debug("Extended health check: video sources failed: %s", exc)
+
+        return report
+
     def refresh_item(self, file_path: str, item_type: str = "") -> RefreshResult:
         """Refresh a specific item by scanning its parent directory.
 

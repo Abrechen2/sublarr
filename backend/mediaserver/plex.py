@@ -102,6 +102,63 @@ class PlexServer(MediaServer):
                 return False, f"Cannot connect to Plex at {self.url}"
             return False, f"Plex health check failed: {e}"
 
+    def extended_health_check(self) -> dict:
+        """Extended diagnostic health check for Plex.
+
+        Returns a structured dict with connection status, server info,
+        library sections, and health issues. Each sub-query is wrapped
+        in try/except for graceful degradation.
+
+        Returns:
+            dict with keys: connection, server_info, library_access,
+                  health_issues
+        """
+        report = {
+            "connection": {"healthy": False, "message": ""},
+            "server_info": {"friendly_name": "", "version": "", "platform": ""},
+            "library_access": {"section_count": 0, "sections": [], "accessible": False},
+            "health_issues": [],
+        }
+
+        # 1. Check plexapi availability
+        if not _HAS_PLEXAPI:
+            report["connection"]["message"] = "plexapi not installed"
+            return report
+
+        # 2. Connect to server
+        try:
+            server = self._get_server()
+        except Exception as exc:
+            self._server = None
+            report["connection"]["message"] = f"Cannot connect to Plex at {self.url}: {exc}"
+            return report
+
+        report["connection"]["healthy"] = True
+        report["connection"]["message"] = "OK"
+
+        # 3. Server info
+        try:
+            report["server_info"]["friendly_name"] = getattr(server, "friendlyName", "")
+            report["server_info"]["version"] = getattr(server, "version", "")
+            report["server_info"]["platform"] = getattr(server, "platform", "")
+        except Exception as exc:
+            logger.debug("Extended health check: server info failed: %s", exc)
+
+        # 4. Library sections
+        try:
+            sections = server.library.sections()
+            report["library_access"]["accessible"] = True
+            report["library_access"]["section_count"] = len(sections)
+            for section in sections:
+                report["library_access"]["sections"].append({
+                    "title": getattr(section, "title", ""),
+                    "type": getattr(section, "type", ""),
+                })
+        except Exception as exc:
+            logger.debug("Extended health check: library sections failed: %s", exc)
+
+        return report
+
     def refresh_item(self, file_path: str, item_type: str = "") -> RefreshResult:
         """Refresh metadata for a specific item by file path.
 
