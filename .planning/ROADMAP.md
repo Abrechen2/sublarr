@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 12: Batch Operations + Smart-Filter** - Multi-select bulk actions, saved filters, global search
 - [x] **Phase 13: Comparison + Sync + Health-Check** - Side-by-side diff, timing sync, subtitle health analysis
 - [x] **Phase 14: Dashboard Widgets + Quick-Actions** - Drag-and-drop widgets, keyboard shortcuts, FAB toolbar
-- [ ] **Phase 15: API-Key Mgmt + Notifications + Cleanup** - Key management, notification templates, deduplication
+- [x] **Phase 15: API-Key Mgmt + Notifications + Cleanup** - Key management, notification templates, deduplication
 - [ ] **Phase 16: External Integrations** - Bazarr migration, Plex/Kodi compatibility, export formats
 
 ## Phase Details
@@ -357,7 +357,7 @@ Phases execute in numeric order: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 
 | 12. Batch Operations + Smart-Filter | 3/3 | Complete | 2026-02-19 |
 | 13. Comparison + Sync + Health-Check | 3/3 | Complete | 2026-02-18 |
 | 14. Dashboard Widgets + Quick-Actions | 2/2 | Complete | 2026-02-19 |
-| 15. API-Key Mgmt + Notifications + Cleanup | 0/5 | In Progress | - |
+| 15. API-Key Mgmt + Notifications + Cleanup | 5/5 | Complete | 2026-02-20 |
 | 16. External Integrations | 0/TBD | Not started | - |
 
 ## Dependency Graph
