@@ -9,11 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 
 ## Current Position
 
-Phase: ALL PHASES SHIPPED (v0.9.0-beta — 2026-02-20)
-Status: Milestone complete — 17 phases, 71 plans executed
-Last activity: 2026-02-20 — Completed v0.9.0-beta milestone archival
+Phase: 17-performance-optimizations (active)
+Plan: 17-02 of 3 complete
+Status: In progress — Phase 17 backend N+1 fixes done
+Last activity: 2026-02-20 — Completed 17-02-PLAN.md (backend N+1 queries + composite DB index)
 
-Progress: [█████████████████████████] 3/3 plans in phase -- ROADMAP COMPLETE
+Progress: [██░] 2/3 plans in phase 17
 
 ## Performance Metrics
 
