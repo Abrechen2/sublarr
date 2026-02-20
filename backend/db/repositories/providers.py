@@ -8,7 +8,7 @@ existing formula: (old_avg * (total_searches - 1) + new_time) / total_searches.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import select, func, delete
@@ -27,17 +27,36 @@ class ProviderRepository(BaseRepository):
     def cache_provider_results(self, provider_name: str, query_hash: str,
                                 results_json: str, ttl_hours: int = 6,
                                 format_filter: str = None):
-        """Cache provider search results with TTL expiry."""
-        now = datetime.utcnow()
+        """Cache provider search results with TTL expiry.
+
+        Updates existing entry for (provider_name, query_hash) instead of
+        inserting a duplicate (M3 fix).
+        """
+        now = datetime.now(timezone.utc)
         expires = now + timedelta(hours=ttl_hours)
-        entry = ProviderCache(
-            provider_name=provider_name,
-            query_hash=query_hash,
-            results_json=results_json,
-            cached_at=now.isoformat(),
-            expires_at=expires.isoformat(),
-        )
-        self.session.add(entry)
+        cached_at_str = now.isoformat()
+        expires_str = expires.isoformat()
+
+        existing = self.session.execute(
+            select(ProviderCache).where(
+                ProviderCache.provider_name == provider_name,
+                ProviderCache.query_hash == query_hash,
+            ).limit(1)
+        ).scalar_one_or_none()
+
+        if existing:
+            existing.results_json = results_json
+            existing.cached_at = cached_at_str
+            existing.expires_at = expires_str
+        else:
+            entry = ProviderCache(
+                provider_name=provider_name,
+                query_hash=query_hash,
+                results_json=results_json,
+                cached_at=cached_at_str,
+                expires_at=expires_str,
+            )
+            self.session.add(entry)
         self._commit()
 
     def get_cached_results(self, provider_name: str, query_hash: str,
@@ -47,7 +66,7 @@ class ProviderRepository(BaseRepository):
         Returns:
             Cached results JSON string or None.
         """
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         stmt = (
             select(ProviderCache.results_json)
             .where(
@@ -63,7 +82,7 @@ class ProviderRepository(BaseRepository):
 
     def cleanup_expired_cache(self):
         """Remove expired cache entries."""
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         self.session.execute(
             delete(ProviderCache).where(ProviderCache.expires_at < now)
         )
@@ -71,7 +90,7 @@ class ProviderRepository(BaseRepository):
 
     def get_provider_cache_stats(self) -> dict:
         """Get aggregated cache stats per provider (total entries, active/expired)."""
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         stmt = (
             select(
                 ProviderCache.provider_name,
@@ -322,7 +341,7 @@ class ProviderRepository(BaseRepository):
 
     def auto_disable_provider(self, provider_name: str, cooldown_minutes: int = 30):
         """Auto-disable a provider with a cooldown period."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         disabled_until = (now + timedelta(minutes=cooldown_minutes)).isoformat()
 
         existing = self.session.get(ProviderStats, provider_name)
@@ -370,7 +389,7 @@ class ProviderRepository(BaseRepository):
         # Check if cooldown has expired
         disabled_until = entry.disabled_until
         if disabled_until:
-            now = datetime.utcnow().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
             if disabled_until < now:
                 # Cooldown expired, clear auto-disable
                 entry.auto_disabled = 0
@@ -391,7 +410,7 @@ class ProviderRepository(BaseRepository):
     def get_provider_health_history(self, provider_name: str = None,
                                      days: int = 7) -> list:
         """Get provider health history entries."""
-        cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
         stmt = select(ProviderStats).where(ProviderStats.updated_at >= cutoff)
         if provider_name:
             stmt = stmt.where(ProviderStats.provider_name == provider_name)

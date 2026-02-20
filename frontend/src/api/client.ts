@@ -948,6 +948,115 @@ export async function deleteCleanupRule(id: number): Promise<void> {
   await api.delete(`/cleanup/rules/${id}`)
 }
 
+// ─── Audio ──────────────────────────────────────────────────────────────────
+
+export interface WaveformData {
+  duration: number
+  sample_rate: number
+  samples: number
+  data: Array<{ time: number; amplitude: number }>
+}
+
+export async function getWaveform(
+  filePath: string,
+  audioTrackIndex?: number,
+  width = 2000,
+  sampleRate = 100,
+): Promise<WaveformData> {
+  const params: Record<string, unknown> = { file_path: filePath, width, sample_rate: sampleRate }
+  if (audioTrackIndex !== undefined) params.audio_track_index = audioTrackIndex
+  const { data } = await api.get('/audio/waveform', { params })
+  return data
+}
+
+export async function extractAudio(filePath: string, audioTrackIndex?: number): Promise<{ audio_path: string; duration: number }> {
+  const { data } = await api.post('/audio/extract', { file_path: filePath, audio_track_index: audioTrackIndex })
+  return data
+}
+
+// ─── Spell Checking ───────────────────────────────────────────────────────────
+
+export interface SpellCheckError {
+  word: string
+  position: number
+  suggestions: string[]
+  line?: number
+  text?: string
+  start_time?: number
+  end_time?: number
+}
+
+export interface SpellCheckResult {
+  errors: SpellCheckError[]
+  total_words: number
+  error_count: number
+  error?: string
+}
+
+export async function checkSpelling(
+  filePath?: string,
+  content?: string,
+  language = 'en_US',
+  customWords?: string[],
+): Promise<SpellCheckResult> {
+  const { data } = await api.post('/spell/check', {
+    file_path: filePath,
+    content,
+    language,
+    custom_words: customWords,
+  })
+  return data
+}
+
+export async function getSpellDictionaries(): Promise<{ dictionaries: string[] }> {
+  const { data } = await api.get('/spell/dictionaries')
+  return data
+}
+
+// ─── OCR ───────────────────────────────────────────────────────────────────────
+
+export interface OCRExtractResult {
+  text: string
+  frames: number
+  successful_frames: number
+  quality: number
+}
+
+export interface OCRPreviewResult {
+  frame_path: string
+  preview_text: string
+}
+
+export async function extractOCR(
+  filePath: string,
+  streamIndex: number,
+  language = 'eng',
+  startTime?: number,
+  endTime?: number,
+  interval = 1.0,
+): Promise<OCRExtractResult> {
+  const { data } = await api.post('/ocr/extract', {
+    file_path: filePath,
+    stream_index: streamIndex,
+    language,
+    start_time: startTime,
+    end_time: endTime,
+    interval,
+  })
+  return data
+}
+
+export async function previewOCRFrame(
+  filePath: string,
+  timestamp: number,
+  streamIndex?: number,
+): Promise<OCRPreviewResult> {
+  const params: Record<string, unknown> = { file_path: filePath, timestamp }
+  if (streamIndex !== undefined) params.stream_index = streamIndex
+  const { data } = await api.get('/ocr/preview', { params })
+  return data
+}
+
 export async function runCleanupRule(id: number): Promise<{ message: string }> {
   const { data } = await api.post(`/cleanup/rules/${id}/run`)
   return data
@@ -1021,6 +1130,69 @@ export async function exportIntegrationConfigZip(
     include_secrets: includeSecrets,
   }, { responseType: 'blob' })
   return data
+}
+
+// ─── Marketplace ────────────────────────────────────────────────────────────────
+
+export interface MarketplacePlugin {
+  name: string
+  version: string
+  description: string
+  author: string
+  category: 'provider' | 'translation' | 'tool'
+  url: string
+  rating?: number
+  downloads?: number
+}
+
+export interface MarketplacePluginInfo extends MarketplacePlugin {
+  readme?: string
+  changelog?: string
+  dependencies?: string[]
+  requirements?: string[]
+}
+
+export interface PluginInstallResult {
+  status: 'installed' | 'failed'
+  path?: string
+  validation?: {
+    valid: boolean
+    errors: string[]
+    warnings: string[]
+  }
+  error?: string
+}
+
+export async function getMarketplacePlugins(category?: string): Promise<{ plugins: MarketplacePlugin[] }> {
+  const params: Record<string, unknown> = {}
+  if (category) params.category = category
+  const { data } = await api.get('/marketplace/plugins', { params })
+  return data
+}
+
+export async function getMarketplacePlugin(pluginName: string): Promise<MarketplacePluginInfo> {
+  const { data } = await api.get(`/marketplace/plugins/${pluginName}`)
+  return data
+}
+
+export async function installMarketplacePlugin(
+  pluginName: string,
+  version?: string,
+): Promise<PluginInstallResult> {
+  const { data } = await api.post('/marketplace/install', { plugin_name: pluginName, version })
+  return data
+}
+
+export async function uninstallMarketplacePlugin(pluginName: string): Promise<{ message: string }> {
+  const { data } = await api.post('/marketplace/uninstall', { plugin_name: pluginName })
+  return data
+}
+
+export async function checkMarketplaceUpdates(
+  installedPlugins: string[],
+): Promise<Record<string, { available: boolean; latest_version?: string }>> {
+  const { data } = await api.get('/marketplace/updates', { params: { installed: installedPlugins } })
+  return data.updates || {}
 }
 
 export default api

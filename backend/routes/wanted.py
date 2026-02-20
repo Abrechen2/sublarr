@@ -174,6 +174,7 @@ def wanted_summary():
     summary = get_wanted_summary()
     summary["scan_running"] = scanner.is_scanning
     summary["last_scan_at"] = scanner.last_scan_at
+    summary["scan_progress"] = scanner.scan_progress
     summary["by_subtitle_type"] = get_wanted_by_subtitle_type()
     return jsonify(summary)
 
@@ -493,16 +494,15 @@ def wanted_batch_search():
         if wanted_batch_state["running"]:
             return jsonify({"error": "Wanted batch already running"}), 409
 
-    data = request.get_json(silent=True) or {}
-    item_ids = data.get("item_ids")
+        data = request.get_json(silent=True) or {}
+        item_ids = data.get("item_ids")
 
-    # Determine total count upfront
-    if item_ids:
-        total = len(item_ids)
-    else:
-        total = get_wanted_count(status="wanted")
+        # Determine total count upfront — inside lock to prevent TOCTOU
+        if item_ids:
+            total = len(item_ids)
+        else:
+            total = get_wanted_count(status="wanted")
 
-    with wanted_batch_lock:
         wanted_batch_state.update({
             "running": True,
             "total": total,
@@ -542,7 +542,7 @@ def wanted_batch_search():
                 from notifier import send_notification
                 send_notification(
                     title="Sublarr: Wanted Batch Complete",
-                    body=f"Wanted batch finished: {snapshot.get('succeeded', 0)} found, {snapshot.get('failed', 0)} failed",
+                    body=f"Wanted batch finished: {snapshot.get('found', 0)} found, {snapshot.get('failed', 0)} failed",
                     event_type="batch_complete",
                 )
             except Exception:

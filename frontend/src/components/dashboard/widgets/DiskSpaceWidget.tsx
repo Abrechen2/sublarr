@@ -9,26 +9,7 @@ import { useTranslation } from 'react-i18next'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { useCleanupStats } from '@/hooks/useApi'
 import { HardDrive } from 'lucide-react'
-
-const FORMAT_COLORS: Record<string, string> = {
-  ass: '#14b8a6',
-  srt: '#f59e0b',
-  ssa: '#8b5cf6',
-  sub: '#6366f1',
-  vtt: '#ec4899',
-}
-
-function getFormatColor(format: string): string {
-  return FORMAT_COLORS[format.toLowerCase()] ?? '#94a3b8'
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB']
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
-  const value = bytes / Math.pow(1024, i)
-  return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
-}
+import { getFormatColor, formatBytes } from '@/lib/diskUtils'
 
 export default function DiskSpaceDashboardWidget() {
   const { t } = useTranslation('dashboard')
@@ -51,7 +32,7 @@ export default function DiskSpaceDashboardWidget() {
     )
   }
 
-  const pieData = stats.by_format.map((f) => ({
+  const pieData = (stats.by_format ?? []).map((f) => ({
     name: f.format.toUpperCase(),
     value: f.size_bytes,
   }))

@@ -4,6 +4,8 @@ import {
 } from '@/hooks/useApi'
 import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Plus, Eye, EyeOff } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
+import { Toggle } from '@/components/shared/Toggle'
+import { SettingRow } from '@/components/shared/SettingRow'
 import type { MediaServerType, MediaServerInstance, MediaServerTestResult } from '@/lib/types'
 
 export function MediaServersTab() {
@@ -203,32 +205,31 @@ export function MediaServersTab() {
             {isExpanded && (
               <div className="px-4 pb-4 space-y-4" style={{ borderTop: '1px solid var(--border)' }}>
                 {/* Name field */}
-                <div className="space-y-1 pt-3">
-                  <label className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    value={String(inst.name ?? '')}
-                    onChange={(e) => updateInstance(idx, 'name', e.target.value)}
-                    placeholder="e.g. Living Room Plex"
-                    className="w-full px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none"
-                    style={{
-                      backgroundColor: 'var(--bg-primary)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-primary)',
-                    }}
-                  />
+                <div className="pt-3">
+                  <SettingRow label="Name">
+                    <input
+                      type="text"
+                      value={String(inst.name ?? '')}
+                      onChange={(e) => updateInstance(idx, 'name', e.target.value)}
+                      placeholder="e.g. Living Room Plex"
+                      className="w-full px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none"
+                      style={{
+                        backgroundColor: 'var(--bg-primary)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-primary)',
+                      }}
+                    />
+                  </SettingRow>
                 </div>
 
                 {/* Dynamic config fields */}
                 {typeInfo?.config_fields.map((field) => (
-                  <div key={field.key} className="space-y-1">
-                    <label className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                      {field.label}
-                      {field.required && <span style={{ color: 'var(--error)' }}>*</span>}
-                    </label>
-                    <div className="flex items-center gap-1.5">
+                  <SettingRow
+                    key={field.key}
+                    label={`${field.label}${field.required ? ' *' : ''}`}
+                    helpText={field.help}
+                  >
+                    <div className="flex items-center gap-1.5 w-full">
                       <input
                         type={field.type === 'password' && !showPasswords[`${idx}-${field.key}`] ? 'password' : field.type === 'number' ? 'number' : 'text'}
                         value={
@@ -261,17 +262,14 @@ export function MediaServersTab() {
                         </button>
                       )}
                     </div>
-                    {field.help && (
-                      <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{field.help}</p>
-                    )}
-                  </div>
+                  </SettingRow>
                 ))}
 
                 {/* Path Mapping field */}
-                <div className="space-y-1">
-                  <label className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                    Path Mapping
-                  </label>
+                <SettingRow
+                  label="Path Mapping"
+                  helpText="Map container paths to media server paths, e.g. /media:/data"
+                >
                   <input
                     type="text"
                     value={String(inst.path_mapping ?? '')}
@@ -285,20 +283,15 @@ export function MediaServersTab() {
                       fontFamily: 'var(--font-mono)',
                     }}
                   />
-                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                    Map container paths to media server paths, e.g. /media:/data
-                  </p>
-                </div>
+                </SettingRow>
 
                 {/* Enabled toggle */}
-                <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  <input
-                    type="checkbox"
+                <SettingRow label="Enabled" helpText="Enable or disable this media server instance.">
+                  <Toggle
                     checked={inst.enabled}
                     onChange={() => toggleEnabled(idx)}
                   />
-                  Enabled
-                </label>
+                </SettingRow>
 
                 {/* Action buttons */}
                 <div className="flex items-center gap-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>

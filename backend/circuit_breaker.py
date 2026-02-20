@@ -125,11 +125,15 @@ class CircuitBreaker:
 
     def get_status(self) -> dict:
         """Return a JSON-serialisable status dict."""
-        state = self.state  # triggers lazy check
         with self._lock:
+            # Evaluate OPEN→HALF_OPEN transition inside the lock for consistency
+            if self._state == CircuitState.OPEN and self._last_failure_time is not None:
+                elapsed = time.monotonic() - self._last_failure_time
+                if elapsed >= self.cooldown_seconds:
+                    self._state = CircuitState.HALF_OPEN
             return {
                 "name": self.name,
-                "state": state.value,
+                "state": self._state.value,
                 "failure_count": self._failure_count,
                 "failure_threshold": self.failure_threshold,
                 "cooldown_seconds": self.cooldown_seconds,

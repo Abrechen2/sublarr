@@ -5,6 +5,7 @@ import {
 } from '@/hooks/useApi'
 import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Plus, Edit2, X, Check, Activity, Eye, EyeOff } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
+import { SettingRow } from '@/components/shared/SettingRow'
 import type { TranslationBackendInfo, BackendStats, BackendHealthResult } from '@/lib/types'
 
 // ─── Translation Backend Card ────────────────────────────────────────────────
@@ -154,14 +155,17 @@ function BackendCard({
 
           {/* Config form */}
           {backend.config_fields.length > 0 && (
-            <div className="space-y-3 pt-2" style={{ borderTop: stats && stats.total_requests > 0 ? '1px solid var(--border)' : undefined }}>
+            <div
+              className="space-y-3 pt-3"
+              style={{ borderTop: stats && stats.total_requests > 0 ? '1px solid var(--border)' : undefined }}
+            >
               {backend.config_fields.map((field) => (
-                <div key={field.key} className="space-y-1">
-                  <label className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                    {field.label}
-                    {field.required && <span style={{ color: 'var(--error)' }}>*</span>}
-                  </label>
-                  <div className="flex items-center gap-1.5">
+                <SettingRow
+                  key={field.key}
+                  label={`${field.label}${field.required ? ' *' : ''}`}
+                  helpText={field.help}
+                >
+                  <div className="flex items-center gap-1.5 w-full">
                     <input
                       type={field.type === 'password' && !showPasswords[field.key] ? 'password' : field.type === 'number' ? 'number' : 'text'}
                       value={formValues[field.key] === '***configured***' ? '' : (formValues[field.key] ?? field.default ?? '')}
@@ -186,10 +190,7 @@ function BackendCard({
                       </button>
                     )}
                   </div>
-                  {field.help && (
-                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{field.help}</p>
-                  )}
-                </div>
+                </SettingRow>
               ))}
             </div>
           )}

@@ -69,6 +69,32 @@ def has_target_language_stream(ffprobe_data, target_language=None):
     return None
 
 
+def has_target_language_audio(ffprobe_data, target_language=None):
+    """Check if the file has an audio track in the target language.
+
+    Args:
+        ffprobe_data: dict from ffprobe JSON output
+        target_language: Language code (e.g., "de"). If None, uses default from settings.
+
+    Returns:
+        bool: True if a target language audio track is found.
+    """
+    if target_language is None:
+        settings = get_settings()
+        target_tags = settings.get_target_lang_tags()
+    else:
+        from config import _get_language_tags
+        target_tags = _get_language_tags(target_language)
+
+    for stream in ffprobe_data.get("streams", []):
+        if stream.get("codec_type") != "audio":
+            continue
+        lang = stream.get("tags", {}).get("language", "").lower()
+        if lang in target_tags:
+            return True
+    return False
+
+
 def classify_styles(subs):
     """Classify subtitle styles into dialog (translate) and signs/songs (keep).
 

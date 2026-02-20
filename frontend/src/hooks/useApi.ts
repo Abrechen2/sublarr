@@ -48,11 +48,16 @@ import {
   getNotificationFilters, updateNotificationFilters,
   getCleanupStats, startCleanupScan, getCleanupScanStatus,
   getDuplicates, deleteDuplicates,
+  getMarketplacePlugins, getMarketplacePlugin, installMarketplacePlugin,
+  uninstallMarketplacePlugin, checkMarketplaceUpdates,
   scanOrphaned, getOrphanedFiles, deleteOrphaned,
   getCleanupRules, createCleanupRule, updateCleanupRule, deleteCleanupRule, runCleanupRule,
   getCleanupHistory, getCleanupPreview,
   getBazarrMappingReport, runCompatCheck, getExtendedHealthAll,
   exportIntegrationConfig, exportIntegrationConfigZip,
+  getWaveform, extractAudio,
+  checkSpelling, getSpellDictionaries,
+  extractOCR, previewOCRFrame,
 } from '@/api/client'
 import type {
   LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig, FilterScope, BatchAction,
@@ -1033,10 +1038,6 @@ export function useTriggerTask() {
           const { default: api } = await import('@/api/client')
           return api.post('/wanted/search-all').then(r => r.data)
         },
-        backup: async () => {
-          const { default: api } = await import('@/api/client')
-          return api.post('/database/backup').then(r => r.data)
-        },
       }
       const trigger = triggerMap[taskName]
       if (!trigger) throw new Error(`Unknown task: ${taskName}`)
@@ -1492,5 +1493,142 @@ export function useExportIntegrationConfigZip() {
   return useMutation({
     mutationFn: ({ formats, includeSecrets }: { formats: string[]; includeSecrets: boolean }) =>
       exportIntegrationConfigZip(formats, includeSecrets),
+  })
+}
+
+// ─── Audio ────────────────────────────────────────────────────────────────────
+
+export function useWaveform(
+  filePath: string | null,
+  videoPath: string | null,
+  audioTrackIndex?: number,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ['waveform', filePath, videoPath, audioTrackIndex],
+    queryFn: () => {
+      if (!videoPath) throw new Error('Video path required')
+      return getWaveform(videoPath, audioTrackIndex)
+    },
+    enabled: enabled && !!videoPath,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+}
+
+export function useExtractAudio() {
+  return useMutation({
+    mutationFn: ({ filePath, audioTrackIndex }: { filePath: string; audioTrackIndex?: number }) =>
+      extractAudio(filePath, audioTrackIndex),
+  })
+}
+
+// ─── Spell Checking ───────────────────────────────────────────────────────────
+
+export function useSpellCheck() {
+  return useMutation({
+    mutationFn: ({
+      filePath,
+      content,
+      language,
+      customWords,
+    }: {
+      filePath?: string
+      content?: string
+      language?: string
+      customWords?: string[]
+    }) => checkSpelling(filePath, content, language, customWords),
+  })
+}
+
+export function useSpellDictionaries() {
+  return useQuery({
+    queryKey: ['spell-dictionaries'],
+    queryFn: async () => {
+      const result = await getSpellDictionaries()
+      return result.dictionaries
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  })
+}
+
+// ─── OCR ───────────────────────────────────────────────────────────────────────
+
+export function useExtractOCR() {
+  return useMutation({
+    mutationFn: ({
+      filePath,
+      streamIndex,
+      language,
+      startTime,
+      endTime,
+      interval,
+    }: {
+      filePath: string
+      streamIndex: number
+      language?: string
+      startTime?: number
+      endTime?: number
+      interval?: number
+    }) => extractOCR(filePath, streamIndex, language, startTime, endTime, interval),
+  })
+}
+
+export function usePreviewOCRFrame() {
+  return useMutation({
+    mutationFn: ({
+      filePath,
+      timestamp,
+      streamIndex,
+    }: {
+      filePath: string
+      timestamp: number
+      streamIndex?: number
+    }) => previewOCRFrame(filePath, timestamp, streamIndex),
+  })
+}
+
+// ─── Marketplace ────────────────────────────────────────────────────────────────
+
+export function useMarketplacePlugins(category?: string) {
+  return useQuery({
+    queryKey: ['marketplace', 'plugins', category],
+    queryFn: () => getMarketplacePlugins(category),
+  })
+}
+
+export function useMarketplacePlugin(pluginName: string) {
+  return useQuery({
+    queryKey: ['marketplace', 'plugin', pluginName],
+    queryFn: () => getMarketplacePlugin(pluginName),
+    enabled: !!pluginName,
+  })
+}
+
+export function useInstallMarketplacePlugin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ pluginName, version }: { pluginName: string; version?: string }) =>
+      installMarketplacePlugin(pluginName, version),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketplace'] })
+    },
+  })
+}
+
+export function useUninstallMarketplacePlugin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (pluginName: string) => uninstallMarketplacePlugin(pluginName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketplace'] })
+    },
+  })
+}
+
+export function useCheckMarketplaceUpdates(installedPlugins: string[]) {
+  return useQuery({
+    queryKey: ['marketplace', 'updates', installedPlugins],
+    queryFn: () => checkMarketplaceUpdates(installedPlugins),
+    enabled: installedPlugins.length > 0,
   })
 }

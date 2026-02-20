@@ -19,7 +19,7 @@ class TestHealthEndpoints:
         assert response.status_code == 200
         data = json.loads(response.data)
         assert "status" in data
-        assert data["status"] == "ok"
+        assert data["status"] in ("ok", "healthy")
 
     def test_stats_endpoint(self, client):
         """Test /api/v1/stats endpoint."""

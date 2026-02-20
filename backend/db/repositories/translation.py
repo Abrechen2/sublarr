@@ -173,19 +173,20 @@ class TranslationRepository(BaseRepository):
         """Add a new prompt preset. Returns the preset ID."""
         now = self._now()
 
-        # If this is set as default, unset other defaults
-        if is_default:
-            self._unset_default_presets()
+        with self.batch():
+            # If this is set as default, unset other defaults
+            if is_default:
+                self._unset_default_presets()
 
-        entry = PromptPreset(
-            name=name.strip(),
-            prompt_template=prompt_template.strip(),
-            is_default=1 if is_default else 0,
-            created_at=now,
-            updated_at=now,
-        )
-        self.session.add(entry)
-        self._commit()
+            entry = PromptPreset(
+                name=name.strip(),
+                prompt_template=prompt_template.strip(),
+                is_default=1 if is_default else 0,
+                created_at=now,
+                updated_at=now,
+            )
+            self.session.add(entry)
+
         return entry.id
 
     def get_prompt_presets(self) -> list[dict]:
@@ -215,10 +216,6 @@ class TranslationRepository(BaseRepository):
         if entry is None:
             return False
 
-        # If setting as default, unset other defaults
-        if is_default:
-            self._unset_default_presets(exclude_id=preset_id)
-
         updated = False
         if name is not None:
             entry.name = name.strip()
@@ -234,7 +231,13 @@ class TranslationRepository(BaseRepository):
             return False
 
         entry.updated_at = self._now()
-        self._commit()
+
+        with self.batch():
+            # If setting as default, unset other defaults atomically
+            if is_default:
+                self._unset_default_presets(exclude_id=preset_id)
+            # entry is already attached to session, commit via batch
+
         return True
 
     def delete_prompt_preset(self, preset_id: int) -> bool:
@@ -258,14 +261,16 @@ class TranslationRepository(BaseRepository):
         return True
 
     def _unset_default_presets(self, exclude_id: int = None):
-        """Set is_default=0 for all presets, optionally excluding one."""
+        """Set is_default=0 for all presets, optionally excluding one.
+
+        Does NOT commit — callers are responsible for committing (use batch()).
+        """
         stmt = select(PromptPreset).where(PromptPreset.is_default == 1)
         if exclude_id is not None:
             stmt = stmt.where(PromptPreset.id != exclude_id)
         presets = self.session.execute(stmt).scalars().all()
         for p in presets:
             p.is_default = 0
-        self._commit()
 
     # ---- Translation Backend Stats Operations --------------------------------
 

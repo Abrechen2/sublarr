@@ -19,8 +19,8 @@ from datetime import datetime
 from config import get_settings, map_path
 from translator import detect_existing_target_for_lang, get_output_path_for_lang
 from upgrade_scorer import score_existing_subtitle
-from ass_utils import run_ffprobe, has_target_language_stream
-from db.wanted import upsert_wanted_item, delete_wanted_items, get_all_wanted_file_paths
+from ass_utils import run_ffprobe, has_target_language_stream, has_target_language_audio
+from db.wanted import upsert_wanted_item, get_all_wanted_file_paths
 from db.profiles import get_series_profile, get_movie_profile, get_default_profile
 from forced_detection import is_forced_external_sub
 
@@ -67,6 +67,8 @@ class WantedScanner:
         self._timer = None
         self._search_timer = None
         self._socketio = None
+        self._app = None  # Flask app reference for background thread context
+        self._progress = {"current": 0, "total": 0, "phase": "", "added": 0, "updated": 0}
         self._last_scan_at = ""
         self._last_search_at = ""
         self._last_summary = {}
@@ -78,6 +80,10 @@ class WantedScanner:
     @property
     def is_scanning(self):
         return self._scanning
+
+    @property
+    def scan_progress(self):
+        return dict(self._progress)
 
     @property
     def is_searching(self):
@@ -215,6 +221,7 @@ class WantedScanner:
             return {"error": str(e)}
         finally:
             self._scanning = False
+            self._progress = {"current": 0, "total": 0, "phase": "", "added": 0, "updated": 0}
             self._scan_lock.release()
 
     def force_full_scan(self) -> dict:
@@ -343,6 +350,9 @@ class WantedScanner:
 
             embedded_sub = None
             if probe_data:
+                # Skip if target language audio track exists (dub available)
+                if has_target_language_audio(probe_data, target_lang):
+                    continue
                 embedded_sub = has_target_language_stream(probe_data, target_lang)
                 if embedded_sub == "ass":
                     existing = "embedded_ass"
@@ -362,7 +372,7 @@ class WantedScanner:
                     _, cur_score = score_existing_subtitle(srt_path)
                     is_upgrade = True
 
-            row_id = upsert_wanted_item(
+            _, was_updated = upsert_wanted_item(
                 item_type="movie",
                 file_path=mapped_path,
                 title=title,
@@ -375,8 +385,9 @@ class WantedScanner:
                 instance_name=instance_name or "",
                 subtitle_type="full",
             )
-
-            if row_id:
+            if was_updated:
+                updated += 1
+            else:
                 added += 1
 
             # Forced subtitle handling based on profile preference
@@ -387,7 +398,7 @@ class WantedScanner:
                 )
                 if existing_forced is None:
                     forced_title = f"{title} [Forced]"
-                    forced_row_id = upsert_wanted_item(
+                    _, forced_was_updated = upsert_wanted_item(
                         item_type="movie",
                         file_path=mapped_path,
                         title=forced_title,
@@ -400,7 +411,9 @@ class WantedScanner:
                         instance_name=instance_name or "",
                         subtitle_type="forced",
                     )
-                    if forced_row_id:
+                    if forced_was_updated:
+                        updated += 1
+                    else:
                         added += 1
             # "auto" and "disabled" do not create dedicated forced wanted items
 
@@ -438,8 +451,13 @@ class WantedScanner:
         total_added = 0
         total_updated = 0
         all_paths = set()
+        total = len(series_list)
 
-        for series in series_list:
+        self._progress = {"current": 0, "total": total, "phase": f"Sonarr ({instance_name})", "added": 0, "updated": 0}
+        if self._socketio:
+            self._socketio.emit("wanted_scan_progress", dict(self._progress))
+
+        for idx, series in enumerate(series_list, 1):
             series_id = series.get("id")
             if not series_id:
                 continue
@@ -447,6 +465,9 @@ class WantedScanner:
             total_added += a
             total_updated += u
             all_paths.update(paths)
+            self._progress.update({"current": idx, "added": total_added, "updated": total_updated})
+            if self._socketio:
+                self._socketio.emit("wanted_scan_progress", dict(self._progress))
 
         return total_added, total_updated, all_paths
 
@@ -545,9 +566,12 @@ class WantedScanner:
                 if existing == "ass":
                     continue  # Goal achieved for this language
 
-                # Check embedded streams if probe_data available
+                # Check embedded streams and audio tracks if probe_data available
                 embedded_sub = None
                 if probe_data:
+                    # Skip if target language audio track exists (dub available)
+                    if has_target_language_audio(probe_data, target_lang):
+                        continue
                     embedded_sub = has_target_language_stream(probe_data, target_lang)
                     if embedded_sub == "ass":
                         existing = "embedded_ass"
@@ -568,7 +592,7 @@ class WantedScanner:
                         _, cur_score = score_existing_subtitle(srt_path)
                         is_upgrade = True
 
-                row_id = upsert_wanted_item(
+                _, was_updated = upsert_wanted_item(
                     item_type="episode",
                     file_path=mapped_path,
                     title=title,
@@ -583,8 +607,9 @@ class WantedScanner:
                     instance_name=instance_name or "",
                     subtitle_type="full",
                 )
-
-                if row_id:
+                if was_updated:
+                    updated += 1
+                else:
                     added += 1
 
                 # Forced subtitle handling based on profile preference
@@ -595,7 +620,7 @@ class WantedScanner:
                     )
                     if existing_forced is None:
                         forced_title = f"{title} [Forced]"
-                        forced_row_id = upsert_wanted_item(
+                        _, forced_was_updated = upsert_wanted_item(
                             item_type="episode",
                             file_path=mapped_path,
                             title=forced_title,
@@ -610,7 +635,9 @@ class WantedScanner:
                             instance_name=instance_name or "",
                             subtitle_type="forced",
                         )
-                        if forced_row_id:
+                        if forced_was_updated:
+                            updated += 1
+                        else:
                             added += 1
                 # "auto" and "disabled" do not create dedicated forced wanted items
 
@@ -649,12 +676,20 @@ class WantedScanner:
         total_added = 0
         total_updated = 0
         all_paths = set()
+        total = len(movies)
 
-        for movie in movies:
+        self._progress = {"current": 0, "total": total, "phase": f"Radarr ({instance_name})", "added": 0, "updated": 0}
+        if self._socketio:
+            self._socketio.emit("wanted_scan_progress", dict(self._progress))
+
+        for idx, movie in enumerate(movies, 1):
             added, updated, paths = self._scan_radarr_movie(radarr, movie, settings, instance_name)
             total_added += added
             total_updated += updated
             all_paths.update(paths)
+            self._progress.update({"current": idx, "added": total_added, "updated": total_updated})
+            if self._socketio:
+                self._socketio.emit("wanted_scan_progress", dict(self._progress))
 
         return total_added, total_updated, all_paths
 
@@ -867,16 +902,17 @@ class WantedScanner:
 
     # ─── Scheduler ──────────────────────────────────────────────────────────
 
-    def start_scheduler(self, socketio=None):
+    def start_scheduler(self, socketio=None, app=None):
         """Start the periodic scan and search schedulers."""
         self._socketio = socketio
+        self._app = app
         settings = get_settings()
 
         # Scan scheduler
         scan_interval = settings.wanted_scan_interval_hours
         if scan_interval > 0:
             if settings.wanted_scan_on_startup:
-                thread = threading.Thread(target=self.scan_all, daemon=True)
+                thread = threading.Thread(target=self._run_scan_with_context, daemon=True)
                 thread.start()
             self._schedule_next_scan(scan_interval)
             logger.info("Wanted scan scheduler started (every %dh)", scan_interval)
@@ -888,7 +924,7 @@ class WantedScanner:
         if search_interval > 0:
             if settings.wanted_search_on_startup:
                 thread = threading.Thread(
-                    target=self.search_all, args=(socketio,), daemon=True,
+                    target=self._run_search_with_context, args=(socketio,), daemon=True,
                 )
                 thread.start()
             self._schedule_next_search(search_interval)
@@ -916,10 +952,26 @@ class WantedScanner:
         self._timer.daemon = True
         self._timer.start()
 
+    def _run_scan_with_context(self):
+        """Run scan_all inside Flask app context (for background threads)."""
+        if self._app is not None:
+            with self._app.app_context():
+                self.scan_all()
+        else:
+            self.scan_all()
+
+    def _run_search_with_context(self, socketio=None):
+        """Run search_all inside Flask app context (for background threads)."""
+        if self._app is not None:
+            with self._app.app_context():
+                self.search_all(socketio)
+        else:
+            self.search_all(socketio)
+
     def _scheduled_scan(self, interval_hours):
         """Execute a scheduled scan and reschedule."""
         logger.info("Wanted scheduled scan starting")
-        self.scan_all()
+        self._run_scan_with_context()
         self._schedule_next_scan(interval_hours)
 
     def _schedule_next_search(self, interval_hours):
@@ -935,5 +987,5 @@ class WantedScanner:
     def _scheduled_search(self, interval_hours):
         """Execute a scheduled search and reschedule."""
         logger.info("Wanted scheduled search starting")
-        self.search_all(self._socketio)
+        self._run_search_with_context(self._socketio)
         self._schedule_next_search(interval_hours)

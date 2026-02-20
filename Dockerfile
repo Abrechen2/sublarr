@@ -22,8 +22,19 @@ LABEL org.opencontainers.image.licenses="GPL-3.0"
 
 # Install system dependencies
 # postgresql-client provides pg_dump/pg_restore for optional PostgreSQL backup support
+# tesseract-ocr for OCR functionality, hunspell for spell checking
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg curl unrar-free postgresql-client && \
+    apt-get install -y --no-install-recommends \
+        ffmpeg \
+        curl \
+        unrar-free \
+        postgresql-client \
+        tesseract-ocr \
+        tesseract-ocr-deu \
+        tesseract-ocr-eng \
+        hunspell \
+        hunspell-de-de \
+        hunspell-en-us && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

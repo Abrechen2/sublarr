@@ -173,7 +173,7 @@ def get_duplicates():
     from db.repositories.cleanup import CleanupRepository
 
     page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 50, type=int)
+    per_page = min(request.args.get("per_page", 50, type=int), 200)
 
     repo = CleanupRepository()
     all_groups = repo.get_duplicate_groups()
@@ -413,6 +413,7 @@ def delete_orphaned():
           description: Missing file_paths
     """
     import os
+    from config import get_settings
     from db.repositories.cleanup import CleanupRepository
 
     data = request.get_json() or {}
@@ -421,18 +422,25 @@ def delete_orphaned():
     if not file_paths:
         return jsonify({"error": "file_paths array is required"}), 400
 
+    media_root = os.path.realpath(get_settings().media_path)
+
     deleted = 0
     bytes_freed = 0
     errors = []
 
     for fp in file_paths:
         try:
-            if not os.path.isfile(fp):
+            real_fp = os.path.realpath(fp)
+            if not real_fp.startswith(media_root + os.sep):
+                errors.append(f"Rejected (outside media dir): {fp}")
+                continue
+
+            if not os.path.isfile(real_fp):
                 errors.append(f"File not found: {fp}")
                 continue
 
-            file_size = os.path.getsize(fp)
-            os.remove(fp)
+            file_size = os.path.getsize(real_fp)
+            os.remove(real_fp)
             deleted += 1
             bytes_freed += file_size
             logger.info("Deleted orphaned subtitle: %s (%d bytes)", fp, file_size)
@@ -768,11 +776,22 @@ def cleanup_stats():
 
     try:
         disk_stats = repo.get_disk_stats()
-        cleanup_stats = repo.get_cleanup_stats()
+
+        # Reshape by_format from dict to array expected by the frontend DiskSpaceStats type
+        raw_by_format = disk_stats.get("by_format", {})
+        by_format = [
+            {"format": fmt, "count": v["count"], "size_bytes": v["size"]}
+            for fmt, v in raw_by_format.items()
+        ]
 
         return jsonify({
-            "disk": disk_stats,
-            "cleanup": cleanup_stats,
+            "total_files": disk_stats.get("total_files", 0),
+            "total_size_bytes": disk_stats.get("total_size_bytes", 0),
+            "by_format": by_format,
+            "duplicate_files": disk_stats.get("duplicate_count", 0),
+            "duplicate_size_bytes": disk_stats.get("duplicate_size_bytes", 0),
+            "potential_savings_bytes": disk_stats.get("potential_savings_bytes", 0),
+            "trends": disk_stats.get("recent_cleanups", []),
         })
     except Exception as e:
         logger.error("Cleanup stats failed: %s", e)
@@ -819,7 +838,7 @@ def cleanup_history():
     from db.repositories.cleanup import CleanupRepository
 
     page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 50, type=int)
+    per_page = min(request.args.get("per_page", 50, type=int), 200)
 
     repo = CleanupRepository()
     result = repo.get_history(page, per_page)

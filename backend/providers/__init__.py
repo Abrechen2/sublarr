@@ -886,6 +886,11 @@ class ProviderManager:
 
         Returns:
             Path to saved file
+
+        Raises:
+            ValueError: If result has no content
+            OSError: If directory creation or file write fails
+            RuntimeError: If disk space is insufficient
         """
         if not result.content:
             raise ValueError("SubtitleResult has no content (download first)")
@@ -897,10 +902,37 @@ class ProviderManager:
             base, _ = os.path.splitext(output_path)
             output_path = f"{base}.{ext}"
 
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        # Check disk space before writing (defensive guard)
+        try:
+            import shutil
+            stat = shutil.disk_usage(os.path.dirname(output_path))
+            free_mb = stat.free / (1024 * 1024)
+            MIN_FREE_SPACE_MB = 100  # Same as translator.py
+            if free_mb < MIN_FREE_SPACE_MB:
+                raise RuntimeError(
+                    f"Insufficient disk space: {free_mb:.0f}MB free, "
+                    f"need at least {MIN_FREE_SPACE_MB}MB"
+                )
+        except OSError as e:
+            logger.warning("Failed to check disk space for %s: %s", output_path, e)
+            # Continue anyway - disk space check is best-effort
 
-        with open(output_path, "wb") as f:
-            f.write(result.content)
+        # Create directory with error handling
+        try:
+            dir_path = os.path.dirname(output_path)
+            if dir_path:  # Only create if there's a directory component
+                os.makedirs(dir_path, exist_ok=True)
+        except OSError as e:
+            logger.error("Failed to create directory for %s: %s", output_path, e)
+            raise RuntimeError(f"Cannot create directory for subtitle: {e}") from e
+
+        # Write file with error handling
+        try:
+            with open(output_path, "wb") as f:
+                f.write(result.content)
+        except OSError as e:
+            logger.error("Failed to write subtitle to %s: %s", output_path, e)
+            raise RuntimeError(f"Cannot write subtitle file: {e}") from e
 
         logger.info("Saved subtitle: %s (%s, %s, score=%d)",
                      output_path, result.provider_name, result.language, result.score)

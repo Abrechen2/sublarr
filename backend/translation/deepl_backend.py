@@ -4,6 +4,8 @@ Supports both Free and Pro plans (auto-detected from API key suffix).
 Native glossary support with caching for repeated translations.
 """
 
+import hashlib
+import json
 import logging
 from typing import Optional
 
@@ -95,7 +97,7 @@ class DeepLBackend(TranslationBackend):
     def __init__(self, **config):
         super().__init__(**config)
         self._client: Optional[object] = None
-        self._glossary_cache: dict[tuple[str, str], object] = {}
+        self._glossary_cache: dict[tuple, object] = {}  # key: (source, target, content_hash)
 
     def _get_client(self):
         """Create or return cached DeepL client (lazy initialization)."""
@@ -182,7 +184,14 @@ class DeepLBackend(TranslationBackend):
         Returns:
             DeepL glossary object or None on failure
         """
-        cache_key = (source_lang, target_lang)
+        # Include content hash in cache key so changed glossary entries create a new glossary
+        entries_hash = hashlib.sha256(
+            json.dumps(
+                sorted(entries, key=lambda e: e.get("source_term", "")),
+                sort_keys=True,
+            ).encode()
+        ).hexdigest()[:16]
+        cache_key = (source_lang, target_lang, entries_hash)
 
         if cache_key in self._glossary_cache:
             return self._glossary_cache[cache_key]

@@ -276,9 +276,9 @@ def detect_existing_target_for_lang(mkv_path, target_language, probe_data=None,
             # Forced SRT exists but we're looking for full -- don't count it
             pass
 
-    # Check embedded streams (only works for default target language)
+    # Check embedded subtitle streams for the specific target language
     if probe_data:
-        embedded = has_target_language_stream(probe_data)
+        embedded = has_target_language_stream(probe_data, target_language)
         if embedded == "ass":
             return "ass"
         if embedded == "srt":
@@ -409,6 +409,7 @@ def translate_ass(mkv_path, stream_info, probe_data,
     check_disk_space(output_path)
 
     suffix = ".ass"
+    tmp_path = None
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp_path = tmp.name
 
@@ -516,7 +517,7 @@ def translate_ass(mkv_path, stream_info, probe_data,
         logger.exception("ASS translation failed for %s", mkv_path)
         return _fail_result(str(e))
     finally:
-        if os.path.exists(tmp_path):
+        if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)
 
 
@@ -525,17 +526,19 @@ def translate_srt_from_stream(mkv_path, stream_info, target_language=None, arr_c
     output_path = get_output_path_for_lang(mkv_path, "srt", target_language)
     check_disk_space(output_path)
 
+    tmp_path = None
     with tempfile.NamedTemporaryFile(suffix=".srt", delete=False) as tmp:
         tmp_path = tmp.name
 
     try:
         extract_subtitle_stream(mkv_path, stream_info, tmp_path)
-        return _translate_srt(tmp_path, output_path, source="embedded_srt", arr_context=arr_context)
+        return _translate_srt(tmp_path, output_path, source="embedded_srt",
+                              target_language=target_language, arr_context=arr_context)
     except Exception as e:
         logger.exception("SRT stream translation failed for %s", mkv_path)
         return _fail_result(str(e))
     finally:
-        if os.path.exists(tmp_path):
+        if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)
 
 
@@ -552,7 +555,7 @@ def translate_srt_from_file(mkv_path, srt_path, source="external_srt",
         return _fail_result(str(e))
 
 
-def _translate_srt(srt_path, output_path, source="srt", arr_context=None):
+def _translate_srt(srt_path, output_path, source="srt", target_language=None, arr_context=None):
     """Internal: translate an SRT file.
 
     SRT is simpler than ASS: no styles to classify, no override tags.
@@ -588,10 +591,11 @@ def _translate_srt(srt_path, output_path, source="srt", arr_context=None):
     # Extract series_id for glossary
     series_id = _extract_series_id(arr_context)
     settings = get_settings()
+    tgt_lang = target_language or settings.target_language
     translated_texts, translation_result = _translate_with_manager(
         dialog_texts,
         source_lang=settings.source_language,
-        target_lang=settings.target_language,
+        target_lang=tgt_lang,
         arr_context=arr_context,
         series_id=series_id,
     )
@@ -607,7 +611,7 @@ def _translate_srt(srt_path, output_path, source="srt", arr_context=None):
             translated_texts, translation_result = _translate_with_manager(
                 dialog_texts,
                 source_lang=settings.source_language,
-                target_lang=settings.target_language,
+                target_lang=tgt_lang,
                 arr_context=arr_context,
                 series_id=series_id,
             )

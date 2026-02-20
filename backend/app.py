@@ -297,9 +297,9 @@ def _register_app_routes(app):
     """Register app-level routes: /metrics and SPA fallback."""
     from flask import jsonify, send_from_directory
 
-    @app.route("/metrics", methods=["GET"])
+    @app.route("/api/v1/metrics", methods=["GET"])
     def prometheus_metrics():
-        """Prometheus metrics endpoint (unauthenticated)."""
+        """Prometheus metrics endpoint (protected by auth hook)."""
         from metrics import generate_metrics
         from config import get_settings
         from flask import Response
@@ -336,7 +336,7 @@ def _start_schedulers(settings, app=None):
     """Start background schedulers (wanted scanner, database backup, standalone watcher, cleanup)."""
     from wanted_scanner import get_scanner
     scanner = get_scanner()
-    scanner.start_scheduler(socketio=socketio)
+    scanner.start_scheduler(socketio=socketio, app=app)
 
     from database_backup import start_backup_scheduler
     start_backup_scheduler(

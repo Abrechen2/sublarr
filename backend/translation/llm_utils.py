@@ -78,8 +78,8 @@ def parse_llm_response(response_text: str, expected_count: int) -> list[str] | N
         if len(merged) == expected_count:
             return merged
 
-        logger.warning("Merge failed (%d lines), truncating to %d", len(merged), expected_count)
-        return cleaned[:expected_count]
+        logger.warning("Merge failed (%d lines), returning None for retry", len(merged))
+        return None
 
     logger.warning(
         "Line count mismatch: got %d, expected %d", len(cleaned), expected_count,

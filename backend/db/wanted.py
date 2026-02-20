@@ -26,8 +26,8 @@ def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
                        current_score: int = 0,
                        target_language: str = "",
                        instance_name: str = "",
-                       subtitle_type: str = "full") -> int:
-    """Insert or update a wanted item. Returns the row id."""
+                       subtitle_type: str = "full") -> tuple:
+    """Insert or update a wanted item. Returns (row_id, was_updated)."""
     return _get_repo().upsert_wanted_item(
         item_type, file_path, title, season_episode, existing_sub,
         missing_languages, sonarr_series_id, sonarr_episode_id,
@@ -115,6 +115,15 @@ def get_upgradeable_count() -> int:
 def find_wanted_by_episode(sonarr_episode_id: int, target_language: str = "") -> Optional[dict]:
     """Find a wanted item for a specific episode + language."""
     return _get_repo().find_wanted_by_episode(sonarr_episode_id, target_language)
+
+
+def get_series_missing_counts() -> dict:
+    """Get count of 'wanted' items per Sonarr series ID.
+
+    Returns:
+        Dict mapping sonarr_series_id -> count of wanted items.
+    """
+    return _get_repo().get_series_missing_counts()
 
 
 def get_wanted_by_subtitle_type() -> dict:

@@ -35,14 +35,15 @@ class WantedRepository(BaseRepository):
                            current_score: int = 0,
                            target_language: str = "",
                            instance_name: str = "",
-                           subtitle_type: str = "full") -> int:
+                           subtitle_type: str = "full") -> tuple:
         """Insert or update a wanted item (matched on file_path + target_language + subtitle_type).
 
         The uniqueness check includes subtitle_type so that a single file can have
         parallel wanted items for different subtitle types (e.g., full + forced)
         in the same language.
 
-        Returns the row id.
+        Returns (row_id, was_updated) where was_updated=True if an existing row
+        was updated, False if a new row was inserted.
         """
         now = self._now()
         langs_json = json.dumps(missing_languages or [])
@@ -69,8 +70,9 @@ class WantedRepository(BaseRepository):
 
         if existing:
             row_id = existing.id
-            # Don't overwrite 'ignored' status
+            # Don't overwrite 'ignored' status — but update all other fields
             if existing.status == "ignored":
+                existing.item_type = item_type
                 existing.title = title
                 existing.season_episode = season_episode
                 existing.existing_sub = existing_sub
@@ -104,35 +106,33 @@ class WantedRepository(BaseRepository):
                 existing.instance_name = instance_name
                 existing.subtitle_type = subtitle_type
                 existing.updated_at = now
-        else:
-            item = WantedItem(
-                item_type=item_type,
-                file_path=file_path,
-                title=title,
-                season_episode=season_episode,
-                existing_sub=existing_sub,
-                missing_languages=langs_json,
-                sonarr_series_id=sonarr_series_id,
-                sonarr_episode_id=sonarr_episode_id,
-                radarr_movie_id=radarr_movie_id,
-                standalone_series_id=standalone_series_id,
-                standalone_movie_id=standalone_movie_id,
-                upgrade_candidate=upgrade_int,
-                current_score=current_score,
-                target_language=target_language,
-                instance_name=instance_name,
-                subtitle_type=subtitle_type,
-                status="wanted",
-                added_at=now,
-                updated_at=now,
-            )
-            self.session.add(item)
             self._commit()
-            row_id = item.id
-            return row_id
+            return row_id, True
 
+        item = WantedItem(
+            item_type=item_type,
+            file_path=file_path,
+            title=title,
+            season_episode=season_episode,
+            existing_sub=existing_sub,
+            missing_languages=langs_json,
+            sonarr_series_id=sonarr_series_id,
+            sonarr_episode_id=sonarr_episode_id,
+            radarr_movie_id=radarr_movie_id,
+            standalone_series_id=standalone_series_id,
+            standalone_movie_id=standalone_movie_id,
+            upgrade_candidate=upgrade_int,
+            current_score=current_score,
+            target_language=target_language,
+            instance_name=instance_name,
+            subtitle_type=subtitle_type,
+            status="wanted",
+            added_at=now,
+            updated_at=now,
+        )
+        self.session.add(item)
         self._commit()
-        return row_id
+        return item.id, False
 
     # Sort field allowlist for get_wanted_items
     _SORT_FIELDS = {
@@ -402,6 +402,23 @@ class WantedRepository(BaseRepository):
         if not item:
             return None
         return self._row_to_wanted(item)
+
+    def get_series_missing_counts(self) -> dict:
+        """Get count of 'wanted' items per Sonarr series ID.
+
+        Returns:
+            Dict mapping sonarr_series_id -> count of wanted items.
+        """
+        stmt = (
+            select(WantedItem.sonarr_series_id, func.count())
+            .where(
+                WantedItem.sonarr_series_id.isnot(None),
+                WantedItem.status == "wanted",
+            )
+            .group_by(WantedItem.sonarr_series_id)
+        )
+        rows = self.session.execute(stmt).all()
+        return {row[0]: row[1] for row in rows}
 
     def get_wanted_by_subtitle_type(self) -> dict:
         """Get wanted item counts grouped by subtitle_type."""

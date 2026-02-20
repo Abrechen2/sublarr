@@ -7,36 +7,16 @@
 import { useTranslation } from 'react-i18next'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line } from 'recharts'
 import type { DiskSpaceStats } from '@/lib/types'
+import { FORMAT_COLORS, getFormatColor, formatBytes } from '@/lib/diskUtils'
 
 interface DiskSpaceWidgetProps {
   stats: DiskSpaceStats
 }
 
-const FORMAT_COLORS: Record<string, string> = {
-  ass: '#14b8a6',  // teal
-  srt: '#f59e0b',  // amber
-  ssa: '#8b5cf6',  // violet
-  sub: '#6366f1',  // indigo
-  vtt: '#ec4899',  // pink
-}
-
-function getFormatColor(format: string): string {
-  return FORMAT_COLORS[format.toLowerCase()] ?? '#94a3b8'  // slate fallback
-}
-
-/** Format bytes into human-readable KB/MB/GB */
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB']
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
-  const value = bytes / Math.pow(1024, i)
-  return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
-}
-
 export function DiskSpaceWidget({ stats }: DiskSpaceWidgetProps) {
   const { t } = useTranslation('settings')
 
-  const pieData = stats.by_format.map((f) => ({
+  const pieData = (stats.by_format ?? []).map((f) => ({
     name: f.format.toUpperCase(),
     value: f.size_bytes,
     count: f.count,
@@ -50,7 +30,7 @@ export function DiskSpaceWidget({ stats }: DiskSpaceWidgetProps) {
     },
   ]
 
-  const trendData = stats.trends.slice(-30).map((tr) => ({
+  const trendData = (stats.trends ?? []).slice(-30).map((tr) => ({
     date: tr.date.slice(5), // MM-DD
     freed: tr.bytes_freed,
   }))
@@ -107,7 +87,7 @@ export function DiskSpaceWidget({ stats }: DiskSpaceWidgetProps) {
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number) => formatBytes(value)}
+                  formatter={(value: number | undefined) => formatBytes(value ?? 0)}
                   contentStyle={{
                     backgroundColor: 'var(--bg-surface)',
                     border: '1px solid var(--border)',
@@ -151,8 +131,8 @@ export function DiskSpaceWidget({ stats }: DiskSpaceWidgetProps) {
               <XAxis type="number" hide />
               <YAxis type="category" dataKey="name" hide />
               <Tooltip
-                formatter={(value: number, name: string) => [
-                  formatBytes(value),
+                formatter={(value: number | undefined, name: string | undefined) => [
+                  formatBytes(value ?? 0),
                   name === 'total'
                     ? t('cleanup.diskSpace.uniqueData', 'Unique')
                     : t('cleanup.diskSpace.duplicateData', 'Duplicate'),
@@ -194,7 +174,7 @@ export function DiskSpaceWidget({ stats }: DiskSpaceWidgetProps) {
                 <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="var(--text-muted)" />
                 <YAxis tick={{ fontSize: 10 }} stroke="var(--text-muted)" tickFormatter={formatBytes} width={50} />
                 <Tooltip
-                  formatter={(value: number) => [formatBytes(value), t('cleanup.diskSpace.bytesFreed', 'Freed')]}
+                  formatter={(value: number | undefined) => [formatBytes(value ?? 0), t('cleanup.diskSpace.bytesFreed', 'Freed')]}
                   contentStyle={{
                     backgroundColor: 'var(--bg-surface)',
                     border: '1px solid var(--border)',

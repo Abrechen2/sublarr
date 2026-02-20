@@ -17,6 +17,7 @@ try:
 
     db = SQLAlchemy()
     migrate = Migrate()
-except ImportError:
-    db = None  # type: ignore[assignment]
-    migrate = None  # type: ignore[assignment]
+except ImportError as e:
+    raise ImportError(
+        "flask_sqlalchemy is required: pip install flask_sqlalchemy flask_migrate"
+    ) from e
