@@ -10,6 +10,7 @@ import logging
 from datetime import datetime, timezone
 
 from flask import Blueprint, request, jsonify, send_file
+from sqlalchemy import text
 
 from version import __version__
 
@@ -1096,12 +1097,12 @@ def get_statistics():
     # Daily stats
     with _db_lock:
         daily_rows = db.execute(
-            "SELECT * FROM daily_stats ORDER BY date DESC LIMIT ?", (days,)
+            text("SELECT * FROM daily_stats ORDER BY date DESC LIMIT :days"), {"days": days}
         ).fetchall()
     daily = []
     by_format_totals: dict = {}
     for row in daily_rows:
-        d = dict(row)
+        d = row._mapping
         daily.append({
             "date": d["date"],
             "translated": d["translated"],
@@ -1123,8 +1124,8 @@ def get_statistics():
     # Downloads by provider
     with _db_lock:
         dl_rows = db.execute(
-            """SELECT provider_name, COUNT(*) as count, AVG(score) as avg_score
-               FROM subtitle_downloads GROUP BY provider_name"""
+            text("""SELECT provider_name, COUNT(*) as count, AVG(score) as avg_score
+               FROM subtitle_downloads GROUP BY provider_name""")
         ).fetchall()
     downloads_by_provider = [
         {"provider_name": row[0], "count": row[1], "avg_score": round(row[2] or 0, 1)}
@@ -1133,14 +1134,14 @@ def get_statistics():
 
     # Translation backend stats
     with _db_lock:
-        backend_rows = db.execute("SELECT * FROM translation_backend_stats").fetchall()
-    backend_stats = [dict(row) for row in backend_rows]
+        backend_rows = db.execute(text("SELECT * FROM translation_backend_stats")).fetchall()
+    backend_stats = [dict(row._mapping) for row in backend_rows]
 
     # Upgrade history summary
     with _db_lock:
         upgrade_rows = db.execute(
-            """SELECT old_format || ' -> ' || new_format as upgrade_type, COUNT(*) as count
-               FROM upgrade_history GROUP BY upgrade_type"""
+            text("""SELECT old_format || ' -> ' || new_format as upgrade_type, COUNT(*) as count
+               FROM upgrade_history GROUP BY upgrade_type""")
         ).fetchall()
     upgrades = [{"type": row[0], "count": row[1]} for row in upgrade_rows]
 
@@ -1207,11 +1208,11 @@ def export_statistics():
     # Fetch daily stats
     with _db_lock:
         daily_rows = db.execute(
-            "SELECT * FROM daily_stats ORDER BY date DESC LIMIT ?", (days,)
+            text("SELECT * FROM daily_stats ORDER BY date DESC LIMIT :days"), {"days": days}
         ).fetchall()
     daily = []
     for row in daily_rows:
-        d = dict(row)
+        d = row._mapping
         daily.append({
             "date": d["date"],
             "translated": d["translated"],
@@ -1241,8 +1242,8 @@ def export_statistics():
         providers = get_provider_stats()
         with _db_lock:
             dl_rows = db.execute(
-                """SELECT provider_name, COUNT(*) as count, AVG(score) as avg_score
-                   FROM subtitle_downloads GROUP BY provider_name"""
+                text("""SELECT provider_name, COUNT(*) as count, AVG(score) as avg_score
+                   FROM subtitle_downloads GROUP BY provider_name""")
             ).fetchall()
         downloads_by_provider = [
             {"provider": row[0], "count": row[1], "avg_score": round(row[2] or 0, 1)}
