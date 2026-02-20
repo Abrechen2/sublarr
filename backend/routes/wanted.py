@@ -434,13 +434,17 @@ def process_wanted(item_id):
         return jsonify({"error": "Item not found"}), 404
 
     def _run():
-        result = process_wanted_item(item_id)
-        emit_event("wanted_item_processed", result)
-        if result.get("upgraded"):
-            emit_event("upgrade_complete", {
-                "file_path": result.get("output_path"),
-                "provider": result.get("provider"),
-            })
+        try:
+            result = process_wanted_item(item_id)
+            emit_event("wanted_item_processed", result)
+            if result.get("upgraded"):
+                emit_event("upgrade_complete", {
+                    "file_path": result.get("output_path"),
+                    "provider": result.get("provider"),
+                })
+        except Exception as e:
+            logger.exception("Wanted process failed for item_id=%s", item_id)
+            emit_event("wanted_item_processed", {"wanted_id": item_id, "error": str(e)})
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
