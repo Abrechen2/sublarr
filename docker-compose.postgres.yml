@@ -1,0 +1,55 @@
+# Sublarr with optional PostgreSQL and Redis
+#
+# This is a compose OVERLAY file -- use with Docker Compose merge:
+#   docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d
+#
+# It extends the main docker-compose.yml by adding PostgreSQL and Redis
+# services alongside Sublarr. The default docker-compose.yml (SQLite, no Redis)
+# remains unchanged for zero-config deployments.
+#
+# IMPORTANT: Change POSTGRES_PASSWORD and SUBLARR_DATABASE_URL password
+# before using in production!
+
+services:
+  sublarr:
+    environment:
+      - SUBLARR_DATABASE_URL=postgresql://sublarr:sublarr_secret@db:5432/sublarr
+      - SUBLARR_REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    container_name: sublarr-db
+    environment:
+      POSTGRES_DB: sublarr
+      POSTGRES_USER: sublarr
+      POSTGRES_PASSWORD: sublarr_secret
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sublarr"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: sublarr-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:

@@ -1,14 +1,44 @@
 flask==3.1.0
 flask-socketio==5.4.1
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.1.0
+SQLAlchemy==2.0.46
+alembic==1.18.4
+apispec>=6.9.0
+apispec-webframeworks>=1.0.0
+flask-swagger-ui>=4.0.0
 gunicorn==23.0.0
 pysubs2==1.7.3
 requests==2.32.3
+PlexAPI>=4.18.0
 pydantic==2.10.6
 pydantic-settings==2.7.1
 python-dotenv==1.0.1
 simple-websocket==1.1.0
 rarfile==4.2
+deepl>=1.20.0
+openai>=1.0.0
+google-cloud-translate>=3.10.0
 apprise==1.9.2
+beautifulsoup4>=4.12.0
+lxml>=5.1.0
+watchdog>=6.0.0
+guessit>=3.8.0
+psycopg2-binary==2.9.10  # Optional: PostgreSQL support
+redis==7.1.0  # Optional: Redis caching/queue
+rq==2.6.1  # Optional: Redis-based job queue
 pytest==8.3.4
 pytest-cov==6.0.0
 pytest-mock==3.14.0
+ruff>=0.8.0
+mypy>=1.11.0
+pre-commit>=3.8.0
+vulture>=2.10
+bandit[toml]>=1.7.5
+radon>=6.0.1
+pip-tools>=7.4.0
+pip-audit>=2.7.0
+liccheck>=0.9.0
+pytest-benchmark>=4.0.0
+locust>=2.24.0
+fakeredis==2.26.2  # Testing: Redis mock

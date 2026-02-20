@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useJobs, useBatchStatus } from '@/hooks/useApi'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ProgressBar } from '@/components/shared/ProgressBar'
@@ -5,13 +6,14 @@ import { truncatePath } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 
 export function QueuePage() {
+  const { t } = useTranslation('activity')
   const { data: activeJobs } = useJobs(1, 20, 'running')
   const { data: queuedJobs } = useJobs(1, 20, 'queued')
   const { data: batch } = useBatchStatus()
 
   return (
     <div className="space-y-5">
-      <h1>Queue</h1>
+      <h1>{t('queue.title')}</h1>
 
       {/* Batch Status */}
       {batch?.running && (
@@ -25,28 +27,28 @@ export function QueuePage() {
         >
           <div className="flex items-center gap-2 mb-3">
             <Loader2 size={16} className="animate-spin" style={{ color: 'var(--accent)' }} />
-            <h2 className="text-sm font-semibold">Batch Processing</h2>
+            <h2 className="text-sm font-semibold">{t('queue.batch_processing')}</h2>
           </div>
           <ProgressBar value={batch.processed} max={batch.total} className="mb-3" />
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-sm">
             <div>
-              <span style={{ color: 'var(--text-muted)' }}>Total: </span>
+              <span style={{ color: 'var(--text-muted)' }}>{t('queue.total')}: </span>
               <span style={{ fontFamily: 'var(--font-mono)' }}>{batch.total}</span>
             </div>
             <div>
-              <span style={{ color: 'var(--text-muted)' }}>Processed: </span>
+              <span style={{ color: 'var(--text-muted)' }}>{t('queue.processed')}: </span>
               <span style={{ fontFamily: 'var(--font-mono)' }}>{batch.processed}</span>
             </div>
             <div>
-              <span style={{ color: 'var(--text-muted)' }}>Succeeded: </span>
+              <span style={{ color: 'var(--text-muted)' }}>{t('queue.succeeded')}: </span>
               <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>{batch.succeeded}</span>
             </div>
             <div>
-              <span style={{ color: 'var(--text-muted)' }}>Failed: </span>
+              <span style={{ color: 'var(--text-muted)' }}>{t('queue.failed')}: </span>
               <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--error)' }}>{batch.failed}</span>
             </div>
             <div>
-              <span style={{ color: 'var(--text-muted)' }}>Skipped: </span>
+              <span style={{ color: 'var(--text-muted)' }}>{t('queue.skipped')}: </span>
               <span style={{ fontFamily: 'var(--font-mono)' }}>{batch.skipped}</span>
             </div>
           </div>
@@ -55,7 +57,7 @@ export function QueuePage() {
               className="mt-3 text-xs truncate"
               style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
             >
-              Current: {truncatePath(batch.current_file, 80)}
+              {t('queue.current')}: {truncatePath(batch.current_file, 80)}
             </div>
           )}
         </div>
@@ -68,7 +70,7 @@ export function QueuePage() {
       >
         <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
           <h2 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-            Running ({activeJobs?.data?.length ?? 0})
+            {t('queue.running_count', { count: activeJobs?.data?.length ?? 0 })}
           </h2>
         </div>
         <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -88,7 +90,7 @@ export function QueuePage() {
             ))
           ) : (
             <div className="px-4 py-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-              No active translations
+              {t('queue.no_active')}
             </div>
           )}
         </div>
@@ -101,7 +103,7 @@ export function QueuePage() {
       >
         <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
           <h2 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-            Queued ({queuedJobs?.data?.length ?? 0})
+            {t('queue.queued_count', { count: queuedJobs?.data?.length ?? 0 })}
           </h2>
         </div>
         <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -124,7 +126,7 @@ export function QueuePage() {
             ))
           ) : (
             <div className="px-4 py-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-              No queued jobs
+              {t('queue.no_queued')}
             </div>
           )}
         </div>

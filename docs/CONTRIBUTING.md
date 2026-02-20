@@ -63,6 +63,15 @@ cd sublarr
    ```bash
    pip install -r requirements.txt
    ```
+   
+   **Oder verwende das Setup-Script (empfohlen):**
+   ```bash
+   # Windows (PowerShell)
+   npm run setup:ps1
+   
+   # Linux/Mac (Bash)
+   ./scripts/setup-dev.sh
+   ```
 
 3. **Configure environment variables**
    ```bash
@@ -339,10 +348,24 @@ def test_search_returns_results(provider, mocker):
 ```
 
 **Test Coverage**
-- Aim for >80% coverage on critical paths
+- **Backend**: Aim for 80%+ coverage (enforced in CI)
+- **Frontend**: Aim for 70%+ coverage (enforced in CI)
 - Mock external services (Ollama, Sonarr, providers)
 - Test error handling and edge cases
 - Don't test trivial getters/setters
+
+**Coverage Reports:**
+```bash
+# Backend coverage
+cd backend
+pytest --cov=. --cov-report=html
+# Open htmlcov/index.html in browser
+
+# Frontend coverage
+cd frontend
+npm run test:coverage
+# Open coverage/index.html in browser
+```
 
 ### Frontend Tests
 

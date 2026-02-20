@@ -1,0 +1,278 @@
+/**
+ * SubtitleEditorModal -- Modal wrapper with lazy loading and mode switching.
+ *
+ * Lazy-loads SubtitlePreview, SubtitleEditor, and SubtitleDiff to keep
+ * CodeMirror out of the main bundle. Manages mode transitions (preview/edit/diff)
+ * and provides the shared content state needed by editor and diff views.
+ */
+
+import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react'
+import { Loader2, X, Eye, Pencil, GitCompare } from 'lucide-react'
+import { useSubtitleContent } from '@/hooks/useApi'
+
+// Lazy-loaded editor components -- CodeMirror stays in separate chunks
+const SubtitlePreview = lazy(() => import('@/components/editor/SubtitlePreview'))
+const SubtitleEditor = lazy(() =>
+  import('@/components/editor/SubtitleEditor').then(m => ({ default: m.SubtitleEditor }))
+)
+const SubtitleDiff = lazy(() =>
+  import('@/components/editor/SubtitleDiff').then(m => ({ default: m.SubtitleDiff }))
+)
+
+type EditorMode = 'preview' | 'edit' | 'diff'
+
+interface SubtitleEditorModalProps {
+  filePath: string | null         // null = modal closed
+  initialMode?: EditorMode
+  onClose: () => void
+}
+
+/** Truncate a file path for display, showing last 2 segments. */
+function truncateFilePath(path: string, maxLen = 60): string {
+  if (path.length <= maxLen) return path
+  const parts = path.replace(/\\/g, '/').split('/')
+  if (parts.length <= 2) return path
+  const tail = parts.slice(-2).join('/')
+  return tail.length <= maxLen ? `.../${tail}` : `...${path.slice(-maxLen)}`
+}
+
+export default function SubtitleEditorModal({
+  filePath,
+  initialMode = 'preview',
+  onClose,
+}: SubtitleEditorModalProps) {
+  const [mode, setMode] = useState<EditorMode>(initialMode)
+  const [content, setContent] = useState<string | null>(null)
+  const [lastModified, setLastModified] = useState<number | null>(null)
+  const [format, setFormat] = useState<'ass' | 'srt' | null>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const overlayRef = useRef<HTMLDivElement>(null)
+
+  // Reset state when filePath or initialMode changes
+  useEffect(() => {
+    setMode(initialMode)
+    setContent(null)
+    setLastModified(null)
+    setFormat(null)
+    setHasUnsavedChanges(false)
+  }, [filePath, initialMode])
+
+  // Load subtitle content
+  const { data: contentData } = useSubtitleContent(filePath)
+
+  // Store loaded content into local state
+  useEffect(() => {
+    if (contentData) {
+      setContent(contentData.content)
+      setLastModified(contentData.last_modified)
+      setFormat(contentData.format)
+    }
+  }, [contentData])
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (!filePath) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [filePath])
+
+  // Handle Escape key
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      if (hasUnsavedChanges) {
+        if (!confirm('You have unsaved changes. Close without saving?')) return
+      }
+      onClose()
+    }
+  }, [hasUnsavedChanges, onClose])
+
+  useEffect(() => {
+    if (!filePath) return
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [filePath, handleKeyDown])
+
+  // Handle overlay click (close if no unsaved changes)
+  const handleOverlayClick = useCallback((e: React.MouseEvent) => {
+    if (e.target === overlayRef.current) {
+      if (hasUnsavedChanges) {
+        if (!confirm('You have unsaved changes. Close without saving?')) return
+      }
+      onClose()
+    }
+  }, [hasUnsavedChanges, onClose])
+
+  // Close handler with unsaved changes guard
+  const handleClose = useCallback(() => {
+    if (hasUnsavedChanges) {
+      if (!confirm('You have unsaved changes. Close without saving?')) return
+    }
+    onClose()
+  }, [hasUnsavedChanges, onClose])
+
+  // When modal is closed, render nothing
+  if (!filePath) return null
+
+  const MODE_TABS: { key: EditorMode; label: string; icon: typeof Eye }[] = [
+    { key: 'preview', label: 'Preview', icon: Eye },
+    { key: 'edit', label: 'Edit', icon: Pencil },
+    { key: 'diff', label: 'Diff', icon: GitCompare },
+  ]
+
+  return (
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
+      onClick={handleOverlayClick}
+    >
+      <div
+        className="w-[92vw] h-[88vh] max-w-7xl rounded-lg overflow-hidden flex flex-col"
+        style={{
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+        }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-4 py-2 flex-shrink-0"
+          style={{
+            backgroundColor: 'var(--bg-elevated)',
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
+          {/* Mode tabs */}
+          <div className="flex items-center gap-1">
+            {MODE_TABS.map(({ key, label, icon: Icon }) => {
+              const isActive = mode === key
+              return (
+                <button
+                  key={key}
+                  onClick={() => setMode(key)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                  style={{
+                    backgroundColor: isActive ? 'var(--accent-bg)' : 'transparent',
+                    color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                    border: isActive ? '1px solid var(--accent-dim)' : '1px solid transparent',
+                  }}
+                >
+                  <Icon size={13} />
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* File path + close */}
+          <div className="flex items-center gap-3">
+            <span
+              className="text-xs truncate max-w-[300px]"
+              style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
+              title={filePath}
+            >
+              {truncateFilePath(filePath)}
+            </span>
+            {hasUnsavedChanges && (
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                style={{
+                  backgroundColor: 'var(--warning-bg)',
+                  color: 'var(--warning)',
+                }}
+              >
+                Unsaved
+              </span>
+            )}
+            <button
+              onClick={handleClose}
+              className="p-1 rounded transition-colors"
+              style={{ color: 'var(--text-muted)' }}
+              title="Close (Esc)"
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--error)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-hidden">
+          <Suspense
+            fallback={
+              <div className="flex flex-col items-center justify-center h-full gap-3">
+                <Loader2
+                  className="animate-spin h-8 w-8"
+                  style={{ color: 'var(--accent)' }}
+                />
+                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                  Loading editor...
+                </span>
+              </div>
+            }
+          >
+            {mode === 'preview' && (
+              <SubtitlePreview
+                filePath={filePath}
+                onEdit={() => setMode('edit')}
+                onClose={handleClose}
+              />
+            )}
+
+            {mode === 'edit' && content !== null && format !== null && lastModified !== null && (
+              <SubtitleEditor
+                filePath={filePath}
+                initialContent={content}
+                format={format}
+                lastModified={lastModified}
+                onSave={(newMtime) => {
+                  setLastModified(newMtime)
+                  setHasUnsavedChanges(false)
+                }}
+                onClose={handleClose}
+                onDiffView={() => setMode('diff')}
+              />
+            )}
+
+            {mode === 'edit' && (content === null || format === null || lastModified === null) && (
+              <div className="flex flex-col items-center justify-center h-full gap-3">
+                <Loader2
+                  className="animate-spin h-8 w-8"
+                  style={{ color: 'var(--accent)' }}
+                />
+                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                  Loading content...
+                </span>
+              </div>
+            )}
+
+            {mode === 'diff' && content !== null && format !== null && (
+              <SubtitleDiff
+                filePath={filePath}
+                currentContent={content}
+                format={format}
+                onClose={handleClose}
+                onBackToEditor={() => setMode('edit')}
+              />
+            )}
+
+            {mode === 'diff' && (content === null || format === null) && (
+              <div className="flex flex-col items-center justify-center h-full gap-3">
+                <Loader2
+                  className="animate-spin h-8 w-8"
+                  style={{ color: 'var(--accent)' }}
+                />
+                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                  Loading content...
+                </span>
+              </div>
+            )}
+          </Suspense>
+        </div>
+      </div>
+    </div>
+  )
+}

@@ -1,0 +1,42 @@
+# Bandit security linter configuration
+# Bandit finds common security issues in Python code
+
+# Exclude test files from some checks
+exclude_dirs:
+  - tests
+  - venv
+  - env
+  - __pycache__
+
+# Skip specific tests (known false positives or acceptable patterns)
+skips:
+  # B101: assert_used - Tests use assert statements
+  - B101
+  # B601: shell_injection_subprocess - We use subprocess safely with known commands
+  - B601
+  # B602: shell_injection_subprocess_popen - We use subprocess safely
+  - B602
+  # B108: hardcoded_tmp_directory - We use tempfile module
+  - B108
+
+# Test selection
+tests:
+  # Run all tests
+  - B
+  # Skip tests that are too noisy
+  - skip:B101  # assert_used in tests
+
+# Severity levels
+severity:
+  # Fail on high and critical
+  - high
+  - critical
+
+# Confidence levels
+confidence:
+  # Report medium and high confidence issues
+  - medium
+  - high
+
+# Aggressive mode (more thorough scanning)
+aggressive: false

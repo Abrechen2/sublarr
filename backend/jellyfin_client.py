@@ -134,6 +134,72 @@ class JellyfinClient:
             return True, f"{server_name} v{version}"
         return False, f"Cannot connect to Jellyfin at {self.url}"
 
+    def extended_health_check(self):
+        """Extended diagnostic health check for Jellyfin/Emby.
+
+        Returns a structured dict with connection status, server info,
+        library access, and health issues. Each sub-query is wrapped
+        in try/except for graceful degradation.
+
+        Returns:
+            dict with keys: connection, server_info, library_access,
+                  health_issues
+        """
+        report = {
+            "connection": {"healthy": False, "message": ""},
+            "server_info": {"server_name": "", "version": "", "product_name": "", "os": ""},
+            "library_access": {"library_count": 0, "libraries": [], "accessible": False},
+            "health_issues": [],
+        }
+
+        # 1. Connection + public info
+        public_info = self._get("/System/Info/Public")
+        if public_info is None:
+            report["connection"]["message"] = f"Cannot connect to Jellyfin at {self.url}"
+            return report
+
+        report["connection"]["healthy"] = True
+        report["connection"]["message"] = "OK"
+
+        # 2. Server info from public endpoint
+        report["server_info"]["server_name"] = public_info.get("ServerName", "")
+        report["server_info"]["version"] = public_info.get("Version", "")
+        report["server_info"]["product_name"] = public_info.get("ProductName", "")
+        report["server_info"]["os"] = public_info.get("OperatingSystem", "")
+
+        # 3. Library access
+        try:
+            folders = self._get("/Library/VirtualFolders")
+            if folders is not None:
+                report["library_access"]["accessible"] = True
+                report["library_access"]["library_count"] = len(folders)
+                for folder in folders:
+                    report["library_access"]["libraries"].append({
+                        "name": folder.get("Name", ""),
+                        "collection_type": folder.get("CollectionType", ""),
+                    })
+        except Exception as exc:
+            logger.debug("Extended health check: library folders query failed: %s", exc)
+
+        # 4. Extended info for health issues
+        try:
+            system_info = self._get("/System/Info")
+            if system_info is not None:
+                if system_info.get("HasPendingRestart", False):
+                    report["health_issues"].append({
+                        "type": "warning",
+                        "message": "Server has a pending restart",
+                    })
+                if system_info.get("HasUpdateAvailable", False):
+                    report["health_issues"].append({
+                        "type": "info",
+                        "message": "Server update available",
+                    })
+        except Exception as exc:
+            logger.debug("Extended health check: system info query failed: %s", exc)
+
+        return report
+
     def refresh_item(self, item_id, item_type=None):
         """Refresh metadata for a specific item.
 

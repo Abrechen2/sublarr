@@ -1,0 +1,535 @@
+name: CI - Tests, Linting & Type Checking
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION_MATRIX: '["3.11", "3.12"]'
+  NODE_VERSION_MATRIX: '["20", "21"]'
+
+jobs:
+  backend:
+    name: Backend (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.11, 3.12]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run ruff (linting)
+        working-directory: ./backend
+        run: |
+          ruff check .
+
+      - name: Run ruff (formatting check)
+        working-directory: ./backend
+        run: |
+          ruff format --check .
+
+      - name: Run mypy (type checking)
+        working-directory: ./backend
+        run: |
+          mypy . --config-file mypy.ini
+        # Removed continue-on-error: type checking is now mandatory for reliability
+
+      - name: Run pytest with coverage
+        working-directory: ./backend
+        run: |
+          pytest --cov=. --cov-report=xml --cov-report=html --cov-report=term
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./backend/coverage.xml
+          flags: backend
+          name: backend-coverage
+          fail_ci_if_error: false
+        continue-on-error: true
+        # Coverage upload is informational, not blocking
+
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage-html-${{ matrix.python-version }}
+          path: backend/htmlcov/
+          retention-days: 7
+
+  frontend:
+    name: Frontend (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 21]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: ./frontend
+        run: npm run lint
+
+      - name: Run Prettier (formatting check)
+        working-directory: ./frontend
+        run: npm run format:check
+
+      - name: Run TypeScript type check
+        working-directory: ./frontend
+        run: npx tsc --noEmit
+
+      - name: Run vitest with coverage
+        working-directory: ./frontend
+        run: npm run test:coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./frontend/coverage/coverage-final.json
+          flags: frontend
+          name: frontend-coverage
+          fail_ci_if_error: false
+        continue-on-error: true
+        # Coverage upload is informational, not blocking
+
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage-html-${{ matrix.node-version }}
+          path: frontend/coverage/
+          retention-days: 7
+
+  coverage-summary:
+    name: Coverage Summary
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Coverage Comment
+        uses: py-cov-action/python-coverage-comment-action@v3
+        if: github.event_name == 'pull_request'
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BACKEND_COVERAGE_PATH: backend/coverage.xml
+          FRONTEND_COVERAGE_PATH: frontend/coverage/coverage-final.json
+        continue-on-error: true
+
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Node dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      # Python Dead Code Detection
+      - name: Run vulture (Dead Code Detection)
+        working-directory: ./backend
+        run: |
+          vulture . --min-confidence 80 --config .vulture.ini || true
+        continue-on-error: true
+
+      # Python Security Scanning
+      - name: Run bandit (Security Scanning)
+        working-directory: ./backend
+        run: |
+          bandit -r . -c bandit.yml -f json -o bandit-report.json || true
+          bandit -r . -c bandit.yml || true
+        continue-on-error: true
+
+      # TypeScript Dead Code Detection
+      - name: Run ts-prune (Dead Code Detection)
+        working-directory: ./frontend
+        run: |
+          npm run dead-code || true
+        continue-on-error: true
+
+      # Code Metrics
+      - name: Run radon (Complexity Metrics)
+        working-directory: ./backend
+        run: |
+          radon cc . --min B --json > metrics_complexity.json || echo "radon not available"
+          radon mi . --min B --json > metrics_maintainability.json || echo "radon not available"
+        continue-on-error: true
+
+      - name: Upload code quality reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: code-quality-reports
+          path: |
+            backend/bandit-report.json
+            backend/metrics_*.json
+          retention-days: 7
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [backend]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run integration tests
+        working-directory: ./backend
+        run: |
+          pytest tests/integration/ -v --tb=short
+
+  e2e-tests:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: [frontend]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: ./frontend
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: Start backend server
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python server.py &
+          sleep 5
+        env:
+          SUBLARR_API_KEY: ""
+          SUBLARR_LOG_LEVEL: "ERROR"
+
+      - name: Run E2E tests
+        working-directory: ./frontend
+        run: npm run test:e2e
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:5765
+        continue-on-error: true
+        # E2E tests are flaky in CI - keep optional for now, but track failures
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Python dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run backend performance tests
+        working-directory: ./backend
+        run: |
+          pytest tests/performance/ -v --benchmark-only
+        continue-on-error: true
+
+      - name: Run Lighthouse CI
+        working-directory: ./frontend
+        run: |
+          npx @lhci/cli autorun || echo "Lighthouse CI skipped (optional dependency)"
+        continue-on-error: true
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-test-results
+          path: |
+            backend/.benchmarks/
+            frontend/.lighthouseci/
+          retention-days: 30
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pip-audit
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Node dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      # Python Security Scan
+      - name: Run pip-audit (Python vulnerabilities)
+        working-directory: ./backend
+        run: |
+          pip-audit --desc --format json --output pip-audit-report.json || true
+          pip-audit --desc --fail-on=high || true
+        continue-on-error: true
+        # Security scans: fail on high/critical, but don't block CI yet
+
+      # Node.js Security Scan
+      - name: Run npm audit (Node.js vulnerabilities)
+        working-directory: ./frontend
+        run: |
+          npm audit --json > npm-audit-report.json || true
+          npm audit --audit-level=high || true
+        continue-on-error: true
+        # Security scans: fail on high/critical, but don't block CI yet
+
+      # Container Security Scan
+      - name: Install Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          trivy_version: 'latest'
+
+      - name: Run Trivy (Container vulnerabilities)
+        run: |
+          trivy fs --security-checks vuln --format json --output trivy-report.json . || true
+          trivy fs --security-checks vuln . || true
+        continue-on-error: true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            backend/pip-audit-report.json
+            frontend/npm-audit-report.json
+            trivy-report.json
+          retention-days: 30
+
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install liccheck
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Node dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      # Python License Check
+      - name: Run liccheck (Python licenses)
+        working-directory: ./backend
+        run: |
+          # Create liccheck.ini if needed
+          if [ ! -f "liccheck.ini" ]; then
+            cat > liccheck.ini << 'EOF'
+[Licenses]
+authorized_licenses:
+    mit, apache-2.0, bsd-2-clause, bsd-3-clause, isc,
+    gpl-2.0, gpl-3.0, lgpl-2.1, lgpl-3.0, mpl-2.0,
+    python-2.0, psf, unlicense, cc0-1.0
+authorized_packages:
+[General]
+python_requires: >=3.11
+EOF
+          fi
+          liccheck -r requirements.txt --level=ERROR || true
+        continue-on-error: true
+
+      # Node.js License Check
+      - name: Run license-checker (Node.js licenses)
+        working-directory: ./frontend
+        run: |
+          npx license-checker --json > license-report.json || true
+          # Check against whitelist (basic check)
+          npx license-checker --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;GPL-3.0;LGPL-2.1;LGPL-3.0;MPL-2.0" || true
+        continue-on-error: true
+
+      - name: Upload license reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: license-reports
+          path: |
+            frontend/license-report.json
+          retention-days: 30
+
+  ci-status:
+    name: CI Status Check
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, code-quality, security-scan, license-check, integration-tests]
+    if: always()
+    steps:
+      - name: Check critical job results
+        run: |
+          # Critical jobs that must pass
+          CRITICAL_JOBS="backend frontend integration-tests"
+          FAILED_JOBS=""
+          
+          for job in $CRITICAL_JOBS; do
+            result=$(echo "${{ needs.$job.result }}" | tr '[:upper:]' '[:lower:]')
+            if [ "$result" != "success" ]; then
+              FAILED_JOBS="$FAILED_JOBS $job"
+            fi
+          done
+          
+          if [ -n "$FAILED_JOBS" ]; then
+            echo "❌ Critical CI jobs failed:$FAILED_JOBS"
+            exit 1
+          fi
+          
+          # Warn about optional job failures
+          OPTIONAL_JOBS="code-quality security-scan license-check"
+          WARNINGS=""
+          
+          for job in $OPTIONAL_JOBS; do
+            result=$(echo "${{ needs.$job.result }}" | tr '[:upper:]' '[:lower:]')
+            if [ "$result" != "success" ]; then
+              WARNINGS="$WARNINGS $job"
+            fi
+          done
+          
+          if [ -n "$WARNINGS" ]; then
+            echo "⚠️  Optional CI jobs had issues:$WARNINGS (not blocking)"
+          fi
+          
+          echo "✅ All critical CI jobs passed successfully"

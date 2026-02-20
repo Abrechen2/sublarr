@@ -1,0 +1,91 @@
+{
+  "welcome": {
+    "title": "Willkommen bei Sublarr",
+    "subtitle": "Lass uns deinen Untertitel-Manager in wenigen Schritten einrichten."
+  },
+  "steps": {
+    "mode": "Einrichtungsmodus",
+    "arr": "Sonarr / Radarr",
+    "standalone": "Standalone-Ordner",
+    "pathmapping": "Pfad-Zuordnung",
+    "providers": "Provider",
+    "ollama": "Ollama",
+    "mediaservers": "Medienserver (Optional)",
+    "scan": "Erster Scan"
+  },
+  "step_info": "Schritt {{step}} von {{total}}",
+  "mode_step": {
+    "description": "Waehle, wie du Sublarr verwenden moechtest.",
+    "arr_title": "Sonarr / Radarr Modus",
+    "arr_description": "Verwende Sonarr und/oder Radarr fuer automatische Medienerkennung",
+    "standalone_title": "Standalone-Modus",
+    "standalone_description": "Zeige direkt auf Medienordner, kein Sonarr/Radarr noetig"
+  },
+  "arr_step": {
+    "description": "Verbinde deine *arr-Instanzen, um fehlende Untertitel zu erkennen.",
+    "sonarr_url": "Sonarr URL",
+    "sonarr_api_key": "Sonarr API Key",
+    "radarr_url": "Radarr URL (optional)",
+    "radarr_api_key": "Radarr API Key (optional)"
+  },
+  "standalone_step": {
+    "description": "Zeige Sublarr direkt auf deine Medienordner.",
+    "tmdb_api_key": "TMDB API Key (fuer Metadaten erforderlich)",
+    "tvdb_api_key": "TVDB API Key (optional)",
+    "media_folders": "Medienordner",
+    "media_folders_help": "Fuege Ordner mit deinen Mediendateien hinzu. Sublarr wird sie nach Serien und Filmen durchsuchen."
+  },
+  "pathmapping_step": {
+    "description": "Ordne entfernte Pfade lokalen Pfaden zu (wenn *arr auf einem anderen Host laeuft).",
+    "label": "Pfad-Zuordnung",
+    "placeholder": "/data/media=/mnt/media;/anime=/share/anime",
+    "help": "Format: entfernter_Prefix=lokaler_Prefix (Semikolon-getrennt fuer mehrere). Leer lassen, wenn Sublarr auf demselben Host wie Sonarr/Radarr laeuft."
+  },
+  "providers_step": {
+    "description": "Konfiguriere API-Schluessel der Untertitel-Provider fuer die Suche.",
+    "info": "AnimeTosho funktioniert ohne API-Schluessel. Fuege andere fuer breitere Abdeckung hinzu.",
+    "opensubtitles_api_key": "OpenSubtitles API Key",
+    "jimaku_api_key": "Jimaku API Key",
+    "subdl_api_key": "SubDL API Key"
+  },
+  "ollama_step": {
+    "description": "Richte das LLM-Uebersetzungs-Backend ein.",
+    "url": "Ollama URL",
+    "model": "Ollama Modell",
+    "source_language": "Quellsprache",
+    "source_language_name": "Name der Quellsprache",
+    "target_language": "Zielsprache",
+    "target_language_name": "Name der Zielsprache",
+    "test_connection": "Ollama-Verbindung testen",
+    "connection_successful": "Ollama-Verbindung erfolgreich!",
+    "connection_failed": "Ollama nicht erreichbar",
+    "test_failed": "Verbindungstest fehlgeschlagen"
+  },
+  "mediaservers_step": {
+    "description": "Konfiguriere Medienserver fuer automatische Bibliotheksaktualisierung nach Untertitel-Downloads.",
+    "info": "Fuege Medienserver fuer automatische Bibliotheksaktualisierung nach Untertitel-Downloads hinzu. Du kannst dies ueberspringen und spaeter in den Einstellungen konfigurieren.",
+    "server_name": "Servername",
+    "connection_successful": "Verbindung erfolgreich",
+    "test_failed": "Test fehlgeschlagen"
+  },
+  "scan_step": {
+    "description": "Fuehre deinen ersten Scan aus, um fehlende Untertitel zu finden.",
+    "info": "Starte einen Scan, um Episoden und Filme mit fehlenden Untertiteln zu finden.",
+    "start_scan": "Ersten Scan starten",
+    "scan_started": "Scan gestartet! Pruefe die Gesucht-Seite fuer Ergebnisse.",
+    "standalone_scan_started": "Standalone-Scan gestartet!",
+    "wanted_scan_started": "Gesucht-Scan gestartet!",
+    "scan_failed": "Scan fehlgeschlagen"
+  },
+  "navigation": {
+    "back": "Zurueck",
+    "next": "Weiter",
+    "skip_setup": "Einrichtung ueberspringen",
+    "skip": "Ueberspringen",
+    "save_next": "Speichern & Weiter",
+    "finish": "Einrichtung abschliessen"
+  },
+  "errors": {
+    "save_failed": "Einstellungen konnten nicht gespeichert werden"
+  }
+}

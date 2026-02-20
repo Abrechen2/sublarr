@@ -4,7 +4,8 @@ import os
 import tempfile
 import pytest
 from config import reload_settings
-from database import get_db, create_job, update_job, get_job, record_stat, get_stats_summary, close_db
+from db import get_db, close_db
+from db.jobs import create_job, update_job, get_job, record_stat, get_stats_summary
 
 
 @pytest.fixture

@@ -1,14 +1,30 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, lazy, Suspense } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry } from '@/hooks/useApi'
 import {
   ArrowLeft, Loader2, ChevronDown, ChevronRight,
   Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search, Clock,
   Download, X, ChevronUp, BookOpen, Plus, Edit2, Trash2, Check,
+  Eye, Pencil, Columns2, Timer, ShieldCheck,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
+import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
+import { ComparisonSelector } from '@/components/comparison/ComparisonSelector'
+import { HealthBadge } from '@/components/health/HealthBadge'
 import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry } from '@/lib/types'
+
+const SubtitleComparison = lazy(() => import('@/components/comparison/SubtitleComparison').then(m => ({ default: m.SubtitleComparison })))
+const SyncControls = lazy(() => import('@/components/sync/SyncControls').then(m => ({ default: m.SyncControls })))
+const HealthCheckPanel = lazy(() => import('@/components/health/HealthCheckPanel').then(m => ({ default: m.HealthCheckPanel })))
+
+/** Derive subtitle file path from media path + language + format. */
+function deriveSubtitlePath(mediaPath: string, lang: string, format: string): string {
+  const lastDot = mediaPath.lastIndexOf('.')
+  const base = lastDot > 0 ? mediaPath.substring(0, lastDot) : mediaPath
+  return `${base}.${lang}.${format}`
+}
 
 function SubBadge({ lang, format }: { lang: string; format: string }) {
   const hasFile = format === 'ass' || format === 'srt'
@@ -51,6 +67,7 @@ function EpisodeSearchPanel({ results, isLoading, onProcess }: {
   isLoading: boolean
   onProcess: (wantedId: number) => void
 }) {
+  const { t } = useTranslation('library')
   if (isLoading) {
     return (
       <div
@@ -58,7 +75,7 @@ function EpisodeSearchPanel({ results, isLoading, onProcess }: {
         style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}
       >
         <Loader2 size={14} className="animate-spin" />
-        Searching providers...
+        {t('series_detail.searching_providers')}
       </div>
     )
   }
@@ -76,7 +93,7 @@ function EpisodeSearchPanel({ results, isLoading, onProcess }: {
         className="px-6 py-4 text-sm"
         style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-muted)' }}
       >
-        No results found from any provider.
+        {t('series_detail.no_search_results')}
       </div>
     )
   }
@@ -85,7 +102,7 @@ function EpisodeSearchPanel({ results, isLoading, onProcess }: {
     <div style={{ backgroundColor: 'var(--bg-primary)' }} className="px-4 py-3">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-          Search Results ({allResults.length})
+          {t('series_detail.search_results', { count: allResults.length })}
         </span>
         <button
           onClick={() => onProcess(results.wanted_id)}
@@ -93,7 +110,7 @@ function EpisodeSearchPanel({ results, isLoading, onProcess }: {
           style={{ backgroundColor: 'var(--accent)' }}
         >
           <Download size={11} />
-          Download Best
+          {t('series_detail.download_best')}
         </button>
       </div>
       <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
@@ -161,6 +178,7 @@ function EpisodeSearchPanel({ results, isLoading, onProcess }: {
 // ─── Glossary Panel ────────────────────────────────────────────────────────
 
 function GlossaryPanel({ seriesId }: { seriesId: number }) {
+  const { t } = useTranslation('library')
   const { data, isLoading } = useGlossaryEntries(seriesId)
   const createEntry = useCreateGlossaryEntry()
   const updateEntry = useUpdateGlossaryEntry()
@@ -243,7 +261,7 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
         style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}
       >
         <Loader2 size={14} className="animate-spin" />
-        Loading glossary...
+        {t('series_detail.loading_glossary')}
       </div>
     )
   }
@@ -252,7 +270,7 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
     <div style={{ backgroundColor: 'var(--bg-primary)' }} className="px-4 py-3 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-          Glossary ({entries.length})
+          {t('series_detail.glossary')} ({entries.length})
         </span>
         <button
           onClick={() => {
@@ -263,14 +281,14 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
           style={{ backgroundColor: 'var(--accent)' }}
         >
           <Plus size={11} />
-          Add Entry
+          {t('series_detail.add_entry')}
         </button>
       </div>
 
       {/* Search */}
       <input
         type="text"
-        placeholder="Search glossary..."
+        placeholder={t('series_detail.search_glossary')}
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         className="w-full px-3 py-1.5 rounded text-xs"
@@ -288,12 +306,12 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--accent-dim)' }}
         >
           <div className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {editingId ? 'Edit Entry' : 'New Entry'}
+            {editingId ? t('series_detail.edit_entry') : t('series_detail.new_entry')}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <input
               type="text"
-              placeholder="Source term"
+              placeholder={t('series_detail.source_term')}
               value={formData.source_term}
               onChange={(e) => setFormData((f) => ({ ...f, source_term: e.target.value }))}
               className="px-2 py-1.5 rounded text-xs"
@@ -305,7 +323,7 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
             />
             <input
               type="text"
-              placeholder="Target term"
+              placeholder={t('series_detail.target_term')}
               value={formData.target_term}
               onChange={(e) => setFormData((f) => ({ ...f, target_term: e.target.value }))}
               className="px-2 py-1.5 rounded text-xs"
@@ -318,7 +336,7 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
           </div>
           <input
             type="text"
-            placeholder="Notes (optional)"
+            placeholder={t('series_detail.notes_optional')}
             value={formData.notes}
             onChange={(e) => setFormData((f) => ({ ...f, notes: e.target.value }))}
             className="w-full px-2 py-1.5 rounded text-xs"
@@ -340,10 +358,10 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
               ) : (
                 <Check size={10} />
               )}
-              Save
+              {t('series_detail.save')}
             </button>
             <button onClick={resetForm} className="flex items-center gap-1 px-2.5 py-1 rounded text-xs" style={{ color: 'var(--text-muted)' }}>
-              <X size={10} /> Cancel
+              <X size={10} /> {t('series_detail.cancel')}
             </button>
           </div>
         </div>
@@ -352,7 +370,7 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
       {/* Entries List */}
       {filteredEntries.length === 0 ? (
         <div className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>
-          {searchQuery ? 'No entries match your search' : 'No glossary entries yet'}
+          {searchQuery ? t('series_detail.no_glossary_match') : t('series_detail.no_glossary_entries')}
         </div>
       ) : (
         <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
@@ -417,6 +435,7 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
   entries: EpisodeHistoryEntry[]
   isLoading: boolean
 }) {
+  const { t } = useTranslation('library')
   if (isLoading) {
     return (
       <div
@@ -424,7 +443,7 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
         style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}
       >
         <Loader2 size={14} className="animate-spin" />
-        Loading history...
+        {t('series_detail.loading_history')}
       </div>
     )
   }
@@ -435,7 +454,7 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
         className="px-6 py-4 text-sm"
         style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-muted)' }}
       >
-        No history entries for this episode.
+        {t('series_detail.no_history')}
       </div>
     )
   }
@@ -443,7 +462,7 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
   return (
     <div style={{ backgroundColor: 'var(--bg-primary)' }} className="px-4 py-3">
       <span className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--text-muted)' }}>
-        History ({entries.length})
+        {t('series_detail.history_count', { count: entries.length })}
       </span>
       <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
         <table className="w-full">
@@ -509,7 +528,7 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
 
 // ─── Season Group ──────────────────────────────────────────────────────────
 
-function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onHistory, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess }: {
+function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onHistory, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onHealthCheck, healthScores, t }: {
   season: number
   episodes: EpisodeInfo[]
   targetLanguages: string[]
@@ -522,6 +541,13 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
   historyEntries: EpisodeHistoryEntry[]
   historyLoading: boolean
   onProcess: (wantedId: number) => void
+  onPreviewSub: (filePath: string) => void
+  onEditSub: (filePath: string) => void
+  onCompare: (ep: EpisodeInfo) => void
+  onSync: (filePath: string) => void
+  onHealthCheck: (filePath: string) => void
+  healthScores: Record<string, number | null>
+  t: (key: string, opts?: Record<string, unknown>) => string
 }) {
   const [expanded, setExpanded] = useState(true)
 
@@ -542,10 +568,10 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
           <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
         )}
         <span className="text-sm font-semibold">
-          Season {season}
+          {t('series_detail.season', { number: season })}
         </span>
         <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>
-          ({episodes.length} episodes)
+          ({t('series_detail.episodes_count', { count: episodes.length })})
         </span>
       </button>
 
@@ -579,13 +605,13 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                         <div
                           className="w-2 h-2 rounded-full"
                           style={{ backgroundColor: 'var(--success)' }}
-                          title="Has file"
+                          title={t('series_detail.has_file')}
                         />
                       ) : (
                         <div
                           className="w-2 h-2 rounded-full"
                           style={{ backgroundColor: 'var(--text-muted)' }}
-                          title="No file"
+                          title={t('series_detail.no_file')}
                         />
                       )}
                     </div>
@@ -600,7 +626,7 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
 
                     {/* Title */}
                     <div className="flex-1 min-w-0 text-sm truncate" title={ep.title}>
-                      {ep.title || 'TBA'}
+                      {ep.title || t('series_detail.tba')}
                     </div>
 
                     {/* Audio */}
@@ -624,15 +650,42 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                     </div>
 
                     {/* Subtitles */}
-                    <div className="w-40 flex-shrink-0 flex gap-1 flex-wrap">
+                    <div className="w-40 flex-shrink-0 flex gap-1 flex-wrap items-center">
                       {ep.has_file && targetLanguages.length > 0 ? (
-                        targetLanguages.map((lang) => (
-                          <SubBadge
-                            key={lang}
-                            lang={lang}
-                            format={ep.subtitles[lang] || ''}
-                          />
-                        ))
+                        targetLanguages.map((lang) => {
+                          const subFormat = ep.subtitles[lang] || ''
+                          const hasFile = subFormat === 'ass' || subFormat === 'srt'
+                          return (
+                            <span key={lang} className="inline-flex items-center gap-0.5">
+                              <SubBadge lang={lang} format={subFormat} />
+                              {hasFile && (
+                                <>
+                                  <HealthBadge score={healthScores[deriveSubtitlePath(ep.file_path, lang, subFormat)] ?? null} size="sm" />
+                                  <button
+                                    onClick={() => onPreviewSub(deriveSubtitlePath(ep.file_path, lang, subFormat))}
+                                    className="p-0.5 rounded transition-colors"
+                                    style={{ color: 'var(--text-muted)' }}
+                                    title="Preview subtitle"
+                                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
+                                  >
+                                    <Eye size={12} />
+                                  </button>
+                                  <button
+                                    onClick={() => onEditSub(deriveSubtitlePath(ep.file_path, lang, subFormat))}
+                                    className="p-0.5 rounded transition-colors"
+                                    style={{ color: 'var(--text-muted)' }}
+                                    title="Edit subtitle"
+                                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
+                                  >
+                                    <Pencil size={12} />
+                                  </button>
+                                </>
+                              )}
+                            </span>
+                          )
+                        })
                       ) : (
                         <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
                           {ep.has_file ? '\u2014' : 'No file'}
@@ -641,13 +694,13 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                     </div>
 
                     {/* Actions */}
-                    <div className="w-20 flex-shrink-0 flex gap-1 justify-end">
+                    <div className="w-40 flex-shrink-0 flex gap-1 justify-end">
                       {isExpanded && (
                         <button
                           onClick={onClose}
                           className="p-1.5 rounded transition-colors"
                           style={{ color: 'var(--text-muted)' }}
-                          title="Close"
+                          title={t('series_detail.close')}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.color = 'var(--error)'
                           }}
@@ -658,6 +711,81 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                           <X size={14} />
                         </button>
                       )}
+                      {/* Compare button: only show when 2+ subtitle files */}
+                      {(() => {
+                        const subCount = ep.has_file ? Object.values(ep.subtitles).filter(f => f === 'ass' || f === 'srt').length : 0
+                        return subCount >= 2 ? (
+                          <button
+                            onClick={() => onCompare(ep)}
+                            className="p-1.5 rounded transition-colors"
+                            style={{ color: 'var(--text-muted)' }}
+                            title="Compare subtitles"
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = 'var(--accent)'
+                              e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = 'var(--text-muted)'
+                              e.currentTarget.style.backgroundColor = ''
+                            }}
+                          >
+                            <Columns2 size={14} />
+                          </button>
+                        ) : null
+                      })()}
+                      {/* Sync button: only show when at least 1 subtitle file */}
+                      {(() => {
+                        const hasAnySub = ep.has_file && Object.values(ep.subtitles).some(f => f === 'ass' || f === 'srt')
+                        if (!hasAnySub) return null
+                        // Pick the first available subtitle for sync
+                        const firstLang = Object.entries(ep.subtitles).find(([, f]) => f === 'ass' || f === 'srt')
+                        if (!firstLang) return null
+                        const syncPath = deriveSubtitlePath(ep.file_path, firstLang[0], firstLang[1])
+                        return (
+                          <button
+                            onClick={() => onSync(syncPath)}
+                            className="p-1.5 rounded transition-colors"
+                            style={{ color: 'var(--text-muted)' }}
+                            title="Sync timing"
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = 'var(--accent)'
+                              e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = 'var(--text-muted)'
+                              e.currentTarget.style.backgroundColor = ''
+                            }}
+                          >
+                            <Timer size={14} />
+                          </button>
+                        )
+                      })()}
+                      {/* Health button: only show when at least 1 subtitle file */}
+                      {(() => {
+                        const hasAnySub = ep.has_file && Object.values(ep.subtitles).some(f => f === 'ass' || f === 'srt')
+                        if (!hasAnySub) return null
+                        const firstLang = Object.entries(ep.subtitles).find(([, f]) => f === 'ass' || f === 'srt')
+                        if (!firstLang) return null
+                        const healthPath = deriveSubtitlePath(ep.file_path, firstLang[0], firstLang[1])
+                        return (
+                          <button
+                            onClick={() => onHealthCheck(healthPath)}
+                            className="p-1.5 rounded transition-colors"
+                            style={{ color: 'var(--text-muted)' }}
+                            title="Health check"
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = 'var(--accent)'
+                              e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = 'var(--text-muted)'
+                              e.currentTarget.style.backgroundColor = ''
+                            }}
+                          >
+                            <ShieldCheck size={14} />
+                          </button>
+                        )
+                      })()}
                       <button
                         onClick={() => onSearch(ep)}
                         disabled={!ep.has_file}
@@ -666,7 +794,7 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                           color: isExpanded && mode === 'search' ? 'var(--accent)' : 'var(--text-muted)',
                           opacity: ep.has_file ? 1 : 0.4,
                         }}
-                        title="Search subtitles"
+                        title={t('series_detail.search_subtitles')}
                         onMouseEnter={(e) => {
                           if (ep.has_file) {
                             e.currentTarget.style.color = 'var(--accent)'
@@ -694,7 +822,7 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                           color: isExpanded && mode === 'history' ? 'var(--accent)' : 'var(--text-muted)',
                           opacity: ep.has_file ? 1 : 0.4,
                         }}
-                        title="History"
+                        title={t('series_detail.history')}
                         onMouseEnter={(e) => {
                           if (ep.has_file) {
                             e.currentTarget.style.color = 'var(--accent)'
@@ -747,6 +875,7 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export function SeriesDetailPage() {
+  const { t } = useTranslation('library')
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const seriesId = Number(id)
@@ -757,6 +886,19 @@ export function SeriesDetailPage() {
   const [showGlossary, setShowGlossary] = useState(false)
   const [searchResults, setSearchResults] = useState<Record<number, WantedSearchResponse>>({})
   const [historyEntries, setHistoryEntries] = useState<Record<number, EpisodeHistoryEntry[]>>({})
+
+  // Subtitle editor modal state
+  const [editorFilePath, setEditorFilePath] = useState<string | null>(null)
+  const [editorMode, setEditorMode] = useState<'preview' | 'edit'>('preview')
+
+  // Comparison and sync state
+  const [comparisonPaths, setComparisonPaths] = useState<string[] | null>(null)
+  const [syncFilePath, setSyncFilePath] = useState<string | null>(null)
+  const [compareSelectorEp, setCompareSelectorEp] = useState<EpisodeInfo | null>(null)
+
+  // Health check state
+  const [healthCheckPath, setHealthCheckPath] = useState<string | null>(null)
+  const [healthScores, setHealthScores] = useState<Record<string, number | null>>({})
 
   const episodeSearch = useEpisodeSearch()
   const episodeHistory = useEpisodeHistory(expandedEp?.mode === 'history' ? expandedEp.id : 0)
@@ -810,6 +952,18 @@ export function SeriesDetailPage() {
     setExpandedEp(null)
   }, [])
 
+  const handleCompare = useCallback((ep: EpisodeInfo) => {
+    setCompareSelectorEp(ep)
+  }, [])
+
+  const handleSync = useCallback((filePath: string) => {
+    setSyncFilePath(filePath)
+  }, [])
+
+  const handleHealthCheck = useCallback((filePath: string) => {
+    setHealthCheckPath(filePath)
+  }, [])
+
   // Group episodes by season
   const seasonGroups = useMemo(() => {
     if (!series?.episodes) return []
@@ -856,13 +1010,13 @@ export function SeriesDetailPage() {
           style={{ color: 'var(--text-secondary)' }}
         >
           <ArrowLeft size={14} />
-          Back to Library
+          {t('series_detail.back_to_library')}
         </button>
         <div
           className="rounded-lg p-8 text-center"
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
         >
-          <p style={{ color: 'var(--error)' }}>Failed to load series details.</p>
+          <p style={{ color: 'var(--error)' }}>{t('series_detail.failed_to_load')}</p>
         </div>
       </div>
     )
@@ -945,7 +1099,7 @@ export function SeriesDetailPage() {
                 style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
               >
                 <FileVideo size={11} />
-                {series.episode_file_count} files
+                {t('series_detail.files', { count: series.episode_file_count })}
               </span>
               <span
                 className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
@@ -955,14 +1109,14 @@ export function SeriesDetailPage() {
                 }}
               >
                 <AlertTriangle size={11} />
-                {missingCount} missing subtitles
+                {t('series_detail.missing_subtitles', { count: missingCount })}
               </span>
               <span
                 className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
                 style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
               >
                 <Play size={11} />
-                {series.status === 'continuing' ? 'Continuing' : series.status === 'ended' ? 'Ended' : series.status}
+                {series.status === 'continuing' ? t('series_detail.continuing') : series.status === 'ended' ? t('series_detail.ended') : series.status}
               </span>
               {series.tags.length > 0 && (
                 <span
@@ -1022,7 +1176,7 @@ export function SeriesDetailPage() {
                 }}
               >
                 <BookOpen size={11} />
-                Glossary
+                {t('series_detail.glossary')}
               </button>
             </div>
 
@@ -1064,31 +1218,31 @@ export function SeriesDetailPage() {
             className="w-12 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider"
             style={{ color: 'var(--text-secondary)' }}
           >
-            Ep
+            {t('series_detail.ep')}
           </div>
           <div
             className="flex-1 text-[11px] font-semibold uppercase tracking-wider"
             style={{ color: 'var(--text-secondary)' }}
           >
-            Title
+            {t('series_detail.title_col')}
           </div>
           <div
             className="w-24 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider"
             style={{ color: 'var(--text-secondary)' }}
           >
-            Audio
+            {t('series_detail.audio')}
           </div>
           <div
             className="w-40 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider"
             style={{ color: 'var(--text-secondary)' }}
           >
-            Subtitles
+            {t('series_detail.subtitles')}
           </div>
           <div
-            className="w-20 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider text-right"
+            className="w-40 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider text-right"
             style={{ color: 'var(--text-secondary)' }}
           >
-            Actions
+            {t('series_detail.actions')}
           </div>
         </div>
 
@@ -1108,15 +1262,148 @@ export function SeriesDetailPage() {
             historyEntries={expandedEp ? historyEntries[expandedEp.id] ?? [] : []}
             historyLoading={expandedEp?.mode === 'history' && !(expandedEp.id in historyEntries)}
             onProcess={handleProcess}
+            onPreviewSub={(path) => { setEditorFilePath(path); setEditorMode('preview') }}
+            onEditSub={(path) => { setEditorFilePath(path); setEditorMode('edit') }}
+            onCompare={handleCompare}
+            onSync={handleSync}
+            onHealthCheck={handleHealthCheck}
+            healthScores={healthScores}
+            t={t}
           />
         ))}
 
         {seasonGroups.length === 0 && (
           <div className="p-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-            No episodes found.
+            {t('series_detail.no_episodes')}
           </div>
         )}
       </div>
+
+      {/* Subtitle Editor Modal */}
+      {editorFilePath && (
+        <SubtitleEditorModal
+          filePath={editorFilePath}
+          initialMode={editorMode}
+          onClose={() => setEditorFilePath(null)}
+        />
+      )}
+
+      {/* Comparison Selector Modal */}
+      {compareSelectorEp && series && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setCompareSelectorEp(null)
+          }}
+        >
+          <div className="w-full max-w-md mx-4">
+            <ComparisonSelector
+              availableFiles={
+                Object.entries(compareSelectorEp.subtitles)
+                  .filter(([, f]) => f === 'ass' || f === 'srt')
+                  .map(([lang, fmt]) => ({
+                    path: deriveSubtitlePath(compareSelectorEp.file_path, lang, fmt),
+                    label: `${lang.toUpperCase()} (${fmt.toUpperCase()})`,
+                  }))
+              }
+              onCompare={(paths) => {
+                setComparisonPaths(paths)
+                setCompareSelectorEp(null)
+              }}
+              onClose={() => setCompareSelectorEp(null)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Comparison View Modal */}
+      {comparisonPaths && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col"
+          style={{ backgroundColor: 'var(--bg-primary)' }}
+        >
+          <Suspense
+            fallback={
+              <div className="flex flex-1 items-center justify-center" style={{ color: 'var(--text-muted)' }}>
+                <Loader2 size={24} className="animate-spin" />
+              </div>
+            }
+          >
+            <SubtitleComparison
+              filePaths={comparisonPaths}
+              onClose={() => setComparisonPaths(null)}
+            />
+          </Suspense>
+        </div>
+      )}
+
+      {/* Sync Controls Modal */}
+      {syncFilePath && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSyncFilePath(null)
+          }}
+        >
+          <div className="w-full max-w-lg mx-4">
+            <Suspense
+              fallback={
+                <div
+                  className="rounded-lg p-8 flex items-center justify-center"
+                  style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+                >
+                  <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent)' }} />
+                </div>
+              }
+            >
+              <SyncControls
+                filePath={syncFilePath}
+                onSynced={() => setSyncFilePath(null)}
+                onClose={() => setSyncFilePath(null)}
+              />
+            </Suspense>
+          </div>
+        </div>
+      )}
+
+      {/* Health Check Panel Modal */}
+      {healthCheckPath && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setHealthCheckPath(null)
+          }}
+        >
+          <div className="w-full max-w-lg mx-4">
+            <Suspense
+              fallback={
+                <div
+                  className="rounded-lg p-8 flex items-center justify-center"
+                  style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+                >
+                  <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent)' }} />
+                </div>
+              }
+            >
+              <HealthCheckPanel
+                filePath={healthCheckPath}
+                onClose={() => setHealthCheckPath(null)}
+                onFixed={() => {
+                  // Update health scores cache when a fix is applied
+                  import('@/api/client').then(({ runHealthCheck }) => {
+                    runHealthCheck(healthCheckPath).then((result) => {
+                      setHealthScores((prev) => ({ ...prev, [healthCheckPath]: result.score }))
+                    }).catch(() => { /* ignore */ })
+                  })
+                }}
+              />
+            </Suspense>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

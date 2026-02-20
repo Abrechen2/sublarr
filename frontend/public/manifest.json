@@ -1,0 +1,42 @@
+{
+  "name": "Sublarr",
+  "short_name": "Sublarr",
+  "description": "Standalone Subtitle Manager & Translator for Anime/Media",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#1DB8D4",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["media", "utilities"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Wanted",
+      "short_name": "Wanted",
+      "description": "View wanted subtitles",
+      "url": "/wanted",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Library",
+      "short_name": "Library",
+      "description": "Browse library",
+      "url": "/library",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

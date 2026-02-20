@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
-import { io, type Socket } from 'socket.io-client'
+import { useSocket } from '@/contexts/WebSocketContext'
 
 interface UseWebSocketOptions {
   onJobUpdate?: (data: unknown) => void
@@ -10,6 +10,7 @@ interface UseWebSocketOptions {
   onWebhookCompleted?: (data: unknown) => void
   onUpgradeCompleted?: (data: unknown) => void
   onWantedScanCompleted?: (data: unknown) => void
+  onWantedScanProgress?: (data: unknown) => void
   onWantedSearchProgress?: (data: unknown) => void
   onWantedSearchCompleted?: (data: unknown) => void
   onWantedBatchProgress?: (data: unknown) => void
@@ -20,8 +21,8 @@ interface UseWebSocketOptions {
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
-  const socketRef = useRef<Socket | null>(null)
-  const [connected, setConnected] = useState(false)
+  const socket = useSocket()
+  const [connected, setConnected] = useState(() => socket?.connected ?? false)
 
   // Keep stable refs for callbacks to avoid stale closures
   const callbackRefs = useRef(options)
@@ -31,21 +32,16 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     callbackRefs.current = options
   })
 
-  // Stable socket connection — runs once
+  // Register event listeners on the shared socket with proper cleanup
   useEffect(() => {
-    const socket = io(window.location.origin, {
-      transports: ['websocket', 'polling'],
-    })
+    if (!socket) return
 
-    socket.on('connect', () => {
-      setConnected(true)
-    })
+    const handleConnect = () => setConnected(true)
+    const handleDisconnect = () => setConnected(false)
 
-    socket.on('disconnect', () => {
-      setConnected(false)
-    })
+    socket.on('connect', handleConnect)
+    socket.on('disconnect', handleDisconnect)
 
-    // Use ref-based handlers so they always call the latest callback
     const events: Array<[string, keyof UseWebSocketOptions]> = [
       ['job_update', 'onJobUpdate'],
       ['batch_progress', 'onBatchProgress'],
@@ -55,6 +51,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       ['webhook_completed', 'onWebhookCompleted'],
       ['upgrade_completed', 'onUpgradeCompleted'],
       ['wanted_scan_completed', 'onWantedScanCompleted'],
+      ['wanted_scan_progress', 'onWantedScanProgress'],
       ['wanted_search_progress', 'onWantedSearchProgress'],
       ['wanted_search_completed', 'onWantedSearchCompleted'],
       ['wanted_batch_progress', 'onWantedBatchProgress'],
@@ -64,25 +61,29 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       ['config_updated', 'onConfigUpdated'],
     ]
 
-    for (const [eventName, callbackKey] of events) {
-      socket.on(eventName, (data: unknown) => {
-        callbackRefs.current[callbackKey]?.(data)
-      })
-    }
-
-    socketRef.current = socket
+    // Store named handler references so only this hook's listeners are removed on cleanup
+    const handlers: Array<[string, (data: unknown) => void]> = events.map(
+      ([eventName, callbackKey]) => {
+        const handler = (data: unknown) => {
+          callbackRefs.current[callbackKey]?.(data)
+        }
+        socket.on(eventName, handler)
+        return [eventName, handler]
+      }
+    )
 
     return () => {
-      for (const [eventName] of events) {
-        socket.off(eventName)
+      socket.off('connect', handleConnect)
+      socket.off('disconnect', handleDisconnect)
+      for (const [eventName, handler] of handlers) {
+        socket.off(eventName, handler)
       }
-      socket.disconnect()
     }
-  }, [])
+  }, [socket])
 
   const emit = useCallback((event: string, data?: unknown) => {
-    socketRef.current?.emit(event, data)
-  }, [])
+    socket?.emit(event, data)
+  }, [socket])
 
-  return { connected, emit, socket: socketRef }
+  return { connected, emit, socket }
 }
