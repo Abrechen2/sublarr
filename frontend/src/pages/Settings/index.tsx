@@ -16,9 +16,11 @@ import { WhisperTab } from './WhisperTab'
 import { MediaServersTab } from './MediaServersTab'
 import { EventsHooksTab, ScoringTab } from './EventsTab'
 import { LanguageProfilesTab, LibrarySourcesTab, BackupTab, SubtitleToolsTab } from './AdvancedTab'
+import { ApiKeysTab } from './ApiKeysTab'
 
 const TABS = [
   'General',
+  'API Keys',
   'Translation',
   'Translation Backends',
   'Languages',
@@ -447,6 +449,7 @@ function InstanceEditor({
 // Map internal tab IDs to i18n translation keys
 const TAB_KEYS: Record<string, string> = {
   'General': 'tabs.general',
+  'API Keys': 'tabs.api_keys',
   'Translation': 'tabs.translation',
   'Translation Backends': 'tabs.translation_backends',
   'Languages': 'tabs.languages',
@@ -588,6 +591,7 @@ export function SettingsPage() {
   const isScoringTab = activeTab === 'Scoring'
   const isBackupTab = activeTab === 'Backup'
   const isSubtitleToolsTab = activeTab === 'Subtitle Tools'
+  const isApiKeysTab = activeTab === 'API Keys'
 
   if (isLoading) {
     return (
@@ -656,7 +660,9 @@ export function SettingsPage() {
 
         {/* Content */}
         <div className="flex-1">
-          {isProvidersTab ? (
+          {isApiKeysTab ? (
+            <ApiKeysTab />
+          ) : isProvidersTab ? (
             <ProvidersTab
               values={values}
               onFieldChange={(key, value) => setValues((v) => ({ ...v, [key]: value }))}

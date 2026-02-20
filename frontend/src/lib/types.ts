@@ -827,3 +827,139 @@ export interface BatchActionResult {
   item_ids: number[]
   warning?: string
 }
+
+// ─── API Key Management ──────────────────────────────────────────────────────
+
+export interface ApiKeyService {
+  service: string
+  keys: { name: string; status: 'configured' | 'missing'; masked_value: string }[]
+  testable: boolean
+}
+
+export interface ApiKeyExportData {
+  config: Record<string, string>
+  profiles: unknown[]
+  glossary: unknown[]
+}
+
+export interface BazarrMigrationPreview {
+  config_entries: { key: string; value: string; current_value: string }[]
+  profiles: unknown[]
+  blacklist_count: number
+  warnings: string[]
+}
+
+// ─── Notification Templates ──────────────────────────────────────────────────
+
+export interface NotificationTemplate {
+  id: number
+  name: string
+  title_template: string
+  body_template: string
+  event_type: string | null
+  service_name: string | null
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface NotificationHistoryEntry {
+  id: number
+  event_type: string
+  title: string
+  body: string
+  template_id: number | null
+  status: string
+  error: string
+  sent_at: string
+}
+
+export interface QuietHoursConfig {
+  id: number
+  name: string
+  start_time: string
+  end_time: string
+  days_of_week: number[]
+  exception_events: string[]
+  enabled: boolean
+}
+
+export interface TemplateVariable {
+  name: string
+  description: string
+  sample_value: string
+}
+
+export interface NotificationFilter {
+  include_events: string[]
+  exclude_events: string[]
+  content_filters: { field: string; operator: string; value: string }[]
+}
+
+// ─── Cleanup System ─────────────────────────────────────────────────────────
+
+export interface SubtitleHashEntry {
+  file_path: string
+  content_hash: string
+  file_size: number
+  format: string
+  language: string | null
+  line_count: number | null
+  last_scanned: string
+}
+
+export interface DuplicateGroup {
+  content_hash: string
+  files: SubtitleHashEntry[]
+}
+
+export interface CleanupRule {
+  id: number
+  name: string
+  rule_type: 'dedup' | 'orphaned' | 'old_backups'
+  config_json: Record<string, unknown>
+  enabled: boolean
+  last_run_at: string | null
+  created_at: string
+}
+
+export interface CleanupHistoryEntry {
+  id: number
+  rule_id: number | null
+  action_type: string
+  files_processed: number
+  files_deleted: number
+  bytes_freed: number
+  performed_at: string
+}
+
+export interface DiskSpaceStats {
+  total_files: number
+  total_size_bytes: number
+  by_format: { format: string; count: number; size_bytes: number }[]
+  duplicate_files: number
+  duplicate_size_bytes: number
+  potential_savings_bytes: number
+  trends: { date: string; bytes_freed: number }[]
+}
+
+export interface ScanStatus {
+  status: 'idle' | 'scanning'
+  progress: number
+  total: number
+  scan_id: string | null
+}
+
+export interface CleanupPreviewData {
+  files: { path: string; size_bytes: number; action: string }[]
+  total_size_bytes: number
+  total_files: number
+}
+
+export interface OrphanedFile {
+  file_path: string
+  file_size: number
+  format: string
+  language: string | null
+  last_modified: string
+}

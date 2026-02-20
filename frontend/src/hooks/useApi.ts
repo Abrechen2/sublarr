@@ -39,8 +39,24 @@ import {
   compareSubtitles, advancedSync,
   searchGlobal, getFilterPresets, createFilterPreset, deleteFilterPreset,
   batchAction,
+  getApiKeys, updateApiKey, testApiKey, exportApiKeys, importApiKeys,
+  importBazarrConfig, confirmBazarrImport,
+  getNotificationTemplates, createNotificationTemplate, updateNotificationTemplate, deleteNotificationTemplate,
+  previewNotificationTemplate, getTemplateVariables,
+  getQuietHours, createQuietHours, updateQuietHours, deleteQuietHours,
+  getNotificationHistory, resendNotification,
+  getNotificationFilters, updateNotificationFilters,
+  getCleanupStats, startCleanupScan, getCleanupScanStatus,
+  getDuplicates, deleteDuplicates,
+  scanOrphaned, getOrphanedFiles, deleteOrphaned,
+  getCleanupRules, createCleanupRule, updateCleanupRule, deleteCleanupRule, runCleanupRule,
+  getCleanupHistory, getCleanupPreview,
 } from '@/api/client'
-import type { LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig, FilterScope, BatchAction } from '@/lib/types'
+import type {
+  LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig, FilterScope, BatchAction,
+  NotificationTemplate, QuietHoursConfig, NotificationFilter, BazarrMigrationPreview,
+  CleanupRule,
+} from '@/lib/types'
 
 // ─── Health ──────────────────────────────────────────────────────────────────
 
@@ -1133,5 +1149,309 @@ export function useBatchAction() {
       qc.invalidateQueries({ queryKey: ['wanted'] })
       qc.invalidateQueries({ queryKey: ['library'] })
     },
+  })
+}
+
+// ─── API Key Management ──────────────────────────────────────────────────────
+
+export function useApiKeys() {
+  return useQuery({
+    queryKey: ['api-keys'],
+    queryFn: getApiKeys,
+    staleTime: 30_000,
+  })
+}
+
+export function useUpdateApiKey() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ service, keyName, value }: { service: string; keyName: string; value: string }) =>
+      updateApiKey(service, keyName, value),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['api-keys'] }) },
+  })
+}
+
+export function useTestApiKey() {
+  return useMutation({
+    mutationFn: (service: string) => testApiKey(service),
+  })
+}
+
+export function useExportApiKeys() {
+  return useMutation({
+    mutationFn: () => exportApiKeys(),
+  })
+}
+
+export function useImportApiKeys() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (file: File) => importApiKeys(file),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['api-keys'] }) },
+  })
+}
+
+export function useBazarrMigration() {
+  return useMutation({
+    mutationFn: (file: File) => importBazarrConfig(file),
+  })
+}
+
+export function useConfirmBazarrImport() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (preview: BazarrMigrationPreview) => confirmBazarrImport(preview),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['api-keys'] })
+      void qc.invalidateQueries({ queryKey: ['config'] })
+    },
+  })
+}
+
+// ─── Notification Templates ──────────────────────────────────────────────────
+
+export function useNotificationTemplates() {
+  return useQuery({
+    queryKey: ['notification-templates'],
+    queryFn: getNotificationTemplates,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateNotificationTemplate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (template: Partial<NotificationTemplate>) => createNotificationTemplate(template),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['notification-templates'] }) },
+  })
+}
+
+export function useUpdateNotificationTemplate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<NotificationTemplate> }) =>
+      updateNotificationTemplate(id, data),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['notification-templates'] }) },
+  })
+}
+
+export function useDeleteNotificationTemplate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => deleteNotificationTemplate(id),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['notification-templates'] }) },
+  })
+}
+
+export function usePreviewNotificationTemplate() {
+  return useMutation({
+    mutationFn: (id: number) => previewNotificationTemplate(id),
+  })
+}
+
+export function useTemplateVariables(eventType?: string) {
+  return useQuery({
+    queryKey: ['template-variables', eventType],
+    queryFn: () => getTemplateVariables(eventType),
+    staleTime: 60_000,
+  })
+}
+
+export function useQuietHours() {
+  return useQuery({
+    queryKey: ['quiet-hours'],
+    queryFn: getQuietHours,
+    staleTime: 30_000,
+  })
+}
+
+export function useCreateQuietHours() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (config: Partial<QuietHoursConfig>) => createQuietHours(config),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['quiet-hours'] }) },
+  })
+}
+
+export function useUpdateQuietHours() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<QuietHoursConfig> }) =>
+      updateQuietHours(id, data),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['quiet-hours'] }) },
+  })
+}
+
+export function useDeleteQuietHours() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => deleteQuietHours(id),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['quiet-hours'] }) },
+  })
+}
+
+export function useNotificationHistory(page = 1, eventType?: string) {
+  return useQuery({
+    queryKey: ['notification-history', page, eventType],
+    queryFn: () => getNotificationHistory(page, eventType),
+    staleTime: 15_000,
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useResendNotification() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => resendNotification(id),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['notification-history'] }) },
+  })
+}
+
+export function useNotificationFilters() {
+  return useQuery({
+    queryKey: ['notification-filters'],
+    queryFn: getNotificationFilters,
+    staleTime: 60_000,
+  })
+}
+
+export function useUpdateNotificationFilters() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (filters: NotificationFilter) => updateNotificationFilters(filters),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['notification-filters'] }) },
+  })
+}
+
+// ─── Cleanup System ─────────────────────────────────────────────────────────
+
+export function useCleanupStats() {
+  return useQuery({
+    queryKey: ['cleanup-stats'],
+    queryFn: getCleanupStats,
+    staleTime: 30_000,
+  })
+}
+
+export function useStartCleanupScan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: startCleanupScan,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['cleanup-scan-status'] }) },
+  })
+}
+
+export function useCleanupScanStatus(enabled = false) {
+  return useQuery({
+    queryKey: ['cleanup-scan-status'],
+    queryFn: getCleanupScanStatus,
+    refetchInterval: enabled ? 2000 : false,
+    enabled,
+  })
+}
+
+export function useDuplicates(page = 1) {
+  return useQuery({
+    queryKey: ['cleanup-duplicates', page],
+    queryFn: () => getDuplicates(page),
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useDeleteDuplicates() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (selections: { keep: string; delete: string[] }[]) => deleteDuplicates(selections),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['cleanup-duplicates'] })
+      void qc.invalidateQueries({ queryKey: ['cleanup-stats'] })
+    },
+  })
+}
+
+export function useOrphanedScan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: scanOrphaned,
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['cleanup-orphaned'] }) },
+  })
+}
+
+export function useOrphanedFiles() {
+  return useQuery({
+    queryKey: ['cleanup-orphaned'],
+    queryFn: getOrphanedFiles,
+    staleTime: 30_000,
+  })
+}
+
+export function useDeleteOrphaned() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (filePaths: string[]) => deleteOrphaned(filePaths),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['cleanup-orphaned'] })
+      void qc.invalidateQueries({ queryKey: ['cleanup-stats'] })
+    },
+  })
+}
+
+export function useCleanupRules() {
+  return useQuery({
+    queryKey: ['cleanup-rules'],
+    queryFn: getCleanupRules,
+    staleTime: 60_000,
+  })
+}
+
+export function useCreateCleanupRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (rule: Omit<CleanupRule, 'id' | 'last_run_at' | 'created_at'>) => createCleanupRule(rule),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['cleanup-rules'] }) },
+  })
+}
+
+export function useUpdateCleanupRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<CleanupRule> }) => updateCleanupRule(id, data),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['cleanup-rules'] }) },
+  })
+}
+
+export function useDeleteCleanupRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => deleteCleanupRule(id),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['cleanup-rules'] }) },
+  })
+}
+
+export function useRunCleanupRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => runCleanupRule(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['cleanup-rules'] })
+      void qc.invalidateQueries({ queryKey: ['cleanup-stats'] })
+      void qc.invalidateQueries({ queryKey: ['cleanup-history'] })
+    },
+  })
+}
+
+export function useCleanupHistory(page = 1) {
+  return useQuery({
+    queryKey: ['cleanup-history', page],
+    queryFn: () => getCleanupHistory(page),
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useCleanupPreview() {
+  return useMutation({
+    mutationFn: (ruleId?: number) => getCleanupPreview(ruleId),
   })
 }

@@ -15,6 +15,9 @@ import type {
   HealthCheckResult, HealthCheckBatchResult, HealthFixResult, QualityTrend,
   ComparisonResponse, SyncResult, SyncPreviewResult,
   GlobalSearchResults, FilterPreset, FilterScope, BatchAction, BatchActionResult,
+  ApiKeyService, BazarrMigrationPreview,
+  NotificationTemplate, NotificationHistoryEntry, QuietHoursConfig, TemplateVariable, NotificationFilter,
+  DiskSpaceStats, ScanStatus, DuplicateGroup, OrphanedFile, CleanupRule, CleanupHistoryEntry, CleanupPreviewData,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -752,6 +755,211 @@ export async function deleteFilterPreset(id: number): Promise<void> {
 export async function batchAction(itemIds: number[], action: BatchAction): Promise<BatchActionResult> {
   const res = await api.post('/wanted/batch-action', { item_ids: itemIds, action })
   return res.data
+}
+
+// ─── API Key Management ──────────────────────────────────────────────────────
+
+export async function getApiKeys(): Promise<{ services: ApiKeyService[] }> {
+  const { data } = await api.get('/api-keys')
+  return data
+}
+
+export async function getApiKeyService(service: string): Promise<ApiKeyService> {
+  const { data } = await api.get(`/api-keys/${service}`)
+  return data
+}
+
+export async function updateApiKey(service: string, keyName: string, value: string): Promise<{ status: string }> {
+  const { data } = await api.put(`/api-keys/${service}`, { key_name: keyName, value })
+  return data
+}
+
+export async function testApiKey(service: string): Promise<{ success: boolean; message: string }> {
+  const { data } = await api.post(`/api-keys/${service}/test`)
+  return data
+}
+
+export async function exportApiKeys(): Promise<Blob> {
+  const { data } = await api.post('/api-keys/export', {}, { responseType: 'blob' })
+  return data
+}
+
+export async function importApiKeys(file: File): Promise<{ status: string; imported: number; skipped: number }> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await api.post('/api-keys/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
+export async function importBazarrConfig(file: File): Promise<BazarrMigrationPreview> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await api.post('/api-keys/import/bazarr', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
+export async function confirmBazarrImport(preview: BazarrMigrationPreview): Promise<{ status: string; imported: number }> {
+  const { data } = await api.post('/api-keys/import/bazarr/confirm', preview)
+  return data
+}
+
+// ─── Notification Templates ──────────────────────────────────────────────────
+
+export async function getNotificationTemplates(): Promise<{ templates: NotificationTemplate[] }> {
+  const { data } = await api.get('/notifications/templates')
+  return data
+}
+
+export async function createNotificationTemplate(template: Partial<NotificationTemplate>): Promise<NotificationTemplate> {
+  const { data } = await api.post('/notifications/templates', template)
+  return data
+}
+
+export async function updateNotificationTemplate(id: number, template: Partial<NotificationTemplate>): Promise<NotificationTemplate> {
+  const { data } = await api.put(`/notifications/templates/${id}`, template)
+  return data
+}
+
+export async function deleteNotificationTemplate(id: number): Promise<void> {
+  await api.delete(`/notifications/templates/${id}`)
+}
+
+export async function previewNotificationTemplate(id: number): Promise<{ title: string; body: string }> {
+  const { data } = await api.post(`/notifications/templates/${id}/preview`)
+  return data
+}
+
+export async function getTemplateVariables(eventType?: string): Promise<{ variables: TemplateVariable[] }> {
+  const params = eventType ? { event_type: eventType } : {}
+  const { data } = await api.get('/notifications/variables', { params })
+  return data
+}
+
+export async function getQuietHours(): Promise<{ configs: QuietHoursConfig[] }> {
+  const { data } = await api.get('/notifications/quiet-hours')
+  return data
+}
+
+export async function createQuietHours(config: Partial<QuietHoursConfig>): Promise<QuietHoursConfig> {
+  const { data } = await api.post('/notifications/quiet-hours', config)
+  return data
+}
+
+export async function updateQuietHours(id: number, config: Partial<QuietHoursConfig>): Promise<QuietHoursConfig> {
+  const { data } = await api.put(`/notifications/quiet-hours/${id}`, config)
+  return data
+}
+
+export async function deleteQuietHours(id: number): Promise<void> {
+  await api.delete(`/notifications/quiet-hours/${id}`)
+}
+
+export async function getNotificationHistory(page = 1, eventType?: string): Promise<{
+  entries: NotificationHistoryEntry[]
+  page: number
+  per_page: number
+  total: number
+  total_pages: number
+}> {
+  const params: Record<string, unknown> = { page, per_page: 25 }
+  if (eventType) params.event_type = eventType
+  const { data } = await api.get('/notifications/history', { params })
+  return data
+}
+
+export async function resendNotification(id: number): Promise<{ status: string }> {
+  const { data } = await api.post(`/notifications/history/${id}/resend`)
+  return data
+}
+
+export async function getNotificationFilters(): Promise<NotificationFilter> {
+  const { data } = await api.get('/notifications/filters')
+  return data
+}
+
+export async function updateNotificationFilters(filters: NotificationFilter): Promise<NotificationFilter> {
+  const { data } = await api.put('/notifications/filters', filters)
+  return data
+}
+
+// ─── Cleanup System ─────────────────────────────────────────────────────────
+
+export async function getCleanupStats(): Promise<DiskSpaceStats> {
+  const { data } = await api.get('/cleanup/stats')
+  return data
+}
+
+export async function startCleanupScan(): Promise<{ scan_id: string; message: string }> {
+  const { data } = await api.post('/cleanup/scan')
+  return data
+}
+
+export async function getCleanupScanStatus(): Promise<ScanStatus> {
+  const { data } = await api.get('/cleanup/scan/status')
+  return data
+}
+
+export async function getDuplicates(page = 1, perPage = 50): Promise<{ groups: DuplicateGroup[]; total: number; page: number }> {
+  const { data } = await api.get('/cleanup/duplicates', { params: { page, per_page: perPage } })
+  return data
+}
+
+export async function deleteDuplicates(selections: { keep: string; delete: string[] }[]): Promise<{ deleted: number; bytes_freed: number }> {
+  const { data } = await api.post('/cleanup/duplicates/delete', { selections })
+  return data
+}
+
+export async function scanOrphaned(): Promise<{ message: string }> {
+  const { data } = await api.post('/cleanup/orphaned/scan')
+  return data
+}
+
+export async function getOrphanedFiles(): Promise<{ files: OrphanedFile[]; total: number }> {
+  const { data } = await api.get('/cleanup/orphaned')
+  return data
+}
+
+export async function deleteOrphaned(filePaths: string[]): Promise<{ deleted: number; bytes_freed: number }> {
+  const { data } = await api.post('/cleanup/orphaned/delete', { file_paths: filePaths })
+  return data
+}
+
+export async function getCleanupRules(): Promise<CleanupRule[]> {
+  const { data } = await api.get('/cleanup/rules')
+  return data
+}
+
+export async function createCleanupRule(rule: Omit<CleanupRule, 'id' | 'last_run_at' | 'created_at'>): Promise<CleanupRule> {
+  const { data } = await api.post('/cleanup/rules', rule)
+  return data
+}
+
+export async function updateCleanupRule(id: number, rule: Partial<CleanupRule>): Promise<CleanupRule> {
+  const { data } = await api.put(`/cleanup/rules/${id}`, rule)
+  return data
+}
+
+export async function deleteCleanupRule(id: number): Promise<void> {
+  await api.delete(`/cleanup/rules/${id}`)
+}
+
+export async function runCleanupRule(id: number): Promise<{ message: string }> {
+  const { data } = await api.post(`/cleanup/rules/${id}/run`)
+  return data
+}
+
+export async function getCleanupHistory(page = 1, perPage = 50): Promise<{ entries: CleanupHistoryEntry[]; total: number; page: number }> {
+  const { data } = await api.get('/cleanup/history', { params: { page, per_page: perPage } })
+  return data
+}
+
+export async function getCleanupPreview(ruleId?: number): Promise<CleanupPreviewData> {
+  const { data } = await api.post('/cleanup/preview', { rule_id: ruleId })
+  return data
 }
 
 export default api
