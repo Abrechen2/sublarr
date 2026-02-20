@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 16 in progress - External Integrations (compat checker, export, integrations API)
+**Current focus:** Phase 16 complete - External Integrations (all 3 plans executed)
 
 ## Current Position
 
 Phase: 16 of 16 (External Integrations)
-Plan: 2 of 3 in current phase (compat checker + export + integrations API)
-Status: In progress
-Last activity: 2026-02-20 -- Completed 16-02-PLAN.md (Compat Checker, Export Manager, Integrations API)
+Plan: 3 of 3 in current phase (Frontend IntegrationsTab)
+Status: Phase complete -- ALL PHASES COMPLETE
+Last activity: 2026-02-20 -- Completed 16-03-PLAN.md (Frontend IntegrationsTab)
 
-Progress: [████████████████░░░░░░░░░] 2/3 plans in phase
+Progress: [█████████████████████████] 3/3 plans in phase -- ROADMAP COMPLETE
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 70
+- Total plans completed: 71
 - Average duration: 9 min
-- Total execution time: 597 min
+- Total execution time: 604 min
 
 **By Phase:**
 
@@ -43,12 +43,11 @@ Progress: [████████████████░░░░░░░
 | 12-batch-operations-smart-filter | 3/3 | 33 min | 11 min |
 | 14-dashboard-widgets-quick-actions | 2/2 | 15 min | 8 min |
 | 15-api-key-mgmt-notifications-cleanup | 5/5 | 39 min | 8 min |
-| 16-external-integrations | 1/3 | 3 min | 3 min |
-| 16-external-integrations | 2/3 | 10 min | 5 min |
+| 16-external-integrations | 3/3 | 17 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 15-03 (8 min), 15-04 (10 min), 15-05 (11 min), 16-01 (5 min), 16-02 (5 min)
-- Trend: Phase 16 in progress -- External Integrations (compat checker + export + API)
+- Last 5 plans: 15-04 (10 min), 15-05 (11 min), 16-01 (5 min), 16-02 (5 min), 16-03 (7 min)
+- Trend: ALL PHASES COMPLETE -- 71 plans across 17 phases executed
 
 *Updated after each plan completion*
 
@@ -400,6 +399,11 @@ Recent decisions affecting current work:
 - [16-02]: Kodi checker accepts BCP 47 with underscore separator and English language names per Kodi 22+ docs
 - [16-02]: Media server health endpoint uses extended_health_check if available, falls back to basic health_check
 
+- [16-03]: exportIntegrationConfig named differently from existing exportConfig to avoid name collision in client.ts
+- [16-03]: useExtendedHealthAll uses enabled:false with manual refetch trigger (Run Diagnostics button)
+- [16-03]: Bazarr section links to existing ApiKeysTab for actual import (no duplication of import logic)
+- [16-03]: Compat and Health sections default to collapsed (defaultOpen=false) to reduce initial visual load
+
 ### Pending Todos
 
 None yet.
@@ -422,11 +426,12 @@ None yet.
 - Phase 12 complete -- all 3 plans executed (backend FTS5/presets/batch API + frontend FilterBar/BatchActionBar/GlobalSearchModal/selectionStore + page integration/i18n/tests)
 - Phase 14 complete -- all 2 plans executed (dashboard widget system + quick-actions FAB + keyboard shortcuts)
 - Phase 15 complete -- all 5 plans executed (API key management + Bazarr migration, notification management backend, cleanup system backend, frontend Settings tabs, cleanup frontend)
-- Phase 16 in progress -- plan 01 complete (extended health checks + Bazarr migration depth)
+- Phase 16 COMPLETE -- all 3 plans executed (extended health checks, compat/export/API, frontend IntegrationsTab)
+- ALL 17 PHASES COMPLETE -- 71 plans executed across phases 0-16
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Phase 16 plan 2 of 3 complete -- Compat Checker, Export Manager, Integrations API
-Resume file: .planning/phases/16-external-integrations/16-02-SUMMARY.md
+Stopped at: Phase 16 plan 3 of 3 complete -- Frontend IntegrationsTab -- ALL PHASES COMPLETE
+Resume file: .planning/phases/16-external-integrations/16-03-SUMMARY.md
