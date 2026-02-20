@@ -1,4 +1,9 @@
-"""Search repository -- FTS5 trigram full-text search across all entities."""
+"""Search repository -- full-text search across all entities.
+
+SQLite backend:  FTS5 virtual tables with trigram tokenizer.
+PostgreSQL backend: regular tables with pg_trgm GIN indexes.
+The LIKE-based search_all() queries are compatible with both.
+"""
 
 import logging
 from sqlalchemy import text
@@ -6,14 +11,28 @@ from db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
 
-# FTS5 virtual table schema -- created once at app startup
-_SEARCH_SCHEMA = [
+# SQLite FTS5 virtual table schema
+_SQLITE_SEARCH_SCHEMA = [
     """CREATE VIRTUAL TABLE IF NOT EXISTS search_series
        USING fts5(id UNINDEXED, title, tokenize="trigram")""",
     """CREATE VIRTUAL TABLE IF NOT EXISTS search_episodes
        USING fts5(id UNINDEXED, series_id UNINDEXED, title, season_episode, tokenize="trigram")""",
     """CREATE VIRTUAL TABLE IF NOT EXISTS search_subtitles
        USING fts5(id UNINDEXED, file_path, provider_name, language, tokenize="trigram")""",
+]
+
+# PostgreSQL schema: regular tables + pg_trgm GIN indexes for LIKE performance
+_POSTGRESQL_SEARCH_SCHEMA = [
+    "CREATE EXTENSION IF NOT EXISTS pg_trgm",
+    """CREATE TABLE IF NOT EXISTS search_series (
+       id INTEGER NOT NULL, title TEXT)""",
+    "CREATE INDEX IF NOT EXISTS idx_ss_title ON search_series USING gin(title gin_trgm_ops)",
+    """CREATE TABLE IF NOT EXISTS search_episodes (
+       id INTEGER NOT NULL, series_id INTEGER, title TEXT, season_episode TEXT)""",
+    "CREATE INDEX IF NOT EXISTS idx_se_title ON search_episodes USING gin(title gin_trgm_ops)",
+    """CREATE TABLE IF NOT EXISTS search_subtitles (
+       id INTEGER NOT NULL, file_path TEXT, provider_name TEXT, language TEXT)""",
+    "CREATE INDEX IF NOT EXISTS idx_st_path ON search_subtitles USING gin(file_path gin_trgm_ops)",
 ]
 
 
@@ -23,27 +42,31 @@ def _get_engine():
     return sa_db.engine
 
 
+def _is_postgresql(engine) -> bool:
+    return engine.dialect.name == "postgresql"
+
+
 class SearchRepository(BaseRepository):
-    """Full-text search across series, episodes, and subtitles using FTS5."""
+    """Full-text search across series, episodes, and subtitles."""
 
     def init_search_tables(self) -> None:
-        """Create FTS5 virtual tables. Call from app.py after db.create_all()."""
-        with _get_engine().connect() as conn:
-            for stmt in _SEARCH_SCHEMA:
+        """Create search tables. Call from app.py after db.create_all()."""
+        engine = _get_engine()
+        stmts = _POSTGRESQL_SEARCH_SCHEMA if _is_postgresql(engine) else _SQLITE_SEARCH_SCHEMA
+        with engine.connect() as conn:
+            for stmt in stmts:
                 conn.execute(text(stmt))
             conn.commit()
 
     def rebuild_index(self) -> None:
-        """Rebuild FTS5 tables from subtitle_downloads. Call after library sync."""
+        """Rebuild search tables from subtitle_downloads. Call after library sync."""
         with _get_engine().connect() as conn:
-            # subtitle_downloads is the primary DB-backed entity for search
             conn.execute(text("DELETE FROM search_subtitles"))
             conn.execute(text("""
                 INSERT INTO search_subtitles(id, file_path, provider_name, language)
                 SELECT id, file_path, provider_name, language
                 FROM subtitle_downloads
             """))
-            # wanted_items title search (series/episode titles come from here)
             conn.execute(text("DELETE FROM search_episodes"))
             conn.execute(text("""
                 INSERT INTO search_episodes(id, series_id, title, season_episode)
@@ -52,7 +75,6 @@ class SearchRepository(BaseRepository):
                 FROM wanted_items
                 WHERE title IS NOT NULL AND title != ''
             """))
-            # series search: deduplicated series titles from wanted_items
             conn.execute(text("DELETE FROM search_series"))
             conn.execute(text("""
                 INSERT INTO search_series(id, title)
@@ -64,11 +86,10 @@ class SearchRepository(BaseRepository):
             conn.commit()
 
     def search_all(self, query: str, limit: int = 20) -> dict:
-        """FTS5 trigram search across series, episodes, and subtitles.
+        """Trigram search across series, episodes, and subtitles.
 
         Returns grouped results: {"series": [...], "episodes": [...], "subtitles": [...]}.
-        Minimum query length is 2 characters (trigram requires 3-char tokens for MATCH;
-        LIKE '%q%' works for 2+ chars and uses the trigram index).
+        Minimum query length is 2 characters.
         """
         if not query or len(query.strip()) < 2:
             return {"series": [], "episodes": [], "subtitles": []}
