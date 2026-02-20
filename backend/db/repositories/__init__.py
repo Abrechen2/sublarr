@@ -25,6 +25,8 @@ from db.repositories.translation import TranslationRepository
 from db.repositories.quality import QualityRepository
 from db.repositories.search import SearchRepository
 from db.repositories.presets import FilterPresetsRepository
+from db.repositories.notifications import NotificationRepository
+from db.repositories.cleanup import CleanupRepository
 
 __all__ = [
     # Base
@@ -49,6 +51,23 @@ __all__ = [
     "QualityRepository",
     "SearchRepository",
     "FilterPresetsRepository",
+    "NotificationRepository",
+    # Notification convenience functions
+    "create_notification_template",
+    "get_notification_template",
+    "get_notification_templates",
+    "update_notification_template",
+    "delete_notification_template",
+    "find_template_for_event",
+    "log_notification",
+    "get_notification_history",
+    "get_notification",
+    "clear_notification_history",
+    "create_quiet_hours",
+    "get_quiet_hours_configs",
+    "update_quiet_hours",
+    "delete_quiet_hours",
+    "is_quiet_hours",
     # Config convenience functions
     "save_config_entry",
     "get_config_entry",
@@ -124,6 +143,8 @@ __all__ = [
     "get_health_results_for_series",
     "get_quality_trends",
     "delete_health_results",
+    # Cleanup
+    "CleanupRepository",
 ]
 
 
@@ -513,3 +534,94 @@ def get_quality_trends(days: int = 30) -> list:
 def delete_health_results(file_path: str) -> int:
     """Delete all health results for a file path."""
     return QualityRepository().delete_health_results(file_path)
+
+
+# ---- Notification convenience functions ------------------------------------------
+
+def create_notification_template(name: str, title_template: str = "",
+                                  body_template: str = "", event_type: str = None,
+                                  service_name: str = None, enabled: int = 1) -> dict:
+    """Create a new notification template."""
+    return NotificationRepository().create_template(
+        name, title_template, body_template, event_type, service_name, enabled
+    )
+
+
+def get_notification_template(template_id: int):
+    """Get a single notification template by ID."""
+    return NotificationRepository().get_template(template_id)
+
+
+def get_notification_templates(event_type: str = None) -> list:
+    """Get all notification templates, optionally filtered by event_type."""
+    return NotificationRepository().get_templates(event_type)
+
+
+def update_notification_template(template_id: int, **kwargs):
+    """Update a notification template."""
+    return NotificationRepository().update_template(template_id, **kwargs)
+
+
+def delete_notification_template(template_id: int) -> bool:
+    """Delete a notification template."""
+    return NotificationRepository().delete_template(template_id)
+
+
+def find_template_for_event(event_type: str, service_name: str = None):
+    """Find the best matching template for an event."""
+    return NotificationRepository().find_template_for_event(event_type, service_name)
+
+
+def log_notification(event_type: str, title: str, body: str,
+                     template_id: int = None, service_urls: str = None,
+                     status: str = "sent", error: str = "") -> dict:
+    """Log a notification to history."""
+    return NotificationRepository().log_notification(
+        event_type, title, body, template_id, service_urls, status, error
+    )
+
+
+def get_notification_history(page: int = 1, per_page: int = 50,
+                              event_type: str = None) -> dict:
+    """Get paginated notification history."""
+    return NotificationRepository().get_history(page, per_page, event_type)
+
+
+def get_notification(notification_id: int):
+    """Get a single notification history entry by ID."""
+    return NotificationRepository().get_notification(notification_id)
+
+
+def clear_notification_history(before_date: str = None) -> int:
+    """Clear notification history."""
+    return NotificationRepository().clear_history(before_date)
+
+
+def create_quiet_hours(name: str, start_time: str, end_time: str,
+                       days_of_week: str = "[0,1,2,3,4,5,6]",
+                       exception_events: str = '["error"]',
+                       enabled: int = 1) -> dict:
+    """Create a quiet hours configuration."""
+    return NotificationRepository().create_quiet_hours(
+        name, start_time, end_time, days_of_week, exception_events, enabled
+    )
+
+
+def get_quiet_hours_configs() -> list:
+    """Get all quiet hours configurations."""
+    return NotificationRepository().get_quiet_hours_configs()
+
+
+def update_quiet_hours(config_id: int, **kwargs):
+    """Update a quiet hours config."""
+    return NotificationRepository().update_quiet_hours(config_id, **kwargs)
+
+
+def delete_quiet_hours(config_id: int) -> bool:
+    """Delete a quiet hours config."""
+    return NotificationRepository().delete_quiet_hours(config_id)
+
+
+def is_quiet_hours(event_type: str) -> bool:
+    """Check if current time falls within any active quiet hours window."""
+    return NotificationRepository().is_quiet_hours(event_type)
