@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** Phase 15 in progress - API-Key Mgmt + Notifications + Cleanup
+**Current focus:** Phase 15 complete - API-Key Mgmt + Notifications + Cleanup
 
 ## Current Position
 
 Phase: 15 of 16 (API-Key Mgmt + Notifications + Cleanup)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-20 -- Completed 15-02-PLAN.md (Notification Management Backend)
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-02-20 -- Completed 15-03-PLAN.md (Cleanup System Backend)
 
-Progress: [█████████████████░░░░░░░░] 2/3 plans in phase
+Progress: [█████████████████████████] 3/3 plans in phase
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 65
+- Total plans completed: 66
 - Average duration: 9 min
-- Total execution time: 558 min
+- Total execution time: 566 min
 
 **By Phase:**
 
@@ -42,7 +42,7 @@ Progress: [█████████████████░░░░░░
 | 13-comparison-sync-health-check | 3/3 | 19 min | 6 min |
 | 12-batch-operations-smart-filter | 3/3 | 33 min | 11 min |
 | 14-dashboard-widgets-quick-actions | 2/2 | 15 min | 8 min |
-| 15-api-key-mgmt-notifications-cleanup | 2/3 | 10 min | 5 min |
+| 15-api-key-mgmt-notifications-cleanup | 3/3 | 18 min | 6 min |
 
 **Recent Trend:**
 - Last 5 plans: 14-01 (8 min), 14-02 (7 min), 15-01 (4 min), 15-02 (6 min)
@@ -366,6 +366,14 @@ Recent decisions affecting current work:
 - [15-02]: Event filters stored as config_entries with notification_filter_* prefix for consistency
 - [15-02]: Template rendering failure falls back to original title/body (backward compatible)
 
+- [15-03]: SHA-256 hash computed on normalized content (stripped + CRLF->LF) to detect duplicates regardless of line ending differences
+- [15-03]: ThreadPoolExecutor(max_workers=4) for parallel file hashing during scan
+- [15-03]: Keep-at-least-one safety guard pre-validates all groups before starting any deletions
+- [15-03]: CleanupScheduler uses threading.Timer pattern (same as wanted_scanner) with configurable interval from config_entries
+- [15-03]: Module-level _scan_state dict with threading.Lock for background scan tracking
+- [15-03]: Orphan detection compares subtitle basenames against media file basenames in same directory
+- [15-03]: _start_schedulers receives app parameter for cleanup scheduler app_context needs
+
 ### Pending Todos
 
 None yet.
@@ -387,11 +395,11 @@ None yet.
 - Phase 13 complete -- all 3 plans executed (backend health/sync/compare + frontend types/hooks/comparison/sync + frontend health UI/charts/dashboard)
 - Phase 12 complete -- all 3 plans executed (backend FTS5/presets/batch API + frontend FilterBar/BatchActionBar/GlobalSearchModal/selectionStore + page integration/i18n/tests)
 - Phase 14 complete -- all 2 plans executed (dashboard widget system + quick-actions FAB + keyboard shortcuts)
-- Phase 15 in progress -- 2/3 plans executed (API key management + Bazarr migration, notification management backend)
+- Phase 15 complete -- all 3 plans executed (API key management + Bazarr migration, notification management backend, cleanup system backend)
 - 28 pre-existing test failures in integration/performance tests (not caused by refactoring, existed before Phase 0)
 
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Phase 15, Plan 02 complete -- Notification Management Backend
-Resume file: .planning/phases/15-api-key-mgmt-notifications-cleanup/15-02-SUMMARY.md
+Stopped at: Phase 15 complete -- Cleanup System Backend
+Resume file: .planning/phases/15-api-key-mgmt-notifications-cleanup/15-03-SUMMARY.md
