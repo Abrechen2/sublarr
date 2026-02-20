@@ -18,6 +18,7 @@ import type {
   ApiKeyService, BazarrMigrationPreview,
   NotificationTemplate, NotificationHistoryEntry, QuietHoursConfig, TemplateVariable, NotificationFilter,
   DiskSpaceStats, ScanStatus, DuplicateGroup, OrphanedFile, CleanupRule, CleanupHistoryEntry, CleanupPreviewData,
+  BazarrMappingReport, CompatBatchResult, ExtendedHealthAllResponse, ExportResult,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -959,6 +960,66 @@ export async function getCleanupHistory(page = 1, perPage = 50): Promise<{ entri
 
 export async function getCleanupPreview(ruleId?: number): Promise<CleanupPreviewData> {
   const { data } = await api.post('/cleanup/preview', { rule_id: ruleId })
+  return data
+}
+
+// ─── External Integrations ──────────────────────────────────────────────────
+
+export async function getBazarrMappingReport(dbPath: string): Promise<BazarrMappingReport> {
+  const { data } = await api.post('/integrations/bazarr/mapping-report', { db_path: dbPath })
+  return data
+}
+
+export async function runCompatCheck(
+  subtitlePaths: string[],
+  videoPath: string,
+  target: string,
+): Promise<CompatBatchResult> {
+  const { data } = await api.post('/integrations/compat-check', {
+    subtitle_paths: subtitlePaths,
+    video_path: videoPath,
+    target,
+  })
+  return data
+}
+
+export async function runSingleCompatCheck(
+  subtitlePath: string,
+  videoPath: string,
+  target: string,
+): Promise<CompatBatchResult> {
+  const { data } = await api.post('/integrations/compat-check/single', {
+    subtitle_path: subtitlePath,
+    video_path: videoPath,
+    target,
+  })
+  return data
+}
+
+export async function getExtendedHealthAll(): Promise<ExtendedHealthAllResponse> {
+  const { data } = await api.get('/integrations/health/all')
+  return data
+}
+
+export async function exportIntegrationConfig(
+  format: string,
+  includeSecrets: boolean,
+): Promise<ExportResult> {
+  const { data } = await api.post('/integrations/export', {
+    format,
+    include_secrets: includeSecrets,
+  })
+  return data
+}
+
+export async function exportIntegrationConfigZip(
+  formats: string[],
+  includeSecrets: boolean,
+): Promise<Blob> {
+  const { data } = await api.post('/integrations/export/zip', {
+    formats,
+    include_secrets: includeSecrets,
+  }, { responseType: 'blob' })
   return data
 }
 
