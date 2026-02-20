@@ -265,6 +265,16 @@ class WantedRepository(BaseRepository):
         self._commit()
         return True
 
+    def set_retry_after(self, item_id: int, retry_after: str) -> bool:
+        """Set retry_after ISO timestamp for adaptive backoff."""
+        item = self.session.get(WantedItem, item_id)
+        if not item:
+            return False
+        item.retry_after = retry_after
+        item.updated_at = self._now()
+        self._commit()
+        return True
+
     def get_wanted_summary(self) -> dict:
         """Get aggregated wanted counts by type, status, and existing_sub."""
         total_stmt = select(func.count()).select_from(WantedItem)

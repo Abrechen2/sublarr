@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>sublarr</Name>
-  <Repository>ghcr.io/denniswittke/sublarr:0.9.0-beta</Repository>
+  <Repository>ghcr.io/denniswittke/sublarr:0.9.1-beta</Repository>
   <Registry>https://ghcr.io/denniswittke/sublarr</Registry>
   <Network>bridge</Network>
   <Privileged>false</Privileged>
@@ -30,4 +30,6 @@
   <Config Name="Jellyfin API Key" Target="SUBLARR_JELLYFIN_API_KEY" Default="" Mode="" Description="Jellyfin API key" Type="Variable" Display="advanced" Required="false" Mask="true"/>
   <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID for file permissions" Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
   <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID for file permissions" Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+  <Config Name="Database URL" Target="SUBLARR_DATABASE_URL" Default="" Mode="" Description="PostgreSQL connection string (leer = SQLite). z.B. postgresql://sublarr:pass@sublarr-postgres:5432/sublarr" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Redis URL" Target="SUBLARR_REDIS_URL" Default="" Mode="" Description="Redis connection string (leer = kein Redis). z.B. redis://sublarr-redis:6379/0" Type="Variable" Display="advanced" Required="false" Mask="false"/>
 </Container>

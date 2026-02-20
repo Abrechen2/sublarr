@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { X, Loader2, Search, Download, RefreshCw, AlertCircle, ChevronsRight } from 'lucide-react'
 import {
   useSearchInteractive,
@@ -47,6 +48,7 @@ export function InteractiveSearchModal({
   const [popover, setPopover] = useState<PopoverState | null>(null)
 
   const downloadingRef = useRef<string | null>(null)
+  const queryClient = useQueryClient()
 
   // Only one of itemId/episodeId is used — choose the right query hook
   const wantedQuery = useSearchInteractive(itemId ?? null, open && !!itemId)
@@ -132,6 +134,8 @@ export function InteractiveSearchModal({
 
       if (res?.success) {
         toast(translate ? 'Untertitel heruntergeladen & übersetzt' : 'Untertitel heruntergeladen', 'success')
+        queryClient.invalidateQueries({ queryKey: ['jobs'] })
+        queryClient.invalidateQueries({ queryKey: ['history'] })
         onDownloaded()
       } else {
         toast(res?.error ?? 'Download fehlgeschlagen', 'error')
@@ -141,7 +145,7 @@ export function InteractiveSearchModal({
     } finally {
       downloadingRef.current = null
     }
-  }, [popover, itemId, episodeId, downloadWanted, downloadEpisode, onDownloaded])
+  }, [popover, itemId, episodeId, downloadWanted, downloadEpisode, onDownloaded, queryClient])
 
   if (!open) return null
 

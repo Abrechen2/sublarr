@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>sublarr-redis</Name>
+  <Repository>redis:7-alpine</Repository>
+  <Registry>https://hub.docker.com/_/redis</Registry>
+  <Network>sublarr_net</Network>
+  <Privileged>false</Privileged>
+  <Overview>Redis 7 Cache &amp; Job-Queue Backend für Sublarr.</Overview>
+  <Category>Tools:</Category>
+  <PostArgs>redis-server --appendonly yes</PostArgs>
+  <ExtraParams/>
+  <Config Name="Data Path" Target="/data" Default="/mnt/user/appdata/sublarr-redis"
+    Mode="rw" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/sublarr-redis</Config>
+</Container>

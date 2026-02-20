@@ -802,17 +802,33 @@ class WantedScanner:
             result = get_wanted_items(page=1, per_page=max_items, status="wanted")
             items = result.get("data", [])
 
-            # Filter out items searched too recently (within last hour)
+            # Filter: adaptive backoff (or fixed 1h fallback when disabled)
             eligible = []
+            now = datetime.utcnow()
+            adaptive_enabled = getattr(settings, "wanted_adaptive_backoff_enabled", True)
+
             for item in items:
-                if item.get("last_search_at"):
-                    try:
-                        last_search = datetime.fromisoformat(item["last_search_at"])
-                        age_hours = (datetime.utcnow() - last_search).total_seconds() / 3600
-                        if age_hours < 1:
-                            continue
-                    except (ValueError, TypeError):
-                        pass
+                if adaptive_enabled:
+                    # Respect retry_after timestamp (exponential backoff)
+                    retry_after_str = item.get("retry_after")
+                    if retry_after_str:
+                        try:
+                            retry_at = datetime.fromisoformat(retry_after_str).replace(tzinfo=None)
+                            if now < retry_at:
+                                continue
+                        except (ValueError, TypeError):
+                            pass
+                else:
+                    # Fallback: fixed 1h cooldown when backoff disabled
+                    last_str = item.get("last_search_at")
+                    if last_str:
+                        try:
+                            last = datetime.fromisoformat(last_str)
+                            if (now - last).total_seconds() < 3600:
+                                continue
+                        except (ValueError, TypeError):
+                            pass
+
                 if item["search_count"] < settings.wanted_max_search_attempts:
                     eligible.append(item)
 

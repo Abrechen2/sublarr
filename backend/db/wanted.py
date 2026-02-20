@@ -71,6 +71,11 @@ def update_wanted_search(item_id: int):
     return _get_repo().mark_search_attempted(item_id)
 
 
+def set_wanted_retry_after(item_id: int, retry_after: str) -> bool:
+    """Set retry_after ISO timestamp for adaptive backoff."""
+    return _get_repo().set_retry_after(item_id, retry_after)
+
+
 def delete_wanted_items(file_paths: list):
     """Delete wanted items by file paths (batch)."""
     for fp in (file_paths or []):
@@ -124,6 +129,11 @@ def get_series_missing_counts() -> dict:
         Dict mapping sonarr_series_id -> count of wanted items.
     """
     return _get_repo().get_series_missing_counts()
+
+
+def get_wanted_for_series(sonarr_series_id: int) -> list:
+    """Get all wanted items for a specific series."""
+    return _get_repo().get_wanted_for_series(sonarr_series_id)
 
 
 def get_wanted_by_subtitle_type() -> dict:
