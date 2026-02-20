@@ -38,6 +38,24 @@ from providers.base import (
 from circuit_breaker import CircuitBreaker
 from forced_detection import classify_forced_result
 
+
+def _detect_format_from_content(content: bytes) -> SubtitleFormat:
+    """Detect subtitle format by inspecting the first bytes of file content.
+
+    Used when a provider doesn't include format metadata (e.g. OpenSubtitles
+    returns filenames without extensions for some results).
+    """
+    # Strip UTF-8 BOM if present
+    text_start = content[:512].lstrip(b'\xef\xbb\xbf')
+    try:
+        preview = text_start.decode("utf-8", errors="replace").strip()
+    except Exception:
+        return SubtitleFormat.SRT
+    # ASS/SSA files always begin with [Script Info]
+    if preview.startswith("[Script Info]") or preview.lower().startswith("[v4"):
+        return SubtitleFormat.ASS
+    return SubtitleFormat.SRT
+
 logger = logging.getLogger(__name__)
 
 # Provider registry — maps name to class
@@ -902,7 +920,9 @@ class ProviderManager:
         if not result.content:
             raise ValueError("SubtitleResult has no content (download first)")
 
-        # Determine extension
+        # Determine extension — detect from content if format is unknown
+        if result.format == SubtitleFormat.UNKNOWN and result.content:
+            result.format = _detect_format_from_content(result.content)
         ext = result.format.value if result.format != SubtitleFormat.UNKNOWN else "srt"
         if not output_path.endswith(f".{ext}"):
             # If output_path already has an extension, replace it

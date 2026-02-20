@@ -474,12 +474,14 @@ def process_wanted_item(item_id: int) -> dict:
             base = os.path.splitext(file_path)[0]
             tmp_source_path = f"{base}.{settings.source_language}.ass"
             try:
-                manager.save_subtitle(result, tmp_source_path)
+                # Use the returned path — save_subtitle may adjust the extension
+                # (e.g. if the downloaded file turns out to be SRT, not ASS)
+                actual_source_path = manager.save_subtitle(result, tmp_source_path)
             except (OSError, RuntimeError) as save_error:
                 logger.error("Wanted %d: Failed to save source ASS from %s: %s",
                              item_id, result.provider_name, save_error)
                 raise  # skip to next step
-            
+
             # Build arr_context for glossary lookup
             arr_context = {}
             if item.get("sonarr_series_id"):
@@ -491,7 +493,7 @@ def process_wanted_item(item_id: int) -> dict:
 
             try:
                 translate_result = _translate_external_ass(
-                    file_path, tmp_source_path,
+                    file_path, actual_source_path,
                     target_language=item_lang,
                     target_language_name=settings.target_language_name,
                     arr_context=arr_context if arr_context else None
@@ -501,16 +503,16 @@ def process_wanted_item(item_id: int) -> dict:
                              item_id, trans_error, exc_info=True)
                 # Clean up and skip to next step
                 try:
-                    if os.path.exists(tmp_source_path):
-                        os.remove(tmp_source_path)
+                    if os.path.exists(actual_source_path):
+                        os.remove(actual_source_path)
                 except Exception:
                     pass
                 raise  # skip to next step
 
             # Clean up temporary source file
             try:
-                if os.path.exists(tmp_source_path):
-                    os.remove(tmp_source_path)
+                if os.path.exists(actual_source_path):
+                    os.remove(actual_source_path)
             except Exception:
                 pass
 
@@ -564,12 +566,12 @@ def process_wanted_item(item_id: int) -> dict:
             base = os.path.splitext(file_path)[0]
             tmp_source_path = f"{base}.{settings.source_language}.srt"
             try:
-                manager.save_subtitle(result, tmp_source_path)
+                actual_source_path = manager.save_subtitle(result, tmp_source_path)
             except (OSError, RuntimeError) as save_error:
                 logger.error("Wanted %d: Failed to save source SRT from %s: %s",
                              item_id, result.provider_name, save_error)
                 raise  # skip to next step
-            
+
             # Build arr_context for glossary lookup
             arr_context = {}
             if item.get("sonarr_series_id"):
@@ -581,7 +583,7 @@ def process_wanted_item(item_id: int) -> dict:
 
             try:
                 translate_result = translate_srt_from_file(
-                    file_path, tmp_source_path,
+                    file_path, actual_source_path,
                     source="provider_source_srt",
                     target_language=item_lang,
                     arr_context=arr_context if arr_context else None
@@ -591,16 +593,16 @@ def process_wanted_item(item_id: int) -> dict:
                              item_id, trans_error, exc_info=True)
                 # Clean up and skip to next step
                 try:
-                    if os.path.exists(tmp_source_path):
-                        os.remove(tmp_source_path)
+                    if os.path.exists(actual_source_path):
+                        os.remove(actual_source_path)
                 except Exception:
                     pass
                 raise  # skip to next step
 
             # Clean up temporary source file
             try:
-                if os.path.exists(tmp_source_path):
-                    os.remove(tmp_source_path)
+                if os.path.exists(actual_source_path):
+                    os.remove(actual_source_path)
             except Exception:
                 pass
 
