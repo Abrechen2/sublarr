@@ -4,9 +4,9 @@
  * Provides offline caching and background sync capabilities.
  */
 
-const CACHE_NAME = 'sublarr-v1'
-const STATIC_CACHE = 'sublarr-static-v1'
-const API_CACHE = 'sublarr-api-v1'
+const CACHE_NAME = 'sublarr-v2'
+const STATIC_CACHE = 'sublarr-static-v2'
+const API_CACHE = 'sublarr-api-v2'
 
 // Assets to cache on install
 const STATIC_ASSETS = [
