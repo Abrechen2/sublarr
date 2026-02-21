@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils'
 import { useHealth } from '@/hooks/useApi'
 import { ThemeToggle } from '@/components/shared/ThemeToggle'
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher'
+import { ScanProgressIndicator } from '@/components/shared/ScanProgressIndicator'
 
 interface NavItem {
   to: string
@@ -208,6 +209,11 @@ export function Sidebar() {
 
         {/* Footer */}
         <div className="px-4 py-3" style={{ borderTop: '1px solid var(--border)' }}>
+          {/* Scan progress */}
+          <div className="mb-2.5">
+            <ScanProgressIndicator />
+          </div>
+
           {/* Donate + Star */}
           <div className="flex gap-2 mb-2.5">
             <a
