@@ -1,5 +1,6 @@
 import { ShieldCheck } from 'lucide-react'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
+import { useTranslation } from 'react-i18next'
 import { useQualityTrends } from '@/hooks/useApi'
 import { HealthBadge } from './HealthBadge'
 
@@ -28,6 +29,7 @@ function SkeletonWidget() {
 }
 
 export function HealthDashboardWidget({ className }: HealthDashboardWidgetProps) {
+  const { t } = useTranslation('dashboard')
   const { data, isLoading } = useQualityTrends(30)
 
   if (isLoading) {
@@ -48,11 +50,11 @@ export function HealthDashboardWidget({ className }: HealthDashboardWidgetProps)
             className="text-xs font-semibold uppercase tracking-wider"
             style={{ color: 'var(--text-muted)' }}
           >
-            Subtitle Quality
+            {t('widgets.quality')}
           </span>
         </div>
         <div className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>
-          No health data yet. Run a health check from Series Detail.
+          {t('widgets.quality_no_data')}
         </div>
       </div>
     )
@@ -75,7 +77,7 @@ export function HealthDashboardWidget({ className }: HealthDashboardWidgetProps)
           className="text-xs font-semibold uppercase tracking-wider"
           style={{ color: 'var(--text-muted)' }}
         >
-          Subtitle Quality
+          {t('widgets.quality')}
         </span>
       </div>
 
@@ -92,7 +94,8 @@ export function HealthDashboardWidget({ className }: HealthDashboardWidgetProps)
         </div>
         <div className="text-xs space-y-0.5" style={{ color: 'var(--text-secondary)' }}>
           <div>
-            <span style={{ fontFamily: 'var(--font-mono)' }}>{totalChecked}</span> files checked
+            <span style={{ fontFamily: 'var(--font-mono)' }}>{totalChecked}</span>{' '}
+            {t('widgets.quality_files_checked')}
           </div>
           <div>
             <span
@@ -103,7 +106,7 @@ export function HealthDashboardWidget({ className }: HealthDashboardWidgetProps)
             >
               {totalIssues}
             </span>{' '}
-            issues found
+            {t('widgets.quality_issues_found')}
           </div>
         </div>
       </div>
