@@ -475,6 +475,13 @@ def get_series_detail(series_id):
     tag_map = {t["id"]: t["label"] for t in tag_list}
     tags = [tag_map.get(tid, str(tid)) for tid in series.get("tags", [])]
 
+    # Derive counts from the already-fetched episode list — more reliable than
+    # Sonarr's statistics (which can be 0 from the single-series endpoint).
+    regular_episodes = [ep for ep in episodes if ep["season"] > 0]
+    _episode_count = len(regular_episodes)
+    _episode_file_count = sum(1 for ep in regular_episodes if ep["has_file"])
+    _season_count = len({ep["season"] for ep in regular_episodes})
+
     return jsonify({
         "id": series.get("id"),
         "title": series.get("title", ""),
@@ -484,9 +491,9 @@ def get_series_detail(series_id):
         "fanart": fanart,
         "overview": series.get("overview", ""),
         "status": series.get("status", ""),
-        "season_count": series.get("statistics", {}).get("seasonCount", series.get("seasonCount", 0)),
-        "episode_count": series.get("statistics", {}).get("episodeCount", series.get("episodeCount", 0)),
-        "episode_file_count": series.get("statistics", {}).get("episodeFileCount", series.get("episodeFileCount", 0)),
+        "season_count": _season_count,
+        "episode_count": _episode_count,
+        "episode_file_count": _episode_file_count,
         "tags": tags,
         "profile_name": profile_name,
         "target_languages": target_languages,
