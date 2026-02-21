@@ -210,9 +210,7 @@ export function Sidebar() {
         {/* Footer */}
         <div className="px-4 py-3" style={{ borderTop: '1px solid var(--border)' }}>
           {/* Scan progress */}
-          <div className="mb-2.5">
-            <ScanProgressIndicator />
-          </div>
+          <ScanProgressIndicator />
 
           {/* Donate + Star */}
           <div className="flex gap-2 mb-2.5">

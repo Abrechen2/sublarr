@@ -1,9 +1,9 @@
 /**
- * ScanProgressIndicator -- Floating live scan progress overlay.
+ * ScanProgressIndicator -- Compact scan progress card in the sidebar.
  *
  * Listens to `wanted_scan_progress` WebSocket events and shows a compact
- * card (bottom-right) while a wanted scan is running. Fades out after
- * the scan completes.
+ * card above the Donate button while a wanted scan is running.
+ * Fades out after the scan completes.
  */
 import { useState, useEffect, useRef } from 'react'
 import { useWebSocket } from '@/hooks/useWebSocket'
@@ -50,7 +50,7 @@ export function ScanProgressIndicator() {
 
   return (
     <div
-      className="rounded-lg border transition-opacity duration-500"
+      className="rounded-lg border transition-opacity duration-500 mb-2.5"
       style={{
         backgroundColor: 'var(--bg-primary)',
         borderColor: done ? 'var(--border)' : 'var(--accent-dim)',
