@@ -312,7 +312,7 @@ def get_series_detail(series_id):
     from translator import detect_existing_target_for_lang
     from db.profiles import get_series_profile, get_default_profile
     from config import get_settings, map_path
-    from database import get_db, _db_lock
+    from db import get_db, _db_lock
 
     settings = get_settings()
 
