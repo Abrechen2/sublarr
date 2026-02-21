@@ -151,7 +151,7 @@ def test_provider(provider_name):
             }
 
         # Optional search test
-        data = request.get_json() or {}
+        data = request.get_json(force=True, silent=True) or {}
         if data.get("test_search"):
             query_data = data.get("query", {})
             test_query = VideoQuery(
