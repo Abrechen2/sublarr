@@ -145,3 +145,12 @@ def get_provider_health_history(provider_name: str = None, days: int = 7) -> lis
 def get_provider_success_rate(provider_name: str) -> float:
     """Get success rate for a provider (0.0 to 1.0)."""
     return _get_repo().get_provider_success_rate(provider_name)
+
+
+def get_all_provider_stats_enriched() -> dict:
+    """Fetch all provider stats with success_rate and auto_disabled in one query.
+
+    Replaces the N+1 pattern (get_provider_success_rate + is_provider_auto_disabled
+    per provider) in the /providers/stats route.
+    """
+    return _get_repo().get_all_provider_stats_enriched()

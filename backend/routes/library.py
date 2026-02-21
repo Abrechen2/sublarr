@@ -307,6 +307,7 @@ def get_series_detail(series_id):
         503:
           description: Sonarr not configured
     """
+    from concurrent.futures import ThreadPoolExecutor
     from sonarr_client import get_sonarr_client
     from translator import detect_existing_target_for_lang
     from db.profiles import get_series_profile, get_default_profile
@@ -333,22 +334,31 @@ def get_series_detail(series_id):
     # Get all episodes
     episodes_raw = sonarr.get_episodes(series_id)
 
+    # Collect file paths for episodes that need subtitle detection
+    episodes_to_check = {
+        ep["id"]: ep["episodeFile"]["path"]
+        for ep in episodes_raw
+        if ep.get("hasFile") and ep.get("episodeFile") and ep["episodeFile"].get("path")
+    }
+
+    def _detect_subtitles(file_path: str) -> dict:
+        mapped = map_path(file_path)
+        return {lang: detect_existing_target_for_lang(mapped, lang) or "" for lang in target_languages}
+
+    # Parallel filesystem I/O — ~8x faster for series with many episodes
+    subtitle_map: dict = {}
+    if episodes_to_check:
+        with ThreadPoolExecutor(max_workers=min(8, len(episodes_to_check))) as executor:
+            futures = {ep_id: executor.submit(_detect_subtitles, path)
+                       for ep_id, path in episodes_to_check.items()}
+        subtitle_map = {ep_id: f.result() for ep_id, f in futures.items()}
+
     episodes = []
     for ep in episodes_raw:
         has_file = ep.get("hasFile", False)
-        file_path = None
-        subtitles = {}
-
-        if has_file:
-            ep_file = ep.get("episodeFile")
-            if ep_file:
-                file_path = ep_file.get("path")
-
-            if file_path:
-                mapped = map_path(file_path)
-                for lang in target_languages:
-                    existing = detect_existing_target_for_lang(mapped, lang)
-                    subtitles[lang] = existing or ""
+        ep_id = ep.get("id")
+        file_path = episodes_to_check.get(ep_id) if ep_id else None
+        subtitles = subtitle_map.get(ep_id, {})
 
         # Audio language from episode file
         audio_languages = []

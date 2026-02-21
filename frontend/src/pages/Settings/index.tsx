@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   useConfig, useUpdateConfig,
@@ -16,18 +16,35 @@ import { Toggle } from '@/components/shared/Toggle'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { HELP_TEXT } from './settingsHelpText'
 
-// Tab sub-components
-import { ProvidersTab } from './ProvidersTab'
-import { TranslationBackendsTab, PromptPresetsTab } from './TranslationTab'
-import { WhisperTab } from './WhisperTab'
-import { MediaServersTab } from './MediaServersTab'
-import { EventsHooksTab, ScoringTab } from './EventsTab'
-import { LanguageProfilesTab, LibrarySourcesTab, BackupTab, SubtitleToolsTab } from './AdvancedTab'
-import { ApiKeysTab } from './ApiKeysTab'
-import { NotificationTemplatesTab } from './NotificationTemplatesTab'
-import { CleanupTab } from './CleanupTab'
-import { IntegrationsTab } from './IntegrationsTab'
-import { MigrationTab } from './MigrationTab'
+// Tab sub-components — lazy loaded so each tab's code is only fetched on first open
+const ProvidersTab = lazy(() => import('./ProvidersTab').then(m => ({ default: m.ProvidersTab })))
+const TranslationBackendsTab = lazy(() => import('./TranslationTab').then(m => ({ default: m.TranslationBackendsTab })))
+const PromptPresetsTab = lazy(() => import('./TranslationTab').then(m => ({ default: m.PromptPresetsTab })))
+const WhisperTab = lazy(() => import('./WhisperTab').then(m => ({ default: m.WhisperTab })))
+const MediaServersTab = lazy(() => import('./MediaServersTab').then(m => ({ default: m.MediaServersTab })))
+const EventsHooksTab = lazy(() => import('./EventsTab').then(m => ({ default: m.EventsHooksTab })))
+const ScoringTab = lazy(() => import('./EventsTab').then(m => ({ default: m.ScoringTab })))
+const LanguageProfilesTab = lazy(() => import('./AdvancedTab').then(m => ({ default: m.LanguageProfilesTab })))
+const LibrarySourcesTab = lazy(() => import('./AdvancedTab').then(m => ({ default: m.LibrarySourcesTab })))
+const BackupTab = lazy(() => import('./AdvancedTab').then(m => ({ default: m.BackupTab })))
+const SubtitleToolsTab = lazy(() => import('./AdvancedTab').then(m => ({ default: m.SubtitleToolsTab })))
+const ApiKeysTab = lazy(() => import('./ApiKeysTab').then(m => ({ default: m.ApiKeysTab })))
+const NotificationTemplatesTab = lazy(() => import('./NotificationTemplatesTab').then(m => ({ default: m.NotificationTemplatesTab })))
+const CleanupTab = lazy(() => import('./CleanupTab').then(m => ({ default: m.CleanupTab })))
+const IntegrationsTab = lazy(() => import('./IntegrationsTab').then(m => ({ default: m.IntegrationsTab })))
+const MigrationTab = lazy(() => import('./MigrationTab').then(m => ({ default: m.MigrationTab })))
+
+function TabSkeleton() {
+  return (
+    <div className="rounded-lg p-5 animate-pulse" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+      <div className="space-y-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-10 rounded" style={{ backgroundColor: 'var(--bg-primary)' }} />
+        ))}
+      </div>
+    </div>
+  )
+}
 
 // ─── Navigation Groups ────────────────────────────────────────────────────────
 
@@ -683,6 +700,7 @@ export function SettingsPage() {
 
         {/* Content */}
         <div className="flex-1">
+          <Suspense fallback={<TabSkeleton />}>
           {isApiKeysTab ? (
             <ApiKeysTab />
           ) : isProvidersTab ? (
@@ -988,6 +1006,7 @@ export function SettingsPage() {
               )}
             </div>
           )}
+          </Suspense>
         </div>
       </div>
     </div>
