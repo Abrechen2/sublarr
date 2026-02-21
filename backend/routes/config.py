@@ -159,17 +159,29 @@ def update_config():
     all_overrides = get_all_config_entries()
     settings = reload_settings(all_overrides)
 
-    # Invalidate singleton clients so they pick up new URLs/keys
+    # Selectively invalidate singleton clients based on which keys changed
     from sonarr_client import invalidate_client as _inv_sonarr
     from radarr_client import invalidate_client as _inv_radarr
     from mediaserver import invalidate_media_server_manager as _inv_media
     from providers import invalidate_manager as _inv_providers
     from notifier import invalidate_notifier as _inv_notifier
-    _inv_sonarr()
-    _inv_radarr()
-    _inv_media()
-    _inv_providers()
-    _inv_notifier()
+
+    if any(k.startswith('sonarr_') for k in saved_keys):
+        _inv_sonarr()
+    if any(k.startswith('radarr_') for k in saved_keys):
+        _inv_radarr()
+    if any(k.startswith('provider_') or k.startswith('scoring_') or
+           k in {'opensubtitles_api_key', 'jimaku_api_key', 'subdl_api_key',
+                 'min_score', 'source_language', 'target_language'} for k in saved_keys):
+        _inv_providers()
+    if any(k.startswith('jellyfin_') or k.startswith('emby_') or
+           k.startswith('plex_') or k.startswith('kodi_') or
+           k.startswith('media_server') for k in saved_keys):
+        _inv_media()
+    if any(k.startswith('notification') or k.startswith('pushover') or
+           k.startswith('gotify') or k.startswith('ntfy') or
+           k.startswith('discord') or k.startswith('slack') for k in saved_keys):
+        _inv_notifier()
     invalidate_scanner()
 
     # Reload media server instances with new config
