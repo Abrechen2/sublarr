@@ -238,6 +238,19 @@ class SonarrClient:
         """
         return self._get(f"/episodefile/{episode_file_id}")
 
+    def get_episode_files_by_series(self, series_id):
+        """Get all episode files for a series in one request.
+
+        Uses /episodefile?seriesId=X which returns full file info including path
+        and mediaInfo. Much more efficient than fetching per-episode.
+
+        Returns:
+            dict: Mapping of episodeFileId -> file info dict (with path, mediaInfo)
+        """
+        result = self._get("/episodefile", params={"seriesId": series_id})
+        files = result or []
+        return {f["id"]: f for f in files if f.get("id")}
+
     def get_tags(self):
         """Get all tags.
 
