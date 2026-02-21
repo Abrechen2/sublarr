@@ -356,17 +356,13 @@ def provider_stats():
     """
     from db.providers import (
         get_provider_cache_stats, get_provider_download_stats,
-        get_provider_stats, get_provider_success_rate, is_provider_auto_disabled,
+        get_all_provider_stats_enriched,
     )
 
     cache_stats = get_provider_cache_stats()
     download_stats = get_provider_download_stats()
-    performance_stats = get_provider_stats()  # All provider stats
-
-    # Add success rates and response time data to performance stats
-    for provider_name in performance_stats:
-        performance_stats[provider_name]["success_rate"] = get_provider_success_rate(provider_name)
-        performance_stats[provider_name]["auto_disabled"] = is_provider_auto_disabled(provider_name)
+    # Single batch query: success_rate and auto_disabled computed inline (was N+1)
+    performance_stats = get_all_provider_stats_enriched()
 
     return jsonify({
         "cache": cache_stats,

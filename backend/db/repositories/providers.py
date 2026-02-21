@@ -424,6 +424,28 @@ class ProviderRepository(BaseRepository):
             return 0.0
         return (entry.successful_downloads or 0) / entry.total_searches
 
+    def get_all_provider_stats_enriched(self) -> dict:
+        """Fetch all provider stats with success_rate and auto_disabled in one query.
+
+        Replaces the N+1 pattern of calling get_provider_success_rate() and
+        is_provider_auto_disabled() per provider. Returns dict keyed by provider_name.
+        """
+        stmt = select(ProviderStats)
+        entries = self.session.execute(stmt).scalars().all()
+        now = datetime.now(timezone.utc).isoformat()
+        result = {}
+        for entry in entries:
+            stats = self._row_to_stats(entry)
+            total = entry.total_searches or 0
+            stats["success_rate"] = (entry.successful_downloads or 0) / total if total > 0 else 0.0
+            # Mirror is_auto_disabled() cooldown logic without DB write
+            auto_disabled = bool(entry.auto_disabled)
+            if auto_disabled and entry.disabled_until and entry.disabled_until < now:
+                auto_disabled = False
+            stats["auto_disabled"] = auto_disabled
+            result[entry.provider_name] = stats
+        return result
+
     # ---- Helpers -----------------------------------------------------------------
 
     def _row_to_stats(self, entry: ProviderStats) -> dict:

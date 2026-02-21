@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import {
   getHealth, getStats, getJobs,
@@ -113,6 +114,7 @@ export function useConfig() {
   return useQuery({
     queryKey: ['config'],
     queryFn: getConfig,
+    staleTime: 5 * 60_000,
   })
 }
 
@@ -120,8 +122,16 @@ export function useUpdateConfig() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (values: Record<string, unknown>) => updateConfig(values),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['config'] })
+      const keys = Object.keys(variables)
+      if (keys.some(k => k.startsWith('sonarr_') || k.startsWith('radarr_'))) {
+        queryClient.invalidateQueries({ queryKey: ['library'] })
+      }
+      if (keys.some(k => k.startsWith('provider_') || k.startsWith('scoring_'))) {
+        queryClient.invalidateQueries({ queryKey: ['providers'] })
+        queryClient.invalidateQueries({ queryKey: ['provider-stats'] })
+      }
     },
   })
 }
@@ -132,7 +142,6 @@ export function useWantedItems(page = 1, perPage = 50, itemType?: string, status
   return useQuery({
     queryKey: ['wanted', page, perPage, itemType, status, subtitleType],
     queryFn: () => getWantedItems(page, perPage, itemType, status, subtitleType),
-    refetchInterval: 30000,
   })
 }
 
@@ -140,7 +149,6 @@ export function useWantedSummary() {
   return useQuery({
     queryKey: ['wanted-summary'],
     queryFn: getWantedSummary,
-    refetchInterval: 30000,
   })
 }
 
@@ -221,7 +229,7 @@ export function useProviders() {
   return useQuery({
     queryKey: ['providers'],
     queryFn: getProviders,
-    refetchInterval: 30000,
+    staleTime: 5 * 60_000,
   })
 }
 
@@ -239,7 +247,6 @@ export function useProviderStats() {
   return useQuery({
     queryKey: ['provider-stats'],
     queryFn: getProviderStats,
-    refetchInterval: 30000,
   })
 }
 
@@ -259,7 +266,7 @@ export function useLanguageProfiles() {
   return useQuery({
     queryKey: ['language-profiles'],
     queryFn: getLanguageProfiles,
-    refetchInterval: 60000,
+    staleTime: 5 * 60_000,
   })
 }
 
@@ -312,7 +319,6 @@ export function useBlacklist(page = 1, perPage = 50) {
   return useQuery({
     queryKey: ['blacklist', page, perPage],
     queryFn: () => getBlacklist(page, perPage),
-    refetchInterval: 30000,
   })
 }
 
@@ -355,7 +361,6 @@ export function useHistory(page = 1, perPage = 50, provider?: string, language?:
   return useQuery({
     queryKey: ['history', page, perPage, provider, language],
     queryFn: () => getHistory(page, perPage, provider, language),
-    refetchInterval: 30000,
   })
 }
 
@@ -363,7 +368,6 @@ export function useHistoryStats() {
   return useQuery({
     queryKey: ['history-stats'],
     queryFn: getHistoryStats,
-    refetchInterval: 30000,
   })
 }
 
@@ -418,7 +422,7 @@ export function useLibrary() {
   return useQuery({
     queryKey: ['library'],
     queryFn: getLibrary,
-    refetchInterval: 120000,
+    staleTime: 60_000,
   })
 }
 
@@ -480,7 +484,7 @@ export function useSearchInteractive(itemId: number | null, enabled = false) {
     queryFn: () => searchInteractive(itemId!),
     enabled: enabled && !!itemId,
     staleTime: 0,
-    gcTime: 0,
+    gcTime: 5 * 60_000,
   })
 }
 
@@ -490,7 +494,7 @@ export function useSearchInteractiveEpisode(episodeId: number | null, enabled = 
     queryFn: () => searchInteractiveEpisode(episodeId!),
     enabled: enabled && !!episodeId,
     staleTime: 0,
-    gcTime: 0,
+    gcTime: 5 * 60_000,
   })
 }
 
@@ -655,7 +659,7 @@ export function useBackends() {
   return useQuery({
     queryKey: ['backends'],
     queryFn: getBackends,
-    staleTime: 30000,
+    staleTime: 5 * 60_000,
   })
 }
 
@@ -670,6 +674,7 @@ export function useBackendConfig(name: string) {
     queryKey: ['backend-config', name],
     queryFn: () => getBackendConfig(name),
     enabled: !!name,
+    staleTime: 5 * 60_000,
   })
 }
 
@@ -707,7 +712,7 @@ export function useMediaServerInstances() {
   return useQuery({
     queryKey: ['mediaServerInstances'],
     queryFn: getMediaServerInstances,
-    staleTime: 10_000,
+    staleTime: 5 * 60_000,
   })
 }
 
@@ -815,7 +820,7 @@ export function useTriggerStandaloneScan() {
 }
 
 export function useStandaloneStatus() {
-  return useQuery({ queryKey: ['standaloneStatus'], queryFn: getStandaloneStatus, refetchInterval: 30000 })
+  return useQuery({ queryKey: ['standaloneStatus'], queryFn: getStandaloneStatus })
 }
 
 export function useRefreshSeriesMetadata() {
@@ -1158,10 +1163,17 @@ export function useAdvancedSync() {
 // ─── Phase 12: Search + Filter Presets + Batch Actions ────────────────────
 
 export function useGlobalSearch(query: string) {
+  const [debouncedQuery, setDebouncedQuery] = useState(query)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 300)
+    return () => clearTimeout(timer)
+  }, [query])
+
   return useQuery({
-    queryKey: ['search', query],
-    queryFn: () => searchGlobal(query),
-    enabled: query.trim().length >= 2,
+    queryKey: ['search', debouncedQuery],
+    queryFn: () => searchGlobal(debouncedQuery),
+    enabled: debouncedQuery.trim().length >= 2,
     staleTime: 10_000,
     placeholderData: keepPreviousData,
   })
