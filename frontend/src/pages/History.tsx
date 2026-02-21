@@ -15,6 +15,13 @@ import type { FilterCondition } from '@/lib/types'
 
 const PROVIDER_FILTERS = ['all', 'animetosho', 'jimaku', 'opensubtitles', 'subdl'] as const
 
+const PROVIDER_LABELS: Record<string, string> = {
+  animetosho: 'AnimeTosho',
+  jimaku: 'Jimaku',
+  opensubtitles: 'OpenSubtitles',
+  subdl: 'SubDL',
+}
+
 const SCOPE = 'history' as const
 
 type HistoryEntry = {
@@ -337,7 +344,7 @@ export function HistoryPage() {
                 border: `1px solid ${isActive ? 'var(--accent-dim)' : 'var(--border)'}`,
               }}
             >
-              {p === 'all' ? t('history.all_providers') : p}
+              {p === 'all' ? t('history.all_providers') : (PROVIDER_LABELS[p] ?? p)}
             </button>
           )
         })}
