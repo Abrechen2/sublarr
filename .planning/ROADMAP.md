@@ -44,7 +44,7 @@ See `.planning/milestones/v0.9.0-beta-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Subtitle quality on a new level -- context-aware LLM translation with per-series glossaries, library-wide auto-sync, AI detection of bad provider subtitles, and anime-specific improvements.
 
-- [ ] **Phase 18: Per-Series Glossary** -- Series-specific translation glossaries extending the global glossary system
+- [x] **Phase 18: Per-Series Glossary** -- Series-specific translation glossaries extending the global glossary system
 - [ ] **Phase 19: Context-Window Batching** -- LLM receives surrounding lines as context for better translation coherence
 - [ ] **Phase 20: Translation Memory Cache** -- Cache and reuse translations for identical/similar source lines
 - [ ] **Phase 21: Translation Quality Scoring** -- LLM self-evaluation with automatic retry for low-quality lines
@@ -70,8 +70,8 @@ See `.planning/milestones/v0.9.0-beta-ROADMAP.md` for full phase details.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 18-01-PLAN.md -- Backend: DB migration (series_id nullable), repository merge logic, API route updates, translator integration
-- [ ] 18-02-PLAN.md -- Frontend: API client + hooks for global glossary, GlobalGlossaryPanel in Settings, Series Detail override indicator
+- [x] 18-01-PLAN.md -- Backend: DB migration (series_id nullable), repository merge logic, API route updates, translator integration
+- [x] 18-02-PLAN.md -- Frontend: API client + hooks for global glossary, GlobalGlossaryPanel in Settings, Series Detail override indicator
 
 ### Phase 19: Context-Window Batching
 **Goal**: LLM translation calls include surrounding subtitle lines as context, producing more coherent translations that account for conversational flow and scene continuity.
@@ -227,7 +227,7 @@ Note: Phases 22, 23, 25, 26, 27, 28 have no dependencies on other v0.10.0-beta p
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 18. Per-Series Glossary | 0/2 | Planned | - |
+| 18. Per-Series Glossary | 2/2 | Complete | 2026-02-22 |
 | 19. Context-Window Batching | 0/2 | Not started | - |
 | 20. Translation Memory Cache | 0/2 | Not started | - |
 | 21. Translation Quality Scoring | 0/2 | Not started | - |
@@ -241,4 +241,4 @@ Note: Phases 22, 23, 25, 26, 27, 28 have no dependencies on other v0.10.0-beta p
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-21 -- Phase 18 planned (2 plans in 2 waves)*
+*Last updated: 2026-02-22 -- Phase 18 complete (2/2 plans)*
