@@ -18,10 +18,13 @@ def _validate_file_path(file_path: str) -> tuple:
         (None, None) if valid, otherwise (error_message, status_code).
         On success returns (None, file_path) -- normalized file_path.
     """
-    from config import get_settings
+    from config import get_settings, map_path
 
     if not file_path:
         return ("file_path is required", 400)
+
+    # Apply path mapping so Sonarr-style remote paths resolve to local container paths.
+    file_path = map_path(file_path)
 
     s = get_settings()
     media_path = os.path.abspath(s.media_path)
