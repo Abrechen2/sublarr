@@ -20,4 +20,8 @@ VERSION="0.0.0-dev"
 [ -f "$VERSION_FILE" ] && VERSION="$(cat "$VERSION_FILE" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
 
 echo "=== Docker Build (VERSION=$VERSION) ==="
-exec docker build --build-arg VERSION="$VERSION" "$@"
+docker build --build-arg VERSION="$VERSION" "$@"
+
+echo ""
+echo "=== Cardinal Deploy (after docker save | ssh docker load) ==="
+echo "VERSION=$VERSION docker compose -f docker-compose.yml -f docker-compose.cardinal.yml up -d"

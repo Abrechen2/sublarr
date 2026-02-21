@@ -1,0 +1,8 @@
+# Automatically loaded by `docker compose` for local development.
+# Loads app config from .env into the container.
+# NOT used when -f flags are specified explicitly (e.g., Cardinal deploy).
+services:
+  sublarr:
+    env_file:
+      - path: .env
+        required: false
