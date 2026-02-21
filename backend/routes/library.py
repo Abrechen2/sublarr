@@ -311,7 +311,9 @@ def get_series_detail(series_id):
     from sonarr_client import get_sonarr_client
     from translator import detect_existing_target_for_lang
     from db.profiles import get_series_profile, get_default_profile
+    from db.repositories.wanted import WantedRepository
     from config import get_settings, map_path
+    from database import get_db, _db_lock
 
     settings = get_settings()
 
@@ -331,14 +333,24 @@ def get_series_detail(series_id):
     target_language_names = profile.get("target_language_names", [settings.target_language_name]) if profile else [settings.target_language_name]
     profile_name = profile.get("name", "Default") if profile else "Default"
 
-    # Get all episodes
+    # Get all episodes + episode files in parallel
+    # /episode?seriesId=X does NOT include episodeFile details in Sonarr v3,
+    # so we fetch /episodefile?seriesId=X separately to get paths and mediaInfo.
     episodes_raw = sonarr.get_episodes(series_id)
+    ep_file_map = sonarr.get_episode_files_by_series(series_id)  # fileId -> file info
+
+    # Build episodeId -> file info mapping via episodeFileId on each episode
+    ep_id_to_file: dict = {}
+    for ep in episodes_raw:
+        if ep.get("hasFile") and ep.get("episodeFileId"):
+            file_info = ep_file_map.get(ep["episodeFileId"])
+            if file_info and file_info.get("path"):
+                ep_id_to_file[ep["id"]] = file_info
 
     # Collect file paths for episodes that need subtitle detection
     episodes_to_check = {
-        ep["id"]: ep["episodeFile"]["path"]
-        for ep in episodes_raw
-        if ep.get("hasFile") and ep.get("episodeFile") and ep["episodeFile"].get("path")
+        ep_id: info["path"]
+        for ep_id, info in ep_id_to_file.items()
     }
 
     def _detect_subtitles(file_path: str) -> dict:
@@ -353,18 +365,55 @@ def get_series_detail(series_id):
                        for ep_id, path in episodes_to_check.items()}
         subtitle_map = {ep_id: f.result() for ep_id, f in futures.items()}
 
+    # Build fallback from wanted_items DB: (sonarr_episode_id, lang) -> existing_sub
+    # Covers embedded_srt/embedded_ass detected by the scanner (not found by file check alone)
+    ep_ids = [ep["id"] for ep in episodes_raw]
+    wanted_fallback: dict = {}  # ep_id -> {lang: existing_sub}
+    if ep_ids:
+        try:
+            with _db_lock:
+                conn = get_db()
+                repo = WantedRepository(conn)
+                placeholders = ",".join("?" * len(ep_ids))
+                rows = conn.execute(
+                    f"SELECT sonarr_episode_id, target_language, existing_sub "
+                    f"FROM wanted_items WHERE sonarr_episode_id IN ({placeholders})",
+                    ep_ids,
+                ).fetchall()
+            for row in rows:
+                eid, lang, existing = row[0], row[1], row[2]
+                if eid not in wanted_fallback:
+                    wanted_fallback[eid] = {}
+                if existing:  # only store non-empty existing_sub values
+                    wanted_fallback[eid][lang] = existing
+        except Exception:
+            pass  # fallback is best-effort; file detection still works
+
     episodes = []
     for ep in episodes_raw:
         has_file = ep.get("hasFile", False)
         ep_id = ep.get("id")
-        file_path = episodes_to_check.get(ep_id) if ep_id else None
-        subtitles = subtitle_map.get(ep_id, {})
+        file_info = ep_id_to_file.get(ep_id)
+        file_path = file_info["path"] if file_info else ""
+        file_subtitles = subtitle_map.get(ep_id, {})
 
-        # Audio language from episode file
+        # Merge file detection with DB fallback (embedded subs)
+        # File detection takes priority (it's real-time); DB fills in embedded streams
+        db_fallback = wanted_fallback.get(ep_id, {})
+        subtitles = {}
+        for lang in target_languages:
+            file_result = file_subtitles.get(lang, "")
+            if file_result:
+                subtitles[lang] = file_result  # external file found
+            elif lang in db_fallback:
+                subtitles[lang] = db_fallback[lang]  # embedded sub from scanner
+            else:
+                subtitles[lang] = ""
+
+        # Audio languages from episodefile mediaInfo
         audio_languages = []
-        ep_file = ep.get("episodeFile")
-        if ep_file:
-            media_info = ep_file.get("mediaInfo", {})
+        if file_info:
+            media_info = file_info.get("mediaInfo", {})
             audio_lang = media_info.get("audioLanguages", "")
             if audio_lang:
                 audio_languages = [a.strip() for a in audio_lang.split("/") if a.strip()]
