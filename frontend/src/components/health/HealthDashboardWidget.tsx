@@ -1,4 +1,3 @@
-import { ShieldCheck } from 'lucide-react'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
 import { useTranslation } from 'react-i18next'
 import { useQualityTrends } from '@/hooks/useApi'
@@ -10,14 +9,7 @@ interface HealthDashboardWidgetProps {
 
 function SkeletonWidget() {
   return (
-    <div
-      className="rounded-lg p-4"
-      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
-    >
-      <div className="flex items-center gap-2 mb-3">
-        <div className="skeleton w-4 h-4 rounded" />
-        <div className="skeleton h-3 w-28 rounded" />
-      </div>
+    <div>
       <div className="flex items-center gap-4 mb-3">
         <div className="skeleton h-8 w-12 rounded" />
         <div className="skeleton h-3 w-20 rounded" />
@@ -40,22 +32,8 @@ export function HealthDashboardWidget({ className }: HealthDashboardWidgetProps)
 
   if (trends.length === 0) {
     return (
-      <div
-        className={`rounded-lg p-4 ${className ?? ''}`}
-        style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
-      >
-        <div className="flex items-center gap-2 mb-3">
-          <ShieldCheck size={14} style={{ color: 'var(--accent)' }} />
-          <span
-            className="text-xs font-semibold uppercase tracking-wider"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            {t('widgets.quality')}
-          </span>
-        </div>
-        <div className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>
-          {t('widgets.quality_no_data')}
-        </div>
+      <div className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>
+        {t('widgets.quality_no_data')}
       </div>
     )
   }
@@ -66,21 +44,7 @@ export function HealthDashboardWidget({ className }: HealthDashboardWidgetProps)
   const totalChecked = trends.reduce((sum, t) => sum + t.files_checked, 0)
 
   return (
-    <div
-      className={`rounded-lg p-4 transition-all duration-200 hover:shadow-md ${className ?? ''}`}
-      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
-    >
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-3">
-        <ShieldCheck size={14} style={{ color: 'var(--accent)' }} />
-        <span
-          className="text-xs font-semibold uppercase tracking-wider"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          {t('widgets.quality')}
-        </span>
-      </div>
-
+    <div className={className ?? ''}>
       {/* Summary row */}
       <div className="flex items-center gap-4 mb-3">
         <div className="flex items-center gap-2">
@@ -125,4 +89,5 @@ export function HealthDashboardWidget({ className }: HealthDashboardWidgetProps)
       </ResponsiveContainer>
     </div>
   )
+
 }

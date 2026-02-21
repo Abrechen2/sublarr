@@ -7,14 +7,23 @@
 import { useTranslation } from 'react-i18next'
 import { useHealth } from '@/hooks/useApi'
 
+/** Convert raw API service key to a readable display name.
+ *  e.g. "media_server:Emby" → "Emby", "media_servers" → "Media Servers" */
+function formatServiceName(key: string): string {
+  const name = key.includes(':') ? key.split(':').slice(1).join(':') : key
+  return name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 export default function ServiceStatusWidget() {
   const { t } = useTranslation('dashboard')
-  const { data: health } = useHealth()
+  const { data: health, isLoading } = useHealth()
 
-  if (!health?.services) {
+  if (isLoading || !health?.services) {
     return (
-      <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-        {t('services.title')}...
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="skeleton h-7 rounded-md" />
+        ))}
       </div>
     )
   }
@@ -22,9 +31,11 @@ export default function ServiceStatusWidget() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
       {Object.entries(health.services).map(([name, status]) => {
-        const isOk =
-          status === 'OK' || (typeof status === 'string' && status.startsWith('OK'))
         const isNotConfigured = status === 'not configured'
+        const isError = !isNotConfigured && (
+          status === 'error' || status === 'fail' || status === 'failed' || status === 'disconnected'
+        )
+        const isOk = !isNotConfigured && !isError
         return (
           <div
             key={name}
@@ -41,7 +52,7 @@ export default function ServiceStatusWidget() {
                     : 'var(--error)',
               }}
             />
-            <span className="text-xs capitalize truncate">{name}</span>
+            <span className="text-xs truncate">{formatServiceName(name)}</span>
           </div>
         )
       })}

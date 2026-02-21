@@ -5,6 +5,10 @@
   "auto_scroll_off": "Auto-Scrollen AUS",
   "no_logs": "Keine Protokolleintraege",
   "no_logs_for_level": "Keine Protokolleintraege fuer Stufe {{level}}",
+  "rotation_config": "Rotationskonfiguration",
+  "max_size_mb": "Max. Groesse (MB)",
+  "backup_count": "Anzahl Backups",
+  "changes_on_restart": "Aenderungen werden beim naechsten Neustart wirksam.",
   "toast": {
     "rotation_saved": "Rotationskonfiguration gespeichert",
     "rotation_failed": "Rotationskonfiguration konnte nicht gespeichert werden"

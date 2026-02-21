@@ -229,7 +229,7 @@ export function LogsPage() {
           className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium"
           style={{ color: 'var(--text-primary)' }}
         >
-          <span>Rotation Config</span>
+          <span>{t('rotation_config')}</span>
           {rotationOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
         {rotationOpen && (
@@ -237,7 +237,7 @@ export function LogsPage() {
             <div className="grid grid-cols-2 gap-3 mt-3">
               <div className="space-y-1">
                 <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                  Max Size (MB)
+                  {t('max_size_mb')}
                 </label>
                 <input
                   type="number"
@@ -257,7 +257,7 @@ export function LogsPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                  Backup Count
+                  {t('backup_count')}
                 </label>
                 <input
                   type="number"
@@ -278,7 +278,7 @@ export function LogsPage() {
             </div>
             <div className="flex items-center justify-between">
               <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                Changes take effect on next restart.
+                {t('changes_on_restart')}
               </p>
               <button
                 onClick={handleSaveRotation}

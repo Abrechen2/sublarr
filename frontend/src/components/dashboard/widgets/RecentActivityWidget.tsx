@@ -16,14 +16,11 @@ export default function RecentActivityWidget() {
 
   return (
     <div className="flex flex-col h-full -mx-4 -mt-4">
-      {/* Header with View All link */}
+      {/* View All link bar */}
       <div
-        className="px-4 py-2 flex items-center justify-between shrink-0"
+        className="px-4 py-2 flex items-center justify-end shrink-0"
         style={{ borderBottom: '1px solid var(--border)' }}
       >
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-          {t('recent_activity.title')}
-        </span>
         <a
           href="/activity"
           className="text-xs font-medium"

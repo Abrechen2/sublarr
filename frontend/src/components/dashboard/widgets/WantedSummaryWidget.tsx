@@ -24,7 +24,7 @@ export default function WantedSummaryWidget() {
 
   const statusItems: Array<{ key: string; label: string; color: string }> = [
     { key: 'wanted', label: t('stats.wanted'), color: 'var(--warning)' },
-    { key: 'searching', label: t('quick_actions.searching').replace('...', ''), color: 'var(--accent)' },
+    { key: 'searching', label: t('wanted_summary.searching'), color: 'var(--accent)' },
     { key: 'downloaded', label: t('total_stats.translated'), color: 'var(--success)' },
     { key: 'failed', label: t('total_stats.failed'), color: 'var(--error)' },
   ]

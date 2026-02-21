@@ -9,14 +9,24 @@ import { useProviders } from '@/hooks/useApi'
 
 export default function ProviderHealthWidget() {
   const { t } = useTranslation('dashboard')
-  const { data: providersData } = useProviders()
+  const { data: providersData, isLoading } = useProviders()
 
   const providers = providersData?.providers ?? []
 
+  if (isLoading) {
+    return (
+      <div className="space-y-1.5">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="skeleton h-8 rounded-md" />
+        ))}
+      </div>
+    )
+  }
+
   if (providers.length === 0) {
     return (
-      <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-        {t('providers.title')}...
+      <div className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>
+        {t('providers.none_configured', 'No providers configured')}
       </div>
     )
   }
@@ -40,7 +50,7 @@ export default function ProviderHealthWidget() {
                 className="w-1.5 h-1.5 rounded-full shrink-0"
                 style={{ backgroundColor: statusColor }}
               />
-              <span className="text-xs capitalize">{p.name}</span>
+              <span className="text-xs capitalize truncate">{p.name}</span>
             </div>
             <span
               className="text-[10px] font-medium"
