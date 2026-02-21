@@ -186,6 +186,17 @@ def create_app(testing=False):
         from db import init_db
         init_db()
 
+        # Mark any jobs stuck in "running" state as failed (zombie cleanup after crash/restart)
+        if not testing:
+            try:
+                from db.jobs import get_jobs, update_job
+                zombie_page = get_jobs(status="running", per_page=200)
+                for zombie in zombie_page.get("jobs", []):
+                    update_job(zombie["id"], "failed", error="Server restarted — job interrupted")
+                    logger.info("Cleaned up zombie job %s", zombie["id"])
+            except Exception as e:
+                logger.warning("Zombie job cleanup failed: %s", e)
+
         # Initialize event system (SocketIO bridge + hook/webhook subscribers)
         from events import init_event_system
         from events.hooks import HookEngine, init_hook_subscribers

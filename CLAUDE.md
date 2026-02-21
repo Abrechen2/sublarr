@@ -47,3 +47,17 @@ frontend/         # React 19 + TypeScript — @frontend/CLAUDE.md
 SemVer, konservative Beta-Strategie:
 - `v0.2.0-beta` nach Milestone 13-15 | `v0.9.0-beta` Stabilisierung | `v1.0.0` Final
 - Beta = Breaking Changes moeglich | RC = Feature-complete | Patch = nur Bugfixes
+
+**Pflicht vor jedem Build:** `backend/VERSION` inkrementieren — dann committen, dann bauen.
+- Patch (`0.9.x`) → Bugfixes, UI-Fixes, kleine Korrekturen
+- Minor (`0.x.0`) → neue Features, groessere Aenderungen
+- Major (`x.0.0`) → Breaking Changes
+
+```bash
+# Workflow (immer in dieser Reihenfolge):
+# 1. VERSION anpassen (z.B. 0.9.3-beta → 0.9.4-beta)
+# 2. git commit -m "chore: bump version to 0.9.4-beta"
+# 3. docker build -t ghcr.io/abrechen2/sublarr:0.9.4-beta .
+# 4. docker save ... | ssh root@192.168.178.36 docker load
+# 5. SSH → docker compose ... up -d
+```
