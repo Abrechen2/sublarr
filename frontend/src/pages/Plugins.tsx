@@ -6,7 +6,7 @@
 
 import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Search, Download, Trash2, RefreshCw, Loader2, Package, Star } from 'lucide-react'
+import { Search, Download, Trash2, ExternalLink, Loader2, Package, Star } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import {
   useMarketplacePlugins,
@@ -165,7 +165,7 @@ export function PluginsPage() {
                   className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded"
                   title="View on GitHub"
                 >
-                  <RefreshCw className="w-4 h-4" />
+                  <ExternalLink className="w-4 h-4" />
                 </button>
               </div>
             </div>

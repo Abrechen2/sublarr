@@ -89,8 +89,8 @@ const LibraryTableRow = memo(function LibraryTableRow({
       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '' }}
     >
-      <td className="px-4 py-2.5">
-        <span className="text-sm font-medium hover:underline" style={{ color: 'var(--accent)' }}>
+      <td className="px-4 py-2.5 max-w-xs">
+        <span className="text-sm font-medium hover:underline block truncate" title={item.title} style={{ color: 'var(--accent)' }}>
           {item.title}
         </span>
       </td>

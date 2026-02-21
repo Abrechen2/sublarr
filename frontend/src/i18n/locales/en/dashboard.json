@@ -20,9 +20,13 @@
   },
   "providers": {
     "title": "Subtitle Providers",
+    "none_configured": "No providers configured",
     "disabled": "Disabled",
     "healthy": "Healthy",
     "error": "Error"
+  },
+  "wanted_summary": {
+    "searching": "Searching"
   },
   "total_stats": {
     "title": "Total Stats",

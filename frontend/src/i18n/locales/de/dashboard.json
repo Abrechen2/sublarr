@@ -20,9 +20,13 @@
   },
   "providers": {
     "title": "Untertitel-Provider",
+    "none_configured": "Keine Provider konfiguriert",
     "disabled": "Deaktiviert",
     "healthy": "Gesund",
     "error": "Fehler"
+  },
+  "wanted_summary": {
+    "searching": "Suche"
   },
   "total_stats": {
     "title": "Gesamtstatistik",
