@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import {
   getHealth, getStats, getJobs,
@@ -1163,17 +1162,10 @@ export function useAdvancedSync() {
 // ─── Phase 12: Search + Filter Presets + Batch Actions ────────────────────
 
 export function useGlobalSearch(query: string) {
-  const [debouncedQuery, setDebouncedQuery] = useState(query)
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query), 300)
-    return () => clearTimeout(timer)
-  }, [query])
-
   return useQuery({
-    queryKey: ['search', debouncedQuery],
-    queryFn: () => searchGlobal(debouncedQuery),
-    enabled: debouncedQuery.trim().length >= 2,
+    queryKey: ['search', query],
+    queryFn: () => searchGlobal(query),
+    enabled: query.trim().length >= 2,
     staleTime: 10_000,
     placeholderData: keepPreviousData,
   })
