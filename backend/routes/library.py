@@ -311,7 +311,6 @@ def get_series_detail(series_id):
     from sonarr_client import get_sonarr_client
     from translator import detect_existing_target_for_lang
     from db.profiles import get_series_profile, get_default_profile
-    from db.repositories.wanted import WantedRepository
     from config import get_settings, map_path
     from database import get_db, _db_lock
 
@@ -365,15 +364,47 @@ def get_series_detail(series_id):
                        for ep_id, path in episodes_to_check.items()}
         subtitle_map = {ep_id: f.result() for ep_id, f in futures.items()}
 
-    # Build fallback from wanted_items DB: (sonarr_episode_id, lang) -> existing_sub
-    # Covers embedded_srt/embedded_ass detected by the scanner (not found by file check alone)
+    # Fallback 1: subtitle_downloads — records saved at download time with format
+    # Uses the same mapped paths as wanted_search, so path-mapping is consistent.
+    # Most recent download per (file_path, language) wins.
+    history_fallback: dict = {}  # ep_id -> {lang: format}
+    if ep_id_to_file:
+        try:
+            ep_id_to_mapped = {
+                ep_id: map_path(info["path"])
+                for ep_id, info in ep_id_to_file.items()
+            }
+            mapped_to_ep_id = {v: k for k, v in ep_id_to_mapped.items()}
+            paths = list(mapped_to_ep_id.keys())
+            with _db_lock:
+                conn = get_db()
+                placeholders = ",".join("?" * len(paths))
+                rows = conn.execute(
+                    f"SELECT file_path, language, format FROM subtitle_downloads "
+                    f"WHERE file_path IN ({placeholders}) AND format != '' "
+                    f"ORDER BY downloaded_at DESC",
+                    paths,
+                ).fetchall()
+            for row in rows:
+                path, lang, fmt = row[0], row[1], row[2]
+                ep_id = mapped_to_ep_id.get(path)
+                if ep_id and fmt:
+                    if ep_id not in history_fallback:
+                        history_fallback[ep_id] = {}
+                    # First row per lang = most recent (ORDER BY downloaded_at DESC)
+                    if lang not in history_fallback[ep_id]:
+                        history_fallback[ep_id][lang] = fmt
+        except Exception:
+            pass  # best-effort; filesystem detection still primary
+
+    # Fallback 2: wanted_items.existing_sub — covers embedded_srt/embedded_ass
+    # detected by the scanner but not findable via filesystem check.
     ep_ids = [ep["id"] for ep in episodes_raw]
     wanted_fallback: dict = {}  # ep_id -> {lang: existing_sub}
     if ep_ids:
         try:
             with _db_lock:
                 conn = get_db()
-                repo = WantedRepository(conn)
                 placeholders = ",".join("?" * len(ep_ids))
                 rows = conn.execute(
                     f"SELECT sonarr_episode_id, target_language, existing_sub "
@@ -384,10 +415,10 @@ def get_series_detail(series_id):
                 eid, lang, existing = row[0], row[1], row[2]
                 if eid not in wanted_fallback:
                     wanted_fallback[eid] = {}
-                if existing:  # only store non-empty existing_sub values
+                if existing:
                     wanted_fallback[eid][lang] = existing
         except Exception:
-            pass  # fallback is best-effort; file detection still works
+            pass
 
     episodes = []
     for ep in episodes_raw:
@@ -397,16 +428,16 @@ def get_series_detail(series_id):
         file_path = file_info["path"] if file_info else ""
         file_subtitles = subtitle_map.get(ep_id, {})
 
-        # Merge file detection with DB fallback (embedded subs)
-        # File detection takes priority (it's real-time); DB fills in embedded streams
-        db_fallback = wanted_fallback.get(ep_id, {})
+        # Merge: filesystem (primary) → download history → scanner/embedded fallback
         subtitles = {}
         for lang in target_languages:
             file_result = file_subtitles.get(lang, "")
             if file_result:
-                subtitles[lang] = file_result  # external file found
-            elif lang in db_fallback:
-                subtitles[lang] = db_fallback[lang]  # embedded sub from scanner
+                subtitles[lang] = file_result  # filesystem: ground truth
+            elif lang in history_fallback.get(ep_id, {}):
+                subtitles[lang] = history_fallback[ep_id][lang]  # provider download record
+            elif lang in wanted_fallback.get(ep_id, {}):
+                subtitles[lang] = wanted_fallback[ep_id][lang]  # embedded sub (scanner)
             else:
                 subtitles[lang] = ""
 
