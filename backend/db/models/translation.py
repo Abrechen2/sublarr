@@ -26,12 +26,17 @@ class TranslationConfigHistory(db.Model):
 
 
 class GlossaryEntry(db.Model):
-    """Per-series glossary for consistent term translation."""
+    """Per-series or global glossary for consistent term translation.
+
+    When series_id is NULL, the entry is a global glossary entry that applies
+    to all series. Per-series entries (series_id set) override global entries
+    with the same source_term during translation.
+    """
 
     __tablename__ = "glossary_entries"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    series_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    series_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     source_term: Mapped[str] = mapped_column(Text, nullable=False)
     target_term: Mapped[str] = mapped_column(Text, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, default="")
