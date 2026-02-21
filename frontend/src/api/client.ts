@@ -409,7 +409,7 @@ export async function getLogs(lines = 200, level?: string) {
 
 export interface GlossaryEntry {
   id: number
-  series_id: number
+  series_id: number | null
   source_term: string
   target_term: string
   notes: string
@@ -417,14 +417,15 @@ export interface GlossaryEntry {
   updated_at: string
 }
 
-export async function getGlossaryEntries(seriesId: number, query?: string): Promise<{ entries: GlossaryEntry[]; series_id: number }> {
-  const params: Record<string, unknown> = { series_id: seriesId }
+export async function getGlossaryEntries(seriesId?: number | null, query?: string): Promise<{ entries: GlossaryEntry[]; series_id: number | null }> {
+  const params: Record<string, unknown> = {}
+  if (seriesId != null) params.series_id = seriesId
   if (query) params.query = query
   const { data } = await api.get('/glossary', { params })
   return data
 }
 
-export async function createGlossaryEntry(entry: { series_id: number; source_term: string; target_term: string; notes?: string }): Promise<GlossaryEntry> {
+export async function createGlossaryEntry(entry: { series_id?: number | null; source_term: string; target_term: string; notes?: string }): Promise<GlossaryEntry> {
   const { data } = await api.post('/glossary', entry)
   return data
 }
