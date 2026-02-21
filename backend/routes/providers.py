@@ -3,11 +3,14 @@
 import logging
 from flask import Blueprint, request, jsonify
 
+from cache_response import cached_get, invalidate_response_cache
+
 bp = Blueprint("providers", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
 
 
 @bp.route("/providers", methods=["GET"])
+@cached_get(ttl_seconds=60)
 def list_providers():
     """Get status of all subtitle providers.
     ---

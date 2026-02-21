@@ -1,9 +1,30 @@
+import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useJobs, useBatchStatus } from '@/hooks/useApi'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { truncatePath } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
+
+const QueueJobRow = memo(function QueueJobRow({ file_path, status }: { file_path: string; status: 'running' | 'queued' }) {
+  return (
+    <div className="px-4 py-2.5 flex items-center gap-3">
+      {status === 'running' ? (
+        <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />
+      ) : (
+        <div className="w-3.5 h-3.5 rounded-full shrink-0" style={{ border: '2px solid var(--warning)' }} />
+      )}
+      <span
+        className="flex-1 truncate"
+        title={file_path}
+        style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}
+      >
+        {truncatePath(file_path)}
+      </span>
+      <StatusBadge status={status} />
+    </div>
+  )
+})
 
 export function QueuePage() {
   const { t } = useTranslation('activity')
@@ -76,17 +97,7 @@ export function QueuePage() {
         <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
           {activeJobs?.data?.length ? (
             activeJobs.data.map((job) => (
-              <div key={job.id} className="px-4 py-2.5 flex items-center gap-3">
-                <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />
-                <span
-                  className="flex-1 truncate"
-                  title={job.file_path}
-                  style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}
-                >
-                  {truncatePath(job.file_path)}
-                </span>
-                <StatusBadge status="running" />
-              </div>
+              <QueueJobRow key={job.id} file_path={job.file_path} status="running" />
             ))
           ) : (
             <div className="px-4 py-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -109,20 +120,7 @@ export function QueuePage() {
         <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
           {queuedJobs?.data?.length ? (
             queuedJobs.data.map((job) => (
-              <div key={job.id} className="px-4 py-2.5 flex items-center gap-3">
-                <div
-                  className="w-3.5 h-3.5 rounded-full shrink-0"
-                  style={{ border: '2px solid var(--warning)' }}
-                />
-                <span
-                  className="flex-1 truncate"
-                  title={job.file_path}
-                  style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}
-                >
-                  {truncatePath(job.file_path)}
-                </span>
-                <StatusBadge status="queued" />
-              </div>
+              <QueueJobRow key={job.id} file_path={job.file_path} status="queued" />
             ))
           ) : (
             <div className="px-4 py-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>

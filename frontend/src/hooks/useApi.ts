@@ -141,6 +141,7 @@ export function useWantedItems(page = 1, perPage = 50, itemType?: string, status
   return useQuery({
     queryKey: ['wanted', page, perPage, itemType, status, subtitleType],
     queryFn: () => getWantedItems(page, perPage, itemType, status, subtitleType),
+    placeholderData: keepPreviousData,
   })
 }
 

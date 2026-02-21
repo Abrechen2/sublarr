@@ -7,6 +7,7 @@ import json
 import time
 import zipfile
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 from flask import Blueprint, request, jsonify, send_file
@@ -16,6 +17,65 @@ from version import __version__
 
 bp = Blueprint("system", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
+
+
+def _health_check_ollama():
+    """Return (dict of service_status entries, overall_healthy bool)."""
+    from ollama_client import check_ollama_health
+    healthy, message = check_ollama_health()
+    return {"ollama": message}, healthy
+
+
+def _health_check_providers():
+    try:
+        from providers import get_provider_manager
+        manager = get_provider_manager()
+        provider_statuses = manager.get_provider_status()
+        active_count = sum(1 for p in provider_statuses if p["healthy"])
+        return {"providers": f"{active_count}/{len(provider_statuses)} active"}, None
+    except Exception:
+        return {"providers": "error"}, None
+
+
+def _health_check_sonarr():
+    try:
+        from sonarr_client import get_sonarr_client
+        sonarr = get_sonarr_client()
+        if sonarr:
+            s_healthy, s_msg = sonarr.health_check()
+            return {"sonarr": s_msg if s_healthy else f"unhealthy: {s_msg}"}, None
+        return {"sonarr": "not configured"}, None
+    except Exception:
+        return {"sonarr": "error"}, None
+
+
+def _health_check_radarr():
+    try:
+        from radarr_client import get_radarr_client
+        radarr = get_radarr_client()
+        if radarr:
+            r_healthy, r_msg = radarr.health_check()
+            return {"radarr": r_msg if r_healthy else f"unhealthy: {r_msg}"}, None
+        return {"radarr": "not configured"}, None
+    except Exception:
+        return {"radarr": "error"}, None
+
+
+def _health_check_media_servers():
+    try:
+        from mediaserver import get_media_server_manager
+        manager = get_media_server_manager()
+        ms_health = manager.health_check_all()
+        if ms_health:
+            healthy_count = sum(1 for h in ms_health if h["healthy"])
+            out = {"media_servers": f"{healthy_count}/{len(ms_health)} healthy"}
+            for h in ms_health:
+                key = f"media_server:{h['name']}"
+                out[key] = h["message"] if h["healthy"] else f"unhealthy: {h['message']}"
+            return out, None
+        return {"media_servers": "none configured"}, None
+    except Exception:
+        return {"media_servers": "error"}, None
 
 
 @bp.route("/health", methods=["GET"])
@@ -47,64 +107,31 @@ def health():
         503:
           description: System is unhealthy
     """
-    from ollama_client import check_ollama_health
-    from config import get_settings
+    service_status = {}
+    healthy = True
+    results_by_name = {}
 
-    healthy, message = check_ollama_health()
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_name = {
+            executor.submit(_health_check_ollama): "ollama",
+            executor.submit(_health_check_providers): "providers",
+            executor.submit(_health_check_sonarr): "sonarr",
+            executor.submit(_health_check_radarr): "radarr",
+            executor.submit(_health_check_media_servers): "media_servers",
+        }
+        for fut in as_completed(future_to_name):
+            name = future_to_name[fut]
+            try:
+                part, overall = fut.result()
+                results_by_name[name] = (part, overall)
+            except Exception as exc:
+                logger.debug("Health check %s failed: %s", name, exc)
+                results_by_name[name] = ({name: "error"}, False if name == "ollama" else None)
 
-    # Check all configured services
-    service_status = {"ollama": message}
-
-    # Subtitle Providers
-    try:
-        from providers import get_provider_manager
-        manager = get_provider_manager()
-        provider_statuses = manager.get_provider_status()
-        active_count = sum(1 for p in provider_statuses if p["healthy"])
-        service_status["providers"] = f"{active_count}/{len(provider_statuses)} active"
-    except Exception:
-        service_status["providers"] = "error"
-
-    # Sonarr
-    try:
-        from sonarr_client import get_sonarr_client
-        sonarr = get_sonarr_client()
-        if sonarr:
-            s_healthy, s_msg = sonarr.health_check()
-            service_status["sonarr"] = s_msg if s_healthy else f"unhealthy: {s_msg}"
-        else:
-            service_status["sonarr"] = "not configured"
-    except Exception:
-        service_status["sonarr"] = "error"
-
-    # Radarr
-    try:
-        from radarr_client import get_radarr_client
-        radarr = get_radarr_client()
-        if radarr:
-            r_healthy, r_msg = radarr.health_check()
-            service_status["radarr"] = r_msg if r_healthy else f"unhealthy: {r_msg}"
-        else:
-            service_status["radarr"] = "not configured"
-    except Exception:
-        service_status["radarr"] = "error"
-
-    # Media Servers (replaces old Jellyfin-specific check)
-    try:
-        from mediaserver import get_media_server_manager
-        manager = get_media_server_manager()
-        ms_health = manager.health_check_all()
-        if ms_health:
-            healthy_count = sum(1 for h in ms_health if h["healthy"])
-            service_status["media_servers"] = f"{healthy_count}/{len(ms_health)} healthy"
-            # Also add individual server status
-            for h in ms_health:
-                key = f"media_server:{h['name']}"
-                service_status[key] = h["message"] if h["healthy"] else f"unhealthy: {h['message']}"
-        else:
-            service_status["media_servers"] = "none configured"
-    except Exception:
-        service_status["media_servers"] = "error"
+    for name, (part, overall) in results_by_name.items():
+        service_status.update(part)
+        if name == "ollama" and overall is False:
+            healthy = False
 
     status_code = 200 if healthy else 503
     return jsonify({

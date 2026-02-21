@@ -24,7 +24,7 @@ function useQuickActionHandlers(): ReadonlyMap<string, () => void> {
   const refreshWanted = useRefreshWanted()
   const searchAllWanted = useSearchAllWanted()
   const startWantedBatch = useStartWantedBatch()
-  const { selectAll: selectAllItems } = useSelectionStore()
+  const selectAllItems = useSelectionStore((s) => s.selectAll)
 
   return useMemo(() => {
     const handlers = new Map<string, () => void>()

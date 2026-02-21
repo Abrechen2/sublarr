@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLibrary, useLanguageProfiles, useAssignProfile } from '@/hooks/useApi'
 import { Tv, Film, Loader2, Settings, ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
@@ -66,6 +66,83 @@ function SortIcon({ sortKey, currentSort, currentDir }: { sortKey: SortKey; curr
     : <ArrowDown size={11} style={{ color: 'var(--accent)' }} />
 }
 
+const LibraryTableRow = memo(function LibraryTableRow({
+  item,
+  isSeries,
+  profiles,
+  onRowClick,
+  onProfileChange,
+  t,
+}: {
+  item: SeriesInfo | MovieInfo
+  isSeries: boolean
+  profiles: LanguageProfile[]
+  onRowClick: (id: number) => void
+  onProfileChange: (seriesId: number, profileId: number) => void
+  t: (key: string, opts?: Record<string, unknown>) => string
+}) {
+  return (
+    <tr
+      className="transition-colors duration-100 cursor-pointer"
+      style={{ borderTop: '1px solid var(--border)' }}
+      onClick={() => onRowClick(item.id)}
+      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '' }}
+    >
+      <td className="px-4 py-2.5">
+        <span className="text-sm font-medium hover:underline" style={{ color: 'var(--accent)' }}>
+          {item.title}
+        </span>
+      </td>
+      {isSeries && (
+        <td className="px-4 py-2.5">
+          <MissingBadge count={(item as SeriesInfo).missing_count ?? 0} />
+        </td>
+      )}
+      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+        {isSeries && profiles.length > 0 ? (
+          <select
+            value={(item as SeriesInfo).profile_id ?? 0}
+            onChange={(e) => onProfileChange(item.id, Number(e.target.value))}
+            className="text-xs px-2 py-1 rounded cursor-pointer"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        ) : (
+          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+            {(item as SeriesInfo).profile_name || t('table.default_profile')}
+          </span>
+        )}
+      </td>
+      <td className="px-4 py-2.5">
+        {isSeries && 'episodes' in item ? (
+          <ProgressBar
+            current={(item as SeriesInfo).episodes_with_files || 0}
+            total={(item as SeriesInfo).episodes}
+          />
+        ) : (
+          <span
+            className="text-[10px] px-2 py-0.5 rounded font-medium inline-block"
+            style={{
+              backgroundColor: (item as MovieInfo).has_file ? 'var(--success-bg)' : 'var(--error-bg)',
+              color: (item as MovieInfo).has_file ? 'var(--success)' : 'var(--error)',
+            }}
+          >
+            {(item as MovieInfo).has_file ? t('table.on_disk') : t('table.missing_file')}
+          </span>
+        )}
+      </td>
+    </tr>
+  )
+})
+
 function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sortKey, sortDir, onSort, t }: {
   items: (SeriesInfo | MovieInfo)[]
   type: Tab
@@ -126,72 +203,15 @@ function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sort
         </thead>
         <tbody>
           {items.map((item) => (
-            <tr
+            <LibraryTableRow
               key={item.id}
-              className="transition-colors duration-100 cursor-pointer"
-              style={{ borderTop: '1px solid var(--border)' }}
-              onClick={() => onRowClick(item.id)}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = ''
-              }}
-            >
-              <td className="px-4 py-2.5">
-                <span
-                  className="text-sm font-medium hover:underline"
-                  style={{ color: 'var(--accent)' }}
-                >
-                  {item.title}
-                </span>
-              </td>
-              {isSeries && (
-                <td className="px-4 py-2.5">
-                  <MissingBadge count={(item as SeriesInfo).missing_count ?? 0} />
-                </td>
-              )}
-              <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
-                {isSeries && profiles.length > 0 ? (
-                  <select
-                    value={(item as SeriesInfo).profile_id ?? 0}
-                    onChange={(e) => onProfileChange(item.id, Number(e.target.value))}
-                    className="text-xs px-2 py-1 rounded cursor-pointer"
-                    style={{
-                      backgroundColor: 'var(--bg-primary)',
-                      color: 'var(--text-secondary)',
-                      border: '1px solid var(--border)',
-                    }}
-                  >
-                    {profiles.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    {(item as SeriesInfo).profile_name || t('table.default_profile')}
-                  </span>
-                )}
-              </td>
-              <td className="px-4 py-2.5">
-                {isSeries && 'episodes' in item ? (
-                  <ProgressBar
-                    current={(item as SeriesInfo).episodes_with_files || 0}
-                    total={(item as SeriesInfo).episodes}
-                  />
-                ) : (
-                  <span
-                    className="text-[10px] px-2 py-0.5 rounded font-medium inline-block"
-                    style={{
-                      backgroundColor: (item as MovieInfo).has_file ? 'var(--success-bg)' : 'var(--error-bg)',
-                      color: (item as MovieInfo).has_file ? 'var(--success)' : 'var(--error)',
-                    }}
-                  >
-                    {(item as MovieInfo).has_file ? t('table.on_disk') : t('table.missing_file')}
-                  </span>
-                )}
-              </td>
-            </tr>
+              item={item}
+              isSeries={isSeries}
+              profiles={profiles}
+              onRowClick={onRowClick}
+              onProfileChange={onProfileChange}
+              t={t}
+            />
           ))}
         </tbody>
       </table>
