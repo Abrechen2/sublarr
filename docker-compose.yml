@@ -1,8 +1,10 @@
 services:
   sublarr:
+    image: ghcr.io/abrechen2/sublarr:${VERSION:-dev}
     build:
       context: .
       args:
+        VERSION: ${VERSION:-dev}
         PUID: ${PUID:-1000}
         PGID: ${PGID:-1000}
     container_name: sublarr
@@ -11,7 +13,6 @@ services:
     volumes:
       - ./config:/config
       - ${SUBLARR_MEDIA_PATH:-/media}:/media:rw
-    env_file: .env
     restart: unless-stopped
     deploy:
       resources:

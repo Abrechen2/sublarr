@@ -1,0 +1,24 @@
+# Cardinal (Unraid) Production Overlay
+# Use WITHOUT docker-compose.override.yml — explicit -f flags suppress auto-loading.
+# Postgres + Redis are pre-existing containers referenced via env vars, no new services needed.
+#
+# Deploy command (run from /mnt/user/Unraid/CC/Sublarr/):
+#   VERSION=$(cat backend/VERSION) \
+#     docker compose -f docker-compose.yml -f docker-compose.cardinal.yml pull
+#
+#   VERSION=$(cat backend/VERSION) \
+#     docker compose -f docker-compose.yml -f docker-compose.cardinal.yml up -d
+
+services:
+  sublarr:
+    env_file:
+      - /mnt/user/appdata/sublarr/sublarr.env
+    volumes:
+      - /mnt/user/appdata/sublarr:/config
+      - /mnt/user/Emby-Media:/media:rw
+    networks:
+      - sublarr_net
+
+networks:
+  sublarr_net:
+    external: true
