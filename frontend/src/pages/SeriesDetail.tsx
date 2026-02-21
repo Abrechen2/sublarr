@@ -295,6 +295,12 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
         </button>
       </div>
 
+      {entries.length > 0 && (
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          Series-specific entries override global entries with the same source term.
+        </p>
+      )}
+
       {/* Search */}
       <input
         type="text"

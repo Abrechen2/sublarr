@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import {
   useBackends, useTestBackend, useBackendConfig, useSaveBackendConfig, useBackendStats,
   usePromptPresets, useCreatePromptPreset, useUpdatePromptPreset, useDeletePromptPreset,
+  useGlobalGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry,
 } from '@/hooks/useApi'
-import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Plus, Edit2, X, Check, Activity, Eye, EyeOff } from 'lucide-react'
+import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Plus, Edit2, X, Check, Activity, Eye, EyeOff, BookOpen, Search } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import { SettingRow } from '@/components/shared/SettingRow'
 import type { TranslationBackendInfo, BackendStats, BackendHealthResult } from '@/lib/types'
@@ -600,6 +601,292 @@ export function PromptPresetsTab() {
       {presets.length === 0 && !showAdd && (
         <div className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>
           No prompt presets configured. A default preset will be created automatically.
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Global Glossary Panel ──────────────────────────────────────────────────
+
+export function GlobalGlossaryPanel() {
+  const { data, isLoading } = useGlobalGlossaryEntries()
+  const createEntry = useCreateGlossaryEntry()
+  const updateEntry = useUpdateGlossaryEntry()
+  const deleteEntry = useDeleteGlossaryEntry()
+  const [showAdd, setShowAdd] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [formData, setFormData] = useState({ source_term: '', target_term: '', notes: '' })
+
+  const entries = data?.entries || []
+  const filteredEntries = searchQuery
+    ? entries.filter((e) =>
+        e.source_term.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        e.target_term.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : entries
+
+  const resetForm = () => {
+    setShowAdd(false)
+    setEditingId(null)
+    setFormData({ source_term: '', target_term: '', notes: '' })
+  }
+
+  const startEdit = (entry: { id: number; source_term: string; target_term: string; notes: string }) => {
+    setEditingId(entry.id)
+    setFormData({
+      source_term: entry.source_term,
+      target_term: entry.target_term,
+      notes: entry.notes || '',
+    })
+    setShowAdd(false)
+  }
+
+  const handleSave = () => {
+    if (!formData.source_term.trim() || !formData.target_term.trim()) {
+      toast('Source and target terms are required', 'error')
+      return
+    }
+
+    if (editingId) {
+      updateEntry.mutate(
+        { entryId: editingId, series_id: null, ...formData },
+        {
+          onSuccess: () => {
+            toast('Glossary entry updated')
+            resetForm()
+          },
+          onError: () => toast('Failed to update entry', 'error'),
+        }
+      )
+    } else {
+      createEntry.mutate(
+        { series_id: null, ...formData },
+        {
+          onSuccess: () => {
+            toast('Glossary entry created')
+            resetForm()
+          },
+          onError: () => toast('Failed to create entry', 'error'),
+        }
+      )
+    }
+  }
+
+  const handleDelete = (id: number) => {
+    if (!confirm('Delete this glossary entry?')) return
+    deleteEntry.mutate(
+      { entryId: id, seriesId: null },
+      {
+        onSuccess: () => toast('Entry deleted'),
+        onError: () => toast('Failed to delete entry', 'error'),
+      }
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-32">
+        <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent)' }} />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <BookOpen size={16} style={{ color: 'var(--accent)' }} />
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Global Glossary
+          </h2>
+          <span
+            className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+            style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
+          >
+            {entries.length}
+          </span>
+        </div>
+        <button
+          onClick={() => {
+            resetForm()
+            setShowAdd(true)
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-white"
+          style={{ backgroundColor: 'var(--accent)' }}
+        >
+          <Plus size={12} />
+          Add Entry
+        </button>
+      </div>
+
+      {/* Search */}
+      {entries.length > 0 && (
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+          <input
+            type="text"
+            placeholder="Search glossary entries..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 rounded-md text-sm"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+            }}
+          />
+        </div>
+      )}
+
+      {/* Add/Edit Form */}
+      {(showAdd || editingId !== null) && (
+        <div
+          className="rounded-lg p-4 space-y-3"
+          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--accent-dim)' }}
+        >
+          <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {editingId ? 'Edit Entry' : 'New Global Entry'}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                Source Term
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Titan"
+                value={formData.source_term}
+                onChange={(e) => setFormData((f) => ({ ...f, source_term: e.target.value }))}
+                className="w-full px-3 py-2 rounded-md text-sm"
+                style={{
+                  backgroundColor: 'var(--bg-primary)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                Target Term
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Titan"
+                value={formData.target_term}
+                onChange={(e) => setFormData((f) => ({ ...f, target_term: e.target.value }))}
+                className="w-full px-3 py-2 rounded-md text-sm"
+                style={{
+                  backgroundColor: 'var(--bg-primary)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
+                }}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+              Notes (optional)
+            </label>
+            <input
+              type="text"
+              placeholder="Context or usage notes"
+              value={formData.notes}
+              onChange={(e) => setFormData((f) => ({ ...f, notes: e.target.value }))}
+              className="w-full px-3 py-2 rounded-md text-sm"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+              }}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSave}
+              disabled={createEntry.isPending || updateEntry.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white"
+              style={{ backgroundColor: 'var(--accent)' }}
+            >
+              {(createEntry.isPending || updateEntry.isPending) ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Check size={12} />
+              )}
+              Save
+            </button>
+            <button onClick={resetForm} className="flex items-center gap-1 px-3 py-1.5 rounded text-xs" style={{ color: 'var(--text-muted)' }}>
+              <X size={12} /> Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Entries List */}
+      {filteredEntries.length === 0 ? (
+        <div
+          className="rounded-lg p-6 text-center"
+          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+        >
+          <BookOpen size={24} className="mx-auto mb-2" style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            {searchQuery
+              ? 'No entries match your search.'
+              : 'No global glossary entries. Add terms that should be consistently translated across all series.'}
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+          <table className="w-full">
+            <thead>
+              <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-2" style={{ color: 'var(--text-muted)' }}>Source</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-2" style={{ color: 'var(--text-muted)' }}>Target</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-2" style={{ color: 'var(--text-muted)' }}>Notes</th>
+                <th className="text-right text-[10px] font-semibold uppercase tracking-wider px-3 py-2" style={{ color: 'var(--text-muted)' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredEntries.map((entry, i) => (
+                <tr
+                  key={entry.id}
+                  style={{ borderBottom: i < filteredEntries.length - 1 ? '1px solid var(--border)' : undefined }}
+                >
+                  <td className="px-3 py-2 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {entry.source_term}
+                  </td>
+                  <td className="px-3 py-2 text-sm font-medium" style={{ color: 'var(--accent)' }}>
+                    {entry.target_term}
+                  </td>
+                  <td className="px-3 py-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    {entry.notes || '-'}
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-1 justify-end">
+                      <button
+                        onClick={() => startEdit(entry)}
+                        className="p-1.5 rounded transition-all duration-150"
+                        style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+                        title="Edit entry"
+                      >
+                        <Edit2 size={12} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(entry.id)}
+                        disabled={deleteEntry.isPending}
+                        className="p-1.5 rounded transition-all duration-150"
+                        style={{ border: '1px solid var(--border)', color: 'var(--error)', backgroundColor: 'var(--bg-primary)' }}
+                        title="Delete entry"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
