@@ -153,5 +153,23 @@ primaere Referenz fuer die GSD-Phase-Planung.
 | react-grid-layout v2 | Built-in TypeScript, responsive containers | ✓ Good |
 | Jinja2 SandboxedEnvironment | Template Injection Prevention fuer Notification Templates | ✓ Good |
 
+## Current Milestone: v0.10.0-beta — Translation Excellence + Anime Quality
+
+**Goal:** Subtitle-Qualitaet auf ein neues Level heben: kontextsensitive LLM-Uebersetzung mit Serien-Glossar, automatische Sync-Korrektur fuer die gesamte Library, KI-Erkennung schlechter Provider-Untertitel und Anime-spezifische Verbesserungen.
+
+**Target features:**
+- Per-Series Translation Glossary (Erweiterung des globalen Glossars)
+- Context-Window Batching fuer LLM (N Zeilen Kontext pro Uebersetzungsaufruf)
+- Bulk Auto-Sync via alass/ffsubsync (Library-weites Timing-Alignment)
+- Machine-Translation Detection (Score-Penalty fuer KI-uebersetzte Provider-Subs)
+- LLM Backend Presets (DeepSeek, Gemini, Claude vorkonfigurierte Templates)
+- AniDB Absolute Order Support (Anime absolute Episodennummerierung)
+- Whisper Fallback-Only Mode (Threshold-basierte Aktivierung, kein Score-Override)
+- Tag-based Language Profile Assignment (Sonarr/Radarr Tags → Auto-Profile)
+
+### Active Requirements
+
+(Defined 2026-02-21 — see REQUIREMENTS.md for full list)
+
 ---
-*Last updated: 2026-02-20 after v0.9.0-beta milestone*
+*Last updated: 2026-02-21 — v0.10.0-beta milestone started*
