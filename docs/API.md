@@ -178,22 +178,28 @@ Start an asynchronous translation job.
 
 ### POST /translate/sync
 
-Synchronous translation (blocks until complete). Use for single files only.
+Translate a single file. When a job queue is configured, the request returns immediately with **202** and a `job_id`; poll `GET /status/<job_id>` or use WebSocket `job_update` for the result. When no queue is available, the request blocks and returns **200** with the translation result.
 
 **Request Body**: Same as `/translate`
 
-**Response**
+**Response (200 – no queue, ran in request)**
 ```json
 {
   "success": true,
-  "data": {
-    "job_id": "abc123",
-    "status": "completed",
-    "file_path": "/media/anime/episode.de.ass",
-    "duration_seconds": 12.5
-  }
+  "output_path": "/media/anime/episode.de.ass",
+  "stats": { ... }
 }
 ```
+
+**Response (202 – queued)**
+```json
+{
+  "job_id": "abc123",
+  "status": "queued",
+  "file_path": "/media/anime/episode.mkv"
+}
+```
+Use `GET /status/<job_id>` or WebSocket to get the final result.
 
 ### GET /status/:job_id
 

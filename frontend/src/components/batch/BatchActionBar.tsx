@@ -32,8 +32,9 @@ const ACTION_DEFS: BatchActionDef[] = [
 ]
 
 export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blacklist', 'export'], onActionComplete }: Props) {
-  const { getSelectedArray, getCount, clearSelection } = useSelectionStore()
-  const count = getCount(scope)
+  const count = useSelectionStore((s) => s.getCount(scope))
+  const getSelectedArray = useSelectionStore((s) => s.getSelectedArray)
+  const clearSelection = useSelectionStore((s) => s.clearSelection)
   const batchMutation = useBatchAction()
   const [lastResult, setLastResult] = useState<string | null>(null)
 

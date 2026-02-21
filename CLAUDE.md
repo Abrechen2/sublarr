@@ -14,8 +14,12 @@ cd frontend && npm test          # Frontend-Tests (vitest)
 cd frontend && npm run lint      # ESLint
 
 docker build -t sublarr:dev .    # Multi-Stage: Node 20 + Python 3.12 + ffmpeg + unrar
+./scripts/docker-build.sh -t sublarr:dev .   # wie oben, zeigt vorher Versionsvorschläge (Patch/Minor/Major)
+# Windows: .\scripts\docker-build.ps1 -t sublarr:dev .
 docker compose up -d             # Production (Port 5765, /config, /media)
 ```
+
+**Versionierung:** Einzige Quelle für die Release-Version ist `backend/VERSION`. Bei Release die Zeile dort anpassen; `backend/version.py` nicht manuell editieren (liest aus VERSION).
 
 ## Sicherheitsregeln — IMMER EINHALTEN
 

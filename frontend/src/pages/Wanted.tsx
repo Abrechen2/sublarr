@@ -237,8 +237,12 @@ export function WantedPage() {
     return () => clearTimeout(timer)
   }, [searchText])
 
-  // Zustand selection store
-  const { toggleItem, selectAll, clearSelection, isSelected } = useSelectionStore()
+  // Zustand selection store: subscribe only to this scope to avoid re-renders from other pages
+  const scopeSelections = useSelectionStore((s) => s.selections[SCOPE])
+  const toggleItem = useSelectionStore((s) => s.toggleItem)
+  const selectAll = useSelectionStore((s) => s.selectAll)
+  const clearSelection = useSelectionStore((s) => s.clearSelection)
+  const isSelected = useCallback((id: number) => (scopeSelections ?? new Set()).has(id), [scopeSelections])
   const { data: summary } = useWantedSummary()
   const { data: wanted, isLoading } = useWantedItems(page, 50, typeFilter, statusFilter, subtitleTypeFilter)
   const refreshWanted = useRefreshWanted()
@@ -307,8 +311,8 @@ export function WantedPage() {
 
   // Bulk selection helpers using Zustand store
   const visibleIds = useMemo(() => filteredData?.map((d) => d.id) ?? [], [filteredData])
-  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => isSelected(SCOPE, id))
-  const someSelected = visibleIds.some((id) => isSelected(SCOPE, id))
+  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => isSelected(id))
+  const someSelected = visibleIds.some((id) => isSelected(id))
 
   const toggleSelectAll = useCallback(() => {
     if (allSelected) {
@@ -697,7 +701,7 @@ export function WantedPage() {
                           className="p-0.5"
                           style={{ color: 'var(--text-muted)' }}
                         >
-                          {isSelected(SCOPE, item.id) ? (
+                          {isSelected(item.id) ? (
                             <CheckSquare size={14} style={{ color: 'var(--accent)' }} />
                           ) : (
                             <Square size={14} />

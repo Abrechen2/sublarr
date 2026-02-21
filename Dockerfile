@@ -15,10 +15,14 @@ RUN npm run build
 # Stage 2: Python Backend + Frontend Bundle
 FROM python:3.12-slim
 
+# Pass from build: docker build --build-arg VERSION=$(cat backend/VERSION) ...
+# Or use scripts/docker-build.sh to get version suggestions and build.
+ARG VERSION=
 LABEL org.opencontainers.image.title="Sublarr"
 LABEL org.opencontainers.image.description="Standalone Subtitle Manager & Translator for Anime/Media"
 LABEL org.opencontainers.image.source="https://github.com/denniswittke/sublarr"
 LABEL org.opencontainers.image.licenses="GPL-3.0"
+LABEL org.opencontainers.image.version="${VERSION}"
 
 # Install system dependencies
 # postgresql-client provides pg_dump/pg_restore for optional PostgreSQL backup support
