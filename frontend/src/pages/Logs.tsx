@@ -1,9 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual'
 import { useLogs, useLogRotation, useUpdateLogRotation } from '@/hooks/useApi'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { Pause, Search, ArrowDown, Download, ChevronDown, ChevronUp, Save, Loader2 } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
+
+const ROW_HEIGHT = 22
+const OVERSCAN = 10
 
 const LOG_LEVELS = ['ALL', 'DEBUG', 'INFO', 'WARNING', 'ERROR'] as const
 const LEVEL_SEVERITY: Record<string, number> = { DEBUG: 0, INFO: 1, WARNING: 2, ERROR: 3 }
@@ -25,7 +29,7 @@ export function LogsPage() {
   const [rotationOpen, setRotationOpen] = useState(false)
   const [rotationMaxSize, setRotationMaxSize] = useState(10)
   const [rotationBackupCount, setRotationBackupCount] = useState(5)
-  const logRef = useRef<HTMLDivElement>(null)
+  const parentRef = useRef<HTMLDivElement>(null)
 
   const { data: logs } = useLogs(500)
   const { data: rotationConfig } = useLogRotation()
@@ -56,11 +60,21 @@ export function LogsPage() {
     return true
   })
 
+  const virtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: OVERSCAN,
+  })
+
+  const virtualItems = virtualizer.getVirtualItems()
+  const totalHeight = virtualizer.getTotalSize()
+
   useEffect(() => {
-    if (autoScroll && logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight
+    if (autoScroll && parentRef.current) {
+      parentRef.current.scrollTop = parentRef.current.scrollHeight
     }
-  }, [filtered, autoScroll])
+  }, [filtered.length, autoScroll])
 
   const getLevelColor = (line: string) => {
     if (line.includes('[ERROR]')) return 'var(--error)'
@@ -160,9 +174,9 @@ export function LogsPage() {
         </div>
       </div>
 
-      {/* Log viewer -- terminal style */}
+      {/* Log viewer -- terminal style, virtualized */}
       <div
-        ref={logRef}
+        ref={parentRef}
         className="flex-1 rounded-lg overflow-auto p-4"
         style={{
           backgroundColor: 'var(--bg-surface)',
@@ -173,15 +187,31 @@ export function LogsPage() {
         }}
       >
         {filtered.length > 0 ? (
-          filtered.map((entry, i) => (
-            <div
-              key={i}
-              className="py-0.5 transition-opacity duration-100 hover:opacity-80"
-              style={{ color: getLevelColor(entry) }}
-            >
-              {entry}
-            </div>
-          ))
+          <div
+            style={{
+              height: `${totalHeight}px`,
+              width: '100%',
+              position: 'relative',
+            }}
+          >
+            {virtualItems.map((virtualRow: VirtualItem) => {
+              const entry = filtered[virtualRow.index]
+              return (
+                <div
+                  key={virtualRow.key}
+                  data-index={virtualRow.index}
+                  className="py-0.5 transition-opacity duration-100 hover:opacity-80 absolute left-0 w-full"
+                  style={{
+                    color: getLevelColor(entry),
+                    transform: `translateY(${virtualRow.start}px)`,
+                    height: `${ROW_HEIGHT}px`,
+                  }}
+                >
+                  {entry}
+                </div>
+              )
+            })}
+          </div>
         ) : (
           <div className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
             {level ? t('no_logs_for_level', { level }) : t('no_logs')}

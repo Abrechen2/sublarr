@@ -8,7 +8,7 @@ import ipaddress
 from urllib.parse import urlparse
 
 import requests
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 
 from extensions import socketio
 from events import emit_event
@@ -232,13 +232,16 @@ def translate_async():
 
 @bp.route("/translate/sync", methods=["POST"])
 def translate_sync():
-    """Translate a single file synchronously.
+    """Translate a single file (sync or queued).
     ---
     post:
       tags:
         - Translate
-      summary: Translate file synchronously
-      description: Translates a file and waits for completion before returning the result. Use for single-file operations.
+      summary: Translate file (sync or queued)
+      description: |
+        When a job queue is configured, the file is enqueued and the endpoint returns
+        202 with job_id; poll GET /status/<job_id> or use WebSocket job_update for result.
+        When no queue is available, translation runs in the request and returns 200 with the result.
       security:
         - apiKeyAuth: []
       requestBody:
@@ -262,7 +265,7 @@ def translate_sync():
                   type: integer
       responses:
         200:
-          description: Translation completed
+          description: Translation completed (no queue; ran in request)
           content:
             application/json:
               schema:
@@ -275,6 +278,20 @@ def translate_sync():
                   stats:
                     type: object
                     additionalProperties: true
+        202:
+          description: Job queued; poll /status/<job_id> or use WebSocket for result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                  status:
+                    type: string
+                    example: queued
+                  file_path:
+                    type: string
         400:
           description: Missing file_path
         404:
@@ -282,6 +299,7 @@ def translate_sync():
         500:
           description: Translation failed
     """
+    from db.jobs import create_job
     from translator import translate_file
     from error_handler import TranslationError
 
@@ -296,6 +314,21 @@ def translate_sync():
         return jsonify({"error": f"File not found: {file_path}"}), 404
 
     arr_context = _build_arr_context(data)
+    queue = getattr(current_app, "job_queue", None)
+
+    if queue is not None:
+        job = create_job(file_path, force, arr_context)
+        try:
+            queue.enqueue(_run_job, job, job_id=job["id"])
+        except Exception as e:
+            logger.warning("Enqueue sync translate failed, running in request: %s", e)
+            queue = None
+        else:
+            return jsonify({
+                "job_id": job["id"],
+                "status": "queued",
+                "file_path": file_path,
+            }), 202
 
     try:
         result = translate_file(file_path, force=force, arr_context=arr_context)

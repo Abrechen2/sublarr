@@ -3,11 +3,14 @@
 import logging
 from flask import Blueprint, request, jsonify
 
+from cache_response import cached_get, invalidate_response_cache
+
 bp = Blueprint("profiles", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
 
 
 @bp.route("/language-profiles", methods=["GET"])
+@cached_get(ttl_seconds=60)
 def list_language_profiles():
     """Get all language profiles.
     ---
@@ -129,6 +132,7 @@ def create_language_profile_endpoint():
         return jsonify({"error": str(e)}), 500
 
     profile = get_language_profile(profile_id)
+    invalidate_response_cache()
     return jsonify(profile), 201
 
 
@@ -219,6 +223,7 @@ def update_language_profile_endpoint(profile_id):
         return jsonify({"error": str(e)}), 500
 
     updated = get_language_profile(profile_id)
+    invalidate_response_cache()
     return jsonify(updated)
 
 
@@ -257,6 +262,7 @@ def delete_language_profile_endpoint(profile_id):
     deleted = delete_language_profile(profile_id)
     if not deleted:
         return jsonify({"error": "Profile not found or is the default profile"}), 400
+    invalidate_response_cache()
     return jsonify({"status": "deleted", "id": profile_id})
 
 

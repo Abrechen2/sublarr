@@ -5,12 +5,14 @@ import logging
 from flask import Blueprint, request, jsonify
 
 from events import emit_event
+from cache_response import cached_get, invalidate_response_cache
 
 bp = Blueprint("config", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
 
 
 @bp.route("/config", methods=["GET"])
+@cached_get(ttl_seconds=60)
 def get_config():
     """Get current configuration (without secrets).
     ---
@@ -183,6 +185,7 @@ def update_config():
            k.startswith('discord') or k.startswith('slack') for k in saved_keys):
         _inv_notifier()
     invalidate_scanner()
+    invalidate_response_cache()
 
     # Reload media server instances with new config
     try:
