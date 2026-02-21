@@ -571,12 +571,23 @@ export function useGlossaryEntries(seriesId: number, query?: string) {
   })
 }
 
+export function useGlobalGlossaryEntries() {
+  return useQuery({
+    queryKey: ['glossary', 'global'],
+    queryFn: () => getGlossaryEntries(null),
+  })
+}
+
 export function useCreateGlossaryEntry() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: createGlossaryEntry,
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['glossary', variables.series_id] })
+      if (variables.series_id != null) {
+        queryClient.invalidateQueries({ queryKey: ['glossary', variables.series_id] })
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['glossary', 'global'] })
+      }
     },
   })
 }
@@ -584,10 +595,14 @@ export function useCreateGlossaryEntry() {
 export function useUpdateGlossaryEntry() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ entryId, ...data }: { entryId: number; series_id: number; source_term?: string; target_term?: string; notes?: string }) =>
+    mutationFn: ({ entryId, ...data }: { entryId: number; series_id?: number | null; source_term?: string; target_term?: string; notes?: string }) =>
       updateGlossaryEntry(entryId, data),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['glossary', variables.series_id] })
+      if (variables.series_id != null) {
+        queryClient.invalidateQueries({ queryKey: ['glossary', variables.series_id] })
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['glossary', 'global'] })
+      }
     },
   })
 }
@@ -595,10 +610,14 @@ export function useUpdateGlossaryEntry() {
 export function useDeleteGlossaryEntry() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ entryId, seriesId }: { entryId: number; seriesId: number }) =>
+    mutationFn: ({ entryId, seriesId }: { entryId: number; seriesId?: number | null }) =>
       deleteGlossaryEntry(entryId),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['glossary', variables.seriesId] })
+      if (variables.seriesId != null) {
+        queryClient.invalidateQueries({ queryKey: ['glossary', variables.seriesId] })
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['glossary', 'global'] })
+      }
     },
   })
 }
