@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** ASS-first Anime Subtitle-Automation mit LLM-Uebersetzung -- automatisch die besten Untertitel finden, herunterladen und uebersetzen, ohne Styles zu zerstoeren.
-**Current focus:** v0.9.0-beta milestone complete — planning next milestone
+**Current focus:** Bug fixes + planning next milestone (v1.0.0)
 
 ## Current Position
 
-Phase: 17-performance-optimizations (active)
-Plan: 17-02 of 3 complete
-Status: In progress — Phase 17 backend N+1 fixes done
-Last activity: 2026-02-20 — Completed 17-02-PLAN.md (backend N+1 queries + composite DB index)
+Phase: 17-performance-optimizations (COMPLETE — all 3 plans done)
+Plan: 17-03 complete (frontend bundle optimization, staleTime fix)
+Status: All 17 phases complete — bug fix session 2026-02-21
+Last activity: 2026-02-21 — Bug fixes: zombie jobs, wanted pagination, duplicate wanted_items (UNIQUE constraint + migration)
 
-Progress: [██░] 2/3 plans in phase 17
+Progress: [███] 3/3 plans in phase 17 — ALL 17 PHASES COMPLETE
 
 ## Performance Metrics
 
