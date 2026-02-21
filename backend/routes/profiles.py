@@ -347,19 +347,22 @@ def assign_profile():
 
 @bp.route("/glossary", methods=["GET"])
 def list_glossary():
-    """Get glossary entries for a series.
+    """Get glossary entries for a series or global glossary.
     ---
     get:
       tags:
         - Profiles
       summary: List glossary entries
-      description: Returns glossary entries for a series. Optionally filter by search query.
+      description: >
+        Returns glossary entries. When series_id is provided, returns per-series
+        entries. When omitted, returns global glossary entries.
+        Optionally filter by search query.
       parameters:
         - in: query
           name: series_id
-          required: true
           schema:
             type: integer
+          description: Series ID for per-series entries. Omit for global glossary.
         - in: query
           name: query
           schema:
@@ -379,16 +382,12 @@ def list_glossary():
                       type: object
                   series_id:
                     type: integer
-        400:
-          description: series_id is required
+                    nullable: true
     """
     from db.translation import get_glossary_entries, search_glossary_terms
 
     series_id = request.args.get("series_id", type=int)
     query = request.args.get("query", "").strip()
-
-    if not series_id:
-        return jsonify({"error": "series_id is required"}), 400
 
     if query:
         entries = search_glossary_terms(series_id, query)
@@ -400,13 +399,15 @@ def list_glossary():
 
 @bp.route("/glossary", methods=["POST"])
 def create_glossary_entry():
-    """Create a new glossary entry.
+    """Create a new glossary entry (per-series or global).
     ---
     post:
       tags:
         - Profiles
       summary: Create a glossary entry
-      description: Adds a new source-to-target term mapping for translation consistency.
+      description: >
+        Adds a new source-to-target term mapping for translation consistency.
+        Omit or set series_id to null for a global glossary entry.
       requestBody:
         required: true
         content:
@@ -414,12 +415,13 @@ def create_glossary_entry():
             schema:
               type: object
               required:
-                - series_id
                 - source_term
                 - target_term
               properties:
                 series_id:
                   type: integer
+                  nullable: true
+                  description: Omit or null for global glossary entry
                 source_term:
                   type: string
                 target_term:
@@ -439,13 +441,11 @@ def create_glossary_entry():
     from db.translation import add_glossary_entry, get_glossary_entry
 
     data = request.get_json() or {}
-    series_id = data.get("series_id")
+    series_id = data.get("series_id")  # None for global entry
     source_term = data.get("source_term", "").strip()
     target_term = data.get("target_term", "").strip()
     notes = data.get("notes", "").strip()
 
-    if not series_id:
-        return jsonify({"error": "series_id is required"}), 400
     if not source_term or not target_term:
         return jsonify({"error": "source_term and target_term are required"}), 400
 
