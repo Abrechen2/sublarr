@@ -1,8 +1,8 @@
-# Requirements — v0.10.0-beta: Translation Excellence + Anime Quality
+# Requirements -- v0.10.0-beta: Translation Excellence + Anime Quality
 
 **Milestone:** v0.10.0-beta
 **Created:** 2026-02-21
-**Status:** Defined — awaiting roadmap
+**Status:** Roadmap created -- 11 phases (18-28), 33 requirements mapped
 
 ---
 
@@ -83,14 +83,40 @@
 
 ---
 
-## Traceability (filled by roadmapper)
+## Traceability
 
-| REQ-ID | Phase | Notes |
-|--------|-------|-------|
-| TRANS-01..08 | TBD | |
-| SYNC-01..05 | TBD | |
-| PROV-01..06 | TBD | |
-| LLM-01..03 | TBD | |
-| ANIME-01..04 | TBD | |
-| WHIS-01..03 | TBD | |
-| PROF-01..04 | TBD | |
+| REQ-ID | Phase | Status |
+|--------|-------|--------|
+| TRANS-01 | Phase 18: Per-Series Glossary | Pending |
+| TRANS-02 | Phase 18: Per-Series Glossary | Pending |
+| TRANS-03 | Phase 19: Context-Window Batching | Pending |
+| TRANS-04 | Phase 19: Context-Window Batching | Pending |
+| TRANS-05 | Phase 20: Translation Memory Cache | Pending |
+| TRANS-06 | Phase 20: Translation Memory Cache | Pending |
+| TRANS-07 | Phase 21: Translation Quality Scoring | Pending |
+| TRANS-08 | Phase 21: Translation Quality Scoring | Pending |
+| SYNC-01 | Phase 22: Bulk Auto-Sync | Pending |
+| SYNC-02 | Phase 22: Bulk Auto-Sync | Pending |
+| SYNC-03 | Phase 22: Bulk Auto-Sync | Pending |
+| SYNC-04 | Phase 22: Bulk Auto-Sync | Pending |
+| SYNC-05 | Phase 22: Bulk Auto-Sync | Pending |
+| PROV-01 | Phase 23: Machine Translation Detection | Pending |
+| PROV-02 | Phase 23: Machine Translation Detection | Pending |
+| PROV-03 | Phase 23: Machine Translation Detection | Pending |
+| PROV-04 | Phase 23: Machine Translation Detection | Pending |
+| PROV-05 | Phase 24: Uploader Trust Scoring | Pending |
+| PROV-06 | Phase 24: Uploader Trust Scoring | Pending |
+| LLM-01 | Phase 28: LLM Backend Presets | Pending |
+| LLM-02 | Phase 28: LLM Backend Presets | Pending |
+| LLM-03 | Phase 28: LLM Backend Presets | Pending |
+| ANIME-01 | Phase 25: AniDB Absolute Episode Order | Pending |
+| ANIME-02 | Phase 25: AniDB Absolute Episode Order | Pending |
+| ANIME-03 | Phase 25: AniDB Absolute Episode Order | Pending |
+| ANIME-04 | Phase 25: AniDB Absolute Episode Order | Pending |
+| WHIS-01 | Phase 26: Whisper Fallback Threshold | Pending |
+| WHIS-02 | Phase 26: Whisper Fallback Threshold | Pending |
+| WHIS-03 | Phase 26: Whisper Fallback Threshold | Pending |
+| PROF-01 | Phase 27: Tag-based Profile Assignment | Pending |
+| PROF-02 | Phase 27: Tag-based Profile Assignment | Pending |
+| PROF-03 | Phase 27: Tag-based Profile Assignment | Pending |
+| PROF-04 | Phase 27: Tag-based Profile Assignment | Pending |
