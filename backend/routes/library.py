@@ -367,6 +367,7 @@ def get_series_detail(series_id):
     # Fallback 1: subtitle_downloads — records saved at download time with format
     # Uses the same mapped paths as wanted_search, so path-mapping is consistent.
     # Most recent download per (file_path, language) wins.
+    ep_id_to_mapped: dict = {}  # ep_id -> local mapped path (used in response + DB lookup)
     history_fallback: dict = {}  # ep_id -> {lang: format}
     if ep_id_to_file:
         try:
@@ -425,7 +426,7 @@ def get_series_detail(series_id):
         has_file = ep.get("hasFile", False)
         ep_id = ep.get("id")
         file_info = ep_id_to_file.get(ep_id)
-        file_path = file_info["path"] if file_info else ""
+        file_path = ep_id_to_mapped.get(ep_id, "")
         file_subtitles = subtitle_map.get(ep_id, {})
 
         # Merge: filesystem (primary) → download history → scanner/embedded fallback
