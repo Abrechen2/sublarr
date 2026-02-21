@@ -859,7 +859,7 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
     }
 
 
-def process_wanted_batch(item_ids=None):
+def process_wanted_batch(item_ids=None, app=None):
     """Process multiple wanted items with parallel execution.
 
     Uses ThreadPoolExecutor for parallel processing. Provider-level rate
@@ -868,6 +868,7 @@ def process_wanted_batch(item_ids=None):
 
     Args:
         item_ids: List of specific IDs, or None for all 'wanted' items.
+        app: Flask app instance. Each worker thread pushes its own app context.
 
     Yields:
         Progress dicts for each item processed.
@@ -894,10 +895,16 @@ def process_wanted_batch(item_ids=None):
     failed = 0
     skipped = 0
 
+    def _run_item(item_id):
+        if app is not None:
+            with app.app_context():
+                return process_wanted_item(item_id)
+        return process_wanted_item(item_id)
+
     max_workers = min(4, total) if total > 0 else 1
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_item = {
-            executor.submit(process_wanted_item, item["id"]): item
+            executor.submit(_run_item, item["id"]): item
             for item in items
         }
 
