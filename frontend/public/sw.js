@@ -4,9 +4,9 @@
  * Provides offline caching and background sync capabilities.
  */
 
-const CACHE_NAME = 'sublarr-v2'
-const STATIC_CACHE = 'sublarr-static-v2'
-const API_CACHE = 'sublarr-api-v2'
+const CACHE_NAME = 'sublarr-v3'
+const STATIC_CACHE = 'sublarr-static-v3'
+const API_CACHE = 'sublarr-api-v3'
 
 // Assets to cache on install
 const STATIC_ASSETS = [
@@ -75,12 +75,32 @@ self.addEventListener('fetch', (event) => {
         })
     )
   } else {
-    // Static: Cache first, fallback to network
-    event.respondWith(
-      caches.match(request).then((response) => {
-        return (
-          response ||
-          fetch(request).then((response) => {
+    // JS/CSS chunks (Vite uses content hashes): Network first — never stale
+    // Images/fonts/manifest: Cache first (truly immutable)
+    const isImmutable = /\.(png|jpg|jpeg|ico|webp|woff2?|svg)(\?.*)?$/.test(url.pathname)
+
+    if (isImmutable) {
+      event.respondWith(
+        caches.match(request).then((response) => {
+          return (
+            response ||
+            fetch(request).then((response) => {
+              if (response.ok) {
+                const clone = response.clone()
+                caches.open(STATIC_CACHE).then((cache) => {
+                  cache.put(request, clone)
+                })
+              }
+              return response
+            })
+          )
+        })
+      )
+    } else {
+      // HTML, JS, CSS: Network first so deploys and HMR updates are always fresh
+      event.respondWith(
+        fetch(request)
+          .then((response) => {
             if (response.ok) {
               const clone = response.clone()
               caches.open(STATIC_CACHE).then((cache) => {
@@ -89,9 +109,9 @@ self.addEventListener('fetch', (event) => {
             }
             return response
           })
-        )
-      })
-    )
+          .catch(() => caches.match(request))
+      )
+    }
   }
 })
 
