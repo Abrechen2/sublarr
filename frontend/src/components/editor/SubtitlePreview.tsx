@@ -95,19 +95,26 @@ export default function SubtitlePreview({
 
   // Error state
   if (contentError) {
+    const httpStatus = (contentErrorObj as { response?: { status?: number } })?.response?.status
+    const errorMessage = httpStatus === 403
+      ? t('error403', 'File not accessible: path is outside the configured media directory')
+      : httpStatus === 404
+        ? t('error404', 'Subtitle file not found')
+        : (contentErrorObj as Error)?.message || t('loadError', 'Failed to load subtitle file')
+
     return (
       <div className={`flex flex-col items-center justify-center p-12 gap-3 ${className}`}>
         <AlertCircle className="w-8 h-8 text-red-400" />
-        <p className="text-red-400 text-sm">
-          {(contentErrorObj as Error)?.message || t('loadError', 'Failed to load subtitle file')}
-        </p>
-        <button
-          onClick={() => refetchContent()}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded bg-elevated hover:bg-hover text-foreground transition-colors"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          {t('retry', 'Retry')}
-        </button>
+        <p className="text-red-400 text-sm">{errorMessage}</p>
+        {httpStatus !== 403 && httpStatus !== 404 && (
+          <button
+            onClick={() => refetchContent()}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded bg-elevated hover:bg-hover text-foreground transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            {t('retry', 'Retry')}
+          </button>
+        )}
       </div>
     )
   }
