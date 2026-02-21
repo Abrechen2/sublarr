@@ -31,8 +31,11 @@ def temp_db():
     
     # Cleanup — close DB connection before deleting (Windows file locking)
     close_db()
-    if os.path.exists(db_path):
-        os.unlink(db_path)
+    try:
+        if os.path.exists(db_path):
+            os.unlink(db_path)
+    except PermissionError:
+        pass  # Windows: SQLite WAL may hold a brief lock; file will be cleaned by OS
     if "SUBLARR_DB_PATH" in os.environ:
         del os.environ["SUBLARR_DB_PATH"]
     if "SUBLARR_API_KEY" in os.environ:
