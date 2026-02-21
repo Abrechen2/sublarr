@@ -180,17 +180,27 @@ def _translate_with_manager(lines, source_lang, target_lang,
     """
     _backend_name, fallback_chain = _resolve_backend_for_context(arr_context, target_lang)
 
-    # Load glossary entries if series_id provided
+    # Load glossary entries: merged (global + per-series) for series,
+    # global-only for non-series (movies/standalone)
     glossary_entries = None
-    if series_id:
-        try:
-            from db.translation import get_glossary_for_series
-            entries = get_glossary_for_series(series_id)
+    try:
+        if series_id:
+            from db.translation import get_merged_glossary_for_series
+            entries = get_merged_glossary_for_series(series_id)
             if entries:
                 glossary_entries = entries
-                logger.debug("Loaded %d glossary entries for series %d", len(entries), series_id)
-        except Exception as e:
-            logger.debug("Failed to load glossary for series %d: %s", series_id, e)
+                logger.debug("Loaded %d merged glossary entries for series %d", len(entries), series_id)
+        else:
+            from db.translation import get_global_glossary
+            global_entries = get_global_glossary()
+            if global_entries:
+                glossary_entries = [
+                    {"source_term": e["source_term"], "target_term": e["target_term"]}
+                    for e in global_entries
+                ]
+                logger.debug("Loaded %d global glossary entries", len(glossary_entries))
+    except Exception as e:
+        logger.debug("Failed to load glossary: %s", e)
 
     manager = get_translation_manager()
     result = manager.translate_with_fallback(
