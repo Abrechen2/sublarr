@@ -27,8 +27,15 @@ function deriveSubtitlePath(mediaPath: string, lang: string, format: string): st
   return `${base}.${lang}.${format}`
 }
 
+function hasSubtitleFile(format: string): boolean {
+  return format === 'ass' || format === 'srt' || format === 'embedded_ass' || format === 'embedded_srt'
+}
+
 function SubBadge({ lang, format }: { lang: string; format: string }) {
-  const hasFile = format === 'ass' || format === 'srt'
+  const isExternal = format === 'ass' || format === 'srt'
+  const isEmbedded = format === 'embedded_ass' || format === 'embedded_srt'
+  const hasFile = isExternal || isEmbedded
+  const label = isEmbedded ? format.replace('embedded_', '') + '⊕' : format
   return (
     <span
       className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide"
@@ -37,12 +44,14 @@ function SubBadge({ lang, format }: { lang: string; format: string }) {
         color: hasFile ? 'var(--accent)' : 'var(--warning)',
         border: `1px solid ${hasFile ? 'var(--accent-dim)' : 'rgba(245,158,11,0.3)'}`,
       }}
-      title={hasFile ? `${lang.toUpperCase()} (${format.toUpperCase()})` : `${lang.toUpperCase()} missing`}
+      title={hasFile
+        ? `${lang.toUpperCase()} (${format.toUpperCase()}${isEmbedded ? ' — embedded in MKV' : ''})`
+        : `${lang.toUpperCase()} missing`}
     >
       {lang.toUpperCase()}
       {hasFile && (
         <span style={{ opacity: 0.6, fontSize: '9px' }}>
-          {format}
+          {label}
         </span>
       )}
     </span>
@@ -656,11 +665,11 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                       {ep.has_file && targetLanguages.length > 0 ? (
                         targetLanguages.map((lang) => {
                           const subFormat = ep.subtitles[lang] || ''
-                          const hasFile = subFormat === 'ass' || subFormat === 'srt'
+                          const hasFile = hasSubtitleFile(subFormat)
                           return (
                             <span key={lang} className="inline-flex items-center gap-0.5">
                               <SubBadge lang={lang} format={subFormat} />
-                              {hasFile && (
+                              {(subFormat === 'ass' || subFormat === 'srt') && (
                                 <>
                                   <HealthBadge score={healthScores[deriveSubtitlePath(ep.file_path, lang, subFormat)] ?? null} size="sm" />
                                   <button
