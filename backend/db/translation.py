@@ -26,14 +26,30 @@ def record_translation_config(config_hash: str, ollama_model: str,
 
 # --- Glossary Operations ---
 
-def add_glossary_entry(series_id: int, source_term: str, target_term: str, notes: str = "") -> int:
-    """Add a new glossary entry for a series. Returns the entry ID."""
+def add_glossary_entry(series_id: Optional[int] = None, source_term: str = "",
+                       target_term: str = "", notes: str = "") -> int:
+    """Add a new glossary entry. Returns the entry ID.
+
+    When series_id is None, creates a global glossary entry.
+    """
     return _get_repo().add_glossary_entry(series_id, source_term, target_term, notes)
 
 
-def get_glossary_entries(series_id: int) -> list:
-    """Get all glossary entries for a series."""
+def get_glossary_entries(series_id: Optional[int] = None) -> list:
+    """Get glossary entries. When series_id is None, returns global entries."""
+    if series_id is None:
+        return get_global_glossary()
     return _get_repo().get_glossary_entries(series_id)
+
+
+def get_global_glossary() -> list:
+    """Get all global glossary entries (series_id IS NULL)."""
+    return _get_repo().get_global_glossary()
+
+
+def get_merged_glossary_for_series(series_id: int) -> list:
+    """Get merged glossary entries for a series (global + per-series, series overrides)."""
+    return _get_repo().get_merged_glossary_for_series(series_id)
 
 
 def get_glossary_for_series(series_id: int) -> list:
@@ -62,8 +78,11 @@ def delete_glossary_entries_for_series(series_id: int) -> int:
     return _get_repo().delete_glossary_entries_for_series(series_id)
 
 
-def search_glossary_terms(series_id: int, query: str) -> list:
-    """Search glossary entries by source or target term (case-insensitive)."""
+def search_glossary_terms(series_id: Optional[int] = None, query: str = "") -> list:
+    """Search glossary entries by source or target term (case-insensitive).
+
+    When series_id is None, searches global entries only.
+    """
     return _get_repo().search_glossary_terms(series_id, query)
 
 

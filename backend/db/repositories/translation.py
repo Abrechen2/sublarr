@@ -62,9 +62,12 @@ class TranslationRepository(BaseRepository):
 
     # ---- Glossary Operations -------------------------------------------------
 
-    def add_glossary_entry(self, series_id: int, source_term: str,
+    def add_glossary_entry(self, series_id: Optional[int], source_term: str,
                            target_term: str, notes: str = "") -> int:
-        """Add a new glossary entry for a series. Returns the entry ID."""
+        """Add a new glossary entry. Returns the entry ID.
+
+        When series_id is None, creates a global glossary entry.
+        """
         now = self._now()
         entry = GlossaryEntry(
             series_id=series_id,
@@ -102,6 +105,59 @@ class TranslationRepository(BaseRepository):
         )
         rows = self.session.execute(stmt).all()
         return [{"source_term": r.source_term, "target_term": r.target_term} for r in rows]
+
+    def get_global_glossary(self) -> list[dict]:
+        """Get all global glossary entries (series_id IS NULL).
+
+        Returns:
+            List of glossary entry dicts, ordered by source_term ascending.
+        """
+        stmt = (
+            select(GlossaryEntry)
+            .where(GlossaryEntry.series_id.is_(None))
+            .order_by(GlossaryEntry.source_term.asc())
+        )
+        entries = self.session.execute(stmt).scalars().all()
+        return [self._to_dict(e) for e in entries]
+
+    def get_merged_glossary_for_series(self, series_id: int) -> list[dict]:
+        """Get merged glossary entries for a series (global + per-series).
+
+        Per-series entries override global entries with the same source_term
+        (case-insensitive). Limited to 30 most recent entries per source.
+
+        Returns:
+            List of {source_term, target_term} dicts, max 30 entries.
+        """
+        # Global entries
+        global_stmt = (
+            select(GlossaryEntry.source_term, GlossaryEntry.target_term)
+            .where(GlossaryEntry.series_id.is_(None))
+            .order_by(GlossaryEntry.updated_at.desc())
+            .limit(30)
+        )
+        global_rows = self.session.execute(global_stmt).all()
+        global_dict = {
+            r.source_term.lower(): {"source_term": r.source_term, "target_term": r.target_term}
+            for r in global_rows
+        }
+
+        # Series-specific entries (override global on same source_term)
+        series_stmt = (
+            select(GlossaryEntry.source_term, GlossaryEntry.target_term)
+            .where(GlossaryEntry.series_id == series_id)
+            .order_by(GlossaryEntry.updated_at.desc())
+            .limit(30)
+        )
+        series_rows = self.session.execute(series_stmt).all()
+        series_dict = {
+            r.source_term.lower(): {"source_term": r.source_term, "target_term": r.target_term}
+            for r in series_rows
+        }
+
+        # Merge: global first, series overrides
+        merged = {**global_dict, **series_dict}
+        return list(merged.values())[:30]
 
     def get_glossary_entry(self, entry_id: int) -> Optional[dict]:
         """Get a single glossary entry by ID."""
@@ -151,13 +207,23 @@ class TranslationRepository(BaseRepository):
         self._commit()
         return result.rowcount
 
-    def search_glossary_terms(self, series_id: int, query: str) -> list[dict]:
-        """Search glossary entries by source or target term (case-insensitive)."""
+    def search_glossary_terms(self, series_id: Optional[int], query: str) -> list[dict]:
+        """Search glossary entries by source or target term (case-insensitive).
+
+        When series_id is None, searches global entries only.
+        When series_id is an int, searches per-series entries only.
+        """
         search_pattern = f"%{query}%"
+
+        if series_id is None:
+            series_filter = GlossaryEntry.series_id.is_(None)
+        else:
+            series_filter = GlossaryEntry.series_id == series_id
+
         stmt = (
             select(GlossaryEntry)
             .where(
-                GlossaryEntry.series_id == series_id,
+                series_filter,
                 (GlossaryEntry.source_term.like(search_pattern) |
                  GlossaryEntry.target_term.like(search_pattern)),
             )
