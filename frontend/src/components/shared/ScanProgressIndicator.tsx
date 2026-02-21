@@ -50,14 +50,14 @@ export function ScanProgressIndicator() {
 
   return (
     <div
-      className="fixed bottom-20 right-4 z-50 w-56 rounded-xl shadow-lg border transition-opacity duration-500"
+      className="rounded-lg border transition-opacity duration-500"
       style={{
-        backgroundColor: 'var(--bg-surface)',
-        borderColor: 'var(--border)',
+        backgroundColor: 'var(--bg-primary)',
+        borderColor: done ? 'var(--border)' : 'var(--accent-dim)',
         opacity: done ? 0.7 : 1,
       }}
     >
-      <div className="p-3">
+      <div className="p-2.5">
         {/* Header */}
         <div className="flex items-center gap-2 mb-2">
           {done ? (

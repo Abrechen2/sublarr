@@ -1,13 +1,13 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>sublarr</Name>
-  <Repository>ghcr.io/denniswittke/sublarr:0.9.1-beta</Repository>
-  <Registry>https://ghcr.io/denniswittke/sublarr</Registry>
+  <Repository>ghcr.io/abrechen2/sublarr:0.9.1-beta</Repository>
+  <Registry>https://ghcr.io/abrechen2/sublarr</Registry>
   <Network>bridge</Network>
   <Privileged>false</Privileged>
   <Support>https://github.com/denniswittke/sublarr/issues</Support>
   <Project>https://github.com/denniswittke/sublarr</Project>
-  <Overview>Standalone Subtitle Manager and Translator for Anime/Media (v0.9.0-beta). Downloads subtitles from 11 providers (AnimeTosho, Jimaku, OpenSubtitles, SubDL, Gestdown, Podnapisi, Kitsunekko, Napisy24, Titrari, LegendasDivx, and custom plugins). Translates via multiple backends (Ollama, DeepL, LibreTranslate, OpenAI-compatible, Google). Supports Whisper speech-to-text fallback, standalone mode (no Sonarr/Radarr required), Plex/Kodi/Jellyfin/Emby library refresh, forced subtitle management, event hooks, dark/light theme, and English/German UI.</Overview>
+  <Overview>Standalone Subtitle Manager and Translator for Anime/Media (v0.9.1-beta). Downloads subtitles from 11 providers (AnimeTosho, Jimaku, OpenSubtitles, SubDL, Gestdown, Podnapisi, Kitsunekko, Napisy24, Titrari, LegendasDivx, and custom plugins). Translates via multiple backends (Ollama, DeepL, LibreTranslate, OpenAI-compatible, Google). Supports Whisper speech-to-text fallback, standalone mode (no Sonarr/Radarr required), Plex/Kodi/Jellyfin/Emby library refresh, forced subtitle management, event hooks, dark/light theme, and English/German UI.</Overview>
   <Category>MediaApp:Other</Category>
   <WebUI>http://[IP]:[PORT:5765]</WebUI>
   <Icon>https://raw.githubusercontent.com/denniswittke/sublarr/main/logo.svg</Icon>
