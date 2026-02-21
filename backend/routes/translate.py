@@ -220,7 +220,13 @@ def translate_async():
 
     arr_context = _build_arr_context(data)
     job = create_job(file_path, force, arr_context)
-    thread = threading.Thread(target=_run_job, args=(job,), daemon=True)
+    _app = current_app._get_current_object()
+
+    def _run_with_ctx():
+        with _app.app_context():
+            _run_job(job)
+
+    thread = threading.Thread(target=_run_with_ctx, daemon=True)
     thread.start()
 
     return jsonify({
@@ -509,7 +515,13 @@ def retry_job(job_id):
         return jsonify({"error": f"File not found: {file_path}"}), 404
 
     new_job = create_job(file_path, force=True, arr_context=job.get("arr_context"))
-    thread = threading.Thread(target=_run_job, args=(new_job,), daemon=True)
+    _app = current_app._get_current_object()
+
+    def _run_with_ctx():
+        with _app.app_context():
+            _run_job(new_job)
+
+    thread = threading.Thread(target=_run_with_ctx, daemon=True)
     thread.start()
 
     return jsonify({
@@ -646,83 +658,86 @@ def batch_start():
             "errors": [],
         })
 
-    def _run_batch():
-        try:
-            for f in files:
-                with batch_lock:
-                    batch_state["current_file"] = f["path"]
+    _app = current_app._get_current_object()
 
-                try:
-                    result = translate_file(f["path"], force=force)
+    def _run_batch():
+        with _app.app_context():
+            try:
+                for f in files:
                     with batch_lock:
-                        batch_state["processed"] += 1
-                        if result["success"]:
-                            if result["stats"].get("skipped"):
-                                batch_state["skipped"] += 1
+                        batch_state["current_file"] = f["path"]
+
+                    try:
+                        result = translate_file(f["path"], force=force)
+                        with batch_lock:
+                            batch_state["processed"] += 1
+                            if result["success"]:
+                                if result["stats"].get("skipped"):
+                                    batch_state["skipped"] += 1
+                                else:
+                                    batch_state["succeeded"] += 1
                             else:
-                                batch_state["succeeded"] += 1
-                        else:
+                                batch_state["failed"] += 1
+                                batch_state["errors"].append({
+                                    "file": f["path"],
+                                    "error": result.get("error"),
+                                })
+
+                        _update_stats(result)
+
+                        # WebSocket notification
+                        socketio.emit("batch_progress", {
+                            "processed": batch_state["processed"],
+                            "total": batch_state["total"],
+                            "current_file": f["path"],
+                            "success": result["success"],
+                        })
+
+                        # Callback notification
+                        if callback_url:
+                            _send_callback(callback_url, {
+                                "event": "file_completed",
+                                "file": f["path"],
+                                "success": result["success"],
+                                "processed": batch_state["processed"],
+                                "total": batch_state["total"],
+                            })
+
+                    except Exception as e:
+                        logger.exception("Batch: failed on %s", f["path"])
+                        with batch_lock:
+                            batch_state["processed"] += 1
                             batch_state["failed"] += 1
                             batch_state["errors"].append({
                                 "file": f["path"],
-                                "error": result.get("error"),
+                                "error": str(e),
                             })
+            finally:
+                with batch_lock:
+                    batch_state["running"] = False
+                    batch_state["current_file"] = None
+                    snapshot = dict(batch_state)
 
-                    _update_stats(result)
+                emit_event("batch_complete", snapshot)
 
-                    # WebSocket notification
-                    socketio.emit("batch_progress", {
-                        "processed": batch_state["processed"],
-                        "total": batch_state["total"],
-                        "current_file": f["path"],
-                        "success": result["success"],
-                    })
+                try:
+                    from notifier import send_notification
+                    send_notification(
+                        title="Sublarr: Batch Complete",
+                        body=f"Batch finished: {snapshot['succeeded']} succeeded, {snapshot['failed']} failed, {snapshot['skipped']} skipped",
+                        event_type="batch_complete",
+                    )
+                except Exception:
+                    pass
 
-                    # Callback notification
-                    if callback_url:
-                        _send_callback(callback_url, {
-                            "event": "file_completed",
-                            "file": f["path"],
-                            "success": result["success"],
-                            "processed": batch_state["processed"],
-                            "total": batch_state["total"],
-                        })
-
-                except Exception as e:
-                    logger.exception("Batch: failed on %s", f["path"])
-                    with batch_lock:
-                        batch_state["processed"] += 1
-                        batch_state["failed"] += 1
-                        batch_state["errors"].append({
-                            "file": f["path"],
-                            "error": str(e),
-                        })
-        finally:
-            with batch_lock:
-                batch_state["running"] = False
-                batch_state["current_file"] = None
-                snapshot = dict(batch_state)
-
-            emit_event("batch_complete", snapshot)
-
-            try:
-                from notifier import send_notification
-                send_notification(
-                    title="Sublarr: Batch Complete",
-                    body=f"Batch finished: {snapshot['succeeded']} succeeded, {snapshot['failed']} failed, {snapshot['skipped']} skipped",
-                    event_type="batch_complete",
-                )
-            except Exception:
-                pass
-
-            if callback_url:
-                _send_callback(callback_url, {
-                    "event": "batch_completed",
-                    "total": snapshot["total"],
-                    "succeeded": snapshot["succeeded"],
-                    "failed": snapshot["failed"],
-                    "skipped": snapshot["skipped"],
-                })
+        if callback_url:
+            _send_callback(callback_url, {
+                "event": "batch_completed",
+                "total": snapshot["total"],
+                "succeeded": snapshot["succeeded"],
+                "failed": snapshot["failed"],
+                "skipped": snapshot["skipped"],
+            })
 
     thread = threading.Thread(target=_run_batch, daemon=True)
     thread.start()
@@ -882,13 +897,15 @@ def retranslate_single(job_id):
 
     # Re-translate with force
     new_job = create_job(file_path, force=True)
+    _app = current_app._get_current_object()
 
     def _run():
-        _run_job(new_job)
-        emit_event("translation_complete", {
-            "file_path": file_path,
-            "job_id": new_job["id"],
-        })
+        with _app.app_context():
+            _run_job(new_job)
+            emit_event("translation_complete", {
+                "file_path": file_path,
+                "job_id": new_job["id"],
+            })
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
@@ -949,52 +966,54 @@ def retranslate_batch():
         return jsonify({"status": "nothing_to_do", "count": 0})
 
     total = len(outdated)
+    _app = current_app._get_current_object()
 
     def _run_retranslate():
-        processed = 0
-        succeeded = 0
-        failed = 0
+        with _app.app_context():
+            processed = 0
+            succeeded = 0
+            failed = 0
 
-        for job in outdated:
-            file_path = job["file_path"]
-            if not os.path.exists(file_path):
-                processed += 1
-                failed += 1
-                continue
-
-            # Remove existing target subs
-            base = os.path.splitext(file_path)[0]
-            for fmt in ["ass", "srt"]:
-                for pattern in s.get_target_patterns(fmt):
-                    target = base + pattern
-                    if os.path.exists(target):
-                        os.remove(target)
-
-            try:
-                result = translate_file(file_path, force=True)
-                processed += 1
-                if result["success"]:
-                    succeeded += 1
-                else:
+            for job in outdated:
+                file_path = job["file_path"]
+                if not os.path.exists(file_path):
+                    processed += 1
                     failed += 1
-            except Exception as e:
-                processed += 1
-                failed += 1
-                logger.warning("Re-translate batch: error on %s: %s", file_path, e)
+                    continue
 
-            socketio.emit("retranslation_progress", {
-                "processed": processed,
-                "total": total,
+                # Remove existing target subs
+                base = os.path.splitext(file_path)[0]
+                for fmt in ["ass", "srt"]:
+                    for pattern in s.get_target_patterns(fmt):
+                        target = base + pattern
+                        if os.path.exists(target):
+                            os.remove(target)
+
+                try:
+                    result = translate_file(file_path, force=True)
+                    processed += 1
+                    if result["success"]:
+                        succeeded += 1
+                    else:
+                        failed += 1
+                except Exception as e:
+                    processed += 1
+                    failed += 1
+                    logger.warning("Re-translate batch: error on %s: %s", file_path, e)
+
+                socketio.emit("retranslation_progress", {
+                    "processed": processed,
+                    "total": total,
+                    "succeeded": succeeded,
+                    "failed": failed,
+                    "current_file": file_path,
+                })
+
+            emit_event("translation_complete", {
+                "count": processed,
                 "succeeded": succeeded,
                 "failed": failed,
-                "current_file": file_path,
             })
-
-        emit_event("translation_complete", {
-            "count": processed,
-            "succeeded": succeeded,
-            "failed": failed,
-        })
 
     thread = threading.Thread(target=_run_retranslate, daemon=True)
     thread.start()

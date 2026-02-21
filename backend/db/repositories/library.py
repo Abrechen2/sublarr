@@ -5,6 +5,7 @@ operations. Return types match the existing functions exactly.
 """
 
 import logging
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select, func, or_, asc, desc
 
@@ -128,16 +129,16 @@ class LibraryRepository(BaseRepository):
         ).all()
         by_language = {(row[0] or "unknown"): row[1] for row in by_language_rows}
 
-        # Last 24h and 7d using SQLite datetime function
-        from sqlalchemy import text
+        # Last 24h and 7d
+        now = datetime.now(timezone.utc)
         last_24h = self.session.execute(
             select(func.count()).select_from(SubtitleDownload)
-            .where(SubtitleDownload.downloaded_at > text("datetime('now', '-1 day')"))
+            .where(SubtitleDownload.downloaded_at > (now - timedelta(days=1)).isoformat())
         ).scalar() or 0
 
         last_7d = self.session.execute(
             select(func.count()).select_from(SubtitleDownload)
-            .where(SubtitleDownload.downloaded_at > text("datetime('now', '-7 days')"))
+            .where(SubtitleDownload.downloaded_at > (now - timedelta(days=7)).isoformat())
         ).scalar() or 0
 
         return {
