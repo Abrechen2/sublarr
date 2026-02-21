@@ -414,16 +414,24 @@ class WantedRepository(BaseRepository):
         return self._row_to_wanted(item)
 
     def get_series_missing_counts(self) -> dict:
-        """Get count of 'wanted' items per Sonarr series ID.
+        """Get count of truly missing wanted items per Sonarr series ID.
+
+        Only counts items with no existing subtitle (existing_sub is null or empty).
+        Upgrade candidates (existing_sub = 'srt') are not counted as missing
+        since the episode already has a subtitle, just not the ideal format.
 
         Returns:
-            Dict mapping sonarr_series_id -> count of wanted items.
+            Dict mapping sonarr_series_id -> count of truly missing items.
         """
         stmt = (
             select(WantedItem.sonarr_series_id, func.count())
             .where(
                 WantedItem.sonarr_series_id.isnot(None),
                 WantedItem.status == "wanted",
+                or_(
+                    WantedItem.existing_sub == "",
+                    WantedItem.existing_sub.is_(None),
+                ),
             )
             .group_by(WantedItem.sonarr_series_id)
         )
