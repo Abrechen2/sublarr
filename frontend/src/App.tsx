@@ -10,7 +10,6 @@ import { GlobalSearchModal } from '@/components/search/GlobalSearchModal'
 import { QuickActionsFAB } from '@/components/quick-actions/QuickActionsFAB'
 import { KeyboardShortcutsModal } from '@/components/quick-actions/KeyboardShortcutsModal'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
-import { ScanProgressIndicator } from '@/components/shared/ScanProgressIndicator'
 
 // Route-level code splitting: each page is lazy-loaded as a separate chunk
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })))
@@ -144,7 +143,6 @@ function App() {
         </div>
         <GlobalSearchModal open={searchOpen} onOpenChange={setSearchOpen} />
         <ToastContainer />
-        <ScanProgressIndicator />
         <QuickActionsFAB />
         <KeyboardShortcutsModal open={shortcutsModalOpen} onClose={closeShortcutsModal} />
       </BrowserRouter>

@@ -174,7 +174,11 @@ export async function getProviders(): Promise<{ providers: ProviderInfo[] }> {
 
 export async function testProvider(name: string): Promise<{ provider: string; healthy: boolean; message: string }> {
   const { data } = await api.post(`/providers/test/${name}`)
-  return data
+  return {
+    provider: data.provider,
+    healthy: data.health_check?.healthy ?? false,
+    message: data.health_check?.message ?? 'No response',
+  }
 }
 
 export async function getProviderStats(): Promise<ProviderStats> {
