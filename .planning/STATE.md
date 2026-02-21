@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 
 ## Current Position
 
-Phase: 17-performance-optimizations (COMPLETE — all 3 plans done)
-Plan: 17-03 complete (frontend bundle optimization, staleTime fix)
-Status: All 17 phases complete — bug fix session 2026-02-21
-Last activity: 2026-02-21 — Bug fixes: zombie jobs, wanted pagination, duplicate wanted_items (UNIQUE constraint + migration)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v0.10.0-beta
+Last activity: 2026-02-21 — Milestone v0.10.0-beta started (Translation Excellence + Anime Quality)
 
-Progress: [███] 3/3 plans in phase 17 — ALL 17 PHASES COMPLETE
+Progress: Phase 18 onward (continues from Phase 17)
 
 ## Performance Metrics
 
