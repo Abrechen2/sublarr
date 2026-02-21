@@ -4,7 +4,7 @@ import os
 import logging
 import threading
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 
 from extensions import socketio
 from events import emit_event
@@ -524,40 +524,43 @@ def wanted_batch_search():
             "current_item": None,
         })
 
+    _app = current_app._get_current_object()
+
     def _run_batch():
-        try:
-            for progress in process_wanted_batch(item_ids):
-                with wanted_batch_lock:
-                    wanted_batch_state["processed"] = progress["processed"]
-                    wanted_batch_state["found"] = progress["found"]
-                    wanted_batch_state["failed"] = progress["failed"]
-                    wanted_batch_state["skipped"] = progress["skipped"]
-                    wanted_batch_state["current_item"] = progress["current_item"]
-
-                socketio.emit("wanted_batch_progress", {
-                    "processed": progress["processed"],
-                    "total": progress["total"],
-                    "found": progress["found"],
-                    "failed": progress["failed"],
-                    "current_item": progress["current_item"],
-                })
-        finally:
-            with wanted_batch_lock:
-                snapshot = dict(wanted_batch_state)
-                wanted_batch_state["running"] = False
-                wanted_batch_state["current_item"] = None
-
-            emit_event("batch_complete", snapshot)
-
+        with _app.app_context():
             try:
-                from notifier import send_notification
-                send_notification(
-                    title="Sublarr: Wanted Batch Complete",
-                    body=f"Wanted batch finished: {snapshot.get('found', 0)} found, {snapshot.get('failed', 0)} failed",
-                    event_type="batch_complete",
-                )
-            except Exception:
-                pass
+                for progress in process_wanted_batch(item_ids, app=_app):
+                    with wanted_batch_lock:
+                        wanted_batch_state["processed"] = progress["processed"]
+                        wanted_batch_state["found"] = progress["found"]
+                        wanted_batch_state["failed"] = progress["failed"]
+                        wanted_batch_state["skipped"] = progress["skipped"]
+                        wanted_batch_state["current_item"] = progress["current_item"]
+
+                    socketio.emit("wanted_batch_progress", {
+                        "processed": progress["processed"],
+                        "total": progress["total"],
+                        "found": progress["found"],
+                        "failed": progress["failed"],
+                        "current_item": progress["current_item"],
+                    })
+            finally:
+                with wanted_batch_lock:
+                    snapshot = dict(wanted_batch_state)
+                    wanted_batch_state["running"] = False
+                    wanted_batch_state["current_item"] = None
+
+                emit_event("batch_complete", snapshot)
+
+                try:
+                    from notifier import send_notification
+                    send_notification(
+                        title="Sublarr: Wanted Batch Complete",
+                        body=f"Wanted batch finished: {snapshot.get('found', 0)} found, {snapshot.get('failed', 0)} failed",
+                        event_type="batch_complete",
+                    )
+                except Exception:
+                    pass
 
     thread = threading.Thread(target=_run_batch, daemon=True)
     thread.start()

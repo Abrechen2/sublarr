@@ -6,8 +6,9 @@ and disk space analysis aggregations.
 
 import json
 import logging
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select, func, text, delete
+from sqlalchemy import select, func, delete
 
 from db.models.cleanup import SubtitleHash, CleanupRule, CleanupHistory
 from db.repositories.base import BaseRepository
@@ -365,7 +366,7 @@ class CleanupRepository(BaseRepository):
                 func.coalesce(func.sum(CleanupHistory.bytes_freed), 0).label("freed"),
             )
             .where(
-                CleanupHistory.performed_at > text("datetime('now', '-30 days')")
+                CleanupHistory.performed_at > (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
             )
             .group_by(func.substr(CleanupHistory.performed_at, 1, 10))
             .order_by(func.substr(CleanupHistory.performed_at, 1, 10))
