@@ -924,7 +924,9 @@ export function WantedPage() {
             style={{ borderTop: '1px solid var(--border)' }}
           >
             <span className="text-xs" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-              Page {wanted.page} of {wanted.total_pages} ({wanted.total} total)
+              {debouncedSearch
+                ? `${filteredData?.length ?? 0} filtered of ${wanted.total} total`
+                : `Page ${wanted.page} of ${wanted.total_pages} (${wanted.total} total)`}
             </span>
             <div className="flex gap-1.5">
               <button

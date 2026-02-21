@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import select, func, delete, and_, or_, asc, desc
+from sqlalchemy.exc import IntegrityError
 
 from db.models.core import WantedItem
 from db.repositories.base import BaseRepository
@@ -130,9 +131,18 @@ class WantedRepository(BaseRepository):
             added_at=now,
             updated_at=now,
         )
-        self.session.add(item)
-        self._commit()
-        return item.id, False
+        try:
+            self.session.add(item)
+            self._commit()
+            return item.id, False
+        except IntegrityError:
+            # Concurrent insert won the race — roll back and fetch the winner
+            self.session.rollback()
+            existing = self.session.execute(stmt).scalars().first()
+            if existing:
+                logger.debug("Race condition on upsert for %s — returning existing %d", file_path, existing.id)
+                return existing.id, True
+            raise
 
     # Sort field allowlist for get_wanted_items
     _SORT_FIELDS = {
