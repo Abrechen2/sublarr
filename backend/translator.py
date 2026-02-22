@@ -38,6 +38,23 @@ ENGLISH_MARKER_WORDS = {
 }
 
 
+def _get_whisper_fallback_min_score() -> int:
+    """Read whisper_fallback_min_score from config_entries.
+
+    Returns:
+        int 0-100. 0 means disabled (only fall back on no results at all).
+    """
+    try:
+        from db.config import get_config_entry
+        value = get_config_entry("whisper_fallback_min_score")
+        if value is None:
+            return 0  # disabled by default
+        n = int(value)
+        return max(0, min(100, n))
+    except Exception:
+        return 0
+
+
 def _is_whisper_enabled() -> bool:
     """Check if Whisper transcription is enabled in config."""
     try:
@@ -734,7 +751,7 @@ def _search_providers_for_source_sub(mkv_path, context=None):
     Tries ASS first, falls back to SRT.
 
     Returns:
-        tuple: (path, format) or (None, None)
+        tuple: (path, format, score) or (None, None, 0)
     """
     try:
         from providers import get_provider_manager
@@ -754,8 +771,8 @@ def _search_providers_for_source_sub(mkv_path, context=None):
             base = os.path.splitext(mkv_path)[0]
             tmp_path = f"{base}.{settings.source_language}.ass"
             manager.save_subtitle(result, tmp_path)
-            logger.info("Provider %s delivered source ASS: %s", result.provider_name, tmp_path)
-            return tmp_path, "ass"
+            logger.info("Provider %s delivered source ASS: %s (score=%d)", result.provider_name, tmp_path, result.score)
+            return tmp_path, "ass", result.score
 
         # Fall back to any format (SRT most likely)
         result = manager.search_and_download_best(query)
@@ -764,8 +781,8 @@ def _search_providers_for_source_sub(mkv_path, context=None):
             ext = result.format.value if result.format.value != "unknown" else "srt"
             tmp_path = f"{base}.{settings.source_language}.{ext}"
             manager.save_subtitle(result, tmp_path)
-            logger.info("Provider %s delivered source %s: %s", result.provider_name, ext, tmp_path)
-            return tmp_path, ext
+            logger.info("Provider %s delivered source %s: %s (score=%d)", result.provider_name, ext, tmp_path, result.score)
+            return tmp_path, ext, result.score
     except ProviderAuthError as e:
         logger.error("Provider authentication failed — check API keys: %s", e)
     except ProviderRateLimitError as e:
@@ -773,7 +790,7 @@ def _search_providers_for_source_sub(mkv_path, context=None):
     except Exception as e:
         logger.warning("Provider search for source subtitle failed: %s", e)
 
-    return None, None
+    return None, None, 0
 
 
 def _record_config_hash_for_result(result, file_path):
@@ -921,16 +938,27 @@ def translate_file(mkv_path, force=False, arr_context=None,
         return result
 
     # C3: Provider search for source subtitle → translate
-    src_path, src_fmt = _search_providers_for_source_sub(mkv_path, arr_context)
+    src_path, src_fmt, src_score = _search_providers_for_source_sub(mkv_path, arr_context)
+
+    # C3 Whisper-fallback threshold check:
+    _min_score = _get_whisper_fallback_min_score()
+    _below_threshold = src_path is not None and _min_score > 0 and src_score < _min_score
+    if _below_threshold:
+        logger.info(
+            "Case C3: Provider source score %d < threshold %d for %s -- skipping, will try Whisper fallback",
+            src_score, _min_score, mkv_path,
+        )
+        src_path = None  # discard below-threshold result; fall through to Case D
+
     if src_path:
         if src_fmt == "ass":
-            logger.info("Case C3: Translating provider source ASS to target ASS")
+            logger.info("Case C3: Translating provider source ASS to target ASS (score=%d)", src_score)
             result = _translate_external_ass(mkv_path, src_path,
                                              target_language=tgt_lang,
                                              target_language_name=tgt_name,
                                              arr_context=arr_context)
         else:
-            logger.info("Case C3: Translating provider source SRT to target SRT")
+            logger.info("Case C3: Translating provider source SRT to target SRT (score=%d)", src_score)
             result = translate_srt_from_file(mkv_path, src_path,
                                              source="provider_source_srt",
                                              target_language=tgt_lang,
@@ -943,9 +971,15 @@ def translate_file(mkv_path, force=False, arr_context=None,
     # C4: Nothing found from providers/embedded
     logger.warning("Case C4: No source subtitle found for %s", mkv_path)
 
-    # === CASE D: Whisper transcription as last resort ===
+    # === CASE D: Whisper transcription as last resort or score-based fallback ===
     if _is_whisper_enabled():
-        logger.info("Case D: No subtitle source found, attempting Whisper transcription for %s", mkv_path)
+        if _below_threshold:
+            logger.info(
+                "Case D: Provider score %d below threshold %d, using Whisper fallback for %s",
+                src_score, _min_score, mkv_path,
+            )
+        else:
+            logger.info("Case D: No subtitle source found, attempting Whisper transcription for %s", mkv_path)
         whisper_result = _submit_whisper_job(mkv_path, arr_context)
         if whisper_result:
             return whisper_result
