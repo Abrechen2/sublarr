@@ -506,7 +506,7 @@ def wanted_batch_search():
         if series_id and not item_ids:
             from db.wanted import get_wanted_for_series
             series_items = get_wanted_for_series(series_id)
-            item_ids = [item["id"] for item in series_items if item.get("status") == "wanted"]
+            item_ids = [item["id"] for item in series_items if item.get("status") not in ("downloading", "translating")]
 
         # If series_ids (plural) provided, resolve to item IDs across all listed series
         series_ids = data.get("series_ids", [])
@@ -519,7 +519,7 @@ def wanted_batch_search():
                     item["id"]
                     for item in series_items
                     if item.get("status") not in ("downloading", "translating")
-                    and item.get("status") == "wanted"
+                    
                 )
             item_ids = collected
 
