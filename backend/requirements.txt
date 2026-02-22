@@ -42,3 +42,7 @@ liccheck>=0.9.0
 pytest-benchmark>=4.0.0
 locust>=2.24.0
 fakeredis==2.26.2  # Testing: Redis mock
+
+# Optional — video sync engines (graceful degradation if not installed)
+# ffsubsync>=0.4.26
+# alass is a standalone binary — see https://github.com/kaegi/alass/releases
