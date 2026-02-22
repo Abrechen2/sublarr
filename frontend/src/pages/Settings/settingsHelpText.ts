@@ -39,6 +39,8 @@ export const HELP_TEXT: Record<string, string> = {
   wanted_anime_only: 'Only add Sonarr series tagged as anime to the Wanted list.',
   wanted_anime_movies_only: 'Only add Radarr movies tagged as anime to the Wanted list.',
   wanted_scan_on_startup: 'Scan for missing subtitles when Sublarr starts.',
+  wanted_auto_extract: 'When scanner detects embedded ASS/SRT streams, extract them automatically.',
+  wanted_auto_translate: 'Immediately translate extracted subtitle (requires auto-extract enabled).',
   wanted_max_search_attempts: 'Give up searching for a subtitle after this many failed attempts.',
 
   // Sonarr
