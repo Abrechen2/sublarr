@@ -1346,4 +1346,23 @@ export async function refreshAnidbMapping(): Promise<{ success: boolean; message
   return response.data
 }
 
+// ─── Phase 29: Track Manifest ─────────────────────────────────────────────────
+
+export async function listEpisodeTracks(epId: number): Promise<import('@/lib/types').EpisodeTracksResponse> {
+  const { data } = await api.get(`/library/episodes/${epId}/tracks`)
+  return data
+}
+
+export async function extractTrack(epId: number, index: number, language?: string): Promise<import('@/lib/types').ExtractTrackResult> {
+  const body: Record<string, unknown> = {}
+  if (language) body.language = language
+  const { data } = await api.post(`/library/episodes/${epId}/tracks/${index}/extract`, body)
+  return data
+}
+
+export async function trackAsSource(epId: number, index: number): Promise<import('@/lib/types').TrackAsSourceResult> {
+  const { data } = await api.post(`/library/episodes/${epId}/tracks/${index}/use-as-source`)
+  return data
+}
+
 export default api
