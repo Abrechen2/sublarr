@@ -370,7 +370,7 @@ class WantedScanner:
                     _, cur_score = score_existing_subtitle(srt_path)
                     is_upgrade = True
 
-            _, was_updated = upsert_wanted_item(
+            item_id, was_updated = upsert_wanted_item(
                 item_type="movie",
                 file_path=mapped_path,
                 title=title,
@@ -387,6 +387,9 @@ class WantedScanner:
                 updated += 1
             else:
                 added += 1
+                # Newly inserted item — trigger auto-extract if embedded sub detected
+                if existing_sub in ("embedded_ass", "embedded_srt"):
+                    self._maybe_auto_extract(item_id, mapped_path)
 
             # Forced subtitle handling based on profile preference
             forced_preference = profile.get("forced_preference", "disabled")
@@ -498,6 +501,24 @@ class WantedScanner:
                     results[path] = None
         return results
 
+    def _maybe_auto_extract(self, item_id: int, file_path: str) -> None:
+        """Trigger embedded subtitle extraction if wanted_auto_extract is enabled.
+
+        Only called for newly-inserted wanted items whose existing_sub is
+        "embedded_ass" or "embedded_srt". Errors are caught so the scanner
+        never aborts due to a failed extraction.
+        """
+        try:
+            settings = get_settings()
+            if not getattr(settings, "wanted_auto_extract", False):
+                return
+            from routes.wanted import _extract_embedded_sub
+            auto_translate = getattr(settings, "wanted_auto_translate", False)
+            logger.info("[Auto-Extract] item %d -> %s", item_id, file_path)
+            _extract_embedded_sub(item_id, file_path, auto_translate=auto_translate)
+        except Exception as exc:
+            logger.warning("[Auto-Extract] Failed for item %d: %s", item_id, exc)
+
     def _scan_sonarr_series(self, sonarr, series_id, settings, series_info=None, instance_name=None):
         """Scan a single series. Returns (added, updated, scanned_paths)."""
         if not series_info:
@@ -595,7 +616,7 @@ class WantedScanner:
                         _, cur_score = score_existing_subtitle(srt_path)
                         is_upgrade = True
 
-                _, was_updated = upsert_wanted_item(
+                item_id, was_updated = upsert_wanted_item(
                     item_type="episode",
                     file_path=mapped_path,
                     title=title,
@@ -614,6 +635,9 @@ class WantedScanner:
                     updated += 1
                 else:
                     added += 1
+                    # Newly inserted item — trigger auto-extract if embedded sub detected
+                    if existing_sub in ("embedded_ass", "embedded_srt"):
+                        self._maybe_auto_extract(item_id, mapped_path)
 
                 # Forced subtitle handling based on profile preference
                 forced_preference = profile.get("forced_preference", "disabled")

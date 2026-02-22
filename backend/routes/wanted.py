@@ -907,6 +907,83 @@ def download_specific(item_id):
     return jsonify(result)
 
 
+def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = False) -> dict:
+    """Standalone helper: extract embedded subtitle for a wanted item.
+
+    Callable from outside a Flask request context (e.g. from the scanner).
+    Returns a result dict with keys: status, output_path, format, language.
+    Raises on hard errors; caller is responsible for exception handling.
+
+    Args:
+        item_id: ID of the wanted item.
+        file_path: Absolute path to the media file.
+        auto_translate: If True, trigger translation after extraction.
+    """
+    from ass_utils import get_media_streams, select_best_subtitle_stream, extract_subtitle_stream
+    from translator import get_output_path_for_lang
+    from db.wanted import get_wanted_item, delete_wanted_item
+    from config import get_settings
+
+    settings = get_settings()
+
+    item = get_wanted_item(item_id)
+    if not item:
+        raise ValueError(f"Wanted item {item_id} not found")
+
+    if not file_path or not os.path.exists(file_path):
+        raise FileNotFoundError(f"Media file not found: {file_path}")
+
+    if not file_path.lower().endswith(('.mkv', '.mp4', '.m4v')):
+        raise ValueError(f"File is not a video container (MKV/MP4): {file_path}")
+
+    target_language = item.get("target_language") or settings.target_language
+
+    # Get media stream metadata
+    probe_data = get_media_streams(file_path, use_cache=True)
+
+    # Auto-select best subtitle stream for target language
+    stream_info = select_best_subtitle_stream(probe_data)
+    if not stream_info:
+        raise LookupError(f"No suitable subtitle stream found in {file_path}")
+
+    # Determine output path and extract
+    output_path = get_output_path_for_lang(file_path, stream_info["format"], target_language)
+    extract_subtitle_stream(file_path, stream_info, output_path)
+
+    # Remove from wanted if we got a final ASS subtitle
+    if stream_info["format"] == "ass":
+        delete_wanted_item(item_id)
+        emit_event("wanted_item_processed", {
+            "wanted_id": item_id,
+            "status": "found",
+            "output_path": output_path,
+            "source": "embedded",
+        })
+    elif auto_translate and stream_info["format"] == "srt":
+        # Trigger translation of the extracted SRT in a background thread
+        try:
+            import threading as _threading
+            from translator import Translator
+
+            def _translate_async():
+                try:
+                    translator = Translator()
+                    translator.translate_file(output_path, target_language=target_language)
+                except Exception as _exc:
+                    logger.warning("[Auto-Translate] Failed for item %d: %s", item_id, _exc)
+
+            _threading.Thread(target=_translate_async, daemon=True).start()
+        except Exception as exc:
+            logger.warning("[Auto-Translate] Could not start translation thread for item %d: %s", item_id, exc)
+
+    return {
+        "status": "extracted",
+        "output_path": output_path,
+        "format": stream_info["format"],
+        "language": stream_info.get("language", ""),
+    }
+
+
 @bp.route("/wanted/<int:item_id>/extract", methods=["POST"])
 def extract_embedded_sub(item_id):
     """Extract an embedded subtitle stream from an MKV file.
