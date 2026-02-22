@@ -7,7 +7,7 @@
  */
 
 import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react'
-import { Loader2, X, Eye, Pencil, GitCompare, RefreshCw } from 'lucide-react'
+import { Loader2, X, Eye, Pencil, GitCompare, RefreshCw, Activity } from 'lucide-react'
 import { useSubtitleContent } from '@/hooks/useApi'
 import { autoSyncFile } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
@@ -20,13 +20,17 @@ const SubtitleEditor = lazy(() =>
 const SubtitleDiff = lazy(() =>
   import('@/components/editor/SubtitleDiff').then(m => ({ default: m.SubtitleDiff }))
 )
+const WaveformTab = lazy(() =>
+  import('@/components/editor/WaveformTab').then(m => ({ default: m.WaveformTab }))
+)
 
-type EditorMode = 'preview' | 'edit' | 'diff'
+type EditorMode = 'preview' | 'edit' | 'diff' | 'waveform'
 
 interface SubtitleEditorModalProps {
   filePath: string | null         // null = modal closed
   initialMode?: EditorMode
   onClose: () => void
+  videoPath?: string              // optional: enables Waveform tab
 }
 
 /** Truncate a file path for display, showing last 2 segments. */
@@ -42,6 +46,7 @@ export default function SubtitleEditorModal({
   filePath,
   initialMode = 'preview',
   onClose,
+  videoPath,
 }: SubtitleEditorModalProps) {
   const [mode, setMode] = useState<EditorMode>(initialMode)
   const [content, setContent] = useState<string | null>(null)
@@ -138,6 +143,7 @@ export default function SubtitleEditorModal({
     { key: 'preview', label: 'Preview', icon: Eye },
     { key: 'edit', label: 'Edit', icon: Pencil },
     { key: 'diff', label: 'Diff', icon: GitCompare },
+    ...(videoPath ? [{ key: 'waveform' as const, label: 'Waveform', icon: Activity }] : []),
   ]
 
   return (
@@ -305,6 +311,13 @@ export default function SubtitleEditorModal({
                   Loading content...
                 </span>
               </div>
+            )}
+
+            {mode === 'waveform' && videoPath && filePath && (
+              <WaveformTab
+                subtitlePath={filePath}
+                videoPath={videoPath}
+              />
             )}
           </Suspense>
         </div>

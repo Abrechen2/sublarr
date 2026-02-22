@@ -42,14 +42,15 @@
     "react": "^19.2.0",
     "react-codemirror-merge": "^4.25.4",
     "react-dom": "^19.2.0",
-    "react-is": "^19.2.0",
     "react-grid-layout": "^2.2.2",
     "react-hotkeys-hook": "^5.2.4",
     "react-i18next": "^16.5.4",
+    "react-is": "^19.2.0",
     "react-router-dom": "^7.13.0",
     "recharts": "^3.7.0",
     "socket.io-client": "^4.8.3",
     "tailwind-merge": "^3.5.0",
+    "wavesurfer.js": "^7.12.1",
     "zustand": "^5.0.11"
   },
   "devDependencies": {
