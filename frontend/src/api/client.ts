@@ -1372,6 +1372,18 @@ export async function getSyncJobStatus(jobId: string): Promise<{
   return data
 }
 
+// ─── Phase 33: Format conversion ──────────────────────────────────────────────
+
+export async function convertSubtitle(params: {
+  file_path?: string
+  track_index?: number
+  video_path?: string
+  target_format: 'srt' | 'ass' | 'ssa' | 'vtt'
+}): Promise<{ output_path: string; format: string }> {
+  const { data } = await api.post('/tools/convert', params)
+  return data as { output_path: string; format: string }
+}
+
 // ─── Phase 32: Waveform extraction ────────────────────────────────────────────
 
 export async function extractWaveform(videoPath: string): Promise<{ audio_url: string; duration_s: number }> {
