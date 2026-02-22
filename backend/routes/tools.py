@@ -1058,12 +1058,28 @@ def parse_cues():
 
         logger.info("Parsed %d cues from %s (%.1fs duration)", len(cues), abs_path, max_end)
 
+        # Load quality sidecar if available (written by translator.py per-line scoring)
+        quality_sidecar_path = abs_path + ".quality.json"
+        quality_scores = None
+        if os.path.exists(quality_sidecar_path):
+            try:
+                import json as _json
+                with open(quality_sidecar_path, "r", encoding="utf-8") as _qf:
+                    quality_scores = _json.load(_qf)
+            except Exception as _qe:
+                logger.debug("Failed to load quality sidecar %s: %s", quality_sidecar_path, _qe)
+
+        if quality_scores and len(quality_scores) == len(cues):
+            for cue, score in zip(cues, quality_scores):
+                cue["quality_score"] = score
+
         return jsonify({
             "cues": cues,
             "total_duration": max_end,
             "cue_count": len(cues),
             "format": fmt,
             "styles": styles,
+            "has_quality_scores": quality_scores is not None and len(quality_scores) == len(cues),
         })
 
     except Exception as exc:
