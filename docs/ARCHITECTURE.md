@@ -27,7 +27,7 @@ External Services
 
 ### Core Components
 
-**Flask Application (server.py)**
+**Flask Application (app.py)**
 - Blueprint-based routing under `/api/v1/`
 - Flask-SocketIO for real-time WebSocket updates
 - Gunicorn WSGI server (2 workers, 4 threads, 300s timeout)
@@ -41,7 +41,7 @@ External Services
 - Validation on startup and config updates
 - Secrets never exposed in API responses
 
-**Database Layer (database.py)**
+**Database Layer (db/)**
 - SQLite with WAL (Write-Ahead Logging) mode
 - Connection pooling with thread-local storage
 - Schema migrations via version tracking
@@ -185,7 +185,7 @@ The translation system uses a cascading priority system to minimize unnecessary 
 - Parallel processing with configurable concurrency
 - Dry-run mode for testing queries
 
-### API Endpoints (server.py)
+### API Endpoints
 
 All endpoints prefixed with `/api/v1/`
 
@@ -538,12 +538,12 @@ Frontend updates UI, shows summary
 - Redis/Celery for distributed task queue
 - Horizontal scaling with load balancer
 - S3/object storage for subtitle files
-- Prometheus metrics export
+- Prometheus metrics export (Grafana dashboards in `monitoring/grafana/`)
 
 ## Development Workflow
 
 **Local Development**
-1. Backend: `cd backend && python server.py` (Flask dev server)
+1. Backend: `npm run dev:backend` (Flask dev server on port 5765)
 2. Frontend: `cd frontend && npm run dev` (Vite HMR on port 3000)
 3. Frontend proxies API calls to backend (port 5765)
 
