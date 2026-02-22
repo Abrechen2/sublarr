@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 
 WAVEFORM_CACHE: dict = {}  # (video_path, mtime) -> temp_opus_file_path
 
+SUPPORTED_FORMATS = {"srt", "ass", "ssa", "vtt"}
+PYSUBS2_EXT = {"srt": "srt", "ass": "ass", "ssa": "ssa", "vtt": "vtt"}
+
 
 def _validate_file_path(file_path: str) -> tuple:
     """Validate that file_path exists, is a subtitle, and is under media_path.
@@ -1729,6 +1732,118 @@ def quality_trends():
     except Exception as exc:
         logger.error("Quality trends failed: %s", exc)
         return jsonify({"error": f"Quality trends failed: {exc}"}), 500
+
+
+# -- Format Conversion ---------------------------------------------------------
+
+
+@bp.route("/convert", methods=["POST"])
+def convert_format():
+    """Convert a subtitle file to a different format via pysubs2.
+    ---
+    post:
+      summary: Convert subtitle format
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                file_path:
+                  type: string
+                  description: Path to an existing subtitle file
+                track_index:
+                  type: integer
+                  description: Embedded track index (requires video_path)
+                video_path:
+                  type: string
+                  description: Video file path (required when track_index is set)
+                target_format:
+                  type: string
+                  enum: [srt, ass, ssa, vtt]
+      responses:
+        200:
+          description: Conversion successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  output_path:
+                    type: string
+                  format:
+                    type: string
+        400:
+          description: Invalid request
+        404:
+          description: File or track not found
+        500:
+          description: Conversion failed
+    """
+    import pysubs2
+    from config import map_path
+
+    data = request.get_json(force=True, silent=True) or {}
+    target_format = data.get("target_format", "").lower()
+    file_path = data.get("file_path", "")
+    track_index = data.get("track_index")
+    video_path = data.get("video_path", "")
+
+    if target_format not in SUPPORTED_FORMATS:
+        return jsonify({"error": f"target_format must be one of {sorted(SUPPORTED_FORMATS)}"}), 400
+
+    cleanup_source = False
+
+    if track_index is not None:
+        # Convert embedded subtitle track
+        if not video_path:
+            return jsonify({"error": "video_path required when track_index is set"}), 400
+        video_path = map_path(video_path)
+        if not os.path.exists(video_path):
+            return jsonify({"error": f"Video not found: {video_path}"}), 404
+
+        from ass_utils import get_media_streams, extract_subtitle_stream
+        probe = get_media_streams(video_path)
+        stream = next(
+            (s for s in probe.get("streams", []) if s.get("index") == track_index),
+            None,
+        )
+        if not stream:
+            return jsonify({"error": f"Track {track_index} not found"}), 404
+
+        codec = stream.get("codec_name", "subrip")
+        ext = "ass" if codec in ("ass", "ssa") else "srt"
+        tmp = tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False)
+        tmp.close()
+        extract_subtitle_stream(video_path, {"sub_index": track_index, "format": codec}, tmp.name)
+        source_path = tmp.name
+        cleanup_source = True
+        base_output = os.path.splitext(video_path)[0]
+    else:
+        if not file_path:
+            return jsonify({"error": "file_path or track_index required"}), 400
+        source_path = map_path(file_path)
+        if not os.path.exists(source_path):
+            return jsonify({"error": f"File not found: {source_path}"}), 404
+        base_output = os.path.splitext(source_path)[0]
+
+    output_path = f"{base_output}.converted.{PYSUBS2_EXT[target_format]}"
+
+    try:
+        subs = pysubs2.load(source_path)
+        subs.save(output_path, format_=target_format)
+    except Exception as e:
+        return jsonify({"error": f"Conversion failed: {e}"}), 500
+    finally:
+        if cleanup_source:
+            try:
+                os.unlink(source_path)
+            except OSError:
+                pass
+
+    logger.info("Converted %s -> %s (%s)", source_path, output_path, target_format)
+    return jsonify({"output_path": output_path, "format": target_format})
 
 
 # -- Waveform extraction -------------------------------------------------------

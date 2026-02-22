@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Loader2, Download, FileText, AlertTriangle } from 'lucide-react'
-import { listEpisodeTracks, extractTrack } from '@/api/client'
+import { listEpisodeTracks, extractTrack, convertSubtitle } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 import type { Track, EpisodeTracksResponse } from '@/lib/types'
 
@@ -16,9 +16,10 @@ function codecColor(codecType: 'audio' | 'subtitle', codec: string): { bg: strin
   return { bg: 'var(--bg-surface)', text: 'var(--text-secondary)' }
 }
 
-function TrackRow({ track, episodeId, onOpenEditor }: { track: Track; episodeId: number; onOpenEditor: (p: string) => void }) {
+function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track; episodeId: number; videoPath: string; onOpenEditor: (p: string) => void }) {
   const [extracting, setExtracting] = useState(false)
   const [usingAsSource, setUsingAsSource] = useState(false)
+  const [converting, setConverting] = useState(false)
   const isSubtitle = track.codec_type === 'subtitle'
   const isImageBased = track.codec === 'hdmv_pgs_subtitle' || track.codec === 'dvd_subtitle'
   const { bg, text } = codecColor(track.codec_type, track.codec)
@@ -44,6 +45,22 @@ function TrackRow({ track, episodeId, onOpenEditor }: { track: Track; episodeId:
       toast('Extraktion fehlgeschlagen', 'error')
     } finally {
       setUsingAsSource(false)
+    }
+  }
+
+  const handleConvert = async (targetFormat: string) => {
+    setConverting(true)
+    try {
+      const result = await convertSubtitle({
+        track_index: track.index,
+        video_path: videoPath,
+        target_format: targetFormat as 'srt' | 'ass' | 'ssa' | 'vtt',
+      })
+      toast(`Konvertiert: ${result.output_path.split(/[\\/]/).pop()}`)
+    } catch {
+      toast('Konvertierung fehlgeschlagen', 'error')
+    } finally {
+      setConverting(false)
     }
   }
 
@@ -129,6 +146,31 @@ function TrackRow({ track, episodeId, onOpenEditor }: { track: Track; episodeId:
                 {usingAsSource ? <Loader2 size={10} className="animate-spin" /> : <FileText size={10} />}
                 Als Quelle
               </button>
+            )}
+            {!isImageBased && (
+              converting
+                ? <Loader2 size={10} className="animate-spin" style={{ color: 'var(--text-muted)' }} />
+                : (
+                  <select
+                    defaultValue=""
+                    disabled={extracting || usingAsSource || converting}
+                    onChange={(e) => { if (e.target.value) { void handleConvert(e.target.value); e.target.value = '' } }}
+                    className="px-1.5 py-1 rounded text-[10px] font-medium"
+                    style={{
+                      backgroundColor: 'var(--bg-surface)',
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--border)',
+                    }}
+                    title="In anderes Format konvertieren"
+                  >
+                    <option value="">Konvertieren…</option>
+                    {(['srt', 'ass', 'vtt'] as const)
+                      .filter((f) => f !== track.codec.replace('subrip', 'srt').replace('ssa', 'ass'))
+                      .map((f) => (
+                        <option key={f} value={f}>{f.toUpperCase()}</option>
+                      ))}
+                  </select>
+                )
             )}
           </div>
         )}
@@ -217,6 +259,7 @@ export function TrackPanel({ episodeId, onOpenEditor }: TrackPanelProps) {
                 key={track.index}
                 track={track}
                 episodeId={episodeId}
+                videoPath={result.video_path}
                 onOpenEditor={onOpenEditor}
               />
             ))}
