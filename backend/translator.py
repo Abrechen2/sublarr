@@ -174,6 +174,224 @@ def _resolve_backend_for_context(arr_context, target_language):
     return (backend, chain)
 
 
+def _get_cache_config() -> tuple:
+    """Read translation memory config from config_entries DB.
+
+    Returns:
+        (enabled: bool, similarity_threshold: float)
+    """
+    try:
+        from db.config import get_config_entry
+        enabled_val = get_config_entry("translation_memory_enabled")
+        enabled = enabled_val is None or enabled_val.lower() not in ("false", "0", "no")
+        threshold_val = get_config_entry("translation_memory_similarity_threshold")
+        if threshold_val is not None:
+            threshold = float(threshold_val)
+            threshold = max(0.0, min(1.0, threshold))
+        else:
+            threshold = 1.0
+        return enabled, threshold
+    except Exception:
+        return True, 1.0
+
+
+
+def _get_quality_config():
+    """Read translation quality scoring config from config_entries DB.
+
+    Returns:
+        (enabled: bool, threshold: int, max_retries: int)
+        enabled -- whether LLM quality evaluation is active
+        threshold -- minimum acceptable score (0-100); lines below this are retried
+        max_retries -- maximum retry attempts per low-quality line
+    """
+    try:
+        from db.config import get_config_entry
+        enabled_val = get_config_entry("translation_quality_enabled")
+        enabled = enabled_val is None or enabled_val.lower() not in ("false", "0", "no")
+        threshold_val = get_config_entry("translation_quality_threshold")
+        threshold = int(threshold_val) if threshold_val is not None else 50
+        threshold = max(0, min(100, threshold))
+        retries_val = get_config_entry("translation_quality_max_retries")
+        max_retries = int(retries_val) if retries_val is not None else 2
+        max_retries = max(0, min(5, max_retries))
+        return enabled, threshold, max_retries
+    except Exception:
+        return True, 50, 2
+
+
+def _evaluate_and_retry_lines(
+    source_lines,
+    translated_lines,
+    source_lang,
+    target_lang,
+    fallback_chain,
+    glossary_entries,
+    threshold,
+    max_retries,
+):
+    """Evaluate per-line translation quality and retry low-quality lines.
+
+    For each source/translated pair, calls the LLM evaluator to get a 0-100
+    score. Lines scoring below threshold are re-translated (same fallback chain)
+    up to max_retries times. The best-scoring translation is kept.
+
+    Args:
+        source_lines: Original source subtitle lines
+        translated_lines: Initial translations (same length)
+        source_lang: ISO 639-1 source language code
+        target_lang: ISO 639-1 target language code
+        fallback_chain: Backend names in priority order
+        glossary_entries: Optional glossary for retries
+        threshold: Minimum acceptable score (lines below get retried)
+        max_retries: Maximum retry attempts per line
+
+    Returns:
+        (final_lines: list[str], scores: list[int])
+        final_lines -- best translation for each line
+        scores -- per-line quality scores (0-100)
+    """
+    from translation import get_translation_manager
+
+    manager = get_translation_manager()
+    final_lines = list(translated_lines)
+    scores = []
+
+    for idx, (src, trans) in enumerate(zip(source_lines, translated_lines)):
+        score = manager.evaluate_line_quality(src, trans, source_lang, target_lang, fallback_chain)
+        best_trans = trans
+        best_score = score
+
+        retry = 0
+        while score < threshold and retry < max_retries:
+            retry += 1
+            logger.info(
+                "Quality retry %d/%d for line %d (score=%d < threshold=%d): %r",
+                retry, max_retries, idx, score, threshold, src[:60],
+            )
+            try:
+                result = manager.translate_with_fallback(
+                    [src], source_lang, target_lang, fallback_chain, glossary_entries
+                )
+                if result.success and result.translated_lines:
+                    new_trans = result.translated_lines[0]
+                    new_score = manager.evaluate_line_quality(
+                        src, new_trans, source_lang, target_lang, fallback_chain
+                    )
+                    if new_score > best_score:
+                        best_trans = new_trans
+                        best_score = new_score
+                    score = new_score
+                else:
+                    break
+            except Exception as exc:
+                logger.debug("Quality retry %d failed for line %d: %s", retry, idx, exc)
+                break
+
+        final_lines[idx] = best_trans
+        scores.append(best_score)
+
+    return final_lines, scores
+
+
+def _compute_quality_stats(scores, threshold):
+    """Compute aggregate quality metrics from per-line scores.
+
+    Args:
+        scores: List of per-line quality scores (0-100)
+        threshold: Threshold used during evaluation
+
+    Returns:
+        Dict with avg_quality, min_quality, low_quality_lines keys.
+        Returns empty dict when scores list is empty.
+    """
+    if not scores:
+        return {}
+    avg = round(sum(scores) / len(scores), 1)
+    low = sum(1 for s in scores if s < threshold)
+    return {
+        "avg_quality": avg,
+        "min_quality": min(scores),
+        "low_quality_lines": low,
+        "quality_threshold": threshold,
+    }
+
+
+def _write_quality_sidecar(subtitle_path, scores):
+    """Write per-line quality scores to a JSON sidecar file.
+
+    The sidecar file is named <subtitle_path>.quality.json and contains
+    a JSON array of integer scores in the same order as the subtitle cues.
+    Errors are logged but do not interrupt the translation pipeline.
+
+    Args:
+        subtitle_path: Absolute path to the translated subtitle file
+        scores: Per-line quality scores (0-100) in cue order
+    """
+    if not scores:
+        return
+    import json as _json
+    sidecar_path = subtitle_path + ".quality.json"
+    try:
+        with open(sidecar_path, "w", encoding="utf-8") as f:
+            _json.dump(scores, f)
+        logger.debug("Wrote quality sidecar: %s (%d scores)", sidecar_path, len(scores))
+    except Exception as exc:
+        logger.warning("Failed to write quality sidecar %s: %s", sidecar_path, exc)
+
+
+def _apply_translation_cache(lines, source_lang, target_lang, similarity_threshold):
+    """Split lines into cache-hit and cache-miss buckets.
+
+    Args:
+        lines: All source lines for translation.
+        source_lang: ISO 639-1 source language code.
+        target_lang: ISO 639-1 target language code.
+        similarity_threshold: Forwarded to lookup_translation_cache.
+
+    Returns:
+        (cached_results, uncached_indices, uncached_lines) where:
+          - cached_results[i] is the cached translation for lines[i], or None
+          - uncached_indices is a list of original indices with no cache hit
+          - uncached_lines are the corresponding source texts
+    """
+    from db.translation import lookup_translation_cache
+
+    cached_results = [None] * len(lines)
+    uncached_indices = []
+    uncached_lines = []
+
+    for idx, line in enumerate(lines):
+        try:
+            hit = lookup_translation_cache(source_lang, target_lang, line, similarity_threshold)
+        except Exception as e:
+            logger.debug("Cache lookup error for line %d: %s", idx, e)
+            hit = None
+
+        if hit is not None:
+            cached_results[idx] = hit
+        else:
+            uncached_indices.append(idx)
+            uncached_lines.append(line)
+
+    return cached_results, uncached_indices, uncached_lines
+
+
+def _store_translations_in_cache(source_lines, translated_lines, source_lang, target_lang):
+    """Persist newly translated lines into the translation memory cache.
+
+    Silently ignores errors so cache failures never break the translation pipeline.
+    """
+    from db.translation import store_translation_cache
+
+    for src_line, tgt_line in zip(source_lines, translated_lines):
+        try:
+            store_translation_cache(source_lang, target_lang, src_line, tgt_line)
+        except Exception as e:
+            logger.debug("Cache store error: %s", e)
+
+
+
 def _translate_with_manager(lines, source_lang, target_lang,
                             arr_context=None, series_id=None):
     """Translate lines using TranslationManager with profile-based backend selection.
@@ -219,15 +437,54 @@ def _translate_with_manager(lines, source_lang, target_lang,
     except Exception as e:
         logger.debug("Failed to load glossary: %s", e)
 
+    # --- Translation memory cache lookup ---
+    cache_enabled, similarity_threshold = _get_cache_config()
+
+    if cache_enabled and lines:
+        cached_results, uncached_indices, uncached_lines = _apply_translation_cache(
+            lines, source_lang, target_lang, similarity_threshold
+        )
+        cache_hits = sum(1 for r in cached_results if r is not None)
+        if cache_hits:
+            logger.debug(
+                "Translation memory: %d/%d lines from cache, %d need LLM",
+                cache_hits, len(lines), len(uncached_lines),
+            )
+    else:
+        cached_results = [None] * len(lines)
+        uncached_indices = list(range(len(lines)))
+        uncached_lines = list(lines)
+
+    # If every line was served from cache, skip LLM entirely
+    if not uncached_lines:
+        from translation.base import TranslationResult
+        synthetic = TranslationResult(
+            success=True,
+            translated_lines=cached_results,
+            backend_name="translation_memory",
+            error=None,
+        )
+        return cached_results, synthetic
+
+    # Translate only the uncached lines via LLM
     manager = get_translation_manager()
     result = manager.translate_with_fallback(
-        lines, source_lang, target_lang, fallback_chain, glossary_entries
+        uncached_lines, source_lang, target_lang, fallback_chain, glossary_entries
     )
 
-    if result.success:
-        return result.translated_lines, result
-    else:
+    if not result.success:
         raise RuntimeError(f"Translation failed: {result.error}")
+
+    # Merge cached + freshly translated lines in original order
+    output = list(cached_results)
+    for out_idx, translated in zip(uncached_indices, result.translated_lines):
+        output[out_idx] = translated
+
+    # Persist newly translated lines to cache
+    if cache_enabled:
+        _store_translations_in_cache(uncached_lines, result.translated_lines, source_lang, target_lang)
+
+    return output, result
 
 
 def get_output_path(mkv_path, fmt="ass"):
@@ -505,6 +762,18 @@ def translate_ass(mkv_path, stream_info, probe_data,
         for w in quality_warnings:
             logger.warning("Quality: %s", w)
 
+        # LLM quality evaluation + per-line retry for low-quality lines
+        quality_scores = []
+        _q_enabled, _q_threshold, _q_max_retries = _get_quality_config()
+        if _q_enabled:
+            _, _q_fallback_chain = _resolve_backend_for_context(arr_context, tgt_lang)
+            translated_texts, quality_scores = _evaluate_and_retry_lines(
+                dialog_texts, translated_texts,
+                settings.source_language, tgt_lang,
+                _q_fallback_chain, None,
+                _q_threshold, _q_max_retries,
+            )
+
         translated_count = 0
         for idx, trans_text, tags, orig_len in zip(
             dialog_indices, translated_texts, dialog_tags, dialog_orig_lengths
@@ -523,6 +792,9 @@ def translate_ass(mkv_path, stream_info, probe_data,
         subs.save(output_path)
         logger.info("Saved ASS translation: %s", output_path)
 
+        _write_quality_sidecar(output_path, quality_scores)
+        _quality_stats = _compute_quality_stats(quality_scores, _q_threshold) if quality_scores else {}
+
         return {
             "success": True,
             "output_path": output_path,
@@ -536,6 +808,7 @@ def translate_ass(mkv_path, stream_info, probe_data,
                 "source": "embedded_ass",
                 "quality_warnings": quality_warnings,
                 "backend_name": translation_result.backend_name,
+                **_quality_stats,
             },
             "error": None,
         }
@@ -659,6 +932,18 @@ def _translate_srt(srt_path, output_path, source="srt", target_language=None, ar
     for w in quality_warnings:
         logger.warning("Quality: %s", w)
 
+    # LLM quality evaluation + per-line retry for low-quality lines
+    quality_scores = []
+    _q_enabled, _q_threshold, _q_max_retries = _get_quality_config()
+    if _q_enabled:
+        _, _q_fallback_chain = _resolve_backend_for_context(arr_context, tgt_lang)
+        translated_texts, quality_scores = _evaluate_and_retry_lines(
+            dialog_texts, translated_texts,
+            settings.source_language, tgt_lang,
+            _q_fallback_chain, None,
+            _q_threshold, _q_max_retries,
+        )
+
     translated_count = 0
     for idx, trans_text in zip(dialog_indices, translated_texts):
         subs.events[idx].text = trans_text.strip()
@@ -667,6 +952,9 @@ def _translate_srt(srt_path, output_path, source="srt", target_language=None, ar
     check_disk_space(output_path)
     subs.save(output_path, format_="srt")
     logger.info("Saved SRT translation: %s", output_path)
+
+    _write_quality_sidecar(output_path, quality_scores)
+    _quality_stats = _compute_quality_stats(quality_scores, _q_threshold) if quality_scores else {}
 
     return {
         "success": True,
@@ -678,6 +966,7 @@ def _translate_srt(srt_path, output_path, source="srt", target_language=None, ar
             "source": source,
             "quality_warnings": quality_warnings,
             "backend_name": translation_result.backend_name,
+            **_quality_stats,
         },
         "error": None,
     }
@@ -1076,6 +1365,18 @@ def _translate_external_ass(mkv_path, ass_path, target_language=None,
         for w in quality_warnings:
             logger.warning("Quality: %s", w)
 
+        # LLM quality evaluation + per-line retry for low-quality lines
+        quality_scores = []
+        _q_enabled, _q_threshold, _q_max_retries = _get_quality_config()
+        if _q_enabled:
+            _, _q_fallback_chain = _resolve_backend_for_context(arr_context, tgt_lang)
+            translated_texts, quality_scores = _evaluate_and_retry_lines(
+                dialog_texts, translated_texts,
+                settings.source_language, tgt_lang,
+                _q_fallback_chain, None,
+                _q_threshold, _q_max_retries,
+            )
+
         translated_count = 0
         for idx, trans_text, tags, orig_len in zip(
             dialog_indices, translated_texts, dialog_tags, dialog_orig_lengths
@@ -1094,6 +1395,9 @@ def _translate_external_ass(mkv_path, ass_path, target_language=None,
         subs.save(output_path)
         logger.info("Saved ASS translation from external source: %s", output_path)
 
+        _write_quality_sidecar(output_path, quality_scores)
+        _quality_stats = _compute_quality_stats(quality_scores, _q_threshold) if quality_scores else {}
+
         return {
             "success": True,
             "output_path": output_path,
@@ -1107,6 +1411,7 @@ def _translate_external_ass(mkv_path, ass_path, target_language=None,
                 "source": "provider_source_ass",
                 "quality_warnings": quality_warnings,
                 "backend_name": translation_result.backend_name,
+                **_quality_stats,
             },
             "error": None,
         }

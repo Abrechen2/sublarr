@@ -18,6 +18,12 @@ _CJK_RE = re.compile(
     r"\uf900-\ufaff]"    # CJK Compatibility Ideographs
 )
 
+# Score extraction from LLM evaluation responses
+_SCORE_RE = re.compile(r"\b(\d{1,3})\b")
+
+# Default quality score when LLM evaluation fails or is not available
+DEFAULT_QUALITY_SCORE = 50
+
 
 def has_cjk_hallucination(text: str) -> bool:
     """Detect CJK characters in translated text (LLM hallucination).
@@ -144,3 +150,53 @@ def build_translation_prompt(
         prompt_template = get_settings().get_prompt_template()
 
     return build_prompt_with_glossary(prompt_template, glossary_entries, lines)
+
+
+def build_evaluation_prompt(
+    source_text: str,
+    translated_text: str,
+    source_lang: str,
+    target_lang: str,
+) -> str:
+    """Build a quality evaluation prompt for a single translation pair.
+
+    Args:
+        source_text: Original source subtitle line
+        translated_text: Translated subtitle line
+        source_lang: ISO 639-1 source language code
+        target_lang: ISO 639-1 target language code
+
+    Returns:
+        Prompt string asking LLM to rate translation quality 0-100
+    """
+    return (
+        f"Rate the quality of this subtitle translation from {source_lang} to {target_lang} "
+        f"on a scale from 0 to 100, where 100 is a perfect translation. "
+        f"Reply with only a single integer number.\n\n"
+        f"Original ({source_lang}): {source_text}\n"
+        f"Translation ({target_lang}): {translated_text}"
+    )
+
+
+def parse_quality_score(response_text: str) -> int:
+    """Parse a quality score (0-100) from an LLM evaluation response.
+
+    Extracts the first integer found in the response and clamps it to [0, 100].
+    Falls back to DEFAULT_QUALITY_SCORE (50) if no valid number is found.
+
+    Args:
+        response_text: Raw LLM response, expected to contain a number
+
+    Returns:
+        Integer quality score clamped to [0, 100]
+    """
+    match = _SCORE_RE.search(response_text.strip())
+    if not match:
+        logger.debug("Quality score parsing failed for response: %r", response_text[:100])
+        return DEFAULT_QUALITY_SCORE
+
+    try:
+        score = int(match.group(1))
+        return max(0, min(100, score))
+    except (ValueError, OverflowError):
+        return DEFAULT_QUALITY_SCORE
