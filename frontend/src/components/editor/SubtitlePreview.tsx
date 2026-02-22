@@ -134,6 +134,30 @@ export default function SubtitlePreview({
         <span className="text-muted">{contentData.total_lines.toLocaleString()} {t('lines', 'lines')}</span>
         <span className="text-muted">{formatBytes(contentData.size_bytes)}</span>
 
+        {/* Quality score summary badge */}
+        {parseData?.has_quality_scores && (() => {
+          const scores = parseData.cues
+            .map((c) => c.quality_score)
+            .filter((s): s is number => s !== undefined)
+          if (scores.length === 0) return null
+          const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+          const low = scores.filter((s) => s < 50).length
+          const color = avg >= 75
+            ? { bg: 'rgba(16,185,129,0.12)', text: 'rgb(16 185 129)' }
+            : avg >= 50
+              ? { bg: 'rgba(245,158,11,0.12)', text: 'rgb(245 158 11)' }
+              : { bg: 'rgba(239,68,68,0.12)', text: 'rgb(239 68 68)' }
+          return (
+            <span
+              className="px-2 py-0.5 rounded text-xs font-medium"
+              style={{ backgroundColor: color.bg, color: color.text }}
+              title={`Average translation quality: ${avg}%${low > 0 ? `, ${low} low-quality line${low > 1 ? 's' : ''}` : ''}`}
+            >
+              Q: {avg}%{low > 0 ? ` · ${low} low` : ''}
+            </span>
+          )
+        })()}
+
         <div className="flex-1" />
 
         {/* Edit button */}

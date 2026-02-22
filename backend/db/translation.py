@@ -149,3 +149,53 @@ def get_backend_stat(backend_name: str) -> Optional[dict]:
 def reset_backend_stats(backend_name: str) -> bool:
     """Reset stats for a backend. Returns True if a row was deleted."""
     return _get_repo().reset_backend_stats(backend_name)
+
+
+# --- Translation Memory Cache Operations ---
+
+def lookup_translation_cache(
+    source_lang: str,
+    target_lang: str,
+    source_text: str,
+    similarity_threshold: float = 1.0,
+) -> Optional[str]:
+    """Look up a cached translation.
+
+    Args:
+        source_lang: ISO 639-1 source language code.
+        target_lang: ISO 639-1 target language code.
+        source_text: Raw source text (normalized internally).
+        similarity_threshold: Minimum ratio for fuzzy match (1.0 = exact only).
+
+    Returns:
+        Cached translated text, or None if not found.
+    """
+    return _get_repo().lookup_translation_cache(
+        source_lang, target_lang, source_text, similarity_threshold
+    )
+
+
+def store_translation_cache(
+    source_lang: str,
+    target_lang: str,
+    source_text: str,
+    translated_text: str,
+) -> None:
+    """Store a translation in the persistent memory cache."""
+    return _get_repo().store_translation_cache(
+        source_lang, target_lang, source_text, translated_text
+    )
+
+
+def clear_translation_cache() -> int:
+    """Delete all entries from the translation memory cache.
+
+    Returns:
+        Number of rows deleted.
+    """
+    return _get_repo().clear_translation_cache()
+
+
+def get_translation_cache_stats() -> dict:
+    """Return cache statistics dict with "entries" count."""
+    return _get_repo().get_translation_cache_stats()

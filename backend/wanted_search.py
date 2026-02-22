@@ -267,6 +267,41 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
                      query.series_title or "N/A", query.title or "N/A", 
                      query.season or 0, query.episode or 0, query.year or "N/A")
 
+    # Resolve AniDB absolute episode if the series has absolute_order enabled.
+    # Only applies to episodes with a known TVDB ID, season, and episode number.
+    if (
+        wanted_item["item_type"] == "episode"
+        and query.tvdb_id is not None
+        and query.season is not None
+        and query.episode is not None
+    ):
+        series_id = wanted_item.get("sonarr_series_id")
+        if series_id:
+            try:
+                from db.repositories.anidb import AnidbRepository
+                repo = AnidbRepository()
+                if repo.get_absolute_order(series_id):
+                    abs_ep = repo.get_anidb_absolute(
+                        query.tvdb_id, query.season, query.episode
+                    )
+                    if abs_ep is not None:
+                        query.absolute_episode = abs_ep
+                        logger.debug(
+                            "Wanted %d: AniDB absolute episode resolved: S%02dE%02d -> abs %d",
+                            wanted_item["id"], query.season, query.episode, abs_ep,
+                        )
+                    else:
+                        logger.debug(
+                            "Wanted %d: absolute_order enabled but no AniDB mapping for "
+                            "TVDB %d S%02dE%02d — falling back to standard S/E",
+                            wanted_item["id"], query.tvdb_id, query.season, query.episode,
+                        )
+            except Exception as _abs_err:
+                logger.warning(
+                    "Wanted %d: AniDB absolute episode resolution failed: %s",
+                    wanted_item["id"], _abs_err,
+                )
+
     # Set forced_only based on wanted item's subtitle_type
     if wanted_item.get("subtitle_type", "full") == "forced":
         query.forced_only = True
@@ -1189,6 +1224,10 @@ def _result_to_dict_interactive(result) -> dict:
         "hearing_impaired": result.hearing_impaired,
         "forced": result.forced,
         "matches": list(result.matches),
+        "machine_translated": getattr(result, "machine_translated", False),
+        "mt_confidence": getattr(result, "mt_confidence", 0.0),
+        "uploader_trust_bonus": getattr(result, "uploader_trust", 0.0),
+        "uploader_name": getattr(result, "uploader_name", ""),
     }
 
 

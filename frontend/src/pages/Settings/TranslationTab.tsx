@@ -3,10 +3,14 @@ import {
   useBackends, useTestBackend, useBackendConfig, useSaveBackendConfig, useBackendStats,
   usePromptPresets, useCreatePromptPreset, useUpdatePromptPreset, useDeletePromptPreset,
   useGlobalGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry,
+  useContextWindowSize, useConfig, useUpdateConfig,
+  useTranslationMemoryStats, useClearTranslationMemoryCache,
+  useBackendTemplates,
 } from '@/hooks/useApi'
-import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Plus, Edit2, X, Check, Activity, Eye, EyeOff, BookOpen, Search } from 'lucide-react'
+import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Plus, Edit2, X, Check, Activity, Eye, EyeOff, BookOpen, Search, Database, Wand2 } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import { SettingRow } from '@/components/shared/SettingRow'
+import { Toggle } from '@/components/shared/Toggle'
 import type { TranslationBackendInfo, BackendStats, BackendHealthResult } from '@/lib/types'
 
 // ─── Translation Backend Card ────────────────────────────────────────────────
@@ -265,11 +269,204 @@ function BackendCard({
 
 // ─── Translation Backends Tab ────────────────────────────────────────────────
 
+// ─── Template Picker Modal (Phase 28-01) ─────────────────────────────────────
+
+function TemplatePickerModal({
+  onClose,
+  onApply,
+}: {
+  onClose: () => void
+  onApply: (backendName: string, config: Record<string, string>) => void
+}) {
+  const { data, isLoading } = useBackendTemplates()
+  const templates = data?.templates ?? []
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg rounded-xl shadow-2xl overflow-hidden"
+        style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-5 py-4"
+          style={{ borderBottom: '1px solid var(--border)' }}
+        >
+          <div className="flex items-center gap-2">
+            <Wand2 size={16} style={{ color: 'var(--accent)' }} />
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              Add from Template
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 rounded transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
+          {isLoading && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent)' }} />
+            </div>
+          )}
+
+          {!isLoading && templates.length === 0 && (
+            <div className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>
+              No templates available.
+            </div>
+          )}
+
+          {templates.map((tpl) => (
+            <button
+              key={tpl.name}
+              onClick={() => {
+                // Convert config_defaults to string values for the backend config API
+                const config: Record<string, string> = {}
+                for (const [k, v] of Object.entries(tpl.config_defaults)) {
+                  config[k] = String(v)
+                }
+                onApply(tpl.backend_type, config)
+              }}
+              className="w-full text-left rounded-lg p-3 transition-all duration-150"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                border: '1px solid var(--border)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--accent-dim)'
+                e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border)'
+                e.currentTarget.style.backgroundColor = 'var(--bg-primary)'
+              }}
+            >
+              <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                {tpl.display_name}
+              </div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                {tpl.description}
+              </div>
+              <div className="text-xs mt-1.5 font-mono" style={{ color: 'var(--text-secondary)' }}>
+                {(tpl.config_defaults as Record<string, unknown>).base_url as string}
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Footer note */}
+        <div
+          className="px-5 py-3 text-xs"
+          style={{ borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}
+        >
+          Selecting a template pre-fills base URL, model, and context window. Add your API key after applying.
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+// ─── Context Window Size Row ─────────────────────────────────────────────────
+
+export function ContextWindowSizeRow() {
+  const { value, save, isPending } = useContextWindowSize()
+  const [localValue, setLocalValue] = useState<number>(value)
+
+  // Sync local value when the loaded config value changes (e.g. on initial load)
+  useEffect(() => { setLocalValue(value) }, [value])
+
+  const handleBlur = () => {
+    const clamped = Math.max(0, Math.min(10, localValue))
+    if (clamped !== value) {
+      save(clamped)
+    }
+  }
+
+  return (
+    <SettingRow
+      label="Context window (lines)"
+      helpText="Number of lines before and after each batch sent as context to the LLM. 0 = disabled."
+    >
+      <input
+        type="number"
+        min={0}
+        max={10}
+        value={localValue}
+        disabled={isPending}
+        onChange={(e) => setLocalValue(Math.max(0, Math.min(10, parseInt(e.target.value, 10) || 0)))}
+        onBlur={handleBlur}
+        className="w-24 px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
+        style={{
+          backgroundColor: 'var(--bg-primary)',
+          border: '1px solid var(--border)',
+          color: 'var(--text-primary)',
+          fontSize: '13px',
+        }}
+      />
+    </SettingRow>
+  )
+}
+
+
+// ─── Default Sync Engine Setting ─────────────────────────────────────────────
+
+export function DefaultSyncEngineRow() {
+  const { data: config } = useConfig()
+  const updateConfig = useUpdateConfig()
+  const currentEngine = config ? ((config['sync.default_engine'] as string | undefined) ?? 'alass') : 'alass'
+
+  const handleChange = (value: string) => {
+    updateConfig.mutate(
+      { 'sync.default_engine': value },
+      {
+        onSuccess: () => toast('Sync engine preference saved'),
+        onError: () => toast('Failed to save sync engine preference', 'error'),
+      },
+    )
+  }
+
+  return (
+    <SettingRow
+      label="Default sync engine"
+      helpText="Engine used by auto-sync when no per-request override is given. alass = audio-based alignment; ffsubsync = frame-rate-based."
+    >
+      <select
+        value={currentEngine}
+        disabled={updateConfig.isPending}
+        onChange={(e) => handleChange(e.target.value)}
+        className="px-3 py-2 rounded-md text-sm cursor-pointer transition-all duration-150 focus:outline-none"
+        style={{
+          backgroundColor: 'var(--bg-primary)',
+          border: '1px solid var(--border)',
+          color: 'var(--text-primary)',
+          fontSize: '13px',
+        }}
+      >
+        <option value="alass">alass (recommended)</option>
+        <option value="ffsubsync">ffsubsync</option>
+      </select>
+    </SettingRow>
+  )
+}
+
 export function TranslationBackendsTab() {
   const { data: backendsData, isLoading: backendsLoading } = useBackends()
   const { data: statsData } = useBackendStats()
   const testBackendMut = useTestBackend()
+  const saveConfigMut = useSaveBackendConfig()
   const [testResults, setTestResults] = useState<Record<string, BackendHealthResult | 'testing'>>({})
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false)
 
   const backends = backendsData?.backends ?? []
   const statsMap = new Map<string, BackendStats>()
@@ -297,6 +494,21 @@ export function TranslationBackendsTab() {
     })
   }
 
+  const handleApplyTemplate = (backendName: string, config: Record<string, string>) => {
+    setShowTemplatePicker(false)
+    saveConfigMut.mutate(
+      { name: backendName, config },
+      {
+        onSuccess: () => {
+          toast(`Template applied — open the "${backendName}" backend card to add your API key and save`)
+        },
+        onError: () => {
+          toast('Failed to apply template', 'error')
+        },
+      },
+    )
+  }
+
   if (backendsLoading) {
     return (
       <div className="flex items-center justify-center h-32">
@@ -307,10 +519,37 @@ export function TranslationBackendsTab() {
 
   return (
     <div className="space-y-3">
+      {showTemplatePicker && (
+        <TemplatePickerModal
+          onClose={() => setShowTemplatePicker(false)}
+          onApply={handleApplyTemplate}
+        />
+      )}
+
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
           {backends.length} translation backends available &mdash; expand to configure and test
         </span>
+        <button
+          onClick={() => setShowTemplatePicker(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
+          style={{
+            border: '1px solid var(--border)',
+            color: 'var(--text-secondary)',
+            backgroundColor: 'var(--bg-primary)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--accent-dim)'
+            e.currentTarget.style.color = 'var(--accent)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border)'
+            e.currentTarget.style.color = 'var(--text-secondary)'
+          }}
+        >
+          <Wand2 size={12} />
+          Add from Template
+        </button>
       </div>
 
       {backends.map((backend) => (
@@ -603,6 +842,299 @@ export function PromptPresetsTab() {
           No prompt presets configured. A default preset will be created automatically.
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Translation Memory Section ─────────────────────────────────────────────
+
+export function TranslationMemorySection() {
+  const { data: config } = useConfig()
+  const updateConfig = useUpdateConfig()
+  const { data: stats, isLoading: statsLoading } = useTranslationMemoryStats()
+  const clearCache = useClearTranslationMemoryCache()
+
+  const enabled = config
+    ? (config as Record<string, unknown>)['translation_memory_enabled'] !== 'false'
+    : true
+
+  const threshold = config
+    ? Number((config as Record<string, unknown>)['translation_memory_similarity_threshold'] ?? 0.85)
+    : 0.85
+
+  const [localThreshold, setLocalThreshold] = useState<number>(threshold)
+
+  useEffect(() => {
+    setLocalThreshold(threshold)
+  }, [threshold])
+
+  const handleEnabledChange = (value: boolean) => {
+    updateConfig.mutate(
+      { translation_memory_enabled: String(value) },
+      {
+        onSuccess: () => toast('Translation memory setting saved'),
+        onError: () => toast('Failed to save setting', 'error'),
+      },
+    )
+  }
+
+  const handleThresholdBlur = () => {
+    const clamped = Math.max(0.0, Math.min(1.0, localThreshold))
+    const rounded = Math.round(clamped * 20) / 20  // snap to 0.05 increments
+    if (rounded !== threshold) {
+      updateConfig.mutate(
+        { translation_memory_similarity_threshold: String(rounded) },
+        {
+          onSuccess: () => toast('Similarity threshold saved'),
+          onError: () => toast('Failed to save threshold', 'error'),
+        },
+      )
+    }
+  }
+
+  const handleClearCache = () => {
+    if (!window.confirm('Clear all cached translations? This cannot be undone.')) return
+    clearCache.mutate(undefined, {
+      onSuccess: (result) => toast(`Translation memory cleared (${result.deleted} entries removed)`),
+      onError: () => toast('Failed to clear translation memory', 'error'),
+    })
+  }
+
+  return (
+    <div
+      className="rounded-lg p-5 space-y-4"
+      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+    >
+      <div className="flex items-center gap-2">
+        <Database size={16} style={{ color: 'var(--accent)' }} />
+        <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Translation Memory
+        </h2>
+        {!statsLoading && stats && (
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {stats.entries.toLocaleString()} cached {stats.entries === 1 ? 'entry' : 'entries'}
+          </span>
+        )}
+      </div>
+
+      <SettingRow
+        label="Enable translation memory"
+        helpText="Reuse previously translated lines that are similar to new ones, reducing LLM calls and improving consistency."
+      >
+        <Toggle
+          checked={enabled}
+          onChange={handleEnabledChange}
+          disabled={updateConfig.isPending}
+        />
+      </SettingRow>
+
+      <SettingRow
+        label="Similarity threshold"
+        helpText="Minimum similarity (0.0–1.0) for a cached translation to be reused. 1.0 = exact match only; 0.8 = near-identical lines reused."
+      >
+        <input
+          type="number"
+          min={0.0}
+          max={1.0}
+          step={0.05}
+          value={localThreshold}
+          disabled={!enabled || updateConfig.isPending}
+          onChange={(e) => {
+            const parsed = parseFloat(e.target.value)
+            if (!isNaN(parsed)) setLocalThreshold(parsed)
+          }}
+          onBlur={handleThresholdBlur}
+          className="w-24 px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-primary)',
+            fontSize: '13px',
+            opacity: enabled ? 1 : 0.5,
+          }}
+        />
+      </SettingRow>
+
+      <div className="flex items-center gap-3 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
+        <button
+          onClick={handleClearCache}
+          disabled={clearCache.isPending || (stats?.entries ?? 0) === 0}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
+          style={{
+            border: '1px solid var(--border)',
+            color: 'var(--error)',
+            backgroundColor: 'var(--bg-primary)',
+            opacity: clearCache.isPending || (stats?.entries ?? 0) === 0 ? 0.5 : 1,
+            cursor: clearCache.isPending || (stats?.entries ?? 0) === 0 ? 'not-allowed' : 'pointer',
+          }}
+          onMouseEnter={(e) => {
+            if (!e.currentTarget.disabled) {
+              e.currentTarget.style.borderColor = 'var(--error)'
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border)'
+          }}
+        >
+          {clearCache.isPending ? (
+            <Loader2 size={12} className="animate-spin" />
+          ) : (
+            <Trash2 size={12} />
+          )}
+          Clear translation memory
+        </button>
+        {!statsLoading && stats && (
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {stats.entries === 0
+              ? 'Cache is empty'
+              : `${stats.entries.toLocaleString()} ${stats.entries === 1 ? 'entry' : 'entries'} stored`}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Translation Quality Section ─────────────────────────────────────────────
+
+export function TranslationQualitySection() {
+  const { data: config } = useConfig()
+  const updateConfig = useUpdateConfig()
+
+  const enabled = config
+    ? (config as Record<string, unknown>)['translation_quality_enabled'] !== 'false'
+    : true
+
+  const threshold = config
+    ? Number((config as Record<string, unknown>)['translation_quality_threshold'] ?? 50)
+    : 50
+
+  const maxRetries = config
+    ? Number((config as Record<string, unknown>)['translation_quality_max_retries'] ?? 2)
+    : 2
+
+  const [localThreshold, setLocalThreshold] = useState<number>(threshold)
+  const [localMaxRetries, setLocalMaxRetries] = useState<number>(maxRetries)
+
+  useEffect(() => { setLocalThreshold(threshold) }, [threshold])
+  useEffect(() => { setLocalMaxRetries(maxRetries) }, [maxRetries])
+
+  const handleEnabledChange = (value: boolean) => {
+    updateConfig.mutate(
+      { translation_quality_enabled: String(value) },
+      {
+        onSuccess: () => toast('Translation quality setting saved'),
+        onError: () => toast('Failed to save setting', 'error'),
+      },
+    )
+  }
+
+  const handleThresholdBlur = () => {
+    const clamped = Math.max(0, Math.min(100, Math.round(localThreshold)))
+    if (clamped !== threshold) {
+      updateConfig.mutate(
+        { translation_quality_threshold: String(clamped) },
+        {
+          onSuccess: () => toast('Quality threshold saved'),
+          onError: () => toast('Failed to save threshold', 'error'),
+        },
+      )
+    }
+  }
+
+  const handleMaxRetriesBlur = () => {
+    const clamped = Math.max(0, Math.min(5, Math.round(localMaxRetries)))
+    if (clamped !== maxRetries) {
+      updateConfig.mutate(
+        { translation_quality_max_retries: String(clamped) },
+        {
+          onSuccess: () => toast('Max retries saved'),
+          onError: () => toast('Failed to save max retries', 'error'),
+        },
+      )
+    }
+  }
+
+  return (
+    <div
+      className="rounded-lg p-5 space-y-4"
+      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+    >
+      <div className="flex items-center gap-2">
+        <Activity size={16} style={{ color: 'var(--accent)' }} />
+        <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Translation Quality
+        </h2>
+      </div>
+
+      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+        Lines scoring below threshold are retried up to max retries.
+      </p>
+
+      <SettingRow
+        label="Enable quality scoring"
+        helpText="Score each translated line after translation and retry low-quality results."
+      >
+        <Toggle
+          checked={enabled}
+          onChange={handleEnabledChange}
+          disabled={updateConfig.isPending}
+        />
+      </SettingRow>
+
+      <SettingRow
+        label="Quality threshold (0–100)"
+        helpText="Lines scoring below this value are retried. Default: 50."
+      >
+        <input
+          type="number"
+          min={0}
+          max={100}
+          step={1}
+          value={localThreshold}
+          disabled={!enabled || updateConfig.isPending}
+          onChange={(e) => {
+            const parsed = parseInt(e.target.value, 10)
+            if (!isNaN(parsed)) setLocalThreshold(parsed)
+          }}
+          onBlur={handleThresholdBlur}
+          className="w-24 px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-primary)',
+            fontSize: '13px',
+            opacity: enabled ? 1 : 0.5,
+          }}
+        />
+      </SettingRow>
+
+      <SettingRow
+        label="Max retries (0–5)"
+        helpText="Max retry attempts per line when quality is below threshold. Default: 2."
+      >
+        <input
+          type="number"
+          min={0}
+          max={5}
+          step={1}
+          value={localMaxRetries}
+          disabled={!enabled || updateConfig.isPending}
+          onChange={(e) => {
+            const parsed = parseInt(e.target.value, 10)
+            if (!isNaN(parsed)) setLocalMaxRetries(parsed)
+          }}
+          onBlur={handleMaxRetriesBlur}
+          className="w-24 px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-primary)',
+            fontSize: '13px',
+            opacity: enabled ? 1 : 0.5,
+          }}
+        />
+      </SettingRow>
     </div>
   )
 }

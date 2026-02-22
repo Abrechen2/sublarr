@@ -483,6 +483,14 @@ def get_series_detail(series_id):
     _episode_file_count = sum(1 for ep in regular_episodes if ep["has_file"])
     _season_count = len({ep["season"] for ep in regular_episodes})
 
+    # Load series-level settings (absolute_order flag for AniDB episode order)
+    absolute_order = False
+    try:
+        from db.repositories.anidb import AnidbRepository
+        absolute_order = AnidbRepository().get_absolute_order(series_id)
+    except Exception as _e:
+        logger.debug("Could not load series settings for %d: %s", series_id, _e)
+
     return jsonify({
         "id": series.get("id"),
         "title": series.get("title", ""),
@@ -501,8 +509,66 @@ def get_series_detail(series_id):
         "target_language_names": target_language_names,
         "source_language": settings.source_language,
         "source_language_name": settings.source_language_name,
+        "absolute_order": absolute_order,
         "episodes": episodes,
     })
+
+
+@bp.route("/library/series/<int:series_id>/settings", methods=["PUT"])
+def update_series_settings(series_id):
+    """Update per-series settings (e.g. absolute_order flag).
+    ---
+    put:
+      tags:
+        - Library
+      summary: Update series settings
+      description: Updates per-series configuration flags. Currently supports the absolute_order flag for AniDB absolute episode ordering.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: series_id
+          required: true
+          schema:
+            type: integer
+          description: Sonarr series ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                absolute_order:
+                  type: boolean
+                  description: When true, use AniDB absolute episode numbers for provider searches
+      responses:
+        200:
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  series_id:
+                    type: integer
+                  absolute_order:
+                    type: boolean
+        400:
+          description: Invalid request body
+    """
+    from db.repositories.anidb import AnidbRepository
+
+    body = request.get_json(force=True, silent=True) or {}
+    if "absolute_order" not in body:
+        return jsonify({"success": False, "error": "absolute_order field required"}), 400
+
+    enabled = bool(body["absolute_order"])
+    AnidbRepository().set_absolute_order(series_id, enabled)
+    logger.debug("Series %d: absolute_order set to %s", series_id, enabled)
+    return jsonify({"success": True, "series_id": series_id, "absolute_order": enabled})
 
 
 @bp.route("/episodes/<int:episode_id>/search", methods=["POST"])

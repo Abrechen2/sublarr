@@ -27,6 +27,7 @@ from db.repositories.search import SearchRepository
 from db.repositories.presets import FilterPresetsRepository
 from db.repositories.notifications import NotificationRepository
 from db.repositories.cleanup import CleanupRepository
+from db.repositories.anidb import AnidbRepository
 
 __all__ = [
     # Base
@@ -52,6 +53,14 @@ __all__ = [
     "SearchRepository",
     "FilterPresetsRepository",
     "NotificationRepository",
+    "AnidbRepository",
+    # AniDB convenience functions
+    "get_anidb_absolute",
+    "upsert_anidb_mapping",
+    "list_anidb_mappings",
+    "clear_anidb_mappings_for_tvdb",
+    "get_series_absolute_order",
+    "set_series_absolute_order",
     # Notification convenience functions
     "create_notification_template",
     "get_notification_template",
@@ -625,3 +634,40 @@ def delete_quiet_hours(config_id: int) -> bool:
 def is_quiet_hours(event_type: str) -> bool:
     """Check if current time falls within any active quiet hours window."""
     return NotificationRepository().is_quiet_hours(event_type)
+
+
+# ---- AniDB absolute episode convenience functions --------------------------------
+
+def get_anidb_absolute(tvdb_id: int, season: int, episode: int):
+    """Return AniDB absolute episode number for a TVDB S/E pair, or None."""
+    return AnidbRepository().get_anidb_absolute(tvdb_id, season, episode)
+
+
+def upsert_anidb_mapping(
+    tvdb_id: int, season: int, episode: int, anidb_absolute_episode: int,
+    source: str = None,
+) -> None:
+    """Insert or update an AniDB absolute episode mapping."""
+    return AnidbRepository().upsert_mapping(
+        tvdb_id, season, episode, anidb_absolute_episode, source
+    )
+
+
+def list_anidb_mappings(tvdb_id: int) -> list:
+    """Return all absolute episode mappings for a TVDB series."""
+    return AnidbRepository().list_by_tvdb(tvdb_id)
+
+
+def clear_anidb_mappings_for_tvdb(tvdb_id: int) -> int:
+    """Delete all absolute episode mappings for a TVDB series."""
+    return AnidbRepository().clear_for_tvdb(tvdb_id)
+
+
+def get_series_absolute_order(sonarr_series_id: int) -> bool:
+    """Return True if the series has absolute_order enabled."""
+    return AnidbRepository().get_absolute_order(sonarr_series_id)
+
+
+def set_series_absolute_order(sonarr_series_id: int, enabled: bool) -> None:
+    """Enable or disable absolute_order mode for a series."""
+    return AnidbRepository().set_absolute_order(sonarr_series_id, enabled)

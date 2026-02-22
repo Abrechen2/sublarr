@@ -235,6 +235,42 @@ class FilterPreset(db.Model):
     )
 
 
+class AnidbAbsoluteMapping(db.Model):
+    """AniDB absolute episode order mapping (TVDB S/E → AniDB absolute ep).
+
+    Populated by the weekly AniDB sync job that fetches the anime-lists XML.
+    The unique constraint on (tvdb_id, season, episode) enables safe upserts.
+    """
+    __tablename__ = "anidb_absolute_mappings"
+
+    id:                     Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tvdb_id:                Mapped[int] = mapped_column(Integer, nullable=False)
+    season:                 Mapped[int] = mapped_column(Integer, nullable=False)
+    episode:                Mapped[int] = mapped_column(Integer, nullable=False)
+    anidb_absolute_episode: Mapped[int] = mapped_column(Integer, nullable=False)
+    updated_at:             Mapped[str] = mapped_column(Text, nullable=False)
+    source:                 Mapped[Optional[str]] = mapped_column(Text, default="")
+
+    __table_args__ = (
+        UniqueConstraint("tvdb_id", "season", "episode", name="uq_anidb_tvdb_se"),
+        Index("idx_anidb_mappings_tvdb_id", "tvdb_id"),
+    )
+
+
+class SeriesSettings(db.Model):
+    """Per-series configuration flags.
+
+    Primary key is sonarr_series_id for O(1) lookup.
+    absolute_order=1 means the series uses AniDB absolute episode ordering
+    instead of TVDB season/episode numbering when searching providers.
+    """
+    __tablename__ = "series_settings"
+
+    sonarr_series_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    absolute_order:   Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0=off, 1=on
+    updated_at:       Mapped[str] = mapped_column(Text, nullable=False)
+
+
 __all__ = [
     "Job",
     "DailyStats",
@@ -247,4 +283,6 @@ __all__ = [
     "FfprobeCache",
     "BlacklistEntry",
     "FilterPreset",
+    "AnidbAbsoluteMapping",
+    "SeriesSettings",
 ]

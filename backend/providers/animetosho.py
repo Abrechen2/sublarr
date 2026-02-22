@@ -113,7 +113,7 @@ class AnimeToshoProvider(SubtitleProvider):
             logger.warning("AnimeTosho: cannot search - session is None")
             return []
 
-        logger.debug("AnimeTosho: searching for %s (languages: %s)", 
+        logger.debug("AnimeTosho: searching for %s (languages: %s)",
                     query.display_name, query.languages)
         results = []
 
@@ -121,7 +121,10 @@ class AnimeToshoProvider(SubtitleProvider):
         search_term = ""
         if query.is_episode:
             search_term = query.series_title or query.title
-            if query.episode is not None:
+            # Prefer AniDB absolute episode when available (more precise for anime)
+            if query.absolute_episode is not None:
+                search_term += f" {query.absolute_episode:02d}"
+            elif query.episode is not None:
                 # AnimeTosho works best with episode number in search
                 search_term += f" {query.episode:02d}"
         elif query.is_movie:
@@ -139,9 +142,18 @@ class AnimeToshoProvider(SubtitleProvider):
                 "aids": 0,  # Use 0 for server caching
             }
 
-            # AniDB ID provides more accurate results
+            # AniDB ID provides more accurate results when available.
+            # When absolute_episode is set AND anidb_id is known, use the
+            # eid param for direct absolute episode lookup via AniDB episode ID.
             if query.anidb_id:
                 params["aid"] = query.anidb_id
+                # Prefer AniDB absolute episode when available
+                if query.absolute_episode is not None:
+                    params["eid"] = query.absolute_episode
+                    logger.debug(
+                        "AnimeTosho: using AniDB aid=%d eid=%d (absolute episode)",
+                        query.anidb_id, query.absolute_episode,
+                    )
 
             logger.debug("AnimeTosho: API request params: %s", params)
             resp = self.session.get(FEED_API, params=params)
@@ -184,13 +196,21 @@ class AnimeToshoProvider(SubtitleProvider):
         if not files:
             return []
 
-        # Try to match episode number
+        # Try to match episode number.
+        # Prefer AniDB absolute episode when available — more reliable for anime
+        # releases that use absolute numbering in filenames.
         entry_episode = _extract_episode_number(title)
-        episode_match = (
-            query.episode is not None
-            and entry_episode is not None
-            and entry_episode == query.episode
-        )
+        if query.absolute_episode is not None:
+            episode_match = (
+                entry_episode is not None
+                and entry_episode == query.absolute_episode
+            )
+        else:
+            episode_match = (
+                query.episode is not None
+                and entry_episode is not None
+                and entry_episode == query.episode
+            )
 
         for f in files:
             filename = f.get("name", "")

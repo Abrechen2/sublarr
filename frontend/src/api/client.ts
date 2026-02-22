@@ -317,6 +317,10 @@ export interface InteractiveSearchResult {
   hearing_impaired: boolean
   forced: boolean
   matches: string[]
+  machine_translated?: boolean
+  mt_confidence?: number  // 0-100
+  uploader_trust_bonus?: number  // 0-20
+  uploader_name?: string
 }
 
 export interface InteractiveSearchResponse {
@@ -791,6 +795,33 @@ export async function advancedSync(
   return data
 }
 
+
+// ─── Phase 22: Auto-Sync ─────────────────────────────────────────────────────
+
+export async function autoSyncFile(
+  filePath: string,
+  mediaPath?: string,
+  engine?: string,
+): Promise<import('@/lib/types').AutoSyncResult> {
+  const body: Record<string, unknown> = { file_path: filePath }
+  if (mediaPath) body.media_path = mediaPath
+  if (engine) body.engine = engine
+  const { data } = await api.post('/tools/auto-sync', body)
+  return data
+}
+
+export async function autoSyncBulk(
+  scope: 'series' | 'library',
+  seriesId?: number,
+  engine?: string,
+): Promise<import('@/lib/types').AutoSyncBulkResult> {
+  const body: Record<string, unknown> = { scope }
+  if (seriesId !== undefined) body.series_id = seriesId
+  if (engine) body.engine = engine
+  const { data } = await api.post('/tools/auto-sync/bulk', body)
+  return data
+}
+
 // ─── Phase 12: Search + Filter Presets + Batch Actions ────────────────────
 
 export async function searchGlobal(q: string, limit = 20): Promise<GlobalSearchResults> {
@@ -1257,6 +1288,62 @@ export async function checkMarketplaceUpdates(
 ): Promise<Record<string, { available: boolean; latest_version?: string }>> {
   const { data } = await api.get('/marketplace/updates', { params: { installed: installedPlugins } })
   return data.updates || {}
+}
+
+// --- Phase 28-01: LLM Backend Presets ---
+
+export interface BackendTemplate {
+  name: string
+  display_name: string
+  backend_type: string
+  description: string
+  config_defaults: Record<string, unknown>
+}
+
+export async function getBackendTemplates(): Promise<{ templates: BackendTemplate[] }> {
+  const response = await api.get('/backends/templates')
+  return response.data
+}
+
+// --- Phase 20-02: Translation Memory ---
+
+export interface TranslationMemoryStats {
+  entries: number
+  cache_size_bytes?: number
+}
+
+export async function getTranslationMemoryStats(): Promise<TranslationMemoryStats> {
+  const { data } = await api.get('/translation-memory/stats')
+  return data
+}
+
+export async function clearTranslationMemoryCache(): Promise<{ cleared: boolean; deleted: number }> {
+  const { data } = await api.delete('/translation-memory/cache')
+  return data
+}
+
+// --- Phase 25-02: AniDB Absolute Episode Order ---
+
+export async function updateSeriesSettings(
+  seriesId: number,
+  settings: { absolute_order: boolean }
+): Promise<{ success: boolean }> {
+  const response = await api.put(`/library/series/${seriesId}/settings`, settings)
+  return response.data
+}
+
+export async function getAnidbMappingStatus(): Promise<{
+  last_sync?: string
+  entry_count?: number
+  status: string
+}> {
+  const response = await api.get('/anidb-mapping/status')
+  return response.data
+}
+
+export async function refreshAnidbMapping(): Promise<{ success: boolean; message?: string }> {
+  const response = await api.post('/anidb-mapping/refresh')
+  return response.data
 }
 
 export default api

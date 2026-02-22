@@ -34,6 +34,16 @@ _FORMAT_MAP = {
     "vtt": SubtitleFormat.VTT,
 }
 
+# Uploader rank to trust-bonus mapping (0-20 scale)
+_UPLOADER_RANK_BONUS: dict[str, float] = {
+    "administrator": 20.0,
+    "platinum": 20.0,
+    "gold": 15.0,
+    "silver": 10.0,
+    "bronze": 5.0,
+    "trusted": 5.0,
+}
+
 
 def _compute_opensubtitles_hash(filepath: str) -> str:
     """Compute OpenSubtitles-style file hash.
@@ -240,6 +250,12 @@ class OpenSubtitlesProvider(SubtitleProvider):
                 fps = attrs.get("fps", 0)
                 feature = attrs.get("feature_details", {})
 
+                # Extract uploader reputation
+                uploader_info = attrs.get("uploader", {}) or {}
+                uploader_name = uploader_info.get("name", "") or ""
+                uploader_rank = (uploader_info.get("rank", "") or "").lower()
+                uploader_trust = _UPLOADER_RANK_BONUS.get(uploader_rank, 0.0)
+
                 # Detect if this subtitle is forced (foreign parts only)
                 is_forced = bool(attrs.get("foreign_parts_only", False))
 
@@ -297,6 +313,8 @@ class OpenSubtitlesProvider(SubtitleProvider):
                         fps=fps if fps else None,
                         matches=matches,
                         provider_data={"file_id": file_id, "foreign_parts_only": is_forced},
+                        uploader_name=uploader_name,
+                        uploader_trust=uploader_trust,
                     )
                     results.append(result)
 
