@@ -460,6 +460,70 @@ export function DefaultSyncEngineRow() {
   )
 }
 
+export function AutoSyncSection() {
+  const { data: config } = useConfig()
+  const updateConfig = useUpdateConfig()
+
+  const enabled = config ? config['auto_sync_after_download'] === 'true' || config['auto_sync_after_download'] === true : false
+  const currentEngine = config ? ((config['auto_sync_engine'] as string | undefined) ?? 'ffsubsync') : 'ffsubsync'
+
+  const handleToggle = (value: boolean) => {
+    updateConfig.mutate(
+      { auto_sync_after_download: value },
+      {
+        onSuccess: () => toast('Auto-Sync Einstellung gespeichert'),
+        onError: () => toast('Fehler beim Speichern', 'error'),
+      },
+    )
+  }
+
+  const handleEngineChange = (value: string) => {
+    updateConfig.mutate(
+      { auto_sync_engine: value },
+      {
+        onSuccess: () => toast('Auto-Sync Engine gespeichert'),
+        onError: () => toast('Fehler beim Speichern', 'error'),
+      },
+    )
+  }
+
+  return (
+    <>
+      <SettingRow
+        label="Auto-Sync nach Download"
+        helpText="Synchronisiert heruntergeladene Untertitel automatisch gegen die Videodatei (nur ffsubsync)."
+      >
+        <Toggle
+          checked={!!enabled}
+          onChange={handleToggle}
+          disabled={updateConfig.isPending}
+        />
+      </SettingRow>
+      {enabled && (
+        <SettingRow
+          label="Auto-Sync Engine"
+          helpText="Engine für automatische Synchronisierung. alass wird bei Auto-Sync übersprungen (erfordert Referenz-Track)."
+        >
+          <select
+            value={currentEngine}
+            disabled={updateConfig.isPending}
+            onChange={(e) => handleEngineChange(e.target.value)}
+            className="px-3 py-2 rounded-md text-sm cursor-pointer transition-all duration-150 focus:outline-none"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+            }}
+          >
+            <option value="ffsubsync">ffsubsync (Spracherkennung)</option>
+          </select>
+        </SettingRow>
+      )}
+    </>
+  )
+}
+
 export function TranslationBackendsTab() {
   const { data: backendsData, isLoading: backendsLoading } = useBackends()
   const { data: statsData } = useBackendStats()
