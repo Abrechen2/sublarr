@@ -327,7 +327,13 @@ cd frontend && npm run lint && npx tsc --noEmit
 |---|---|
 | [docs/USER-GUIDE.md](docs/USER-GUIDE.md) | End-user guide — all features explained with examples |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Full `SUBLARR_*` variable reference |
-| [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) | Sonarr, Radarr, Jellyfin, Emby setup walkthroughs |
+| [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) | Sonarr, Radarr, Jellyfin, Emby, Plex, Kodi setup walkthroughs |
+| [docs/FAQ.md](docs/FAQ.md) | Frequently asked questions |
+| [docs/LANGUAGE-PROFILES.md](docs/LANGUAGE-PROFILES.md) | Language profile system — per-series target language rules |
+| [docs/SCORING.md](docs/SCORING.md) | Subtitle scoring algorithm — how candidates are ranked |
+| [docs/DATABASE-SCHEMA.md](docs/DATABASE-SCHEMA.md) | Database tables and schema reference |
+| [docs/REVERSE-PROXY.md](docs/REVERSE-PROXY.md) | Nginx and Traefik reverse proxy setup |
+| [docs/PERFORMANCE-TUNING.md](docs/PERFORMANCE-TUNING.md) | Performance optimization for large libraries |
 | [docs/PROVIDERS.md](docs/PROVIDERS.md) | Provider system, scoring algorithm, adding custom providers |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, data flow, component overview |
 | [docs/API.md](docs/API.md) | Full REST API reference (`/api/v1/`) |
@@ -335,6 +341,7 @@ cd frontend && npm run lint && npx tsc --noEmit
 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Code style, testing, PR workflow |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions |
 | [docs/MIGRATION.md](docs/MIGRATION.md) | Upgrading between versions |
+| [ROADMAP.md](ROADMAP.md) | Feature roadmap and version planning |
 | [CHANGELOG.md](CHANGELOG.md) | Release notes |
 | [.env.example](.env.example) | All configurable environment variables |
 
