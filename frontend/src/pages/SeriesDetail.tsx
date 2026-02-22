@@ -11,6 +11,7 @@ import {
 import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
+import { TrackPanel } from '@/components/tracks/TrackPanel'
 import { autoSyncFile } from '@/api/client'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
 import { ComparisonSelector } from '@/components/comparison/ComparisonSelector'
@@ -545,14 +546,15 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
 
 // ─── Season Group ──────────────────────────────────────────────────────────
 
-function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onInteractiveSearch, onHistory, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onHealthCheck, healthScores, t }: {
+function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onHealthCheck, healthScores, onOpenEditor, t }: {
   season: number
   episodes: EpisodeInfo[]
   targetLanguages: string[]
-  expandedEp: { id: number; mode: 'search' | 'history' | 'glossary' } | null
+  expandedEp: { id: number; mode: 'search' | 'history' | 'glossary' | 'tracks' } | null
   onSearch: (ep: EpisodeInfo) => void
   onInteractiveSearch: (ep: EpisodeInfo) => void
   onHistory: (ep: EpisodeInfo) => void
+  onTracks: (ep: EpisodeInfo) => void
   onClose: () => void
   searchResults: WantedSearchResponse | null
   searchLoading: boolean
@@ -566,6 +568,7 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
   onAutoSync: (filePath: string) => void
   onHealthCheck: (filePath: string) => void
   healthScores: Record<string, number | null>
+  onOpenEditor: (filePath: string) => void
   t: (key: string, opts?: Record<string, unknown>) => string
 }) {
   const [expanded, setExpanded] = useState(true)
@@ -831,6 +834,25 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                           </button>
                         )
                       })()}
+                      {/* Tracks button: show all embedded tracks */}
+                      {ep.has_file && (
+                        <button
+                          onClick={() => onTracks(ep)}
+                          className="p-1.5 rounded transition-colors"
+                          style={{ color: isExpanded && mode === 'tracks' ? 'var(--accent)' : 'var(--text-muted)' }}
+                          title="Eingebettete Tracks anzeigen"
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = 'var(--accent)'
+                            e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = isExpanded && mode === 'tracks' ? 'var(--accent)' : 'var(--text-muted)'
+                            e.currentTarget.style.backgroundColor = ''
+                          }}
+                        >
+                          <Database size={14} />
+                        </button>
+                      )}
                       <button
                         onClick={() => onSearch(ep)}
                         disabled={!ep.has_file}
@@ -928,6 +950,12 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                           isLoading={historyLoading}
                         />
                       )}
+                      {mode === 'tracks' && (
+                        <TrackPanel
+                          episodeId={ep.id}
+                          onOpenEditor={onOpenEditor}
+                        />
+                      )}
                     </div>
                   )}
                 </div>
@@ -949,7 +977,7 @@ export function SeriesDetailPage() {
   const { data: series, isLoading, error } = useSeriesDetail(seriesId)
 
   // Episode action state
-  const [expandedEp, setExpandedEp] = useState<{ id: number; mode: 'search' | 'history' | 'glossary' } | null>(null)
+  const [expandedEp, setExpandedEp] = useState<{ id: number; mode: 'search' | 'history' | 'glossary' | 'tracks' } | null>(null)
   const [showGlossary, setShowGlossary] = useState(false)
   const [searchResults, setSearchResults] = useState<Record<number, WantedSearchResponse>>({})
   const [historyEntries, setHistoryEntries] = useState<Record<number, EpisodeHistoryEntry[]>>({})
@@ -1055,6 +1083,14 @@ export function SeriesDetailPage() {
   const handleClose = useCallback(() => {
     setExpandedEp(null)
   }, [])
+
+  const handleTracks = useCallback((ep: EpisodeInfo) => {
+    if (expandedEp?.id === ep.id && expandedEp?.mode === 'tracks') {
+      setExpandedEp(null)
+      return
+    }
+    setExpandedEp({ id: ep.id, mode: 'tracks' })
+  }, [expandedEp])
 
   const handleCompare = useCallback((ep: EpisodeInfo) => {
     setCompareSelectorEp(ep)
@@ -1449,10 +1485,11 @@ export function SeriesDetailPage() {
             season={season}
             episodes={episodes}
             targetLanguages={series.target_languages}
-            expandedEp={expandedEp as { id: number; mode: 'search' | 'history' | 'glossary' } | null}
+            expandedEp={expandedEp}
             onSearch={handleSearch}
             onInteractiveSearch={(ep) => setInteractiveEp({ id: ep.id, title: `${series.title} ${ep.title ? `– ${ep.title}` : ''}`.trim() })}
             onHistory={handleHistory}
+            onTracks={handleTracks}
             onClose={handleClose}
             searchResults={expandedEp ? searchResults[expandedEp.id] ?? null : null}
             searchLoading={episodeSearch.isPending}
@@ -1466,6 +1503,7 @@ export function SeriesDetailPage() {
             onAutoSync={handleAutoSync}
             onHealthCheck={handleHealthCheck}
             healthScores={healthScores}
+            onOpenEditor={(path) => { setEditorFilePath(path); setEditorMode('edit') }}
             t={t}
           />
         ))}

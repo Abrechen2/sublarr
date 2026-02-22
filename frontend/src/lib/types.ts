@@ -595,6 +595,38 @@ export interface ProviderModifiers {
   [provider_name: string]: number
 }
 
+// ─── Track Manifest (Phase 29) ───────────────────────────────────────────────
+
+export interface Track {
+  index: number
+  sub_index: number
+  codec_type: 'audio' | 'subtitle'
+  codec: string
+  language: string
+  title: string
+  forced: boolean
+  default: boolean
+}
+
+export interface EpisodeTracksResponse {
+  tracks: Track[]
+  video_path: string
+}
+
+export interface ExtractTrackResult {
+  output_path: string
+  language: string
+  format: string
+  track: Track
+}
+
+export interface TrackAsSourceResult {
+  content: string
+  format: string
+  language: string
+  title: string
+}
+
 // ─── Statistics ──────────────────────────────────────────────────────────────
 
 export interface StatisticsData {
