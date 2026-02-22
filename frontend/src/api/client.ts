@@ -1346,6 +1346,32 @@ export async function refreshAnidbMapping(): Promise<{ success: boolean; message
   return response.data
 }
 
+// ─── Phase 30/31: Video Sync ──────────────────────────────────────────────────
+
+export async function getSyncEngines(): Promise<Record<string, boolean>> {
+  const { data } = await api.get('/tools/video-sync/engines')
+  return data
+}
+
+export async function startVideoSync(params: {
+  file_path: string
+  video_path: string
+  engine: 'ffsubsync' | 'alass'
+  reference_track_index?: number
+}): Promise<{ job_id: string }> {
+  const { data } = await api.post('/tools/video-sync', params)
+  return data
+}
+
+export async function getSyncJobStatus(jobId: string): Promise<{
+  status: string
+  result?: Record<string, unknown>
+  error?: string
+}> {
+  const { data } = await api.get(`/tools/video-sync/${jobId}`)
+  return data
+}
+
 // ─── Phase 29: Track Manifest ─────────────────────────────────────────────────
 
 export async function listEpisodeTracks(epId: number): Promise<import('@/lib/types').EpisodeTracksResponse> {
