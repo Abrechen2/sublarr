@@ -131,8 +131,18 @@ class ProviderRepository(BaseRepository):
 
     def record_subtitle_download(self, provider_name: str, subtitle_id: str,
                                   language: str, fmt: str, file_path: str,
-                                  score: int):
-        """Record a subtitle download for history tracking."""
+                                  score: int, source: str = "provider"):
+        """Record a subtitle download for history tracking.
+
+        Args:
+            provider_name: Name of the provider (use "whisper" for Whisper-generated subs).
+            subtitle_id: Provider-assigned subtitle ID (or job_id for Whisper).
+            language: Target language code.
+            fmt: Subtitle format ("srt", "ass", etc.).
+            file_path: Absolute path to the saved subtitle file.
+            score: Provider score (0 for Whisper-generated).
+            source: Source type -- "provider" (default) or "whisper".
+        """
         now = self._now()
         entry = SubtitleDownload(
             provider_name=provider_name,
@@ -141,6 +151,7 @@ class ProviderRepository(BaseRepository):
             format=fmt,
             file_path=file_path,
             score=score,
+            source=source,
             downloaded_at=now,
         )
         self.session.add(entry)

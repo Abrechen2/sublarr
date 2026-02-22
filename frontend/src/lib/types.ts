@@ -438,6 +438,7 @@ export interface WhisperConfig {
   whisper_enabled: boolean
   whisper_backend: string
   max_concurrent_whisper: number
+  whisper_fallback_min_score: number
 }
 
 export interface WhisperStats {

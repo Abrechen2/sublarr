@@ -62,10 +62,15 @@ def clear_provider_cache(provider_name: str = None):
 
 
 def record_subtitle_download(provider_name: str, subtitle_id: str, language: str,
-                              fmt: str, file_path: str, score: int):
-    """Record a subtitle download for history tracking."""
+                              fmt: str, file_path: str, score: int,
+                              source: str = "provider"):
+    """Record a subtitle download for history tracking.
+
+    Args:
+        source: Source type -- "provider" (default) or "whisper".
+    """
     return _get_repo().record_subtitle_download(
-        provider_name, subtitle_id, language, fmt, file_path, score
+        provider_name, subtitle_id, language, fmt, file_path, score, source=source
     )
 
 
