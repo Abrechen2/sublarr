@@ -9,7 +9,7 @@
 import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react'
 import { Loader2, X, Eye, Pencil, GitCompare, RefreshCw, Activity } from 'lucide-react'
 import { useSubtitleContent } from '@/hooks/useApi'
-import { autoSyncFile } from '@/api/client'
+import { autoSyncFile, overlapFix, timingNormalize, mergeLines, splitLines, spellCheck } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 
 // Lazy-loaded editor components -- CodeMirror stays in separate chunks
@@ -136,6 +136,29 @@ export default function SubtitleEditorModal({
       .finally(() => setSyncLoading(false))
   }
 
+  // Quality fix state and handlers
+  const [fixLoading, setFixLoading] = useState<string | null>(null)
+
+  const runFix = useCallback((name: string, fn: () => Promise<string>) => {
+    if (fixLoading || !filePath) return
+    setFixLoading(name)
+    fn()
+      .then((msg) => { toast(msg) })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : `${name} fehlgeschlagen`
+        toast(msg, 'error')
+      })
+      .finally(() => setFixLoading(null))
+  }, [fixLoading, filePath])
+
+  const qualityFixes = [
+    { key: 'overlap', label: 'Überlappungen', fn: () => overlapFix(filePath!).then(r => `${r.fixed} Überlappungen behoben`) },
+    { key: 'timing', label: 'Timing', fn: () => timingNormalize(filePath!).then(r => `${r.extended} Cues verlängert, ${r.too_long} zu lang`) },
+    { key: 'merge', label: 'Zusammenführen', fn: () => mergeLines(filePath!).then(r => `${r.merged} Zeilen zusammengeführt`) },
+    { key: 'split', label: 'Aufteilen', fn: () => splitLines(filePath!).then(r => `${r.split} Cues aufgeteilt`) },
+    { key: 'spell', label: 'Rechtschreibung', fn: () => spellCheck(filePath!).then(r => `${r.total} Fehler gefunden`) },
+  ]
+
   // When modal is closed, render nothing
   if (!filePath) return null
 
@@ -240,6 +263,32 @@ export default function SubtitleEditorModal({
             </button>
           </div>
         </div>
+
+        {/* Quality fix toolbar — visible in edit mode only */}
+        {mode === 'edit' && (
+          <div
+            className="flex items-center gap-1 px-4 py-1.5 flex-shrink-0 flex-wrap"
+            style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-elevated)' }}
+          >
+            {qualityFixes.map(({ key, label, fn }) => (
+              <button
+                key={key}
+                onClick={() => { runFix(label, fn) }}
+                disabled={fixLoading !== null}
+                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors"
+                style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border)',
+                  opacity: fixLoading !== null ? 0.5 : 1,
+                }}
+              >
+                {fixLoading === label && <Loader2 size={9} className="animate-spin" />}
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Body */}
         <div className="flex-1 overflow-hidden">

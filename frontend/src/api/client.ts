@@ -1372,6 +1372,33 @@ export async function getSyncJobStatus(jobId: string): Promise<{
   return data
 }
 
+// ─── Phase 35: Quality fixes ───────────────────────────────────────────────────
+
+export async function overlapFix(filePath: string): Promise<{ fixed: number; backup_path: string }> {
+  const { data } = await api.post('/tools/overlap-fix', { file_path: filePath })
+  return data as { fixed: number; backup_path: string }
+}
+
+export async function timingNormalize(filePath: string, minMs = 500, maxMs = 10000): Promise<{ extended: number; too_long: number; backup_path: string }> {
+  const { data } = await api.post('/tools/timing-normalize', { file_path: filePath, min_ms: minMs, max_ms: maxMs })
+  return data as { extended: number; too_long: number; backup_path: string }
+}
+
+export async function mergeLines(filePath: string, gapMs = 200): Promise<{ merged: number; backup_path: string }> {
+  const { data } = await api.post('/tools/merge-lines', { file_path: filePath, gap_ms: gapMs })
+  return data as { merged: number; backup_path: string }
+}
+
+export async function splitLines(filePath: string, maxChars = 80): Promise<{ split: number; backup_path: string }> {
+  const { data } = await api.post('/tools/split-lines', { file_path: filePath, max_chars: maxChars })
+  return data as { split: number; backup_path: string }
+}
+
+export async function spellCheck(filePath: string, language = 'de_DE'): Promise<{ errors: { word: string; start_ms: number; text: string }[]; total: number }> {
+  const { data } = await api.post('/tools/spell-check', { file_path: filePath, language })
+  return data as { errors: { word: string; start_ms: number; text: string }[]; total: number }
+}
+
 // ─── Phase 33: Format conversion ──────────────────────────────────────────────
 
 export async function convertSubtitle(params: {
