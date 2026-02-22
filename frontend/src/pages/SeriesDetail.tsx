@@ -20,6 +20,7 @@ import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry } from '@/l
 
 const SubtitleComparison = lazy(() => import('@/components/comparison/SubtitleComparison').then(m => ({ default: m.SubtitleComparison })))
 const SyncControls = lazy(() => import('@/components/sync/SyncControls').then(m => ({ default: m.SyncControls })))
+const SyncModal = lazy(() => import('@/components/sync/SyncModal').then(m => ({ default: m.SyncModal })))
 const HealthCheckPanel = lazy(() => import('@/components/health/HealthCheckPanel').then(m => ({ default: m.HealthCheckPanel })))
 
 /** Derive subtitle file path from media path + language + format. */
@@ -546,7 +547,7 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
 
 // ─── Season Group ──────────────────────────────────────────────────────────
 
-function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onHealthCheck, healthScores, onOpenEditor, t }: {
+function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync, onHealthCheck, healthScores, onOpenEditor, t }: {
   season: number
   episodes: EpisodeInfo[]
   targetLanguages: string[]
@@ -566,6 +567,7 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
   onCompare: (ep: EpisodeInfo) => void
   onSync: (filePath: string) => void
   onAutoSync: (filePath: string) => void
+  onVideoSync: (ep: EpisodeInfo, subtitlePath: string) => void
   onHealthCheck: (filePath: string) => void
   healthScores: Record<string, number | null>
   onOpenEditor: (filePath: string) => void
@@ -808,6 +810,31 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                           </button>
                         )
                       })()}
+                      {/* Video sync button: open SyncModal (ffsubsync/alass with engine/track selector) */}
+                      {(() => {
+                        if (!ep.has_file) return null
+                        const firstLang = Object.entries(ep.subtitles).find(([, f]) => f === 'ass' || f === 'srt')
+                        if (!firstLang) return null
+                        const syncPath = deriveSubtitlePath(ep.file_path, firstLang[0], firstLang[1])
+                        return (
+                          <button
+                            onClick={() => onVideoSync(ep, syncPath)}
+                            className="p-1.5 rounded transition-colors"
+                            style={{ color: 'var(--text-muted)' }}
+                            title="Video-Sync (ffsubsync / alass)"
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = 'var(--accent)'
+                              e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = 'var(--text-muted)'
+                              e.currentTarget.style.backgroundColor = ''
+                            }}
+                          >
+                            <ScanSearch size={14} />
+                          </button>
+                        )
+                      })()}
                       {/* Health button: only show when at least 1 subtitle file */}
                       {(() => {
                         const hasAnySub = ep.has_file && Object.values(ep.subtitles).some(f => f === 'ass' || f === 'srt')
@@ -991,6 +1018,9 @@ export function SeriesDetailPage() {
   const [syncFilePath, setSyncFilePath] = useState<string | null>(null)
   const [compareSelectorEp, setCompareSelectorEp] = useState<EpisodeInfo | null>(null)
 
+  // Video sync modal (ffsubsync / alass)
+  const [videoSyncEp, setVideoSyncEp] = useState<{ ep: EpisodeInfo; subtitlePath: string } | null>(null)
+
   // Health check state
   const [healthCheckPath, setHealthCheckPath] = useState<string | null>(null)
   const [healthScores, setHealthScores] = useState<Record<string, number | null>>({})
@@ -1108,6 +1138,10 @@ export function SeriesDetailPage() {
       const msg = err instanceof Error ? err.message : 'Auto-sync failed'
       toast(msg, 'error')
     })
+  }, [])
+
+  const handleVideoSync = useCallback((ep: EpisodeInfo, subtitlePath: string) => {
+    setVideoSyncEp({ ep, subtitlePath })
   }, [])
 
   const handleHealthCheck = useCallback((filePath: string) => {
@@ -1501,6 +1535,7 @@ export function SeriesDetailPage() {
             onCompare={handleCompare}
             onSync={handleSync}
             onAutoSync={handleAutoSync}
+            onVideoSync={handleVideoSync}
             onHealthCheck={handleHealthCheck}
             healthScores={healthScores}
             onOpenEditor={(path) => { setEditorFilePath(path); setEditorMode('edit') }}
@@ -1602,6 +1637,22 @@ export function SeriesDetailPage() {
             </Suspense>
           </div>
         </div>
+      )}
+
+      {/* Video Sync Modal (ffsubsync / alass) */}
+      {videoSyncEp && (
+        <Suspense fallback={null}>
+          <SyncModal
+            episodeId={videoSyncEp.ep.id}
+            subtitlePath={videoSyncEp.subtitlePath}
+            videoPath={videoSyncEp.ep.file_path}
+            onClose={() => setVideoSyncEp(null)}
+            onComplete={() => {
+              toast('Video-Sync abgeschlossen')
+              setVideoSyncEp(null)
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Interactive Search Modal */}
