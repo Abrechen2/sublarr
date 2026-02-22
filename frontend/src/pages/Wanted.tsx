@@ -456,7 +456,7 @@ export function WantedPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4">
-        <div className="flex gap-1.5">
+        <div data-testid="wanted-filter-status" className="flex gap-1.5">
           {STATUS_FILTERS.map((s) => {
             const isActive = (s === 'all' && !statusFilter) || statusFilter === s
             return (
@@ -640,6 +640,7 @@ export function WantedPage() {
 
       {/* Table */}
       <div
+        data-testid="wanted-list"
         className="rounded-lg overflow-hidden"
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
@@ -687,6 +688,7 @@ export function WantedPage() {
                 filteredData.map((item) => (
                   <Fragment key={item.id}>
                     <tr
+                      data-testid="wanted-item"
                       className="transition-colors duration-100"
                       style={{ borderBottom: '1px solid var(--border)' }}
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)')}
@@ -810,6 +812,7 @@ export function WantedPage() {
                             </button>
                           )}
                           <button
+                            data-testid="wanted-search-btn"
                             onClick={() => handleSearch(item.id)}
                             disabled={searchItem.isPending && expandedItem === item.id}
                             className="p-1 rounded transition-colors duration-150"
@@ -849,6 +852,7 @@ export function WantedPage() {
                             <ScanSearch size={14} />
                           </button>
                           <button
+                            data-testid="wanted-process-btn"
                             onClick={() => handleProcess(item.id)}
                             disabled={processItem.isPending || item.status === 'searching'}
                             className="p-1 rounded transition-colors duration-150"

@@ -25,6 +25,7 @@ function StatCard({
 }) {
   return (
     <div
+      data-testid="stat-card"
       className="rounded-lg p-4 flex items-center gap-4 transition-all duration-200 hover:shadow-md cursor-default animate-in"
       style={{
         backgroundColor: 'var(--bg-surface)',
@@ -97,7 +98,7 @@ export default function StatCardsWidget() {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-2">
+    <div data-testid="stats-cards" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-2">
       <StatCard
         icon={Server}
         label={t('stats.ollama')}
