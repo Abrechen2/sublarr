@@ -34,6 +34,7 @@ def register_blueprints(app):
     from routes.marketplace import bp as marketplace_bp
     from routes.video import bp as video_bp
     from routes.anidb_mapping import bp as anidb_mapping_bp
+    from routes.tracks import bp as tracks_bp
 
     for blueprint in [
         translate_bp,
@@ -63,5 +64,6 @@ def register_blueprints(app):
         marketplace_bp,
         video_bp,
         anidb_mapping_bp,
+        tracks_bp,
     ]:
         app.register_blueprint(blueprint)
