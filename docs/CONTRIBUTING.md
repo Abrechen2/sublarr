@@ -88,16 +88,11 @@ cd sublarr
    SUBLARR_LOG_LEVEL=DEBUG
    ```
 
-4. **Initialize the database**
+4. **Run the development server**
    ```bash
-   python -c "from database import init_db; init_db()"
+   python -m flask run --host=0.0.0.0 --port=5765
    ```
-
-5. **Run the development server**
-   ```bash
-   python server.py
-   ```
-   Backend will be available at `http://localhost:5765`
+   Backend will be available at `http://localhost:5765` (DB is initialized automatically on first start)
 
 ### Frontend Setup
 
@@ -550,7 +545,7 @@ See [PROVIDERS.md](PROVIDERS.md) for detailed instructions on adding subtitle pr
 ### Adding a New API Endpoint
 
 **Steps**
-1. Add route handler in `backend/server.py` (or new Blueprint)
+1. Add route handler in a Blueprint under `backend/routes/`
 2. Define Pydantic models for request/response validation
 3. Update `frontend/src/api/client.ts` with TypeScript types
 4. Add React Query hook in `frontend/src/hooks/useApi.ts`
@@ -559,7 +554,7 @@ See [PROVIDERS.md](PROVIDERS.md) for detailed instructions on adding subtitle pr
 
 **Example**
 ```python
-# backend/server.py
+# backend/routes/your_blueprint.py
 from pydantic import BaseModel
 
 class MyRequest(BaseModel):
@@ -586,7 +581,7 @@ export const callMyEndpoint = async (param: string): Promise<string> => {
 ### Adding Database Tables
 
 **Steps**
-1. Define schema in `backend/database.py` `init_db()`
+1. Define schema in `backend/db/` (add table to the relevant domain module)
 2. Add version check and migration logic
 3. Create model class and helper functions
 4. Update relevant API endpoints
