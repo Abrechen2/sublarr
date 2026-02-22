@@ -184,28 +184,21 @@ test.describe('Settings auto-extract toggles', () => {
   })
 
   test('wanted_auto_extract toggle is visible in Wanted tab', async ({ page }) => {
-    // Navigate to Wanted settings tab
-    const wantedTab = page.locator('button:has-text("Wanted"), [role="tab"]:has-text("Wanted")').first()
-    const tabVisible = await wantedTab.isVisible().catch(() => false)
+    // Wait for settings to load (isLoading spinner disappears), then navigate to Wanted tab
+    const wantedTab = page.locator('button:has-text("Wanted")').first()
+    await expect(wantedTab).toBeVisible({ timeout: 10000 })
+    await wantedTab.click()
+    await page.waitForTimeout(500)
 
-    if (tabVisible) {
-      await wantedTab.click()
-      await page.waitForTimeout(500)
-    }
-
-    // Look for the auto-extract label
     const label = page.locator('text=Auto-extract embedded subs on scan')
     await expect(label).toBeVisible({ timeout: 5000 })
   })
 
   test('wanted_auto_translate toggle is visible', async ({ page }) => {
-    const wantedTab = page.locator('button:has-text("Wanted"), [role="tab"]:has-text("Wanted")').first()
-    const tabVisible = await wantedTab.isVisible().catch(() => false)
-
-    if (tabVisible) {
-      await wantedTab.click()
-      await page.waitForTimeout(500)
-    }
+    const wantedTab = page.locator('button:has-text("Wanted")').first()
+    await expect(wantedTab).toBeVisible({ timeout: 10000 })
+    await wantedTab.click()
+    await page.waitForTimeout(500)
 
     const label = page.locator('text=Auto-translate after extraction')
     await expect(label).toBeVisible({ timeout: 5000 })
