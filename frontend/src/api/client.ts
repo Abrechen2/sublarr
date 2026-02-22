@@ -1372,6 +1372,13 @@ export async function getSyncJobStatus(jobId: string): Promise<{
   return data
 }
 
+// ─── Phase 32: Waveform extraction ────────────────────────────────────────────
+
+export async function extractWaveform(videoPath: string): Promise<{ audio_url: string; duration_s: number }> {
+  const { data } = await api.post('/tools/waveform-extract', { video_path: videoPath })
+  return data as { audio_url: string; duration_s: number }
+}
+
 // ─── Phase 29: Track Manifest ─────────────────────────────────────────────────
 
 export async function listEpisodeTracks(epId: number): Promise<import('@/lib/types').EpisodeTracksResponse> {
