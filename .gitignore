@@ -29,6 +29,9 @@ Desktop.ini
 NDH6SA~*
 ~$*
 
+# IDE
+.cursor/
+
 # Claude Code
 .claude/
 .mcp.json

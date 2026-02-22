@@ -199,18 +199,24 @@ def health_radarr():
 
 @bp.route("/health/jellyfin", methods=["GET"])
 def health_jellyfin():
-    """Extended health check for Jellyfin/Emby (legacy singleton client)."""
+    """Extended health check for Jellyfin/Emby instances via media server manager."""
     try:
-        from jellyfin_client import get_jellyfin_client
+        from mediaserver import get_media_server_manager
 
-        client = get_jellyfin_client()
-        if client is None:
+        manager = get_media_server_manager()
+        manager.load_instances()
+        jellyfin_instances = [
+            inst for inst in manager._instances.values()
+            if type(inst).name == "jellyfin"
+        ]
+        if not jellyfin_instances:
             return jsonify({
                 "connection": {"healthy": False, "message": "Jellyfin not configured"},
             })
 
-        result = client.extended_health_check()
-        return jsonify(result)
+        instance = jellyfin_instances[0]
+        healthy, message = instance.health_check()
+        return jsonify({"connection": {"healthy": healthy, "message": message}})
     except Exception as exc:
         logger.error("Jellyfin health check failed: %s", exc)
         return jsonify({"error": f"Jellyfin health check failed: {exc}"}), 500
@@ -374,11 +380,17 @@ def _health_all_radarr():
 
 def _health_all_jellyfin():
     try:
-        from jellyfin_client import get_jellyfin_client
-        client = get_jellyfin_client()
-        if client is not None:
-            return "jellyfin", client.extended_health_check()
-        return "jellyfin", {"connection": {"healthy": False, "message": "Not configured"}}
+        from mediaserver import get_media_server_manager
+        manager = get_media_server_manager()
+        manager.load_instances()
+        jellyfin_instances = [
+            inst for inst in manager._instances.values()
+            if type(inst).name == "jellyfin"
+        ]
+        if not jellyfin_instances:
+            return "jellyfin", {"connection": {"healthy": False, "message": "Not configured"}}
+        healthy, message = jellyfin_instances[0].health_check()
+        return "jellyfin", {"connection": {"healthy": healthy, "message": message}}
     except Exception as exc:
         logger.debug("Jellyfin health aggregation failed: %s", exc)
         return "jellyfin", {"connection": {"healthy": False, "message": str(exc)}}
