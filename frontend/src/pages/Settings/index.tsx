@@ -21,6 +21,10 @@ const ProvidersTab = lazy(() => import('./ProvidersTab').then(m => ({ default: m
 const TranslationBackendsTab = lazy(() => import('./TranslationTab').then(m => ({ default: m.TranslationBackendsTab })))
 const PromptPresetsTab = lazy(() => import('./TranslationTab').then(m => ({ default: m.PromptPresetsTab })))
 const GlobalGlossaryPanel = lazy(() => import('./TranslationTab').then(m => ({ default: m.GlobalGlossaryPanel })))
+const ContextWindowSizeRow = lazy(() => import('./TranslationTab').then(m => ({ default: m.ContextWindowSizeRow })))
+const DefaultSyncEngineRow = lazy(() => import('./TranslationTab').then(m => ({ default: m.DefaultSyncEngineRow })))
+const TranslationMemorySection = lazy(() => import('./TranslationTab').then(m => ({ default: m.TranslationMemorySection })))
+const TranslationQualitySection = lazy(() => import('./TranslationTab').then(m => ({ default: m.TranslationQualitySection })))
 const WhisperTab = lazy(() => import('./WhisperTab').then(m => ({ default: m.WhisperTab })))
 const MediaServersTab = lazy(() => import('./MediaServersTab').then(m => ({ default: m.MediaServersTab })))
 const EventsHooksTab = lazy(() => import('./EventsTab').then(m => ({ default: m.EventsHooksTab })))
@@ -777,7 +781,11 @@ export function SettingsPage() {
                     )}
                   </SettingRow>
                 ))}
+                <ContextWindowSizeRow />
+                <DefaultSyncEngineRow />
               </div>
+              <TranslationMemorySection />
+              <TranslationQualitySection />
               <GlobalGlossaryPanel />
             </div>
           ) : (

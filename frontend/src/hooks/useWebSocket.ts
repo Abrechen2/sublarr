@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
+import type { SyncBatchProgress, SyncBatchComplete } from '@/lib/types'
 import { useSocket } from '@/contexts/WebSocketContext'
 
 interface UseWebSocketOptions {
@@ -18,6 +19,8 @@ interface UseWebSocketOptions {
   onRetranslationProgress?: (data: unknown) => void
   onRetranslationCompleted?: (data: unknown) => void
   onConfigUpdated?: (data: unknown) => void
+  onSyncBatchProgress?: (data: SyncBatchProgress) => void
+  onSyncBatchComplete?: (data: SyncBatchComplete) => void
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
@@ -59,13 +62,15 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       ['retranslation_progress', 'onRetranslationProgress'],
       ['retranslation_completed', 'onRetranslationCompleted'],
       ['config_updated', 'onConfigUpdated'],
+      ['sync_batch_progress', 'onSyncBatchProgress'],
+      ['sync_batch_complete', 'onSyncBatchComplete'],
     ]
 
     // Store named handler references so only this hook's listeners are removed on cleanup
     const handlers: Array<[string, (data: unknown) => void]> = events.map(
       ([eventName, callbackKey]) => {
         const handler = (data: unknown) => {
-          callbackRefs.current[callbackKey]?.(data)
+          ;(callbackRefs.current[callbackKey] as ((d: unknown) => void) | undefined)?.(data)
         }
         socket.on(eventName, handler)
         return [eventName, handler]

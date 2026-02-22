@@ -1,16 +1,17 @@
 import { useState, useMemo, useCallback, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry, useStartWantedBatch } from '@/hooks/useApi'
+import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry, useStartWantedBatch, useUpdateSeriesSettings, useAnidbMappingStatus, useRefreshAnidbMapping } from '@/hooks/useApi'
 import {
   ArrowLeft, Loader2, ChevronDown, ChevronRight,
   Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search, Clock,
   Download, X, ChevronUp, BookOpen, Plus, Edit2, Trash2, Check,
-  Eye, Pencil, Columns2, Timer, ShieldCheck, ScanSearch,
+  Eye, Pencil, Columns2, Timer, ShieldCheck, ScanSearch, RefreshCw, Database,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
+import { autoSyncFile } from '@/api/client'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
 import { ComparisonSelector } from '@/components/comparison/ComparisonSelector'
 import { HealthBadge } from '@/components/health/HealthBadge'
@@ -544,7 +545,7 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
 
 // ─── Season Group ──────────────────────────────────────────────────────────
 
-function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onInteractiveSearch, onHistory, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onHealthCheck, healthScores, t }: {
+function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onInteractiveSearch, onHistory, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onHealthCheck, healthScores, t }: {
   season: number
   episodes: EpisodeInfo[]
   targetLanguages: string[]
@@ -562,6 +563,7 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
   onEditSub: (filePath: string) => void
   onCompare: (ep: EpisodeInfo) => void
   onSync: (filePath: string) => void
+  onAutoSync: (filePath: string) => void
   onHealthCheck: (filePath: string) => void
   healthScores: Record<string, number | null>
   t: (key: string, opts?: Record<string, unknown>) => string
@@ -777,6 +779,32 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                           </button>
                         )
                       })()}
+                      {/* Auto-sync button: call alass/ffsubsync directly */}
+                      {(() => {
+                        const hasAnySub = ep.has_file && Object.values(ep.subtitles).some(f => f === 'ass' || f === 'srt')
+                        if (!hasAnySub) return null
+                        const firstLang = Object.entries(ep.subtitles).find(([, f]) => f === 'ass' || f === 'srt')
+                        if (!firstLang) return null
+                        const syncPath = deriveSubtitlePath(ep.file_path, firstLang[0], firstLang[1])
+                        return (
+                          <button
+                            onClick={() => onAutoSync(syncPath)}
+                            className="p-1.5 rounded transition-colors"
+                            style={{ color: 'var(--text-muted)' }}
+                            title="Auto-sync timing (alass/ffsubsync)"
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = 'var(--success)'
+                              e.currentTarget.style.backgroundColor = 'var(--success-bg)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = 'var(--text-muted)'
+                              e.currentTarget.style.backgroundColor = ''
+                            }}
+                          >
+                            <RefreshCw size={14} />
+                          </button>
+                        )
+                      })()}
                       {/* Health button: only show when at least 1 subtitle file */}
                       {(() => {
                         const hasAnySub = ep.has_file && Object.values(ep.subtitles).some(f => f === 'ass' || f === 'srt')
@@ -948,6 +976,28 @@ export function SeriesDetailPage() {
   const startSeriesSearch = useStartWantedBatch()
   const [seriesSearchStarted, setSeriesSearchStarted] = useState(false)
 
+  // AniDB absolute order
+  const updateSeriesSettingsMutation = useUpdateSeriesSettings()
+  const { data: anidbStatus } = useAnidbMappingStatus()
+  const refreshAnidbMappingMutation = useRefreshAnidbMapping()
+
+  const handleToggleAbsoluteOrder = useCallback((enabled: boolean) => {
+    updateSeriesSettingsMutation.mutate(
+      { seriesId, settings: { absolute_order: enabled } },
+      {
+        onSuccess: () => toast(enabled ? 'Absolute order enabled' : 'Absolute order disabled'),
+        onError: () => toast('Failed to update series settings', 'error'),
+      }
+    )
+  }, [seriesId, updateSeriesSettingsMutation])
+
+  const handleRefreshAnidbMapping = useCallback(() => {
+    refreshAnidbMappingMutation.mutate(undefined, {
+      onSuccess: () => toast('AniDB mapping refresh started'),
+      onError: () => toast('Failed to refresh AniDB mapping', 'error'),
+    })
+  }, [refreshAnidbMappingMutation])
+
   const handleSearchAllEpisodes = useCallback(() => {
     startSeriesSearch.mutate({ seriesId }, {
       onSuccess: (data) => {
@@ -1012,6 +1062,16 @@ export function SeriesDetailPage() {
 
   const handleSync = useCallback((filePath: string) => {
     setSyncFilePath(filePath)
+  }, [])
+
+  const handleAutoSync = useCallback((filePath: string) => {
+    toast('Auto-syncing…', 'info')
+    void autoSyncFile(filePath).then(() => {
+      toast('Auto-sync complete')
+    }).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : 'Auto-sync failed'
+      toast(msg, 'error')
+    })
   }, [])
 
   const handleHealthCheck = useCallback((filePath: string) => {
@@ -1233,6 +1293,68 @@ export function SeriesDetailPage() {
                 {t('series_detail.glossary')}
               </button>
 
+              {/* Absolute Order toggle */}
+              <button
+                onClick={() => handleToggleAbsoluteOrder(!(series.absolute_order ?? false))}
+                disabled={updateSeriesSettingsMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded transition-colors"
+                style={{
+                  backgroundColor: series.absolute_order ? 'var(--accent-bg)' : 'rgba(255,255,255,0.06)',
+                  color: series.absolute_order ? 'var(--accent)' : 'var(--text-secondary)',
+                  opacity: updateSeriesSettingsMutation.isPending ? 0.6 : 1,
+                  cursor: updateSeriesSettingsMutation.isPending ? 'default' : 'pointer',
+                }}
+                title="Use AniDB absolute episode numbers for subtitle search (anime)"
+                onMouseEnter={(e) => {
+                  if (!updateSeriesSettingsMutation.isPending && !series.absolute_order) {
+                    e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!series.absolute_order) {
+                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'
+                  }
+                }}
+              >
+                {updateSeriesSettingsMutation.isPending
+                  ? <Loader2 size={11} className="animate-spin" />
+                  : <Database size={11} />
+                }
+                Absolute order
+              </button>
+
+              {/* AniDB refresh button — shown only when absolute order is active */}
+              {series.absolute_order && (
+                <button
+                  onClick={handleRefreshAnidbMapping}
+                  disabled={refreshAnidbMappingMutation.isPending}
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded transition-colors"
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.06)',
+                    color: 'var(--text-secondary)',
+                    opacity: refreshAnidbMappingMutation.isPending ? 0.6 : 1,
+                    cursor: refreshAnidbMappingMutation.isPending ? 'default' : 'pointer',
+                  }}
+                  title={anidbStatus?.last_sync
+                    ? `Last sync: ${new Date(anidbStatus.last_sync).toLocaleString()} · ${anidbStatus.entry_count ?? 0} entries`
+                    : 'Refresh AniDB mapping database'}
+                  onMouseEnter={(e) => {
+                    if (!refreshAnidbMappingMutation.isPending) {
+                      e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'
+                  }}
+                >
+                  {refreshAnidbMappingMutation.isPending
+                    ? <Loader2 size={11} className="animate-spin" />
+                    : <RefreshCw size={11} />
+                  }
+                  Refresh AniDB
+                </button>
+              )}
+
               {missingCount > 0 && (
                 <button
                   onClick={handleSearchAllEpisodes}
@@ -1341,6 +1463,7 @@ export function SeriesDetailPage() {
             onEditSub={(path) => { setEditorFilePath(path); setEditorMode('edit') }}
             onCompare={handleCompare}
             onSync={handleSync}
+            onAutoSync={handleAutoSync}
             onHealthCheck={handleHealthCheck}
             healthScores={healthScores}
             t={t}

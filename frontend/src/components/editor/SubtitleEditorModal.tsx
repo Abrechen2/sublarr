@@ -7,8 +7,10 @@
  */
 
 import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react'
-import { Loader2, X, Eye, Pencil, GitCompare } from 'lucide-react'
+import { Loader2, X, Eye, Pencil, GitCompare, RefreshCw } from 'lucide-react'
 import { useSubtitleContent } from '@/hooks/useApi'
+import { autoSyncFile } from '@/api/client'
+import { toast } from '@/components/shared/Toast'
 
 // Lazy-loaded editor components -- CodeMirror stays in separate chunks
 const SubtitlePreview = lazy(() => import('@/components/editor/SubtitlePreview'))
@@ -46,6 +48,7 @@ export default function SubtitleEditorModal({
   const [lastModified, setLastModified] = useState<number | null>(null)
   const [format, setFormat] = useState<'ass' | 'srt' | null>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [syncLoading, setSyncLoading] = useState(false)
   const overlayRef = useRef<HTMLDivElement>(null)
 
   // Reset state when filePath or initialMode changes
@@ -113,6 +116,21 @@ export default function SubtitleEditorModal({
     onClose()
   }, [hasUnsavedChanges, onClose])
 
+  // Auto-sync timing via alass/ffsubsync
+  const handleAutoSync = () => {
+    if (!filePath) return
+    setSyncLoading(true)
+    autoSyncFile(filePath)
+      .then(() => {
+        toast('Auto-sync complete')
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'Auto-sync failed'
+        toast(msg, 'error')
+      })
+      .finally(() => setSyncLoading(false))
+  }
+
   // When modal is closed, render nothing
   if (!filePath) return null
 
@@ -165,6 +183,24 @@ export default function SubtitleEditorModal({
               )
             })}
           </div>
+
+          {/* Auto-sync button */}
+          <button
+            onClick={handleAutoSync}
+            disabled={syncLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors disabled:opacity-50"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border)',
+            }}
+            title="Auto-sync subtitle timing with alass/ffsubsync"
+          >
+            {syncLoading
+              ? <Loader2 size={12} className="animate-spin" />
+              : <RefreshCw size={12} />}
+            Auto-Sync
+          </button>
 
           {/* File path + close */}
           <div className="flex items-center gap-3">
