@@ -543,7 +543,7 @@ def save_whisper_config():
     if not data:
         return jsonify({"error": "No configuration data provided"}), 400
 
-    allowed_keys = {"whisper_backend", "max_concurrent_whisper", "whisper_enabled"}
+    allowed_keys = {"whisper_backend", "max_concurrent_whisper", "whisper_enabled", "whisper_fallback_min_score"}
     for key, value in data.items():
         if key not in allowed_keys:
             continue

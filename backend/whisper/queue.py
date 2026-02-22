@@ -239,6 +239,25 @@ class WhisperQueue:
                 except Exception as e:
                     logger.error("Failed to persist completed job %s: %s", job_id, e)
 
+                # Record Whisper-generated subtitle in download history
+                if result.srt_content:
+                    try:
+                        from db.providers import record_subtitle_download
+                        import os as _os
+                        srt_path = _os.path.splitext(file_path)[0] + "." + language + ".srt"
+                        record_subtitle_download(
+                            provider_name="whisper",
+                            subtitle_id=job_id,
+                            language=language,
+                            fmt="srt",
+                            file_path=srt_path,
+                            score=0,
+                            source="whisper",
+                        )
+                        logger.debug("Whisper job %s: recorded download for %s", job_id, srt_path)
+                    except Exception as rec_err:
+                        logger.warning("Whisper job %s: failed to record download: %s", job_id, rec_err)
+
                 # Phase 4: Complete
                 self._update_job(job_id, status="completed", progress=1.0, phase="completed",
                                  completed_at=datetime.utcnow().isoformat())

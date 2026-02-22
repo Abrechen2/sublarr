@@ -247,6 +247,7 @@ export function WhisperTab() {
     whisper_enabled: false,
     whisper_backend: '',
     max_concurrent_whisper: 1,
+    whisper_fallback_min_score: 0,
   })
 
   const backends: WhisperBackendInfo[] = backendsData?.backends ?? []
@@ -259,6 +260,7 @@ export function WhisperTab() {
         whisper_enabled: whisperConfig.whisper_enabled ?? false,
         whisper_backend: whisperConfig.whisper_backend ?? '',
         max_concurrent_whisper: whisperConfig.max_concurrent_whisper ?? 1,
+        whisper_fallback_min_score: whisperConfig.whisper_fallback_min_score ?? 0,
       })
     }
   }, [whisperConfig])
@@ -379,6 +381,33 @@ export function WhisperTab() {
           />
           <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
             Number of simultaneous transcription jobs (1-4). Higher values use more CPU/GPU.
+          </p>
+        </div>
+
+        {/* Whisper fallback min score */}
+        <div className="space-y-1">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+            Fallback Min Score
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={localConfig.whisper_fallback_min_score}
+            onChange={(e) => setLocalConfig((c) => ({
+              ...c,
+              whisper_fallback_min_score: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)),
+            }))}
+            className="w-full px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-mono)',
+            }}
+          />
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            When all provider results score below this threshold, use Whisper instead. 0 = only when no results at all.
           </p>
         </div>
 
