@@ -155,6 +155,26 @@ export async function startWantedBatchSearch(itemIds?: number[], seriesId?: numb
   return data
 }
 
+/** Extract embedded subtitles for multiple wanted items. */
+export async function batchExtractEmbedded(
+  itemIds: number[],
+  autoTranslate = false,
+): Promise<{ succeeded: number; failed: number; results: unknown[] }> {
+  const { data } = await api.post('/wanted/batch-extract', {
+    item_ids: itemIds,
+    auto_translate: autoTranslate,
+  })
+  return data
+}
+
+/** Start batch search across multiple series at once. */
+export async function startSeriesBatchSearch(
+  seriesIds: number[],
+): Promise<{ queued: number }> {
+  const { data } = await api.post('/wanted/batch-search', { series_ids: seriesIds })
+  return data
+}
+
 export async function getWantedBatchStatus(): Promise<WantedBatchStatus> {
   const { data } = await api.get('/wanted/batch-search/status')
   return data
