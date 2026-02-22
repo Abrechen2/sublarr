@@ -85,5 +85,5 @@ Write-Host "📝 Next steps:" -ForegroundColor Cyan
 Write-Host "   1. Configure your .env file (copy .env.example)"
 Write-Host "   2. Start development: npm run dev (from project root)"
 Write-Host "   3. Or start separately:"
-Write-Host "      - Backend: cd backend && python server.py"
+Write-Host "      - Backend: cd backend && python -m flask run --host=0.0.0.0 --port=5765"
 Write-Host "      - Frontend: cd frontend && npm run dev"

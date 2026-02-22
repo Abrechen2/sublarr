@@ -1,4 +1,4 @@
-"""Tests for server.py — Flask API endpoints."""
+"""Tests for Flask API endpoints (app.py / Blueprint routes)."""
 
 import pytest
 import os
