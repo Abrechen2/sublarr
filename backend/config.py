@@ -98,6 +98,8 @@ class Settings(BaseSettings):
     wanted_anime_only: bool = True
     wanted_anime_movies_only: bool = False  # Filter Radarr movies by anime tag (separate from wanted_anime_only)
     wanted_scan_on_startup: bool = True
+    scan_auto_extract: bool = Field(default=False, description="Auto-extract embedded subs during wanted scan")
+    scan_auto_translate: bool = Field(default=False, description="Auto-translate after auto-extract during wanted scan")
     wanted_max_search_attempts: int = 3
     use_embedded_subs: bool = True  # Check embedded subtitle streams in MKV files
 
