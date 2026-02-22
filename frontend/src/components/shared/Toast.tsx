@@ -70,6 +70,7 @@ export function ToastContainer() {
         const Icon = icons[t.type]
         return (
           <div
+            data-testid="toast"
             key={t.id}
             className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium"
             style={{

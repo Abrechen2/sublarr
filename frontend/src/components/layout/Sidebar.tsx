@@ -97,6 +97,7 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <aside
+        data-testid="sidebar"
         className={cn(
           'fixed md:sticky left-0 top-0 h-screen w-56 md:w-60 flex flex-col z-40 md:z-auto shrink-0 transition-transform duration-200',
           mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
@@ -128,6 +129,7 @@ export function Sidebar() {
 
         {/* Search Trigger */}
         <button
+          data-testid="sidebar-search-trigger"
           onClick={() => {
             // Dispatch Ctrl+K event to open GlobalSearchModal (handled in App.tsx)
             document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))
@@ -162,7 +164,7 @@ export function Sidebar() {
         </button>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-1 overflow-y-auto">
+        <nav data-testid="sidebar-nav" className="flex-1 px-3 py-1 overflow-y-auto">
           {navGroups.map((group) => (
             <div key={group.titleKey} className="mb-3">
               <div
@@ -176,6 +178,7 @@ export function Sidebar() {
                   key={to}
                   to={to}
                   end={to === '/'}
+                  data-testid={`nav-link-${to === '/' ? 'dashboard' : to.slice(1)}`}
                   onClick={() => setMobileOpen(false)}
                   className={({ isActive }) =>
                     cn(
@@ -264,6 +267,7 @@ export function Sidebar() {
           </div>
           <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
             <div
+              data-testid="health-indicator"
               className="w-2 h-2 rounded-full shrink-0"
               style={{
                 backgroundColor: isHealthy ? 'var(--success)' : 'var(--error)',
