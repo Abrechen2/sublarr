@@ -210,7 +210,11 @@ class Settings(BaseSettings):
             from db.translation import get_default_prompt_preset
             preset = get_default_prompt_preset()
             if preset and preset.get("prompt_template"):
-                return preset["prompt_template"]
+                template = preset["prompt_template"]
+                # Substitute {source_language}/{target_language} placeholders
+                template = template.replace("{source_language}", self.source_language_name)
+                template = template.replace("{target_language}", self.target_language_name)
+                return template
         except Exception:
             # Database might not be initialized yet, fall through
             pass
