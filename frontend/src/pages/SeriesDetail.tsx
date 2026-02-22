@@ -1042,6 +1042,7 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
           {/* Batch toolbar — shown when any episodes are selected */}
           {selectedEpisodes.size > 0 && (
             <div
+              data-testid="episode-batch-toolbar"
               className="flex items-center gap-2 px-3 py-2 rounded-lg mt-2 mx-2 mb-2"
               style={{
                 backgroundColor: 'var(--bg-elevated)',
