@@ -113,6 +113,8 @@ const FIELDS: FieldConfig[] = [
   { key: 'wanted_anime_only', label: 'Anime Only (Sonarr)', type: 'toggle', tab: 'Wanted' },
   { key: 'wanted_anime_movies_only', label: 'Anime Movies Only (Radarr)', type: 'toggle', tab: 'Wanted' },
   { key: 'wanted_scan_on_startup', label: 'Scan on Startup', type: 'toggle', tab: 'Wanted' },
+  { key: 'wanted_auto_extract', label: 'Auto-extract embedded subs on scan', type: 'toggle', tab: 'Wanted' },
+  { key: 'wanted_auto_translate', label: 'Auto-translate after extraction', type: 'toggle', tab: 'Wanted' },
   { key: 'wanted_max_search_attempts', label: 'Max Search Attempts', type: 'number', placeholder: '3', tab: 'Wanted' },
   // Sonarr
   { key: 'sonarr_url', label: 'Sonarr URL', type: 'text', placeholder: 'http://localhost:8989', tab: 'Sonarr' },
@@ -805,6 +807,7 @@ export function SettingsPage() {
                     <Toggle
                       checked={values[field.key] === 'true'}
                       onChange={(v) => setValues((prev) => ({ ...prev, [field.key]: String(v) }))}
+                      disabled={field.key === 'wanted_auto_translate' && values['wanted_auto_extract'] !== 'true'}
                     />
                   ) : (
                     <input
