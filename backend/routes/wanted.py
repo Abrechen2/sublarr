@@ -962,7 +962,6 @@ def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = F
     elif auto_translate and stream_info["format"] == "srt":
         # Trigger translation of the extracted SRT in a background thread
         try:
-            import threading as _threading
             from translator import Translator
 
             def _translate_async():
@@ -972,7 +971,7 @@ def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = F
                 except Exception as _exc:
                     logger.warning("[Auto-Translate] Failed for item %d: %s", item_id, _exc)
 
-            _threading.Thread(target=_translate_async, daemon=True).start()
+            threading.Thread(target=_translate_async, daemon=True).start()
         except Exception as exc:
             logger.warning("[Auto-Translate] Could not start translation thread for item %d: %s", item_id, exc)
 
