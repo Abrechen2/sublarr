@@ -116,6 +116,10 @@ class Settings(BaseSettings):
     webhook_auto_search: bool = True
     webhook_auto_translate: bool = True
 
+    # Video Sync (ffsubsync / alass)
+    auto_sync_after_download: bool = False   # Auto-sync subtitle against video after download
+    auto_sync_engine: str = "ffsubsync"      # Engine for auto-sync: "ffsubsync" | "alass"
+
     # Wanted Search Scheduler
     wanted_search_interval_hours: int = 24  # 0 = disabled
     wanted_search_on_startup: bool = False

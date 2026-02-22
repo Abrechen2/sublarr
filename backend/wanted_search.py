@@ -1181,9 +1181,12 @@ def download_specific_for_item(
             source=s.get("source", ""),
         )
         update_wanted_status(item_id, "found")
+        out = translate_result.get("output_path")
+        if out:
+            _try_auto_sync(out, file_path, settings)
         return {
             "success": True,
-            "path": translate_result.get("output_path"),
+            "path": out,
             "format": "ass",
             "translated": True,
         }
@@ -1200,6 +1203,7 @@ def download_specific_for_item(
         return {"success": False, "error": f"Failed to save subtitle: {e}"}
 
     update_wanted_status(item_id, "found")
+    _try_auto_sync(actual_path, file_path, settings)
     return {
         "success": True,
         "path": actual_path,
@@ -1229,6 +1233,32 @@ def _result_to_dict_interactive(result) -> dict:
         "uploader_trust_bonus": getattr(result, "uploader_trust", 0.0),
         "uploader_name": getattr(result, "uploader_name", ""),
     }
+
+
+# ─── Video Sync ───────────────────────────────────────────────────────────────
+
+
+def _try_auto_sync(subtitle_path: str, video_path: str, settings) -> None:
+    """Enqueue a sync job if auto_sync_after_download is enabled.
+
+    Only ffsubsync is supported for auto-sync (alass requires a reference track).
+    Errors are logged but never propagated — sync is best-effort.
+    """
+    if not getattr(settings, "auto_sync_after_download", False):
+        return
+    engine = getattr(settings, "auto_sync_engine", "ffsubsync")
+    if engine != "ffsubsync":
+        logger.warning("Auto-sync: alass requires a reference track — skipping auto-sync for %s", subtitle_path)
+        return
+    try:
+        from services.video_sync import sync_with_ffsubsync, SyncUnavailableError
+        logger.info("Auto-sync: starting ffsubsync for %s against %s", subtitle_path, video_path)
+        sync_with_ffsubsync(subtitle_path, video_path)
+        logger.info("Auto-sync: complete for %s", subtitle_path)
+    except SyncUnavailableError as e:
+        logger.warning("Auto-sync skipped: %s", e)
+    except Exception as e:
+        logger.error("Auto-sync failed for %s: %s", subtitle_path, e)
 
 
 # ─── Job Queue Integration ────────────────────────────────────────────────────
