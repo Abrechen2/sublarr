@@ -56,26 +56,33 @@ export default function SubtitleEditorModal({
   const [syncLoading, setSyncLoading] = useState(false)
   const overlayRef = useRef<HTMLDivElement>(null)
 
-  // Reset state when filePath or initialMode changes
-  useEffect(() => {
+  // Reset state when filePath or initialMode changes — "adjust during render" pattern
+  // avoids a double-render cycle that useEffect would cause for prop-derived state
+  const [prevFilePath, setPrevFilePath] = useState(filePath)
+  const [prevInitialMode, setPrevInitialMode] = useState(initialMode)
+  if (filePath !== prevFilePath || initialMode !== prevInitialMode) {
+    setPrevFilePath(filePath)
+    setPrevInitialMode(initialMode)
     setMode(initialMode)
     setContent(null)
     setLastModified(null)
     setFormat(null)
     setHasUnsavedChanges(false)
-  }, [filePath, initialMode])
+  }
 
   // Load subtitle content
   const { data: contentData } = useSubtitleContent(filePath)
 
-  // Store loaded content into local state
-  useEffect(() => {
+  // Sync server content into local state — "adjust during render" pattern
+  const [prevContentData, setPrevContentData] = useState(contentData)
+  if (contentData !== prevContentData) {
+    setPrevContentData(contentData)
     if (contentData) {
       setContent(contentData.content)
       setLastModified(contentData.last_modified)
       setFormat(contentData.format)
     }
-  }, [contentData])
+  }
 
   // Prevent body scroll when modal is open
   useEffect(() => {
