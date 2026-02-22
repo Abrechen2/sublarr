@@ -4,7 +4,7 @@ import { useLibrary, useLanguageProfiles, useAssignProfile } from '@/hooks/useAp
 import { Tv, Film, Loader2, Settings, ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { SeriesInfo, MovieInfo, LanguageProfile, SyncBatchProgress, SyncBatchComplete } from '@/lib/types'
-import { autoSyncBulk } from '@/api/client'
+import { autoSyncBulk, startSeriesBatchSearch } from '@/api/client'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { toast } from '@/components/shared/Toast'
 
@@ -76,6 +76,8 @@ const LibraryTableRow = memo(function LibraryTableRow({
   onRowClick,
   onProfileChange,
   t,
+  selected,
+  onToggle,
 }: {
   item: SeriesInfo | MovieInfo
   isSeries: boolean
@@ -83,6 +85,8 @@ const LibraryTableRow = memo(function LibraryTableRow({
   onRowClick: (id: number) => void
   onProfileChange: (seriesId: number, profileId: number) => void
   t: (key: string, opts?: Record<string, unknown>) => string
+  selected: boolean
+  onToggle: () => void
 }) {
   return (
     <tr
@@ -93,6 +97,17 @@ const LibraryTableRow = memo(function LibraryTableRow({
       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '' }}
     >
+      {isSeries && (
+        <td className="w-10 pl-3" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggle}
+            className="rounded"
+            style={{ accentColor: 'var(--accent)' }}
+          />
+        </td>
+      )}
       <td className="px-4 py-2.5 max-w-xs">
         <span className="text-sm font-medium hover:underline block truncate" title={item.title} style={{ color: 'var(--accent)' }}>
           {item.title}
@@ -147,7 +162,7 @@ const LibraryTableRow = memo(function LibraryTableRow({
   )
 })
 
-function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sortKey, sortDir, onSort, t }: {
+function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sortKey, sortDir, onSort, t, selectedSeries, onToggleSeries, onSelectAll, onClearSelection }: {
   items: (SeriesInfo | MovieInfo)[]
   type: Tab
   profiles: LanguageProfile[]
@@ -157,8 +172,13 @@ function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sort
   sortDir: SortDir
   onSort: (key: SortKey) => void
   t: (key: string, opts?: Record<string, unknown>) => string
+  selectedSeries: Set<number>
+  onToggleSeries: (id: number) => void
+  onSelectAll: () => void
+  onClearSelection: () => void
 }) {
   const isSeries = type === 'series'
+  const allSelected = isSeries && items.length > 0 && selectedSeries.size === items.length
 
   return (
     <div
@@ -168,6 +188,17 @@ function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sort
       <table className="w-full">
         <thead>
           <tr style={{ backgroundColor: 'var(--bg-elevated)' }}>
+            {isSeries && (
+              <th className="w-10 pl-3">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={() => allSelected ? onClearSelection() : onSelectAll()}
+                  className="rounded"
+                  style={{ accentColor: 'var(--accent)' }}
+                />
+              </th>
+            )}
             <th
               className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 cursor-pointer select-none"
               style={{ color: 'var(--text-secondary)' }}
@@ -215,6 +246,8 @@ function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sort
               onRowClick={onRowClick}
               onProfileChange={onProfileChange}
               t={t}
+              selected={selectedSeries.has(item.id)}
+              onToggle={() => onToggleSeries(item.id)}
             />
           ))}
         </tbody>
@@ -506,7 +539,18 @@ export function LibraryPage() {
   const [sortKey, setSortKey] = useState<SortKey>('title')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [showBulkSync, setShowBulkSync] = useState(false)
+  const [selectedSeries, setSelectedSeries] = useState<Set<number>>(new Set())
   const navigate = useNavigate()
+
+  const toggleSeries = useCallback((id: number) => {
+    setSelectedSeries(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id) else next.add(id)
+      return next
+    })
+  }, [])
+
+  const clearSelection = useCallback(() => setSelectedSeries(new Set()), [])
 
   // Sync batch callbacks (unused beyond triggering toast in BulkSyncPanel)
   const handleSyncProgress = useCallback((_d: SyncBatchProgress) => {}, [])
@@ -715,6 +759,37 @@ export function LibraryPage() {
         </div>
       ) : (
         <>
+          {activeTab === 'series' && selectedSeries.size > 0 && (
+            <div
+              className="flex items-center gap-2 px-4 py-2 rounded-lg mb-3"
+              style={{
+                backgroundColor: 'var(--bg-elevated)',
+                border: '1px solid var(--accent-dim)',
+              }}
+            >
+              <span className="text-xs font-medium" style={{ color: 'var(--accent)' }}>
+                {selectedSeries.size} series selected
+              </span>
+              <button
+                onClick={async () => {
+                  await startSeriesBatchSearch([...selectedSeries])
+                  toast('Batch search queued')
+                  clearSelection()
+                }}
+                className="px-3 py-1.5 rounded text-xs font-medium"
+                style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-dim)' }}
+              >
+                Search All Missing
+              </button>
+              <button
+                onClick={clearSelection}
+                className="ml-auto px-2 py-1 rounded text-xs"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                Clear
+              </button>
+            </div>
+          )}
           <LibraryTable
             items={paginatedItems}
             type={activeTab}
@@ -725,6 +800,10 @@ export function LibraryPage() {
             sortDir={sortDir}
             onSort={handleSort}
             t={t}
+            selectedSeries={selectedSeries}
+            onToggleSeries={toggleSeries}
+            onSelectAll={() => setSelectedSeries(new Set(paginatedItems.map(s => s.id)))}
+            onClearSelection={clearSelection}
           />
           {totalPages > 1 && (
             <Pagination

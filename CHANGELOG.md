@@ -5,6 +5,20 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.1-beta] — 2026-02-22
+
+### Added
+- **Scan Auto-Extract** — `wanted_auto_extract` + `wanted_auto_translate` settings; scanner
+  extracts embedded subs immediately on first detection when enabled
+- **Batch Extract Endpoint** — `POST /api/v1/wanted/batch-extract` extracts embedded subs
+  for multiple wanted items in one request
+- **Multi-Series Batch Search** — `POST /api/v1/wanted/batch-search` now accepts `series_ids`
+  array to trigger search across multiple series at once
+- **SeriesDetail Batch Toolbar** — episode checkboxes with Search / Extract bulk actions
+- **Library Batch Toolbar** — series checkboxes with Search All Missing bulk action
+
+---
+
 ## [0.11.0-beta] — 2026-02-22
 
 ### Added
