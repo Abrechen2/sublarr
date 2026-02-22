@@ -396,6 +396,8 @@ export interface EpisodeHistoryEntry {
 
 export interface AppConfig {
   [key: string]: string | number | boolean
+  wanted_auto_extract?: boolean
+  wanted_auto_translate?: boolean
 }
 
 // ─── Whisper Types ──────────────────────────────────────────────────────────
