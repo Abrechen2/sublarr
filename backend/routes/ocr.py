@@ -1,12 +1,16 @@
-"""OCR routes — /ocr/extract, /ocr/preview."""
+"""OCR routes — /ocr/extract, /ocr/preview, /ocr/batch-extract."""
 
 import os
+import uuid
+import threading
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 from flask import Blueprint, request, jsonify, send_file
 
 from config import get_settings
 from services.ocr_extractor import (
+    batch_ocr_track,
     ocr_subtitle_stream,
     preview_frame,
     extract_frame,
@@ -15,6 +19,10 @@ from services.ocr_extractor import (
 
 bp = Blueprint("ocr", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
+
+_ocr_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="batch-ocr")
+_ocr_jobs: dict = {}
+_ocr_lock = threading.Lock()
 
 
 @bp.route("/ocr/extract", methods=["POST"])
@@ -224,3 +232,100 @@ def preview_ocr():
     except Exception as e:
         logger.exception("Unexpected error during OCR preview")
         return jsonify({"error": "Internal server error"}), 500
+
+
+@bp.route("/ocr/batch-extract", methods=["POST"])
+def batch_extract():
+    """Start an async batch OCR job for an entire PGS/VobSub subtitle track.
+    ---
+    post:
+      summary: Batch OCR subtitle track
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [video_path, stream_index]
+              properties:
+                video_path:
+                  type: string
+                stream_index:
+                  type: integer
+                language:
+                  type: string
+                  default: eng
+      responses:
+        202:
+          description: Job accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+        400:
+          description: Missing parameters
+        404:
+          description: Video not found
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    video_path = data.get("video_path", "")
+    stream_index = data.get("stream_index")
+    language = data.get("language", "eng")
+
+    if not video_path or stream_index is None:
+        return jsonify({"error": "video_path and stream_index are required"}), 400
+
+    from config import map_path
+    video_path = map_path(video_path)
+    if not os.path.exists(video_path):
+        return jsonify({"error": f"Video not found: {video_path}"}), 404
+
+    if not TESSERACT_AVAILABLE:
+        return jsonify({"error": "OCR not available (pytesseract not installed)"}), 500
+
+    job_id = str(uuid.uuid4())
+    with _ocr_lock:
+        _ocr_jobs[job_id] = {"status": "queued"}
+
+    def _run(jid: str, vp: str, si: int, lang: str) -> None:
+        with _ocr_lock:
+            _ocr_jobs[jid]["status"] = "running"
+        try:
+            cues = batch_ocr_track(vp, si, lang)
+            with _ocr_lock:
+                _ocr_jobs[jid] = {"status": "completed", "cues": cues}
+        except Exception as e:
+            logger.error("Batch OCR job %s failed: %s", jid, e)
+            with _ocr_lock:
+                _ocr_jobs[jid] = {"status": "failed", "error": str(e)}
+
+    _ocr_executor.submit(_run, job_id, video_path, stream_index, language)
+    return jsonify({"job_id": job_id}), 202
+
+
+@bp.route("/ocr/batch-extract/<job_id>", methods=["GET"])
+def batch_extract_status(job_id: str):
+    """Get status of a batch OCR job.
+    ---
+    get:
+      summary: Batch OCR job status
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Job status
+        404:
+          description: Job not found
+    """
+    with _ocr_lock:
+        job = _ocr_jobs.get(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    return jsonify({"job_id": job_id, **job})
