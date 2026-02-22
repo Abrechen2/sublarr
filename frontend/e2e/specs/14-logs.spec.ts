@@ -29,7 +29,7 @@ test.describe('Logs Page', () => {
   test('log level filter is present', async ({ page }) => {
     // Look for any filter UI — select, buttons, etc.
     const filterEl = page.locator('select, [class*="filter"], button:has-text("ERROR"), button:has-text("DEBUG"), button:has-text("INFO")').first();
-    const isVisible = await filterEl.isVisible().catch(() => false);
+    const _isVisible = await filterEl.isVisible().catch(() => false);
     // Filter may be present or not depending on implementation
     const bodyText = await page.locator('body').innerText();
     expect(bodyText.length).toBeGreaterThan(20);
