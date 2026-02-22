@@ -83,7 +83,11 @@ def _extract_from_rar(archive_content: bytes, query: VideoQuery) -> list[tuple[s
 
 
 def _score_subtitle_file(filename: str, query: VideoQuery) -> int:
-    """Score a subtitle file name for relevance to the query."""
+    """Score a subtitle file name for relevance to the query.
+
+    When query.absolute_episode is set it takes priority over season/episode
+    for file scoring (Jimaku anime content often uses absolute numbering).
+    """
     score = 0
     name_lower = filename.lower()
 
@@ -94,9 +98,16 @@ def _score_subtitle_file(filename: str, query: VideoQuery) -> int:
     elif ext == ".srt":
         score += 50
 
+    # Prefer AniDB absolute episode when available
+    effective_episode = (
+        query.absolute_episode
+        if query.absolute_episode is not None
+        else query.episode
+    )
+
     # Episode number match
-    if query.episode is not None:
-        ep_str = f"{query.episode:02d}"
+    if effective_episode is not None:
+        ep_str = f"{effective_episode:02d}"
         # Match patterns like E01, EP01, _01_, - 01
         ep_patterns = [
             f"e{ep_str}", f"ep{ep_str}", f"_{ep_str}_", f"- {ep_str}",
@@ -107,8 +118,8 @@ def _score_subtitle_file(filename: str, query: VideoQuery) -> int:
                 score += 200
                 break
 
-    # Season match
-    if query.season is not None:
+    # Season match (skip when using absolute episode — absolute = no seasons)
+    if query.absolute_episode is None and query.season is not None:
         s_str = f"s{query.season:02d}"
         if s_str in name_lower:
             score += 50
@@ -176,12 +187,28 @@ class JimakuProvider(SubtitleProvider):
 
     def search(self, query: VideoQuery) -> list[SubtitleResult]:
         if not self.session or not self.api_key:
-            logger.warning("Jimaku: cannot search - session=%s, api_key=%s", 
+            logger.warning("Jimaku: cannot search - session=%s, api_key=%s",
                           self.session is not None, bool(self.api_key))
             return []
 
-        logger.debug("Jimaku: searching for %s (languages: %s)", 
+        logger.debug("Jimaku: searching for %s (languages: %s)",
                     query.display_name, query.languages)
+
+        # Prefer AniDB absolute episode when available — Jimaku uses AniDB IDs
+        # and anime releases typically use absolute numbering in filenames.
+        effective_episode = (
+            query.absolute_episode
+            if query.absolute_episode is not None
+            else query.episode
+        )
+        if query.absolute_episode is not None:
+            logger.debug(
+                "Jimaku: using AniDB absolute episode %d (S%02dE%02d original)",
+                query.absolute_episode,
+                query.season or 0,
+                query.episode or 0,
+            )
+
         results = []
 
         # Search by AniList ID (most accurate for anime)
@@ -242,8 +269,9 @@ class JimakuProvider(SubtitleProvider):
                         "entry_id": entry_id,
                         "is_archive": is_archive,
                         "entry_name": entry.get("name", ""),
-                        "query_episode": query.episode,
-                        "query_season": query.season,
+                        # Use absolute episode as effective episode for archive scoring
+                        "query_episode": effective_episode,
+                        "query_season": query.season if query.absolute_episode is None else None,
                         "query_series_title": query.series_title,
                     },
                 )

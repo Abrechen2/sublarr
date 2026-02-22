@@ -59,6 +59,9 @@ import {
   getWaveform, extractAudio,
   checkSpelling, getSpellDictionaries,
   extractOCR, previewOCRFrame,
+  getTranslationMemoryStats, clearTranslationMemoryCache,
+  getBackendTemplates,
+  updateSeriesSettings, getAnidbMappingStatus, refreshAnidbMapping,
 } from '@/api/client'
 import type {
   LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig, FilterScope, BatchAction,
@@ -133,6 +136,15 @@ export function useUpdateConfig() {
       }
     },
   })
+}
+
+
+export function useContextWindowSize() {
+  const { data } = useConfig()
+  const update = useUpdateConfig()
+  const value = data ? Number((data as Record<string, unknown>)['translation.context_window_size'] ?? 3) : 3
+  const save = (size: number) => update.mutate({ 'translation.context_window_size': String(size) })
+  return { value, save, isPending: update.isPending }
 }
 
 // ─── Wanted ─────────────────────────────────────────────────────────────
@@ -1702,5 +1714,60 @@ export function useCheckMarketplaceUpdates(installedPlugins: string[]) {
     queryKey: ['marketplace', 'updates', installedPlugins],
     queryFn: () => checkMarketplaceUpdates(installedPlugins),
     enabled: installedPlugins.length > 0,
+  })
+}
+
+// --- Phase 20-02: Translation Memory ---
+
+export function useTranslationMemoryStats() {
+  return useQuery({
+    queryKey: ['translation-memory-stats'],
+    queryFn: getTranslationMemoryStats,
+    staleTime: 30_000,
+  })
+}
+
+export function useClearTranslationMemoryCache() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => clearTranslationMemoryCache(),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['translation-memory-stats'] })
+    },
+  })
+}
+
+// --- Phase 28-01: LLM Backend Presets ---
+
+export function useBackendTemplates() {
+  return useQuery({
+    queryKey: ['backend-templates'],
+    queryFn: getBackendTemplates,
+    staleTime: Infinity,
+  })
+}
+
+// --- Phase 25-02: AniDB Absolute Episode Order ---
+
+export function useUpdateSeriesSettings() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ seriesId, settings }: { seriesId: number; settings: { absolute_order: boolean } }) =>
+      updateSeriesSettings(seriesId, settings),
+    onSuccess: (_, { seriesId }) => {
+      queryClient.invalidateQueries({ queryKey: ['series', seriesId] })
+    },
+  })
+}
+
+export function useAnidbMappingStatus() {
+  return useQuery({ queryKey: ['anidb-mapping-status'], queryFn: getAnidbMappingStatus, staleTime: 60000 })
+}
+
+export function useRefreshAnidbMapping() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: refreshAnidbMapping,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['anidb-mapping-status'] }),
   })
 }

@@ -1,9 +1,12 @@
 import { useState, useMemo, useCallback, memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLibrary, useLanguageProfiles, useAssignProfile } from '@/hooks/useApi'
-import { Tv, Film, Loader2, Settings, ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Tv, Film, Loader2, Settings, ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import type { SeriesInfo, MovieInfo, LanguageProfile } from '@/lib/types'
+import type { SeriesInfo, MovieInfo, LanguageProfile, SyncBatchProgress, SyncBatchComplete } from '@/lib/types'
+import { autoSyncBulk } from '@/api/client'
+import { useWebSocket } from '@/hooks/useWebSocket'
+import { toast } from '@/components/shared/Toast'
 
 type Tab = 'series' | 'movies'
 type SortKey = 'title' | 'missing' | 'episodes'
@@ -288,6 +291,207 @@ function Pagination({ page, totalPages, total, pageSize, onPageChange, t }: {
   )
 }
 
+
+// ─── Bulk Sync Panel ──────────────────────────────────────────────────────────
+
+interface SyncState {
+  isRunning: boolean
+  current: number
+  total: number
+  completed: number
+  failed: number
+  filePath: string
+}
+
+const INITIAL_SYNC_STATE: SyncState = {
+  isRunning: false,
+  current: 0,
+  total: 0,
+  completed: 0,
+  failed: 0,
+  filePath: '',
+}
+
+function BulkSyncPanel({
+  series,
+  onProgress,
+  onComplete,
+}: {
+  series: SeriesInfo[]
+  onProgress: (d: SyncBatchProgress) => void
+  onComplete: (d: SyncBatchComplete) => void
+}) {
+  const [scope, setScope] = useState<'series' | 'library'>('library')
+  const [selectedSeriesId, setSelectedSeriesId] = useState<number | ''>('')
+  const [engine, setEngine] = useState<'' | 'alass' | 'ffsubsync'>('')
+  const [loading, setLoading] = useState(false)
+  const [syncState, setSyncState] = useState<SyncState>(INITIAL_SYNC_STATE)
+
+  useWebSocket({
+    onSyncBatchProgress: (d) => {
+      setSyncState({
+        isRunning: true,
+        current: d.current,
+        total: d.total,
+        completed: d.completed,
+        failed: d.failed,
+        filePath: d.file_path,
+      })
+      onProgress(d)
+    },
+    onSyncBatchComplete: (d) => {
+      setSyncState((prev) => ({ ...prev, isRunning: false }))
+      toast(`Bulk sync complete: ${d.completed} synced, ${d.failed} failed`)
+      onComplete(d)
+    },
+  })
+
+  const handleStart = async () => {
+    if (scope === 'series' && !selectedSeriesId) {
+      toast('Select a series first', 'error')
+      return
+    }
+    setLoading(true)
+    try {
+      const res = await autoSyncBulk(
+        scope,
+        scope === 'series' ? Number(selectedSeriesId) : undefined,
+        engine || undefined,
+      )
+      setSyncState({ ...INITIAL_SYNC_STATE, isRunning: true, total: res.total_items })
+      toast(`Bulk sync started: ${res.total_items} files`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Bulk sync failed'
+      toast(msg, 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const pct = syncState.total > 0 ? Math.round((syncState.current / syncState.total) * 100) : 0
+
+  return (
+    <div
+      className="rounded-lg p-4 space-y-3"
+      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+    >
+      <div className="flex items-center gap-2">
+        <RefreshCw size={14} style={{ color: 'var(--accent)' }} />
+        <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Bulk Auto-Sync
+        </span>
+        {syncState.isRunning && (
+          <span
+            className="text-[10px] px-1.5 py-0.5 rounded font-medium animate-pulse"
+            style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
+          >
+            Running
+          </span>
+        )}
+      </div>
+
+      {/* Controls */}
+      {!syncState.isRunning && (
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Scope */}
+          <select
+            value={scope}
+            onChange={(e) => setScope(e.target.value as 'series' | 'library')}
+            className="text-xs px-2 py-1.5 rounded cursor-pointer"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <option value="library">Entire Library</option>
+            <option value="series">Single Series</option>
+          </select>
+
+          {/* Series picker */}
+          {scope === 'series' && (
+            <select
+              value={selectedSeriesId}
+              onChange={(e) => setSelectedSeriesId(e.target.value === '' ? '' : Number(e.target.value))}
+              className="text-xs px-2 py-1.5 rounded cursor-pointer max-w-[200px]"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              <option value="">-- Select series --</option>
+              {series.map((s) => (
+                <option key={s.id} value={s.id}>{s.title}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Engine override */}
+          <select
+            value={engine}
+            onChange={(e) => setEngine(e.target.value as '' | 'alass' | 'ffsubsync')}
+            className="text-xs px-2 py-1.5 rounded cursor-pointer"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <option value="">Default engine</option>
+            <option value="alass">alass</option>
+            <option value="ffsubsync">ffsubsync</option>
+          </select>
+
+          <button
+            onClick={() => { void handleStart() }}
+            disabled={loading || (scope === 'series' && !selectedSeriesId)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50"
+            style={{ backgroundColor: 'var(--accent)' }}
+          >
+            {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+            Start Bulk Sync
+          </button>
+        </div>
+      )}
+
+      {/* Progress */}
+      {syncState.isRunning && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <span>
+              {syncState.current}/{syncState.total} &nbsp;&mdash;&nbsp;
+              <span style={{ color: 'var(--success)' }}>{syncState.completed} synced</span>
+              {syncState.failed > 0 && (
+                <> &nbsp;/&nbsp; <span style={{ color: 'var(--error)' }}>{syncState.failed} failed</span></>
+              )}
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)' }}>{pct}%</span>
+          </div>
+          <div
+            className="h-2 rounded overflow-hidden"
+            style={{ backgroundColor: 'var(--bg-primary)' }}
+          >
+            <div
+              className="h-full rounded transition-all duration-500"
+              style={{ width: `${pct}%`, backgroundColor: 'var(--accent)' }}
+            />
+          </div>
+          {syncState.filePath && (
+            <p
+              className="text-[11px] truncate"
+              style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
+              title={syncState.filePath}
+            >
+              {syncState.filePath.replaceAll("\\", "/").split("/").slice(-2).join("/")}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function LibraryPage() {
   const { t } = useTranslation('library')
   const { data: library, isLoading } = useLibrary()
@@ -298,7 +502,12 @@ export function LibraryPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('title')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [showBulkSync, setShowBulkSync] = useState(false)
   const navigate = useNavigate()
+
+  // Sync batch callbacks (unused beyond triggering toast in BulkSyncPanel)
+  const handleSyncProgress = useCallback((_d: SyncBatchProgress) => {}, [])
+  const handleSyncComplete = useCallback((_d: SyncBatchComplete) => {}, [])
 
   const handleSort = useCallback((key: SortKey) => {
     if (sortKey === key) {
@@ -461,8 +670,31 @@ export function LibraryPage() {
               {t('movies_tab', { count: movies.length })}
             </button>
           </div>
+
+          {/* Bulk Sync toggle */}
+          <button
+            onClick={() => setShowBulkSync((v) => !v)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
+            style={{
+              backgroundColor: showBulkSync ? 'var(--accent-bg)' : 'var(--bg-surface)',
+              color: showBulkSync ? 'var(--accent)' : 'var(--text-secondary)',
+              border: `1px solid ${showBulkSync ? 'var(--accent-dim)' : 'var(--border)'}`,
+            }}
+          >
+            {showBulkSync ? <X size={12} /> : <RefreshCw size={12} />}
+            Auto-Sync
+          </button>
         </div>
       </div>
+
+      {/* Bulk Sync Panel */}
+      {showBulkSync && (
+        <BulkSyncPanel
+          series={library?.series || []}
+          onProgress={handleSyncProgress}
+          onComplete={handleSyncComplete}
+        />
+      )}
 
       {paginatedItems.length === 0 ? (
         <div

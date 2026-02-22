@@ -6,6 +6,7 @@ import {
   useScoringWeights, useUpdateScoringWeights, useResetScoringWeights,
   useProviderModifiers, useUpdateProviderModifiers,
   useProviders,
+  useConfig, useUpdateConfig,
 } from '@/hooks/useApi'
 import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Plus, Edit2, X, Check, Eye, EyeOff, CheckCircle, XCircle, RotateCcw } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
@@ -571,6 +572,106 @@ export function ScoringTab() {
           )}
         </div>
       </SettingSection>
+
+      {/* Machine Translation Detection */}
+      <MtDetectionSection />
     </div>
+  )
+}
+
+
+// ─── MT Detection Section ─────────────────────────────────────────────────────
+
+function MtDetectionSection() {
+  const { data: configData } = useConfig()
+  const updateConfig = useUpdateConfig()
+
+  const [penalty, setPenalty] = useState<number>(-30)
+  const [threshold, setThreshold] = useState<number>(50)
+  const [init, setInit] = useState(false)
+
+  useEffect(() => {
+    if (configData && !init) {
+      const p = configData['providers.mt_penalty']
+      const t = configData['providers.mt_confidence_threshold']
+      if (p !== undefined) setPenalty(Number(p))
+      if (t !== undefined) setThreshold(Number(t))
+      setInit(true)
+    }
+  }, [configData, init])
+
+  const handleSave = () => {
+    updateConfig.mutate(
+      { 'providers.mt_penalty': penalty, 'providers.mt_confidence_threshold': threshold },
+      {
+        onSuccess: () => toast('MT detection settings saved'),
+        onError: () => toast('Failed to save MT detection settings', 'error'),
+      }
+    )
+  }
+
+  return (
+    <SettingSection
+      title="Machine Translation Detection"
+      description="Subtitles detected as machine-translated receive a score penalty. Set penalty to 0 to disable. Threshold: minimum confidence (0-100) required to apply the penalty."
+    >
+      <div className="flex items-center justify-end -mt-1">
+        <button
+          onClick={handleSave}
+          disabled={updateConfig.isPending}
+          className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white"
+          style={{ backgroundColor: 'var(--accent)' }}
+        >
+          {updateConfig.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+          Save
+        </button>
+      </div>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>MT Score Penalty</span>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              Applied to machine-translated subtitles (-50 to 0; 0 = disabled)
+            </p>
+          </div>
+          <input
+            type="number"
+            min={-50}
+            max={0}
+            value={penalty}
+            onChange={(e) => setPenalty(Math.max(-50, Math.min(0, parseInt(e.target.value) || 0)))}
+            className="w-20 px-2 py-1 rounded text-[12px] text-right"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-mono)',
+            }}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>MT Confidence Threshold</span>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              Minimum confidence % (0-100) to flag as machine-translated
+            </p>
+          </div>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={threshold}
+            onChange={(e) => setThreshold(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+            className="w-20 px-2 py-1 rounded text-[12px] text-right"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-mono)',
+            }}
+          />
+        </div>
+      </div>
+    </SettingSection>
   )
 }

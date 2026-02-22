@@ -372,6 +372,14 @@ def _start_schedulers(settings, app=None):
         except Exception as e:
             logging.getLogger(__name__).warning("Cleanup scheduler start failed: %s", e)
 
+    # Start AniDB absolute episode sync scheduler (weekly)
+    if app is not None:
+        try:
+            from anidb_sync import start_anidb_sync_scheduler
+            start_anidb_sync_scheduler(app)
+        except Exception as e:
+            logging.getLogger(__name__).warning("AniDB sync scheduler start failed: %s", e)
+
 
 if __name__ == "__main__":
     from config import get_settings

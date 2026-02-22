@@ -33,8 +33,18 @@ def get_config():
                 additionalProperties: true
     """
     from config import get_settings
+    from db.config import get_config_entry
     s = get_settings()
-    return jsonify(s.get_safe_config())
+    cfg = s.get_safe_config()
+    # Include namespaced extension config entries (dot-notation keys not in Pydantic Settings)
+    _extension_keys = [
+        'translation.context_window_size',
+    ]
+    for _k in _extension_keys:
+        _v = get_config_entry(_k)
+        if _v is not None:
+            cfg[_k] = _v
+    return jsonify(cfg)
 
 
 @bp.route("/settings/path-mapping/test", methods=["POST"])
@@ -150,8 +160,9 @@ def update_config():
         # Skip masked password values (user didn't change them)
         if str(value) == '***configured***':
             continue
-        # Only save known config keys (or all if we can't determine valid keys)
-        if not valid_keys or key in valid_keys:
+        # Allow known config keys OR namespaced extension keys (dot-notation, e.g. translation.context_window_size)
+        is_extension_key = '.' in key
+        if not valid_keys or key in valid_keys or is_extension_key:
             # Sanitize credentials: strip whitespace from API keys and passwords
             sanitized_value = str(value).strip() if isinstance(value, str) or 'api_key' in key.lower() or 'password' in key.lower() else str(value)
             save_config_entry(key, sanitized_value)

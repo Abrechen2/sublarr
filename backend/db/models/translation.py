@@ -1,11 +1,11 @@
-"""Translation ORM models: config history, glossary, presets, backend stats, whisper jobs.
+"""Translation ORM models: config history, glossary, presets, backend stats, whisper jobs, memory cache.
 
 All column types and defaults match the existing SCHEMA DDL in db/__init__.py exactly.
 """
 
 from typing import Optional
 
-from sqlalchemy import Index, Integer, Float, Text, String
+from sqlalchemy import Index, Integer, Float, Text, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from extensions import db
@@ -114,10 +114,44 @@ class WhisperJob(db.Model):
     )
 
 
+class TranslationMemory(db.Model):
+    """Persistent translation memory cache.
+
+    Stores successfully translated lines keyed by source language, target language,
+    and a normalized+hashed form of the source text. Enables reuse of previous
+    translations for identical or near-identical lines, reducing LLM calls.
+
+    The text_hash column stores the SHA-256 of source_text_normalized and is used
+    for fast exact-match lookups. source_text_normalized is kept for optional
+    similarity matching via difflib.
+    """
+
+    __tablename__ = "translation_memory"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    source_lang: Mapped[str] = mapped_column(Text, nullable=False)
+    target_lang: Mapped[str] = mapped_column(Text, nullable=False)
+    source_text_normalized: Mapped[str] = mapped_column(Text, nullable=False)
+    text_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    translated_text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[str] = mapped_column(Text, nullable=False)
+
+    __table_args__ = (
+        # Fast exact-match lookup
+        Index("idx_tm_lang_hash", "source_lang", "target_lang", "text_hash"),
+        # For similarity scan within a language pair
+        Index("idx_tm_lang_pair", "source_lang", "target_lang"),
+        # Uniqueness: one translation per (source_lang, target_lang, text_hash)
+        UniqueConstraint("source_lang", "target_lang", "text_hash",
+                         name="uq_tm_lang_hash"),
+    )
+
+
 __all__ = [
     "TranslationConfigHistory",
     "GlossaryEntry",
     "PromptPreset",
     "TranslationBackendStats",
     "WhisperJob",
+    "TranslationMemory",
 ]

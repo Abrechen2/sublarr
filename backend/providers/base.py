@@ -78,6 +78,10 @@ class VideoQuery:
     # Language preferences
     languages: list[str] = field(default_factory=list)  # ISO 639-1 codes to search for
 
+    # AniDB absolute episode order (set by build_query_from_wanted when series
+    # has absolute_order=True and a mapping exists in anidb_absolute_mappings)
+    absolute_episode: Optional[int] = None
+
     # Forced/signs subtitle search
     forced_only: bool = False  # When True, providers filter for forced/signs subtitles
 
@@ -125,6 +129,14 @@ class SubtitleResult:
 
     # Provider metadata
     provider_data: dict = field(default_factory=dict)
+
+    # Machine-translation detection (populated by providers / MT detector)
+    machine_translated: bool = False
+    mt_confidence: float = 0.0  # 0-100; 100 = definitely MT
+
+    # Uploader trust (populated by OpenSubtitles provider)
+    uploader_name: str = ""
+    uploader_trust: float = 0.0  # 0-20 rank-based bonus
 
     @property
     def is_ass(self) -> bool:
@@ -259,6 +271,10 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
     # Per-provider modifier (bonus or penalty)
     modifier = _get_cached_modifier(result.provider_name)
     score += modifier
+
+    # Uploader trust bonus (OpenSubtitles only, 0-20 based on uploader rank)
+    if result.provider_name == "opensubtitles" and result.uploader_trust > 0:
+        score += int(result.uploader_trust)
 
     result.score = score
     return score

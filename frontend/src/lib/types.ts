@@ -130,6 +130,7 @@ export interface SeriesDetail {
   source_language: string
   source_language_name: string
   episodes: EpisodeInfo[]
+  absolute_order?: boolean
 }
 
 export interface WantedItem {
@@ -677,6 +678,7 @@ export interface SubtitleCue {
   end: number      // seconds
   text: string
   style: string
+  quality_score?: number  // 0-100, present when .quality.json sidecar exists
 }
 
 export interface SubtitleParseResult {
@@ -685,6 +687,7 @@ export interface SubtitleParseResult {
   cue_count: number
   format: string
   styles: Record<string, string> | null  // style_name -> "dialog"|"signs"|"songs"
+  has_quality_scores?: boolean  // true when at least one cue has a quality_score
 }
 
 // ─── Health Check & Quality ─────────────────────────────────────────────────
@@ -765,6 +768,38 @@ export interface SyncPreviewResult {
   preview: SyncPreviewEvent[]
   operation: string
   total_events: number
+}
+
+
+// ─── Phase 22: Auto-Sync ─────────────────────────────────────────────────────
+
+export interface AutoSyncResult {
+  status: string
+  file_path: string
+  engine: string
+  backup_path?: string
+  message?: string
+}
+
+export interface AutoSyncBulkResult {
+  status: string
+  total_items: number
+  message: string
+}
+
+export interface SyncBatchProgress {
+  current: number
+  total: number
+  file_path: string
+  completed: number
+  failed: number
+  error?: string
+}
+
+export interface SyncBatchComplete {
+  completed: number
+  failed: number
+  total: number
 }
 
 // ─── Phase 12: Batch Operations + Smart-Filter ────────────────────────────

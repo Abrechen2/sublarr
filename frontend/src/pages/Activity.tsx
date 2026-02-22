@@ -86,6 +86,34 @@ function ExpandedRow({ job, t }: { job: Job; t: (key: string, opts?: Record<stri
                   </span>
                 ))}
               </div>
+              {/* Quality score summary chips — shown when translation quality data is present */}
+              {job.stats?.avg_quality !== undefined && (() => {
+                const avgQ = Number(job.stats?.avg_quality ?? 0)
+                const lowLines = Number(job.stats?.low_quality_lines ?? 0)
+                const qualityColor = avgQ >= 75
+                  ? { bg: 'rgba(16,185,129,0.12)', text: 'rgb(16 185 129)' }
+                  : avgQ >= 50
+                    ? { bg: 'rgba(245,158,11,0.12)', text: 'rgb(245 158 11)' }
+                    : { bg: 'rgba(239,68,68,0.12)', text: 'rgb(239 68 68)' }
+                return (
+                  <div className="mt-1.5 flex flex-wrap gap-2">
+                    <span
+                      className="px-2 py-0.5 rounded text-xs font-medium"
+                      style={{ backgroundColor: qualityColor.bg, color: qualityColor.text, fontFamily: 'var(--font-mono)' }}
+                    >
+                      Avg quality: {avgQ.toFixed(1)}%
+                    </span>
+                    {lowLines > 0 && (
+                      <span
+                        className="px-2 py-0.5 rounded text-xs font-medium"
+                        style={{ backgroundColor: 'rgba(239,68,68,0.10)', color: 'rgb(239 68 68)', fontFamily: 'var(--font-mono)' }}
+                      >
+                        Low: {lowLines} line{lowLines !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )}
         </div>

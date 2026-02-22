@@ -35,6 +35,13 @@ function getCueColor(style: string, styles: Record<string, string> | null | unde
   return 'bg-teal-500'
 }
 
+/** Return CSS color string for a quality score value. */
+function getQualityColor(score: number): string {
+  if (score >= 75) return 'rgb(16 185 129)'   // green
+  if (score >= 50) return 'rgb(245 158 11)'   // yellow
+  return 'rgb(239 68 68)'                      // red
+}
+
 export default function SubtitleTimeline({
   cues,
   totalDuration,
@@ -67,14 +74,25 @@ export default function SubtitleTimeline({
           const left = (cue.start / totalDuration) * 100
           const width = Math.max(((cue.end - cue.start) / totalDuration) * 100, 0.3)
           const color = getCueColor(cue.style, styles)
+          const hasQuality = cue.quality_score !== undefined
+          const qualityLabel = hasQuality
+            ? ` — Quality: ${cue.quality_score}`
+            : ''
           return (
             <div
               key={index}
-              className={`absolute top-0 h-full ${color} opacity-60 hover:opacity-100 cursor-pointer transition-opacity`}
+              className={`absolute top-0 h-full ${color} opacity-60 hover:opacity-100 cursor-pointer transition-opacity flex items-end justify-center`}
               style={{ left: `${left}%`, width: `${width}%` }}
-              title={`${formatTime(cue.start)} - ${formatTime(cue.end)}`}
+              title={`${formatTime(cue.start)} - ${formatTime(cue.end)}${qualityLabel}`}
               onClick={() => onCueClick(index)}
-            />
+            >
+              {hasQuality && width >= 0.8 && (
+                <div
+                  className="w-1.5 h-1.5 rounded-full mb-0.5 shrink-0"
+                  style={{ backgroundColor: getQualityColor(cue.quality_score!) }}
+                />
+              )}
+            </div>
           )
         })}
       </div>

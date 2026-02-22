@@ -17,6 +17,67 @@ bp = Blueprint("translate", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
 
 
+# --- Phase 28-01: LLM Backend Presets ---
+
+BACKEND_TEMPLATES = [
+    {
+        "name": "deepseek_v3",
+        "display_name": "DeepSeek V3",
+        "backend_type": "openai_compat",
+        "description": "Excellent quality, very low cost (~$0.07/1M tokens). Requires API key.",
+        "config_defaults": {
+            "base_url": "https://api.deepseek.com/v1",
+            "model": "deepseek-chat",
+            "context_window": 64000,
+        },
+    },
+    {
+        "name": "gemini_flash",
+        "display_name": "Gemini 1.5 Flash",
+        "backend_type": "openai_compat",
+        "description": "Fast, cheap Google model with huge context window. Requires API key.",
+        "config_defaults": {
+            "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+            "model": "gemini-1.5-flash",
+            "context_window": 128000,
+        },
+    },
+    {
+        "name": "claude_haiku",
+        "display_name": "Claude 3 Haiku",
+        "backend_type": "openai_compat",
+        "description": "Fast Anthropic model, good quality/cost ratio. Requires API key.",
+        "config_defaults": {
+            "base_url": "https://api.anthropic.com/v1",
+            "model": "claude-3-haiku-20240307",
+            "context_window": 32000,
+        },
+    },
+    {
+        "name": "mistral_medium",
+        "display_name": "Mistral Medium",
+        "backend_type": "openai_compat",
+        "description": "Balanced quality and cost from Mistral AI. Requires API key.",
+        "config_defaults": {
+            "base_url": "https://api.mistral.ai/v1",
+            "model": "mistral-medium-latest",
+            "context_window": 32000,
+        },
+    },
+    {
+        "name": "lm_studio",
+        "display_name": "LM Studio (local)",
+        "backend_type": "openai_compat",
+        "description": "Run any GGUF model locally. No API key needed. Start LM Studio server first.",
+        "config_defaults": {
+            "base_url": "http://localhost:1234/v1",
+            "model": "local-model",
+            "context_window": 8000,
+        },
+    },
+]
+
+
 # Batch state (still in-memory for real-time tracking)
 batch_state = {
     "running": False,
@@ -1257,6 +1318,33 @@ def get_backend_config(name):
     return jsonify(config)
 
 
+@bp.route("/backends/templates", methods=["GET"])
+def get_backend_templates():
+    """Return pre-configured LLM backend templates.
+    ---
+    get:
+      tags:
+        - Translate
+      summary: List LLM backend templates
+      description: Returns pre-configured LLM backend templates that users can use to quickly set up known providers.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Template list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  templates:
+                    type: array
+                    items:
+                      type: object
+    """
+    return jsonify({"templates": BACKEND_TEMPLATES})
+
+
 @bp.route("/backends/stats", methods=["GET"])
 def backend_stats():
     """Get translation stats for all backends.
@@ -1285,3 +1373,74 @@ def backend_stats():
     from db.translation import get_backend_stats
     stats = get_backend_stats()
     return jsonify({"stats": stats})
+
+
+# ---------------------------------------------------------------------------
+# Translation Memory Cache Endpoints
+# ---------------------------------------------------------------------------
+
+@bp.route("/translation-memory/stats", methods=["GET"])
+def translation_memory_stats():
+    """Return statistics for the translation memory cache.
+    ---
+    get:
+      tags:
+        - Translate
+      summary: Translation memory cache statistics
+      description: Returns the number of entries stored in the persistent translation memory cache.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Cache statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: integer
+                    description: Total cached translation entries
+    """
+    try:
+        from db.translation import get_translation_cache_stats
+        stats = get_translation_cache_stats()
+        return jsonify(stats)
+    except Exception as e:
+        logger.error("Failed to get translation memory stats: %s", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/translation-memory/cache", methods=["DELETE"])
+def clear_translation_memory_cache():
+    """Clear all entries from the translation memory cache.
+    ---
+    delete:
+      tags:
+        - Translate
+      summary: Clear translation memory cache
+      description: Deletes all cached translations from the persistent translation memory. This does not affect the glossary or any subtitle files.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Cache cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cleared:
+                    type: boolean
+                  deleted:
+                    type: integer
+                    description: Number of rows deleted
+    """
+    try:
+        from db.translation import clear_translation_cache
+        deleted = clear_translation_cache()
+        logger.info("Translation memory cache cleared: %d entries deleted", deleted)
+        return jsonify({"cleared": True, "deleted": deleted})
+    except Exception as e:
+        logger.error("Failed to clear translation memory cache: %s", e)
+        return jsonify({"error": str(e)}), 500
