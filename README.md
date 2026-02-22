@@ -32,8 +32,8 @@ It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up
 
 If Sublarr saves you time, please consider supporting continued development:
 
-<a href="https://ko-fi.com/YOUR_KOFI_USERNAME">
-  <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" />
+<a href="https://www.paypal.com/donate?hosted_button_id=GLXYTD3FV9Y78">
+  <img src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif" alt="Donate via PayPal" />
 </a>
 
 <!-- Alternatively: https://github.com/sponsors/Abrechen2 -->
@@ -369,8 +369,8 @@ Sublarr is not affiliated with the *arr project or any subtitle provider.
 
 Made with ☕ for the self-hosting community
 
-<a href="https://ko-fi.com/YOUR_KOFI_USERNAME">
-  <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi" />
+<a href="https://www.paypal.com/donate?hosted_button_id=GLXYTD3FV9Y78">
+  <img src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif" alt="Donate via PayPal" />
 </a>
 
 </div>
