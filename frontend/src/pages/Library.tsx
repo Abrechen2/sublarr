@@ -86,6 +86,7 @@ const LibraryTableRow = memo(function LibraryTableRow({
 }) {
   return (
     <tr
+      data-testid="library-row"
       className="transition-colors duration-100 cursor-pointer"
       style={{ borderTop: '1px solid var(--border)' }}
       onClick={() => onRowClick(item.id)}
@@ -253,6 +254,7 @@ function Pagination({ page, totalPages, total, pageSize, onPageChange, t }: {
       </span>
       <div className="flex items-center gap-1">
         <button
+          data-testid="pagination-prev"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
           className="p-1.5 rounded-md transition-colors disabled:opacity-30"
@@ -279,6 +281,7 @@ function Pagination({ page, totalPages, total, pageSize, onPageChange, t }: {
           )
         )}
         <button
+          data-testid="pagination-next"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages}
           className="p-1.5 rounded-md transition-colors disabled:opacity-30"
@@ -631,6 +634,7 @@ export function LibraryPage() {
               style={{ color: 'var(--text-muted)' }}
             />
             <input
+              data-testid="library-search"
               type="text"
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setPage(1) }}
@@ -646,6 +650,7 @@ export function LibraryPage() {
           {/* Tabs */}
           <div className="flex gap-1.5">
             <button
+              data-testid="tab-series"
               onClick={() => handleTabChange('series')}
               className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
               style={{
@@ -658,6 +663,7 @@ export function LibraryPage() {
               {t('series_tab', { count: series.length })}
             </button>
             <button
+              data-testid="tab-movies"
               onClick={() => handleTabChange('movies')}
               className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
               style={{

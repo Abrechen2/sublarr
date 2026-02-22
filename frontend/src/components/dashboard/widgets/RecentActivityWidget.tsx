@@ -15,7 +15,7 @@ export default function RecentActivityWidget() {
   const { data: recentJobs } = useJobs(1, 10)
 
   return (
-    <div className="flex flex-col h-full -mx-4 -mt-4">
+    <div data-testid="recent-activity" className="flex flex-col h-full -mx-4 -mt-4">
       {/* View All link bar */}
       <div
         className="px-4 py-2 flex items-center justify-end shrink-0"
