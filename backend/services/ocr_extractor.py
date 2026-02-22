@@ -23,6 +23,7 @@ except ImportError:
 
 # Export TESSERACT_AVAILABLE for use in routes
 __all__ = [
+    "batch_ocr_track",
     "extract_frame",
     "extract_frames_sequence",
     "ocr_image",
@@ -257,6 +258,65 @@ def ocr_subtitle_stream(
         "successful_frames": successful_frames,
         "quality": quality,
     }
+
+
+def batch_ocr_track(
+    video_path: str,
+    stream_index: int,
+    language: str = "eng",
+) -> List[Dict]:
+    """Extract and OCR an entire image subtitle track from an MKV in one pass.
+
+    Args:
+        video_path: Path to video file
+        stream_index: Subtitle stream index (from ffprobe)
+        language: Tesseract language code (eng, deu, jpn)
+
+    Returns:
+        List of dicts: [{"text": str}, ...] — deduplicated consecutive lines.
+
+    Raises:
+        RuntimeError: If pytesseract is unavailable, ffmpeg fails, or no frames found.
+    """
+    if not TESSERACT_AVAILABLE:
+        raise RuntimeError("pytesseract is not available")
+
+    import glob as _glob
+    from concurrent.futures import ThreadPoolExecutor as TPE
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        out_pattern = os.path.join(tmp_dir, "frame%08d.png")
+        cmd = [
+            "ffmpeg", "-y", "-i", video_path,
+            "-map", f"0:{stream_index}",
+            "-vsync", "vfr",
+            out_pattern,
+        ]
+        r = subprocess.run(cmd, capture_output=True, timeout=300)
+        if r.returncode != 0:
+            raise RuntimeError(f"ffmpeg subtitle extraction failed: {r.stderr.decode(errors='replace')[:500]}")
+
+        frames = sorted(_glob.glob(os.path.join(tmp_dir, "frame*.png")))
+        if not frames:
+            return []
+
+        def _ocr_frame(frame_path: str) -> str:
+            img = Image.open(frame_path).convert("L")  # grayscale for better OCR
+            return pytesseract.image_to_string(img, lang=language).strip()  # type: ignore[union-attr]
+
+        with TPE(max_workers=4) as pool:
+            texts = list(pool.map(_ocr_frame, frames))
+
+    # Deduplicate consecutive identical lines
+    cues: List[Dict] = []
+    prev: Optional[str] = None
+    for text in texts:
+        if text and text != prev:
+            cues.append({"text": text})
+        prev = text
+
+    logger.info("batch_ocr_track: extracted %d cues from stream %d of %s", len(cues), stream_index, video_path)
+    return cues
 
 
 def preview_frame(
