@@ -18,7 +18,7 @@ test.describe('Settings - Providers', () => {
     await page.waitForLoadState('networkidle', { timeout: 10000 });
     // Should have tab elements
     const tabs = page.locator('[role="tab"], button[class*="tab"], nav a').first();
-    const isVisible = await tabs.isVisible().catch(() => false);
+    const _isVisible = await tabs.isVisible().catch(() => false);
     // Tabs exist or the settings page uses a different navigation pattern
     const bodyText = await page.locator('body').innerText();
     expect(bodyText.length).toBeGreaterThan(50);

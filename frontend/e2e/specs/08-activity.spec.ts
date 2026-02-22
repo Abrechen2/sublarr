@@ -32,7 +32,7 @@ test.describe('Activity Page', () => {
 
   test('job status badges visible if jobs exist', async ({ page }) => {
     await page.waitForLoadState('networkidle', { timeout: 10000 });
-    const jobRows = page.locator('[class*="job"], [class*="status"], tr').first();
+    const _jobRows = page.locator('[class*="job"], [class*="status"], tr').first();
     // Just verify page rendered without error
     expect(await page.locator('body').isVisible()).toBe(true);
   });

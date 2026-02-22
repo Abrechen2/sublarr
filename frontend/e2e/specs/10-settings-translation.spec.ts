@@ -46,7 +46,7 @@ test.describe('Settings - Translation', () => {
       await page.waitForTimeout(500);
     }
     const bodyText = await page.locator('body').innerText();
-    const hasGlossary = bodyText.toLowerCase().includes('glossar') || 
+    const _hasGlossary = bodyText.toLowerCase().includes('glossar') || 
                         bodyText.toLowerCase().includes('glossary') ||
                         bodyText.toLowerCase().includes('term');
     // Glossary may or may not be on same tab — just verify page is working

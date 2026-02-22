@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import axios from 'axios'
-import * as api from '@/api/client'
+import * as _api from '@/api/client'
 
 // Mock axios
 vi.mock('axios')
@@ -15,7 +15,7 @@ describe('API Client', () => {
     vi.clearAllMocks()
   })
 
-  it('getHealth returns health status', async () => {
+  it('getHealth returns health status', () => {
     const mockData = { status: 'healthy', services: {} }
     mockedAxios.get = vi.fn().mockResolvedValue({ data: mockData })
 
