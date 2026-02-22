@@ -12,7 +12,7 @@ import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { TrackPanel } from '@/components/tracks/TrackPanel'
-import { autoSyncFile } from '@/api/client'
+import { autoSyncFile, startWantedBatchSearch, batchExtractEmbedded } from '@/api/client'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
 import { ComparisonSelector } from '@/components/comparison/ComparisonSelector'
 import { HealthBadge } from '@/components/health/HealthBadge'
@@ -574,30 +574,68 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
   t: (key: string, opts?: Record<string, unknown>) => string
 }) {
   const [expanded, setExpanded] = useState(true)
+  const [selectedEpisodes, setSelectedEpisodes] = useState<Set<number>>(new Set())
+
+  const allSelectableIds = useMemo(
+    () => episodes.map(e => e.id).filter((id): id is number => id != null),
+    [episodes]
+  )
+
+  const toggleEpisode = useCallback((id: number) => {
+    setSelectedEpisodes(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }, [])
+
+  const selectAll = useCallback(() => setSelectedEpisodes(new Set(allSelectableIds)), [allSelectableIds])
+  const clearAll = useCallback(() => setSelectedEpisodes(new Set()), [])
 
   return (
     <div>
       {/* Season Header */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-2 px-4 py-2.5 text-left transition-colors"
+      <div
+        className="flex items-center"
         style={{
           backgroundColor: 'var(--bg-elevated)',
           borderBottom: expanded ? '1px solid var(--border)' : 'none',
         }}
       >
-        {expanded ? (
-          <ChevronDown size={14} style={{ color: 'var(--accent)' }} />
-        ) : (
-          <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex-1 flex items-center gap-2 px-4 py-2.5 text-left transition-colors"
+        >
+          {expanded ? (
+            <ChevronDown size={14} style={{ color: 'var(--accent)' }} />
+          ) : (
+            <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
+          )}
+          <span className="text-sm font-semibold">
+            {t('series_detail.season', { number: season })}
+          </span>
+          <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>
+            ({t('series_detail.episodes_count', { count: episodes.length })})
+          </span>
+        </button>
+        {expanded && (
+          <div className="pr-4 flex items-center gap-1.5">
+            <input
+              type="checkbox"
+              checked={allSelectableIds.length > 0 && selectedEpisodes.size === allSelectableIds.length}
+              onChange={() => selectedEpisodes.size === allSelectableIds.length ? clearAll() : selectAll()}
+              className="rounded"
+              style={{ accentColor: 'var(--accent)' }}
+              title="Select all episodes in this season"
+            />
+            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>All</span>
+          </div>
         )}
-        <span className="text-sm font-semibold">
-          {t('series_detail.season', { number: season })}
-        </span>
-        <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>
-          ({t('series_detail.episodes_count', { count: episodes.length })})
-        </span>
-      </button>
+      </div>
 
       {/* Episodes */}
       {expanded && (
@@ -623,6 +661,18 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                       if (!isExpanded) e.currentTarget.style.backgroundColor = ''
                     }}
                   >
+                    {/* Selection checkbox */}
+                    <div className="w-6 flex-shrink-0 flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedEpisodes.has(ep.id)}
+                        onChange={() => toggleEpisode(ep.id)}
+                        className="rounded"
+                        style={{ accentColor: 'var(--accent)' }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+
                     {/* Monitored indicator */}
                     <div className="w-5 flex-shrink-0">
                       {ep.has_file ? (
@@ -988,6 +1038,42 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                 </div>
               )
             })}
+
+          {/* Batch toolbar — shown when any episodes are selected */}
+          {selectedEpisodes.size > 0 && (
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-lg mt-2 mx-2 mb-2"
+              style={{
+                backgroundColor: 'var(--bg-elevated)',
+                border: '1px solid var(--accent-dim)',
+              }}
+            >
+              <span className="text-xs font-medium mr-1" style={{ color: 'var(--accent)' }}>
+                {selectedEpisodes.size} selected
+              </span>
+              <button
+                onClick={() => { void startWantedBatchSearch([...selectedEpisodes]); clearAll() }}
+                className="px-3 py-1 rounded text-xs font-medium"
+                style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-dim)' }}
+              >
+                Search
+              </button>
+              <button
+                onClick={() => { void batchExtractEmbedded([...selectedEpisodes]); clearAll() }}
+                className="px-3 py-1 rounded text-xs font-medium"
+                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+              >
+                Extract
+              </button>
+              <button
+                onClick={clearAll}
+                className="ml-auto px-2 py-1 rounded text-xs"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                Clear
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1479,6 +1565,7 @@ export function SeriesDetailPage() {
             borderBottom: '1px solid var(--border)',
           }}
         >
+          <div className="w-6 flex-shrink-0" />
           <div className="w-5 flex-shrink-0" />
           <div
             className="w-12 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider"
