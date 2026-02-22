@@ -466,23 +466,43 @@ def _translate_with_manager(lines, source_lang, target_lang,
         )
         return cached_results, synthetic
 
-    # Translate only the uncached lines via LLM
+    # Translate only the uncached lines via LLM, in batch_size chunks
     manager = get_translation_manager()
-    result = manager.translate_with_fallback(
-        uncached_lines, source_lang, target_lang, fallback_chain, glossary_entries
-    )
+    batch_size = getattr(get_settings(), "batch_size", 15) or 15
 
-    if not result.success:
-        raise RuntimeError(f"Translation failed: {result.error}")
+    all_translated: list[str] = []
+    last_result = None
+
+    if len(uncached_lines) > batch_size:
+        logger.debug("Chunking %d lines into batches of %d", len(uncached_lines), batch_size)
+        for chunk_start in range(0, len(uncached_lines), batch_size):
+            chunk = uncached_lines[chunk_start:chunk_start + batch_size]
+            chunk_result = manager.translate_with_fallback(
+                chunk, source_lang, target_lang, fallback_chain, glossary_entries
+            )
+            if not chunk_result.success:
+                raise RuntimeError(
+                    f"Translation failed on batch {chunk_start // batch_size + 1}: {chunk_result.error}"
+                )
+            all_translated.extend(chunk_result.translated_lines)
+            last_result = chunk_result
+        result = last_result
+    else:
+        result = manager.translate_with_fallback(
+            uncached_lines, source_lang, target_lang, fallback_chain, glossary_entries
+        )
+        if not result.success:
+            raise RuntimeError(f"Translation failed: {result.error}")
+        all_translated = result.translated_lines
 
     # Merge cached + freshly translated lines in original order
     output = list(cached_results)
-    for out_idx, translated in zip(uncached_indices, result.translated_lines):
+    for out_idx, translated in zip(uncached_indices, all_translated):
         output[out_idx] = translated
 
     # Persist newly translated lines to cache
     if cache_enabled:
-        _store_translations_in_cache(uncached_lines, result.translated_lines, source_lang, target_lang)
+        _store_translations_in_cache(uncached_lines, all_translated, source_lang, target_lang)
 
     return output, result
 
