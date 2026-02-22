@@ -4,11 +4,15 @@ import os
 import re
 import shutil
 import logging
+import subprocess
+import tempfile
 
 from flask import Blueprint, request, jsonify
 
 bp = Blueprint("tools", __name__, url_prefix="/api/v1/tools")
 logger = logging.getLogger(__name__)
+
+WAVEFORM_CACHE: dict = {}  # (video_path, mtime) -> temp_opus_file_path
 
 
 def _validate_file_path(file_path: str) -> tuple:
@@ -1725,3 +1729,116 @@ def quality_trends():
     except Exception as exc:
         logger.error("Quality trends failed: %s", exc)
         return jsonify({"error": f"Quality trends failed: {exc}"}), 500
+
+
+# -- Waveform extraction -------------------------------------------------------
+
+
+@bp.route("/waveform-extract", methods=["POST"])
+def waveform_extract():
+    """Extract audio from a video file as Opus for waveform display.
+    ---
+    post:
+      summary: Extract waveform audio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [video_path]
+              properties:
+                video_path:
+                  type: string
+      responses:
+        200:
+          description: Audio URL and duration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  audio_url:
+                    type: string
+                  duration_s:
+                    type: number
+        400:
+          description: Missing video_path
+        404:
+          description: Video file not found
+        500:
+          description: ffmpeg extraction failed
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    video_path = data.get("video_path", "")
+
+    if not video_path:
+        return jsonify({"error": "video_path is required"}), 400
+
+    from config import map_path
+    video_path = map_path(video_path)
+
+    if not os.path.exists(video_path):
+        return jsonify({"error": f"Video not found: {video_path}"}), 404
+
+    mtime = os.path.getmtime(video_path)
+    cache_key = (video_path, mtime)
+
+    if cache_key in WAVEFORM_CACHE and os.path.exists(WAVEFORM_CACHE[cache_key]):
+        audio_path = WAVEFORM_CACHE[cache_key]
+        logger.debug("Waveform cache hit: %s", audio_path)
+    else:
+        # Extract audio as Opus (mono, 22 kHz — sufficient for waveform display)
+        tmp = tempfile.NamedTemporaryFile(suffix=".opus", delete=False)
+        tmp.close()
+        cmd = [
+            "ffmpeg", "-y", "-i", video_path,
+            "-vn", "-ac", "1", "-ar", "22050",
+            "-c:a", "libopus", "-b:a", "32k",
+            tmp.name,
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, timeout=120)
+        except subprocess.TimeoutExpired:
+            return jsonify({"error": "Audio extraction timed out"}), 500
+
+        if result.returncode != 0:
+            logger.error("ffmpeg waveform extraction failed: %s", result.stderr.decode(errors="replace"))
+            return jsonify({"error": "ffmpeg audio extraction failed"}), 500
+
+        WAVEFORM_CACHE[cache_key] = tmp.name
+        audio_path = tmp.name
+        logger.info("Waveform extracted: %s -> %s", video_path, audio_path)
+
+    filename = os.path.basename(audio_path)
+    return jsonify({
+        "audio_url": f"/api/v1/tools/waveform-audio/{filename}",
+        "duration_s": _get_waveform_duration(video_path),
+    })
+
+
+@bp.route("/waveform-audio/<filename>", methods=["GET"])
+def serve_waveform_audio(filename: str):
+    """Serve an extracted waveform audio file from the temp directory."""
+    from flask import send_file
+
+    if not filename.endswith(".opus"):
+        return jsonify({"error": "Not found"}), 404
+
+    audio_path = os.path.join(tempfile.gettempdir(), filename)
+    if not os.path.exists(audio_path):
+        return jsonify({"error": "Not found"}), 404
+
+    return send_file(audio_path, mimetype="audio/ogg")
+
+
+def _get_waveform_duration(video_path: str) -> float:
+    """Get video duration in seconds via ffprobe."""
+    import json as _json
+    cmd = ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", video_path]
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        data = _json.loads(r.stdout)
+        return float(data.get("format", {}).get("duration", 0))
+    except Exception:
+        return 0.0
