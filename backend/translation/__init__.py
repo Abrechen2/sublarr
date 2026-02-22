@@ -157,6 +157,96 @@ class TranslationManager:
             success=False,
         )
 
+
+    def evaluate_line_quality(
+        self,
+        source_text: str,
+        translated_text: str,
+        source_lang: str,
+        target_lang: str,
+        fallback_chain: list[str],
+    ) -> int:
+        """Evaluate translation quality for a single line using the first available LLM backend.
+
+        Sends a short evaluation prompt to the primary (first available) LLM backend
+        and parses a 0-100 quality score from the response. Falls back to
+        DEFAULT_QUALITY_SCORE (50) on any error to avoid blocking translation.
+
+        Only backends that use LLM inference (Ollama, OpenAI-compatible) support
+        evaluation -- rule-based backends (DeepL, LibreTranslate, Google) do not
+        generate evaluation responses and are skipped.
+
+        Args:
+            source_text: Original source subtitle line
+            translated_text: Translated subtitle line
+            source_lang: ISO 639-1 source language code
+            target_lang: ISO 639-1 target language code
+            fallback_chain: Backend names to try in order (same as translation chain)
+
+        Returns:
+            Integer quality score 0-100; DEFAULT_QUALITY_SCORE (50) on failure
+        """
+        from translation.llm_utils import (
+            build_evaluation_prompt,
+            parse_quality_score,
+            DEFAULT_QUALITY_SCORE,
+        )
+
+        # Only LLM-based backends can evaluate; skip rule-based translation services
+        _LLM_BACKENDS = {"ollama", "openai_compat"}
+
+        prompt = build_evaluation_prompt(source_text, translated_text, source_lang, target_lang)
+
+        for backend_name in fallback_chain:
+            if backend_name not in _LLM_BACKENDS:
+                continue
+
+            cb = self._get_circuit_breaker(backend_name)
+            if not cb.allow_request():
+                continue
+
+            backend = self.get_backend(backend_name)
+            if backend is None:
+                continue
+
+            try:
+                raw_response = self._call_backend_raw(backend, prompt)
+                if raw_response is not None:
+                    score = parse_quality_score(raw_response)
+                    logger.debug(
+                        "Quality eval via %s: score=%d for %r -> %r",
+                        backend_name, score, source_text[:40], translated_text[:40],
+                    )
+                    return score
+            except Exception as exc:
+                logger.debug("Quality eval failed via %s: %s", backend_name, exc)
+                continue
+
+        logger.debug(
+            "No LLM backend available for quality eval, using default score %d",
+            DEFAULT_QUALITY_SCORE,
+        )
+        return DEFAULT_QUALITY_SCORE
+
+    def _call_backend_raw(self, backend, prompt: str) -> "Optional[str]":
+        """Call a backend with a raw prompt and return the raw text response.
+
+        Supports Ollama (_call_ollama) and OpenAI-compatible (_call_openai) backends.
+        Returns None if the backend does not expose a raw call method.
+
+        Args:
+            backend: A TranslationBackend instance
+            prompt: Raw prompt string to send to the LLM
+
+        Returns:
+            Raw response text or None if unsupported
+        """
+        if hasattr(backend, "_call_ollama"):
+            return backend._call_ollama(prompt)
+        if hasattr(backend, "_call_openai"):
+            return backend._call_openai(prompt)
+        return None
+
     def invalidate_backend(self, name: str) -> None:
         """Remove cached backend instance (for config changes)."""
         self._backends.pop(name, None)
