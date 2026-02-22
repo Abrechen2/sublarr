@@ -508,6 +508,21 @@ def wanted_batch_search():
             series_items = get_wanted_for_series(series_id)
             item_ids = [item["id"] for item in series_items if item.get("status") == "wanted"]
 
+        # If series_ids (plural) provided, resolve to item IDs across all listed series
+        series_ids = data.get("series_ids", [])
+        if series_ids and not item_ids:
+            from db.wanted import get_wanted_for_series
+            collected: list[int] = []
+            for sid in series_ids:
+                series_items = get_wanted_for_series(sid)
+                collected.extend(
+                    item["id"]
+                    for item in series_items
+                    if item.get("status") not in ("downloading", "translating")
+                    and item.get("status") == "wanted"
+                )
+            item_ids = collected
+
         # Determine total count upfront — inside lock to prevent TOCTOU
         if item_ids:
             total = len(item_ids)
