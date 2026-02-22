@@ -32,7 +32,7 @@ test.describe('Queue Page', () => {
     const hasItems = await queueItems.isVisible().catch(() => false);
     if (hasItems) {
       const actionBtn = page.locator('button:has-text("Cancel"), button:has-text("Retry"), button:has-text("Remove")').first();
-      const hasBtn = await actionBtn.isVisible().catch(() => false);
+      const _hasBtn = await actionBtn.isVisible().catch(() => false);
       // Action buttons optional depending on item state
     }
     expect(await page.locator('body').isVisible()).toBe(true);

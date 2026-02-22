@@ -37,7 +37,7 @@ test.describe('Dashboard', () => {
   test('page title or heading is present', async ({ page }) => {
     // Some heading identifying the dashboard
     const heading = page.locator('h1, h2, [class*="title"]').first();
-    const isVisible = await heading.isVisible().catch(() => false);
+    const _isVisible = await heading.isVisible().catch(() => false);
     // Not required to have h1, but body should be non-empty
     const bodyText = await page.locator('body').innerText();
     expect(bodyText.length).toBeGreaterThan(100);

@@ -48,6 +48,6 @@ describe('cn', () => {
   })
 
   it('handles conditional classes', () => {
-    expect(cn('foo', false && 'bar', 'baz')).toBe('foo baz')
+    expect(cn('foo', (false as boolean) && 'bar', 'baz')).toBe('foo baz')
   })
 })

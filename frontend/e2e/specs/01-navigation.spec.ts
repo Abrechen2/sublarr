@@ -76,7 +76,7 @@ test.describe('Navigation', () => {
     // Check some modal-like element appeared (input or dialog)
     const searchInput = page.locator('input[type="text"], input[placeholder*="earch"]').first();
     // If modal opened, input should be focused or visible
-    const inputVisible = await searchInput.isVisible().catch(() => false);
+    const _inputVisible = await searchInput.isVisible().catch(() => false);
     // Not all implementations open a modal - just verify no error occurred
     expect(await page.locator('body').isVisible()).toBe(true);
   });

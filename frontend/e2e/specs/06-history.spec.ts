@@ -17,7 +17,7 @@ test.describe('History Page', () => {
   test('history table or empty state is visible', async ({ page }) => {
     await page.waitForLoadState('networkidle', { timeout: 10000 });
     // Either a table with rows or an empty state message
-    const hasTable = await page.locator('table, [class*="table"], [class*="list"]').first().isVisible().catch(() => false);
+    const _hasTable = await page.locator('table, [class*="table"], [class*="list"]').first().isVisible().catch(() => false);
     const bodyText = await page.locator('body').innerText();
     expect(bodyText.length).toBeGreaterThan(20);
   });

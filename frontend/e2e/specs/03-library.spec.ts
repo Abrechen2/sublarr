@@ -79,7 +79,7 @@ test.describe('Library', () => {
     await library.tabMovies.click();
     await page.waitForTimeout(500);
     // Either shows movies or an empty state
-    const isVisible = await library.rows.first().isVisible().catch(() => false);
+    const _isVisible = await library.rows.first().isVisible().catch(() => false);
     // Just verify no error and page still works
     expect(await page.locator('body').isVisible()).toBe(true);
   });

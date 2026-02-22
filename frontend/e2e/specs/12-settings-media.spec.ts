@@ -44,7 +44,7 @@ test.describe('Settings - Media Servers', () => {
       await page.waitForTimeout(300);
     }
     const addBtn = page.locator('button:has-text("Add"), button:has-text("Hinzufügen"), button:has-text("+")').first();
-    const btnVisible = await addBtn.isVisible().catch(() => false);
+    const _btnVisible = await addBtn.isVisible().catch(() => false);
     // Add button may or may not exist depending on implementation
     expect(await page.locator('body').isVisible()).toBe(true);
   });
