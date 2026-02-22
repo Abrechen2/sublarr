@@ -773,6 +773,87 @@ def wanted_batch_action():
     return jsonify(result)
 
 
+@bp.route("/wanted/batch-extract", methods=["POST"])
+def batch_extract():
+    """Extract embedded subtitles for multiple wanted items.
+    ---
+    post:
+      tags:
+        - Wanted
+      summary: Batch extract embedded subtitles
+      description: >
+        Extracts embedded subtitle streams from MKV/MP4 containers for multiple
+        wanted items. Per-item errors do not abort the batch.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [item_ids]
+              properties:
+                item_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: List of wanted item IDs
+                auto_translate:
+                  type: boolean
+                  default: false
+                  description: Trigger translation after extraction for SRT streams
+      responses:
+        200:
+          description: Batch extraction completed (partial success possible)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  succeeded:
+                    type: integer
+                  failed:
+                    type: integer
+                  results:
+                    type: array
+                    items:
+                      type: object
+        400:
+          description: item_ids missing or empty
+    """
+    from db.wanted import get_wanted_item
+
+    data = request.get_json(force=True, silent=True) or {}
+    item_ids = data.get("item_ids", [])
+    auto_translate = bool(data.get("auto_translate", False))
+
+    if not item_ids:
+        return jsonify({"error": "item_ids required"}), 400
+
+    results = []
+    succeeded = 0
+    failed = 0
+
+    for item_id in item_ids:
+        item = get_wanted_item(item_id)
+        if not item:
+            results.append({"item_id": item_id, "status": "error", "error": "Item not found"})
+            failed += 1
+            continue
+        try:
+            result = _extract_embedded_sub(item_id, item.get("file_path", ""), auto_translate=auto_translate)
+            result["item_id"] = item_id
+            results.append(result)
+            succeeded += 1
+        except Exception as exc:
+            logger.warning("[batch-extract] item %d failed: %s", item_id, exc)
+            results.append({"item_id": item_id, "status": "error", "error": str(exc)})
+            failed += 1
+
+    return jsonify({"succeeded": succeeded, "failed": failed, "results": results})
+
+
 @bp.route("/wanted/<int:item_id>/search-providers", methods=["GET"])
 def search_providers_interactive(item_id):
     """Return all provider results for interactive subtitle selection.
