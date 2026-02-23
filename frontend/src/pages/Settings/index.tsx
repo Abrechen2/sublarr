@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
-import { useBlocker } from 'react-router-dom'
 import { AdvancedSettingsProvider, useAdvancedSettings } from '@/contexts/AdvancedSettingsContext'
 import { useTranslation } from 'react-i18next'
 import {
@@ -570,7 +569,6 @@ function SettingsPageInner() {
     return current !== original && current !== '***configured***'
   })
 
-  const blocker = useBlocker(isDirty)
   const [connectionStatus, setConnectionStatus] = useState<Record<string, ConnectionStatus>>({})
   const [connectionMessage, setConnectionMessage] = useState<Record<string, string>>({})
 
@@ -743,37 +741,6 @@ function SettingsPageInner() {
   }
 
   return (
-    <>
-      {blocker.state === 'blocked' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="rounded-lg p-6 w-80 space-y-4 shadow-xl"
-            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-            <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-              Ungespeicherte Änderungen
-            </h3>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Du hast Änderungen die noch nicht gespeichert wurden.
-              Wenn du jetzt navigierst, gehen sie verloren.
-            </p>
-            <div className="flex justify-between gap-3">
-              <button
-                onClick={() => blocker.proceed?.()}
-                className="px-4 py-2 rounded-md text-sm font-medium motion-safe:transition-colors"
-                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-              >
-                Verwerfen
-              </button>
-              <button
-                onClick={() => blocker.reset?.()}
-                className="px-4 py-2 rounded-md text-sm font-medium text-white"
-                style={{ backgroundColor: 'var(--accent)' }}
-              >
-                Weiter bearbeiten
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1>{t('title')}</h1>
@@ -1116,7 +1083,6 @@ function SettingsPageInner() {
         </div>
       </div>
     </div>
-    </>
   )
 }
 
