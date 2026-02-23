@@ -5,6 +5,24 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0-beta] — 2026-02-23
+
+### Added
+- **Settings UX Redesign** — card-based sub-grouping in all tabs; each logical block has a header with icon, title, description and optional connection badge
+- **SettingsCard component** — reusable card wrapper with divided body rows and ConnectionBadge slot
+- **ConnectionBadge component** — 4-state indicator (connected/error/unconfigured/checking) for Sonarr, Radarr and media server tabs
+- **Advanced Settings toggle** — global "Erweitert" checkbox in the Settings header persisted to localStorage; hides annotated advanced fields by default with orange left-border marker
+- **SettingRow descriptions** — all 38 config fields now show always-visible description text beneath each label; 10 fields marked as advanced
+- **InfoTooltip improvements** — ESC-key dismiss, keyboard focus/blur handlers, full ARIA accessibility (`aria-describedby`, `role="tooltip"`, `useId`), `motion-safe:` animation prefix
+- **Dirty-state Save button** — Save button disabled and grayed when no changes exist; enabled with amber indicator when fields differ from loaded config
+- **Navigation warning** — `useBlocker` (React Router v6) + `window.beforeunload` prevent accidental navigation away with unsaved changes
+- **ProvidersTab descriptions** — credential and endpoint fields annotated with contextual help text
+- **MediaServersTab & WhisperTab descriptions** — all SettingRow fields annotated
+- **TranslationTab descriptions** — backend credential fields annotated; PromptPresetsTab shows available template variables
+- **MigrationTab improvements** — hardcoded Tailwind color classes replaced with CSS custom properties; context header added
+
+---
+
 ## [0.11.1-beta] — 2026-02-22
 
 ### Added
