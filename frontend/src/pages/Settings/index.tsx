@@ -17,6 +17,9 @@ import { toast } from '@/components/shared/Toast'
 import { Toggle } from '@/components/shared/Toggle'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { HELP_TEXT } from './settingsHelpText'
+import { SettingsCard } from '@/components/shared/SettingsCard'
+import type { ConnectionStatus } from '@/components/shared/ConnectionBadge'
+import { Shield, FileText, Map, Archive, Database } from 'lucide-react'
 
 // Tab sub-components — lazy loaded so each tab's code is only fetched on first open
 const ProvidersTab = lazy(() => import('./ProvidersTab').then(m => ({ default: m.ProvidersTab })))
@@ -569,7 +572,8 @@ function SettingsPageInner() {
   })
 
   const blocker = useBlocker(isDirty)
-  const [testResults, setTestResults] = useState<Record<string, string>>({})
+  const [connectionStatus, setConnectionStatus] = useState<Record<string, ConnectionStatus>>({})
+  const [connectionMessage, setConnectionMessage] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (config) {
@@ -612,16 +616,52 @@ function SettingsPageInner() {
   }
 
   const handleTestConnection = async (service: string) => {
-    setTestResults((prev) => ({ ...prev, [service]: 'testing...' }))
+    setConnectionStatus((prev) => ({ ...prev, [service]: 'checking' }))
     try {
       const health = await getHealth()
-      const serviceKey = service.replace(' (Legacy)', '').toLowerCase()
-      const status = health.services[serviceKey] || 'unknown'
-      setTestResults((prev) => ({ ...prev, [service]: status }))
-    } catch {
-      setTestResults((prev) => ({ ...prev, [service]: 'error' }))
+      const key = service.replace(' (Legacy)', '').toLowerCase()
+      const ok = health.services[key] === 'OK' || health.services[key] === 'ok'
+      setConnectionStatus((prev) => ({ ...prev, [service]: ok ? 'connected' : 'error' }))
+      setConnectionMessage((prev) => ({ ...prev, [service]: ok ? '' : (health.services[key] ?? 'Fehler') }))
+    } catch (e: unknown) {
+      const msg = (e as { message?: string })?.message ?? 'Verbindung fehlgeschlagen'
+      setConnectionStatus((prev) => ({ ...prev, [service]: 'error' }))
+      setConnectionMessage((prev) => ({ ...prev, [service]: msg }))
     }
   }
+
+  const renderField = (field: FieldConfig) => (
+    <SettingRow
+      key={field.key}
+      label={field.label}
+      description={field.description}
+      advanced={field.advanced}
+      helpText={HELP_TEXT[field.key]}
+    >
+      {field.type === 'toggle' ? (
+        <Toggle
+          checked={values[field.key] === 'true'}
+          onChange={(v) => setValues((prev) => ({ ...prev, [field.key]: String(v) }))}
+          disabled={field.key === 'wanted_auto_translate' && values['wanted_auto_extract'] !== 'true'}
+        />
+      ) : (
+        <input
+          type={field.type}
+          value={values[field.key] === '***configured***' ? '' : (values[field.key] ?? '')}
+          onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
+          placeholder={values[field.key] === '***configured***' ? '(configured — enter new value to change)' : field.placeholder}
+          className="w-full px-3 py-2 rounded-md text-sm motion-safe:transition-all motion-safe:duration-150 focus:outline-none"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-primary)',
+            fontFamily: field.type === 'text' ? 'var(--font-mono)' : undefined,
+            fontSize: '13px',
+          }}
+        />
+      )}
+    </SettingRow>
+  )
 
   const retranslateStatus = useRetranslateStatus()
   const retranslateBatch = useRetranslateBatch()
@@ -927,270 +967,153 @@ function SettingsPageInner() {
               <TranslationQualitySection />
               <GlobalGlossaryPanel />
             </div>
+          ) : activeTab === 'General' ? (
+            <div className="space-y-4">
+              <SettingsCard title="Server" icon={Server}
+                description="Port und Medienpfad der Sublarr-Instanz">
+                {FIELDS.filter(f => f.tab === 'General' && ['port', 'media_path'].includes(f.key)).map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Sicherheit" icon={Shield}
+                description="API-Key-Authentifizierung für externe Zugriffe">
+                {FIELDS.filter(f => f.tab === 'General' && f.key === 'api_key').map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Protokollierung" icon={FileText}>
+                {FIELDS.filter(f => f.tab === 'General' && f.key === 'log_level').map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Pfadzuordnung" icon={Map}
+                description="Sonarr/Radarr Remote-Pfade auf lokale Pfade mappen">
+                <div className="py-3">
+                  <PathMappingEditor
+                    value={values.path_mapping ?? ''}
+                    onChange={(val) => setValues((v) => ({ ...v, path_mapping: val }))}
+                  />
+                </div>
+              </SettingsCard>
+              <SettingsCard title="Konfiguration" icon={Archive}
+                description="Einstellungen exportieren/importieren (API-Keys ausgenommen)">
+                <div className="py-4 flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleExport}
+                    disabled={exportConfig.isPending}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium motion-safe:transition-all motion-safe:duration-150"
+                    style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-dim)'; e.currentTarget.style.color = 'var(--accent)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+                  >
+                    {exportConfig.isPending ? <Loader2 size={14} className="motion-safe:animate-spin" /> : <FileDown size={14} />}
+                    Export Config
+                  </button>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium motion-safe:transition-all motion-safe:duration-150"
+                    style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-dim)'; e.currentTarget.style.color = 'var(--accent)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+                  >
+                    <Upload size={14} />
+                    Import Config
+                  </button>
+                  <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportFile} className="hidden" />
+                </div>
+                <div className="text-xs pb-3" style={{ color: 'var(--text-muted)' }}>
+                  API keys and secrets are excluded from export/import for security.
+                </div>
+                {importPreview && (
+                  <div className="rounded-lg p-4 space-y-3 mb-3" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--accent-dim)' }}>
+                    <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Import Preview</div>
+                    <div className="max-h-48 overflow-auto rounded px-3 py-2 text-xs" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+                      {Object.entries(importPreview).map(([key, val]) => (
+                        <div key={key}><span style={{ color: 'var(--accent)' }}>{key}</span>: {String(val)}</div>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={handleImportConfirm} disabled={importConfig.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>
+                        {importConfig.isPending ? <Loader2 size={12} className="motion-safe:animate-spin" /> : <Check size={12} />}
+                        Importieren
+                      </button>
+                      <button onClick={() => setImportPreview(null)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+                        <X size={12} />
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </SettingsCard>
+              <SettingsCard title="Datenbank" icon={Database}
+                description="Erweiterte Datenbankeinstellungen">
+                {FIELDS.filter(f => f.tab === 'General' && f.key === 'db_path').map(renderField)}
+              </SettingsCard>
+            </div>
+          ) : (activeTab === 'Sonarr' || activeTab === 'Radarr') ? (
+            <div className="space-y-4">
+              <SettingsCard
+                title="Verbindung"
+                description={`${activeTab}-Instanz mit Sublarr verbinden`}
+                connectionStatus={connectionStatus[activeTab] ?? 'unconfigured'}
+                connectionMessage={connectionMessage[activeTab]}
+              >
+                {FIELDS.filter(f => f.tab === activeTab).map(renderField)}
+                <div className="py-3">
+                  <button
+                    onClick={() => handleTestConnection(activeTab)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium motion-safe:transition-all motion-safe:duration-150"
+                    style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-dim)'; e.currentTarget.style.color = 'var(--accent)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+                  >
+                    <TestTube size={14} />
+                    Test Verbindung
+                  </button>
+                </div>
+              </SettingsCard>
+              <SettingsCard title="Weitere Instanzen"
+                description="Mehrere Instanzen konfigurieren (optional)">
+                <div className="py-3">
+                  <InstanceEditor
+                    label={activeTab}
+                    value={values[`${activeTab.toLowerCase()}_instances_json`] ?? ''}
+                    onChange={(val) => setValues((v) => ({ ...v, [`${activeTab.toLowerCase()}_instances_json`]: val }))}
+                  />
+                </div>
+              </SettingsCard>
+            </div>
+          ) : activeTab === 'Automation' ? (
+            <div className="space-y-4">
+              <SettingsCard title="Webhook-Aktionen"
+                description="Was passiert automatisch nach Sonarr/Radarr Downloads">
+                {['webhook_auto_scan','webhook_auto_search','webhook_auto_translate']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Upgrade-Einstellungen"
+                description="Automatisches Upgrade auf bessere Untertitel">
+                {['upgrade_enabled','upgrade_prefer_ass','upgrade_min_score_delta','upgrade_window_days','webhook_delay_minutes']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Suchplanung"
+                description="Zeitgesteuerte Provider-Suche">
+                {['wanted_search_interval_hours','wanted_search_on_startup','wanted_search_max_items_per_run']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+            </div>
+          ) : activeTab === 'Wanted' ? (
+            <div className="space-y-4">
+              <SettingsCard title="Bibliotheks-Scan"
+                description="Wann und wie nach fehlenden Subs gesucht wird">
+                {['wanted_scan_interval_hours','wanted_scan_on_startup','wanted_anime_only','wanted_anime_movies_only']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Automatische Verarbeitung"
+                description="Was nach einem Scan automatisch passiert">
+                {['wanted_auto_extract','wanted_auto_translate','wanted_max_search_attempts']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+            </div>
           ) : (
             <div
               className="rounded-lg p-5 space-y-4"
               style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
             >
-              {tabFields.map((field) => (
-                <SettingRow
-                  key={field.key}
-                  label={field.label}
-                  helpText={HELP_TEXT[field.key]}
-                >
-                  {field.type === 'toggle' ? (
-                    <Toggle
-                      checked={values[field.key] === 'true'}
-                      onChange={(v) => setValues((prev) => ({ ...prev, [field.key]: String(v) }))}
-                      disabled={field.key === 'wanted_auto_translate' && values['wanted_auto_extract'] !== 'true'}
-                    />
-                  ) : (
-                    <input
-                      type={field.type}
-                      value={values[field.key] === '***configured***' ? '' : (values[field.key] ?? '')}
-                      onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
-                      placeholder={values[field.key] === '***configured***' ? '(configured \u2014 enter new value to change)' : field.placeholder}
-                      className="w-full px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
-                      style={{
-                        backgroundColor: 'var(--bg-primary)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--text-primary)',
-                        fontFamily: field.type === 'text' ? 'var(--font-mono)' : undefined,
-                        fontSize: '13px',
-                      }}
-                    />
-                  )}
-                </SettingRow>
-              ))}
-
-              {/* Path Mapping Table (General tab only) */}
-              {activeTab === 'General' && (
-                <PathMappingEditor
-                  value={values.path_mapping ?? ''}
-                  onChange={(val) => setValues((v) => ({ ...v, path_mapping: val }))}
-                />
-              )}
-
-              {hasTestConnection && (
-                <div className="pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-                  <button
-                    onClick={() => handleTestConnection(activeTab)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
-                    style={{
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-secondary)',
-                      backgroundColor: 'var(--bg-primary)',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--accent-dim)'
-                      e.currentTarget.style.color = 'var(--accent)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--border)'
-                      e.currentTarget.style.color = 'var(--text-secondary)'
-                    }}
-                  >
-                    <TestTube size={14} />
-                    Test Connection
-                  </button>
-                  {testResults[activeTab] && (
-                    <div className="mt-2 text-sm">
-                      Result:{' '}
-                      <span
-                        className="font-medium"
-                        style={{
-                          color: testResults[activeTab] === 'OK'
-                            ? 'var(--success)'
-                            : testResults[activeTab] === 'testing...'
-                              ? 'var(--accent)'
-                              : 'var(--error)',
-                        }}
-                      >
-                        {testResults[activeTab]}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === 'Sonarr' && (
-                <InstanceEditor
-                  label="Sonarr"
-                  value={values.sonarr_instances_json ?? ''}
-                  onChange={(val) => setValues((v) => ({ ...v, sonarr_instances_json: val }))}
-                />
-              )}
-
-              {activeTab === 'Radarr' && (
-                <InstanceEditor
-                  label="Radarr"
-                  value={values.radarr_instances_json ?? ''}
-                  onChange={(val) => setValues((v) => ({ ...v, radarr_instances_json: val }))}
-                />
-              )}
-
-              {isTranslationTab && retranslateStatus.data && (
-                <div className="pt-3 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-                      Re-Translation
-                    </h3>
-                    <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      <span>
-                        Config hash: <code style={{ fontFamily: 'var(--font-mono)' }}>{retranslateStatus.data.current_hash}</code>
-                      </span>
-                      <span>
-                        Model: <code style={{ fontFamily: 'var(--font-mono)' }}>{retranslateStatus.data.ollama_model}</code>
-                      </span>
-                    </div>
-                  </div>
-                  {retranslateStatus.data.outdated_count > 0 ? (
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm" style={{ color: 'var(--warning)' }}>
-                        {retranslateStatus.data.outdated_count} files translated with old config
-                      </span>
-                      <button
-                        onClick={() => retranslateBatch.mutate(undefined, {
-                          onSuccess: () => toast('Re-translation started'),
-                          onError: () => toast('Failed to start re-translation', 'error'),
-                        })}
-                        disabled={retranslateBatch.isPending}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-white hover:opacity-90"
-                        style={{ backgroundColor: 'var(--warning)' }}
-                      >
-                        {retranslateBatch.isPending ? (
-                          <Loader2 size={12} className="animate-spin" />
-                        ) : (
-                          <RefreshCw size={12} />
-                        )}
-                        Re-translate All
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="text-xs" style={{ color: 'var(--success)' }}>
-                      All translations are up to date
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Config Export/Import (General tab only) */}
-              {activeTab === 'General' && (
-                <div className="pt-3 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
-                  <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                    Config Backup
-                  </h3>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={handleExport}
-                      disabled={exportConfig.isPending}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
-                      style={{
-                        border: '1px solid var(--border)',
-                        color: 'var(--text-secondary)',
-                        backgroundColor: 'var(--bg-primary)',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--accent-dim)'
-                        e.currentTarget.style.color = 'var(--accent)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--border)'
-                        e.currentTarget.style.color = 'var(--text-secondary)'
-                      }}
-                    >
-                      {exportConfig.isPending ? (
-                        <Loader2 size={14} className="animate-spin" />
-                      ) : (
-                        <FileDown size={14} />
-                      )}
-                      Export Config
-                    </button>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
-                      style={{
-                        border: '1px solid var(--border)',
-                        color: 'var(--text-secondary)',
-                        backgroundColor: 'var(--bg-primary)',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--accent-dim)'
-                        e.currentTarget.style.color = 'var(--accent)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--border)'
-                        e.currentTarget.style.color = 'var(--text-secondary)'
-                      }}
-                    >
-                      <Upload size={14} />
-                      Import Config
-                    </button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".json"
-                      onChange={handleImportFile}
-                      className="hidden"
-                    />
-                  </div>
-                  <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    API keys and secrets are excluded from export/import for security.
-                  </div>
-
-                  {/* Import Preview Modal */}
-                  {importPreview && (
-                    <div
-                      className="rounded-lg p-4 space-y-3"
-                      style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--accent-dim)' }}
-                    >
-                      <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                        Import Preview
-                      </div>
-                      <div
-                        className="max-h-48 overflow-auto rounded px-3 py-2 text-xs"
-                        style={{
-                          backgroundColor: 'var(--bg-surface)',
-                          border: '1px solid var(--border)',
-                          fontFamily: 'var(--font-mono)',
-                          color: 'var(--text-secondary)',
-                        }}
-                      >
-                        {Object.entries(importPreview).map(([key, val]) => (
-                          <div key={key} className="py-0.5">
-                            <span style={{ color: 'var(--accent)' }}>{key}</span>
-                            <span style={{ color: 'var(--text-muted)' }}>{': '}</span>
-                            <span>{typeof val === 'string' ? val : JSON.stringify(val)}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={handleImportConfirm}
-                          disabled={importConfig.isPending}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white"
-                          style={{ backgroundColor: 'var(--accent)' }}
-                        >
-                          {importConfig.isPending ? (
-                            <Loader2 size={12} className="animate-spin" />
-                          ) : (
-                            <Check size={12} />
-                          )}
-                          Confirm Import
-                        </button>
-                        <button
-                          onClick={() => setImportPreview(null)}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded text-xs"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          <X size={12} />
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+              {tabFields.map(renderField)}
             </div>
           )}
           </Suspense>
