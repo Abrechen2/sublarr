@@ -26,7 +26,7 @@ export function SettingRow({
   return (
     <div
       className={`grid grid-cols-1 md:grid-cols-[220px_1fr] gap-2 md:gap-4 items-start py-3 ${className}`}
-      style={advanced ? { borderLeft: '2px solid rgb(249 115 22)', paddingLeft: '8px' } : undefined}
+      style={advanced ? { borderLeft: '2px solid var(--warning)', paddingLeft: '8px' } : undefined}
     >
       <div className="flex flex-col gap-0.5 pt-1">
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -37,7 +37,7 @@ export function SettingRow({
           {advanced && (
             <span
               className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-              style={{ backgroundColor: 'rgb(249 115 22 / 0.15)', color: 'rgb(251 146 60)' }}
+              style={{ backgroundColor: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)' }}
             >
               Erweitert
             </span>
