@@ -25,7 +25,7 @@ export function SettingRow({
 
   return (
     <div
-      className={`grid grid-cols-1 md:grid-cols-[220px_1fr] gap-2 md:gap-4 items-start py-3 ${className}`}
+      className={`grid grid-cols-1 md:grid-cols-[220px_1fr] gap-2 md:gap-4 items-start py-3.5 ${className}`}
       style={advanced ? { borderLeft: '2px solid var(--warning)', paddingLeft: '8px' } : undefined}
     >
       <div className="flex flex-col gap-0.5 pt-1">
