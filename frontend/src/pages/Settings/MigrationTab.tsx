@@ -92,9 +92,17 @@ export function MigrationTab() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-lg p-4 mb-6" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+        <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Bazarr-Migration</h3>
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          Importiert Bazarr-Konfiguration und Subtitle-Metadaten. Nutze dies wenn du von Bazarr zu Sublarr wechselst.
+          Deine bestehenden Subtitle-Dateien bleiben unverändert — nur die Konfiguration und Datenbankeinträge werden übertragen.
+        </p>
+      </div>
+
       <div>
         <h2 className="text-2xl font-bold mb-2">Bazarr Migration</h2>
-        <p className="text-gray-400">
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
           Migrate your Bazarr configuration, profiles, and history to Sublarr.
         </p>
       </div>
@@ -102,7 +110,7 @@ export function MigrationTab() {
       {/* Step 1: Upload */}
       {step === 'upload' && (
         <div className="space-y-4">
-          <div className="bg-gray-900 rounded-lg p-6 border border-gray-700">
+          <div className="rounded-lg p-6" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
             <h3 className="text-lg font-semibold mb-4">Step 1: Upload Files</h3>
 
             <div className="space-y-4">
@@ -115,10 +123,10 @@ export function MigrationTab() {
                   type="file"
                   accept=".yaml,.yml,.ini,.cfg"
                   onChange={handleConfigUpload}
-                  className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-teal-500 file:text-white hover:file:bg-teal-600"
+                  className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-teal-500 file:text-white hover:file:bg-teal-600" style={{ color: 'var(--text-secondary)' }}
                 />
                 {configFile && (
-                  <p className="mt-2 text-sm text-gray-400">Selected: {configFile.name}</p>
+                  <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>Selected: {configFile.name}</p>
                 )}
               </div>
 
@@ -131,10 +139,10 @@ export function MigrationTab() {
                   type="file"
                   accept=".db,.sqlite,.sqlite3"
                   onChange={handleDbUpload}
-                  className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-teal-500 file:text-white hover:file:bg-teal-600"
+                  className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-teal-500 file:text-white hover:file:bg-teal-600" style={{ color: 'var(--text-secondary)' }}
                 />
                 {dbFile && (
-                  <p className="mt-2 text-sm text-gray-400">Selected: {dbFile.name}</p>
+                  <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>Selected: {dbFile.name}</p>
                 )}
               </div>
             </div>
@@ -158,23 +166,23 @@ export function MigrationTab() {
       {/* Step 2: Preview */}
       {step === 'preview' && preview && (
         <div className="space-y-4">
-          <div className="bg-gray-900 rounded-lg p-6 border border-gray-700">
+          <div className="rounded-lg p-6" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
             <h3 className="text-lg font-semibold mb-4">Step 2: Preview Migration</h3>
 
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-gray-800 rounded">
+              <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
                 <span>Config Entries</span>
                 <span className="font-mono">{preview.config_entries}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-gray-800 rounded">
+              <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
                 <span>Language Profiles</span>
                 <span className="font-mono">{preview.profiles}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-gray-800 rounded">
+              <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
                 <span>Blacklist Entries</span>
                 <span className="font-mono">{preview.blacklist_entries}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-gray-800 rounded">
+              <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
                 <span>History Entries</span>
                 <span className="font-mono">{preview.history_entries}</span>
               </div>
@@ -183,7 +191,7 @@ export function MigrationTab() {
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => setStep('upload')}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded"
+                className="px-4 py-2 text-white rounded" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)' }}
               >
                 Back
               </button>
@@ -207,26 +215,26 @@ export function MigrationTab() {
       {/* Step 3: Complete */}
       {step === 'complete' && importResult && (
         <div className="space-y-4">
-          <div className="bg-gray-900 rounded-lg p-6 border border-gray-700">
+          <div className="rounded-lg p-6" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center gap-3 mb-4">
               <CheckCircle className="w-8 h-8 text-green-500" />
               <h3 className="text-lg font-semibold">Migration Complete!</h3>
             </div>
 
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-gray-800 rounded">
+              <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
                 <span>Config Entries Imported</span>
                 <span className="font-mono text-green-400">{importResult.config_imported}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-gray-800 rounded">
+              <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
                 <span>Profiles Imported</span>
                 <span className="font-mono text-green-400">{importResult.profiles_imported}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-gray-800 rounded">
+              <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
                 <span>Blacklist Entries Imported</span>
                 <span className="font-mono text-green-400">{importResult.blacklist_imported}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-gray-800 rounded">
+              <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
                 <span>History Entries Imported</span>
                 <span className="font-mono text-green-400">{importResult.history_imported}</span>
               </div>
