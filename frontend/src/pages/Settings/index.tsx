@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useBlocker } from 'react-router-dom'
+import { AdvancedSettingsProvider, useAdvancedSettings } from '@/contexts/AdvancedSettingsContext'
 import { useTranslation } from 'react-i18next'
 import {
   useConfig, useUpdateConfig,
@@ -544,11 +546,29 @@ const TAB_KEYS: Record<string, string> = {
 }
 
 export function SettingsPage() {
+  return (
+    <AdvancedSettingsProvider>
+      <SettingsPageInner />
+    </AdvancedSettingsProvider>
+  )
+}
+
+function SettingsPageInner() {
   const { t } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const updateConfig = useUpdateConfig()
   const [activeTab, setActiveTab] = useState('General')
   const [values, setValues] = useState<Record<string, string>>({})
+  const { showAdvanced, toggleAdvanced } = useAdvancedSettings()
+
+  // Derived dirty state - true when any FIELDS value differs from last-loaded config
+  const isDirty = config != null && FIELDS.some(({ key }) => {
+    const current = values[key] ?? ''
+    const original = String(config[key] ?? '')
+    return current !== original && current !== '***configured***'
+  })
+
+  const blocker = useBlocker(isDirty)
   const [testResults, setTestResults] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -560,6 +580,13 @@ export function SettingsPage() {
       setValues(v)
     }
   }, [config])
+
+  useEffect(() => {
+    if (!isDirty) return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault() }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
 
   const handleSave = () => {
     const changed: Record<string, unknown> = {}
@@ -679,28 +706,89 @@ export function SettingsPage() {
     )
   }
 
+  if (blocker.state === 'blocked') {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center"
+        style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="rounded-lg p-6 w-80 space-y-4 shadow-xl"
+          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+          <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Ungespeicherte Änderungen
+          </h3>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            Du hast Änderungen die noch nicht gespeichert wurden.
+            Wenn du jetzt navigierst, gehen sie verloren.
+          </p>
+          <div className="flex justify-between gap-3">
+            <button
+              onClick={() => blocker.proceed?.()}
+              className="px-4 py-2 rounded-md text-sm font-medium motion-safe:transition-colors"
+              style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+            >
+              Verwerfen
+            </button>
+            <button
+              onClick={() => blocker.reset?.()}
+              className="px-4 py-2 rounded-md text-sm font-medium text-white"
+              style={{ backgroundColor: 'var(--accent)' }}
+            >
+              Weiter bearbeiten
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1>{t('title')}</h1>
-        <button
-          onClick={handleSave}
-          disabled={updateConfig.isPending}
-          className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90"
-          style={{ backgroundColor: 'var(--accent)' }}
-        >
-          {updateConfig.isPending ? (
-            <>
-              <Loader2 size={14} className="animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save size={14} />
-              {t('actions.save')}
-            </>
+        <div className="flex items-center gap-3 flex-wrap">
+          <label
+            className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <input
+              type="checkbox"
+              checked={showAdvanced}
+              onChange={toggleAdvanced}
+              className="rounded"
+            />
+            Erweitert
+          </label>
+          {isDirty && (
+            <span
+              className="flex items-center gap-1.5 text-xs font-medium"
+              style={{ color: 'var(--warning)' }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--warning)' }} />
+              Ungespeicherte Änderungen
+            </span>
           )}
-        </button>
+          <button
+            onClick={handleSave}
+            disabled={!isDirty || updateConfig.isPending}
+            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white transition-opacity"
+            style={{
+              backgroundColor: 'var(--accent)',
+              opacity: (!isDirty || updateConfig.isPending) ? 0.5 : 1,
+              cursor: (!isDirty || updateConfig.isPending) ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {updateConfig.isPending ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save size={14} />
+                {t('actions.save')}
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-5">
