@@ -47,7 +47,7 @@ export function SettingsCard({
           <ConnectionBadge status={connectionStatus} message={connectionMessage} />
         )}
       </div>
-      <div className="px-5 py-1 divide-y" style={{ borderColor: 'var(--border)' }}>
+      <div className="px-5 py-1 divide-y divide-[var(--border)]">
         {children}
       </div>
     </div>

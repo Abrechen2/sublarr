@@ -16,7 +16,7 @@ export function ConnectionBadge({ status, message }: ConnectionBadgeProps) {
   const { dot, defaultLabel, className } = BADGE_CONFIG[status]
   return (
     <span className={`flex items-center gap-1 text-xs font-medium shrink-0 ${className}`}>
-      <span className={status === 'checking' ? 'animate-spin inline-block' : ''}>{dot}</span>
+      <span className={status === 'checking' ? 'motion-safe:animate-spin inline-block' : ''}>{dot}</span>
       <span>{message ?? defaultLabel}</span>
     </span>
   )
