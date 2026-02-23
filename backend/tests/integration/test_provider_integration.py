@@ -42,20 +42,25 @@ class TestProviderSearch:
 
     @patch("providers.opensubtitles.OpenSubtitlesProvider.search")
     def test_provider_search_empty(self, mock_search, client):
-        """Test provider search with no results."""
+        """Test provider search with no results returns a valid API response."""
         mock_search.return_value = []
-        
-        # Similar to above - test mock behavior
-        assert mock_search.return_value == []
+        response = client.post(
+            "/api/v1/providers/search",
+            json={"query": "test", "language": "en"},
+        )
+        # Endpoint must exist and handle the request without crashing
+        assert response.status_code in [200, 400]
 
     @patch("providers.opensubtitles.OpenSubtitlesProvider.search")
     def test_provider_search_error(self, mock_search, client):
-        """Test provider search with error."""
+        """Test provider search error is handled gracefully by the API."""
         mock_search.side_effect = Exception("Provider error")
-        
-        # Test error handling
-        with pytest.raises(Exception):
-            mock_search("test", "en")
+        response = client.post(
+            "/api/v1/providers/search",
+            json={"query": "test", "language": "en"},
+        )
+        # Should handle gracefully, not crash with 500
+        assert response.status_code in [200, 400, 503]
 
 
 class TestProviderDownload:

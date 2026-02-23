@@ -70,16 +70,15 @@ export function VideoPlayer({
   }, [onTimeUpdate, onSubtitleCue, subtitlePath])
 
   // Handle play/pause
+  // Fix 2: Read actual video element state to avoid stale closure on isPlaying
   const togglePlay = useCallback(() => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause()
-      } else {
-        videoRef.current.play()
-      }
-      setIsPlaying(!isPlaying)
+    if (!videoRef.current) return
+    if (videoRef.current.paused) {
+      videoRef.current.play()
+    } else {
+      videoRef.current.pause()
     }
-  }, [isPlaying])
+  }, [])
 
   // Handle volume
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {

@@ -51,18 +51,22 @@ class CircuitBreaker:
         self._last_failure_time: Optional[float] = None
         self._lock = threading.Lock()
 
+    def _check_half_open_transition_locked(self) -> None:
+        """Evaluate the OPEN→HALF_OPEN transition. Must be called while self._lock is held."""
+        if self._state == CircuitState.OPEN and self._last_failure_time is not None:
+            elapsed = time.monotonic() - self._last_failure_time
+            if elapsed >= self.cooldown_seconds:
+                self._state = CircuitState.HALF_OPEN
+                logger.info(
+                    "CircuitBreaker[%s]: OPEN → HALF_OPEN (cooldown %ds elapsed)",
+                    self.name, self.cooldown_seconds,
+                )
+
     @property
     def state(self) -> CircuitState:
         """Current state (evaluates OPEN→HALF_OPEN transition lazily)."""
         with self._lock:
-            if self._state == CircuitState.OPEN and self._last_failure_time is not None:
-                elapsed = time.monotonic() - self._last_failure_time
-                if elapsed >= self.cooldown_seconds:
-                    self._state = CircuitState.HALF_OPEN
-                    logger.info(
-                        "CircuitBreaker[%s]: OPEN → HALF_OPEN (cooldown %ds elapsed)",
-                        self.name, self.cooldown_seconds,
-                    )
+            self._check_half_open_transition_locked()
             return self._state
 
     @property
@@ -127,10 +131,7 @@ class CircuitBreaker:
         """Return a JSON-serialisable status dict."""
         with self._lock:
             # Evaluate OPEN→HALF_OPEN transition inside the lock for consistency
-            if self._state == CircuitState.OPEN and self._last_failure_time is not None:
-                elapsed = time.monotonic() - self._last_failure_time
-                if elapsed >= self.cooldown_seconds:
-                    self._state = CircuitState.HALF_OPEN
+            self._check_half_open_transition_locked()
             return {
                 "name": self.name,
                 "state": self._state.value,

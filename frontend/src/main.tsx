@@ -19,7 +19,12 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   })
 }
 
-createRoot(document.getElementById('root')!).render(
+// Fix 8: Fail fast with a clear error rather than a runtime crash on non-null assertion
+const rootEl = document.getElementById('root')
+if (!rootEl) {
+  throw new Error('Root element #root not found. Check index.html.')
+}
+createRoot(rootEl).render(
   <StrictMode>
     <ErrorBoundary>
       <App />

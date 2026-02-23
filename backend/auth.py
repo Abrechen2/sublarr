@@ -72,7 +72,7 @@ def init_auth(app):
             return None
 
         # Skip auth for webhook endpoints (they use their own auth)
-        if "/webhook/" in path:
+        if path.startswith("/api/v1/webhook/"):
             return None
 
         provided_key = (

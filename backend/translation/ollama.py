@@ -253,6 +253,16 @@ class OllamaBackend(TranslationBackend):
                 results.append(line)
 
         elapsed_ms = (time.time() - start_time) * 1000
+        fallback_count = sum(1 for orig, trans in zip(lines, results) if orig.strip() == trans.strip())
+        if fallback_count > len(lines) * 0.5:
+            return TranslationResult(
+                success=False,
+                translated_lines=[],
+                backend_name=self.name,
+                response_time_ms=elapsed_ms,
+                characters_used=sum(len(l) for l in lines),
+                error=f"Too many line failures: {fallback_count}/{len(lines)} fell back to original",
+            )
         return TranslationResult(
             translated_lines=results,
             backend_name=self.name,

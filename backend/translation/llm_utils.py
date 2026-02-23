@@ -18,8 +18,8 @@ _CJK_RE = re.compile(
     r"\uf900-\ufaff]"    # CJK Compatibility Ideographs
 )
 
-# Score extraction from LLM evaluation responses
-_SCORE_RE = re.compile(r"\b(\d{1,3})\b")
+# Score extraction from LLM evaluation responses (matches 0-100, prefers last match)
+_SCORE_RE = re.compile(r"\b(100|[1-9]?\d)\b")
 
 # Default quality score when LLM evaluation fails or is not available
 DEFAULT_QUALITY_SCORE = 50
@@ -190,13 +190,13 @@ def parse_quality_score(response_text: str) -> int:
     Returns:
         Integer quality score clamped to [0, 100]
     """
-    match = _SCORE_RE.search(response_text.strip())
-    if not match:
+    matches = _SCORE_RE.findall(response_text.strip())
+    if not matches:
         logger.debug("Quality score parsing failed for response: %r", response_text[:100])
         return DEFAULT_QUALITY_SCORE
 
     try:
-        score = int(match.group(1))
+        score = int(matches[-1])
         return max(0, min(100, score))
     except (ValueError, OverflowError):
         return DEFAULT_QUALITY_SCORE

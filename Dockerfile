@@ -5,7 +5,7 @@
 # ═══════════════════════════════════════════════════════════════
 
 # Stage 1: Build React Frontend
-FROM --platform=$BUILDPLATFORM node:25-alpine AS frontend
+FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend
 WORKDIR /build
 COPY frontend/package*.json ./
 RUN npm install --legacy-peer-deps
@@ -70,7 +70,7 @@ EXPOSE 5765
 
 VOLUME ["/config", "/media"]
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:5765/api/v1/health || exit 1
 
 CMD ["gunicorn", "--bind", "0.0.0.0:5765", "--worker-class", "gthread", "--workers", "1", "--threads", "4", "--timeout", "300", "app:create_app()"]

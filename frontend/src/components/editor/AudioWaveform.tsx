@@ -128,7 +128,25 @@ export function AudioWaveform({
       const timeStr = formatTime(time)
       ctx.fillText(timeStr, x, height - 5)
     }
-  }, [waveformData, zoom, pan, currentTime])
+  }, [waveformData, zoom, pan, currentTime, isFullscreen])
+
+
+  // Fix 7: Redraw on container resize (e.g. entering/exiting fullscreen)
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const observer = new ResizeObserver(() => {
+      if (!waveformData || !canvasRef.current) return
+      const canvas = canvasRef.current
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      // Trigger redraw by updating canvas dimensions — React will re-run the drawing effect
+      canvas.width = container.clientWidth
+    })
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [waveformData])
 
   // Handle canvas click for time selection
   const handleCanvasClick = useCallback(

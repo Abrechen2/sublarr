@@ -2,6 +2,7 @@
 
 import time
 import logging
+import hmac
 import threading
 
 from flask import Blueprint, request, jsonify
@@ -168,6 +169,14 @@ def webhook_sonarr():
     """
     from config import get_settings, map_path
 
+    # Auth: if API key is configured, require it on webhook endpoints too
+    _s = get_settings()
+    _api_key = getattr(_s, 'api_key', None)
+    if _api_key:
+        _provided = request.headers.get('X-Api-Key', '')
+        if not hmac.compare_digest(_provided, _api_key):
+            return jsonify({'error': 'Unauthorized'}), 401
+
     data = request.get_json() or {}
     event_type = data.get("eventType", "")
 
@@ -271,6 +280,14 @@ def webhook_radarr():
           description: Missing file path in payload
     """
     from config import get_settings, map_path
+
+    # Auth: if API key is configured, require it on webhook endpoints too
+    _s = get_settings()
+    _api_key = getattr(_s, 'api_key', None)
+    if _api_key:
+        _provided = request.headers.get('X-Api-Key', '')
+        if not hmac.compare_digest(_provided, _api_key):
+            return jsonify({'error': 'Unauthorized'}), 401
 
     data = request.get_json() or {}
     event_type = data.get("eventType", "")

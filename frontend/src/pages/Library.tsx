@@ -195,6 +195,7 @@ function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sort
                   checked={allSelected}
                   onChange={() => allSelected ? onClearSelection() : onSelectAll()}
                   className="rounded"
+                  title="Select all on this page"
                   style={{ accentColor: 'var(--accent)' }}
                 />
               </th>
@@ -772,9 +773,14 @@ export function LibraryPage() {
               </span>
               <button
                 onClick={async () => {
-                  await startSeriesBatchSearch([...selectedSeries])
-                  toast('Batch search queued')
-                  clearSelection()
+                  try {
+                    await startSeriesBatchSearch([...selectedSeries])
+                    toast('Batch search queued')
+                    clearSelection()
+                  } catch (err) {
+                    console.error('Batch search failed:', err)
+                    toast('Batch search failed', 'error')
+                  }
                 }}
                 className="px-3 py-1.5 rounded text-xs font-medium"
                 style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-dim)' }}

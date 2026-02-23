@@ -1087,7 +1087,8 @@ export function SeriesDetailPage() {
   const { t } = useTranslation('library')
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const seriesId = Number(id)
+  // Fix 5: guard against malformed route parameter producing NaN
+  const seriesId = id && !isNaN(Number(id)) ? Number(id) : null
   const { data: series, isLoading, error } = useSeriesDetail(seriesId)
 
   // Episode action state
@@ -1127,6 +1128,7 @@ export function SeriesDetailPage() {
   const refreshAnidbMappingMutation = useRefreshAnidbMapping()
 
   const handleToggleAbsoluteOrder = useCallback((enabled: boolean) => {
+    if (!seriesId) return
     updateSeriesSettingsMutation.mutate(
       { seriesId, settings: { absolute_order: enabled } },
       {
@@ -1144,6 +1146,7 @@ export function SeriesDetailPage() {
   }, [refreshAnidbMappingMutation])
 
   const handleSearchAllEpisodes = useCallback(() => {
+    if (!seriesId) return
     startSeriesSearch.mutate({ seriesId }, {
       onSuccess: (data) => {
         setSeriesSearchStarted(true)
@@ -1549,7 +1552,7 @@ export function SeriesDetailPage() {
           className="rounded-lg overflow-hidden"
           style={{ border: '1px solid var(--border)' }}
         >
-          <GlossaryPanel seriesId={seriesId} />
+          {seriesId !== null && <GlossaryPanel seriesId={seriesId} />}
         </div>
       )}
 

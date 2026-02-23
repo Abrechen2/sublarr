@@ -175,11 +175,13 @@ MOVIE_SCORES = {
 # ─── Configurable scoring cache ───────────────────────────────────────────────
 
 import time as _time
+import threading as _threading
 
 _SCORING_CACHE_TTL = 60  # seconds
 
 _scoring_cache: dict = {"data": None, "score_type": None, "expires": 0}
 _modifier_cache: dict = {"data": {}, "expires": 0}
+_scoring_cache_lock = _threading.Lock()
 
 
 def _get_cached_weights(score_type: str) -> dict:
@@ -194,26 +196,27 @@ def _get_cached_weights(score_type: str) -> dict:
     Returns:
         Merged weights dict
     """
-    now = _time.time()
-    if (_scoring_cache["data"] is not None
-            and _scoring_cache["score_type"] == score_type
-            and now < _scoring_cache["expires"]):
-        return _scoring_cache["data"]
+    with _scoring_cache_lock:
+        now = _time.time()
+        if (_scoring_cache["data"] is not None
+                and _scoring_cache["score_type"] == score_type
+                and now < _scoring_cache["expires"]):
+            return _scoring_cache["data"]
 
-    defaults = EPISODE_SCORES if score_type == "episode" else MOVIE_SCORES
-    db_overrides: dict = {}
+        defaults = EPISODE_SCORES if score_type == "episode" else MOVIE_SCORES
+        db_overrides: dict = {}
 
-    try:
-        from db.scoring import get_scoring_weights
-        db_overrides = get_scoring_weights(score_type)
-    except Exception:
-        pass  # DB not initialized or import error — use defaults only
+        try:
+            from db.scoring import get_scoring_weights
+            db_overrides = get_scoring_weights(score_type)
+        except Exception:
+            pass  # DB not initialized or import error — use defaults only
 
-    merged = {**defaults, **db_overrides}
-    _scoring_cache["data"] = merged
-    _scoring_cache["score_type"] = score_type
-    _scoring_cache["expires"] = now + _SCORING_CACHE_TTL
-    return merged
+        merged = {**defaults, **db_overrides}
+        _scoring_cache["data"] = merged
+        _scoring_cache["score_type"] = score_type
+        _scoring_cache["expires"] = now + _SCORING_CACHE_TTL
+        return merged
 
 
 def _get_cached_modifier(provider_name: str) -> int:
@@ -227,27 +230,29 @@ def _get_cached_modifier(provider_name: str) -> int:
     Returns:
         Integer modifier (positive = bonus, negative = penalty). 0 if not set.
     """
-    now = _time.time()
-    if now < _modifier_cache["expires"]:
+    with _scoring_cache_lock:
+        now = _time.time()
+        if now < _modifier_cache["expires"]:
+            return _modifier_cache["data"].get(provider_name, 0)
+
+        try:
+            from db.scoring import get_all_provider_modifiers
+            _modifier_cache["data"] = get_all_provider_modifiers()
+        except Exception:
+            _modifier_cache["data"] = {}
+
+        _modifier_cache["expires"] = now + _SCORING_CACHE_TTL
         return _modifier_cache["data"].get(provider_name, 0)
-
-    try:
-        from db.scoring import get_all_provider_modifiers
-        _modifier_cache["data"] = get_all_provider_modifiers()
-    except Exception:
-        _modifier_cache["data"] = {}
-
-    _modifier_cache["expires"] = now + _SCORING_CACHE_TTL
-    return _modifier_cache["data"].get(provider_name, 0)
 
 
 def invalidate_scoring_cache() -> None:
     """Clear both scoring caches. Call when config_updated event fires."""
-    _scoring_cache["data"] = None
-    _scoring_cache["score_type"] = None
-    _scoring_cache["expires"] = 0
-    _modifier_cache["data"] = {}
-    _modifier_cache["expires"] = 0
+    with _scoring_cache_lock:
+        _scoring_cache["data"] = None
+        _scoring_cache["score_type"] = None
+        _scoring_cache["expires"] = 0
+        _modifier_cache["data"] = {}
+        _modifier_cache["expires"] = 0
 
 
 def compute_score(result: SubtitleResult, query: VideoQuery) -> int:

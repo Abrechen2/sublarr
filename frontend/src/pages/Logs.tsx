@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual'
 import { useLogs, useLogRotation, useUpdateLogRotation } from '@/hooks/useApi'
@@ -52,7 +52,12 @@ export function LogsPage() {
     },
   })
 
-  const allEntries = [...(logs?.entries || []), ...liveEntries]
+  // Fix 6: deduplicate API-polled entries against live WebSocket entries by content
+  const allEntries = useMemo(() => {
+    const wsSet = new Set(liveEntries)
+    const apiEntries = (logs?.entries || []).filter((e) => !wsSet.has(e))
+    return [...apiEntries, ...liveEntries]
+  }, [logs?.entries, liveEntries])
   const minSeverity = level ? LEVEL_SEVERITY[level] ?? 0 : -1
   const filtered = allEntries.filter((e) => {
     if (level && LEVEL_SEVERITY[getLineLevel(e)] < minSeverity) return false

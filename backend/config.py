@@ -4,9 +4,12 @@ All settings can be overridden via environment variables with the SUBLARR_ prefi
 or via a .env file. Example: SUBLARR_PORT=8080
 """
 
+import logging
 import os
 import hashlib
 import threading
+
+logger = logging.getLogger(__name__)
 
 from pydantic_settings import BaseSettings
 from pydantic import Field
@@ -221,9 +224,9 @@ class Settings(BaseSettings):
                 template = template.replace("{source_language}", self.source_language_name)
                 template = template.replace("{target_language}", self.target_language_name)
                 return template
-        except Exception:
+        except Exception as exc:
             # Database might not be initialized yet, fall through
-            pass
+            logger.debug("Could not load default prompt preset: %s", exc)
         
         # Fall back to config setting
         if self.prompt_template:
@@ -381,6 +384,7 @@ def reload_settings(overrides: dict = None) -> Settings:
     """
     global _settings
     base = Settings()
+    new_settings = base
 
     if overrides:
         # Build update dict with correct types
@@ -404,11 +408,10 @@ def reload_settings(overrides: dict = None) -> Settings:
                 continue  # Skip invalid values
 
         if update:
-            _settings = base.model_copy(update=update)
-        else:
-            _settings = base
-    else:
-        _settings = base
+            new_settings = base.model_copy(update=update)
+
+    with _settings_lock:
+        _settings = new_settings
 
     return _settings
 

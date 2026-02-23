@@ -2144,8 +2144,15 @@ def waveform_extract():
     if not video_path:
         return jsonify({"error": "video_path is required"}), 400
 
-    from config import map_path
+    from config import map_path, get_settings
     video_path = map_path(video_path)
+
+    # Security: ensure video_path is under media_path
+    _s = get_settings()
+    _media_path = os.path.abspath(_s.media_path)
+    _abs_video = os.path.abspath(video_path)
+    if not _abs_video.startswith(_media_path + os.sep):
+        return jsonify({"error": "video_path must be under the configured media_path"}), 403
 
     if not os.path.exists(video_path):
         return jsonify({"error": f"Video not found: {video_path}"}), 404
@@ -2194,7 +2201,14 @@ def serve_waveform_audio(filename: str):
     if not filename.endswith(".opus"):
         return jsonify({"error": "Not found"}), 404
 
-    audio_path = os.path.join(tempfile.gettempdir(), filename)
+    # Security: prevent path traversal via filename
+    safe_filename = os.path.basename(filename)
+    if not safe_filename or safe_filename != filename:
+        return jsonify({"error": "Invalid filename"}), 400
+    audio_path = os.path.join(tempfile.gettempdir(), safe_filename)
+    # Verify resolved path stays within tempdir
+    if not os.path.realpath(audio_path).startswith(os.path.realpath(tempfile.gettempdir()) + os.sep):
+        return jsonify({"error": "Invalid filename"}), 400
     if not os.path.exists(audio_path):
         return jsonify({"error": "Not found"}), 404
 

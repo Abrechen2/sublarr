@@ -165,7 +165,12 @@ def get_database_stats(db, db_path: str) -> dict:
         ).fetchall()
         for (name,) in rows:
             try:
-                count = db.execute(f"SELECT COUNT(*) FROM [{name}]").fetchone()[0]  # noqa: S608
+                # Allowlist table names to prevent any SQL injection via f-string
+                import re as _re
+                if not _re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', name):
+                    logger.warning("Skipping stats for table with non-standard name: %r", name)
+                    continue
+                count = db.execute(f"SELECT COUNT(*) FROM [{name}]").fetchone()[0]
                 tables[name] = count
             except Exception:
                 tables[name] = -1

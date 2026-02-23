@@ -268,6 +268,7 @@ def translate_async():
     """
     from db.jobs import create_job
     from error_handler import TranslationError
+    from config import get_settings
 
     data = request.get_json() or {}
     file_path = data.get("file_path")
@@ -278,6 +279,12 @@ def translate_async():
 
     if not os.path.exists(file_path):
         return jsonify({"error": f"File not found: {file_path}"}), 404
+
+    # Security: ensure file_path is under the configured media_path
+    _media_path = os.path.abspath(get_settings().media_path)
+    _abs_path = os.path.abspath(file_path)
+    if not _abs_path.startswith(_media_path + os.sep):
+        return jsonify({"error": "file_path must be under the configured media_path"}), 403
 
     arr_context = _build_arr_context(data)
     job = create_job(file_path, force, arr_context)
@@ -369,6 +376,7 @@ def translate_sync():
     from db.jobs import create_job
     from translator import translate_file
     from error_handler import TranslationError
+    from config import get_settings
 
     data = request.get_json() or {}
     file_path = data.get("file_path")
@@ -379,6 +387,12 @@ def translate_sync():
 
     if not os.path.exists(file_path):
         return jsonify({"error": f"File not found: {file_path}"}), 404
+
+    # Security: ensure file_path is under the configured media_path
+    _media_path = os.path.abspath(get_settings().media_path)
+    _abs_path = os.path.abspath(file_path)
+    if not _abs_path.startswith(_media_path + os.sep):
+        return jsonify({"error": "file_path must be under the configured media_path"}), 403
 
     arr_context = _build_arr_context(data)
     queue = getattr(current_app, "job_queue", None)
@@ -563,6 +577,7 @@ def retry_job(job_id):
           description: Job or file not found
     """
     from db.jobs import get_job, create_job
+    from config import get_settings
 
     job = get_job(job_id)
     if not job:
@@ -574,6 +589,12 @@ def retry_job(job_id):
     file_path = job["file_path"]
     if not os.path.exists(file_path):
         return jsonify({"error": f"File not found: {file_path}"}), 404
+
+    # Security: ensure file_path is under the configured media_path
+    _media_path = os.path.abspath(get_settings().media_path)
+    _abs_path = os.path.abspath(file_path)
+    if not _abs_path.startswith(_media_path + os.sep):
+        return jsonify({"error": "file_path must be under the configured media_path"}), 403
 
     new_job = create_job(file_path, force=True, arr_context=job.get("arr_context"))
     _app = current_app._get_current_object()
@@ -945,6 +966,12 @@ def retranslate_single(job_id):
 
     if not os.path.exists(file_path):
         return jsonify({"error": f"File not found: {file_path}"}), 404
+
+    # Security: ensure file_path is under the configured media_path
+    _media_path = os.path.abspath(get_settings().media_path)
+    _abs_path = os.path.abspath(file_path)
+    if not _abs_path.startswith(_media_path + os.sep):
+        return jsonify({"error": "file_path must be under the configured media_path"}), 403
 
     # Delete existing translated subtitle
     s = get_settings()
