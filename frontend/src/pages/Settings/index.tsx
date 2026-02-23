@@ -46,7 +46,7 @@ const MigrationTab = lazy(() => import('./MigrationTab').then(m => ({ default: m
 function TabSkeleton() {
   return (
     <div className="rounded-lg p-5 animate-pulse" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-      <div className="space-y-4">
+      <div className="space-y-5">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="h-10 rounded" style={{ backgroundColor: 'var(--bg-primary)' }} />
         ))}
@@ -931,7 +931,7 @@ function SettingsPageInner() {
               <GlobalGlossaryPanel />
             </div>
           ) : activeTab === 'General' ? (
-            <div className="space-y-4">
+            <div className="space-y-5">
               <SettingsCard title="Server" icon={Server}
                 description="Port und Medienpfad der Sublarr-Instanz">
                 {FIELDS.filter(f => f.tab === 'General' && ['port', 'media_path'].includes(f.key)).map(renderField)}
@@ -1008,7 +1008,7 @@ function SettingsPageInner() {
               </SettingsCard>
             </div>
           ) : (activeTab === 'Sonarr' || activeTab === 'Radarr') ? (
-            <div className="space-y-4">
+            <div className="space-y-5">
               <SettingsCard
                 title="Verbindung"
                 description={`${activeTab}-Instanz mit Sublarr verbinden`}
@@ -1041,7 +1041,7 @@ function SettingsPageInner() {
               </SettingsCard>
             </div>
           ) : activeTab === 'Automation' ? (
-            <div className="space-y-4">
+            <div className="space-y-5">
               <SettingsCard title="Webhook-Aktionen"
                 description="Was passiert automatisch nach Sonarr/Radarr Downloads">
                 {['webhook_auto_scan','webhook_auto_search','webhook_auto_translate']
@@ -1059,7 +1059,7 @@ function SettingsPageInner() {
               </SettingsCard>
             </div>
           ) : activeTab === 'Wanted' ? (
-            <div className="space-y-4">
+            <div className="space-y-5">
               <SettingsCard title="Bibliotheks-Scan"
                 description="Wann und wie nach fehlenden Subs gesucht wird">
                 {['wanted_scan_interval_hours','wanted_scan_on_startup','wanted_anime_only','wanted_anime_movies_only']
@@ -1072,12 +1072,9 @@ function SettingsPageInner() {
               </SettingsCard>
             </div>
           ) : (
-            <div
-              className="rounded-lg p-5 space-y-4"
-              style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
-            >
+            <SettingsCard title={activeTab}>
               {tabFields.map(renderField)}
-            </div>
+            </SettingsCard>
           )}
           </Suspense>
         </div>
