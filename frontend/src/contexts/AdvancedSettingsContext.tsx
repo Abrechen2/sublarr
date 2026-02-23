@@ -7,13 +7,14 @@ interface AdvancedSettingsContextValue {
   toggleAdvanced: () => void
 }
 
-const AdvancedSettingsContext = createContext<AdvancedSettingsContextValue>({
-  showAdvanced: false,
-  toggleAdvanced: () => {},
-})
+const AdvancedSettingsContext = createContext<AdvancedSettingsContextValue | undefined>(undefined)
 
 export function useAdvancedSettings() {
-  return useContext(AdvancedSettingsContext)
+  const ctx = useContext(AdvancedSettingsContext)
+  if (ctx === undefined) {
+    throw new Error('useAdvancedSettings must be used within AdvancedSettingsProvider')
+  }
+  return ctx
 }
 
 interface ProviderProps {
