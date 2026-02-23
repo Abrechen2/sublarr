@@ -5,6 +5,7 @@ import {
 } from '@/hooks/useApi'
 import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Activity, Eye, EyeOff } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
+import { SettingRow } from '@/components/shared/SettingRow'
 import type { WhisperBackendInfo, WhisperConfig, WhisperHealthResult, WhisperStats } from '@/lib/types'
 
 const WHISPER_MODEL_INFO = [
@@ -310,15 +311,10 @@ export function WhisperTab() {
         </h3>
 
         {/* Enable/disable toggle */}
-        <div className="flex items-center justify-between">
-          <div>
-            <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-              Enable Whisper
-            </label>
-            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-              Enable speech-to-text transcription as fallback when no subtitle providers have results
-            </p>
-          </div>
+        <SettingRow
+          label="Enable Whisper"
+          description="Whisper-Backend für automatische Transkription aktivieren"
+        >
           <button
             onClick={() => setLocalConfig((c) => ({ ...c, whisper_enabled: !c.whisper_enabled }))}
             className="relative w-10 h-5 rounded-full transition-colors duration-200"
@@ -333,13 +329,13 @@ export function WhisperTab() {
               }}
             />
           </button>
-        </div>
+        </SettingRow>
 
         {/* Backend selection */}
-        <div className="space-y-1">
-          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-            Active Backend
-          </label>
+        <SettingRow
+          label="Active Backend"
+          description="Aktives Whisper-Backend für Transkriptionsjobs"
+        >
           <select
             value={localConfig.whisper_backend}
             onChange={(e) => setLocalConfig((c) => ({ ...c, whisper_backend: e.target.value }))}
@@ -355,13 +351,13 @@ export function WhisperTab() {
               <option key={b.name} value={b.name}>{b.display_name}</option>
             ))}
           </select>
-        </div>
+        </SettingRow>
 
         {/* Max concurrent */}
-        <div className="space-y-1">
-          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-            Max Concurrent Jobs
-          </label>
+        <SettingRow
+          label="Max Concurrent Jobs"
+          description="Anzahl paralleler Transkriptionsjobs (1–4) — höhere Werte erfordern mehr CPU/GPU"
+        >
           <input
             type="number"
             min={1}
@@ -379,16 +375,13 @@ export function WhisperTab() {
               fontFamily: 'var(--font-mono)',
             }}
           />
-          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            Number of simultaneous transcription jobs (1-4). Higher values use more CPU/GPU.
-          </p>
-        </div>
+        </SettingRow>
 
         {/* Whisper fallback min score */}
-        <div className="space-y-1">
-          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-            Fallback Min Score
-          </label>
+        <SettingRow
+          label="Fallback Min Score"
+          description="Transkription wird als Fallback genutzt wenn Provider-Score unter diesem Schwellenwert"
+        >
           <input
             type="number"
             min={0}
@@ -406,10 +399,7 @@ export function WhisperTab() {
               fontFamily: 'var(--font-mono)',
             }}
           />
-          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            When all provider results score below this threshold, use Whisper instead. 0 = only when no results at all.
-          </p>
-        </div>
+        </SettingRow>
 
         {/* Save button */}
         <button
