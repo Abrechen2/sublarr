@@ -2,9 +2,54 @@ import { useState, useEffect } from 'react'
 import {
   useProviders, useTestProvider, useProviderStats, useClearProviderCache,
 } from '@/hooks/useApi'
-import { Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Download, Database, Plus } from 'lucide-react'
+import { Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Download, Database } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
+import { SettingRow } from '@/components/shared/SettingRow'
 import type { ProviderInfo } from '@/lib/types'
+
+// ─── Field description helper ────────────────────────────────────────────
+
+/**
+ * Returns a short German description for a provider config field,
+ * keyed first by exact field key, then by normalised label keyword.
+ */
+function getFieldDescription(key: string, label: string): string {
+  // Exact key matches (most specific)
+  const byKey: Record<string, string> = {
+    opensubtitles_api_key: 'REST API-Key von opensubtitles.com (nicht .org) — unter Account Settings',
+    opensubtitles_username: 'OpenSubtitles.org Benutzername (kostenlos registrieren)',
+    opensubtitles_password: 'OpenSubtitles.org Passwort',
+    subdl_api_key: 'API-Schlüssel von subdl.com — unter Account → API',
+    jimaku_api_key: 'API-Schlüssel von jimaku.net — unter Einstellungen → API Token',
+  }
+  if (byKey[key]) return byKey[key]
+
+  // Label-based fallback (case-insensitive)
+  const lbl = label.toLowerCase()
+  if (lbl.includes('api key') || lbl.includes('api-key') || lbl.includes('api token')) {
+    return 'API-Schlüssel für die Authentifizierung beim Provider'
+  }
+  if (lbl.includes('username') || lbl.includes('benutzername')) {
+    return 'Benutzername des Provider-Kontos'
+  }
+  if (lbl.includes('password') || lbl.includes('passwort')) {
+    return 'Passwort des Provider-Kontos'
+  }
+  if (lbl.includes('url') || lbl.includes('endpoint')) {
+    return 'Basis-URL der Provider-Instanz inkl. Port, ohne abschließenden Slash'
+  }
+  if (lbl.includes('timeout')) {
+    return 'Maximale Wartezeit in Sekunden bis eine Anfrage abgebrochen wird'
+  }
+  if (lbl.includes('priority') || lbl.includes('priorität')) {
+    return 'Niedrigere Zahl = höhere Priorität bei der Provider-Auswahl'
+  }
+  if (lbl.includes('score') || lbl.includes('threshold') || lbl.includes('schwellenwert')) {
+    return 'Mindest-Qualitätsscore für akzeptable Untertitel (0–10)'
+  }
+  // Generic fallback
+  return `Konfigurationswert für „${label}“`
+}
 
 // ─── Provider Card Component ────────────────────────────────────────────────
 
@@ -82,10 +127,11 @@ function ProviderCard({
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Enable/Disable toggle */}
+          {/* Enable/Disable toggle with description */}
           <button
             onClick={onToggle}
             className="px-2.5 py-1 rounded text-xs font-medium transition-all duration-150"
+            title="Provider für die automatische Untertitel-Suche aktivieren"
             style={{
               backgroundColor: provider.enabled ? 'var(--accent-bg)' : 'var(--bg-primary)',
               color: provider.enabled ? 'var(--accent)' : 'var(--text-muted)',
@@ -94,6 +140,12 @@ function ProviderCard({
           >
             {provider.enabled ? 'Enabled' : 'Disabled'}
           </button>
+            <span
+              className="text-[10px] leading-tight text-right"
+              style={{ color: 'var(--text-muted)', maxWidth: '160px' }}
+            >
+              Provider für die automatische Untertitel-Suche aktivieren
+            </span>
 
           {/* Test button */}
           <button
@@ -247,20 +299,21 @@ function ProviderCard({
         </div>
       )}
 
-      {/* Credential fields */}
+      {/* Credential fields rendered with SettingRow for consistent label + description layout */}
       {provider.config_fields.length > 0 && (
-        <div className="space-y-2 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
+        <div className="pt-1" style={{ borderTop: '1px solid var(--border)' }}>
           {provider.config_fields.map((field) => (
-            <div key={field.key} className="flex items-center gap-2">
-              <label className="text-xs font-medium shrink-0 w-20" style={{ color: 'var(--text-secondary)' }}>
-                {field.label}
-              </label>
+            <SettingRow
+              key={field.key}
+              label={field.label}
+              description={getFieldDescription(field.key, field.label)}
+            >
               <input
                 type={field.type}
                 value={values[field.key] === '***configured***' ? '' : (values[field.key] ?? '')}
                 onChange={(e) => onFieldChange(field.key, e.target.value)}
                 placeholder={values[field.key] === '***configured***' ? '(configured)' : field.required ? 'Required' : 'Optional'}
-                className="flex-1 px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none"
+                className="w-full px-2.5 py-1.5 rounded text-xs transition-all duration-150 focus:outline-none"
                 style={{
                   backgroundColor: 'var(--bg-primary)',
                   border: '1px solid var(--border)',
@@ -268,7 +321,7 @@ function ProviderCard({
                   fontFamily: 'var(--font-mono)',
                 }}
               />
-            </div>
+            </SettingRow>
           ))}
         </div>
       )}
