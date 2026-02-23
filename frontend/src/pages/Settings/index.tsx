@@ -4,7 +4,6 @@ import { AdvancedSettingsProvider, useAdvancedSettings } from '@/contexts/Advanc
 import { useTranslation } from 'react-i18next'
 import {
   useConfig, useUpdateConfig,
-  useRetranslateStatus, useRetranslateBatch,
   useExportConfig, useImportConfig,
 } from '@/hooks/useApi'
 import {
@@ -663,8 +662,6 @@ function SettingsPageInner() {
     </SettingRow>
   )
 
-  const retranslateStatus = useRetranslateStatus()
-  const retranslateBatch = useRetranslateBatch()
   const exportConfig = useExportConfig()
   const importConfig = useImportConfig()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -719,7 +716,6 @@ function SettingsPageInner() {
   }
 
   const tabFields = FIELDS.filter((f) => f.tab === activeTab)
-  const hasTestConnection = ['Sonarr', 'Radarr'].includes(activeTab)
   const isProvidersTab = activeTab === 'Providers'
   const isLanguagesTab = activeTab === 'Languages'
   const isTranslationTab = activeTab === 'Translation'
@@ -1055,7 +1051,7 @@ function SettingsPageInner() {
                 {FIELDS.filter(f => f.tab === activeTab).map(renderField)}
                 <div className="py-3">
                   <button
-                    onClick={() => handleTestConnection(activeTab)}
+                    onClick={() => { void handleTestConnection(activeTab) }}
                     className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium motion-safe:transition-all motion-safe:duration-150"
                     style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
                     onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-dim)'; e.currentTarget.style.color = 'var(--accent)' }}
