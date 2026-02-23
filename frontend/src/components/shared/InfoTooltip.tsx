@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useId } from 'react'
 import { Info } from 'lucide-react'
 
 interface InfoTooltipProps {
@@ -9,6 +9,16 @@ interface InfoTooltipProps {
 export function InfoTooltip({ text, className = '' }: InfoTooltipProps) {
   const [visible, setVisible] = useState(false)
   const ref = useRef<HTMLButtonElement>(null)
+  const tooltipId = useId()
+
+  useEffect(() => {
+    if (!visible) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setVisible(false)
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [visible])
 
   return (
     <span className={`relative inline-flex items-center ${className}`}>
@@ -16,17 +26,21 @@ export function InfoTooltip({ text, className = '' }: InfoTooltipProps) {
         ref={ref}
         type="button"
         aria-label="More information"
-        className="inline-flex items-center justify-center w-4 h-4 rounded-full transition-colors duration-150 focus:outline-none"
-        style={{ color: 'var(--text-muted)' }}
+        aria-describedby={visible ? tooltipId : undefined}
+        className="inline-flex items-center justify-center w-4 h-4 rounded-full motion-safe:transition-colors motion-safe:duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] cursor-pointer"
+        style={{ color: visible ? 'var(--accent)' : 'var(--text-muted)' }}
         onMouseEnter={() => setVisible(true)}
         onMouseLeave={() => setVisible(false)}
+        onFocus={() => setVisible(true)}
+        onBlur={() => setVisible(false)}
         onClick={() => setVisible((v) => !v)}
       >
-        <Info size={13} />
+        <Info size={15} />
       </button>
 
       {visible && (
         <span
+          id={tooltipId}
           role="tooltip"
           className="absolute bottom-full left-1/2 z-50 mb-2 w-max max-w-[280px] rounded-md px-3 py-2 text-xs leading-relaxed shadow-lg pointer-events-none"
           style={{
@@ -36,7 +50,7 @@ export function InfoTooltip({ text, className = '' }: InfoTooltipProps) {
             color: 'var(--text-secondary)',
           }}
         >
-          {/* Arrow */}
+          {/* Arrow — outer border */}
           <span
             className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
             style={{
@@ -45,6 +59,7 @@ export function InfoTooltip({ text, className = '' }: InfoTooltipProps) {
               borderTop: '5px solid var(--border)',
             }}
           />
+          {/* Arrow — inner fill */}
           <span
             className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
             style={{
