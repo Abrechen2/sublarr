@@ -2,15 +2,18 @@
 
 import os
 import pytest
+from config import reload_settings
 
 
 @pytest.fixture
 def media_srt(tmp_path, monkeypatch):
     """Create a minimal SRT file under a temp media_path."""
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", str(tmp_path))
+    reload_settings()
     srt = tmp_path / "ep.de.srt"
     srt.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n\n", encoding="utf-8")
-    return srt
+    yield srt
+    reload_settings()  # restore clean state
 
 
 def test_convert_srt_to_ass(client, media_srt):
@@ -46,6 +49,7 @@ def test_convert_invalid_format(client, media_srt):
 
 def test_convert_missing_file(client, tmp_path, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", str(tmp_path))
+    reload_settings()
     r = client.post(
         "/api/v1/tools/convert",
         json={"file_path": str(tmp_path / "nonexistent.srt"), "target_format": "ass"},

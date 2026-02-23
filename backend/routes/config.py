@@ -382,6 +382,10 @@ def import_config():
                    "opensubtitles_api_key", "opensubtitles_password",
                    "jimaku_api_key", "subdl_api_key"}
 
+    # Fail-closed: if valid_keys cannot be determined, reject the import entirely
+    if not valid_keys:
+        return jsonify({"error": "Cannot determine valid config keys - import rejected for safety"}), 500
+
     imported = []
     skipped_secrets = []
 
@@ -391,7 +395,7 @@ def import_config():
             continue
         if str(value) == '***configured***':
             continue
-        if not valid_keys or key in valid_keys:
+        if key in valid_keys:
             save_config_entry(key, str(value))
             imported.append(key)
 

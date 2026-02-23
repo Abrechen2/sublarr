@@ -167,7 +167,7 @@ def register_error_handlers(app: object) -> None:
     @flask_app.before_request
     def _set_request_id() -> None:
         """Assign a unique request ID to every incoming request."""
-        g.request_id = str(uuid.uuid4())[:8]
+        g.request_id = str(uuid.uuid4())[:16]
 
     @flask_app.errorhandler(SublarrError)
     def _handle_sublarr_error(error: SublarrError):  # type: ignore[return]

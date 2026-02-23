@@ -480,7 +480,7 @@ def get_stats():
                     type: integer
     """
     from db.jobs import get_stats_summary, get_pending_job_count
-    from routes.translate import batch_state, stats_lock, _memory_stats
+    from routes.translate import batch_state, batch_lock, stats_lock, _memory_stats
 
     db_stats = get_stats_summary()
 
@@ -493,12 +493,15 @@ def get_stats():
 
     pending = get_pending_job_count()
 
+    with batch_lock:
+        is_batch_running = batch_state.get("running", False)
+
     return jsonify({
         **db_stats,
         **memory_extras,
         "pending_jobs": pending,
         "uptime_seconds": round(uptime),
-        "batch_running": batch_state["running"],
+        "batch_running": is_batch_running,
     })
 
 
@@ -696,9 +699,14 @@ def restore_backup():
     if not confirm:
         return jsonify({"error": "Add confirm: true to proceed"}), 400
 
+    if "/" in filename or "\\" in filename or ".." in filename:
+        return jsonify({"error": "Invalid filename"}), 400
+
     s = get_settings()
     backup = DatabaseBackup(db_path=s.db_path, backup_dir=s.backup_dir)
     backup_path = os.path.join(s.backup_dir, filename)
+    if not os.path.abspath(backup_path).startswith(os.path.abspath(s.backup_dir) + os.sep):
+        return jsonify({"error": "Invalid filename"}), 400
 
     # Close the current connection before restore
     close_db()
@@ -1529,12 +1537,13 @@ def get_logs():
     lines = request.args.get("lines", 200, type=int)
     level = request.args.get("level", "").upper()
 
+    import collections
+    lines = min(lines, 2000)
     log_entries = []
     if os.path.exists(log_file):
         try:
-            with open(log_file, "r", encoding="utf-8") as f:
-                all_lines = f.readlines()
-                recent = all_lines[-lines:] if len(all_lines) > lines else all_lines
+            with open(log_file, "r", encoding="utf-8", errors="replace") as f:
+                recent = list(collections.deque(f, maxlen=lines))
                 for line in recent:
                     if level and f"[{level}]" not in line:
                         continue

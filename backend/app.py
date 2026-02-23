@@ -158,8 +158,13 @@ def create_app(testing=False):
     with app.app_context():
         # Import all models so they register with metadata
         import db.models  # noqa: F401
-        # For new databases: create all tables
-        sa_db.create_all()
+        # For new databases: create all tables (skip if Alembic already tracks schema)
+        from sqlalchemy import inspect as _inspect
+        if not _inspect(sa_db.engine).has_table("alembic_version"):
+            sa_db.create_all()
+            logger.info("Fresh DB: ran create_all()")
+        else:
+            logger.debug("Existing DB detected: skipping create_all(), relying on migrations")
         # Enable SQLite WAL mode if using SQLite (match existing behavior)
         if not settings.database_url or settings.database_url.startswith("sqlite"):
             from sqlalchemy import text
@@ -382,6 +387,8 @@ def _start_schedulers(settings, app=None):
 
 
 if __name__ == "__main__":
+    import os as _os
     from config import get_settings
     app = create_app()
-    socketio.run(app, host="0.0.0.0", port=get_settings().port, debug=True, allow_unsafe_werkzeug=True)
+    _debug = _os.environ.get("FLASK_DEBUG", "0") == "1"
+    socketio.run(app, host="0.0.0.0", port=get_settings().port, debug=_debug, allow_unsafe_werkzeug=_debug)

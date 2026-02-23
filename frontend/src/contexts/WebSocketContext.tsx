@@ -4,31 +4,35 @@
  * Wrapping the app with <WebSocketProvider> ensures only ONE socket is created
  * regardless of how many components call useWebSocket(). Previously each
  * useWebSocket() call opened its own connection (C7 fix).
+ *
+ * Fix 4: Socket is created inside useEffect, not as a render side-effect, to
+ * avoid running IO calls during React's render phase.
  */
-import { createContext, useContext, useEffect, useRef } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
 
 const WebSocketContext = createContext<Socket | null>(null)
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const socketRef = useRef<Socket | null>(null)
+  // Use state so consumers re-render once the socket is available after mount
+  const [socket, setSocket] = useState<Socket | null>(null)
 
-  if (socketRef.current === null) {
-    // Create synchronously so context value is stable on first render
+  useEffect(() => {
     socketRef.current = io(window.location.origin, {
       transports: ['websocket', 'polling'],
     })
-  }
+    setSocket(socketRef.current)
 
-  useEffect(() => {
-    const socket = socketRef.current
     return () => {
-      socket?.disconnect()
+      socketRef.current?.disconnect()
+      socketRef.current = null
+      setSocket(null)
     }
   }, [])
 
   return (
-    <WebSocketContext.Provider value={socketRef.current}>
+    <WebSocketContext.Provider value={socket}>
       {children}
     </WebSocketContext.Provider>
   )

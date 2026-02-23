@@ -180,3 +180,5 @@ class TestTranslationPipelineResilience:
         # Temp file should be cleaned up (or at least attempted)
         # Note: In real code, cleanup happens in finally block
         assert "status" in result
+        import os
+        assert not os.path.exists(temp_source_path), "Temp file should have been cleaned up after failure"

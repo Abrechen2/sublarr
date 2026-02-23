@@ -16,48 +16,6 @@ logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def transaction(db_conn=None) -> Generator:
-    """Execute database writes inside a transaction.
-
-    If called without arguments (or with None), uses SQLAlchemy session.
-    If called with a sqlite3.Connection, uses the legacy sqlite3 pattern.
-
-    Usage (SQLAlchemy)::
-
-        with transaction() as session:
-            session.execute(...)
-
-    Usage (Legacy sqlite3 -- backward compat)::
-
-        with transaction(sqlite3_conn) as cursor:
-            cursor.execute("INSERT INTO ...", (...))
-
-    Yields:
-        SQLAlchemy session (no args) or sqlite3.Cursor (with connection arg).
-
-    Raises:
-        DatabaseError: If the transaction fails and is rolled back.
-    """
-    if db_conn is not None and isinstance(db_conn, sqlite3.Connection):
-        # Legacy sqlite3 path
-        yield from _legacy_transaction(db_conn)
-    else:
-        # SQLAlchemy session path
-        yield from _sqlalchemy_transaction()
-
-
-def _sqlalchemy_transaction():
-    """SQLAlchemy session-based transaction."""
-    from extensions import db
-    try:
-        yield db.session
-        db.session.commit()
-    except Exception as exc:
-        db.session.rollback()
-        logger.error("Transaction rolled back: %s", exc)
-        raise
-
-
 def _legacy_transaction(db_conn: sqlite3.Connection):
     """Legacy sqlite3 transaction (kept for backward compatibility)."""
     cursor = db_conn.cursor()
@@ -85,3 +43,49 @@ def _legacy_transaction(db_conn: sqlite3.Connection):
         raise
     finally:
         cursor.close()
+
+
+@contextmanager
+def _sqlalchemy_transaction():
+    """SQLAlchemy session-based transaction."""
+    from extensions import db
+    try:
+        yield db.session
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        logger.error("Transaction rolled back: %s", exc)
+        raise
+
+
+@contextmanager
+def transaction(db_conn=None) -> Generator:
+    """Execute database writes inside a transaction.
+
+    If called without arguments (or with None), uses SQLAlchemy session.
+    If called with a sqlite3.Connection, uses the legacy sqlite3 pattern.
+
+    Usage (SQLAlchemy)::
+
+        with transaction() as session:
+            session.execute(...)
+
+    Usage (Legacy sqlite3 -- backward compat)::
+
+        with transaction(sqlite3_conn) as cursor:
+            cursor.execute("INSERT INTO ...", (...))
+
+    Yields:
+        SQLAlchemy session (no args) or sqlite3.Cursor (with connection arg).
+
+    Raises:
+        DatabaseError: If the transaction fails and is rolled back.
+    """
+    if db_conn is not None and isinstance(db_conn, sqlite3.Connection):
+        # Legacy sqlite3 path
+        with _legacy_transaction(db_conn) as cursor:
+            yield cursor
+    else:
+        # SQLAlchemy session path
+        with _sqlalchemy_transaction() as session:
+            yield session

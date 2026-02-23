@@ -2,6 +2,7 @@
 
 import pysubs2
 import pytest
+from config import reload_settings
 
 
 def _make_srt(tmp_path, content: str) -> str:
@@ -14,6 +15,9 @@ def _make_srt(tmp_path, content: str) -> str:
 def set_media_path(tmp_path, monkeypatch):
     """Set SUBLARR_MEDIA_PATH so _validate_file_path accepts tmp_path files."""
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", str(tmp_path))
+    reload_settings()
+    yield
+    reload_settings()  # restore clean state
 
 
 def test_overlap_fix(client, tmp_path):

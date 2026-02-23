@@ -139,6 +139,9 @@ class TestCaseB:
 
         # Should attempt provider search
         manager.search_and_download_best.assert_called()
+        # Result must be a dict with a success/status indicator
+        assert result is not None
+        assert "success" in result or "status" in result
 
     @patch("translator.get_settings")
     @patch("translator.get_media_streams")
@@ -164,6 +167,10 @@ class TestCaseB:
 
             from translator import translate_file
             result = translate_file(mkv_path)
+
+        # Result must be a dict with a success/status indicator
+        assert result is not None
+        assert result.get("success") is not None or result.get("status") is not None
 
 
 # ─── Case C: No target subtitle ─────────────────────────────────────────────

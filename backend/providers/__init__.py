@@ -21,7 +21,8 @@ import logging
 import hashlib
 import json
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+import threading
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FutureTimeoutError
 
@@ -81,11 +82,16 @@ def register_provider(cls: type[SubtitleProvider]) -> type[SubtitleProvider]:
     return cls
 
 
+_provider_manager_lock = threading.Lock()
+
+
 def get_provider_manager() -> "ProviderManager":
-    """Get or create the singleton ProviderManager."""
+    """Get or create the singleton ProviderManager (thread-safe)."""
     global _manager
     if _manager is None:
-        _manager = ProviderManager()
+        with _provider_manager_lock:
+            if _manager is None:
+                _manager = ProviderManager()
     return _manager
 
 
@@ -129,6 +135,7 @@ class ProviderManager:
         self.settings = get_settings()
         self._providers: dict[str, SubtitleProvider] = {}
         self._rate_limits: dict[str, list[datetime]] = defaultdict(list)
+        self._rate_limit_lock = threading.Lock()
         self._circuit_breakers: dict[str, CircuitBreaker] = {}
         self._init_providers()
 
@@ -462,21 +469,22 @@ class ProviderManager:
         max_requests, window_seconds = self._get_rate_limit(provider_name)
         if max_requests == 0 and window_seconds == 0:
             return True  # No rate limit configured
-        now = datetime.utcnow()
-        timestamps = self._rate_limits[provider_name]
+        with self._rate_limit_lock:
+            now = datetime.now(timezone.utc)
+            timestamps = self._rate_limits[provider_name]
 
-        # Remove old timestamps outside the window
-        window = timedelta(seconds=window_seconds)
-        timestamps[:] = [ts for ts in timestamps if now - ts < window]
+            # Remove old timestamps outside the window
+            window = timedelta(seconds=window_seconds)
+            timestamps[:] = [ts for ts in timestamps if now - ts < window]
 
-        if len(timestamps) >= max_requests:
-            logger.debug("Provider %s rate limited: %d/%d requests in %ds window",
-                        provider_name, len(timestamps), max_requests, window_seconds)
-            return False  # Rate limited
+            if len(timestamps) >= max_requests:
+                logger.debug("Provider %s rate limited: %d/%d requests in %ds window",
+                            provider_name, len(timestamps), max_requests, window_seconds)
+                return False  # Rate limited
 
-        # Record this request
-        timestamps.append(now)
-        return True
+            # Record this request
+            timestamps.append(now)
+            return True
 
     @staticmethod
     def _get_cache_backend():
@@ -986,6 +994,19 @@ class ProviderManager:
         except OSError as e:
             logger.warning("Failed to check disk space for %s: %s", output_path, e)
             # Continue anyway - disk space check is best-effort
+
+        # Validate output path is within allowed media directory (path traversal guard)
+        try:
+            from config import get_settings as _get_settings
+            _settings = _get_settings()
+            _media_path = os.path.abspath(getattr(_settings, 'media_path', '/media'))
+            _abs_output = os.path.abspath(output_path)
+            if not _abs_output.startswith(_media_path + os.sep):
+                raise ValueError(f"save_subtitle: output_path {output_path!r} is outside media_path")
+        except ValueError:
+            raise
+        except Exception:
+            pass  # Config not available — skip path validation (e.g. tests)
 
         # Create directory with error handling
         try:

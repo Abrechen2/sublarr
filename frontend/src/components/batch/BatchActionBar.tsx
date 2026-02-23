@@ -4,7 +4,7 @@
  * Renders: "{N} items selected . [Ignore] [Unignore] [Blacklist] [Export] [Clear]"
  * Disappears when selection count drops to 0.
  */
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { X, EyeOff, Eye, Ban, Download } from 'lucide-react'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useBatchAction } from '@/hooks/useApi'
@@ -37,6 +37,14 @@ export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blackl
   const clearSelection = useSelectionStore((s) => s.clearSelection)
   const batchMutation = useBatchAction()
   const [lastResult, setLastResult] = useState<string | null>(null)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Fix 1: Clean up pending setTimeout on unmount to avoid state update on unmounted component
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    }
+  }, [])
 
   if (count === 0) return null
 
@@ -61,7 +69,7 @@ export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blackl
 
     const result = await batchMutation.mutateAsync({ itemIds: ids, action })
     setLastResult(`${result.affected} items updated`)
-    setTimeout(() => setLastResult(null), 3000)
+    timeoutRef.current = setTimeout(() => setLastResult(null), 3000)
     clearSelection(scope)
     onActionComplete?.(action, result)
   }

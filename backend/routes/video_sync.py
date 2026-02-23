@@ -87,6 +87,15 @@ def start_sync():
     if not os.path.exists(subtitle_path):
         return jsonify({"error": f"Subtitle file not found: {subtitle_path}"}), 404
 
+    # Security: ensure paths are under media_path
+    from config import get_settings
+    _s = get_settings()
+    _media_path = os.path.abspath(_s.media_path)
+    if not os.path.abspath(subtitle_path).startswith(_media_path + os.sep):
+        return jsonify({"error": "file_path must be under the configured media_path"}), 403
+    if video_path and not os.path.abspath(video_path).startswith(_media_path + os.sep):
+        return jsonify({"error": "video_path must be under the configured media_path"}), 403
+
     if engine == "ffsubsync":
         if not video_path:
             return jsonify({"error": "video_path is required for ffsubsync"}), 400

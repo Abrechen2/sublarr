@@ -29,8 +29,7 @@ services:
     cap_add:
       - CHOWN
       - DAC_OVERRIDE
-      - SETGID
-      - SETUID
+      # Removed SETGID and SETUID -- not needed for gunicorn/Flask
     logging:
       driver: "json-file"
       options:

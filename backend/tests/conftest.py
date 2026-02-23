@@ -42,6 +42,7 @@ def temp_db():
         del os.environ["SUBLARR_API_KEY"]
     if "SUBLARR_LOG_LEVEL" in os.environ:
         del os.environ["SUBLARR_LOG_LEVEL"]
+    reload_settings()  # clear singleton cached DB path
 
 
 @pytest.fixture

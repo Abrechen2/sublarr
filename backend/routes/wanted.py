@@ -123,6 +123,13 @@ def list_wanted():
     sort_dir = request.args.get("sort_dir", "desc")
     search = request.args.get("search") or None
 
+    VALID_SORT_BY = {"added_at", "title", "last_search_at", "current_score", "search_count"}
+    VALID_SORT_DIR = {"asc", "desc"}
+    if sort_by and sort_by not in VALID_SORT_BY:
+        return jsonify({"error": f"Invalid sort_by value: {sort_by}"}), 400
+    if sort_dir and sort_dir not in VALID_SORT_DIR:
+        return jsonify({"error": f"Invalid sort_dir value: {sort_dir}"}), 400
+
     result = get_wanted_items(
         page=page, per_page=per_page,
         item_type=item_type, status=status_filter,
@@ -385,12 +392,18 @@ def search_wanted(item_id):
     if not item:
         return jsonify({"error": "Item not found"}), 404
 
-    result = search_wanted_item(item_id)
+    def _run():
+        try:
+            result = search_wanted_item(item_id)
+            emit_event("wanted_item_searched", result)
+        except Exception as e:
+            logger.exception("Wanted search failed for item_id=%s", item_id)
+            emit_event("wanted_item_searched", {"wanted_id": item_id, "error": str(e)})
 
-    if result.get("error"):
-        return jsonify(result), 400
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
 
-    return jsonify(result)
+    return jsonify({"status": "searching", "wanted_id": item_id}), 202
 
 
 @bp.route("/wanted/<int:item_id>/process", methods=["POST"])

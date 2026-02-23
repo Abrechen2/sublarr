@@ -14,7 +14,7 @@ import time
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from datetime import datetime, timezone
 
 from config import get_settings, map_path
 from translator import detect_existing_target_for_lang, get_output_path_for_lang
@@ -73,7 +73,7 @@ class WantedScanner:
         # Incremental scan state
         self._last_scan_timestamp = None  # datetime of last successful scan
         self._scan_count = 0  # counter for forcing full scan every N cycles
-        self._cancel_search = False  # signal to stop parallel search
+        self._cancel_event = threading.Event()  # signal to stop parallel search
 
     @property
     def is_scanning(self):
@@ -203,8 +203,8 @@ class WantedScanner:
                 "scan_type": scan_type,
             }
 
-            self._last_scan_at = datetime.utcnow().isoformat()
-            self._last_scan_timestamp = datetime.utcnow()
+            self._last_scan_at = datetime.now(timezone.utc).isoformat()
+            self._last_scan_timestamp = datetime.now(timezone.utc)
             self._scan_count += 1
             self._last_summary = summary
 
@@ -815,7 +815,7 @@ class WantedScanner:
             return {"error": "search_already_running"}
 
         self._searching = True
-        self._cancel_search = False
+        self._cancel_event.clear()
         start = time.time()
 
         try:
@@ -828,7 +828,7 @@ class WantedScanner:
 
             # Filter: adaptive backoff (or fixed 1h fallback when disabled)
             eligible = []
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             adaptive_enabled = getattr(settings, "wanted_adaptive_backoff_enabled", True)
 
             for item in items:
@@ -837,7 +837,10 @@ class WantedScanner:
                     retry_after_str = item.get("retry_after")
                     if retry_after_str:
                         try:
-                            retry_at = datetime.fromisoformat(retry_after_str).replace(tzinfo=None)
+                            retry_at = datetime.fromisoformat(retry_after_str)
+                            # Ensure both datetimes are comparable (add UTC if naive)
+                            if retry_at.tzinfo is None:
+                                retry_at = retry_at.replace(tzinfo=timezone.utc)
                             if now < retry_at:
                                 continue
                         except (ValueError, TypeError):
@@ -848,6 +851,8 @@ class WantedScanner:
                     if last_str:
                         try:
                             last = datetime.fromisoformat(last_str)
+                            if last.tzinfo is None:
+                                last = last.replace(tzinfo=timezone.utc)
                             if (now - last).total_seconds() < 3600:
                                 continue
                         except (ValueError, TypeError):
@@ -857,7 +862,7 @@ class WantedScanner:
                     eligible.append(item)
 
             if not eligible:
-                self._last_search_at = datetime.utcnow().isoformat()
+                self._last_search_at = datetime.now(timezone.utc).isoformat()
                 return {"total": 0, "processed": 0, "found": 0, "failed": 0, "skipped": 0}
 
             from wanted_search import process_wanted_item
@@ -878,7 +883,7 @@ class WantedScanner:
 
                 for future in as_completed(future_to_item):
                     # Check cancel flag between completions
-                    if self._cancel_search:
+                    if self._cancel_event.is_set():
                         logger.info("Wanted search cancelled after %d/%d items", processed, total)
                         # Cancel remaining futures
                         for f in future_to_item:
@@ -910,7 +915,7 @@ class WantedScanner:
                         })
 
             duration = round(time.time() - start, 1)
-            self._last_search_at = datetime.utcnow().isoformat()
+            self._last_search_at = datetime.now(timezone.utc).isoformat()
 
             summary = {
                 "total": total,
@@ -936,12 +941,12 @@ class WantedScanner:
             return {"error": str(e)}
         finally:
             self._searching = False
-            self._cancel_search = False
+            self._cancel_event.clear()
             self._search_lock.release()
 
     def cancel_search(self):
         """Signal the running search to stop after current item completions."""
-        self._cancel_search = True
+        self._cancel_event.set()
 
     # ─── Scheduler ──────────────────────────────────────────────────────────
 

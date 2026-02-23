@@ -9,6 +9,7 @@ detection) with OllamaBackend via translation.llm_utils.
 
 import time
 import logging
+import threading
 
 from translation.base import TranslationBackend, TranslationResult
 
@@ -96,6 +97,7 @@ class OpenAICompatBackend(TranslationBackend):
     def __init__(self, **config):
         super().__init__(**config)
         self._client = None
+        self._client_lock = threading.Lock()
 
     @property
     def _api_key(self) -> str:
@@ -131,18 +133,20 @@ class OpenAICompatBackend(TranslationBackend):
             return 3
 
     def _get_client(self) -> "OpenAI":
-        """Get or create the OpenAI client (lazy initialization)."""
+        """Get or create the OpenAI client (lazy initialization, thread-safe)."""
         if not _HAS_OPENAI:
             raise RuntimeError(
                 "openai package not installed. Install with: pip install openai>=1.0.0"
             )
         if self._client is None:
-            self._client = OpenAI(
-                api_key=self._api_key,
-                base_url=self._base_url,
-                timeout=self._request_timeout,
-                max_retries=0,  # We handle retries ourselves
-            )
+            with self._client_lock:
+                if self._client is None:
+                    self._client = OpenAI(
+                        api_key=self._api_key,
+                        base_url=self._base_url,
+                        timeout=self._request_timeout,
+                        max_retries=0,  # We handle retries ourselves
+                    )
         return self._client
 
     def translate_batch(

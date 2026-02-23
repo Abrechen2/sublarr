@@ -484,6 +484,11 @@ def _translate_with_manager(lines, source_lang, target_lang,
                 raise RuntimeError(
                     f"Translation failed on batch {chunk_start // batch_size + 1}: {chunk_result.error}"
                 )
+            if len(chunk_result.translated_lines) != len(chunk):
+                raise RuntimeError(
+                    f"Chunk translation returned {len(chunk_result.translated_lines)} lines, "
+                    f"expected {len(chunk)}. Aborting to prevent cache pollution."
+                )
             all_translated.extend(chunk_result.translated_lines)
             last_result = chunk_result
         result = last_result

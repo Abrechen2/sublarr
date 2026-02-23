@@ -293,22 +293,23 @@ class TranslationManager:
         return config
 
     def _get_circuit_breaker(self, name: str) -> CircuitBreaker:
-        """Get or create a circuit breaker for a backend."""
-        if name not in self._circuit_breakers:
-            try:
-                from config import get_settings
-                settings = get_settings()
-                threshold = settings.circuit_breaker_failure_threshold
-                cooldown = settings.circuit_breaker_cooldown_seconds
-            except Exception:
-                threshold = 5
-                cooldown = 60
-            self._circuit_breakers[name] = CircuitBreaker(
-                name=f"translation:{name}",
-                failure_threshold=threshold,
-                cooldown_seconds=cooldown,
-            )
-        return self._circuit_breakers[name]
+        """Get or create a circuit breaker for a backend (thread-safe)."""
+        with self._backends_lock:
+            if name not in self._circuit_breakers:
+                try:
+                    from config import get_settings
+                    settings = get_settings()
+                    threshold = settings.circuit_breaker_failure_threshold
+                    cooldown = settings.circuit_breaker_cooldown_seconds
+                except Exception:
+                    threshold = 5
+                    cooldown = 60
+                self._circuit_breakers[name] = CircuitBreaker(
+                    name=f"translation:{name}",
+                    failure_threshold=threshold,
+                    cooldown_seconds=cooldown,
+                )
+            return self._circuit_breakers[name]
 
     def _record_success(self, backend_name: str, result: TranslationResult) -> None:
         """Record successful translation in backend stats."""
@@ -334,14 +335,17 @@ class TranslationManager:
 # ─── Singleton ────────────────────────────────────────────────────────────────
 
 _manager: Optional[TranslationManager] = None
+_manager_lock = threading.Lock()
 
 
 def get_translation_manager() -> TranslationManager:
-    """Get or create the singleton TranslationManager instance."""
+    """Get or create the singleton TranslationManager instance (thread-safe)."""
     global _manager
     if _manager is None:
-        _manager = TranslationManager()
-        _register_builtin_backends(_manager)
+        with _manager_lock:
+            if _manager is None:
+                _manager = TranslationManager()
+                _register_builtin_backends(_manager)
     return _manager
 
 

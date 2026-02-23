@@ -11,7 +11,7 @@ import re
 import time
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from config import get_settings, map_path
@@ -41,7 +41,7 @@ def _compute_retry_after(search_count: int, settings) -> Optional[str]:
     base = getattr(settings, "wanted_backoff_base_hours", 1.0)
     cap = getattr(settings, "wanted_backoff_cap_hours", 168)
     delay_hours = min(base * (2 ** max(search_count - 1, 0)), cap)
-    return (datetime.utcnow() + timedelta(hours=delay_hours)).isoformat()
+    return (datetime.now(timezone.utc) + timedelta(hours=delay_hours)).isoformat()
 
 
 def _set_adaptive_retry_after(item_id: int, search_count: int, settings) -> None:
@@ -745,6 +745,8 @@ def process_wanted_item(item_id: int) -> dict:
             arr_context["sonarr_series_id"] = item["sonarr_series_id"]
         if item.get("sonarr_episode_id"):
             arr_context["sonarr_episode_id"] = item["sonarr_episode_id"]
+        if item.get("radarr_movie_id"):
+            arr_context["radarr_movie_id"] = item["radarr_movie_id"]
         job = create_job(file_path, force=False, arr_context=arr_context if arr_context else None)
         update_job(job["id"], "running")
         translate_result = translate_file(file_path, target_language=item_lang, arr_context=arr_context if arr_context else None)
@@ -784,8 +786,11 @@ def process_wanted_item(item_id: int) -> dict:
         error = str(e)
         try:
             update_job(job["id"], "failed", error=error)
+        except Exception:
+            pass  # job may not have been created
+        try:
             record_stat(success=False)
-        except NameError:
+        except Exception:
             pass
         logger.exception("Wanted %d: Process failed: %s", item_id, error)
         update_wanted_status(item_id, "failed", error=error)
