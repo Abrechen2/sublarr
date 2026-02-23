@@ -8,6 +8,24 @@ import { Toggle } from '@/components/shared/Toggle'
 import { SettingRow } from '@/components/shared/SettingRow'
 import type { MediaServerType, MediaServerInstance, MediaServerTestResult } from '@/lib/types'
 
+
+/** Returns a description string for a known config field key. */
+function getFieldDescription(fieldKey: string, serverDisplayName: string): string {
+  switch (fieldKey) {
+    case 'url':
+      return `Adresse der ${serverDisplayName}-Instanz inkl. Port, z.B. http://localhost:8096`
+    case 'api_key':
+    case 'token':
+    case 'x_plex_token':
+      return `In ${serverDisplayName} unter Settings → API Keys erstellen`
+    case 'username':
+      return `Benutzername des ${serverDisplayName}-Kontos`
+    case 'password':
+      return `Passwort des ${serverDisplayName}-Kontos`
+    default:
+      return ''
+  }
+}
 export function MediaServersTab() {
   const { data: typesData, isLoading: typesLoading } = useMediaServerTypes()
   const { data: instancesData, isLoading: instancesLoading } = useMediaServerInstances()
@@ -67,7 +85,7 @@ export function MediaServersTab() {
     setLocalInstances(updated)
   }
 
-  const handleSaveInstance = (idx: number) => {
+  const handleSaveInstance = (_idx: number) => {
     saveInstances(localInstances)
   }
 
@@ -155,6 +173,7 @@ export function MediaServersTab() {
         const typeInfo = getTypeInfo(inst.type)
         const isExpanded = expandedIdx === idx
         const testResult = testResults[idx]
+        const serverDisplayName = typeInfo?.display_name ?? inst.type
 
         return (
           <div
@@ -206,7 +225,10 @@ export function MediaServersTab() {
               <div className="px-4 pb-4 space-y-4" style={{ borderTop: '1px solid var(--border)' }}>
                 {/* Name field */}
                 <div className="pt-3">
-                  <SettingRow label="Name">
+                  <SettingRow
+                    label="Name"
+                    description="Anzeigename für diese Instanz"
+                  >
                     <input
                       type="text"
                       value={String(inst.name ?? '')}
@@ -223,12 +245,15 @@ export function MediaServersTab() {
                 </div>
 
                 {/* Dynamic config fields */}
-                {typeInfo?.config_fields.map((field) => (
-                  <SettingRow
-                    key={field.key}
-                    label={`${field.label}${field.required ? ' *' : ''}`}
-                    helpText={field.help}
-                  >
+                {typeInfo?.config_fields.map((field) => {
+                  const fieldDescription = getFieldDescription(field.key, serverDisplayName)
+                  return (
+                    <SettingRow
+                      key={field.key}
+                      label={`${field.label}${field.required ? ' *' : ''}`}
+                      description={fieldDescription || undefined}
+                      helpText={field.help}
+                    >
                     <div className="flex items-center gap-1.5 w-full">
                       <input
                         type={field.type === 'password' && !showPasswords[`${idx}-${field.key}`] ? 'password' : field.type === 'number' ? 'number' : 'text'}
@@ -262,12 +287,14 @@ export function MediaServersTab() {
                         </button>
                       )}
                     </div>
-                  </SettingRow>
-                ))}
+                    </SettingRow>
+                  )
+                })}
 
                 {/* Path Mapping field */}
                 <SettingRow
                   label="Path Mapping"
+                  description="Container-Pfad → Media-Server-Pfad Mapping, z.B. /media:/data"
                   helpText="Map container paths to media server paths, e.g. /media:/data"
                 >
                   <input
@@ -286,7 +313,10 @@ export function MediaServersTab() {
                 </SettingRow>
 
                 {/* Enabled toggle */}
-                <SettingRow label="Enabled" helpText="Enable or disable this media server instance.">
+                <SettingRow
+                  label="Enabled"
+                  description={`${serverDisplayName}-Integration für Library-Benachrichtigungen aktivieren`}
+                >
                   <Toggle
                     checked={inst.enabled}
                     onChange={() => toggleEnabled(idx)}

@@ -39,6 +39,20 @@ function BackendCard({
     }
   }, [configData])
 
+  const getFieldDescription = (key: string): string | undefined => {
+    const k = key.toLowerCase()
+    if (k === 'name' || k === 'label' || k === 'backend_name' || k === 'display_name') return 'Anzeigename für dieses LLM-Backend'
+    if (k === 'url' || k === 'base_url' || k === 'api_base_url' || k === 'api_base' || k === 'endpoint' || k === 'host') return 'Endpunkt der LLM-API, z.B. http://localhost:11434 für Ollama'
+    if (k === 'api_key' || k === 'token' || k === 'api_token' || k === 'secret' || k === 'key') return 'API-Schlüssel für authentifizierte Endpunkte (für lokale Ollama leer lassen)'
+    if (k === 'model' || k === 'model_name' || k === 'model_id') return 'LLM-Modell das für Übersetzungen verwendet wird, z.B. gemma2:27b'
+    if (k === 'enabled' || k === 'enable' || k === 'active') return 'Dieses Backend für LLM-Übersetzungen aktivieren'
+    if (k === 'max_tokens' || k === 'context_length' || k === 'max_context' || k === 'context_window') return 'Maximale Token-Anzahl pro API-Anfrage'
+    if (k === 'temperature' || k === 'temp') return 'Sampling-Temperatur (0=deterministisch, 1=kreativ) — 0.1-0.3 für Übersetzungen empfohlen'
+    if (k === 'system_prompt' || k === 'prompt' || k === 'prompt_template' || k === 'system_message') return 'Systemanweisung für das LLM — definiert Übersetzungsstil und -kontext'
+    if (k === 'timeout' || k === 'request_timeout' || k === 'connect_timeout') return 'Timeout in Sekunden für LLM-API-Anfragen'
+    return undefined
+  }
+
   const handleSave = () => {
     saveConfigMut.mutate(
       { name: backend.name, config: formValues },
@@ -169,6 +183,7 @@ function BackendCard({
                   key={field.key}
                   label={`${field.label}${field.required ? ' *' : ''}`}
                   helpText={field.help}
+                  description={getFieldDescription(field.key)}
                 >
                   <div className="flex items-center gap-1.5 w-full">
                     <input
@@ -710,6 +725,11 @@ export function PromptPresetsTab() {
 
   return (
     <div className="space-y-4">
+      <div className="rounded-lg p-4 mb-4 text-sm" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+        <p className="font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Verfügbare Variablen</p>
+        <p className="font-mono text-xs" style={{ color: 'var(--accent)' }}>{'{title}'} {'{context}'} {'{source_lang}'} {'{target_lang}'} {'{line_count}'}</p>
+        <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>Diese Variablen werden beim Übersetzen durch die jeweiligen Werte ersetzt.</p>
+      </div>
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
           Prompt Presets

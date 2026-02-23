@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useBlocker } from 'react-router-dom'
+import { AdvancedSettingsProvider, useAdvancedSettings } from '@/contexts/AdvancedSettingsContext'
 import { useTranslation } from 'react-i18next'
 import {
   useConfig, useUpdateConfig,
-  useRetranslateStatus, useRetranslateBatch,
   useExportConfig, useImportConfig,
 } from '@/hooks/useApi'
 import {
@@ -15,6 +16,9 @@ import { toast } from '@/components/shared/Toast'
 import { Toggle } from '@/components/shared/Toggle'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { HELP_TEXT } from './settingsHelpText'
+import { SettingsCard } from '@/components/shared/SettingsCard'
+import type { ConnectionStatus } from '@/components/shared/ConnectionBadge'
+import { Shield, FileText, Map, Archive, Database } from 'lucide-react'
 
 // Tab sub-components — lazy loaded so each tab's code is only fetched on first open
 const ProvidersTab = lazy(() => import('./ProvidersTab').then(m => ({ default: m.ProvidersTab })))
@@ -79,56 +83,106 @@ export interface FieldConfig {
   type: 'text' | 'number' | 'password' | 'toggle'
   placeholder?: string
   tab: string
+  description?: string
+  advanced?: boolean
 }
 
 const FIELDS: FieldConfig[] = [
   // General
-  { key: 'port', label: 'Port', type: 'number', tab: 'General' },
-  { key: 'api_key', label: 'API Key', type: 'password', placeholder: 'Leave empty to disable', tab: 'General' },
-  { key: 'log_level', label: 'Log Level', type: 'text', placeholder: 'INFO', tab: 'General' },
-  { key: 'media_path', label: 'Media Path', type: 'text', placeholder: '/media', tab: 'General' },
-  { key: 'db_path', label: 'Database Path', type: 'text', placeholder: '/config/sublarr.db', tab: 'General' },
+  { key: 'port', label: 'Port', type: 'number', tab: 'General',
+    description: 'HTTP-Port auf dem Sublarr lauscht. Standard: 5765.' },
+  { key: 'api_key', label: 'API Key', type: 'password', placeholder: 'Leave empty to disable', tab: 'General',
+    description: 'Optionaler API-Key für den X-Api-Key Header. Leer lassen um Auth zu deaktivieren.' },
+  { key: 'log_level', label: 'Log Level', type: 'text', placeholder: 'INFO', tab: 'General',
+    description: 'Logging-Stufe: DEBUG, INFO, WARNING, ERROR.' },
+  { key: 'media_path', label: 'Media Path', type: 'text', placeholder: '/media', tab: 'General',
+    description: 'Wurzelpfad des Medienverzeichnisses. Alle Medienpfade müssen darunter liegen.' },
+  { key: 'db_path', label: 'Database Path', type: 'text', placeholder: '/config/sublarr.db', tab: 'General',
+    description: 'SQLite-Datenbankdatei. Nur ändern wenn die DB verschoben wurde.',
+    advanced: true },
   // Translation
-  { key: 'source_language', label: 'Source Language Code', type: 'text', placeholder: 'en', tab: 'Translation' },
-  { key: 'target_language', label: 'Target Language Code', type: 'text', placeholder: 'de', tab: 'Translation' },
-  { key: 'source_language_name', label: 'Source Language Name', type: 'text', placeholder: 'English', tab: 'Translation' },
-  { key: 'target_language_name', label: 'Target Language Name', type: 'text', placeholder: 'German', tab: 'Translation' },
-  { key: 'hi_removal_enabled', label: 'Remove Hearing Impaired Tags', type: 'toggle', tab: 'Translation' },
+  { key: 'source_language', label: 'Source Language Code', type: 'text', placeholder: 'en', tab: 'Translation',
+    description: 'ISO 639-1 Sprachcode der Quellsprache, z.B. "en".' },
+  { key: 'target_language', label: 'Target Language Code', type: 'text', placeholder: 'de', tab: 'Translation',
+    description: 'ISO 639-1 Sprachcode der Zielsprache, z.B. "de".' },
+  { key: 'source_language_name', label: 'Source Language Name', type: 'text', placeholder: 'English', tab: 'Translation',
+    description: 'Vollständiger Name der Quellsprache für LLM-Prompts.' },
+  { key: 'target_language_name', label: 'Target Language Name', type: 'text', placeholder: 'German', tab: 'Translation',
+    description: 'Vollständiger Name der Zielsprache für LLM-Prompts.' },
+  { key: 'hi_removal_enabled', label: 'Remove Hearing Impaired Tags', type: 'toggle', tab: 'Translation',
+    description: 'Entfernt [Geräuschbeschreibungen] und (Sprechertags) aus Untertiteln.' },
   // Automation — Upgrade
-  { key: 'upgrade_enabled', label: 'Upgrade Enabled', type: 'toggle', tab: 'Automation' },
-  { key: 'upgrade_prefer_ass', label: 'Prefer ASS over SRT', type: 'toggle', tab: 'Automation' },
-  { key: 'upgrade_min_score_delta', label: 'Min Score Delta', type: 'number', placeholder: '50', tab: 'Automation' },
-  { key: 'upgrade_window_days', label: 'Upgrade Window (days)', type: 'number', placeholder: '7', tab: 'Automation' },
+  { key: 'upgrade_enabled', label: 'Upgrade Enabled', type: 'toggle', tab: 'Automation',
+    description: 'Automatisch bessere Untertitel suchen wenn Score-Schwellenwert nicht erreicht.' },
+  { key: 'upgrade_prefer_ass', label: 'Prefer ASS over SRT', type: 'toggle', tab: 'Automation',
+    description: 'ASS-Format (mit Styling) gegenüber SRT bevorzugen.' },
+  { key: 'upgrade_min_score_delta', label: 'Min Score Delta', type: 'number', placeholder: '50', tab: 'Automation',
+    description: 'Mindest-Score-Unterschied um einen Upgrade-Download zu rechtfertigen.',
+    advanced: true },
+  { key: 'upgrade_window_days', label: 'Upgrade Window (days)', type: 'number', placeholder: '7', tab: 'Automation',
+    description: 'Upgrade-Versuche nur innerhalb dieses Zeitfensters nach dem Release.',
+    advanced: true },
   // Automation — Webhook
-  { key: 'webhook_delay_minutes', label: 'Webhook Delay (minutes)', type: 'number', placeholder: '5', tab: 'Automation' },
-  { key: 'webhook_auto_scan', label: 'Auto-Scan after Download', type: 'toggle', tab: 'Automation' },
-  { key: 'webhook_auto_search', label: 'Auto-Search Providers', type: 'toggle', tab: 'Automation' },
-  { key: 'webhook_auto_translate', label: 'Auto-Translate Found Subs', type: 'toggle', tab: 'Automation' },
+  { key: 'webhook_delay_minutes', label: 'Webhook Delay (minutes)', type: 'number', placeholder: '5', tab: 'Automation',
+    description: 'Wartezeit nach Sonarr/Radarr-Webhook bevor die Suche startet.',
+    advanced: true },
+  { key: 'webhook_auto_scan', label: 'Auto-Scan after Download', type: 'toggle', tab: 'Automation',
+    description: 'Nach Sonarr/Radarr-Download automatisch auf eingebettete Subs scannen.' },
+  { key: 'webhook_auto_search', label: 'Auto-Search Providers', type: 'toggle', tab: 'Automation',
+    description: 'Nach Download automatisch bei Subtitle-Providern suchen.' },
+  { key: 'webhook_auto_translate', label: 'Auto-Translate Found Subs', type: 'toggle', tab: 'Automation',
+    description: 'Gefundene Untertitel automatisch übersetzen.' },
   // Automation — Search Scheduler
-  { key: 'wanted_search_interval_hours', label: 'Search Interval (hours, 0=disabled)', type: 'number', placeholder: '24', tab: 'Automation' },
-  { key: 'wanted_search_on_startup', label: 'Search on Startup', type: 'toggle', tab: 'Automation' },
-  { key: 'wanted_search_max_items_per_run', label: 'Max Items per Search Run', type: 'number', placeholder: '50', tab: 'Automation' },
+  { key: 'wanted_search_interval_hours', label: 'Search Interval (hours, 0=disabled)', type: 'number', placeholder: '24', tab: 'Automation',
+    description: 'Interval für automatische Provider-Suche. 0 = deaktiviert.',
+    advanced: true },
+  { key: 'wanted_search_on_startup', label: 'Search on Startup', type: 'toggle', tab: 'Automation',
+    description: 'Provider-Suche beim Backend-Start ausführen.' },
+  { key: 'wanted_search_max_items_per_run', label: 'Max Items per Search Run', type: 'number', placeholder: '50', tab: 'Automation',
+    description: 'Maximale Anzahl Einträge pro automatischem Suchlauf.',
+    advanced: true },
   // Wanted
-  { key: 'wanted_scan_interval_hours', label: 'Scan Interval (hours, 0=disabled)', type: 'number', placeholder: '6', tab: 'Wanted' },
-  { key: 'wanted_anime_only', label: 'Anime Only (Sonarr)', type: 'toggle', tab: 'Wanted' },
-  { key: 'wanted_anime_movies_only', label: 'Anime Movies Only (Radarr)', type: 'toggle', tab: 'Wanted' },
-  { key: 'wanted_scan_on_startup', label: 'Scan on Startup', type: 'toggle', tab: 'Wanted' },
-  { key: 'wanted_auto_extract', label: 'Auto-extract embedded subs on scan', type: 'toggle', tab: 'Wanted' },
-  { key: 'wanted_auto_translate', label: 'Auto-translate after extraction', type: 'toggle', tab: 'Wanted' },
-  { key: 'wanted_max_search_attempts', label: 'Max Search Attempts', type: 'number', placeholder: '3', tab: 'Wanted' },
+  { key: 'wanted_scan_interval_hours', label: 'Scan Interval (hours, 0=disabled)', type: 'number', placeholder: '6', tab: 'Wanted',
+    description: 'Wie oft die Medienbibliothek auf fehlende Untertitel geprüft wird.',
+    advanced: true },
+  { key: 'wanted_anime_only', label: 'Anime Only (Sonarr)', type: 'toggle', tab: 'Wanted',
+    description: 'Nur Sonarr-Serien mit Anime-Tag in die Wanted-Liste aufnehmen.' },
+  { key: 'wanted_anime_movies_only', label: 'Anime Movies Only (Radarr)', type: 'toggle', tab: 'Wanted',
+    description: 'Nur Radarr-Filme mit Anime-Tag in die Wanted-Liste aufnehmen.' },
+  { key: 'wanted_scan_on_startup', label: 'Scan on Startup', type: 'toggle', tab: 'Wanted',
+    description: 'Wanted-Scan beim Backend-Start ausführen.' },
+  { key: 'wanted_auto_extract', label: 'Auto-extract embedded subs on scan', type: 'toggle', tab: 'Wanted',
+    description: 'Eingebettete Untertitel aus MKV-Dateien automatisch extrahieren.' },
+  { key: 'wanted_auto_translate', label: 'Auto-translate after extraction', type: 'toggle', tab: 'Wanted',
+    description: 'Extrahierte Untertitel automatisch übersetzen. Erfordert Auto-Extract.' },
+  { key: 'wanted_max_search_attempts', label: 'Max Search Attempts', type: 'number', placeholder: '3', tab: 'Wanted',
+    description: 'Nach dieser Anzahl fehlgeschlagener Versuche wird ein Eintrag aufgegeben.',
+    advanced: true },
   // Sonarr
-  { key: 'sonarr_url', label: 'Sonarr URL', type: 'text', placeholder: 'http://localhost:8989', tab: 'Sonarr' },
-  { key: 'sonarr_api_key', label: 'Sonarr API Key', type: 'password', tab: 'Sonarr' },
+  { key: 'sonarr_url', label: 'Sonarr URL', type: 'text', placeholder: 'http://localhost:8989', tab: 'Sonarr',
+    description: 'URL der Sonarr-Instanz inkl. Port. Keine abschließenden Slashes.' },
+  { key: 'sonarr_api_key', label: 'Sonarr API Key', type: 'password', tab: 'Sonarr',
+    description: 'In Sonarr unter Settings → General → Security.' },
   // Radarr
-  { key: 'radarr_url', label: 'Radarr URL', type: 'text', placeholder: 'http://localhost:7878', tab: 'Radarr' },
-  { key: 'radarr_api_key', label: 'Radarr API Key', type: 'password', tab: 'Radarr' },
+  { key: 'radarr_url', label: 'Radarr URL', type: 'text', placeholder: 'http://localhost:7878', tab: 'Radarr',
+    description: 'URL der Radarr-Instanz inkl. Port. Keine abschließenden Slashes.' },
+  { key: 'radarr_api_key', label: 'Radarr API Key', type: 'password', tab: 'Radarr',
+    description: 'In Radarr unter Settings → General → Security.' },
   // Library Sources (Standalone Mode)
-  { key: 'standalone_enabled', label: 'Enable Standalone Mode', type: 'toggle', tab: 'Library Sources' },
-  { key: 'tmdb_api_key', label: 'TMDB API Key (Bearer Token)', type: 'password', tab: 'Library Sources' },
-  { key: 'tvdb_api_key', label: 'TVDB API Key (Optional)', type: 'password', tab: 'Library Sources' },
-  { key: 'tvdb_pin', label: 'TVDB PIN (Optional)', type: 'password', tab: 'Library Sources' },
-  { key: 'standalone_scan_interval_hours', label: 'Scan Interval (hours, 0=disabled)', type: 'number', placeholder: '6', tab: 'Library Sources' },
-  { key: 'standalone_debounce_seconds', label: 'File Detection Debounce (seconds)', type: 'number', placeholder: '10', tab: 'Library Sources' },
+  { key: 'standalone_enabled', label: 'Enable Standalone Mode', type: 'toggle', tab: 'Library Sources',
+    description: 'Direktes Dateisystem-Scanning ohne Sonarr/Radarr. Media Path muss konfiguriert sein.' },
+  { key: 'tmdb_api_key', label: 'TMDB API Key (Bearer Token)', type: 'password', tab: 'Library Sources',
+    description: 'Bearer Token von themoviedb.org für Metadaten-Abfragen.' },
+  { key: 'tvdb_api_key', label: 'TVDB API Key (Optional)', type: 'password', tab: 'Library Sources',
+    description: 'API Key von thetvdb.com. Optional — TMDB reicht für die meisten Fälle.' },
+  { key: 'tvdb_pin', label: 'TVDB PIN (Optional)', type: 'password', tab: 'Library Sources',
+    description: 'TVDB Subscriber PIN (nur für Subscriber-Plan benötigt).' },
+  { key: 'standalone_scan_interval_hours', label: 'Scan Interval (hours, 0=disabled)', type: 'number', placeholder: '6', tab: 'Library Sources',
+    description: 'Intervall für automatischen Dateisystem-Scan. 0 = deaktiviert.',
+    advanced: true },
+  { key: 'standalone_debounce_seconds', label: 'File Detection Debounce (seconds)', type: 'number', placeholder: '10', tab: 'Library Sources',
+    description: 'Wartezeit nach letzter Dateiänderung bevor Scan ausgelöst wird.',
+    advanced: true },
 ]
 
 // ─── Path Mapping Editor ────────────────────────────────────────────────────
@@ -494,12 +548,31 @@ const TAB_KEYS: Record<string, string> = {
 }
 
 export function SettingsPage() {
+  return (
+    <AdvancedSettingsProvider>
+      <SettingsPageInner />
+    </AdvancedSettingsProvider>
+  )
+}
+
+function SettingsPageInner() {
   const { t } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const updateConfig = useUpdateConfig()
   const [activeTab, setActiveTab] = useState('General')
   const [values, setValues] = useState<Record<string, string>>({})
-  const [testResults, setTestResults] = useState<Record<string, string>>({})
+  const { showAdvanced, toggleAdvanced } = useAdvancedSettings()
+
+  // Derived dirty state - true when any FIELDS value differs from last-loaded config
+  const isDirty = config != null && FIELDS.some(({ key }) => {
+    const current = values[key] ?? ''
+    const original = String(config[key] ?? '')
+    return current !== original && current !== '***configured***'
+  })
+
+  const blocker = useBlocker(isDirty)
+  const [connectionStatus, setConnectionStatus] = useState<Record<string, ConnectionStatus>>({})
+  const [connectionMessage, setConnectionMessage] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (config) {
@@ -510,6 +583,13 @@ export function SettingsPage() {
       setValues(v)
     }
   }, [config])
+
+  useEffect(() => {
+    if (!isDirty) return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault() }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
 
   const handleSave = () => {
     const changed: Record<string, unknown> = {}
@@ -535,19 +615,53 @@ export function SettingsPage() {
   }
 
   const handleTestConnection = async (service: string) => {
-    setTestResults((prev) => ({ ...prev, [service]: 'testing...' }))
+    setConnectionStatus((prev) => ({ ...prev, [service]: 'checking' }))
     try {
       const health = await getHealth()
-      const serviceKey = service.replace(' (Legacy)', '').toLowerCase()
-      const status = health.services[serviceKey] || 'unknown'
-      setTestResults((prev) => ({ ...prev, [service]: status }))
-    } catch {
-      setTestResults((prev) => ({ ...prev, [service]: 'error' }))
+      const key = service.replace(' (Legacy)', '').toLowerCase()
+      const ok = health.services[key] === 'OK' || health.services[key] === 'ok'
+      setConnectionStatus((prev) => ({ ...prev, [service]: ok ? 'connected' : 'error' }))
+      setConnectionMessage((prev) => ({ ...prev, [service]: ok ? '' : (health.services[key] ?? 'Fehler') }))
+    } catch (e: unknown) {
+      const msg = (e as { message?: string })?.message ?? 'Verbindung fehlgeschlagen'
+      setConnectionStatus((prev) => ({ ...prev, [service]: 'error' }))
+      setConnectionMessage((prev) => ({ ...prev, [service]: msg }))
     }
   }
 
-  const retranslateStatus = useRetranslateStatus()
-  const retranslateBatch = useRetranslateBatch()
+  const renderField = (field: FieldConfig) => (
+    <SettingRow
+      key={field.key}
+      label={field.label}
+      description={field.description}
+      advanced={field.advanced}
+      helpText={HELP_TEXT[field.key]}
+    >
+      {field.type === 'toggle' ? (
+        <Toggle
+          checked={values[field.key] === 'true'}
+          onChange={(v) => setValues((prev) => ({ ...prev, [field.key]: String(v) }))}
+          disabled={field.key === 'wanted_auto_translate' && values['wanted_auto_extract'] !== 'true'}
+        />
+      ) : (
+        <input
+          type={field.type}
+          value={values[field.key] === '***configured***' ? '' : (values[field.key] ?? '')}
+          onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
+          placeholder={values[field.key] === '***configured***' ? '(configured — enter new value to change)' : field.placeholder}
+          className="w-full px-3 py-2 rounded-md text-sm motion-safe:transition-all motion-safe:duration-150 focus:outline-none"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-primary)',
+            fontFamily: field.type === 'text' ? 'var(--font-mono)' : undefined,
+            fontSize: '13px',
+          }}
+        />
+      )}
+    </SettingRow>
+  )
+
   const exportConfig = useExportConfig()
   const importConfig = useImportConfig()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -602,7 +716,6 @@ export function SettingsPage() {
   }
 
   const tabFields = FIELDS.filter((f) => f.tab === activeTab)
-  const hasTestConnection = ['Sonarr', 'Radarr'].includes(activeTab)
   const isProvidersTab = activeTab === 'Providers'
   const isLanguagesTab = activeTab === 'Languages'
   const isTranslationTab = activeTab === 'Translation'
@@ -624,33 +737,91 @@ export function SettingsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 size={28} className="animate-spin" style={{ color: 'var(--accent)' }} />
+        <Loader2 size={28} className="motion-safe:animate-spin" style={{ color: 'var(--accent)' }} />
       </div>
     )
   }
 
   return (
+    <>
+      {blocker.state === 'blocked' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="rounded-lg p-6 w-80 space-y-4 shadow-xl"
+            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+            <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+              Ungespeicherte Änderungen
+            </h3>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Du hast Änderungen die noch nicht gespeichert wurden.
+              Wenn du jetzt navigierst, gehen sie verloren.
+            </p>
+            <div className="flex justify-between gap-3">
+              <button
+                onClick={() => blocker.proceed?.()}
+                className="px-4 py-2 rounded-md text-sm font-medium motion-safe:transition-colors"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+              >
+                Verwerfen
+              </button>
+              <button
+                onClick={() => blocker.reset?.()}
+                className="px-4 py-2 rounded-md text-sm font-medium text-white"
+                style={{ backgroundColor: 'var(--accent)' }}
+              >
+                Weiter bearbeiten
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1>{t('title')}</h1>
-        <button
-          onClick={handleSave}
-          disabled={updateConfig.isPending}
-          className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90"
-          style={{ backgroundColor: 'var(--accent)' }}
-        >
-          {updateConfig.isPending ? (
-            <>
-              <Loader2 size={14} className="animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save size={14} />
-              {t('actions.save')}
-            </>
+        <div className="flex items-center gap-3 flex-wrap">
+          <label
+            className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <input
+              type="checkbox"
+              checked={showAdvanced}
+              onChange={toggleAdvanced}
+              className="rounded"
+            />
+            Erweitert
+          </label>
+          {isDirty && (
+            <span
+              className="flex items-center gap-1.5 text-xs font-medium"
+              style={{ color: 'var(--warning)' }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--warning)' }} />
+              Ungespeicherte Änderungen
+            </span>
           )}
-        </button>
+          <button
+            onClick={handleSave}
+            disabled={!isDirty || updateConfig.isPending}
+            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white transition-opacity"
+            style={{
+              backgroundColor: 'var(--accent)',
+              opacity: (!isDirty || updateConfig.isPending) ? 0.5 : 1,
+              cursor: (!isDirty || updateConfig.isPending) ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {updateConfig.isPending ? (
+              <>
+                <Loader2 size={14} className="motion-safe:animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save size={14} />
+                {t('actions.save')}
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-5">
@@ -792,276 +963,160 @@ export function SettingsPage() {
               <TranslationQualitySection />
               <GlobalGlossaryPanel />
             </div>
+          ) : activeTab === 'General' ? (
+            <div className="space-y-4">
+              <SettingsCard title="Server" icon={Server}
+                description="Port und Medienpfad der Sublarr-Instanz">
+                {FIELDS.filter(f => f.tab === 'General' && ['port', 'media_path'].includes(f.key)).map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Sicherheit" icon={Shield}
+                description="API-Key-Authentifizierung für externe Zugriffe">
+                {FIELDS.filter(f => f.tab === 'General' && f.key === 'api_key').map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Protokollierung" icon={FileText}>
+                {FIELDS.filter(f => f.tab === 'General' && f.key === 'log_level').map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Pfadzuordnung" icon={Map}
+                description="Sonarr/Radarr Remote-Pfade auf lokale Pfade mappen">
+                <div className="py-3">
+                  <PathMappingEditor
+                    value={values.path_mapping ?? ''}
+                    onChange={(val) => setValues((v) => ({ ...v, path_mapping: val }))}
+                  />
+                </div>
+              </SettingsCard>
+              <SettingsCard title="Konfiguration" icon={Archive}
+                description="Einstellungen exportieren/importieren (API-Keys ausgenommen)">
+                <div className="py-4 flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleExport}
+                    disabled={exportConfig.isPending}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium motion-safe:transition-all motion-safe:duration-150"
+                    style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-dim)'; e.currentTarget.style.color = 'var(--accent)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+                  >
+                    {exportConfig.isPending ? <Loader2 size={14} className="motion-safe:animate-spin" /> : <FileDown size={14} />}
+                    Export Config
+                  </button>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium motion-safe:transition-all motion-safe:duration-150"
+                    style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-dim)'; e.currentTarget.style.color = 'var(--accent)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+                  >
+                    <Upload size={14} />
+                    Import Config
+                  </button>
+                  <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportFile} className="hidden" />
+                </div>
+                <div className="text-xs pb-3" style={{ color: 'var(--text-muted)' }}>
+                  API keys and secrets are excluded from export/import for security.
+                </div>
+                {importPreview && (
+                  <div className="rounded-lg p-4 space-y-3 mb-3" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--accent-dim)' }}>
+                    <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Import Preview</div>
+                    <div className="max-h-48 overflow-auto rounded px-3 py-2 text-xs" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+                      {Object.entries(importPreview).map(([key, val]) => (
+                        <div key={key}><span style={{ color: 'var(--accent)' }}>{key}</span>: {String(val)}</div>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={handleImportConfirm} disabled={importConfig.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>
+                        {importConfig.isPending ? <Loader2 size={12} className="motion-safe:animate-spin" /> : <Check size={12} />}
+                        Importieren
+                      </button>
+                      <button onClick={() => setImportPreview(null)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+                        <X size={12} />
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </SettingsCard>
+              <SettingsCard title="Datenbank" icon={Database}
+                description="Erweiterte Datenbankeinstellungen">
+                {FIELDS.filter(f => f.tab === 'General' && f.key === 'db_path').map(renderField)}
+              </SettingsCard>
+            </div>
+          ) : (activeTab === 'Sonarr' || activeTab === 'Radarr') ? (
+            <div className="space-y-4">
+              <SettingsCard
+                title="Verbindung"
+                description={`${activeTab}-Instanz mit Sublarr verbinden`}
+                connectionStatus={connectionStatus[activeTab] ?? 'unconfigured'}
+                connectionMessage={connectionMessage[activeTab]}
+              >
+                {FIELDS.filter(f => f.tab === activeTab).map(renderField)}
+                <div className="py-3">
+                  <button
+                    onClick={() => { void handleTestConnection(activeTab) }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium motion-safe:transition-all motion-safe:duration-150"
+                    style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-dim)'; e.currentTarget.style.color = 'var(--accent)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+                  >
+                    <TestTube size={14} />
+                    Test Verbindung
+                  </button>
+                </div>
+              </SettingsCard>
+              <SettingsCard title="Weitere Instanzen"
+                description="Mehrere Instanzen konfigurieren (optional)">
+                <div className="py-3">
+                  <InstanceEditor
+                    label={activeTab}
+                    value={values[`${activeTab.toLowerCase()}_instances_json`] ?? ''}
+                    onChange={(val) => setValues((v) => ({ ...v, [`${activeTab.toLowerCase()}_instances_json`]: val }))}
+                  />
+                </div>
+              </SettingsCard>
+            </div>
+          ) : activeTab === 'Automation' ? (
+            <div className="space-y-4">
+              <SettingsCard title="Webhook-Aktionen"
+                description="Was passiert automatisch nach Sonarr/Radarr Downloads">
+                {['webhook_auto_scan','webhook_auto_search','webhook_auto_translate']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Upgrade-Einstellungen"
+                description="Automatisches Upgrade auf bessere Untertitel">
+                {['upgrade_enabled','upgrade_prefer_ass','upgrade_min_score_delta','upgrade_window_days','webhook_delay_minutes']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Suchplanung"
+                description="Zeitgesteuerte Provider-Suche">
+                {['wanted_search_interval_hours','wanted_search_on_startup','wanted_search_max_items_per_run']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+            </div>
+          ) : activeTab === 'Wanted' ? (
+            <div className="space-y-4">
+              <SettingsCard title="Bibliotheks-Scan"
+                description="Wann und wie nach fehlenden Subs gesucht wird">
+                {['wanted_scan_interval_hours','wanted_scan_on_startup','wanted_anime_only','wanted_anime_movies_only']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Automatische Verarbeitung"
+                description="Was nach einem Scan automatisch passiert">
+                {['wanted_auto_extract','wanted_auto_translate','wanted_max_search_attempts']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+            </div>
           ) : (
             <div
               className="rounded-lg p-5 space-y-4"
               style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
             >
-              {tabFields.map((field) => (
-                <SettingRow
-                  key={field.key}
-                  label={field.label}
-                  helpText={HELP_TEXT[field.key]}
-                >
-                  {field.type === 'toggle' ? (
-                    <Toggle
-                      checked={values[field.key] === 'true'}
-                      onChange={(v) => setValues((prev) => ({ ...prev, [field.key]: String(v) }))}
-                      disabled={field.key === 'wanted_auto_translate' && values['wanted_auto_extract'] !== 'true'}
-                    />
-                  ) : (
-                    <input
-                      type={field.type}
-                      value={values[field.key] === '***configured***' ? '' : (values[field.key] ?? '')}
-                      onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
-                      placeholder={values[field.key] === '***configured***' ? '(configured \u2014 enter new value to change)' : field.placeholder}
-                      className="w-full px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
-                      style={{
-                        backgroundColor: 'var(--bg-primary)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--text-primary)',
-                        fontFamily: field.type === 'text' ? 'var(--font-mono)' : undefined,
-                        fontSize: '13px',
-                      }}
-                    />
-                  )}
-                </SettingRow>
-              ))}
-
-              {/* Path Mapping Table (General tab only) */}
-              {activeTab === 'General' && (
-                <PathMappingEditor
-                  value={values.path_mapping ?? ''}
-                  onChange={(val) => setValues((v) => ({ ...v, path_mapping: val }))}
-                />
-              )}
-
-              {hasTestConnection && (
-                <div className="pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-                  <button
-                    onClick={() => handleTestConnection(activeTab)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
-                    style={{
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-secondary)',
-                      backgroundColor: 'var(--bg-primary)',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--accent-dim)'
-                      e.currentTarget.style.color = 'var(--accent)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--border)'
-                      e.currentTarget.style.color = 'var(--text-secondary)'
-                    }}
-                  >
-                    <TestTube size={14} />
-                    Test Connection
-                  </button>
-                  {testResults[activeTab] && (
-                    <div className="mt-2 text-sm">
-                      Result:{' '}
-                      <span
-                        className="font-medium"
-                        style={{
-                          color: testResults[activeTab] === 'OK'
-                            ? 'var(--success)'
-                            : testResults[activeTab] === 'testing...'
-                              ? 'var(--accent)'
-                              : 'var(--error)',
-                        }}
-                      >
-                        {testResults[activeTab]}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === 'Sonarr' && (
-                <InstanceEditor
-                  label="Sonarr"
-                  value={values.sonarr_instances_json ?? ''}
-                  onChange={(val) => setValues((v) => ({ ...v, sonarr_instances_json: val }))}
-                />
-              )}
-
-              {activeTab === 'Radarr' && (
-                <InstanceEditor
-                  label="Radarr"
-                  value={values.radarr_instances_json ?? ''}
-                  onChange={(val) => setValues((v) => ({ ...v, radarr_instances_json: val }))}
-                />
-              )}
-
-              {isTranslationTab && retranslateStatus.data && (
-                <div className="pt-3 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-                      Re-Translation
-                    </h3>
-                    <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      <span>
-                        Config hash: <code style={{ fontFamily: 'var(--font-mono)' }}>{retranslateStatus.data.current_hash}</code>
-                      </span>
-                      <span>
-                        Model: <code style={{ fontFamily: 'var(--font-mono)' }}>{retranslateStatus.data.ollama_model}</code>
-                      </span>
-                    </div>
-                  </div>
-                  {retranslateStatus.data.outdated_count > 0 ? (
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm" style={{ color: 'var(--warning)' }}>
-                        {retranslateStatus.data.outdated_count} files translated with old config
-                      </span>
-                      <button
-                        onClick={() => retranslateBatch.mutate(undefined, {
-                          onSuccess: () => toast('Re-translation started'),
-                          onError: () => toast('Failed to start re-translation', 'error'),
-                        })}
-                        disabled={retranslateBatch.isPending}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-white hover:opacity-90"
-                        style={{ backgroundColor: 'var(--warning)' }}
-                      >
-                        {retranslateBatch.isPending ? (
-                          <Loader2 size={12} className="animate-spin" />
-                        ) : (
-                          <RefreshCw size={12} />
-                        )}
-                        Re-translate All
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="text-xs" style={{ color: 'var(--success)' }}>
-                      All translations are up to date
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Config Export/Import (General tab only) */}
-              {activeTab === 'General' && (
-                <div className="pt-3 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
-                  <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                    Config Backup
-                  </h3>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={handleExport}
-                      disabled={exportConfig.isPending}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
-                      style={{
-                        border: '1px solid var(--border)',
-                        color: 'var(--text-secondary)',
-                        backgroundColor: 'var(--bg-primary)',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--accent-dim)'
-                        e.currentTarget.style.color = 'var(--accent)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--border)'
-                        e.currentTarget.style.color = 'var(--text-secondary)'
-                      }}
-                    >
-                      {exportConfig.isPending ? (
-                        <Loader2 size={14} className="animate-spin" />
-                      ) : (
-                        <FileDown size={14} />
-                      )}
-                      Export Config
-                    </button>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150"
-                      style={{
-                        border: '1px solid var(--border)',
-                        color: 'var(--text-secondary)',
-                        backgroundColor: 'var(--bg-primary)',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--accent-dim)'
-                        e.currentTarget.style.color = 'var(--accent)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--border)'
-                        e.currentTarget.style.color = 'var(--text-secondary)'
-                      }}
-                    >
-                      <Upload size={14} />
-                      Import Config
-                    </button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".json"
-                      onChange={handleImportFile}
-                      className="hidden"
-                    />
-                  </div>
-                  <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    API keys and secrets are excluded from export/import for security.
-                  </div>
-
-                  {/* Import Preview Modal */}
-                  {importPreview && (
-                    <div
-                      className="rounded-lg p-4 space-y-3"
-                      style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--accent-dim)' }}
-                    >
-                      <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                        Import Preview
-                      </div>
-                      <div
-                        className="max-h-48 overflow-auto rounded px-3 py-2 text-xs"
-                        style={{
-                          backgroundColor: 'var(--bg-surface)',
-                          border: '1px solid var(--border)',
-                          fontFamily: 'var(--font-mono)',
-                          color: 'var(--text-secondary)',
-                        }}
-                      >
-                        {Object.entries(importPreview).map(([key, val]) => (
-                          <div key={key} className="py-0.5">
-                            <span style={{ color: 'var(--accent)' }}>{key}</span>
-                            <span style={{ color: 'var(--text-muted)' }}>{': '}</span>
-                            <span>{typeof val === 'string' ? val : JSON.stringify(val)}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={handleImportConfirm}
-                          disabled={importConfig.isPending}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white"
-                          style={{ backgroundColor: 'var(--accent)' }}
-                        >
-                          {importConfig.isPending ? (
-                            <Loader2 size={12} className="animate-spin" />
-                          ) : (
-                            <Check size={12} />
-                          )}
-                          Confirm Import
-                        </button>
-                        <button
-                          onClick={() => setImportPreview(null)}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded text-xs"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          <X size={12} />
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+              {tabFields.map(renderField)}
             </div>
           )}
           </Suspense>
         </div>
       </div>
     </div>
+    </>
   )
 }
 
