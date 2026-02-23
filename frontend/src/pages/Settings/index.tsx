@@ -701,46 +701,43 @@ function SettingsPageInner() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 size={28} className="animate-spin" style={{ color: 'var(--accent)' }} />
-      </div>
-    )
-  }
-
-  if (blocker.state === 'blocked') {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center"
-        style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-        <div className="rounded-lg p-6 w-80 space-y-4 shadow-xl"
-          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-          <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Ungespeicherte Änderungen
-          </h3>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Du hast Änderungen die noch nicht gespeichert wurden.
-            Wenn du jetzt navigierst, gehen sie verloren.
-          </p>
-          <div className="flex justify-between gap-3">
-            <button
-              onClick={() => blocker.proceed?.()}
-              className="px-4 py-2 rounded-md text-sm font-medium motion-safe:transition-colors"
-              style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-            >
-              Verwerfen
-            </button>
-            <button
-              onClick={() => blocker.reset?.()}
-              className="px-4 py-2 rounded-md text-sm font-medium text-white"
-              style={{ backgroundColor: 'var(--accent)' }}
-            >
-              Weiter bearbeiten
-            </button>
-          </div>
-        </div>
+        <Loader2 size={28} className="motion-safe:animate-spin" style={{ color: 'var(--accent)' }} />
       </div>
     )
   }
 
   return (
+    <>
+      {blocker.state === 'blocked' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="rounded-lg p-6 w-80 space-y-4 shadow-xl"
+            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+            <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+              Ungespeicherte Änderungen
+            </h3>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Du hast Änderungen die noch nicht gespeichert wurden.
+              Wenn du jetzt navigierst, gehen sie verloren.
+            </p>
+            <div className="flex justify-between gap-3">
+              <button
+                onClick={() => blocker.proceed?.()}
+                className="px-4 py-2 rounded-md text-sm font-medium motion-safe:transition-colors"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+              >
+                Verwerfen
+              </button>
+              <button
+                onClick={() => blocker.reset?.()}
+                className="px-4 py-2 rounded-md text-sm font-medium text-white"
+                style={{ backgroundColor: 'var(--accent)' }}
+              >
+                Weiter bearbeiten
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1>{t('title')}</h1>
@@ -778,7 +775,7 @@ function SettingsPageInner() {
           >
             {updateConfig.isPending ? (
               <>
-                <Loader2 size={14} className="animate-spin" />
+                <Loader2 size={14} className="motion-safe:animate-spin" />
                 Saving...
               </>
             ) : (
@@ -1200,6 +1197,7 @@ function SettingsPageInner() {
         </div>
       </div>
     </div>
+    </>
   )
 }
 
