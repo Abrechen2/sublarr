@@ -328,12 +328,23 @@ class SubtitleProvider(ABC):
         return False
 
     def initialize(self):
-        """Initialize provider (login, setup session). Override if needed."""
-        pass
+        """Initialize provider (login, setup session). Override if needed.
+
+        The base implementation is intentionally a no-op: providers that
+        require authentication or session setup override this method.
+        Providers with no setup requirements (e.g. anonymous scraping) inherit
+        this no-op directly.
+        """
+        # Intentional no-op: stateless providers need no initialization.
 
     def terminate(self):
-        """Cleanup provider (logout, close session). Override if needed."""
-        pass
+        """Cleanup provider (logout, close session). Override if needed.
+
+        The base implementation is intentionally a no-op: providers that hold
+        open sessions or auth tokens override this method to release resources.
+        Providers with no teardown requirements inherit this no-op directly.
+        """
+        # Intentional no-op: stateless providers need no cleanup.
 
     @abstractmethod
     def search(self, query: VideoQuery) -> list[SubtitleResult]:

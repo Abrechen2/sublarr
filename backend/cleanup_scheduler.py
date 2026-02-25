@@ -116,11 +116,39 @@ class CleanupScheduler:
             logger.info("Cleanup scheduler disabled after run (interval set to 0)")
             self._running = False
 
+    def _expire_zombie_jobs(self):
+        """Mark jobs stuck in 'running' state for more than 2 hours as failed.
+
+        Handles threads that die mid-job without updating the DB (distinct from
+        startup cleanup which only catches jobs interrupted by a restart).
+        """
+        from datetime import datetime, timedelta, timezone
+        from db.jobs import get_jobs, update_job
+
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+        try:
+            page = get_jobs(status="running", per_page=500)
+            expired = 0
+            for job in page.get("data", []):
+                created = job.get("created_at", "")
+                # Only expire if the job has been running longer than the cutoff
+                if created and created < cutoff:
+                    update_job(job["id"], "failed", error="Job timed out — running for more than 2 hours")
+                    logger.warning("Expired zombie job %s (created_at=%s)", job["id"], created)
+                    expired += 1
+            if expired:
+                logger.info("Zombie job expiry: marked %d stale running jobs as failed", expired)
+        except Exception as e:
+            logger.warning("Zombie job expiry check failed: %s", e)
+
     def _execute_cleanup(self):
         """Run all enabled cleanup rules in order."""
         from db.repositories.cleanup import CleanupRepository
         from config import get_settings
         from dedup_engine import scan_for_duplicates, scan_orphaned_subtitles
+
+        # Always run zombie-job expiry regardless of user-configured cleanup rules
+        self._expire_zombie_jobs()
 
         repo = CleanupRepository()
         rules = repo.get_rules()

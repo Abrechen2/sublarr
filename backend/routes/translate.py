@@ -701,6 +701,9 @@ def batch_start():
 
     files = scan_directory(directory, force=force)
 
+    if not dry_run and not files:
+        return jsonify({"error": "No items provided"}), 400
+
     if dry_run:
         total_files = len(files)
         total_pages = max(1, (total_files + per_page - 1) // per_page)

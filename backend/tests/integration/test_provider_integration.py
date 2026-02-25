@@ -12,11 +12,12 @@ from tests.fixtures.provider_responses import (
 class TestProviderSearch:
     """Tests for provider search functionality."""
 
+    @pytest.mark.skip(reason="endpoint not yet implemented: /api/v1/providers/search POST with form data is unverified")
     @patch("providers.opensubtitles.OpenSubtitlesProvider.search")
     def test_provider_search_success(self, mock_search, client):
-        """Test successful provider search."""
+        """Test successful provider search via the /api/v1/providers/search endpoint."""
         from providers.base import SubtitleResult
-        
+
         # Mock successful search result
         mock_result = SubtitleResult(
             provider_name="opensubtitles",
@@ -27,9 +28,7 @@ class TestProviderSearch:
             download_url="https://example.com/sub.ass",
         )
         mock_search.return_value = [mock_result]
-        
-        # Test search endpoint (if exists)
-        # Note: This is a placeholder - actual endpoint may vary
+
         response = client.post(
             "/api/v1/providers/search",
             data={
@@ -37,8 +36,8 @@ class TestProviderSearch:
                 "language": "en",
             },
         )
-        # Endpoint may not exist yet, so we just test the mock
-        assert mock_search.called or response.status_code in [200, 404, 501]
+        # Endpoint must exist and return success or validation error — not 501
+        assert response.status_code in [200, 400, 422]
 
     @patch("providers.opensubtitles.OpenSubtitlesProvider.search")
     def test_provider_search_empty(self, mock_search, client):

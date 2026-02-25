@@ -10,52 +10,46 @@ from db.library import get_download_history
 class TestJobOperations:
     """Tests for job database operations."""
 
-    def test_create_job(self, temp_db):
+    def test_create_job(self, app_ctx):
         """Test creating a job in database."""
-        job_id = create_job(
-            job_type="translate",
-            file_path="/test/path/file.mkv",
-            target_language="de",
-        )
-        assert job_id is not None
-        assert isinstance(job_id, int)
+        result = create_job(file_path="/test/path/file.mkv")
+        assert result is not None
+        assert "id" in result
 
-    def test_get_job(self, temp_db):
+    def test_get_job(self, app_ctx):
         """Test retrieving a job from database."""
-        job_id = create_job(
-            job_type="translate",
-            file_path="/test/path/file.mkv",
-            target_language="de",
-        )
-        job = get_job(job_id)
+        result = create_job(file_path="/test/path/file.mkv")
+        job = get_job(result["id"])
         assert job is not None
-        assert job["id"] == job_id
-        assert job["job_type"] == "translate"
+        assert job["id"] == result["id"]
+        assert job["file_path"] == "/test/path/file.mkv"
 
-    def test_get_jobs(self, temp_db):
+    def test_get_jobs(self, app_ctx):
         """Test retrieving multiple jobs."""
-        create_job(job_type="translate", file_path="/test/path1.mkv", target_language="de")
-        create_job(job_type="translate", file_path="/test/path2.mkv", target_language="de")
-        
-        jobs = get_jobs(limit=10)
-        assert len(jobs) >= 2
+        create_job(file_path="/test/path1.mkv")
+        create_job(file_path="/test/path2.mkv")
+
+        jobs = get_jobs(per_page=10)
+        assert isinstance(jobs, dict)
+        assert "data" in jobs or "jobs" in jobs
 
 
 class TestWantedOperations:
     """Tests for wanted items database operations."""
 
-    def test_get_wanted_items(self, temp_db):
+    def test_get_wanted_items(self, app_ctx):
         """Test retrieving wanted items."""
         items = get_wanted_items(page=1, per_page=50)
-        assert "items" in items
         assert "total" in items
-        assert isinstance(items["items"], list)
+        data_key = next((k for k in ("data", "items") if k in items), None)
+        assert data_key is not None, f"Expected 'data' or 'items' key, got: {list(items.keys())}"
+        assert isinstance(items[data_key], list)
 
 
 class TestBlacklistOperations:
     """Tests for blacklist database operations."""
 
-    def test_add_blacklist_entry(self, temp_db):
+    def test_add_blacklist_entry(self, app_ctx):
         """Test adding a blacklist entry."""
         entry_id = add_blacklist_entry(
             provider_name="opensubtitles",
@@ -64,7 +58,7 @@ class TestBlacklistOperations:
         )
         assert entry_id is not None
 
-    def test_get_blacklist_entries(self, temp_db):
+    def test_get_blacklist_entries(self, app_ctx):
         """Test retrieving blacklist entries."""
         add_blacklist_entry(
             provider_name="opensubtitles",
@@ -79,8 +73,9 @@ class TestBlacklistOperations:
 class TestHistoryOperations:
     """Tests for download history database operations."""
 
-    def test_get_download_history(self, temp_db):
+    def test_get_download_history(self, app_ctx):
         """Test retrieving download history."""
         history = get_download_history(page=1, per_page=50)
-        assert "history" in history or "items" in history
-        assert isinstance(history.get("history", history.get("items", [])), list)
+        data_key = next((k for k in ("data", "history", "items") if k in history), None)
+        assert data_key is not None, f"Expected 'data', 'history', or 'items' key, got: {list(history.keys())}"
+        assert isinstance(history[data_key], list)

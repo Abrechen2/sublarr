@@ -623,21 +623,11 @@ def get_status():
         status = manager.get_status()
         return jsonify(status)
     except ImportError:
-        # StandaloneManager not yet implemented -- return basic status
-        from db.standalone import get_watched_folders, get_standalone_series, get_standalone_movies
-        from config import get_settings
-
-        settings = get_settings()
-        folders = get_watched_folders(enabled_only=False)
-        series = get_standalone_series()
-        movies = get_standalone_movies()
-
+        # StandaloneManager not yet implemented
         return jsonify({
-            "enabled": getattr(settings, "standalone_enabled", False),
-            "watched_folders": len(folders),
-            "series_count": len(series) if isinstance(series, list) else 0,
-            "movie_count": len(movies) if isinstance(movies, list) else 0,
-        })
+            "status": "not_implemented",
+            "message": "StandaloneManager is not yet implemented",
+        }), 501
     except Exception as e:
         logger.error("Failed to get standalone status: %s", e)
         return jsonify({"error": "Failed to get standalone status"}), 500

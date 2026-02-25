@@ -60,3 +60,4 @@ test-media/
 coverage.xml
 htmlcov/
 frontend/lint-results.json
+frontend/test-results/

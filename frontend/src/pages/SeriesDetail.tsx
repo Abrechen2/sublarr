@@ -1252,14 +1252,18 @@ export function SeriesDetailPage() {
       .sort((a, b) => b[0] - a[0]) // Latest season first
   }, [series?.episodes])
 
-  // Count missing subs
+  // Count missing subs — align with Library's definition:
+  // only episodes where existing_sub is '' or null/undefined (no subtitle at all).
+  // 'srt', 'embedded_srt', 'embedded_ass', 'ass' etc. are NOT missing — they are
+  // upgrade candidates or already satisfied, matching get_series_missing_counts() logic.
   const missingCount = useMemo(() => {
     if (!series?.episodes) return 0
     let count = 0
     for (const ep of series.episodes) {
       if (!ep.has_file) continue
       for (const lang of series.target_languages) {
-        if (!ep.subtitles[lang] || ep.subtitles[lang] === '') {
+        const sub = ep.subtitles[lang]
+        if (sub == null || sub === '') {
           count++
         }
       }
