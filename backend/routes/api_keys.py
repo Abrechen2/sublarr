@@ -98,21 +98,22 @@ def _get_service_info(service_name: str) -> dict:
     if entry is None:
         return None
 
-    keys_status = {}
+    keys_list = []
     for key_name in entry["keys"]:
         raw = get_config_entry(key_name) or ""
-        keys_status[key_name] = {
-            "configured": bool(raw),
-            "masked_value": _mask_value(raw) if raw else "",
-        }
+        keys_list.append({
+            "name": key_name,
+            "status": "configured" if raw else "missing",
+            "masked_value": _mask_value(raw) if raw else "(not set)",
+        })
 
-    all_configured = all(ks["configured"] for ks in keys_status.values())
-    any_configured = any(ks["configured"] for ks in keys_status.values())
+    all_configured = all(k["status"] == "configured" for k in keys_list)
+    any_configured = any(k["status"] == "configured" for k in keys_list)
 
     return {
         "service": service_name,
         "label": entry["label"],
-        "keys": keys_status,
+        "keys": keys_list,
         "status": "configured" if all_configured else ("partial" if any_configured else "missing"),
         "testable": entry["test_fn"] is not None,
     }
