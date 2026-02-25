@@ -180,16 +180,17 @@ export function InteractiveSearchModal({
         role="dialog"
       >
         <div
-          className="pointer-events-auto w-full max-w-4xl bg-[#1a1a2e] border border-[#2a2a4a] rounded-xl shadow-2xl flex flex-col max-h-[85vh]"
+          className="pointer-events-auto w-full max-w-4xl rounded-lg shadow-2xl flex flex-col max-h-[85vh]"
+          style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-[#2a2a4a]">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
             <div className="flex items-center gap-3 min-w-0">
               <Search className="w-5 h-5 text-teal-400 shrink-0" />
               <div className="min-w-0">
-                <p className="text-xs text-slate-400 uppercase tracking-wider">Interaktive Suche</p>
-                <h2 className="text-sm font-semibold text-white truncate">{itemTitle}</h2>
+                <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Interaktive Suche</p>
+                <h2 className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{itemTitle}</h2>
               </div>
             </div>
             <div className="flex items-center gap-2 ml-3">
@@ -212,7 +213,7 @@ export function InteractiveSearchModal({
           </div>
 
           {/* Filter bar */}
-          <div className="px-5 py-3 border-b border-[#2a2a4a] flex flex-wrap gap-2 items-center">
+          <div className="px-5 py-3 border-b border-[var(--border)] flex flex-wrap gap-2 items-center">
             <FilterSelect
               label="Sprache"
               value={langFilter}
@@ -269,8 +270,8 @@ export function InteractiveSearchModal({
 
             {!isLoading && filtered.length > 0 && (
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-[#1a1a2e] border-b border-[#2a2a4a]">
-                  <tr className="text-left text-xs text-slate-400 uppercase tracking-wider">
+                <thead className="sticky top-0 border-b border-[var(--border)]" style={{ backgroundColor: 'var(--bg-elevated)' }}>
+                  <tr className="text-left text-xs uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                     <th className="px-4 py-2.5 font-medium">Anbieter</th>
                     <th className="px-4 py-2.5 font-medium">Dateiname</th>
                     <th className="px-4 py-2.5 font-medium w-12">Lang</th>
@@ -280,7 +281,7 @@ export function InteractiveSearchModal({
                     <th className="px-4 py-2.5 font-medium w-12"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#2a2a4a]">
+                <tbody className="divide-y divide-[var(--border)]">
                   {filtered.map((result) => {
                     const key = `${result.provider_name}:${result.subtitle_id}`
                     const isPopoverOpen = popover?.rowKey === key
@@ -374,7 +375,7 @@ export function InteractiveSearchModal({
           </div>
 
           {/* Footer */}
-          <div className="px-5 py-3 border-t border-[#2a2a4a] flex items-center justify-end">
+          <div className="px-5 py-3 border-t border-[var(--border)] flex items-center justify-end">
             <button
               onClick={onClose}
               className="px-4 py-2 text-sm text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
@@ -390,22 +391,29 @@ export function InteractiveSearchModal({
         <div
           data-popover
           style={{ top: popover.top, left: popover.left }}
-          className="fixed z-[60] bg-[#1e1e36] border border-[#3a3a5a] rounded-lg shadow-xl py-1 min-w-[220px]"
+          className="fixed z-[60] rounded-lg shadow-xl py-1 min-w-[220px]"
+          style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-hover)' }}
         >
           <button
             onClick={() => handleDownload(false)}
             disabled={isDownloading}
-            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-200 hover:bg-white/10 transition-colors disabled:opacity-50"
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors disabled:opacity-50"
+            style={{ color: 'var(--text-primary)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '' }}
           >
-            <Download className="w-4 h-4 text-slate-400" />
+            <Download className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
             Nur herunterladen
           </button>
           <button
             onClick={() => handleDownload(true)}
             disabled={isDownloading}
-            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-200 hover:bg-white/10 transition-colors disabled:opacity-50"
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors disabled:opacity-50"
+            style={{ color: 'var(--text-primary)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '' }}
           >
-            <ChevronsRight className="w-4 h-4 text-teal-400" />
+            <ChevronsRight className="w-4 h-4" style={{ color: 'var(--accent)' }} />
             Herunterladen & Übersetzen
           </button>
         </div>
@@ -428,7 +436,8 @@ function FilterSelect({ label, value, onChange, options }: FilterSelectProps) {
     <select
       value={value}
       onChange={e => onChange(e.target.value)}
-      className="text-xs bg-[#0f0f1e] border border-[#2a2a4a] text-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-teal-500 transition-colors"
+      className="text-xs rounded px-2.5 py-1.5 focus:outline-none transition-colors"
+      style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
     >
       <option value="">{label}: Alle</option>
       {options.map(opt => (

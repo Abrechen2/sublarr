@@ -75,7 +75,7 @@ export function Sidebar() {
       {/* Mobile Hamburger */}
       <button
         onClick={() => setMobileOpen(!mobileOpen)}
-        className="fixed top-3 left-3 z-50 md:hidden p-2 rounded-md"
+        className="fixed top-3 left-3 z-50 md:hidden p-2 rounded"
         style={{
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border)',
@@ -107,68 +107,60 @@ export function Sidebar() {
           borderRight: '1px solid var(--border)',
         }}
       >
-        {/* Accent bar at top */}
-        <div
-          className="h-[2px] w-full shrink-0"
-          style={{ background: 'linear-gradient(90deg, var(--accent), var(--accent-dim))' }}
-        />
-
         {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-4">
-          <img src="/logo-192.png" alt="Sublarr" className="w-8 h-8 rounded-md" />
+        <div className="flex items-center gap-2.5 px-4 py-3.5" style={{ borderBottom: '1px solid var(--border)' }}>
+          <img src="/logo-192.png" alt="Sublarr" className="w-7 h-7 rounded" />
           <span
-            className="text-lg font-bold tracking-tight"
+            className="text-base font-bold tracking-tight"
             style={{ color: 'var(--accent)' }}
           >
             Sublarr
           </span>
         </div>
 
-        {/* Divider */}
-        <div className="mx-4 mb-1" style={{ borderTop: '1px solid var(--border)' }} />
-
-        {/* Search Trigger */}
-        <button
-          data-testid="sidebar-search-trigger"
-          onClick={() => {
-            // Dispatch Ctrl+K event to open GlobalSearchModal (handled in App.tsx)
-            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))
-          }}
-          className="mx-3 mb-2 flex items-center gap-2.5 px-3 py-2 rounded-md text-xs transition-all duration-150"
-          style={{
-            backgroundColor: 'var(--bg-primary)',
-            color: 'var(--text-muted)',
-            border: '1px solid var(--border)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'var(--accent-dim)'
-            e.currentTarget.style.color = 'var(--text-secondary)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border)'
-            e.currentTarget.style.color = 'var(--text-muted)'
-          }}
-        >
-          <Search size={14} />
-          <span className="flex-1 text-left">{t('search.placeholder', 'Search...')}</span>
-          <kbd
-            className="text-[10px] px-1.5 py-0.5 rounded"
+        {/* Search Trigger — styled as real input */}
+        <div className="px-3 py-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
+          <button
+            data-testid="sidebar-search-trigger"
+            onClick={() => {
+              document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))
+            }}
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-[12px] transition-colors duration-150"
             style={{
-              backgroundColor: 'var(--bg-surface)',
+              backgroundColor: 'var(--bg-primary)',
+              color: 'var(--text-muted)',
               border: '1px solid var(--border)',
-              fontFamily: 'var(--font-mono)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border-hover)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border)'
             }}
           >
-            {navigator.platform?.includes('Mac') ? '\u2318K' : 'Ctrl+K'}
-          </kbd>
-        </button>
+            <Search size={13} strokeWidth={1.8} />
+            <span className="flex-1 text-left">{t('search.placeholder', 'Suchen...')}</span>
+            <kbd
+              className="text-[9px] px-1 py-0.5 rounded hidden sm:inline"
+              style={{
+                backgroundColor: 'var(--bg-elevated)',
+                border: '1px solid var(--border-hover)',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--text-muted)',
+                lineHeight: 1.4,
+              }}
+            >
+              {navigator.platform?.includes('Mac') ? '⌘K' : 'Ctrl+K'}
+            </kbd>
+          </button>
+        </div>
 
         {/* Navigation */}
-        <nav data-testid="sidebar-nav" className="flex-1 px-3 py-1 overflow-y-auto">
+        <nav data-testid="sidebar-nav" className="flex-1 px-2 py-2 overflow-y-auto">
           {navGroups.map((group) => (
-            <div key={group.titleKey} className="mb-3">
+            <div key={group.titleKey} className="mb-1">
               <div
-                className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest"
+                className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest"
                 style={{ color: 'var(--text-muted)' }}
               >
                 {t(group.titleKey)}
@@ -182,13 +174,14 @@ export function Sidebar() {
                   onClick={() => setMobileOpen(false)}
                   className={({ isActive }) =>
                     cn(
-                      'flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-all duration-150 mb-0.5 relative',
-                      isActive ? '' : 'hover:bg-[var(--bg-surface-hover)]'
+                      'flex items-center gap-2.5 px-3 py-[7px] text-[13px] font-medium transition-colors duration-100 mb-px relative',
+                      !isActive && 'hover:text-[var(--text-primary)]'
                     )
                   }
                   style={({ isActive }) => ({
-                    backgroundColor: isActive ? 'var(--accent-bg)' : 'transparent',
                     color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                    backgroundColor: isActive ? 'rgba(29, 184, 212, 0.06)' : 'transparent',
+                    borderRadius: '4px',
                   })}
                 >
                   {({ isActive }) => (
@@ -196,11 +189,15 @@ export function Sidebar() {
                       {/* Active indicator bar */}
                       {isActive && (
                         <div
-                          className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
+                          className="absolute left-0 top-[5px] bottom-[5px] w-[3px] rounded-r-sm"
                           style={{ backgroundColor: 'var(--accent)' }}
                         />
                       )}
-                      <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
+                      <Icon
+                        size={15}
+                        strokeWidth={isActive ? 2.2 : 1.8}
+                        style={{ marginLeft: isActive ? 2 : 0 }}
+                      />
                       {t(labelKey)}
                     </>
                   )}
@@ -211,17 +208,17 @@ export function Sidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="px-4 py-3" style={{ borderTop: '1px solid var(--border)' }}>
+        <div className="px-3 py-2.5" style={{ borderTop: '1px solid var(--border)' }}>
           {/* Scan progress */}
           <ScanProgressIndicator />
 
           {/* Donate + Star */}
-          <div className="flex gap-2 mb-2.5">
+          <div className="flex gap-1.5 mb-2">
             <a
               href="https://www.paypal.com/donate?hosted_button_id=GLXYTD3FV9Y78"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 flex-1 py-1.5 rounded-md text-[11px] font-medium transition-all duration-150"
+              className="flex items-center justify-center gap-1.5 flex-1 py-1 rounded text-[11px] font-medium transition-colors duration-150"
               style={{
                 color: 'var(--text-muted)',
                 border: '1px solid var(--border)',
@@ -235,14 +232,14 @@ export function Sidebar() {
                 e.currentTarget.style.color = 'var(--text-muted)'
               }}
             >
-              <Heart size={12} style={{ color: '#e85d8a' }} />
+              <Heart size={11} style={{ color: '#e85d8a' }} />
               Donate
             </a>
             <a
               href="https://github.com/Abrechen2/sublarr"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 flex-1 py-1.5 rounded-md text-[11px] font-medium transition-all duration-150"
+              className="flex items-center justify-center gap-1.5 flex-1 py-1 rounded text-[11px] font-medium transition-colors duration-150"
               style={{
                 color: 'var(--text-muted)',
                 border: '1px solid var(--border)',
@@ -256,22 +253,22 @@ export function Sidebar() {
                 e.currentTarget.style.color = 'var(--text-muted)'
               }}
             >
-              <Star size={12} style={{ color: '#f5a623' }} />
+              <Star size={11} style={{ color: '#f5a623' }} />
               Star
             </a>
           </div>
 
-          <div className="flex items-center justify-end gap-1.5 mb-2">
+          <div className="flex items-center justify-end gap-1 mb-1.5">
             <ThemeToggle />
             <LanguageSwitcher />
           </div>
-          <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+
+          <div className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
             <div
               data-testid="health-indicator"
-              className="w-2 h-2 rounded-full shrink-0"
+              className="w-1.5 h-1.5 rounded-full shrink-0"
               style={{
                 backgroundColor: isHealthy ? 'var(--success)' : 'var(--error)',
-                color: isHealthy ? 'var(--success)' : 'var(--error)',
                 animation: 'dotGlow 2s ease-in-out infinite',
               }}
             />

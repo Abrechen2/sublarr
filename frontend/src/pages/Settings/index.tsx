@@ -45,12 +45,13 @@ const MigrationTab = lazy(() => import('./MigrationTab').then(m => ({ default: m
 
 function TabSkeleton() {
   return (
-    <div className="rounded-lg p-5 animate-pulse" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-      <div className="space-y-5">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-10 rounded" style={{ backgroundColor: 'var(--bg-primary)' }} />
-        ))}
-      </div>
+    <div className="animate-pulse space-y-4 pt-2">
+      {[...Array(5)].map((_, i) => (
+        <div key={i} className="grid grid-cols-[200px_1fr] gap-6 py-3" style={{ borderTop: i > 0 ? '1px solid var(--border)' : undefined }}>
+          <div className="h-4 rounded" style={{ backgroundColor: 'var(--bg-surface-hover)', width: '60%' }} />
+          <div className="h-8 rounded" style={{ backgroundColor: 'var(--bg-surface-hover)' }} />
+        </div>
+      ))}
     </div>
   )
 }
@@ -793,7 +794,7 @@ function SettingsPageInner() {
 
       <div className="flex flex-col md:flex-row gap-5">
         {/* Grouped Navigation Sidebar */}
-        <nav className="w-full md:w-52 shrink-0 flex flex-row md:flex-col gap-0 overflow-x-auto md:overflow-x-visible">
+        <nav className="w-full md:w-48 shrink-0 flex flex-row md:flex-col gap-0 overflow-x-auto md:overflow-x-visible">
           {NAV_GROUPS.map((group) => {
             const Icon = group.icon
             return (
@@ -814,21 +815,21 @@ function SettingsPageInner() {
                       <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
-                        className="text-left px-3 py-2 rounded-md text-[13px] font-medium transition-all duration-150 whitespace-nowrap relative"
+                        className="text-left px-3 py-[7px] rounded text-[13px] font-medium transition-colors duration-100 whitespace-nowrap relative"
                         style={{
-                          backgroundColor: isActive ? 'var(--accent-bg)' : 'transparent',
+                          backgroundColor: isActive ? 'rgba(29, 184, 212, 0.06)' : 'transparent',
                           color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
                         }}
                         onMouseEnter={(e) => {
-                          if (!isActive) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
+                          if (!isActive) e.currentTarget.style.color = 'var(--text-primary)'
                         }}
                         onMouseLeave={(e) => {
-                          if (!isActive) e.currentTarget.style.backgroundColor = 'transparent'
+                          if (!isActive) e.currentTarget.style.color = 'var(--text-secondary)'
                         }}
                       >
                         {isActive && (
                           <div
-                            className="hidden md:block absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
+                            className="hidden md:block absolute left-0 top-[5px] bottom-[5px] w-[3px] rounded-r-sm"
                             style={{ backgroundColor: 'var(--accent)' }}
                           />
                         )}
@@ -888,16 +889,11 @@ function SettingsPageInner() {
           ) : isNotificationTemplatesTab ? (
             <NotificationTemplatesTab />
           ) : isTranslationTab ? (
-            <div className="space-y-5">
-              <div
-                className="rounded-lg p-5 space-y-4"
-                style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
-              >
-                {tabFields.map((field) => renderField(field))}
-                <ContextWindowSizeRow />
-                <DefaultSyncEngineRow />
-                <AutoSyncSection />
-              </div>
+            <div className="space-y-0">
+              {tabFields.map((field) => renderField(field))}
+              <ContextWindowSizeRow />
+              <DefaultSyncEngineRow />
+              <AutoSyncSection />
               <TranslationMemorySection />
               <TranslationQualitySection />
               <GlobalGlossaryPanel />
