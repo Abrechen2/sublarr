@@ -191,12 +191,38 @@ def create_app(testing=False):
         from db import init_db
         init_db()
 
+        # Remove duplicate wanted_items rows that may exist in databases created
+        # before the uq_wanted_file_lang_type UNIQUE constraint was added.
+        # Keeps the row with the lowest rowid (earliest insert) for each
+        # (file_path, target_language, subtitle_type) combination.
+        try:
+            from sqlalchemy import text as _text
+            with sa_db.engine.connect() as _conn:
+                _dedup_result = _conn.execute(_text(
+                    "DELETE FROM wanted_items WHERE rowid NOT IN ("
+                    "  SELECT MIN(rowid) FROM wanted_items"
+                    "  GROUP BY file_path,"
+                    "    COALESCE(target_language, ''),"
+                    "    COALESCE(subtitle_type, 'full')"
+                    ")"
+                ))
+                _conn.commit()
+                if _dedup_result.rowcount:
+                    logger.warning(
+                        "wanted_items dedup: removed %d duplicate row(s) on startup",
+                        _dedup_result.rowcount,
+                    )
+                else:
+                    logger.debug("wanted_items dedup: no duplicates found")
+        except Exception as _e:
+            logger.warning("wanted_items dedup failed (non-fatal): %s", _e)
+
         # Mark any jobs stuck in "running" state as failed (zombie cleanup after crash/restart)
         if not testing:
             try:
                 from db.jobs import get_jobs, update_job
                 zombie_page = get_jobs(status="running", per_page=200)
-                for zombie in zombie_page.get("jobs", []):
+                for zombie in zombie_page.get("data", []):
                     update_job(zombie["id"], "failed", error="Server restarted — job interrupted")
                     logger.info("Cleaned up zombie job %s", zombie["id"])
             except Exception as e:

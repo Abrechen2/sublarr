@@ -31,8 +31,18 @@ def _health_check_providers():
         from providers import get_provider_manager
         manager = get_provider_manager()
         provider_statuses = manager.get_provider_status()
+        total = len(provider_statuses)
+        if total == 0:
+            return {"providers": "healthy"}, None
         active_count = sum(1 for p in provider_statuses if p["healthy"])
-        return {"providers": f"{active_count}/{len(provider_statuses)} active"}, None
+        error_count = total - active_count
+        if error_count == 0:
+            status = "healthy"
+        elif error_count == total:
+            status = "error"
+        else:
+            status = "degraded"
+        return {"providers": f"{status} ({active_count}/{total} active)"}, None
     except Exception:
         return {"providers": "error"}, None
 
@@ -1538,6 +1548,8 @@ def get_logs():
     level = request.args.get("level", "").upper()
 
     import collections
+    if not lines or lines <= 0:
+        lines = 200
     lines = min(lines, 2000)
     log_entries = []
     if os.path.exists(log_file):

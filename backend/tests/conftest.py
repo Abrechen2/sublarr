@@ -46,6 +46,14 @@ def temp_db():
 
 
 @pytest.fixture
+def app_ctx(temp_db):
+    """Provide Flask application context for DB-layer unit tests."""
+    app = create_app(testing=True)
+    with app.app_context():
+        yield app
+
+
+@pytest.fixture
 def client(temp_db):
     """Create a test client for Flask app."""
     app = create_app(testing=True)

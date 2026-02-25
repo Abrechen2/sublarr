@@ -515,6 +515,10 @@ def wanted_batch_search():
         item_ids = data.get("item_ids")
         series_id = data.get("series_id")
 
+        # Reject explicitly provided empty item_ids list
+        if isinstance(item_ids, list) and len(item_ids) == 0:
+            return jsonify({"error": "No items provided"}), 400
+
         # If series_id provided, resolve to item IDs for that series
         if series_id and not item_ids:
             from db.wanted import get_wanted_for_series
@@ -523,6 +527,8 @@ def wanted_batch_search():
 
         # If series_ids (plural) provided, resolve to item IDs across all listed series
         series_ids = data.get("series_ids", [])
+        if isinstance(series_ids, list) and len(series_ids) == 0 and "series_ids" in data:
+            return jsonify({"error": "No items provided"}), 400
         if series_ids and not item_ids:
             from db.wanted import get_wanted_for_series
             collected: list[int] = []
@@ -532,7 +538,6 @@ def wanted_batch_search():
                     item["id"]
                     for item in series_items
                     if item.get("status") not in ("downloading", "translating")
-                    
                 )
             item_ids = collected
 

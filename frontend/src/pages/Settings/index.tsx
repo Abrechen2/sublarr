@@ -893,35 +893,7 @@ function SettingsPageInner() {
                 className="rounded-lg p-5 space-y-4"
                 style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
               >
-                {tabFields.map((field) => (
-                  <SettingRow
-                    key={field.key}
-                    label={field.label}
-                    helpText={HELP_TEXT[field.key]}
-                  >
-                    {field.type === 'toggle' ? (
-                      <Toggle
-                        checked={values[field.key] === 'true'}
-                        onChange={(v) => setValues((prev) => ({ ...prev, [field.key]: String(v) }))}
-                      />
-                    ) : (
-                      <input
-                        type={field.type}
-                        value={values[field.key] === '***configured***' ? '' : (values[field.key] ?? '')}
-                        onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
-                        placeholder={values[field.key] === '***configured***' ? '(configured \u2014 enter new value to change)' : field.placeholder}
-                        className="w-full px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
-                        style={{
-                          backgroundColor: 'var(--bg-primary)',
-                          border: '1px solid var(--border)',
-                          color: 'var(--text-primary)',
-                          fontFamily: field.type === 'text' ? 'var(--font-mono)' : undefined,
-                          fontSize: '13px',
-                        }}
-                      />
-                    )}
-                  </SettingRow>
-                ))}
+                {tabFields.map((field) => renderField(field))}
                 <ContextWindowSizeRow />
                 <DefaultSyncEngineRow />
                 <AutoSyncSection />

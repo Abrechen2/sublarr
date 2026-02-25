@@ -9,38 +9,46 @@ All sent notifications are logged to history.
 
 import json
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
 _apprise_instance = None
 _sandbox_env = None
+_apprise_lock = threading.Lock()
 
 
 def _get_apprise():
-    """Get or create the singleton Apprise instance."""
+    """Get or create the singleton Apprise instance (thread-safe)."""
     global _apprise_instance
+    # Fast path: already initialized
     if _apprise_instance is not None:
         return _apprise_instance
 
-    try:
-        import apprise
-    except ImportError:
-        logger.warning("Apprise not installed — notifications disabled")
-        return None
+    with _apprise_lock:
+        # Double-checked locking: re-test under the lock
+        if _apprise_instance is not None:
+            return _apprise_instance
 
-    from config import get_settings
-    settings = get_settings()
-    urls = _parse_notification_urls(settings.notification_urls_json)
+        try:
+            import apprise
+        except ImportError:
+            logger.warning("Apprise not installed — notifications disabled")
+            return None
 
-    if not urls:
-        return None
+        from config import get_settings
+        settings = get_settings()
+        urls = _parse_notification_urls(settings.notification_urls_json)
 
-    ap = apprise.Apprise()
-    for url in urls:
-        ap.add(url)
+        if not urls:
+            return None
 
-    _apprise_instance = ap
-    return ap
+        ap = apprise.Apprise()
+        for url in urls:
+            ap.add(url)
+
+        _apprise_instance = ap
+        return ap
 
 
 def _get_sandbox_env():
@@ -76,9 +84,14 @@ def _parse_notification_urls(urls_json: str) -> list[str]:
 
 
 def invalidate_notifier():
-    """Reset the cached Apprise instance (call on config change)."""
+    """Reset the cached Apprise instance (call on config change).
+
+    Thread-safe: uses _apprise_lock to prevent a concurrent call to
+    _get_apprise() from reading the old instance after invalidation.
+    """
     global _apprise_instance
-    _apprise_instance = None
+    with _apprise_lock:
+        _apprise_instance = None
     logger.debug("Notifier cache invalidated")
 
 

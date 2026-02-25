@@ -92,6 +92,9 @@ class Settings(BaseSettings):
     # Example: "/data/media=Z:\Media;/anime=Z:\Anime"
     path_mapping: str = ""
 
+    # ffmpeg / ffprobe
+    ffmpeg_timeout: int = 120  # Seconds before ffmpeg subtitle-extraction is killed (SUBLARR_FFMPEG_TIMEOUT)
+
     # Scan Metadata Engine
     scan_metadata_engine: str = "auto"  # "ffprobe" | "mediainfo" | "auto"
     scan_metadata_max_workers: int = 4  # Parallel workers for batch metadata scans

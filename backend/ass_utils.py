@@ -492,7 +492,9 @@ def extract_subtitle_stream(mkv_path, stream_info, output_path):
         "-c:s", "copy",
         output_path,
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    from config import get_settings
+    _timeout = getattr(get_settings(), "ffmpeg_timeout", 120)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=_timeout)
     if result.returncode != 0:
         raise RuntimeError(f"ffmpeg extraction failed: {result.stderr}")
     logger.info(

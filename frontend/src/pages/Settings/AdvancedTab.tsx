@@ -13,6 +13,8 @@ import { toast } from '@/components/shared/Toast'
 import { downloadFullBackupUrl } from '@/api/client'
 import type { LanguageProfile, WatchedFolder, FullBackupInfo } from '@/lib/types'
 import type { FieldConfig } from './index'
+import { SettingRow } from '@/components/shared/SettingRow'
+import { Toggle } from '@/components/shared/Toggle'
 
 // ─── Language Profiles Tab ────────────────────────────────────────────────────
 
@@ -517,27 +519,36 @@ export function LibrarySourcesTab({
       className="rounded-lg p-5 space-y-5"
       style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
     >
-      {/* Config fields */}
+      {/* Config fields — SettingRow handles advanced/showAdvanced filtering internally */}
       {tabFields.map((field) => (
-        <div key={field.key} className="space-y-1.5">
-          <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-            {field.label}
-          </label>
-          <input
-            type={field.type}
-            value={values[field.key] === '***configured***' ? '' : (values[field.key] ?? '')}
-            onChange={(e) => onFieldChange(field.key, e.target.value)}
-            placeholder={values[field.key] === '***configured***' ? '(configured -- enter new value to change)' : field.placeholder}
-            className="w-full px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
-            style={{
-              backgroundColor: 'var(--bg-primary)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-primary)',
-              fontFamily: field.type === 'text' ? 'var(--font-mono)' : undefined,
-              fontSize: '13px',
-            }}
-          />
-        </div>
+        <SettingRow
+          key={field.key}
+          label={field.label}
+          description={field.description}
+          advanced={field.advanced}
+        >
+          {field.type === 'toggle' ? (
+            <Toggle
+              checked={values[field.key] === 'true'}
+              onChange={(v) => onFieldChange(field.key, String(v))}
+            />
+          ) : (
+            <input
+              type={field.type}
+              value={values[field.key] === '***configured***' ? '' : (values[field.key] ?? '')}
+              onChange={(e) => onFieldChange(field.key, e.target.value)}
+              placeholder={values[field.key] === '***configured***' ? '(configured -- enter new value to change)' : field.placeholder}
+              className="w-full px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                fontFamily: field.type === 'text' ? 'var(--font-mono)' : undefined,
+                fontSize: '13px',
+              }}
+            />
+          )}
+        </SettingRow>
       ))}
 
       {/* Watched Folders section */}
