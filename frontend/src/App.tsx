@@ -137,7 +137,7 @@ function App() {
         <GlobalShortcuts onToggleShortcutsModal={toggleShortcutsModal} />
         <div className="flex min-h-screen">
           <Sidebar />
-          <main className="flex-1 min-w-0 p-4 md:p-6 lg:p-8 pt-16 md:pt-6 lg:pt-8 min-h-screen">
+          <main className="flex-1 min-w-0 p-4 md:p-5 pt-16 md:pt-5 min-h-screen">
             <AnimatedRoutes />
           </main>
         </div>

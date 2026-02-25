@@ -8,13 +8,10 @@ interface SettingSectionProps {
 
 export function SettingSection({ title, description, children }: SettingSectionProps) {
   return (
-    <div
-      className="rounded-lg overflow-hidden"
-      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
-    >
+    <div className="mt-6 first:mt-0">
       <div
-        className="px-5 py-3"
-        style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}
+        className="pb-2 mb-0"
+        style={{ borderBottom: '1px solid var(--border)' }}
       >
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
           {title}
@@ -25,7 +22,7 @@ export function SettingSection({ title, description, children }: SettingSectionP
           </p>
         )}
       </div>
-      <div className="px-5 py-4 space-y-4">{children}</div>
+      <div className="space-y-4 pt-4">{children}</div>
     </div>
   )
 }

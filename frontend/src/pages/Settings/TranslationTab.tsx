@@ -303,7 +303,7 @@ function TemplatePickerModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-xl shadow-2xl overflow-hidden"
+        className="w-full max-w-lg rounded-lg shadow-2xl overflow-hidden"
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
         onClick={(e) => e.stopPropagation()}
       >

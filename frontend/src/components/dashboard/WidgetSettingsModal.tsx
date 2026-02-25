@@ -31,7 +31,7 @@ export function WidgetSettingsModal({ open, onClose }: WidgetSettingsModalProps)
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div
-          className="w-full max-w-md rounded-xl overflow-hidden shadow-2xl"
+          className="w-full max-w-md rounded-lg overflow-hidden shadow-2xl"
           style={{
             backgroundColor: 'var(--bg-surface)',
             border: '1px solid var(--border)',
