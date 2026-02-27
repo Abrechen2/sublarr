@@ -9,7 +9,8 @@
     "moduleDetection": "force",
     "noEmit": true,
     "strict": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true
   },
   "include": ["e2e", "playwright.config.ts"]
 }
