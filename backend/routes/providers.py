@@ -46,6 +46,7 @@ def list_providers():
                           type: boolean
     """
     from providers import get_provider_manager
+
     manager = get_provider_manager()
     return jsonify({"providers": manager.get_provider_status()})
 
@@ -128,14 +129,16 @@ def test_provider(provider_name):
         manager = get_provider_manager()
         provider = manager._providers.get(provider_name)
         if not provider:
-            return jsonify({
-                "error": f"Provider '{provider_name}' not found or not enabled",
-                "available_providers": list(manager._providers.keys())
-            }), 404
+            return jsonify(
+                {
+                    "error": f"Provider '{provider_name}' not found or not enabled",
+                    "available_providers": list(manager._providers.keys()),
+                }
+            ), 404
 
         result = {
             "provider": provider_name,
-            "initialized": provider.session is not None if hasattr(provider, 'session') else True,
+            "initialized": provider.session is not None if hasattr(provider, "session") else True,
         }
 
         # Health check
@@ -307,23 +310,25 @@ def search_providers():
         manager = get_provider_manager()
         results = manager.search(query, format_filter=format_filter)
 
-        return jsonify({
-            "results": [
-                {
-                    "provider": r.provider_name,
-                    "subtitle_id": r.subtitle_id,
-                    "language": r.language,
-                    "format": r.format.value,
-                    "filename": r.filename,
-                    "release_info": r.release_info,
-                    "score": r.score,
-                    "hearing_impaired": r.hearing_impaired,
-                    "matches": list(r.matches),
-                }
-                for r in results[:50]  # Limit response size
-            ],
-            "total": len(results),
-        })
+        return jsonify(
+            {
+                "results": [
+                    {
+                        "provider": r.provider_name,
+                        "subtitle_id": r.subtitle_id,
+                        "language": r.language,
+                        "format": r.format.value,
+                        "filename": r.filename,
+                        "release_info": r.release_info,
+                        "score": r.score,
+                        "hearing_impaired": r.hearing_impaired,
+                        "matches": list(r.matches),
+                    }
+                    for r in results[:50]  # Limit response size
+                ],
+                "total": len(results),
+            }
+        )
     except Exception:
         raise  # Handled by global error handler
 
@@ -368,11 +373,13 @@ def provider_stats():
     # Single batch query: success_rate and auto_disabled computed inline (was N+1)
     performance_stats = get_all_provider_stats_enriched()
 
-    return jsonify({
-        "cache": cache_stats,
-        "downloads": download_stats,
-        "performance": performance_stats,
-    })
+    return jsonify(
+        {
+            "cache": cache_stats,
+            "downloads": download_stats,
+            "performance": performance_stats,
+        }
+    )
 
 
 @bp.route("/providers/health", methods=["GET"])
@@ -419,25 +426,28 @@ def provider_health():
                           type: integer
     """
     from providers import get_provider_manager
+
     manager = get_provider_manager()
     statuses = manager.get_provider_status()
 
     health_data = []
     for s in statuses:
         stats = s.get("stats", {})
-        health_data.append({
-            "name": s["name"],
-            "healthy": s["healthy"],
-            "enabled": s["enabled"],
-            "initialized": s["initialized"],
-            "success_rate": stats.get("success_rate", 0),
-            "avg_response_time_ms": stats.get("avg_response_time_ms", 0),
-            "last_response_time_ms": stats.get("last_response_time_ms", 0),
-            "auto_disabled": stats.get("auto_disabled", False),
-            "disabled_until": stats.get("disabled_until", ""),
-            "consecutive_failures": stats.get("consecutive_failures", 0),
-            "total_searches": stats.get("total_searches", 0),
-        })
+        health_data.append(
+            {
+                "name": s["name"],
+                "healthy": s["healthy"],
+                "enabled": s["enabled"],
+                "initialized": s["initialized"],
+                "success_rate": stats.get("success_rate", 0),
+                "avg_response_time_ms": stats.get("avg_response_time_ms", 0),
+                "last_response_time_ms": stats.get("last_response_time_ms", 0),
+                "auto_disabled": stats.get("auto_disabled", False),
+                "disabled_until": stats.get("disabled_until", ""),
+                "consecutive_failures": stats.get("consecutive_failures", 0),
+                "total_searches": stats.get("total_searches", 0),
+            }
+        )
 
     return jsonify({"providers": health_data})
 
@@ -479,18 +489,22 @@ def enable_provider(name):
     from db.providers import clear_auto_disable, is_provider_auto_disabled
 
     if not is_provider_auto_disabled(name):
-        return jsonify({
-            "status": "already_enabled",
-            "provider": name,
-            "message": f"Provider '{name}' is not auto-disabled",
-        })
+        return jsonify(
+            {
+                "status": "already_enabled",
+                "provider": name,
+                "message": f"Provider '{name}' is not auto-disabled",
+            }
+        )
 
     clear_auto_disable(name)
-    return jsonify({
-        "status": "enabled",
-        "provider": name,
-        "message": f"Provider '{name}' has been re-enabled",
-    })
+    return jsonify(
+        {
+            "status": "enabled",
+            "provider": name,
+            "message": f"Provider '{name}' has been re-enabled",
+        }
+    )
 
 
 @bp.route("/providers/cache/clear", methods=["POST"])
@@ -531,7 +545,9 @@ def clear_cache():
     data = request.get_json(silent=True) or {}
     provider_name = data.get("provider_name")
     clear_provider_cache(provider_name)
-    return jsonify({
-        "status": "cleared",
-        "provider": provider_name or "all",
-    })
+    return jsonify(
+        {
+            "status": "cleared",
+            "provider": provider_name or "all",
+        }
+    )

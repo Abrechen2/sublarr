@@ -40,14 +40,16 @@ def check_duplicate_lines(subs) -> list:
             continue
         key = (event.start, event.end, event.text, event.style)
         if key in seen:
-            issues.append({
-                "check": "duplicate_lines",
-                "severity": "warning",
-                "message": f"Duplicate line: '{event.plaintext[:50]}' at {event.start}ms-{event.end}ms",
-                "line": idx + 1,
-                "auto_fixable": True,
-                "fix": "Remove duplicate event",
-            })
+            issues.append(
+                {
+                    "check": "duplicate_lines",
+                    "severity": "warning",
+                    "message": f"Duplicate line: '{event.plaintext[:50]}' at {event.start}ms-{event.end}ms",
+                    "line": idx + 1,
+                    "auto_fixable": True,
+                    "fix": "Remove duplicate event",
+                }
+            )
         else:
             seen.add(key)
     return issues
@@ -77,14 +79,16 @@ def check_timing_overlaps(subs) -> list:
             if curr.start < prev.end:
                 overlap_ms = prev.end - curr.start
                 severity = "error" if overlap_ms >= 500 else "warning"
-                issues.append({
-                    "check": "timing_overlaps",
-                    "severity": severity,
-                    "message": f"Overlap of {overlap_ms}ms between events {prev_idx + 1} and {curr_idx + 1} (style: {group_key[0]})",
-                    "line": curr_idx + 1,
-                    "auto_fixable": True,
-                    "fix": "Trim previous event end to current event start",
-                })
+                issues.append(
+                    {
+                        "check": "timing_overlaps",
+                        "severity": severity,
+                        "message": f"Overlap of {overlap_ms}ms between events {prev_idx + 1} and {curr_idx + 1} (style: {group_key[0]})",
+                        "line": curr_idx + 1,
+                        "auto_fixable": True,
+                        "fix": "Trim previous event end to current event start",
+                    }
+                )
     return issues
 
 
@@ -101,52 +105,61 @@ def check_encoding_issues(subs, raw_bytes=None) -> list:
 
     # Check for BOM
     if raw_bytes.startswith(b"\xef\xbb\xbf"):
-        issues.append({
-            "check": "encoding_issues",
-            "severity": "warning",
-            "message": "File contains UTF-8 BOM (byte order mark)",
-            "line": None,
-            "auto_fixable": False,
-            "fix": None,
-        })
+        issues.append(
+            {
+                "check": "encoding_issues",
+                "severity": "warning",
+                "message": "File contains UTF-8 BOM (byte order mark)",
+                "line": None,
+                "auto_fixable": False,
+                "fix": None,
+            }
+        )
     elif raw_bytes.startswith((b"\xff\xfe", b"\xfe\xff")):
-        issues.append({
-            "check": "encoding_issues",
-            "severity": "warning",
-            "message": "File contains UTF-16 BOM -- may cause compatibility issues",
-            "line": None,
-            "auto_fixable": False,
-            "fix": None,
-        })
+        issues.append(
+            {
+                "check": "encoding_issues",
+                "severity": "warning",
+                "message": "File contains UTF-16 BOM -- may cause compatibility issues",
+                "line": None,
+                "auto_fixable": False,
+                "fix": None,
+            }
+        )
 
     # Detect non-UTF8 via chardet
     try:
         import chardet
+
         det = chardet.detect(raw_bytes[:8192])
         encoding = (det.get("encoding") or "utf-8").lower()
         confidence = det.get("confidence", 0)
         if encoding not in ("utf-8", "ascii") and confidence > 0.7:
-            issues.append({
-                "check": "encoding_issues",
-                "severity": "warning",
-                "message": f"File encoding detected as {encoding} (confidence: {confidence:.0%}) -- not UTF-8",
-                "line": None,
-                "auto_fixable": False,
-                "fix": None,
-            })
+            issues.append(
+                {
+                    "check": "encoding_issues",
+                    "severity": "warning",
+                    "message": f"File encoding detected as {encoding} (confidence: {confidence:.0%}) -- not UTF-8",
+                    "line": None,
+                    "auto_fixable": False,
+                    "fix": None,
+                }
+            )
     except ImportError:
         # chardet not available -- try decoding as UTF-8
         try:
             raw_bytes.decode("utf-8")
         except UnicodeDecodeError:
-            issues.append({
-                "check": "encoding_issues",
-                "severity": "warning",
-                "message": "File contains non-UTF8 bytes (chardet not installed for detailed detection)",
-                "line": None,
-                "auto_fixable": False,
-                "fix": None,
-            })
+            issues.append(
+                {
+                    "check": "encoding_issues",
+                    "severity": "warning",
+                    "message": "File contains non-UTF8 bytes (chardet not installed for detailed detection)",
+                    "line": None,
+                    "auto_fixable": False,
+                    "fix": None,
+                }
+            )
 
     return issues
 
@@ -165,14 +178,16 @@ def check_missing_styles(subs) -> list:
         if event.is_comment:
             continue
         if event.style not in defined_styles:
-            issues.append({
-                "check": "missing_styles",
-                "severity": "error",
-                "message": f"Event references undefined style '{event.style}'",
-                "line": idx + 1,
-                "auto_fixable": True,
-                "fix": "Change style reference to 'Default'",
-            })
+            issues.append(
+                {
+                    "check": "missing_styles",
+                    "severity": "error",
+                    "message": f"Event references undefined style '{event.style}'",
+                    "line": idx + 1,
+                    "auto_fixable": True,
+                    "fix": "Change style reference to 'Default'",
+                }
+            )
     return issues
 
 
@@ -183,14 +198,16 @@ def check_empty_events(subs) -> list:
         if event.is_comment:
             continue
         if not event.plaintext.strip():
-            issues.append({
-                "check": "empty_events",
-                "severity": "warning",
-                "message": f"Empty event at {event.start}ms-{event.end}ms",
-                "line": idx + 1,
-                "auto_fixable": True,
-                "fix": "Remove empty event",
-            })
+            issues.append(
+                {
+                    "check": "empty_events",
+                    "severity": "warning",
+                    "message": f"Empty event at {event.start}ms-{event.end}ms",
+                    "line": idx + 1,
+                    "auto_fixable": True,
+                    "fix": "Remove empty event",
+                }
+            )
     return issues
 
 
@@ -202,14 +219,16 @@ def check_excessive_duration(subs) -> list:
             continue
         duration_ms = event.end - event.start
         if duration_ms > 10000:
-            issues.append({
-                "check": "excessive_duration",
-                "severity": "info",
-                "message": f"Event duration {duration_ms / 1000:.1f}s exceeds 10s threshold",
-                "line": idx + 1,
-                "auto_fixable": False,
-                "fix": None,
-            })
+            issues.append(
+                {
+                    "check": "excessive_duration",
+                    "severity": "info",
+                    "message": f"Event duration {duration_ms / 1000:.1f}s exceeds 10s threshold",
+                    "line": idx + 1,
+                    "auto_fixable": False,
+                    "fix": None,
+                }
+            )
     return issues
 
 
@@ -220,14 +239,16 @@ def check_negative_timing(subs) -> list:
         if event.is_comment:
             continue
         if event.end < event.start:
-            issues.append({
-                "check": "negative_timing",
-                "severity": "error",
-                "message": f"Negative timing: end ({event.end}ms) < start ({event.start}ms)",
-                "line": idx + 1,
-                "auto_fixable": True,
-                "fix": "Swap start and end times",
-            })
+            issues.append(
+                {
+                    "check": "negative_timing",
+                    "severity": "error",
+                    "message": f"Negative timing: end ({event.end}ms) < start ({event.start}ms)",
+                    "line": idx + 1,
+                    "auto_fixable": True,
+                    "fix": "Swap start and end times",
+                }
+            )
     return issues
 
 
@@ -238,14 +259,16 @@ def check_zero_duration(subs) -> list:
         if event.is_comment:
             continue
         if event.start == event.end:
-            issues.append({
-                "check": "zero_duration",
-                "severity": "warning",
-                "message": f"Zero duration event at {event.start}ms",
-                "line": idx + 1,
-                "auto_fixable": True,
-                "fix": "Remove zero-duration event",
-            })
+            issues.append(
+                {
+                    "check": "zero_duration",
+                    "severity": "warning",
+                    "message": f"Zero duration event at {event.start}ms",
+                    "line": idx + 1,
+                    "auto_fixable": True,
+                    "fix": "Remove zero-duration event",
+                }
+            )
     return issues
 
 
@@ -257,14 +280,16 @@ def check_line_too_long(subs) -> list:
             continue
         for line in event.plaintext.split("\n"):
             if len(line) > 80:
-                issues.append({
-                    "check": "line_too_long",
-                    "severity": "info",
-                    "message": f"Line exceeds 80 chars ({len(line)} chars): '{line[:40]}...'",
-                    "line": idx + 1,
-                    "auto_fixable": False,
-                    "fix": None,
-                })
+                issues.append(
+                    {
+                        "check": "line_too_long",
+                        "severity": "info",
+                        "message": f"Line exceeds 80 chars ({len(line)} chars): '{line[:40]}...'",
+                        "line": idx + 1,
+                        "auto_fixable": False,
+                        "fix": None,
+                    }
+                )
                 break  # One issue per event is enough
     return issues
 
@@ -284,14 +309,16 @@ def check_missing_newlines(subs) -> list:
             continue
         # Check if the raw text has no \N break and plaintext is >80 chars
         if "\\N" not in event.text and len(event.plaintext) > 80:
-            issues.append({
-                "check": "missing_newlines",
-                "severity": "info",
-                "message": f"Long dialogue ({len(event.plaintext)} chars) with no line break",
-                "line": idx + 1,
-                "auto_fixable": False,
-                "fix": None,
-            })
+            issues.append(
+                {
+                    "check": "missing_newlines",
+                    "severity": "info",
+                    "message": f"Long dialogue ({len(event.plaintext)} chars) with no line break",
+                    "line": idx + 1,
+                    "auto_fixable": False,
+                    "fix": None,
+                }
+            )
     return issues
 
 
@@ -367,14 +394,16 @@ def run_health_checks(file_path: str) -> dict:
         return {
             "file_path": file_path,
             "checks_run": 0,
-            "issues": [{
-                "check": "parse_error",
-                "severity": "error",
-                "message": f"Failed to parse subtitle file: {e}",
-                "line": None,
-                "auto_fixable": False,
-                "fix": None,
-            }],
+            "issues": [
+                {
+                    "check": "parse_error",
+                    "severity": "error",
+                    "message": f"Failed to parse subtitle file: {e}",
+                    "line": None,
+                    "auto_fixable": False,
+                    "fix": None,
+                }
+            ],
             "score": 0,
             "checked_at": datetime.now(UTC).isoformat(),
         }

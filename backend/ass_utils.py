@@ -46,6 +46,7 @@ def has_target_language_stream(ffprobe_data, target_language=None):
         target_tags = settings.get_target_lang_tags()
     else:
         from config import _get_language_tags
+
         target_tags = _get_language_tags(target_language)
 
     target_ass = False
@@ -85,6 +86,7 @@ def has_target_language_audio(ffprobe_data, target_language=None):
         target_tags = settings.get_target_lang_tags()
     else:
         from config import _get_language_tags
+
         target_tags = _get_language_tags(target_language)
 
     for stream in ffprobe_data.get("streams", []):
@@ -131,9 +133,7 @@ def classify_styles(subs):
         # Heuristic: check if >80% of lines have \pos() or \move() tags
         lines = style_lines[style_name]
         if lines:
-            pos_count = sum(
-                1 for line in lines if POS_MOVE_RE.search(line)
-            )
+            pos_count = sum(1 for line in lines if POS_MOVE_RE.search(line))
             if pos_count / len(lines) > 0.8:
                 signs_styles.add(style_name)
                 continue
@@ -143,7 +143,8 @@ def classify_styles(subs):
 
     logger.info(
         "Style classification - Dialog: %s, Signs/Songs: %s",
-        dialog_styles, signs_styles,
+        dialog_styles,
+        signs_styles,
     )
     return dialog_styles, signs_styles
 
@@ -292,7 +293,10 @@ def select_best_subtitle_stream(ffprobe_data, format_filter=None):
         if codec in ("ass", "ssa") and format_filter != "srt":
             info["format"] = "ass"
             ass_streams.append(info)
-        elif codec in ("subrip", "srt", "mov_text", "webvtt", "text", "microdvd") and format_filter != "ass":
+        elif (
+            codec in ("subrip", "srt", "mov_text", "webvtt", "text", "microdvd")
+            and format_filter != "ass"
+        ):
             info["format"] = "srt"
             srt_streams.append(info)
 
@@ -310,17 +314,27 @@ def select_best_subtitle_stream(ffprobe_data, format_filter=None):
         src = [s for s in ass_streams if s["language"] in source_tags]
         for s in src:
             if "sign" not in s["title"] and "song" not in s["title"]:
-                logger.info("Selected stream %d: '%s' (Source lang ASS, non-signs)", s["sub_index"], s["title"])
+                logger.info(
+                    "Selected stream %d: '%s' (Source lang ASS, non-signs)",
+                    s["sub_index"],
+                    s["title"],
+                )
                 return s
 
         # P3: Any source language ASS
         if src:
-            logger.info("Selected stream %d: '%s' (Source lang ASS)", src[0]["sub_index"], src[0]["title"])
+            logger.info(
+                "Selected stream %d: '%s' (Source lang ASS)", src[0]["sub_index"], src[0]["title"]
+            )
             return src[0]
 
         # P4: Non-signs ASS without target lang tag
         for s in ass_streams:
-            if s["language"] not in target_tags and "sign" not in s["title"] and "song" not in s["title"]:
+            if (
+                s["language"] not in target_tags
+                and "sign" not in s["title"]
+                and "song" not in s["title"]
+            ):
                 logger.info("Selected stream %d: '%s' (non-signs ASS)", s["sub_index"], s["title"])
                 return s
 
@@ -329,7 +343,11 @@ def select_best_subtitle_stream(ffprobe_data, format_filter=None):
         # P5: Source language SRT
         src_srt = [s for s in srt_streams if s["language"] in source_tags]
         if src_srt:
-            logger.info("Selected stream %d: '%s' (Source lang SRT fallback)", src_srt[0]["sub_index"], src_srt[0]["title"])
+            logger.info(
+                "Selected stream %d: '%s' (Source lang SRT fallback)",
+                src_srt[0]["sub_index"],
+                src_srt[0]["title"],
+            )
             return src_srt[0]
 
         # P6: Any SRT without target lang tag
@@ -342,7 +360,11 @@ def select_best_subtitle_stream(ffprobe_data, format_filter=None):
     if srt_streams:
         tgt_srt = [s for s in srt_streams if s["language"] in target_tags]
         if tgt_srt:
-            logger.info("Selected stream %d: '%s' (Target lang SRT last resort)", tgt_srt[0]["sub_index"], tgt_srt[0]["title"])
+            logger.info(
+                "Selected stream %d: '%s' (Target lang SRT last resort)",
+                tgt_srt[0]["sub_index"],
+                tgt_srt[0]["title"],
+            )
             return tgt_srt[0]
 
     # Last resort: any ASS stream at all
@@ -389,8 +411,11 @@ def run_ffprobe(file_path, use_cache=True):
     # -select_streams s which caused has_target_language_audio() to never find
     # audio streams (bug fix).
     cmd = [
-        "ffprobe", "-v", "quiet",
-        "-print_format", "json",
+        "ffprobe",
+        "-v",
+        "quiet",
+        "-print_format",
+        "json",
         "-show_streams",
         file_path,
     ]
@@ -499,18 +524,25 @@ def extract_subtitle_stream(mkv_path, stream_info, output_path):
     _encoder_map = {"srt": "srt", "ass": "ass", "ssa": "ass", "vtt": "webvtt"}
     encoder = _encoder_map.get(ext, "copy")
     cmd = [
-        "ffmpeg", "-y",
-        "-i", mkv_path,
-        "-map", f"0:s:{stream_info['sub_index']}",
-        "-c:s", encoder,
+        "ffmpeg",
+        "-y",
+        "-i",
+        mkv_path,
+        "-map",
+        f"0:s:{stream_info['sub_index']}",
+        "-c:s",
+        encoder,
         output_path,
     ]
     from config import get_settings
+
     _timeout = getattr(get_settings(), "ffmpeg_timeout", 120)
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=_timeout)
     if result.returncode != 0:
         raise RuntimeError(f"ffmpeg extraction failed: {result.stderr}")
     logger.info(
         "Extracted %s stream %d to %s",
-        stream_info.get("format", "?"), stream_info["sub_index"], output_path,
+        stream_info.get("format", "?"),
+        stream_info["sub_index"],
+        output_path,
     )

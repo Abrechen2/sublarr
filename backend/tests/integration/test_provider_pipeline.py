@@ -212,16 +212,19 @@ class TestProviderPipeline:
         )
 
         from providers import ProviderManager
-        with patch.object(ProviderManager, '_init_providers'):
+
+        with patch.object(ProviderManager, "_init_providers"):
             manager = ProviderManager()
             manager._providers = {}
             manager._circuit_breakers = {}
 
         query = VideoQuery(series_title="Test", season=1, episode=1, languages=["en"])
 
-        with patch("providers.get_cached_results", return_value=None), \
-             patch("providers.cache_provider_results"), \
-             patch("providers.is_blacklisted", return_value=False):
+        with (
+            patch("providers.get_cached_results", return_value=None),
+            patch("providers.cache_provider_results"),
+            patch("providers.is_blacklisted", return_value=False),
+        ):
             results = manager.search(query)
 
         assert results == []

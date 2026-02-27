@@ -66,6 +66,7 @@ def _extract_from_rar(archive_content: bytes, query: VideoQuery) -> list[tuple[s
     results = []
     try:
         import rarfile
+
         with rarfile.RarFile(io.BytesIO(archive_content)) as rf:
             for name in rf.namelist():
                 ext = os.path.splitext(name)[1].lower()
@@ -98,9 +99,7 @@ def _score_subtitle_file(filename: str, query: VideoQuery) -> int:
 
     # Prefer AniDB absolute episode when available
     effective_episode = (
-        query.absolute_episode
-        if query.absolute_episode is not None
-        else query.episode
+        query.absolute_episode if query.absolute_episode is not None else query.episode
     )
 
     # Episode number match
@@ -108,8 +107,13 @@ def _score_subtitle_file(filename: str, query: VideoQuery) -> int:
         ep_str = f"{effective_episode:02d}"
         # Match patterns like E01, EP01, _01_, - 01
         ep_patterns = [
-            f"e{ep_str}", f"ep{ep_str}", f"_{ep_str}_", f"- {ep_str}",
-            f" {ep_str} ", f"_{ep_str}.", f" {ep_str}.",
+            f"e{ep_str}",
+            f"ep{ep_str}",
+            f"_{ep_str}_",
+            f"- {ep_str}",
+            f" {ep_str} ",
+            f"_{ep_str}.",
+            f" {ep_str}.",
         ]
         for pattern in ep_patterns:
             if pattern in name_lower:
@@ -157,9 +161,11 @@ class JimakuProvider(SubtitleProvider):
             timeout=20,
             user_agent="Sublarr/1.0",
         )
-        self.session.headers.update({
-            "Authorization": f"Bearer {self.api_key}",
-        })
+        self.session.headers.update(
+            {
+                "Authorization": f"Bearer {self.api_key}",
+            }
+        )
         logger.debug("Jimaku: session created successfully")
 
     def terminate(self):
@@ -185,19 +191,21 @@ class JimakuProvider(SubtitleProvider):
 
     def search(self, query: VideoQuery) -> list[SubtitleResult]:
         if not self.session or not self.api_key:
-            logger.warning("Jimaku: cannot search - session=%s, api_key=%s",
-                          self.session is not None, bool(self.api_key))
+            logger.warning(
+                "Jimaku: cannot search - session=%s, api_key=%s",
+                self.session is not None,
+                bool(self.api_key),
+            )
             return []
 
-        logger.debug("Jimaku: searching for %s (languages: %s)",
-                    query.display_name, query.languages)
+        logger.debug(
+            "Jimaku: searching for %s (languages: %s)", query.display_name, query.languages
+        )
 
         # Prefer AniDB absolute episode when available — Jimaku uses AniDB IDs
         # and anime releases typically use absolute numbering in filenames.
         effective_episode = (
-            query.absolute_episode
-            if query.absolute_episode is not None
-            else query.episode
+            query.absolute_episode if query.absolute_episode is not None else query.episode
         )
         if query.absolute_episode is not None:
             logger.debug(
@@ -249,7 +257,10 @@ class JimakuProvider(SubtitleProvider):
                     continue
 
                 matches = set()
-                if query.series_title and query.series_title.lower() in entry.get("name", "").lower():
+                if (
+                    query.series_title
+                    and query.series_title.lower() in entry.get("name", "").lower()
+                ):
                     matches.add("series")
                 if query.anilist_id and entry.get("anilist_id") == query.anilist_id:
                     matches.add("series")
@@ -277,17 +288,25 @@ class JimakuProvider(SubtitleProvider):
 
         logger.info("Jimaku: found %d results", len(results))
         if results:
-            logger.debug("Jimaku: top result - %s (score: %d, format: %s, language: %s)",
-                        results[0].filename, results[0].score, results[0].format.value, results[0].language)
+            logger.debug(
+                "Jimaku: top result - %s (score: %d, format: %s, language: %s)",
+                results[0].filename,
+                results[0].score,
+                results[0].format.value,
+                results[0].language,
+            )
         return results
 
     def _search_by_anilist(self, anilist_id: int) -> list[dict]:
         """Search entries by AniList ID."""
         try:
             logger.debug("Jimaku: API request - AniList ID %d", anilist_id)
-            resp = self.session.get(f"{API_BASE}/entries/search", params={
-                "anilist_id": anilist_id,
-            })
+            resp = self.session.get(
+                f"{API_BASE}/entries/search",
+                params={
+                    "anilist_id": anilist_id,
+                },
+            )
             logger.debug("Jimaku: API response status: %d", resp.status_code)
             if resp.status_code == 401 or resp.status_code == 403:
                 error_msg = f"Jimaku authentication failed: HTTP {resp.status_code}"
@@ -305,8 +324,11 @@ class JimakuProvider(SubtitleProvider):
                 logger.debug("Jimaku: found %d entries by AniList ID", len(entries))
                 return entries
             else:
-                logger.warning("Jimaku AniList search failed: HTTP %d, response: %s",
-                             resp.status_code, resp.text[:200])
+                logger.warning(
+                    "Jimaku AniList search failed: HTTP %d, response: %s",
+                    resp.status_code,
+                    resp.text[:200],
+                )
         except Exception as e:
             logger.warning("Jimaku AniList search failed: %s", e, exc_info=True)
         return []
@@ -315,9 +337,12 @@ class JimakuProvider(SubtitleProvider):
         """Search entries by name."""
         try:
             logger.debug("Jimaku: API request - name: %s", name)
-            resp = self.session.get(f"{API_BASE}/entries/search", params={
-                "query": name,
-            })
+            resp = self.session.get(
+                f"{API_BASE}/entries/search",
+                params={
+                    "query": name,
+                },
+            )
             logger.debug("Jimaku: API response status: %d", resp.status_code)
             if resp.status_code == 401 or resp.status_code == 403:
                 error_msg = f"Jimaku authentication failed: HTTP {resp.status_code}"
@@ -335,8 +360,11 @@ class JimakuProvider(SubtitleProvider):
                 logger.debug("Jimaku: found %d entries by name", len(entries))
                 return entries
             else:
-                logger.warning("Jimaku name search failed: HTTP %d, response: %s",
-                             resp.status_code, resp.text[:200])
+                logger.warning(
+                    "Jimaku name search failed: HTTP %d, response: %s",
+                    resp.status_code,
+                    resp.text[:200],
+                )
         except Exception as e:
             logger.warning("Jimaku name search failed: %s", e, exc_info=True)
         return []
@@ -377,7 +405,18 @@ class JimakuProvider(SubtitleProvider):
         lang_patterns = {
             "ja": [".ja.", ".jpn.", ".japanese.", "_ja_", "_jpn_", "[ja]", "[jpn]"],
             "en": [".en.", ".eng.", ".english.", "_en_", "_eng_", "[en]", "[eng]"],
-            "de": [".de.", ".deu.", ".ger.", ".german.", "_de_", "_deu_", "[de]", "[deu]", "[ger]", ".german"],
+            "de": [
+                ".de.",
+                ".deu.",
+                ".ger.",
+                ".german.",
+                "_de_",
+                "_deu_",
+                "[de]",
+                "[deu]",
+                "[ger]",
+                ".german",
+            ],
             "fr": [".fr.", ".fra.", ".fre.", ".french.", "_fr_", "[fr]", "[fra]"],
             "es": [".es.", ".spa.", ".spanish.", "_es_", "[es]", "[spa]"],
             "zh": [".zh.", ".chi.", ".chinese.", "_zh_", "[zh]", "[chi]"],

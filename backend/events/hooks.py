@@ -127,6 +127,7 @@ class HookEngine:
         """
         try:
             from db.hooks import get_hook_configs
+
             configs = get_hook_configs(event_name=event_name)
         except Exception as e:
             logger.error("Failed to load hook configs for %s: %s", event_name, e)
@@ -136,13 +137,13 @@ class HookEngine:
 
         for config in enabled_configs:
             try:
-                self._pool.submit(
-                    self._execute_and_log, config, event_name, event_data
-                )
+                self._pool.submit(self._execute_and_log, config, event_name, event_data)
             except Exception as e:
                 logger.error(
                     "Failed to submit hook %s for event %s: %s",
-                    config.get("name", "?"), event_name, e,
+                    config.get("name", "?"),
+                    event_name,
+                    e,
                 )
 
     def _execute_and_log(self, config: dict, event_name: str, event_data: dict) -> None:
@@ -160,6 +161,7 @@ class HookEngine:
 
             # Log execution to DB
             from db.hooks import log_hook_execution, update_hook_trigger_stats
+
             log_hook_execution(
                 hook_id=hook_id,
                 event_name=event_name,
@@ -175,6 +177,7 @@ class HookEngine:
 
             # Emit meta-event
             from events.catalog import hook_executed
+
             try:
                 hook_executed.send(
                     None,
@@ -192,18 +195,24 @@ class HookEngine:
             if result["success"]:
                 logger.debug(
                     "Hook '%s' executed for %s (%.0fms)",
-                    config.get("name", "?"), event_name, result.get("duration_ms", 0),
+                    config.get("name", "?"),
+                    event_name,
+                    result.get("duration_ms", 0),
                 )
             else:
                 logger.warning(
                     "Hook '%s' failed for %s: %s",
-                    config.get("name", "?"), event_name, result.get("error", "unknown"),
+                    config.get("name", "?"),
+                    event_name,
+                    result.get("error", "unknown"),
                 )
 
         except Exception as e:
             logger.error(
                 "Unexpected error executing hook '%s' for %s: %s",
-                config.get("name", "?"), event_name, e,
+                config.get("name", "?"),
+                event_name,
+                e,
             )
 
     def shutdown(self) -> None:
@@ -225,8 +234,10 @@ def init_hook_subscribers(engine: HookEngine) -> None:
 
     def _make_hook_handler(event_name: str):
         """Create a handler that captures event_name via closure."""
+
         def _handler(sender, data=None, **kwargs):
             engine.dispatch(event_name, data or {})
+
         return _handler
 
     count = 0

@@ -25,9 +25,15 @@ class NotificationRepository(BaseRepository):
 
     # ---- Template CRUD -------------------------------------------------------
 
-    def create_template(self, name: str, title_template: str = "",
-                        body_template: str = "", event_type: str = None,
-                        service_name: str = None, enabled: int = 1) -> dict:
+    def create_template(
+        self,
+        name: str,
+        title_template: str = "",
+        body_template: str = "",
+        event_type: str = None,
+        service_name: str = None,
+        enabled: int = 1,
+    ) -> dict:
         """Create a new notification template.
 
         Returns:
@@ -98,8 +104,7 @@ class NotificationRepository(BaseRepository):
         self._commit()
         return True
 
-    def find_template_for_event(self, event_type: str,
-                                service_name: str = None) -> dict | None:
+    def find_template_for_event(self, event_type: str, service_name: str = None) -> dict | None:
         """Find the best matching template for an event using fallback chain.
 
         Priority: specific (service+event) > event-only > default (both null).
@@ -151,9 +156,16 @@ class NotificationRepository(BaseRepository):
 
     # ---- History -------------------------------------------------------------
 
-    def log_notification(self, event_type: str, title: str, body: str,
-                         template_id: int = None, service_urls: str = None,
-                         status: str = "sent", error: str = "") -> dict:
+    def log_notification(
+        self,
+        event_type: str,
+        title: str,
+        body: str,
+        template_id: int = None,
+        service_urls: str = None,
+        status: str = "sent",
+        error: str = "",
+    ) -> dict:
         """Log a notification to history.
 
         Returns:
@@ -173,26 +185,18 @@ class NotificationRepository(BaseRepository):
         self._commit()
         return self._to_dict(entry)
 
-    def get_history(self, page: int = 1, per_page: int = 50,
-                    event_type: str = None) -> dict:
+    def get_history(self, page: int = 1, per_page: int = 50, event_type: str = None) -> dict:
         """Get paginated notification history.
 
         Returns:
             Dict with items, total, page, per_page.
         """
         count_stmt = select(func.count(NotificationHistory.id))
-        query_stmt = (
-            select(NotificationHistory)
-            .order_by(NotificationHistory.sent_at.desc())
-        )
+        query_stmt = select(NotificationHistory).order_by(NotificationHistory.sent_at.desc())
 
         if event_type is not None:
-            count_stmt = count_stmt.where(
-                NotificationHistory.event_type == event_type
-            )
-            query_stmt = query_stmt.where(
-                NotificationHistory.event_type == event_type
-            )
+            count_stmt = count_stmt.where(NotificationHistory.event_type == event_type)
+            query_stmt = query_stmt.where(NotificationHistory.event_type == event_type)
 
         total = self.session.execute(count_stmt).scalar() or 0
 
@@ -231,10 +235,15 @@ class NotificationRepository(BaseRepository):
 
     # ---- Quiet Hours ---------------------------------------------------------
 
-    def create_quiet_hours(self, name: str, start_time: str, end_time: str,
-                           days_of_week: str = "[0,1,2,3,4,5,6]",
-                           exception_events: str = '["error"]',
-                           enabled: int = 1) -> dict:
+    def create_quiet_hours(
+        self,
+        name: str,
+        start_time: str,
+        end_time: str,
+        days_of_week: str = "[0,1,2,3,4,5,6]",
+        exception_events: str = '["error"]',
+        enabled: int = 1,
+    ) -> dict:
         """Create a quiet hours configuration.
 
         Returns:

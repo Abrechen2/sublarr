@@ -42,8 +42,14 @@ EVENT_CATALOG: dict[str, dict] = {
         "label": "Subtitle Downloaded",
         "description": "A subtitle file was successfully downloaded from a provider.",
         "payload_keys": [
-            "provider_name", "language", "format", "score",
-            "series_title", "season", "episode", "movie_title",
+            "provider_name",
+            "language",
+            "format",
+            "score",
+            "series_title",
+            "season",
+            "episode",
+            "movie_title",
         ],
     },
     "translation_complete": {
@@ -51,8 +57,13 @@ EVENT_CATALOG: dict[str, dict] = {
         "label": "Translation Complete",
         "description": "A subtitle translation job finished successfully.",
         "payload_keys": [
-            "job_id", "source_language", "target_language",
-            "backend_name", "duration_ms", "series_title", "movie_title",
+            "job_id",
+            "source_language",
+            "target_language",
+            "backend_name",
+            "duration_ms",
+            "series_title",
+            "movie_title",
         ],
     },
     "translation_failed": {
@@ -60,8 +71,13 @@ EVENT_CATALOG: dict[str, dict] = {
         "label": "Translation Failed",
         "description": "A subtitle translation job failed.",
         "payload_keys": [
-            "job_id", "source_language", "target_language",
-            "backend_name", "error", "series_title", "movie_title",
+            "job_id",
+            "source_language",
+            "target_language",
+            "backend_name",
+            "error",
+            "series_title",
+            "movie_title",
         ],
     },
     "provider_search_complete": {
@@ -69,8 +85,13 @@ EVENT_CATALOG: dict[str, dict] = {
         "label": "Provider Search Complete",
         "description": "A provider search returned results.",
         "payload_keys": [
-            "provider_name", "result_count", "best_score",
-            "series_title", "season", "episode", "movie_title",
+            "provider_name",
+            "result_count",
+            "best_score",
+            "series_title",
+            "season",
+            "episode",
+            "movie_title",
         ],
     },
     "provider_failed": {
@@ -78,8 +99,11 @@ EVENT_CATALOG: dict[str, dict] = {
         "label": "Provider Failed",
         "description": "A provider search or download failed.",
         "payload_keys": [
-            "provider_name", "error", "error_type",
-            "series_title", "movie_title",
+            "provider_name",
+            "error",
+            "error_type",
+            "series_title",
+            "movie_title",
         ],
     },
     "wanted_scan_complete": {
@@ -87,7 +111,10 @@ EVENT_CATALOG: dict[str, dict] = {
         "label": "Wanted Scan Complete",
         "description": "The periodic wanted scanner completed a full scan cycle.",
         "payload_keys": [
-            "total_items", "new_items", "removed_items", "duration_ms",
+            "total_items",
+            "new_items",
+            "removed_items",
+            "duration_ms",
         ],
     },
     "wanted_item_processed": {
@@ -95,8 +122,12 @@ EVENT_CATALOG: dict[str, dict] = {
         "label": "Wanted Item Processed",
         "description": "A single wanted item was searched and processed.",
         "payload_keys": [
-            "item_id", "title", "season_episode", "status",
-            "provider_name", "score",
+            "item_id",
+            "title",
+            "season_episode",
+            "status",
+            "provider_name",
+            "score",
         ],
     },
     "upgrade_complete": {
@@ -104,8 +135,12 @@ EVENT_CATALOG: dict[str, dict] = {
         "label": "Upgrade Complete",
         "description": "A subtitle was upgraded (e.g. SRT replaced with ASS).",
         "payload_keys": [
-            "title", "old_format", "new_format",
-            "old_score", "new_score", "provider_name",
+            "title",
+            "old_format",
+            "new_format",
+            "old_score",
+            "new_score",
+            "provider_name",
         ],
     },
     "batch_complete": {
@@ -113,7 +148,11 @@ EVENT_CATALOG: dict[str, dict] = {
         "label": "Batch Complete",
         "description": "A batch translation or search operation completed.",
         "payload_keys": [
-            "total", "succeeded", "failed", "skipped", "duration_ms",
+            "total",
+            "succeeded",
+            "failed",
+            "skipped",
+            "duration_ms",
         ],
     },
     "webhook_received": {
@@ -121,7 +160,11 @@ EVENT_CATALOG: dict[str, dict] = {
         "label": "Webhook Received",
         "description": "An incoming webhook from Sonarr or Radarr was received.",
         "payload_keys": [
-            "source", "event_type", "title", "season", "episode",
+            "source",
+            "event_type",
+            "title",
+            "season",
+            "episode",
         ],
     },
     "config_updated": {
@@ -129,7 +172,8 @@ EVENT_CATALOG: dict[str, dict] = {
         "label": "Config Updated",
         "description": "Application configuration was changed.",
         "payload_keys": [
-            "changed_keys", "source",
+            "changed_keys",
+            "source",
         ],
     },
     "whisper_complete": {
@@ -137,8 +181,12 @@ EVENT_CATALOG: dict[str, dict] = {
         "label": "Whisper Complete",
         "description": "A Whisper speech-to-text job finished successfully.",
         "payload_keys": [
-            "job_id", "backend_name", "detected_language",
-            "segment_count", "duration_seconds", "processing_time_ms",
+            "job_id",
+            "backend_name",
+            "detected_language",
+            "segment_count",
+            "duration_seconds",
+            "processing_time_ms",
         ],
     },
     "whisper_failed": {
@@ -146,7 +194,9 @@ EVENT_CATALOG: dict[str, dict] = {
         "label": "Whisper Failed",
         "description": "A Whisper speech-to-text job failed.",
         "payload_keys": [
-            "job_id", "backend_name", "error",
+            "job_id",
+            "backend_name",
+            "error",
         ],
     },
     "hook_executed": {
@@ -154,8 +204,12 @@ EVENT_CATALOG: dict[str, dict] = {
         "label": "Hook Executed",
         "description": "A hook or webhook was executed (meta-event for monitoring).",
         "payload_keys": [
-            "hook_id", "webhook_id", "hook_type", "event_name",
-            "success", "duration_ms",
+            "hook_id",
+            "webhook_id",
+            "hook_type",
+            "event_name",
+            "success",
+            "duration_ms",
         ],
     },
     "standalone_scan_complete": {
@@ -163,7 +217,10 @@ EVENT_CATALOG: dict[str, dict] = {
         "label": "Standalone Scan Complete",
         "description": "A standalone folder scan completed.",
         "payload_keys": [
-            "folders_scanned", "files_found", "wanted_added", "duration_seconds",
+            "folders_scanned",
+            "files_found",
+            "wanted_added",
+            "duration_seconds",
         ],
     },
     "standalone_file_detected": {
@@ -171,7 +228,9 @@ EVENT_CATALOG: dict[str, dict] = {
         "label": "Standalone File Detected",
         "description": "A new media file was detected in a watched folder.",
         "payload_keys": [
-            "path", "type", "wanted",
+            "path",
+            "type",
+            "wanted",
         ],
     },
 }

@@ -170,7 +170,9 @@ def _install_alass_binary() -> None:
         f.write(data)
 
     if system != "windows":
-        os.chmod(install_path, os.stat(install_path).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+        os.chmod(
+            install_path, os.stat(install_path).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH
+        )
 
     logger.info("alass installed to %s", install_path)
 
@@ -185,7 +187,9 @@ def install_engine(engine: str) -> dict:
     if engine == "ffsubsync":
         result = subprocess.run(
             [sys.executable, "-m", "pip", "install", "ffsubsync"],
-            capture_output=True, text=True, timeout=300,
+            capture_output=True,
+            text=True,
+            timeout=300,
         )
         if result.returncode != 0:
             raise RuntimeError(f"pip install ffsubsync failed: {result.stderr.strip()}")

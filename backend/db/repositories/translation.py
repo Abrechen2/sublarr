@@ -27,14 +27,16 @@ class TranslationRepository(BaseRepository):
 
     # ---- Translation Config History ------------------------------------------
 
-    def record_translation_config(self, config_hash: str, ollama_model: str,
-                                   prompt_template: str, target_language: str):
+    def record_translation_config(
+        self, config_hash: str, ollama_model: str, prompt_template: str, target_language: str
+    ):
         """Record or update a translation config hash."""
         now = self._now()
 
         existing = self.session.execute(
-            select(TranslationConfigHistory)
-            .where(TranslationConfigHistory.config_hash == config_hash)
+            select(TranslationConfigHistory).where(
+                TranslationConfigHistory.config_hash == config_hash
+            )
         ).scalar_one_or_none()
 
         if existing:
@@ -61,8 +63,9 @@ class TranslationRepository(BaseRepository):
 
     # ---- Glossary Operations -------------------------------------------------
 
-    def add_glossary_entry(self, series_id: int | None, source_term: str,
-                           target_term: str, notes: str = "") -> int:
+    def add_glossary_entry(
+        self, series_id: int | None, source_term: str, target_term: str, notes: str = ""
+    ) -> int:
         """Add a new glossary entry. Returns the entry ID.
 
         When series_id is None, creates a global glossary entry.
@@ -163,8 +166,9 @@ class TranslationRepository(BaseRepository):
         entry = self.session.get(GlossaryEntry, entry_id)
         return self._to_dict(entry)
 
-    def update_glossary_entry(self, entry_id: int, source_term: str = None,
-                              target_term: str = None, notes: str = None) -> bool:
+    def update_glossary_entry(
+        self, entry_id: int, source_term: str = None, target_term: str = None, notes: str = None
+    ) -> bool:
         """Update a glossary entry. Returns True if updated."""
         entry = self.session.get(GlossaryEntry, entry_id)
         if entry is None:
@@ -200,6 +204,7 @@ class TranslationRepository(BaseRepository):
     def delete_glossary_entries_for_series(self, series_id: int) -> int:
         """Delete all glossary entries for a series. Returns count deleted."""
         from sqlalchemy import delete as sa_delete
+
         result = self.session.execute(
             sa_delete(GlossaryEntry).where(GlossaryEntry.series_id == series_id)
         )
@@ -223,8 +228,10 @@ class TranslationRepository(BaseRepository):
             select(GlossaryEntry)
             .where(
                 series_filter,
-                (GlossaryEntry.source_term.like(search_pattern) |
-                 GlossaryEntry.target_term.like(search_pattern)),
+                (
+                    GlossaryEntry.source_term.like(search_pattern)
+                    | GlossaryEntry.target_term.like(search_pattern)
+                ),
             )
             .order_by(GlossaryEntry.source_term.asc())
         )
@@ -233,8 +240,7 @@ class TranslationRepository(BaseRepository):
 
     # ---- Prompt Presets Operations -------------------------------------------
 
-    def add_prompt_preset(self, name: str, prompt_template: str,
-                          is_default: bool = False) -> int:
+    def add_prompt_preset(self, name: str, prompt_template: str, is_default: bool = False) -> int:
         """Add a new prompt preset. Returns the preset ID."""
         now = self._now()
 
@@ -273,9 +279,9 @@ class TranslationRepository(BaseRepository):
         entry = self.session.execute(stmt).scalar_one_or_none()
         return self._to_dict(entry)
 
-    def update_prompt_preset(self, preset_id: int, name: str = None,
-                             prompt_template: str = None,
-                             is_default: bool = None) -> bool:
+    def update_prompt_preset(
+        self, preset_id: int, name: str = None, prompt_template: str = None, is_default: bool = None
+    ) -> bool:
         """Update a prompt preset. Returns True if updated."""
         entry = self.session.get(PromptPreset, preset_id)
         if entry is None:
@@ -310,9 +316,7 @@ class TranslationRepository(BaseRepository):
 
         Cannot delete if it's the only preset.
         """
-        count = self.session.execute(
-            select(func.count()).select_from(PromptPreset)
-        ).scalar() or 0
+        count = self.session.execute(select(func.count()).select_from(PromptPreset)).scalar() or 0
 
         if count <= 1:
             return False
@@ -339,8 +343,9 @@ class TranslationRepository(BaseRepository):
 
     # ---- Translation Backend Stats Operations --------------------------------
 
-    def record_backend_success(self, backend_name: str, response_time_ms: float,
-                               characters_used: int):
+    def record_backend_success(
+        self, backend_name: str, response_time_ms: float, characters_used: int
+    ):
         """Record a successful translation for a backend.
 
         Uses upsert logic. Updates running average response time using
@@ -353,7 +358,11 @@ class TranslationRepository(BaseRepository):
             total = existing.total_requests or 0
             old_avg = existing.avg_response_time_ms or 0
             new_total = total + 1
-            new_avg = (old_avg * total + response_time_ms) / new_total if new_total > 0 else response_time_ms
+            new_avg = (
+                (old_avg * total + response_time_ms) / new_total
+                if new_total > 0
+                else response_time_ms
+            )
 
             existing.total_requests = new_total
             existing.successful_translations = (existing.successful_translations or 0) + 1
@@ -408,9 +417,7 @@ class TranslationRepository(BaseRepository):
 
     def get_backend_stats(self) -> list[dict]:
         """Get stats for all translation backends."""
-        stmt = select(TranslationBackendStats).order_by(
-            TranslationBackendStats.backend_name.asc()
-        )
+        stmt = select(TranslationBackendStats).order_by(TranslationBackendStats.backend_name.asc())
         entries = self.session.execute(stmt).scalars().all()
         return [self._to_dict(e) for e in entries]
 
@@ -438,12 +445,14 @@ class TranslationRepository(BaseRepository):
         whitespace sequences to a single space.
         """
         import re as _re
+
         return _re.sub(r"\s+", " ", text.strip().lower())
 
     @staticmethod
     def _hash_text(normalized_text: str) -> str:
         """Return SHA-256 hex digest of a normalized text string."""
         import hashlib
+
         return hashlib.sha256(normalized_text.encode("utf-8")).hexdigest()
 
     def lookup_translation_cache(
@@ -476,8 +485,7 @@ class TranslationRepository(BaseRepository):
 
         # --- Exact match via hash index ---
         exact = self.session.execute(
-            select(TranslationMemory.translated_text)
-            .where(
+            select(TranslationMemory.translated_text).where(
                 TranslationMemory.source_lang == source_lang,
                 TranslationMemory.target_lang == target_lang,
                 TranslationMemory.text_hash == text_hash,
@@ -497,8 +505,7 @@ class TranslationRepository(BaseRepository):
             select(
                 TranslationMemory.source_text_normalized,
                 TranslationMemory.translated_text,
-            )
-            .where(
+            ).where(
                 TranslationMemory.source_lang == source_lang,
                 TranslationMemory.target_lang == target_lang,
             )
@@ -508,9 +515,7 @@ class TranslationRepository(BaseRepository):
         best_translation: str | None = None
 
         for row in candidates:
-            ratio = difflib.SequenceMatcher(
-                None, normalized, row.source_text_normalized
-            ).ratio()
+            ratio = difflib.SequenceMatcher(None, normalized, row.source_text_normalized).ratio()
             if ratio > best_ratio:
                 best_ratio = ratio
                 best_translation = row.translated_text
@@ -542,8 +547,7 @@ class TranslationRepository(BaseRepository):
         now = self._now()
 
         existing = self.session.execute(
-            select(TranslationMemory)
-            .where(
+            select(TranslationMemory).where(
                 TranslationMemory.source_lang == source_lang,
                 TranslationMemory.target_lang == target_lang,
                 TranslationMemory.text_hash == text_hash,
@@ -588,7 +592,7 @@ class TranslationRepository(BaseRepository):
         """
         from db.models.translation import TranslationMemory
 
-        count = self.session.execute(
-            select(func.count()).select_from(TranslationMemory)
-        ).scalar() or 0
+        count = (
+            self.session.execute(select(func.count()).select_from(TranslationMemory)).scalar() or 0
+        )
         return {"entries": count}

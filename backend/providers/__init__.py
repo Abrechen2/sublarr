@@ -48,7 +48,7 @@ def _detect_format_from_content(content: bytes) -> SubtitleFormat:
     returns filenames without extensions for some results).
     """
     # Strip UTF-8 BOM if present
-    text_start = content[:512].lstrip(b'\xef\xbb\xbf')
+    text_start = content[:512].lstrip(b"\xef\xbb\xbf")
     try:
         preview = text_start.decode("utf-8", errors="replace").strip()
     except Exception:
@@ -57,6 +57,7 @@ def _detect_format_from_content(content: bytes) -> SubtitleFormat:
     if preview.startswith("[Script Info]") or preview.lower().startswith("[v4"):
         return SubtitleFormat.ASS
     return SubtitleFormat.SRT
+
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +77,9 @@ def register_provider(cls: type[SubtitleProvider]) -> type[SubtitleProvider]:
     if cls.name in _PROVIDER_CLASSES:
         logger.warning(
             "Provider name collision: '%s' already registered by %s, skipping %s",
-            cls.name, _PROVIDER_CLASSES[cls.name].__name__, cls.__name__,
+            cls.name,
+            _PROVIDER_CLASSES[cls.name].__name__,
+            cls.__name__,
         )
         return cls
     _PROVIDER_CLASSES[cls.name] = cls
@@ -110,9 +113,9 @@ class ProviderManager:
     # Provider-specific rate limits: (max_requests, window_seconds)
     PROVIDER_RATE_LIMITS = {
         "opensubtitles": (40, 10),  # 40 requests per 10 seconds
-        "jimaku": (100, 60),         # 100 requests per 60 seconds
-        "animetosho": (50, 30),      # 50 requests per 30 seconds
-        "subdl": (30, 10),           # 30 requests per 10 seconds
+        "jimaku": (100, 60),  # 100 requests per 60 seconds
+        "animetosho": (50, 30),  # 50 requests per 30 seconds
+        "subdl": (30, 10),  # 30 requests per 10 seconds
     }
 
     # Provider-specific timeouts (seconds)
@@ -133,6 +136,7 @@ class ProviderManager:
 
     def __init__(self):
         from config import get_settings
+
         self.settings = get_settings()
         self._providers: dict[str, SubtitleProvider] = {}
         self._rate_limits: dict[str, list[datetime]] = defaultdict(list)
@@ -149,6 +153,7 @@ class ProviderManager:
         """
         try:
             from providers.plugins import get_plugin_manager
+
             manager = get_plugin_manager()
             if manager:
                 loaded, errors = manager.discover()
@@ -222,7 +227,9 @@ class ProviderManager:
             enabled_set = set(_PROVIDER_CLASSES.keys())
 
         # Get priority order from config
-        priority_str = getattr(self.settings, "provider_priorities", "animetosho,jimaku,opensubtitles,subdl")
+        priority_str = getattr(
+            self.settings, "provider_priorities", "animetosho,jimaku,opensubtitles,subdl"
+        )
         manual_priority_list = [p.strip() for p in priority_str.split(",") if p.strip()]
 
         # Auto-prioritize based on success rate if enabled
@@ -237,7 +244,9 @@ class ProviderManager:
             for name in enabled_set:
                 if name in _PROVIDER_CLASSES:
                     stats = all_stats.get(name, {})
-                    if stats and stats.get("total_searches", 0) >= 10:  # Minimum 10 searches for auto-prioritization
+                    if (
+                        stats and stats.get("total_searches", 0) >= 10
+                    ):  # Minimum 10 searches for auto-prioritization
                         total = stats.get("total_searches", 0) or 1
                         success_rate = (stats.get("successful_downloads", 0) or 0) / total
                         provider_success_rates[name] = success_rate
@@ -247,7 +256,10 @@ class ProviderManager:
                 # Create priority list: high success rate first, then manual priority
                 sorted_by_success = sorted(
                     provider_success_rates.items(),
-                    key=lambda x: (-x[1], manual_priority_list.index(x[0]) if x[0] in manual_priority_list else 999)
+                    key=lambda x: (
+                        -x[1],
+                        manual_priority_list.index(x[0]) if x[0] in manual_priority_list else 999,
+                    ),
                 )
                 priority_list = [name for name, _ in sorted_by_success]
 
@@ -279,6 +291,7 @@ class ProviderManager:
 
         # Initialize providers in priority order
         from db.providers import is_provider_auto_disabled
+
         for name in priority_list:
             if name not in _PROVIDER_CLASSES:
                 logger.debug("Provider %s not found in registry", name)
@@ -292,13 +305,17 @@ class ProviderManager:
 
             try:
                 config = self._get_provider_config(name)
-                logger.debug("Initializing provider %s with config keys: %s", name, list(config.keys()))
+                logger.debug(
+                    "Initializing provider %s with config keys: %s", name, list(config.keys())
+                )
                 provider = _PROVIDER_CLASSES[name](**config)
                 provider.initialize()
 
                 # Check if provider was actually initialized
-                if hasattr(provider, 'session') and provider.session is None:
-                    logger.warning("Provider %s initialized but session is None (likely missing API key)", name)
+                if hasattr(provider, "session") and provider.session is None:
+                    logger.warning(
+                        "Provider %s initialized but session is None (likely missing API key)", name
+                    )
                 else:
                     self._providers[name] = provider
                     self._circuit_breakers[name] = CircuitBreaker(
@@ -319,13 +336,19 @@ class ProviderManager:
                 continue
             try:
                 config = self._get_provider_config(name)
-                logger.debug("Initializing provider %s (fallback) with config keys: %s", name, list(config.keys()))
+                logger.debug(
+                    "Initializing provider %s (fallback) with config keys: %s",
+                    name,
+                    list(config.keys()),
+                )
                 provider = _PROVIDER_CLASSES[name](**config)
                 provider.initialize()
 
                 # Check if provider was actually initialized
-                if hasattr(provider, 'session') and provider.session is None:
-                    logger.warning("Provider %s initialized but session is None (likely missing API key)", name)
+                if hasattr(provider, "session") and provider.session is None:
+                    logger.warning(
+                        "Provider %s initialized but session is None (likely missing API key)", name
+                    )
                 else:
                     self._providers[name] = provider
                     self._circuit_breakers[name] = CircuitBreaker(
@@ -335,12 +358,18 @@ class ProviderManager:
                     )
                     logger.info("Provider initialized successfully (fallback): %s", name)
             except Exception as e:
-                logger.error("Failed to initialize provider %s (fallback): %s", name, e, exc_info=True)
+                logger.error(
+                    "Failed to initialize provider %s (fallback): %s", name, e, exc_info=True
+                )
 
         if not self._providers:
-            logger.warning("No providers were successfully initialized! Check API keys and configuration.")
+            logger.warning(
+                "No providers were successfully initialized! Check API keys and configuration."
+            )
         else:
-            logger.info("Active providers (%d): %s", len(self._providers), list(self._providers.keys()))
+            logger.info(
+                "Active providers (%d): %s", len(self._providers), list(self._providers.keys())
+            )
 
     def _get_provider_config(self, name: str) -> dict:
         """Get provider-specific config from settings or plugin DB config.
@@ -359,6 +388,7 @@ class ProviderManager:
             # Plugin providers: read config from DB
             try:
                 from db.plugins import get_plugin_config
+
                 plugin_config = get_plugin_config(name)
                 for field in getattr(cls, "config_fields", []):
                     key = field["key"]
@@ -380,7 +410,7 @@ class ProviderManager:
             short_key = key
             prefix = f"{name}_"
             if key.startswith(prefix):
-                short_key = key[len(prefix):]
+                short_key = key[len(prefix) :]
             mapped_config[short_key] = value
 
         # Strip whitespace from all credential values (prevent paste artifacts)
@@ -479,8 +509,13 @@ class ProviderManager:
             timestamps[:] = [ts for ts in timestamps if now - ts < window]
 
             if len(timestamps) >= max_requests:
-                logger.debug("Provider %s rate limited: %d/%d requests in %ds window",
-                            provider_name, len(timestamps), max_requests, window_seconds)
+                logger.debug(
+                    "Provider %s rate limited: %d/%d requests in %ds window",
+                    provider_name,
+                    len(timestamps),
+                    max_requests,
+                    window_seconds,
+                )
                 return False  # Rate limited
 
             # Record this request
@@ -497,7 +532,8 @@ class ProviderManager:
         """
         try:
             from flask import current_app
-            return getattr(current_app, 'cache_backend', None)
+
+            return getattr(current_app, "cache_backend", None)
         except (RuntimeError, ImportError):
             # Outside Flask app context or Flask not available
             return None
@@ -522,7 +558,9 @@ class ProviderManager:
             results.append(result)
         return results
 
-    def _make_cache_key(self, query: VideoQuery, format_filter: SubtitleFormat | None = None) -> str:
+    def _make_cache_key(
+        self, query: VideoQuery, format_filter: SubtitleFormat | None = None
+    ) -> str:
         """Generate a cache key for a query."""
         key_parts = [
             query.file_path or "",
@@ -532,8 +570,9 @@ class ProviderManager:
         key_str = "|".join(key_parts)
         return hashlib.md5(key_str.encode(), usedforsecurity=False).hexdigest()  # noqa: S324
 
-    def _search_provider_with_retry(self, name: str, provider: SubtitleProvider,
-                                    query: VideoQuery) -> tuple[list[SubtitleResult], float]:
+    def _search_provider_with_retry(
+        self, name: str, provider: SubtitleProvider, query: VideoQuery
+    ) -> tuple[list[SubtitleResult], float]:
         """Search a single provider with retries.
 
         Returns:
@@ -545,12 +584,16 @@ class ProviderManager:
         elapsed_ms = 0.0
 
         # Check if provider is initialized
-        if hasattr(provider, 'session') and provider.session is None:
+        if hasattr(provider, "session") and provider.session is None:
             logger.warning("Provider %s not initialized (session is None), skipping search", name)
             return [], 0.0
 
-        logger.debug("Searching provider %s for: %s (languages: %s)",
-                    name, query.display_name, query.languages)
+        logger.debug(
+            "Searching provider %s for: %s (languages: %s)",
+            name,
+            query.display_name,
+            query.languages,
+        )
 
         for attempt in range(retries + 1):
             try:
@@ -558,11 +601,22 @@ class ProviderManager:
                 results = provider.search(query)
                 elapsed_ms = (_time.monotonic() - start) * 1000
 
-                logger.info("Provider %s returned %d results in %.0fms (attempt %d/%d)",
-                          name, len(results), elapsed_ms, attempt + 1, retries + 1)
+                logger.info(
+                    "Provider %s returned %d results in %.0fms (attempt %d/%d)",
+                    name,
+                    len(results),
+                    elapsed_ms,
+                    attempt + 1,
+                    retries + 1,
+                )
                 if results:
-                    logger.debug("Provider %s top result: %s (score: %d, format: %s)",
-                               name, results[0].filename, results[0].score, results[0].format.value)
+                    logger.debug(
+                        "Provider %s top result: %s (score: %d, format: %s)",
+                        name,
+                        results[0].filename,
+                        results[0].score,
+                        results[0].format.value,
+                    )
                 return results, elapsed_ms
             except ProviderAuthError as e:
                 logger.error("Provider %s authentication failed: %s", name, e)
@@ -571,18 +625,29 @@ class ProviderManager:
                 logger.warning("Provider %s rate limit exceeded: %s", name, e)
                 if attempt < retries:
                     # Wait a bit longer for rate limits
-                    wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                    wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
                     logger.debug("Waiting %ds before retry...", wait_time)
                     _time.sleep(wait_time)
                 else:
                     return [], 0.0  # Don't retry indefinitely for rate limits
             except Exception as e:
                 if attempt < retries:
-                    logger.debug("Provider %s search failed (attempt %d/%d), retrying: %s",
-                               name, attempt + 1, retries + 1, e, exc_info=True)
+                    logger.debug(
+                        "Provider %s search failed (attempt %d/%d), retrying: %s",
+                        name,
+                        attempt + 1,
+                        retries + 1,
+                        e,
+                        exc_info=True,
+                    )
                 else:
-                    logger.warning("Provider %s search failed after %d attempts: %s",
-                                 name, retries + 1, e, exc_info=True)
+                    logger.warning(
+                        "Provider %s search failed after %d attempts: %s",
+                        name,
+                        retries + 1,
+                        e,
+                        exc_info=True,
+                    )
 
         return [], 0.0
 
@@ -593,6 +658,7 @@ class ProviderManager:
         """
         from db.providers import auto_disable_provider
         from db.providers import get_provider_stats as _get_stats
+
         stats = _get_stats(name)
         if not stats:
             return
@@ -643,7 +709,10 @@ class ProviderManager:
 
         # Tier 2: Persistent DB cache lookup
         from db.providers import cache_provider_results, get_cached_results
-        cached_json = get_cached_results("combined", cache_key, format_filter.value if format_filter else None)
+
+        cached_json = get_cached_results(
+            "combined", cache_key, format_filter.value if format_filter else None
+        )
         if cached_json:
             try:
                 cached_data = json.loads(cached_json)
@@ -652,8 +721,9 @@ class ProviderManager:
                 # Backfill fast cache so next lookup is faster
                 if cache_backend:
                     try:
-                        cache_backend.set(app_cache_key, cached_json,
-                                          ttl_seconds=int(cache_ttl_minutes * 60))
+                        cache_backend.set(
+                            app_cache_key, cached_json, ttl_seconds=int(cache_ttl_minutes * 60)
+                        )
                     except Exception as e:
                         logger.debug("Fast cache backfill failed (non-blocking): %s", e)
                 return cached_results
@@ -674,6 +744,7 @@ class ProviderManager:
         if getattr(self.settings, "provider_dynamic_timeout_enabled", True):
             try:
                 from db.providers import get_all_provider_stats
+
                 stats_list = get_all_provider_stats()
                 _dyn_stats = {s["provider_name"]: s for s in stats_list if s.get("provider_name")}
             except Exception:
@@ -705,10 +776,17 @@ class ProviderManager:
             # Collect results as they complete
             # Use max timeout across all active providers + buffer
             active_names = {futures[f] for f in futures}
-            max_timeout = max(
-                (self._get_timeout(n, _dyn_stats) for n in self._providers if n in active_names),
-                default=self.settings.provider_search_timeout,
-            ) + 3
+            max_timeout = (
+                max(
+                    (
+                        self._get_timeout(n, _dyn_stats)
+                        for n in self._providers
+                        if n in active_names
+                    ),
+                    default=self.settings.provider_search_timeout,
+                )
+                + 3
+            )
             for future in as_completed(futures, timeout=max_timeout):
                 name = futures[future]
                 try:
@@ -729,8 +807,11 @@ class ProviderManager:
                         for result in results:
                             compute_score(result, query)
                             if result.score >= 400:
-                                logger.info("Perfect match found (score=%d) from provider %s, stopping search",
-                                          result.score, name)
+                                logger.info(
+                                    "Perfect match found (score=%d) from provider %s, stopping search",
+                                    result.score,
+                                    name,
+                                )
                                 perfect_match_found = True
                                 break
 
@@ -766,7 +847,7 @@ class ProviderManager:
             if not result.forced:
                 forced_type = classify_forced_result(
                     result.filename,
-                    result.provider_data if hasattr(result, 'provider_data') else None,
+                    result.provider_data if hasattr(result, "provider_data") else None,
                 )
                 if forced_type in ("forced", "signs"):
                     result.forced = True
@@ -782,7 +863,8 @@ class ProviderManager:
         # Filter by format — include UNKNOWN since some providers omit format metadata
         if format_filter:
             all_results = [
-                r for r in all_results
+                r
+                for r in all_results
                 if r.format == format_filter or r.format == SubtitleFormat.UNKNOWN
             ]
 
@@ -792,39 +874,47 @@ class ProviderManager:
 
         # Filter blacklisted subtitles
         from db.blacklist import is_blacklisted
+
         all_results = [r for r in all_results if not is_blacklisted(r.provider_name, r.subtitle_id)]
 
         # Sort by format preference (ASS first), then by score descending
-        all_results.sort(key=lambda r: (
-            0 if r.format == SubtitleFormat.ASS else 1,  # ASS first
-            -r.score  # Then by score descending
-        ))
+        all_results.sort(
+            key=lambda r: (
+                0 if r.format == SubtitleFormat.ASS else 1,  # ASS first
+                -r.score,  # Then by score descending
+            )
+        )
 
         # Cache results in both tiers
         try:
-            cache_data = [{
-                "provider_name": r.provider_name,
-                "subtitle_id": r.subtitle_id,
-                "language": r.language,
-                "format": r.format.value,
-                "filename": r.filename,
-                "download_url": r.download_url,
-                "release_info": r.release_info,
-                "hearing_impaired": r.hearing_impaired,
-                "forced": r.forced,
-                "score": r.score,
-            } for r in all_results]
+            cache_data = [
+                {
+                    "provider_name": r.provider_name,
+                    "subtitle_id": r.subtitle_id,
+                    "language": r.language,
+                    "format": r.format.value,
+                    "filename": r.filename,
+                    "download_url": r.download_url,
+                    "release_info": r.release_info,
+                    "hearing_impaired": r.hearing_impaired,
+                    "forced": r.forced,
+                    "score": r.score,
+                }
+                for r in all_results
+            ]
             cache_json = json.dumps(cache_data)
             # Tier 1: Fast cache (Redis or in-memory)
             if cache_backend:
                 try:
-                    cache_backend.set(app_cache_key, cache_json,
-                                      ttl_seconds=int(cache_ttl_minutes * 60))
+                    cache_backend.set(
+                        app_cache_key, cache_json, ttl_seconds=int(cache_ttl_minutes * 60)
+                    )
                 except Exception as e:
                     logger.debug("Fast cache write failed (non-blocking): %s", e)
             # Tier 2: Persistent DB cache (audit trail + UI stats)
-            cache_provider_results("combined", cache_key, cache_json,
-                                 ttl_hours=cache_ttl_minutes / 60)
+            cache_provider_results(
+                "combined", cache_key, cache_json, ttl_hours=cache_ttl_minutes / 60
+            )
         except Exception as e:
             logger.debug("Failed to cache results: %s", e)
 
@@ -849,7 +939,9 @@ class ProviderManager:
             List of SubtitleResult sorted by score (highest first)
         """
         # 1. Try provider search first
-        results = self.search(query, format_filter=format_filter, min_score=min_score, early_exit=early_exit)
+        results = self.search(
+            query, format_filter=format_filter, min_score=min_score, early_exit=early_exit
+        )
         if results:
             return results
 
@@ -907,7 +999,9 @@ class ProviderManager:
 
         # Check rate limit before download
         if not self._check_rate_limit(result.provider_name):
-            logger.debug("Skipping download from provider %s due to rate limit", result.provider_name)
+            logger.debug(
+                "Skipping download from provider %s due to rate limit", result.provider_name
+            )
             return None
 
         try:
@@ -940,6 +1034,7 @@ class ProviderManager:
         for result in results:
             # Track search attempt for stats
             from db.providers import update_provider_stats
+
             try:
                 content = self.download(result)
                 if content is not None:  # Empty bytes for embedded is OK
@@ -985,6 +1080,7 @@ class ProviderManager:
         # Check disk space before writing (defensive guard)
         try:
             import shutil
+
             stat = shutil.disk_usage(os.path.dirname(output_path))
             free_mb = stat.free / (1024 * 1024)
             MIN_FREE_SPACE_MB = 100  # Same as translator.py
@@ -1000,11 +1096,14 @@ class ProviderManager:
         # Validate output path is within allowed media directory (path traversal guard)
         try:
             from config import get_settings as _get_settings
+
             _settings = _get_settings()
-            _media_path = os.path.abspath(getattr(_settings, 'media_path', '/media'))
+            _media_path = os.path.abspath(getattr(_settings, "media_path", "/media"))
             _abs_output = os.path.abspath(output_path)
             if not _abs_output.startswith(_media_path + os.sep):
-                raise ValueError(f"save_subtitle: output_path {output_path!r} is outside media_path")
+                raise ValueError(
+                    f"save_subtitle: output_path {output_path!r} is outside media_path"
+                )
         except ValueError:
             raise
         except Exception:
@@ -1027,8 +1126,13 @@ class ProviderManager:
             logger.error("Failed to write subtitle to %s: %s", output_path, e)
             raise RuntimeError(f"Cannot write subtitle file: {e}") from e
 
-        logger.info("Saved subtitle: %s (%s, %s, score=%d)",
-                     output_path, result.provider_name, result.language, result.score)
+        logger.info(
+            "Saved subtitle: %s (%s, %s, score=%d)",
+            output_path,
+            result.provider_name,
+            result.language,
+            result.score,
+        )
         return output_path
 
     def get_provider_status(self) -> list[dict]:
@@ -1036,7 +1140,9 @@ class ProviderManager:
         from db.providers import get_provider_download_stats, get_provider_stats
 
         # Build priority order (use current priority list from _init_providers)
-        priority_str = getattr(self.settings, "provider_priorities", "animetosho,jimaku,opensubtitles,subdl")
+        priority_str = getattr(
+            self.settings, "provider_priorities", "animetosho,jimaku,opensubtitles,subdl"
+        )
         priority_list = [p.strip() for p in priority_str.split(",") if p.strip()]
 
         # Get enabled set
@@ -1089,29 +1195,33 @@ class ProviderManager:
                     healthy, msg = provider.health_check()
                 except Exception as e:
                     healthy, msg = False, str(e)
-                statuses.append({
-                    "name": name,
-                    "enabled": True,
-                    "initialized": True,
-                    "healthy": healthy,
-                    "message": msg,
-                    "priority": priority,
-                    "downloads": downloads,
-                    "config_fields": config_fields,
-                    "stats": stats_dict,
-                })
+                statuses.append(
+                    {
+                        "name": name,
+                        "enabled": True,
+                        "initialized": True,
+                        "healthy": healthy,
+                        "message": msg,
+                        "priority": priority,
+                        "downloads": downloads,
+                        "config_fields": config_fields,
+                        "stats": stats_dict,
+                    }
+                )
             else:
-                statuses.append({
-                    "name": name,
-                    "enabled": name in enabled_set,
-                    "initialized": False,
-                    "healthy": False,
-                    "message": "Not initialized",
-                    "priority": priority,
-                    "downloads": downloads,
-                    "config_fields": config_fields,
-                    "stats": stats_dict,
-                })
+                statuses.append(
+                    {
+                        "name": name,
+                        "enabled": name in enabled_set,
+                        "initialized": False,
+                        "healthy": False,
+                        "message": "Not initialized",
+                        "priority": priority,
+                        "downloads": downloads,
+                        "config_fields": config_fields,
+                        "stats": stats_dict,
+                    }
+                )
 
         # Sort by priority
         statuses.sort(key=lambda s: s["priority"])

@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 # Conditional imports with graceful fallback
 try:
     from bs4 import BeautifulSoup
+
     _HAS_BS4 = True
 except ImportError:
     _HAS_BS4 = False
@@ -38,6 +39,7 @@ except ImportError:
 
 try:
     import guessit as _guessit_module
+
     _HAS_GUESSIT = True
 except ImportError:
     _HAS_GUESSIT = False
@@ -45,6 +47,7 @@ except ImportError:
 
 try:
     import rarfile
+
     _HAS_RARFILE = True
 except ImportError:
     _HAS_RARFILE = False
@@ -86,21 +89,28 @@ def _parse_episode_info(text: str) -> dict:
             pass
 
     # Regex fallback
-    result = {"season": None, "episode": None, "title": "", "release_group": "", "source": "", "resolution": ""}
+    result = {
+        "season": None,
+        "episode": None,
+        "title": "",
+        "release_group": "",
+        "source": "",
+        "resolution": "",
+    }
 
     # S01E02 pattern
-    m = re.search(r'[Ss](\d{1,2})[Ee](\d{1,3})', text)
+    m = re.search(r"[Ss](\d{1,2})[Ee](\d{1,3})", text)
     if m:
         result["season"] = int(m.group(1))
         result["episode"] = int(m.group(2))
 
     # Resolution
-    m = re.search(r'(1080p|720p|480p|2160p|4[Kk])', text)
+    m = re.search(r"(1080p|720p|480p|2160p|4[Kk])", text)
     if m:
         result["resolution"] = m.group(1)
 
     # Release group (last bracket group)
-    m = re.search(r'[-\s](\w+)$', text.strip())
+    m = re.search(r"[-\s](\w+)$", text.strip())
     if m:
         result["release_group"] = m.group(1)
 
@@ -119,7 +129,7 @@ def _extract_subtitle_from_archive(content: bytes) -> tuple[str, bytes] | None:
     Returns (filename, content) or None if no subtitle found.
     """
     # ZIP detection
-    if content[:4] == b'PK\x03\x04':
+    if content[:4] == b"PK\x03\x04":
         try:
             with zipfile.ZipFile(io.BytesIO(content)) as zf:
                 for name in zf.namelist():
@@ -131,7 +141,7 @@ def _extract_subtitle_from_archive(content: bytes) -> tuple[str, bytes] | None:
         return None
 
     # RAR detection
-    if content[:4] == b'Rar!':
+    if content[:4] == b"Rar!":
         if not _HAS_RARFILE:
             logger.warning("Titrari: RAR archive detected but rarfile not installed")
             return None
@@ -175,10 +185,12 @@ class TitrariProvider(SubtitleProvider):
             timeout=20,
             user_agent=_BROWSER_UA,
         )
-        self.session.headers.update({
-            "Accept-Language": "ro-RO,ro;q=0.9,en;q=0.8",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        })
+        self.session.headers.update(
+            {
+                "Accept-Language": "ro-RO,ro;q=0.9,en;q=0.8",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            }
+        )
         logger.debug("Titrari: session created successfully")
 
     def terminate(self):
@@ -223,7 +235,9 @@ class TitrariProvider(SubtitleProvider):
 
         # Build search term
         if query.is_episode:
-            search_term = f"{query.series_title or query.title} S{query.season:02d}E{query.episode:02d}"
+            search_term = (
+                f"{query.series_title or query.title} S{query.season:02d}E{query.episode:02d}"
+            )
         elif query.is_movie:
             search_term = query.title
             if query.year:
@@ -237,10 +251,13 @@ class TitrariProvider(SubtitleProvider):
         logger.debug("Titrari: searching for '%s'", search_term)
 
         try:
-            resp = self.session.get(SEARCH_URL, params={
-                "page": "cautare",
-                "titlufilm": search_term,
-            })
+            resp = self.session.get(
+                SEARCH_URL,
+                params={
+                    "page": "cautare",
+                    "titlufilm": search_term,
+                },
+            )
 
             if resp.status_code == 403:
                 raise ProviderError("Titrari: access blocked (HTTP 403) — IP may be banned")
@@ -305,7 +322,9 @@ class TitrariProvider(SubtitleProvider):
             text = link.get_text(strip=True)
 
             # Download links typically contain 'download' or end with archive extensions
-            if "download" in href.lower() or any(href.lower().endswith(ext) for ext in [".zip", ".rar", ".srt"]):
+            if "download" in href.lower() or any(
+                href.lower().endswith(ext) for ext in [".zip", ".rar", ".srt"]
+            ):
                 download_url = urljoin(BASE_URL, href)
             elif href and text and len(text) > 3:
                 # Likely a subtitle title/detail link
@@ -325,7 +344,12 @@ class TitrariProvider(SubtitleProvider):
             release_name = row_text[:200]  # cap at reasonable length
 
         # Skip header/navigation rows
-        if len(release_name) < 3 or release_name.lower() in ("titlu", "titlul", "descarca", "download"):
+        if len(release_name) < 3 or release_name.lower() in (
+            "titlu",
+            "titlul",
+            "descarca",
+            "download",
+        ):
             return None
 
         # Detect format from filename or default to SRT
@@ -450,6 +474,7 @@ def _can_use_lxml() -> bool:
     """Check if lxml parser is available for BeautifulSoup."""
     try:
         import lxml  # noqa: F401
+
         return True
     except ImportError:
         return False

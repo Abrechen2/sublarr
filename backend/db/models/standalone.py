@@ -3,7 +3,6 @@
 All column types and defaults match the existing SCHEMA DDL in db/__init__.py exactly.
 """
 
-
 from sqlalchemy import Index, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 

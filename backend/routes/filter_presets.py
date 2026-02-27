@@ -139,7 +139,7 @@ def update_filter_preset(preset_id: int):
     try:
         preset = update_preset(
             preset_id,
-            **{k: v for k, v in data.items() if k in ("name", "conditions", "is_default")}
+            **{k: v for k, v in data.items() if k in ("name", "conditions", "is_default")},
         )
     except ValueError as e:
         return jsonify({"error": str(e)}), 422

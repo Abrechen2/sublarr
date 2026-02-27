@@ -49,6 +49,7 @@ def _legacy_transaction(db_conn: sqlite3.Connection):
 def _sqlalchemy_transaction():
     """SQLAlchemy session-based transaction."""
     from extensions import db
+
     try:
         yield db.session
         db.session.commit()

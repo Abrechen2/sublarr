@@ -14,7 +14,9 @@ from tests.fixtures.provider_responses import (
 class TestProviderSearch:
     """Tests for provider search functionality."""
 
-    @pytest.mark.skip(reason="endpoint not yet implemented: /api/v1/providers/search POST with form data is unverified")
+    @pytest.mark.skip(
+        reason="endpoint not yet implemented: /api/v1/providers/search POST with form data is unverified"
+    )
     @patch("providers.opensubtitles.OpenSubtitlesProvider.search")
     def test_provider_search_success(self, mock_search, client):
         """Test successful provider search via the /api/v1/providers/search endpoint."""
@@ -98,6 +100,7 @@ class TestProviderManager:
     def test_provider_status(self, client):
         """Test provider status endpoint."""
         import json
+
         response = client.get("/api/v1/providers")
         assert response.status_code == 200
         data = json.loads(response.data)

@@ -34,13 +34,70 @@ logger = logging.getLogger(__name__)
 
 # All Whisper-supported languages (ISO 639-1 codes)
 WHISPER_LANGUAGES = {
-    "en", "ja", "de", "fr", "es", "it", "pt", "ru", "zh", "ko",
-    "ar", "nl", "pl", "sv", "cs", "hu", "tr", "th", "vi", "id",
-    "hi", "uk", "ro", "el", "da", "fi", "no", "sk", "hr", "bg",
-    "lt", "lv", "sl", "et", "ms", "he", "ca", "ta", "te", "bn",
-    "ml", "ka", "sr", "mk", "is", "gl", "eu", "af", "cy", "be",
-    "ur", "sw", "tl", "fa", "az", "kk", "hy", "my", "ne", "mn",
-    "bs", "sq", "lb", "mt",
+    "en",
+    "ja",
+    "de",
+    "fr",
+    "es",
+    "it",
+    "pt",
+    "ru",
+    "zh",
+    "ko",
+    "ar",
+    "nl",
+    "pl",
+    "sv",
+    "cs",
+    "hu",
+    "tr",
+    "th",
+    "vi",
+    "id",
+    "hi",
+    "uk",
+    "ro",
+    "el",
+    "da",
+    "fi",
+    "no",
+    "sk",
+    "hr",
+    "bg",
+    "lt",
+    "lv",
+    "sl",
+    "et",
+    "ms",
+    "he",
+    "ca",
+    "ta",
+    "te",
+    "bn",
+    "ml",
+    "ka",
+    "sr",
+    "mk",
+    "is",
+    "gl",
+    "eu",
+    "af",
+    "cy",
+    "be",
+    "ur",
+    "sw",
+    "tl",
+    "fa",
+    "az",
+    "kk",
+    "hy",
+    "my",
+    "ne",
+    "mn",
+    "bs",
+    "sq",
+    "lb",
+    "mt",
 }
 
 
@@ -97,9 +154,13 @@ class WhisperSubgenProvider(SubtitleProvider):
 
     def search(self, query: VideoQuery) -> list[SubtitleResult]:
         """Deprecated: always returns an empty list."""
-        logger.warning("WhisperSubgenProvider.search() is deprecated. Use Whisper backend system instead.")
+        logger.warning(
+            "WhisperSubgenProvider.search() is deprecated. Use Whisper backend system instead."
+        )
         return []
 
     def download(self, result: SubtitleResult) -> bytes:
         """Deprecated: always raises ProviderError."""
-        raise ProviderError("WhisperSubgenProvider is deprecated. Use Whisper backend system instead.")
+        raise ProviderError(
+            "WhisperSubgenProvider is deprecated. Use Whisper backend system instead."
+        )

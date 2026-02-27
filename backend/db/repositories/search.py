@@ -41,6 +41,7 @@ _POSTGRESQL_SEARCH_SCHEMA = [
 def _get_engine():
     """Get the SQLAlchemy engine from Flask-SQLAlchemy extension."""
     from extensions import db as sa_db
+
     return sa_db.engine
 
 
@@ -64,27 +65,33 @@ class SearchRepository(BaseRepository):
         """Rebuild search tables from subtitle_downloads. Call after library sync."""
         with _get_engine().connect() as conn:
             conn.execute(text("DELETE FROM search_subtitles"))
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 INSERT INTO search_subtitles(id, file_path, provider_name, language)
                 SELECT id, file_path, provider_name, language
                 FROM subtitle_downloads
-            """))
+            """)
+            )
             conn.execute(text("DELETE FROM search_episodes"))
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 INSERT INTO search_episodes(id, series_id, title, season_episode)
                 SELECT id, COALESCE(sonarr_series_id, radarr_movie_id, 0),
                        title, season_episode
                 FROM wanted_items
                 WHERE title IS NOT NULL AND title != ''
-            """))
+            """)
+            )
             conn.execute(text("DELETE FROM search_series"))
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 INSERT INTO search_series(id, title)
                 SELECT sonarr_series_id, title
                 FROM wanted_items
                 WHERE sonarr_series_id IS NOT NULL AND title IS NOT NULL
                 GROUP BY sonarr_series_id
-            """))
+            """)
+            )
             conn.commit()
 
     def search_all(self, query: str, limit: int = 20) -> dict:
@@ -98,24 +105,36 @@ class SearchRepository(BaseRepository):
 
         like_term = f"%{query.strip()}%"
         with _get_engine().connect() as conn:
-            series = conn.execute(
-                text("SELECT id, title FROM search_series WHERE title LIKE :q LIMIT :lim"),
-                {"q": like_term, "lim": limit}
-            ).mappings().all()
+            series = (
+                conn.execute(
+                    text("SELECT id, title FROM search_series WHERE title LIKE :q LIMIT :lim"),
+                    {"q": like_term, "lim": limit},
+                )
+                .mappings()
+                .all()
+            )
 
-            episodes = conn.execute(
-                text("""SELECT id, series_id, title, season_episode
+            episodes = (
+                conn.execute(
+                    text("""SELECT id, series_id, title, season_episode
                         FROM search_episodes
                         WHERE title LIKE :q OR season_episode LIKE :q LIMIT :lim"""),
-                {"q": like_term, "lim": limit}
-            ).mappings().all()
+                    {"q": like_term, "lim": limit},
+                )
+                .mappings()
+                .all()
+            )
 
-            subtitles = conn.execute(
-                text("""SELECT id, file_path, provider_name, language
+            subtitles = (
+                conn.execute(
+                    text("""SELECT id, file_path, provider_name, language
                         FROM search_subtitles
                         WHERE file_path LIKE :q OR provider_name LIKE :q LIMIT :lim"""),
-                {"q": like_term, "lim": limit}
-            ).mappings().all()
+                    {"q": like_term, "lim": limit},
+                )
+                .mappings()
+                .all()
+            )
 
         return {
             "series": [dict(r) for r in series],

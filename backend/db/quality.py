@@ -16,12 +16,11 @@ def _get_repo():
     return _repo
 
 
-def save_health_result(file_path: str, score: int, issues_json: str,
-                       checks_run: int, checked_at: str) -> dict:
+def save_health_result(
+    file_path: str, score: int, issues_json: str, checks_run: int, checked_at: str
+) -> dict:
     """Save a health check result to the database."""
-    return _get_repo().save_health_result(
-        file_path, score, issues_json, checks_run, checked_at
-    )
+    return _get_repo().save_health_result(file_path, score, issues_json, checks_run, checked_at)
 
 
 def get_health_result(file_path: str):

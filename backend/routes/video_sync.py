@@ -27,19 +27,32 @@ def _update_job(job_id: str, status: str, result: dict = None, error: str = None
         _jobs[job_id] = {"status": status, "result": result, "error": error}
     try:
         from app import socketio
-        socketio.emit("sync_job_update", {
-            "job_id": job_id, "status": status, "result": result, "error": error,
-        })
+
+        socketio.emit(
+            "sync_job_update",
+            {
+                "job_id": job_id,
+                "status": status,
+                "result": result,
+                "error": error,
+            },
+        )
     except Exception:
         pass
 
 
-def _run_sync(job_id: str, engine: str, subtitle_path: str,
-              video_path: str | None, reference_path: str | None,
-              cleanup_ref: str | None) -> None:
+def _run_sync(
+    job_id: str,
+    engine: str,
+    subtitle_path: str,
+    video_path: str | None,
+    reference_path: str | None,
+    cleanup_ref: str | None,
+) -> None:
     _update_job(job_id, "running")
     try:
         from services.video_sync import sync_with_alass, sync_with_ffsubsync
+
         if engine == "ffsubsync":
             result = sync_with_ffsubsync(subtitle_path, video_path)
         elif engine == "alass":
@@ -60,6 +73,7 @@ def _run_sync(job_id: str, engine: str, subtitle_path: str,
 def get_engines():
     """Return which sync engines are available."""
     from services.video_sync import get_available_engines
+
     return jsonify(get_available_engines())
 
 
@@ -88,6 +102,7 @@ def start_sync():
 
     # Security: ensure paths are under media_path
     from config import get_settings
+
     _s = get_settings()
     _media_path = os.path.abspath(_s.media_path)
     if not os.path.abspath(subtitle_path).startswith(_media_path + os.sep):
@@ -100,7 +115,9 @@ def start_sync():
             return jsonify({"error": "video_path is required for ffsubsync"}), 400
     elif engine == "alass":
         if not reference_path and reference_track_index is None:
-            return jsonify({"error": "reference_path or reference_track_index required for alass"}), 400
+            return jsonify(
+                {"error": "reference_path or reference_track_index required for alass"}
+            ), 400
     else:
         return jsonify({"error": f"Unknown engine: {engine!r}"}), 400
 
@@ -109,6 +126,7 @@ def start_sync():
     if engine == "alass" and reference_track_index is not None and video_path:
         try:
             from ass_utils import extract_subtitle_stream, get_media_streams
+
             probe = get_media_streams(video_path)
             stream = next(
                 (s for s in probe.get("streams", []) if s.get("index") == reference_track_index),
@@ -119,6 +137,7 @@ def start_sync():
             codec = stream.get("codec_name", "subrip")
             ext = "ass" if codec in ("ass", "ssa") else "srt"
             import tempfile
+
             fd, tmp_path = tempfile.mkstemp(suffix=f".{ext}")
             os.close(fd)
             extract_subtitle_stream(
@@ -163,6 +182,7 @@ def install_engine(engine: str):
         return jsonify({"error": f"Unknown engine: {engine!r}"}), 400
     try:
         from services.video_sync import install_engine as _install
+
         result = _install(engine)
         return jsonify(result)
     except Exception as exc:

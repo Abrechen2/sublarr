@@ -15,16 +15,45 @@ logger = logging.getLogger(__name__)
 
 # Supported video file extensions (lowercase, with dot)
 VIDEO_EXTENSIONS: set[str] = {
-    ".mkv", ".mp4", ".avi", ".m4v", ".wmv", ".flv", ".webm", ".ts",
+    ".mkv",
+    ".mp4",
+    ".avi",
+    ".m4v",
+    ".wmv",
+    ".flv",
+    ".webm",
+    ".ts",
 }
 
 # Known anime fansub release groups for detection
 ANIME_RELEASE_GROUPS: set[str] = {
-    "SubsPlease", "Erai-raws", "HorribleSubs", "Judas", "EMBER", "ASW",
-    "Tsundere-Raws", "DameDesuYo", "GJM", "Commie", "Underwater",
-    "Coalgirls", "Kametsu", "MTBB", "Vivid", "Chihiro", "UTW",
-    "FFF", "Mazui", "WhyNot", "Doki", "Cleo", "Nep_Blanc",
-    "SmallSizedAnimations", "YuiSubs", "Anime Time", "SSA",
+    "SubsPlease",
+    "Erai-raws",
+    "HorribleSubs",
+    "Judas",
+    "EMBER",
+    "ASW",
+    "Tsundere-Raws",
+    "DameDesuYo",
+    "GJM",
+    "Commie",
+    "Underwater",
+    "Coalgirls",
+    "Kametsu",
+    "MTBB",
+    "Vivid",
+    "Chihiro",
+    "UTW",
+    "FFF",
+    "Mazui",
+    "WhyNot",
+    "Doki",
+    "Cleo",
+    "Nep_Blanc",
+    "SmallSizedAnimations",
+    "YuiSubs",
+    "Anime Time",
+    "SSA",
 }
 
 # Regex patterns for anime detection
@@ -207,6 +236,7 @@ def group_files_by_series(file_paths: list[str]) -> dict[str, list[dict]]:
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _extract_title(guess: dict, parent_dir: str) -> str:
     """Extract the best title from guessit result with fallback to parent dir."""
     title = guess.get("title", "")
@@ -233,9 +263,9 @@ def _normalize_episode(episode_val) -> int | None:
     return int(episode_val)
 
 
-def _calculate_confidence(title: str, season: int | None,
-                          episode: int | None, media_type: str,
-                          guess: dict) -> str:
+def _calculate_confidence(
+    title: str, season: int | None, episode: int | None, media_type: str, guess: dict
+) -> str:
     """Calculate parsing confidence level.
 
     Returns:

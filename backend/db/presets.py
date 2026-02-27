@@ -26,15 +26,14 @@ def get_preset(preset_id: int) -> dict | None:
     return _get_repo().get_preset(preset_id)
 
 
-def create_preset(name: str, scope: str, conditions: dict,
-                  is_default: bool = False) -> dict:
+def create_preset(name: str, scope: str, conditions: dict, is_default: bool = False) -> dict:
     """Create a new filter preset."""
     return _get_repo().create_preset(name, scope, conditions, is_default)
 
 
-def update_preset(preset_id: int, name: str = None,
-                  conditions: dict = None,
-                  is_default: bool = None) -> dict | None:
+def update_preset(
+    preset_id: int, name: str = None, conditions: dict = None, is_default: bool = None
+) -> dict | None:
     """Update an existing filter preset."""
     return _get_repo().update_preset(preset_id, name, conditions, is_default)
 

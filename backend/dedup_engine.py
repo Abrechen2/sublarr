@@ -95,8 +95,12 @@ def scan_for_duplicates(media_path: str, socketio=None) -> dict:
     from db.repositories.cleanup import CleanupRepository
 
     if not os.path.isdir(media_path):
-        return {"error": f"Path not found or not a directory: {media_path}",
-                "total_scanned": 0, "duplicates_found": 0, "groups": []}
+        return {
+            "error": f"Path not found or not a directory: {media_path}",
+            "total_scanned": 0,
+            "duplicates_found": 0,
+            "groups": [],
+        }
 
     # Collect all subtitle file paths
     subtitle_files = []
@@ -139,19 +143,25 @@ def scan_for_duplicates(media_path: str, socketio=None) -> dict:
 
             # Emit progress via WebSocket
             if socketio and processed % 10 == 0:
-                socketio.emit("scan_progress", {
-                    "current": processed,
-                    "total": total,
-                    "percent": round(processed / total * 100, 1),
-                })
+                socketio.emit(
+                    "scan_progress",
+                    {
+                        "current": processed,
+                        "total": total,
+                        "percent": round(processed / total * 100, 1),
+                    },
+                )
 
     # Final progress emit
     if socketio:
-        socketio.emit("scan_progress", {
-            "current": total,
-            "total": total,
-            "percent": 100.0,
-        })
+        socketio.emit(
+            "scan_progress",
+            {
+                "current": total,
+                "total": total,
+                "percent": 100.0,
+            },
+        )
 
     # Store hashes in database
     repo = CleanupRepository()
@@ -175,7 +185,10 @@ def scan_for_duplicates(media_path: str, socketio=None) -> dict:
 
     logger.info(
         "Dedup scan complete: %d files scanned, %d duplicates in %d groups, %d errors",
-        processed, duplicates_found, len(groups), len(errors),
+        processed,
+        duplicates_found,
+        len(groups),
+        len(errors),
     )
 
     return {
@@ -249,10 +262,12 @@ def delete_duplicates(file_paths: list[str], keep_path: str) -> dict:
                 files_processed=len(file_paths),
                 files_deleted=deleted,
                 bytes_freed=bytes_freed,
-                details_json=json.dumps({
-                    "kept": keep_path,
-                    "deleted": deleted_paths,
-                }),
+                details_json=json.dumps(
+                    {
+                        "kept": keep_path,
+                        "deleted": deleted_paths,
+                    }
+                ),
             )
         except Exception as e:
             logger.warning("Failed to update DB after deletion: %s", e)
@@ -312,12 +327,14 @@ def scan_orphaned_subtitles(media_path: str) -> list[dict]:
                 except OSError:
                     size = 0
 
-                orphaned.append({
-                    "path": full_path,
-                    "size": size,
-                    "filename": filename,
-                    "directory": root,
-                })
+                orphaned.append(
+                    {
+                        "path": full_path,
+                        "size": size,
+                        "filename": filename,
+                        "directory": root,
+                    }
+                )
 
     logger.info("Orphan scan: found %d orphaned subtitle files in %s", len(orphaned), media_path)
     return orphaned

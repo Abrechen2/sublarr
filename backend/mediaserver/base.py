@@ -97,5 +97,5 @@ class MediaServer(ABC):
 
         from_path, to_path = path_mapping.split(":", 1)
         if file_path.startswith(from_path):
-            return to_path + file_path[len(from_path):]
+            return to_path + file_path[len(from_path) :]
         return file_path

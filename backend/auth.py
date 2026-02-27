@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 def require_api_key(f):
     """Decorator to enforce API key authentication on a route."""
+
     @functools.wraps(f)
     def decorated(*args, **kwargs):
         settings = get_settings()
@@ -26,10 +27,7 @@ def require_api_key(f):
             return f(*args, **kwargs)
 
         # Check header first, then query parameter
-        provided_key = (
-            request.headers.get("X-Api-Key")
-            or request.args.get("apikey")
-        )
+        provided_key = request.headers.get("X-Api-Key") or request.args.get("apikey")
 
         if not provided_key:
             logger.warning("API request without key from %s", request.remote_addr)
@@ -40,6 +38,7 @@ def require_api_key(f):
             return jsonify({"error": "Invalid API key"}), 401
 
         return f(*args, **kwargs)
+
     return decorated
 
 
@@ -75,10 +74,7 @@ def init_auth(app):
         if path.startswith("/api/v1/webhook/"):
             return None
 
-        provided_key = (
-            request.headers.get("X-Api-Key")
-            or request.args.get("apikey")
-        )
+        provided_key = request.headers.get("X-Api-Key") or request.args.get("apikey")
 
         if not provided_key:
             return jsonify({"error": "API key required"}), 401

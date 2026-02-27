@@ -8,6 +8,7 @@ Adds two tables for Phase 25 (AniDB Absolute Episode Order):
   - anidb_absolute_mappings: TVDB season/episode → AniDB absolute episode
   - series_settings: per-series flags (currently: absolute_order)
 """
+
 import sqlalchemy as sa
 from alembic import op
 
@@ -30,7 +31,9 @@ def upgrade():
         sa.Column("source", sa.Text(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
-            "tvdb_id", "season", "episode",
+            "tvdb_id",
+            "season",
+            "episode",
             name="uq_anidb_absolute_tvdb_season_episode",
         ),
     )

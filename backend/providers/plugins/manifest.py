@@ -105,7 +105,5 @@ def extract_manifest(cls) -> PluginManifest:
         min_sublarr_version=getattr(cls, "min_sublarr_version", ""),
         config_fields=getattr(cls, "config_fields", []),
         languages=languages,
-        requires_auth=any(
-            f.get("required", False) for f in getattr(cls, "config_fields", [])
-        ),
+        requires_auth=any(f.get("required", False) for f in getattr(cls, "config_fields", [])),
     )

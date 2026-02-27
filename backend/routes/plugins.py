@@ -46,10 +46,12 @@ def list_plugins():
     plugins = manager.get_plugin_info()
     errors = manager.get_errors()
 
-    return jsonify({
-        "plugins": plugins,
-        "errors": errors,
-    })
+    return jsonify(
+        {
+            "plugins": plugins,
+            "errors": errors,
+        }
+    )
 
 
 @bp.route("/plugins/reload", methods=["POST"])
@@ -98,10 +100,12 @@ def reload_plugins():
     # Re-initialize ProviderManager with new plugins
     invalidate_manager()
 
-    return jsonify({
-        "loaded": loaded,
-        "errors": errors,
-    })
+    return jsonify(
+        {
+            "loaded": loaded,
+            "errors": errors,
+        }
+    )
 
 
 @bp.route("/plugins/<name>/config", methods=["GET"])
@@ -155,11 +159,13 @@ def get_plugin_config(name):
     config = db_get_plugin_config(name)
     config_fields = getattr(cls, "config_fields", [])
 
-    return jsonify({
-        "name": name,
-        "config": config,
-        "config_fields": config_fields,
-    })
+    return jsonify(
+        {
+            "name": name,
+            "config": config,
+            "config_fields": config_fields,
+        }
+    )
 
 
 @bp.route("/plugins/<name>/config", methods=["PUT"])
@@ -238,8 +244,10 @@ def update_plugin_config(name):
     invalidate_manager()
 
     logger.info("Updated plugin config for '%s': %s", name, updated_keys)
-    return jsonify({
-        "status": "updated",
-        "name": name,
-        "keys": updated_keys,
-    })
+    return jsonify(
+        {
+            "status": "updated",
+            "name": name,
+            "keys": updated_keys,
+        }
+    )

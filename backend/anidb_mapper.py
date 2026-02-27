@@ -62,8 +62,9 @@ def extract_anidb_from_custom_fields(series: dict, custom_field_name: str = None
     return None
 
 
-def get_anidb_id(tvdb_id: int | None = None, series_title: str = "",
-                 series: dict = None) -> int | None:
+def get_anidb_id(
+    tvdb_id: int | None = None, series_title: str = "", series: dict = None
+) -> int | None:
     """Resolve AniDB ID from multiple sources.
 
     Priority order:

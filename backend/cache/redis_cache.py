@@ -76,9 +76,7 @@ class RedisCacheBackend(CacheBackend):
         deleted = 0
         cursor = 0
         while True:
-            cursor, keys = self.redis.scan(
-                cursor=cursor, match=pattern, count=_SCAN_BATCH_SIZE
-            )
+            cursor, keys = self.redis.scan(cursor=cursor, match=pattern, count=_SCAN_BATCH_SIZE)
             if keys:
                 deleted += self.redis.delete(*keys)
             if cursor == 0:

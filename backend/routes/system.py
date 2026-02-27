@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 def _health_check_ollama():
     """Return (dict of service_status entries, overall_healthy bool)."""
     from ollama_client import check_ollama_health
+
     healthy, message = check_ollama_health()
     return {"ollama": message}, healthy
 
@@ -30,6 +31,7 @@ def _health_check_ollama():
 def _health_check_providers():
     try:
         from providers import get_provider_manager
+
         manager = get_provider_manager()
         provider_statuses = manager.get_provider_status()
         total = len(provider_statuses)
@@ -51,6 +53,7 @@ def _health_check_providers():
 def _health_check_sonarr():
     try:
         from sonarr_client import get_sonarr_client
+
         sonarr = get_sonarr_client()
         if sonarr:
             s_healthy, s_msg = sonarr.health_check()
@@ -63,6 +66,7 @@ def _health_check_sonarr():
 def _health_check_radarr():
     try:
         from radarr_client import get_radarr_client
+
         radarr = get_radarr_client()
         if radarr:
             r_healthy, r_msg = radarr.health_check()
@@ -75,6 +79,7 @@ def _health_check_radarr():
 def _health_check_media_servers():
     try:
         from mediaserver import get_media_server_manager
+
         manager = get_media_server_manager()
         ms_health = manager.health_check_all()
         if ms_health:
@@ -145,11 +150,13 @@ def health():
             healthy = False
 
     status_code = 200 if healthy else 503
-    return jsonify({
-        "status": "healthy" if healthy else "unhealthy",
-        "version": __version__,
-        "services": service_status,
-    }), status_code
+    return jsonify(
+        {
+            "status": "healthy" if healthy else "unhealthy",
+            "version": __version__,
+            "services": service_status,
+        }
+    ), status_code
 
 
 @bp.route("/health/detailed", methods=["GET"])
@@ -222,15 +229,18 @@ def health_detailed():
     # Providers + circuit breakers
     try:
         from providers import get_provider_manager
+
         manager = get_provider_manager()
         providers_detail = []
         for name, cb in manager._circuit_breakers.items():
             cb_status = cb.get_status()
-            providers_detail.append({
-                "name": name,
-                "circuit_breaker": cb_status["state"],
-                "failure_count": cb_status["failure_count"],
-            })
+            providers_detail.append(
+                {
+                    "name": name,
+                    "circuit_breaker": cb_status["state"],
+                    "failure_count": cb_status["failure_count"],
+                }
+            )
         subsystems["providers"] = {
             "healthy": all(p["circuit_breaker"] != "open" for p in providers_detail),
             "details": providers_detail,
@@ -241,6 +251,7 @@ def health_detailed():
     # Disk
     try:
         import psutil
+
         for path, label in [("/config", "config"), ("/media", "media")]:
             try:
                 usage = psutil.disk_usage(path)
@@ -259,6 +270,7 @@ def health_detailed():
     # Memory
     try:
         import psutil
+
         proc = psutil.Process()
         mem = proc.memory_info()
         subsystems["memory"] = {
@@ -274,6 +286,7 @@ def health_detailed():
     # Translation Backends
     try:
         from translation import get_translation_manager
+
         tm = get_translation_manager()
         backends_info = tm.get_all_backends()
         backends_health = {}
@@ -288,11 +301,16 @@ def health_detailed():
                     h, msg = instance.health_check()
                     backends_health[bname] = {"healthy": h, "message": msg}
                 else:
-                    backends_health[bname] = {"healthy": True, "message": "No health check available"}
+                    backends_health[bname] = {
+                        "healthy": True,
+                        "message": "No health check available",
+                    }
             except Exception as be:
                 backends_health[bname] = {"healthy": False, "message": str(be)}
         subsystems["translation_backends"] = {
-            "healthy": any(b["healthy"] for b in backends_health.values()) if backends_health else True,
+            "healthy": any(b["healthy"] for b in backends_health.values())
+            if backends_health
+            else True,
             "backends": backends_health,
         }
         if not subsystems["translation_backends"]["healthy"]:
@@ -304,11 +322,17 @@ def health_detailed():
     # Media Servers
     try:
         from mediaserver import get_media_server_manager
+
         ms_manager = get_media_server_manager()
         ms_checks = ms_manager.health_check_all()
         if ms_checks:
             instances = [
-                {"type": c.get("type", ""), "name": c.get("name", ""), "healthy": c["healthy"], "message": c.get("message", "")}
+                {
+                    "type": c.get("type", ""),
+                    "name": c.get("name", ""),
+                    "healthy": c["healthy"],
+                    "message": c.get("message", ""),
+                }
                 for c in ms_checks
             ]
             subsystems["media_servers"] = {
@@ -331,6 +355,7 @@ def health_detailed():
     try:
         from db.config import get_config_entry
         from whisper import get_whisper_manager
+
         whisper_enabled = get_config_entry("whisper_enabled")
         if whisper_enabled and whisper_enabled.lower() in ("true", "1", "yes"):
             wm = get_whisper_manager()
@@ -362,7 +387,11 @@ def health_detailed():
                 "message": "Whisper disabled",
             }
     except Exception as exc:
-        subsystems["whisper_backends"] = {"healthy": True, "active_backend": None, "message": str(exc)}
+        subsystems["whisper_backends"] = {
+            "healthy": True,
+            "active_backend": None,
+            "message": str(exc),
+        }
 
     # Arr Connectivity (Sonarr + Radarr instances)
     try:
@@ -373,12 +402,19 @@ def health_detailed():
             iname = inst.get("name", "Default")
             try:
                 from sonarr_client import get_sonarr_client
+
                 client = get_sonarr_client(instance_name=iname)
                 if client:
                     h, msg = client.health_check()
                     sonarr_checks.append({"instance_name": iname, "healthy": h, "message": msg})
                 else:
-                    sonarr_checks.append({"instance_name": iname, "healthy": False, "message": "Client not available"})
+                    sonarr_checks.append(
+                        {
+                            "instance_name": iname,
+                            "healthy": False,
+                            "message": "Client not available",
+                        }
+                    )
             except Exception as se:
                 sonarr_checks.append({"instance_name": iname, "healthy": False, "message": str(se)})
 
@@ -387,14 +423,23 @@ def health_detailed():
             iname = inst.get("name", "Default")
             try:
                 from radarr_client import get_radarr_client
+
                 client = get_radarr_client(instance_name=iname)
                 if client:
                     h, msg = client.health_check()
                     radarr_checks.append({"instance_name": iname, "healthy": h, "message": msg})
                 else:
-                    radarr_checks.append({"instance_name": iname, "healthy": False, "message": "Client not available"})
+                    radarr_checks.append(
+                        {
+                            "instance_name": iname,
+                            "healthy": False,
+                            "message": "Client not available",
+                        }
+                    )
             except Exception as re_exc:
-                radarr_checks.append({"instance_name": iname, "healthy": False, "message": str(re_exc)})
+                radarr_checks.append(
+                    {"instance_name": iname, "healthy": False, "message": str(re_exc)}
+                )
 
         all_arr = sonarr_checks + radarr_checks
         subsystems["arr_connectivity"] = {
@@ -411,36 +456,43 @@ def health_detailed():
     # Scheduler Status
     try:
         from wanted_scanner import get_scanner
+
         scanner = get_scanner()
         tasks = []
 
         # Wanted scan scheduler
         scan_running = scanner.is_scanning
         scan_interval = getattr(s, "wanted_scan_interval_hours", 0)
-        tasks.append({
-            "name": "wanted_scan",
-            "running": scan_running,
-            "last_run": scanner.last_scan_at or None,
-            "interval_hours": scan_interval,
-        })
+        tasks.append(
+            {
+                "name": "wanted_scan",
+                "running": scan_running,
+                "last_run": scanner.last_scan_at or None,
+                "interval_hours": scan_interval,
+            }
+        )
 
         # Wanted search scheduler
         search_running = scanner.is_searching
         search_interval = getattr(s, "wanted_search_interval_hours", 0)
-        tasks.append({
-            "name": "wanted_search",
-            "running": search_running,
-            "last_run": scanner.last_search_at or None,
-            "interval_hours": search_interval,
-        })
+        tasks.append(
+            {
+                "name": "wanted_search",
+                "running": search_running,
+                "last_run": scanner.last_search_at or None,
+                "interval_hours": search_interval,
+            }
+        )
 
         # Backup scheduler
         backup_enabled = bool(getattr(s, "backup_schedule_enabled", False))
-        tasks.append({
-            "name": "backup",
-            "enabled": backup_enabled,
-            "last_run": None,
-        })
+        tasks.append(
+            {
+                "name": "backup",
+                "enabled": backup_enabled,
+                "last_run": None,
+            }
+        )
 
         subsystems["scheduler"] = {
             "healthy": True,
@@ -450,10 +502,12 @@ def health_detailed():
         subsystems["scheduler"] = {"healthy": True, "message": str(exc)}
 
     status_code = 200 if overall_healthy else 503
-    return jsonify({
-        "status": "healthy" if overall_healthy else "degraded",
-        "subsystems": subsystems,
-    }), status_code
+    return jsonify(
+        {
+            "status": "healthy" if overall_healthy else "degraded",
+            "subsystems": subsystems,
+        }
+    ), status_code
 
 
 @bp.route("/stats", methods=["GET"])
@@ -507,13 +561,15 @@ def get_stats():
     with batch_lock:
         is_batch_running = batch_state.get("running", False)
 
-    return jsonify({
-        **db_stats,
-        **memory_extras,
-        "pending_jobs": pending,
-        "uptime_seconds": round(uptime),
-        "batch_running": is_batch_running,
-    })
+    return jsonify(
+        {
+            **db_stats,
+            **memory_extras,
+            "pending_jobs": pending,
+            "uptime_seconds": round(uptime),
+            "batch_running": is_batch_running,
+        }
+    )
 
 
 @bp.route("/database/health", methods=["GET"])
@@ -554,11 +610,13 @@ def database_health():
     stats = get_database_stats(db, get_settings().db_path)
 
     status_code = 200 if is_ok else 503
-    return jsonify({
-        "healthy": is_ok,
-        "message": message,
-        "stats": stats,
-    }), status_code
+    return jsonify(
+        {
+            "healthy": is_ok,
+            "message": message,
+            "stats": stats,
+        }
+    ), status_code
 
 
 @bp.route("/database/backup", methods=["POST"])
@@ -815,12 +873,14 @@ def create_full_backup():
     size_bytes = os.path.getsize(zip_path)
     logger.info("Full ZIP backup created: %s (%d bytes)", zip_path, size_bytes)
 
-    return jsonify({
-        "filename": zip_filename,
-        "size_bytes": size_bytes,
-        "created_at": now.isoformat(),
-        "contents": contents,
-    }), 201
+    return jsonify(
+        {
+            "filename": zip_filename,
+            "size_bytes": size_bytes,
+            "created_at": now.isoformat(),
+            "contents": contents,
+        }
+    ), 201
 
 
 @bp.route("/backup/full/download/<filename>", methods=["GET"])
@@ -865,7 +925,9 @@ def download_full_backup(filename):
     if not os.path.exists(zip_path):
         return jsonify({"error": "Backup file not found"}), 404
 
-    return send_file(zip_path, mimetype="application/zip", as_attachment=True, download_name=filename)
+    return send_file(
+        zip_path, mimetype="application/zip", as_attachment=True, download_name=filename
+    )
 
 
 @bp.route("/backup/full/restore", methods=["POST"])
@@ -934,7 +996,9 @@ def restore_full_backup():
 
             manifest = json.loads(zf.read("manifest.json"))
             if manifest.get("schema_version") != 1:
-                return jsonify({"error": f"Unsupported schema_version: {manifest.get('schema_version')}"}), 400
+                return jsonify(
+                    {"error": f"Unsupported schema_version: {manifest.get('schema_version')}"}
+                ), 400
 
             s = get_settings()
             imported_keys = []
@@ -943,10 +1007,24 @@ def restore_full_backup():
             # Import config if present
             if "config.json" in zf.namelist():
                 config_data = json.loads(zf.read("config.json"))
-                valid_keys = set(Settings.model_fields.keys()) if hasattr(Settings, "model_fields") else set()
-                secret_keys = {"api_key", "sonarr_api_key", "radarr_api_key", "jellyfin_api_key",
-                               "opensubtitles_api_key", "opensubtitles_password",
-                               "jimaku_api_key", "subdl_api_key", "tmdb_api_key", "tvdb_api_key", "tvdb_pin"}
+                valid_keys = (
+                    set(Settings.model_fields.keys())
+                    if hasattr(Settings, "model_fields")
+                    else set()
+                )
+                secret_keys = {
+                    "api_key",
+                    "sonarr_api_key",
+                    "radarr_api_key",
+                    "jellyfin_api_key",
+                    "opensubtitles_api_key",
+                    "opensubtitles_password",
+                    "jimaku_api_key",
+                    "subdl_api_key",
+                    "tmdb_api_key",
+                    "tvdb_api_key",
+                    "tvdb_pin",
+                }
 
                 for key, value in config_data.items():
                     if key in secret_keys:
@@ -964,6 +1042,7 @@ def restore_full_backup():
 
             if db_archive_name in zf.namelist():
                 import tempfile
+
                 with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
                     tmp.write(zf.read(db_archive_name))
                     tmp_path = tmp.name
@@ -988,6 +1067,7 @@ def restore_full_backup():
                 from providers import invalidate_manager as _inv_providers
                 from radarr_client import invalidate_client as _inv_radarr
                 from sonarr_client import invalidate_client as _inv_sonarr
+
                 _inv_sonarr()
                 _inv_radarr()
                 _inv_media()
@@ -997,11 +1077,13 @@ def restore_full_backup():
 
             logger.info("Full backup restored: config=%s, db=%s", imported_keys, db_restored)
 
-            return jsonify({
-                "status": "restored",
-                "config_imported": imported_keys,
-                "db_restored": db_restored,
-            })
+            return jsonify(
+                {
+                    "status": "restored",
+                    "config_imported": imported_keys,
+                    "db_restored": db_restored,
+                }
+            )
 
     except (json.JSONDecodeError, KeyError, zipfile.BadZipFile) as exc:
         return jsonify({"error": f"Invalid backup file: {exc}"}), 400
@@ -1058,17 +1140,19 @@ def list_full_backups():
         # Parse timestamp from filename: sublarr_full_YYYYMMDD_HHMMSS.zip
         created_at = ""
         if name.startswith("sublarr_full_") and len(name) >= 30:
-            ts_part = name[len("sublarr_full_"):].replace(".zip", "")
+            ts_part = name[len("sublarr_full_") :].replace(".zip", "")
             try:
                 dt = datetime.strptime(ts_part, "%Y%m%d_%H%M%S")
                 created_at = dt.replace(tzinfo=UTC).isoformat()
             except ValueError:
                 created_at = ""
-        backups.append({
-            "filename": name,
-            "size_bytes": size,
-            "created_at": created_at,
-        })
+        backups.append(
+            {
+                "filename": name,
+                "size_bytes": size,
+                "created_at": created_at,
+            }
+        )
 
     return jsonify({"backups": backups})
 
@@ -1147,12 +1231,14 @@ def get_statistics():
     by_format_totals: dict = {}
     for row in daily_rows:
         d = row._mapping
-        daily.append({
-            "date": d["date"],
-            "translated": d["translated"],
-            "failed": d["failed"],
-            "skipped": d["skipped"],
-        })
+        daily.append(
+            {
+                "date": d["date"],
+                "translated": d["translated"],
+                "failed": d["failed"],
+                "skipped": d["skipped"],
+            }
+        )
         # Aggregate per-format totals across all days
         fmt_json = d.get("by_format_json", '{"ass": 0, "srt": 0}')
         try:
@@ -1189,15 +1275,17 @@ def get_statistics():
         ).fetchall()
     upgrades = [{"type": row[0], "count": row[1]} for row in upgrade_rows]
 
-    return jsonify({
-        "daily": daily,
-        "providers": providers,
-        "downloads_by_provider": downloads_by_provider,
-        "backend_stats": backend_stats,
-        "upgrades": upgrades,
-        "by_format": by_format_totals,
-        "range": range_param,
-    })
+    return jsonify(
+        {
+            "daily": daily,
+            "providers": providers,
+            "downloads_by_provider": downloads_by_provider,
+            "backend_stats": backend_stats,
+            "upgrades": upgrades,
+            "by_format": by_format_totals,
+            "range": range_param,
+        }
+    )
 
 
 @bp.route("/statistics/export", methods=["GET"])
@@ -1257,12 +1345,14 @@ def export_statistics():
     daily = []
     for row in daily_rows:
         d = row._mapping
-        daily.append({
-            "date": d["date"],
-            "translated": d["translated"],
-            "failed": d["failed"],
-            "skipped": d["skipped"],
-        })
+        daily.append(
+            {
+                "date": d["date"],
+                "translated": d["translated"],
+                "failed": d["failed"],
+                "skipped": d["skipped"],
+            }
+        )
 
     today = datetime.now(UTC).strftime("%Y%m%d")
 
@@ -1343,7 +1433,9 @@ def download_logs():
     if not os.path.exists(log_file):
         return jsonify({"error": "Log file not found"}), 404
 
-    return send_file(log_file, mimetype="text/plain", as_attachment=True, download_name="sublarr.log")
+    return send_file(
+        log_file, mimetype="text/plain", as_attachment=True, download_name="sublarr.log"
+    )
 
 
 @bp.route("/logs/rotation", methods=["GET"])
@@ -1375,10 +1467,12 @@ def get_log_rotation():
     max_size_mb = int(get_config_entry("log_max_size_mb") or "10")
     backup_count = int(get_config_entry("log_backup_count") or "5")
 
-    return jsonify({
-        "max_size_mb": max_size_mb,
-        "backup_count": backup_count,
-    })
+    return jsonify(
+        {
+            "max_size_mb": max_size_mb,
+            "backup_count": backup_count,
+        }
+    )
 
 
 @bp.route("/logs/rotation", methods=["PUT"])
@@ -1452,17 +1546,22 @@ def update_log_rotation():
 
     # Read back saved values
     from db.config import get_config_entry
+
     saved_max = int(get_config_entry("log_max_size_mb") or "10")
     saved_count = int(get_config_entry("log_backup_count") or "5")
 
-    logger.info("Log rotation config updated: max_size_mb=%d, backup_count=%d", saved_max, saved_count)
+    logger.info(
+        "Log rotation config updated: max_size_mb=%d, backup_count=%d", saved_max, saved_count
+    )
 
-    return jsonify({
-        "status": "updated",
-        "max_size_mb": saved_max,
-        "backup_count": saved_count,
-        "note": "Changes take effect on next application restart",
-    })
+    return jsonify(
+        {
+            "status": "updated",
+            "max_size_mb": saved_max,
+            "backup_count": saved_count,
+            "note": "Changes take effect on next application restart",
+        }
+    )
 
 
 @bp.route("/database/vacuum", methods=["POST"])
@@ -1547,6 +1646,7 @@ def get_logs():
     level = request.args.get("level", "").upper()
 
     import collections
+
     if not lines or lines <= 0:
         lines = 200
     lines = min(lines, 2000)
@@ -1562,10 +1662,12 @@ def get_logs():
         except Exception as e:
             logger.warning("Failed to read log file: %s", e)
 
-    return jsonify({
-        "entries": log_entries,
-        "total": len(log_entries),
-    })
+    return jsonify(
+        {
+            "entries": log_entries,
+            "total": len(log_entries),
+        }
+    )
 
 
 @bp.route("/notifications/test", methods=["POST"])
@@ -1637,6 +1739,7 @@ def notification_status():
                     type: integer
     """
     from notifier import get_notification_status
+
     return jsonify(get_notification_status())
 
 
@@ -1700,19 +1803,22 @@ def list_tasks():
         if scan_last and scan_interval:
             try:
                 from datetime import timedelta
+
                 last_dt = datetime.fromisoformat(str(scan_last))
                 scan_next = (last_dt + timedelta(hours=scan_interval)).isoformat()
             except Exception:
                 pass
-        tasks.append({
-            "name": "wanted_scan",
-            "display_name": "Wanted Scan",
-            "running": scanner.is_scanning,
-            "last_run": str(scan_last) if scan_last else None,
-            "next_run": scan_next,
-            "interval_hours": scan_interval,
-            "enabled": scan_interval > 0,
-        })
+        tasks.append(
+            {
+                "name": "wanted_scan",
+                "display_name": "Wanted Scan",
+                "running": scanner.is_scanning,
+                "last_run": str(scan_last) if scan_last else None,
+                "next_run": scan_next,
+                "interval_hours": scan_interval,
+                "enabled": scan_interval > 0,
+            }
+        )
 
         # Wanted search
         search_interval = getattr(s, "wanted_search_interval_hours", 24)
@@ -1721,33 +1827,38 @@ def list_tasks():
         if search_last and search_interval:
             try:
                 from datetime import timedelta
+
                 last_dt = datetime.fromisoformat(str(search_last))
                 search_next = (last_dt + timedelta(hours=search_interval)).isoformat()
             except Exception:
                 pass
-        tasks.append({
-            "name": "wanted_search",
-            "display_name": "Wanted Search",
-            "running": scanner.is_searching,
-            "last_run": str(search_last) if search_last else None,
-            "next_run": search_next,
-            "interval_hours": search_interval,
-            "enabled": search_interval > 0,
-        })
+        tasks.append(
+            {
+                "name": "wanted_search",
+                "display_name": "Wanted Search",
+                "running": scanner.is_searching,
+                "last_run": str(search_last) if search_last else None,
+                "next_run": search_next,
+                "interval_hours": search_interval,
+                "enabled": search_interval > 0,
+            }
+        )
     except Exception as exc:
         logger.warning("Failed to read scanner tasks: %s", exc)
 
     # Backup scheduler
     backup_enabled = bool(getattr(s, "backup_schedule_enabled", False))
-    tasks.append({
-        "name": "backup",
-        "display_name": "Database Backup",
-        "running": False,
-        "last_run": None,
-        "next_run": None,
-        "interval_hours": 24 if backup_enabled else None,
-        "enabled": backup_enabled,
-    })
+    tasks.append(
+        {
+            "name": "backup",
+            "display_name": "Database Backup",
+            "running": False,
+            "last_run": None,
+            "next_run": None,
+            "interval_hours": 24 if backup_enabled else None,
+            "enabled": backup_enabled,
+        }
+    )
 
     return jsonify({"tasks": tasks})
 
@@ -1756,4 +1867,5 @@ def list_tasks():
 def openapi_spec():
     """Serve the OpenAPI 3.0.3 specification as JSON."""
     from openapi import spec
+
     return jsonify(spec.to_dict())

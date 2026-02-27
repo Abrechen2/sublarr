@@ -102,21 +102,17 @@ class WhisperRepository(BaseRepository):
         Returns:
             Dict with total count, counts by status, and average processing time.
         """
-        total = self.session.execute(
-            select(func.count()).select_from(WhisperJob)
-        ).scalar() or 0
+        total = self.session.execute(select(func.count()).select_from(WhisperJob)).scalar() or 0
 
         # Counts by status
         status_rows = self.session.execute(
-            select(WhisperJob.status, func.count())
-            .group_by(WhisperJob.status)
+            select(WhisperJob.status, func.count()).group_by(WhisperJob.status)
         ).all()
         by_status = {row[0]: row[1] for row in status_rows}
 
         # Average processing time (completed jobs only)
         avg_processing_time = self.session.execute(
-            select(func.avg(WhisperJob.processing_time_ms))
-            .where(
+            select(func.avg(WhisperJob.processing_time_ms)).where(
                 WhisperJob.status == "completed",
                 WhisperJob.processing_time_ms > 0,
             )
@@ -125,5 +121,7 @@ class WhisperRepository(BaseRepository):
         return {
             "total": total,
             "by_status": by_status,
-            "avg_processing_time_ms": round(avg_processing_time, 1) if avg_processing_time is not None else 0.0,
+            "avg_processing_time_ms": round(avg_processing_time, 1)
+            if avg_processing_time is not None
+            else 0.0,
         }

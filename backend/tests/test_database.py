@@ -25,6 +25,7 @@ def temp_db():
 
     # Push a Flask app context so SQLAlchemy repositories can access db.session
     from app import create_app
+
     app = create_app(testing=True)
     ctx = app.app_context()
     ctx.push()

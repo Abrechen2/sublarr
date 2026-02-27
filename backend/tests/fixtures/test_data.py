@@ -15,7 +15,7 @@ SAMPLE_VIDEO_QUERY = {
     "release_group": "FansubGroup",
     "resolution": "1080p",
     "source": "BluRay",
-    "codec": "x264"
+    "codec": "x264",
 }
 
 # Sample series data
@@ -28,7 +28,7 @@ SAMPLE_SERIES = {
     "year": 2013,
     "path": "/media/anime/Attack on Titan",
     "monitored": True,
-    "season_folder": True
+    "season_folder": True,
 }
 
 # Sample episode data
@@ -41,7 +41,7 @@ SAMPLE_EPISODE = {
     "air_date": "2013-04-07",
     "file_path": "/media/anime/Attack on Titan/Season 01/Attack.on.Titan.S01E01.1080p.BluRay.x264.mkv",
     "file_size": 1073741824,  # 1GB
-    "quality": "BluRay-1080p"
+    "quality": "BluRay-1080p",
 }
 
 # Sample movie data
@@ -52,7 +52,7 @@ SAMPLE_MOVIE = {
     "imdb_id": "tt5311514",
     "tmdb_id": 372058,
     "path": "/media/movies/Your Name (2016)",
-    "monitored": True
+    "monitored": True,
 }
 
 # Sample language profile
@@ -62,7 +62,7 @@ SAMPLE_LANGUAGE_PROFILE = {
     "languages": ["de"],
     "min_score": 200,
     "prefer_ass": True,
-    "hi_removal": True
+    "hi_removal": True,
 }
 
 # Sample glossary entry
@@ -72,14 +72,14 @@ SAMPLE_GLOSSARY_ENTRY = {
     "source_term": "Titan",
     "target_term": "Titan",
     "case_sensitive": False,
-    "regex": False
+    "regex": False,
 }
 
 # Sample config entry
 SAMPLE_CONFIG_ENTRY = {
     "key": "test_config_key",
     "value": "test_config_value",
-    "description": "Test configuration entry"
+    "description": "Test configuration entry",
 }
 
 # Sample wanted item
@@ -91,7 +91,7 @@ SAMPLE_WANTED_ITEM = {
     "file_path": "/media/anime/Attack on Titan/Season 01/Attack.on.Titan.S01E01.1080p.BluRay.x264.mkv",
     "target_language": "de",
     "status": "wanted",
-    "search_count": 0
+    "search_count": 0,
 }
 
 # Sample subtitle download
@@ -103,14 +103,14 @@ SAMPLE_SUBTITLE_DOWNLOAD = {
     "language": "de",
     "format": "ass",
     "score": 250,
-    "downloaded_at": "2024-01-15T10:30:00Z"
+    "downloaded_at": "2024-01-15T10:30:00Z",
 }
 
 # Sample webhook payloads
 SONARR_WEBHOOK_PAYLOAD = {
     "eventType": "Download",
     "series": SAMPLE_SERIES,
-    "episodes": [SAMPLE_EPISODE]
+    "episodes": [SAMPLE_EPISODE],
 }
 
 RADARR_WEBHOOK_PAYLOAD = {
@@ -120,9 +120,10 @@ RADARR_WEBHOOK_PAYLOAD = {
         "id": 1,
         "path": "/media/movies/Your Name (2016)/Your.Name.2016.1080p.BluRay.x264.mkv",
         "quality": "BluRay-1080p",
-        "size": 2147483648  # 2GB
-    }
+        "size": 2147483648,  # 2GB
+    },
 }
+
 
 # Helper function to create test data
 def create_test_video_query(**overrides) -> dict[str, Any]:
@@ -131,11 +132,13 @@ def create_test_video_query(**overrides) -> dict[str, Any]:
     query.update(overrides)
     return query
 
+
 def create_test_series(**overrides) -> dict[str, Any]:
     """Create a test series with optional overrides."""
     series = SAMPLE_SERIES.copy()
     series.update(overrides)
     return series
+
 
 def create_test_episode(**overrides) -> dict[str, Any]:
     """Create a test episode with optional overrides."""

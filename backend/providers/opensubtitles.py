@@ -84,16 +84,42 @@ class OpenSubtitlesProvider(SubtitleProvider):
 
     name = "opensubtitles"
     languages = {
-        "en", "de", "fr", "es", "it", "pt", "ru", "ja", "zh", "ko",
-        "ar", "nl", "pl", "sv", "da", "no", "fi", "cs", "hu", "tr",
-        "th", "vi", "id", "hi",
+        "en",
+        "de",
+        "fr",
+        "es",
+        "it",
+        "pt",
+        "ru",
+        "ja",
+        "zh",
+        "ko",
+        "ar",
+        "nl",
+        "pl",
+        "sv",
+        "da",
+        "no",
+        "fi",
+        "cs",
+        "hu",
+        "tr",
+        "th",
+        "vi",
+        "id",
+        "hi",
     }
 
     # Plugin system attributes
     config_fields = [
         {"key": "opensubtitles_api_key", "label": "API Key", "type": "password", "required": True},
         {"key": "opensubtitles_username", "label": "Username", "type": "text", "required": False},
-        {"key": "opensubtitles_password", "label": "Password", "type": "password", "required": False},
+        {
+            "key": "opensubtitles_password",
+            "label": "Password",
+            "type": "password",
+            "required": False,
+        },
     ]
     rate_limit = (40, 10)
     timeout = 15
@@ -119,10 +145,12 @@ class OpenSubtitlesProvider(SubtitleProvider):
             timeout=15,
             user_agent="Sublarr v1.0",
         )
-        self.session.headers.update({
-            "Api-Key": self.api_key,
-            "Content-Type": "application/json",
-        })
+        self.session.headers.update(
+            {
+                "Api-Key": self.api_key,
+                "Content-Type": "application/json",
+            }
+        )
 
         # Login if credentials provided (gives higher download limits)
         if self.username and self.password:
@@ -134,10 +162,13 @@ class OpenSubtitlesProvider(SubtitleProvider):
     def _login(self):
         """Authenticate to get a user token (higher rate limits)."""
         try:
-            resp = self.session.post(f"{API_BASE}/login", json={
-                "username": self.username,
-                "password": self.password,
-            })
+            resp = self.session.post(
+                f"{API_BASE}/login",
+                json={
+                    "username": self.username,
+                    "password": self.password,
+                },
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 self._token = data.get("token")
@@ -175,12 +206,16 @@ class OpenSubtitlesProvider(SubtitleProvider):
 
     def search(self, query: VideoQuery) -> list[SubtitleResult]:
         if not self.session or not self.api_key:
-            logger.warning("OpenSubtitles: cannot search - session=%s, api_key=%s",
-                          self.session is not None, bool(self.api_key))
+            logger.warning(
+                "OpenSubtitles: cannot search - session=%s, api_key=%s",
+                self.session is not None,
+                bool(self.api_key),
+            )
             return []
 
-        logger.debug("OpenSubtitles: searching for %s (languages: %s)",
-                    query.display_name, query.languages)
+        logger.debug(
+            "OpenSubtitles: searching for %s (languages: %s)", query.display_name, query.languages
+        )
         results = []
 
         # Build search params
@@ -233,8 +268,11 @@ class OpenSubtitlesProvider(SubtitleProvider):
                 raise ProviderRateLimitError(error_msg)
 
             if resp.status_code != 200:
-                logger.warning("OpenSubtitles search failed: HTTP %d, response: %s",
-                              resp.status_code, resp.text[:200])
+                logger.warning(
+                    "OpenSubtitles search failed: HTTP %d, response: %s",
+                    resp.status_code,
+                    resp.text[:200],
+                )
                 return []
 
             data = resp.json()
@@ -289,10 +327,17 @@ class OpenSubtitlesProvider(SubtitleProvider):
                             matches.add("season")
                         if feature.get("episode_number") == query.episode:
                             matches.add("episode")
-                        if query.series_title and query.series_title.lower() in (feature.get("title", "") or "").lower():
+                        if (
+                            query.series_title
+                            and query.series_title.lower()
+                            in (feature.get("title", "") or "").lower()
+                        ):
                             matches.add("series")
                     else:
-                        if query.title and query.title.lower() in (feature.get("title", "") or "").lower():
+                        if (
+                            query.title
+                            and query.title.lower() in (feature.get("title", "") or "").lower()
+                        ):
                             matches.add("title")
                     if query.year and feature.get("year") == query.year:
                         matches.add("year")
@@ -321,8 +366,13 @@ class OpenSubtitlesProvider(SubtitleProvider):
 
         logger.info("OpenSubtitles: found %d results", len(results))
         if results:
-            logger.debug("OpenSubtitles: top result - %s (score: %d, format: %s, language: %s)",
-                        results[0].filename, results[0].score, results[0].format.value, results[0].language)
+            logger.debug(
+                "OpenSubtitles: top result - %s (score: %d, format: %s, language: %s)",
+                results[0].filename,
+                results[0].score,
+                results[0].format.value,
+                results[0].language,
+            )
         return results
 
     def download(self, result: SubtitleResult) -> bytes:
@@ -334,9 +384,12 @@ class OpenSubtitlesProvider(SubtitleProvider):
             raise ValueError("No file_id in provider_data")
 
         # Request download link
-        resp = self.session.post(f"{API_BASE}/download", json={
-            "file_id": file_id,
-        })
+        resp = self.session.post(
+            f"{API_BASE}/download",
+            json={
+                "file_id": file_id,
+            },
+        )
 
         if resp.status_code != 200:
             raise RuntimeError(f"OpenSubtitles download request failed: HTTP {resp.status_code}")

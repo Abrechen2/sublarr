@@ -159,6 +159,7 @@ __all__ = [
 
 # ---- Config convenience functions ------------------------------------------------
 
+
 def save_config_entry(key: str, value: str):
     """Save a config entry to the database."""
     return ConfigRepository().save_config_entry(key, value)
@@ -176,9 +177,15 @@ def get_all_config_entries() -> dict:
 
 # ---- Blacklist convenience functions ---------------------------------------------
 
-def add_blacklist_entry(provider_name: str, subtitle_id: str,
-                        language: str = "", file_path: str = "",
-                        title: str = "", reason: str = "") -> int:
+
+def add_blacklist_entry(
+    provider_name: str,
+    subtitle_id: str,
+    language: str = "",
+    file_path: str = "",
+    title: str = "",
+    reason: str = "",
+) -> int:
     """Add a subtitle to the blacklist. Returns the entry ID."""
     return BlacklistRepository().add_blacklist_entry(
         provider_name, subtitle_id, language, file_path, title, reason
@@ -211,6 +218,7 @@ def get_blacklist_count() -> int:
 
 
 # ---- Cache convenience functions -------------------------------------------------
+
 
 def get_ffprobe_cache(file_path: str, mtime: float):
     """Get cached ffprobe data if file hasn't changed."""
@@ -254,6 +262,7 @@ def get_anidb_mapping_stats() -> dict:
 
 # ---- Plugin convenience functions ------------------------------------------------
 
+
 def get_plugin_config(provider_name: str) -> dict:
     """Read all config entries for a plugin provider."""
     return PluginRepository().get_plugin_config(provider_name)
@@ -275,6 +284,7 @@ def delete_plugin_config(provider_name: str) -> int:
 
 
 # ---- Scoring convenience functions ----------------------------------------------
+
 
 def get_scoring_weights(score_type: str) -> dict:
     """Get scoring weight overrides for a given type."""
@@ -318,19 +328,31 @@ def delete_provider_modifier(provider_name: str) -> None:
 
 # ---- Library convenience functions ----------------------------------------------
 
-def get_download_history(page: int = 1, per_page: int = 50,
-                         provider: str = None, language: str = None,
-                         format: str = None,
-                         score_min: int = None,
-                         score_max: int = None,
-                         search: str = None,
-                         sort_by: str = "downloaded_at",
-                         sort_dir: str = "desc") -> dict:
+
+def get_download_history(
+    page: int = 1,
+    per_page: int = 50,
+    provider: str = None,
+    language: str = None,
+    format: str = None,
+    score_min: int = None,
+    score_max: int = None,
+    search: str = None,
+    sort_by: str = "downloaded_at",
+    sort_dir: str = "desc",
+) -> dict:
     """Get paginated download history with optional filters."""
     return LibraryRepository().get_download_history(
-        page, per_page, provider, language,
-        format=format, score_min=score_min, score_max=score_max,
-        search=search, sort_by=sort_by, sort_dir=sort_dir,
+        page,
+        per_page,
+        provider,
+        language,
+        format=format,
+        score_min=score_min,
+        score_max=score_max,
+        search=search,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
     )
 
 
@@ -339,13 +361,18 @@ def get_download_stats() -> dict:
     return LibraryRepository().get_download_stats()
 
 
-def record_upgrade(file_path: str, old_format: str, old_score: int,
-                   new_format: str, new_score: int,
-                   provider_name: str = "", upgrade_reason: str = ""):
+def record_upgrade(
+    file_path: str,
+    old_format: str,
+    old_score: int,
+    new_format: str,
+    new_score: int,
+    provider_name: str = "",
+    upgrade_reason: str = "",
+):
     """Record a subtitle upgrade in history."""
     return LibraryRepository().record_upgrade(
-        file_path, old_format, old_score, new_format, new_score,
-        provider_name, upgrade_reason
+        file_path, old_format, old_score, new_format, new_score, provider_name, upgrade_reason
     )
 
 
@@ -360,6 +387,7 @@ def get_upgrade_stats() -> dict:
 
 
 # ---- Whisper convenience functions ----------------------------------------------
+
 
 def create_whisper_job(job_id: str, file_path: str, language: str = "") -> dict:
     """Create a new whisper job in the database."""
@@ -393,8 +421,10 @@ def get_whisper_stats() -> dict:
 
 # ---- Translation convenience functions ------------------------------------------
 
-def record_translation_config(config_hash: str, ollama_model: str,
-                               prompt_template: str, target_language: str):
+
+def record_translation_config(
+    config_hash: str, ollama_model: str, prompt_template: str, target_language: str
+):
     """Record or update a translation config hash."""
     return TranslationRepository().record_translation_config(
         config_hash, ollama_model, prompt_template, target_language
@@ -406,12 +436,9 @@ def get_translation_config_history() -> list:
     return TranslationRepository().get_translation_config_history()
 
 
-def add_glossary_entry(series_id: int, source_term: str,
-                       target_term: str, notes: str = "") -> int:
+def add_glossary_entry(series_id: int, source_term: str, target_term: str, notes: str = "") -> int:
     """Add a new glossary entry for a series. Returns the entry ID."""
-    return TranslationRepository().add_glossary_entry(
-        series_id, source_term, target_term, notes
-    )
+    return TranslationRepository().add_glossary_entry(series_id, source_term, target_term, notes)
 
 
 def get_glossary_entries(series_id: int) -> list:
@@ -429,12 +456,11 @@ def get_glossary_entry(entry_id: int):
     return TranslationRepository().get_glossary_entry(entry_id)
 
 
-def update_glossary_entry(entry_id: int, source_term: str = None,
-                          target_term: str = None, notes: str = None) -> bool:
+def update_glossary_entry(
+    entry_id: int, source_term: str = None, target_term: str = None, notes: str = None
+) -> bool:
     """Update a glossary entry. Returns True if updated."""
-    return TranslationRepository().update_glossary_entry(
-        entry_id, source_term, target_term, notes
-    )
+    return TranslationRepository().update_glossary_entry(entry_id, source_term, target_term, notes)
 
 
 def delete_glossary_entry(entry_id: int) -> bool:
@@ -452,8 +478,7 @@ def search_glossary_terms(series_id: int, query: str) -> list:
     return TranslationRepository().search_glossary_terms(series_id, query)
 
 
-def add_prompt_preset(name: str, prompt_template: str,
-                      is_default: bool = False) -> int:
+def add_prompt_preset(name: str, prompt_template: str, is_default: bool = False) -> int:
     """Add a new prompt preset. Returns the preset ID."""
     return TranslationRepository().add_prompt_preset(name, prompt_template, is_default)
 
@@ -473,9 +498,9 @@ def get_default_prompt_preset():
     return TranslationRepository().get_default_prompt_preset()
 
 
-def update_prompt_preset(preset_id: int, name: str = None,
-                         prompt_template: str = None,
-                         is_default: bool = None) -> bool:
+def update_prompt_preset(
+    preset_id: int, name: str = None, prompt_template: str = None, is_default: bool = None
+) -> bool:
     """Update a prompt preset. Returns True if updated."""
     return TranslationRepository().update_prompt_preset(
         preset_id, name, prompt_template, is_default
@@ -487,8 +512,7 @@ def delete_prompt_preset(preset_id: int) -> bool:
     return TranslationRepository().delete_prompt_preset(preset_id)
 
 
-def record_backend_success(backend_name: str, response_time_ms: float,
-                           characters_used: int):
+def record_backend_success(backend_name: str, response_time_ms: float, characters_used: int):
     """Record a successful translation for a backend."""
     return TranslationRepository().record_backend_success(
         backend_name, response_time_ms, characters_used
@@ -517,8 +541,10 @@ def reset_backend_stats(backend_name: str) -> bool:
 
 # ---- Quality convenience functions -----------------------------------------------
 
-def save_health_result(file_path: str, score: int, issues_json: str,
-                       checks_run: int, checked_at: str) -> dict:
+
+def save_health_result(
+    file_path: str, score: int, issues_json: str, checks_run: int, checked_at: str
+) -> dict:
     """Save a health check result to the database."""
     return QualityRepository().save_health_result(
         file_path, score, issues_json, checks_run, checked_at
@@ -547,9 +573,15 @@ def delete_health_results(file_path: str) -> int:
 
 # ---- Notification convenience functions ------------------------------------------
 
-def create_notification_template(name: str, title_template: str = "",
-                                  body_template: str = "", event_type: str = None,
-                                  service_name: str = None, enabled: int = 1) -> dict:
+
+def create_notification_template(
+    name: str,
+    title_template: str = "",
+    body_template: str = "",
+    event_type: str = None,
+    service_name: str = None,
+    enabled: int = 1,
+) -> dict:
     """Create a new notification template."""
     return NotificationRepository().create_template(
         name, title_template, body_template, event_type, service_name, enabled
@@ -581,17 +613,22 @@ def find_template_for_event(event_type: str, service_name: str = None):
     return NotificationRepository().find_template_for_event(event_type, service_name)
 
 
-def log_notification(event_type: str, title: str, body: str,
-                     template_id: int = None, service_urls: str = None,
-                     status: str = "sent", error: str = "") -> dict:
+def log_notification(
+    event_type: str,
+    title: str,
+    body: str,
+    template_id: int = None,
+    service_urls: str = None,
+    status: str = "sent",
+    error: str = "",
+) -> dict:
     """Log a notification to history."""
     return NotificationRepository().log_notification(
         event_type, title, body, template_id, service_urls, status, error
     )
 
 
-def get_notification_history(page: int = 1, per_page: int = 50,
-                              event_type: str = None) -> dict:
+def get_notification_history(page: int = 1, per_page: int = 50, event_type: str = None) -> dict:
     """Get paginated notification history."""
     return NotificationRepository().get_history(page, per_page, event_type)
 
@@ -606,10 +643,14 @@ def clear_notification_history(before_date: str = None) -> int:
     return NotificationRepository().clear_history(before_date)
 
 
-def create_quiet_hours(name: str, start_time: str, end_time: str,
-                       days_of_week: str = "[0,1,2,3,4,5,6]",
-                       exception_events: str = '["error"]',
-                       enabled: int = 1) -> dict:
+def create_quiet_hours(
+    name: str,
+    start_time: str,
+    end_time: str,
+    days_of_week: str = "[0,1,2,3,4,5,6]",
+    exception_events: str = '["error"]',
+    enabled: int = 1,
+) -> dict:
     """Create a quiet hours configuration."""
     return NotificationRepository().create_quiet_hours(
         name, start_time, end_time, days_of_week, exception_events, enabled
@@ -638,13 +679,17 @@ def is_quiet_hours(event_type: str) -> bool:
 
 # ---- AniDB absolute episode convenience functions --------------------------------
 
+
 def get_anidb_absolute(tvdb_id: int, season: int, episode: int):
     """Return AniDB absolute episode number for a TVDB S/E pair, or None."""
     return AnidbRepository().get_anidb_absolute(tvdb_id, season, episode)
 
 
 def upsert_anidb_mapping(
-    tvdb_id: int, season: int, episode: int, anidb_absolute_episode: int,
+    tvdb_id: int,
+    season: int,
+    episode: int,
+    anidb_absolute_episode: int,
     source: str = None,
 ) -> None:
     """Insert or update an AniDB absolute episode mapping."""

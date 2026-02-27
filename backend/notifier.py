@@ -37,6 +37,7 @@ def _get_apprise():
             return None
 
         from config import get_settings
+
         settings = get_settings()
         urls = _parse_notification_urls(settings.notification_urls_json)
 
@@ -59,6 +60,7 @@ def _get_sandbox_env():
 
     try:
         from jinja2.sandbox import SandboxedEnvironment
+
         _sandbox_env = SandboxedEnvironment()
         return _sandbox_env
     except ImportError:
@@ -213,6 +215,7 @@ def send_notification(title: str, body: str, event_type: str, is_manual: bool = 
         is_manual: Whether this was triggered by a manual action
     """
     from config import get_settings
+
     settings = get_settings()
 
     # Check if manual notifications are allowed
@@ -235,12 +238,14 @@ def send_notification(title: str, body: str, event_type: str, is_manual: bool = 
     template_id_used = None
     try:
         from db.repositories.notifications import NotificationRepository
+
         repo = NotificationRepository()
 
         if repo.is_quiet_hours(event_type):
             logger.info(
                 "Notification suppressed by quiet hours: [%s] %s",
-                event_type, title,
+                event_type,
+                title,
             )
             return
 
@@ -254,12 +259,8 @@ def send_notification(title: str, body: str, event_type: str, is_manual: bool = 
             variables["body"] = body
             variables["event_type"] = event_type
 
-            rendered_title = render_template(
-                template["title_template"], variables
-            )
-            rendered_body = render_template(
-                template["body_template"], variables
-            )
+            rendered_title = render_template(template["title_template"], variables)
+            rendered_body = render_template(template["body_template"], variables)
 
             # Only use rendered versions if non-empty
             if rendered_title:
@@ -279,6 +280,7 @@ def send_notification(title: str, body: str, event_type: str, is_manual: bool = 
 
     try:
         import apprise
+
         notify_type = apprise.NotifyType.INFO
         if event_type == "error":
             notify_type = apprise.NotifyType.FAILURE
@@ -293,6 +295,7 @@ def send_notification(title: str, body: str, event_type: str, is_manual: bool = 
     # Log to notification history
     try:
         from db.repositories.notifications import NotificationRepository
+
         hist_repo = NotificationRepository()
         hist_repo.log_notification(
             event_type=event_type,
@@ -345,6 +348,7 @@ def test_notification(url: str = None) -> dict:
 def get_notification_status() -> dict:
     """Get notification configuration status."""
     from config import get_settings
+
     settings = get_settings()
     urls = _parse_notification_urls(settings.notification_urls_json)
 

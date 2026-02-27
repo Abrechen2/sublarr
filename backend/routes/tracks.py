@@ -11,10 +11,21 @@ from config import map_path
 
 bp = Blueprint("tracks", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
-_CODEC_EXT = {"ass": "ass", "ssa": "ass", "srt": "srt", "subrip": "srt", "webvtt": "vtt", "mov_text": "srt", "microdvd": "srt", "text": "srt"}
+_CODEC_EXT = {
+    "ass": "ass",
+    "ssa": "ass",
+    "srt": "srt",
+    "subrip": "srt",
+    "webvtt": "vtt",
+    "mov_text": "srt",
+    "microdvd": "srt",
+    "text": "srt",
+}
+
 
 def _get_video_path(ep_id):
     from sonarr_client import get_sonarr_client
+
     client = get_sonarr_client()
     if client is None:
         return None
@@ -23,30 +34,47 @@ def _get_video_path(ep_id):
         return None
     return map_path(path)
 
+
 def _normalise_stream(stream, stream_index, type_index):
     tags = stream.get("tags") or {}
     codec = (stream.get("codec_name") or "").lower()
     disposition = stream.get("disposition") or {}
-    return {"index": stream_index, "sub_index": type_index, "codec_type": stream.get("codec_type", ""), "codec": codec, "language": tags.get("language") or tags.get("lang") or "", "title": tags.get("title") or tags.get("handler_name") or "", "forced": bool(disposition.get("forced")), "default": bool(disposition.get("default"))}
+    return {
+        "index": stream_index,
+        "sub_index": type_index,
+        "codec_type": stream.get("codec_type", ""),
+        "codec": codec,
+        "language": tags.get("language") or tags.get("lang") or "",
+        "title": tags.get("title") or tags.get("handler_name") or "",
+        "forced": bool(disposition.get("forced")),
+        "default": bool(disposition.get("default")),
+    }
+
 
 def _build_track_list(streams):
     tracks, subtitle_index, audio_index, seen_indices = [], 0, 0, set()
     for raw_index, stream in enumerate(streams):
         codec_type = (stream.get("codec_type") or "").lower()
-        if codec_type not in ("audio", "subtitle"): continue
+        if codec_type not in ("audio", "subtitle"):
+            continue
         abs_index = stream.get("index", raw_index)
-        if abs_index in seen_indices: abs_index = raw_index
+        if abs_index in seen_indices:
+            abs_index = raw_index
         seen_indices.add(abs_index)
         if codec_type == "subtitle":
-            track = _normalise_stream(stream, abs_index, subtitle_index); subtitle_index += 1
+            track = _normalise_stream(stream, abs_index, subtitle_index)
+            subtitle_index += 1
         else:
-            track = _normalise_stream(stream, abs_index, audio_index); audio_index += 1
+            track = _normalise_stream(stream, abs_index, audio_index)
+            audio_index += 1
         tracks.append(track)
     return tracks
 
+
 def _find_track(tracks, index):
     for t in tracks:
-        if t["index"] == index: return t
+        if t["index"] == index:
+            return t
     return None
 
 
@@ -103,7 +131,9 @@ def extract_track(ep_id, index):
         return jsonify({"error": "Extraction failed: " + str(exc)}), 500
     except Exception:
         return jsonify({"error": "Internal server error"}), 500
-    return jsonify({"output_path": output_path, "language": language, "format": ext, "track": track}), 200
+    return jsonify(
+        {"output_path": output_path, "language": language, "format": ext, "track": track}
+    ), 200
 
 
 @bp.route("/library/episodes/<int:ep_id>/tracks/<int:index>/use-as-source", methods=["POST"])
@@ -148,4 +178,6 @@ def use_track_as_source(ep_id, index):
                 os.unlink(tmp_path)
             except OSError as exc:
                 logger.warning("Could not remove tempfile %s: %s", tmp_path, exc)
-    return jsonify({"content": content, "format": ext, "language": language, "title": track.get("title", "")}), 200
+    return jsonify(
+        {"content": content, "format": ext, "language": language, "title": track.get("title", "")}
+    ), 200

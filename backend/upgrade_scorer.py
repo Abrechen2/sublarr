@@ -19,7 +19,7 @@ FORMAT_BASE_SCORES = {
 
 # File size thresholds for score adjustments (larger files tend to be higher quality)
 SIZE_BONUS_THRESHOLDS = [
-    (50_000, 20),   # >50KB: +20
+    (50_000, 20),  # >50KB: +20
     (100_000, 30),  # >100KB: +30
     (200_000, 40),  # >200KB: +40
 ]
@@ -88,7 +88,9 @@ def should_upgrade(
                 effective_delta = upgrade_min_score_delta * 2
                 logger.debug(
                     "Sub is %.1f days old (window=%d), requiring 2x delta: %d",
-                    age_days, upgrade_window_days, effective_delta,
+                    age_days,
+                    upgrade_window_days,
+                    effective_delta,
                 )
         except OSError:
             pass

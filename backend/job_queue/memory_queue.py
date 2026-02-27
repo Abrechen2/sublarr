@@ -192,10 +192,7 @@ class MemoryJobQueue(QueueBackend):
     def get_queue_length(self) -> int:
         """Get number of queued (not yet started) jobs."""
         with self._lock:
-            return sum(
-                1 for meta in self._jobs.values()
-                if meta["status"] == JobStatus.QUEUED
-            )
+            return sum(1 for meta in self._jobs.values() if meta["status"] == JobStatus.QUEUED)
 
     def get_active_jobs(self) -> list[JobInfo]:
         """Get currently running jobs."""
@@ -203,16 +200,18 @@ class MemoryJobQueue(QueueBackend):
             results = []
             for job_id, meta in self._jobs.items():
                 if meta["status"] == JobStatus.RUNNING:
-                    results.append(JobInfo(
-                        id=job_id,
-                        func_name=meta["func_name"],
-                        status=meta["status"],
-                        enqueued_at=meta["enqueued_at"],
-                        started_at=meta["started_at"],
-                        completed_at=meta["completed_at"],
-                        result=meta["result"],
-                        error=meta["error"],
-                    ))
+                    results.append(
+                        JobInfo(
+                            id=job_id,
+                            func_name=meta["func_name"],
+                            status=meta["status"],
+                            enqueued_at=meta["enqueued_at"],
+                            started_at=meta["started_at"],
+                            completed_at=meta["completed_at"],
+                            result=meta["result"],
+                            error=meta["error"],
+                        )
+                    )
             return results
 
     def get_failed_jobs(self, limit: int = 50) -> list[JobInfo]:
@@ -225,16 +224,18 @@ class MemoryJobQueue(QueueBackend):
             results = []
             for job_id, meta in self._jobs.items():
                 if meta["status"] == JobStatus.FAILED:
-                    results.append(JobInfo(
-                        id=job_id,
-                        func_name=meta["func_name"],
-                        status=meta["status"],
-                        enqueued_at=meta["enqueued_at"],
-                        started_at=meta["started_at"],
-                        completed_at=meta["completed_at"],
-                        result=meta["result"],
-                        error=meta["error"],
-                    ))
+                    results.append(
+                        JobInfo(
+                            id=job_id,
+                            func_name=meta["func_name"],
+                            status=meta["status"],
+                            enqueued_at=meta["enqueued_at"],
+                            started_at=meta["started_at"],
+                            completed_at=meta["completed_at"],
+                            result=meta["result"],
+                            error=meta["error"],
+                        )
+                    )
                     if len(results) >= limit:
                         break
             return results
@@ -247,8 +248,7 @@ class MemoryJobQueue(QueueBackend):
         """
         with self._lock:
             failed_ids = [
-                jid for jid, meta in self._jobs.items()
-                if meta["status"] == JobStatus.FAILED
+                jid for jid, meta in self._jobs.items() if meta["status"] == JobStatus.FAILED
             ]
             for jid in failed_ids:
                 del self._jobs[jid]

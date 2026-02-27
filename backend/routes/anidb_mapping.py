@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 # Sync endpoints
 # ---------------------------------------------------------------------------
 
+
 @bp.route("/refresh", methods=["POST"])
 def trigger_refresh():
     """Trigger a manual AniDB absolute episode mapping sync.
@@ -76,18 +77,21 @@ def get_status():
     except Exception:
         total = None
 
-    return jsonify({
-        "success": True,
-        "data": {
-            **sync_state,
-            "total_mappings": total,
-        },
-    })
+    return jsonify(
+        {
+            "success": True,
+            "data": {
+                **sync_state,
+                "total_mappings": total,
+            },
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # Series mapping endpoints
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/series/<int:tvdb_id>", methods=["GET"])
 def get_series_mappings(tvdb_id: int):
@@ -136,6 +140,7 @@ def clear_series_mappings(tvdb_id: int):
 # ---------------------------------------------------------------------------
 # Series settings (absolute_order flag)
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/settings/<int:sonarr_series_id>", methods=["GET"])
 def get_series_settings(sonarr_series_id: int):
@@ -201,5 +206,6 @@ def update_series_settings(sonarr_series_id: int):
 
     enabled = bool(body["absolute_order"])
     AnidbRepository().set_absolute_order(sonarr_series_id, enabled)
-    return jsonify({"success": True, "sonarr_series_id": sonarr_series_id,
-                    "absolute_order": enabled})
+    return jsonify(
+        {"success": True, "sonarr_series_id": sonarr_series_id, "absolute_order": enabled}
+    )

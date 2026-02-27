@@ -90,6 +90,7 @@ class OllamaBackend(TranslationBackend):
         """
         try:
             from config import get_settings
+
             settings = get_settings()
             defaults = {
                 "url": settings.ollama_url,
@@ -163,9 +164,7 @@ class OllamaBackend(TranslationBackend):
             )
 
         start_time = time.time()
-        prompt = build_translation_prompt(
-            lines, source_lang, target_lang, glossary_entries
-        )
+        prompt = build_translation_prompt(lines, source_lang, target_lang, glossary_entries)
 
         for attempt in range(1, self._max_retries + 1):
             try:
@@ -177,7 +176,9 @@ class OllamaBackend(TranslationBackend):
                     if tainted:
                         logger.warning(
                             "Attempt %d: CJK hallucination in %d lines (indices %s), retrying...",
-                            attempt, len(tainted), tainted,
+                            attempt,
+                            len(tainted),
+                            tainted,
                         )
                     else:
                         elapsed_ms = (time.time() - start_time) * 1000
@@ -202,7 +203,9 @@ class OllamaBackend(TranslationBackend):
 
         # Fallback: translate lines individually
         logger.warning("Batch translation failed, falling back to single-line mode")
-        return self._translate_singles(lines, source_lang, target_lang, glossary_entries, start_time)
+        return self._translate_singles(
+            lines, source_lang, target_lang, glossary_entries, start_time
+        )
 
     def _translate_singles(
         self,
@@ -217,9 +220,7 @@ class OllamaBackend(TranslationBackend):
 
         results = []
         for i, line in enumerate(lines):
-            prompt = build_translation_prompt(
-                [line], source_lang, target_lang, glossary_entries
-            )
+            prompt = build_translation_prompt([line], source_lang, target_lang, glossary_entries)
             last_error = None
 
             for attempt in range(1, self._max_retries + 1):
@@ -229,7 +230,8 @@ class OllamaBackend(TranslationBackend):
                     if has_cjk_hallucination(translated):
                         logger.warning(
                             "Single line %d, attempt %d: CJK hallucination, retrying",
-                            i, attempt,
+                            i,
+                            attempt,
                         )
                         last_error = "CJK hallucination detected"
                     else:
@@ -246,12 +248,15 @@ class OllamaBackend(TranslationBackend):
             if last_error is not None:
                 logger.error(
                     "Failed to translate line %d after %d attempts, keeping original",
-                    i, self._max_retries,
+                    i,
+                    self._max_retries,
                 )
                 results.append(line)
 
         elapsed_ms = (time.time() - start_time) * 1000
-        fallback_count = sum(1 for orig, trans in zip(lines, results) if orig.strip() == trans.strip())
+        fallback_count = sum(
+            1 for orig, trans in zip(lines, results) if orig.strip() == trans.strip()
+        )
         if fallback_count > len(lines) * 0.5:
             return TranslationResult(
                 success=False,

@@ -23,8 +23,7 @@ def set_media_path(tmp_path, monkeypatch):
 
 def test_overlap_fix(client, tmp_path):
     srt_content = (
-        "1\n00:00:01,000 --> 00:00:03,000\nHello\n\n"
-        "2\n00:00:02,000 --> 00:00:04,000\nWorld\n\n"
+        "1\n00:00:01,000 --> 00:00:03,000\nHello\n\n2\n00:00:02,000 --> 00:00:04,000\nWorld\n\n"
     )
     path = _make_srt(tmp_path, srt_content)
     r = client.post("/api/v1/tools/overlap-fix", json={"file_path": path})
@@ -37,8 +36,7 @@ def test_overlap_fix(client, tmp_path):
 
 def test_overlap_fix_no_overlaps(client, tmp_path):
     srt_content = (
-        "1\n00:00:01,000 --> 00:00:02,000\nHello\n\n"
-        "2\n00:00:03,000 --> 00:00:04,000\nWorld\n\n"
+        "1\n00:00:01,000 --> 00:00:02,000\nHello\n\n2\n00:00:03,000 --> 00:00:04,000\nWorld\n\n"
     )
     path = _make_srt(tmp_path, srt_content)
     r = client.post("/api/v1/tools/overlap-fix", json={"file_path": path})
@@ -49,8 +47,7 @@ def test_overlap_fix_no_overlaps(client, tmp_path):
 def test_timing_normalize_extends_short_cue(client, tmp_path):
     srt_content = "1\n00:00:01,000 --> 00:00:01,100\nHi\n\n"
     path = _make_srt(tmp_path, srt_content)
-    r = client.post("/api/v1/tools/timing-normalize",
-                    json={"file_path": path, "min_ms": 500})
+    r = client.post("/api/v1/tools/timing-normalize", json={"file_path": path, "min_ms": 500})
     assert r.status_code == 200
     assert r.get_json()["extended"] == 1
     subs = pysubs2.load(path)
@@ -60,17 +57,15 @@ def test_timing_normalize_extends_short_cue(client, tmp_path):
 def test_timing_normalize_reports_too_long(client, tmp_path):
     srt_content = "1\n00:00:01,000 --> 00:00:12,000\nLong\n\n"
     path = _make_srt(tmp_path, srt_content)
-    r = client.post("/api/v1/tools/timing-normalize",
-                    json={"file_path": path, "min_ms": 500, "max_ms": 5000})
+    r = client.post(
+        "/api/v1/tools/timing-normalize", json={"file_path": path, "min_ms": 500, "max_ms": 5000}
+    )
     assert r.status_code == 200
     assert r.get_json()["too_long"] == 1
 
 
 def test_merge_lines(client, tmp_path):
-    srt_content = (
-        "1\n00:00:01,000 --> 00:00:01,500\nA\n\n"
-        "2\n00:00:01,600 --> 00:00:02,000\nB\n\n"
-    )
+    srt_content = "1\n00:00:01,000 --> 00:00:01,500\nA\n\n2\n00:00:01,600 --> 00:00:02,000\nB\n\n"
     path = _make_srt(tmp_path, srt_content)
     r = client.post("/api/v1/tools/merge-lines", json={"file_path": path, "gap_ms": 200})
     assert r.status_code == 200
@@ -80,10 +75,7 @@ def test_merge_lines(client, tmp_path):
 
 
 def test_merge_lines_no_merge_large_gap(client, tmp_path):
-    srt_content = (
-        "1\n00:00:01,000 --> 00:00:01,500\nA\n\n"
-        "2\n00:00:05,000 --> 00:00:06,000\nB\n\n"
-    )
+    srt_content = "1\n00:00:01,000 --> 00:00:01,500\nA\n\n2\n00:00:05,000 --> 00:00:06,000\nB\n\n"
     path = _make_srt(tmp_path, srt_content)
     r = client.post("/api/v1/tools/merge-lines", json={"file_path": path, "gap_ms": 200})
     assert r.status_code == 200
@@ -91,6 +83,5 @@ def test_merge_lines_no_merge_large_gap(client, tmp_path):
 
 
 def test_quality_fix_missing_file(client, tmp_path):
-    r = client.post("/api/v1/tools/overlap-fix",
-                    json={"file_path": str(tmp_path / "missing.srt")})
+    r = client.post("/api/v1/tools/overlap-fix", json={"file_path": str(tmp_path / "missing.srt")})
     assert r.status_code == 404

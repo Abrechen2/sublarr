@@ -161,6 +161,7 @@ def register_error_handlers(app: object) -> None:
     - before_request hook for request IDs
     """
     from flask import Flask
+
     flask_app: Flask = app  # type: ignore[assignment]
 
     @flask_app.before_request
@@ -186,16 +187,17 @@ def register_error_handlers(app: object) -> None:
         """Catch-all: log full traceback, return generic 500."""
         # Don't intercept HTTPException (404, 405, etc.) — let Flask handle those
         from werkzeug.exceptions import HTTPException
+
         if isinstance(error, HTTPException):
             return error
 
         request_id = getattr(g, "request_id", "?")
-        logger.exception(
-            "Unhandled exception (request_id=%s): %s", request_id, error
-        )
-        return jsonify({
-            "error": "Internal server error",
-            "code": "INTERNAL_ERROR",
-            "request_id": request_id,
-            "timestamp": datetime.now(UTC).isoformat(),
-        }), 500
+        logger.exception("Unhandled exception (request_id=%s): %s", request_id, error)
+        return jsonify(
+            {
+                "error": "Internal server error",
+                "code": "INTERNAL_ERROR",
+                "request_id": request_id,
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+        ), 500

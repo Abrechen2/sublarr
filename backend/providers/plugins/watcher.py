@@ -41,6 +41,7 @@ class PluginFileWatcher(FileSystemEventHandler):
             return False
         # Extract filename from path
         import os
+
         filename = os.path.basename(path)
         return not (filename.startswith("_") or filename.startswith("."))
 
@@ -77,9 +78,7 @@ class PluginFileWatcher(FileSystemEventHandler):
         with self._lock:
             if self._timer is not None:
                 self._timer.cancel()
-            self._timer = threading.Timer(
-                self.debounce_seconds, self._debounced_reload
-            )
+            self._timer = threading.Timer(self.debounce_seconds, self._debounced_reload)
             self._timer.daemon = True
             self._timer.start()
 
@@ -95,6 +94,7 @@ class PluginFileWatcher(FileSystemEventHandler):
 
             # Invalidate ProviderManager so new/updated plugins are used
             from providers import invalidate_manager
+
             invalidate_manager()
 
             if loaded:

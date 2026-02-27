@@ -113,12 +113,14 @@ def check_spelling():
             from services.spell_checker import ENCHANT_AVAILABLE, SpellChecker
 
             if not ENCHANT_AVAILABLE:
-                return jsonify({
-                    "errors": [],
-                    "total_words": 0,
-                    "error_count": 0,
-                    "error": "Spell checking not available (pyenchant not installed)",
-                }), 200
+                return jsonify(
+                    {
+                        "errors": [],
+                        "total_words": 0,
+                        "error_count": 0,
+                        "error": "Spell checking not available (pyenchant not installed)",
+                    }
+                ), 200
 
             checker = SpellChecker(language)
             if custom_words:

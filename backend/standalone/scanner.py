@@ -59,6 +59,7 @@ class StandaloneScanner:
                 logger.error("Failed to create MetadataResolver: %s", e)
                 # Return a minimal resolver that only does filename fallback
                 from metadata import MetadataResolver
+
                 self._resolver = MetadataResolver()
         return self._resolver
 
@@ -107,7 +108,8 @@ class StandaloneScanner:
                 except Exception as e:
                     logger.error(
                         "Error scanning folder %s: %s",
-                        folder.get("path", "unknown"), e,
+                        folder.get("path", "unknown"),
+                        e,
                     )
 
             # Cleanup: remove wanted items whose files no longer exist
@@ -123,10 +125,12 @@ class StandaloneScanner:
             }
 
             logger.info(
-                "Standalone scan complete: %d folders, %d series, %d movies, "
-                "%d wanted (%.1fs)",
-                folders_scanned, total_series, total_movies,
-                total_wanted, duration,
+                "Standalone scan complete: %d folders, %d series, %d movies, %d wanted (%.1fs)",
+                folders_scanned,
+                total_series,
+                total_movies,
+                total_wanted,
+                duration,
             )
             return summary
 
@@ -210,8 +214,7 @@ class StandaloneScanner:
 
         return (series_count, movie_count, wanted_count)
 
-    def _process_series_group(self, title: str, files: list[dict],
-                              folder: dict) -> int:
+    def _process_series_group(self, title: str, files: list[dict], folder: dict) -> int:
         """Process a group of episode files belonging to one series.
 
         Resolves metadata once for the series, upserts standalone_series,
@@ -242,9 +245,7 @@ class StandaloneScanner:
         meta = resolver.resolve_series(display_title, year=year, is_anime=is_anime)
 
         # Determine series folder path (common parent)
-        series_folder = self._find_common_parent(
-            [f["file_path"] for f in files]
-        )
+        series_folder = self._find_common_parent([f["file_path"] for f in files])
 
         # Upsert standalone series
         series_id = upsert_standalone_series(
@@ -303,8 +304,7 @@ class StandaloneScanner:
 
         return wanted_added
 
-    def _process_movie(self, parsed: dict, file_path: str,
-                       folder: dict) -> int:
+    def _process_movie(self, parsed: dict, file_path: str, folder: dict) -> int:
         """Process a single movie file.
 
         Resolves metadata, upserts standalone_movie, checks for missing
@@ -476,6 +476,7 @@ class StandaloneScanner:
         """
         try:
             from db.profiles import get_default_profile
+
             profile = get_default_profile()
             if profile:
                 langs = profile.get("target_languages", [])
@@ -487,13 +488,13 @@ class StandaloneScanner:
         # Fallback to global config
         try:
             from config import get_settings
+
             settings = get_settings()
             return [settings.target_language]
         except Exception:
             return ["de"]  # Ultimate fallback
 
-    def _check_existing_subtitle(self, file_path: str,
-                                 target_lang: str) -> str | None:
+    def _check_existing_subtitle(self, file_path: str, target_lang: str) -> str | None:
         """Check if a target language subtitle already exists for a file.
 
         Args:
@@ -505,11 +506,10 @@ class StandaloneScanner:
         """
         try:
             from translator import detect_existing_target_for_lang
+
             return detect_existing_target_for_lang(file_path, target_lang)
         except Exception as e:
-            logger.debug(
-                "Could not check existing subs for %s: %s", file_path, e
-            )
+            logger.debug("Could not check existing subs for %s: %s", file_path, e)
             return None
 
     def _find_common_parent(self, paths: list[str]) -> str:
@@ -544,8 +544,7 @@ class StandaloneScanner:
             db = get_db()
             with _db_lock:
                 rows = db.execute(
-                    "SELECT id, file_path FROM wanted_items "
-                    "WHERE instance_name='standalone'"
+                    "SELECT id, file_path FROM wanted_items WHERE instance_name='standalone'"
                 ).fetchall()
 
             to_remove = []
@@ -555,6 +554,7 @@ class StandaloneScanner:
 
             if to_remove:
                 from db.wanted import delete_wanted_items_by_ids
+
                 delete_wanted_items_by_ids(to_remove)
                 logger.info(
                     "Standalone cleanup: removed %d stale wanted items",

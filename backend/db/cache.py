@@ -1,6 +1,5 @@
 """FFprobe cache, episode history, and AniDB mapping operations -- delegating to SQLAlchemy repository."""
 
-
 from db.repositories.cache import CacheRepository
 
 _repo = None
@@ -35,6 +34,7 @@ def get_episode_history(file_path: str) -> list:
 
 # --- AniDB Mapping Operations ---
 
+
 def get_anidb_mapping(tvdb_id: int) -> int | None:
     """Get cached AniDB ID for a TVDB ID."""
     return _get_repo().get_anidb_mapping(tvdb_id)
@@ -57,16 +57,25 @@ def get_anidb_mapping_stats() -> dict:
 
 # --- Provider Cache Operations (used by providers/__init__.py) ---
 
-def get_cached_results(provider_name: str, query_hash: str, format_filter: str = None) -> str | None:
+
+def get_cached_results(
+    provider_name: str, query_hash: str, format_filter: str = None
+) -> str | None:
     """Get cached provider results if not expired."""
     return _get_repo().get_cached_results(provider_name, query_hash, format_filter)
 
 
-def save_cache_results(provider_name: str, query_hash: str, results_json: str,
-                       ttl_hours: int = 6, format_filter: str = None):
+def save_cache_results(
+    provider_name: str,
+    query_hash: str,
+    results_json: str,
+    ttl_hours: int = 6,
+    format_filter: str = None,
+):
     """Cache provider search results."""
-    return _get_repo().save_cache_results(provider_name, query_hash, results_json,
-                                          ttl_hours, format_filter)
+    return _get_repo().save_cache_results(
+        provider_name, query_hash, results_json, ttl_hours, format_filter
+    )
 
 
 def get_cache_stats() -> dict:

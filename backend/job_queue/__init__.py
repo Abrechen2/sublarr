@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 class JobStatus(Enum):
     """Unified job status across all queue backends."""
+
     QUEUED = "queued"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -32,6 +33,7 @@ class JobStatus(Enum):
 @dataclass
 class JobInfo:
     """Unified job information across all queue backends."""
+
     id: str
     func_name: str
     status: JobStatus
@@ -128,6 +130,7 @@ def create_job_queue(redis_url: str = "", queue_name: str = "sublarr") -> QueueB
         except ImportError:
             logger.info("redis package not installed, using memory job queue")
             from job_queue.memory_queue import MemoryJobQueue
+
             return MemoryJobQueue()
 
         try:
@@ -135,6 +138,7 @@ def create_job_queue(redis_url: str = "", queue_name: str = "sublarr") -> QueueB
         except ImportError:
             logger.info("rq package not installed, using memory job queue")
             from job_queue.memory_queue import MemoryJobQueue
+
             return MemoryJobQueue()
 
         try:
@@ -145,9 +149,11 @@ def create_job_queue(redis_url: str = "", queue_name: str = "sublarr") -> QueueB
             client.ping()
             logger.info("RQ job queue connected: %s (queue: %s)", redis_url, queue_name)
             from job_queue.rq_queue import RQJobQueue
+
             return RQJobQueue(client, queue_name)
         except Exception as e:
             logger.warning("Redis unavailable for job queue (%s), using memory queue", e)
 
     from job_queue.memory_queue import MemoryJobQueue
+
     return MemoryJobQueue()

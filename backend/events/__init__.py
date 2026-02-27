@@ -29,23 +29,28 @@ def init_event_system(app):
 
     def _make_bridge(event_name: str):
         """Create a bridge subscriber that captures event_name via closure."""
+
         def _bridge(sender, data=None, **kwargs):
             payload = data if data is not None else {}
-            logger.debug("Event bridge: %s -> WebSocket (%d keys)",
-                         event_name, len(payload) if isinstance(payload, dict) else 0)
+            logger.debug(
+                "Event bridge: %s -> WebSocket (%d keys)",
+                event_name,
+                len(payload) if isinstance(payload, dict) else 0,
+            )
             try:
                 socketio.emit(event_name, payload)
             except Exception as exc:
-                logger.warning("Failed to bridge event %s to WebSocket: %s",
-                               event_name, exc)
+                logger.warning("Failed to bridge event %s to WebSocket: %s", event_name, exc)
+
         return _bridge
 
     for name, entry in EVENT_CATALOG.items():
         bridge_fn = _make_bridge(name)
         entry["signal"].connect(bridge_fn, weak=False)
 
-    logger.info("Event system initialized: %d events, catalog v%d",
-                len(EVENT_CATALOG), CATALOG_VERSION)
+    logger.info(
+        "Event system initialized: %d events, catalog v%d", len(EVENT_CATALOG), CATALOG_VERSION
+    )
 
 
 def emit_event(event_name: str, data: dict = None):
@@ -71,6 +76,7 @@ def emit_event(event_name: str, data: dict = None):
     sender = None
     try:
         from flask import current_app
+
         sender = current_app._get_current_object()
     except (ImportError, RuntimeError):
         pass

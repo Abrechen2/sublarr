@@ -56,10 +56,7 @@ class MemoryCacheBackend(CacheBackend):
         """
         now = time.time()
         with self._lock:
-            expired_keys = [
-                k for k, (_, exp) in self._store.items()
-                if exp > 0 and now > exp
-            ]
+            expired_keys = [k for k, (_, exp) in self._store.items() if exp > 0 and now > exp]
             for k in expired_keys:
                 del self._store[k]
         if expired_keys:

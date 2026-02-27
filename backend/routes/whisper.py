@@ -21,6 +21,7 @@ def _get_queue():
     global _queue
     if _queue is None:
         from whisper.queue import WhisperQueue
+
         max_concurrent = int(_get_config("max_concurrent_whisper", "1"))
         _queue = WhisperQueue(max_concurrent=max_concurrent)
     return _queue
@@ -30,6 +31,7 @@ def _get_config(key, default=""):
     """Read a config entry with fallback."""
     try:
         from db.config import get_config_entry
+
         value = get_config_entry(key)
         return value if value is not None else default
     except Exception:
@@ -99,6 +101,7 @@ def transcribe():
 
     # Determine language
     from config import get_settings
+
     settings = get_settings()
     language = data.get("language", settings.source_language or "ja")
 
@@ -115,10 +118,12 @@ def transcribe():
         socketio=socketio,
     )
 
-    return jsonify({
-        "job_id": job_id,
-        "status": "queued",
-    }), 202
+    return jsonify(
+        {
+            "job_id": job_id,
+            "status": "queued",
+        }
+    ), 202
 
 
 @bp.route("/queue", methods=["GET"])
@@ -382,7 +387,7 @@ def get_backend_config(name):
     config = {}
     for key, value in all_entries.items():
         if key.startswith(prefix):
-            short_key = key[len(prefix):]
+            short_key = key[len(prefix) :]
             config[short_key] = value
 
     # Build set of password field keys for masking
@@ -543,7 +548,12 @@ def save_whisper_config():
     if not data:
         return jsonify({"error": "No configuration data provided"}), 400
 
-    allowed_keys = {"whisper_backend", "max_concurrent_whisper", "whisper_enabled", "whisper_fallback_min_score"}
+    allowed_keys = {
+        "whisper_backend",
+        "max_concurrent_whisper",
+        "whisper_enabled",
+        "whisper_fallback_min_score",
+    }
     for key, value in data.items():
         if key not in allowed_keys:
             continue

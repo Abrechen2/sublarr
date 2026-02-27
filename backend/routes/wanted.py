@@ -131,10 +131,15 @@ def list_wanted():
         return jsonify({"error": f"Invalid sort_dir value: {sort_dir}"}), 400
 
     result = get_wanted_items(
-        page=page, per_page=per_page,
-        item_type=item_type, status=status_filter,
-        series_id=series_id, subtitle_type=subtitle_type,
-        sort_by=sort_by, sort_dir=sort_dir, search=search,
+        page=page,
+        per_page=per_page,
+        item_type=item_type,
+        status=status_filter,
+        series_id=series_id,
+        subtitle_type=subtitle_type,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        search=search,
     )
     return jsonify(result)
 
@@ -451,10 +456,13 @@ def process_wanted(item_id):
             result = process_wanted_item(item_id)
             emit_event("wanted_item_processed", result)
             if result.get("upgraded"):
-                emit_event("upgrade_complete", {
-                    "file_path": result.get("output_path"),
-                    "provider": result.get("provider"),
-                })
+                emit_event(
+                    "upgrade_complete",
+                    {
+                        "file_path": result.get("output_path"),
+                        "provider": result.get("provider"),
+                    },
+                )
         except Exception as e:
             logger.exception("Wanted process failed for item_id=%s", item_id)
             emit_event("wanted_item_processed", {"wanted_id": item_id, "error": str(e)})
@@ -522,8 +530,13 @@ def wanted_batch_search():
         # If series_id provided, resolve to item IDs for that series
         if series_id and not item_ids:
             from db.wanted import get_wanted_for_series
+
             series_items = get_wanted_for_series(series_id)
-            item_ids = [item["id"] for item in series_items if item.get("status") not in ("downloading", "translating")]
+            item_ids = [
+                item["id"]
+                for item in series_items
+                if item.get("status") not in ("downloading", "translating")
+            ]
 
         # If series_ids (plural) provided, resolve to item IDs across all listed series
         series_ids = data.get("series_ids", [])
@@ -531,6 +544,7 @@ def wanted_batch_search():
             return jsonify({"error": "No items provided"}), 400
         if series_ids and not item_ids:
             from db.wanted import get_wanted_for_series
+
             collected: list[int] = []
             for sid in series_ids:
                 series_items = get_wanted_for_series(sid)
@@ -547,15 +561,17 @@ def wanted_batch_search():
         else:
             total = get_wanted_count(status="wanted")
 
-        wanted_batch_state.update({
-            "running": True,
-            "total": total,
-            "processed": 0,
-            "found": 0,
-            "failed": 0,
-            "skipped": 0,
-            "current_item": None,
-        })
+        wanted_batch_state.update(
+            {
+                "running": True,
+                "total": total,
+                "processed": 0,
+                "found": 0,
+                "failed": 0,
+                "skipped": 0,
+                "current_item": None,
+            }
+        )
 
     _app = current_app._get_current_object()
 
@@ -570,13 +586,16 @@ def wanted_batch_search():
                         wanted_batch_state["skipped"] = progress["skipped"]
                         wanted_batch_state["current_item"] = progress["current_item"]
 
-                    socketio.emit("wanted_batch_progress", {
-                        "processed": progress["processed"],
-                        "total": progress["total"],
-                        "found": progress["found"],
-                        "failed": progress["failed"],
-                        "current_item": progress["current_item"],
-                    })
+                    socketio.emit(
+                        "wanted_batch_progress",
+                        {
+                            "processed": progress["processed"],
+                            "total": progress["total"],
+                            "found": progress["found"],
+                            "failed": progress["failed"],
+                            "current_item": progress["current_item"],
+                        },
+                    )
             finally:
                 with wanted_batch_lock:
                     snapshot = dict(wanted_batch_state)
@@ -587,6 +606,7 @@ def wanted_batch_search():
 
                 try:
                     from notifier import send_notification
+
                     send_notification(
                         title="Sublarr: Wanted Batch Complete",
                         body=f"Wanted batch finished: {snapshot.get('found', 0)} found, {snapshot.get('failed', 0)} failed",
@@ -746,7 +766,9 @@ def wanted_batch_action():
     if not all(isinstance(i, int) for i in item_ids):
         return jsonify({"error": "item_ids must contain only integers"}), 400
     if action not in ALLOWED_ACTIONS:
-        return jsonify({"error": f"action must be one of: {', '.join(sorted(ALLOWED_ACTIONS))}"}), 400
+        return jsonify(
+            {"error": f"action must be one of: {', '.join(sorted(ALLOWED_ACTIONS))}"}
+        ), 400
 
     # Export action: return item data without DB changes
     if action == "export":
@@ -776,6 +798,7 @@ def wanted_batch_action():
     elif action == "blacklist":
         try:
             from db.blacklist import add_blacklist_entry
+
             for item_id in item_ids:
                 item = get_wanted_item(item_id)
                 if item:
@@ -881,7 +904,9 @@ def batch_extract():
             failed += 1
             continue
         try:
-            result = _extract_embedded_sub(item_id, item.get("file_path", ""), auto_translate=auto_translate)
+            result = _extract_embedded_sub(
+                item_id, item.get("file_path", ""), auto_translate=auto_translate
+            )
             result["item_id"] = item_id
             results.append(result)
             succeeded += 1
@@ -1018,12 +1043,15 @@ def download_specific(item_id):
     if not result.get("success"):
         return jsonify(result), 400
 
-    emit_event("wanted_item_processed", {
-        "wanted_id": item_id,
-        "status": "found",
-        "output_path": result.get("path"),
-        "provider": provider_name,
-    })
+    emit_event(
+        "wanted_item_processed",
+        {
+            "wanted_id": item_id,
+            "status": "found",
+            "output_path": result.get("path"),
+            "provider": provider_name,
+        },
+    )
     return jsonify(result)
 
 
@@ -1053,7 +1081,7 @@ def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = F
     if not file_path or not os.path.exists(file_path):
         raise FileNotFoundError(f"Media file not found: {file_path}")
 
-    if not file_path.lower().endswith(('.mkv', '.mp4', '.m4v')):
+    if not file_path.lower().endswith((".mkv", ".mp4", ".m4v")):
         raise ValueError(f"File is not a video container (MKV/MP4): {file_path}")
 
     target_language = item.get("target_language") or settings.target_language
@@ -1073,12 +1101,15 @@ def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = F
     # Remove from wanted if we got a final ASS subtitle
     if stream_info["format"] == "ass":
         delete_wanted_item(item_id)
-        emit_event("wanted_item_processed", {
-            "wanted_id": item_id,
-            "status": "found",
-            "output_path": output_path,
-            "source": "embedded",
-        })
+        emit_event(
+            "wanted_item_processed",
+            {
+                "wanted_id": item_id,
+                "status": "found",
+                "output_path": output_path,
+                "source": "embedded",
+            },
+        )
     elif auto_translate and stream_info["format"] == "srt":
         # Trigger translation of the extracted SRT in a background thread
         try:
@@ -1093,7 +1124,9 @@ def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = F
 
             threading.Thread(target=_translate_async, daemon=True).start()
         except Exception as exc:
-            logger.warning("[Auto-Translate] Could not start translation thread for item %d: %s", item_id, exc)
+            logger.warning(
+                "[Auto-Translate] Could not start translation thread for item %d: %s", item_id, exc
+            )
 
     return {
         "status": "extracted",
@@ -1170,11 +1203,13 @@ def extract_embedded_sub(item_id):
     if not file_path or not os.path.exists(file_path):
         return jsonify({"error": "File not found"}), 404
 
-    if not file_path.lower().endswith(('.mkv', '.mp4', '.m4v')):
+    if not file_path.lower().endswith((".mkv", ".mp4", ".m4v")):
         return jsonify({"error": "File is not a video container (MKV/MP4)"}), 400
 
     data = request.get_json(silent=True) or {}
-    target_language = data.get("target_language") or item.get("target_language") or settings.target_language
+    target_language = (
+        data.get("target_language") or item.get("target_language") or settings.target_language
+    )
 
     try:
         # Get media stream metadata
@@ -1192,7 +1227,9 @@ def extract_embedded_sub(item_id):
                 stream_info = {
                     "sub_index": stream_index,
                     "stream_index": stream.get("index"),
-                    "format": "ass" if stream.get("codec_name", "").lower() in ("ass", "ssa") else "srt",
+                    "format": "ass"
+                    if stream.get("codec_name", "").lower() in ("ass", "ssa")
+                    else "srt",
                     "language": stream.get("tags", {}).get("language", ""),
                 }
         else:
@@ -1211,19 +1248,24 @@ def extract_embedded_sub(item_id):
         # Update wanted item if ASS was extracted
         if stream_info["format"] == "ass":
             delete_wanted_item(item_id)
-            emit_event("wanted_item_processed", {
-                "wanted_id": item_id,
-                "status": "found",
-                "output_path": output_path,
-                "source": "embedded",
-            })
+            emit_event(
+                "wanted_item_processed",
+                {
+                    "wanted_id": item_id,
+                    "status": "found",
+                    "output_path": output_path,
+                    "source": "embedded",
+                },
+            )
 
-        return jsonify({
-            "status": "extracted",
-            "output_path": output_path,
-            "format": stream_info["format"],
-            "language": stream_info.get("language", ""),
-        })
+        return jsonify(
+            {
+                "status": "extracted",
+                "output_path": output_path,
+                "format": stream_info["format"],
+                "language": stream_info.get("language", ""),
+            }
+        )
 
     except Exception:
         raise  # Handled by global error handler

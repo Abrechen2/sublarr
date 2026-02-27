@@ -133,20 +133,25 @@ class WantedScanner:
 
             logger.info(
                 "Wanted scan starting (%s, cycle %d/%d)",
-                scan_type, self._scan_count + 1, FULL_SCAN_INTERVAL,
+                scan_type,
+                self._scan_count + 1,
+                FULL_SCAN_INTERVAL,
             )
 
             # Scan all Sonarr instances
             try:
                 from config import get_sonarr_instances
                 from sonarr_client import get_sonarr_client
+
                 instances = get_sonarr_instances()
                 for inst in instances:
                     instance_name = inst.get("name", "Default")
                     sonarr = get_sonarr_client(instance_name=instance_name)
                     if sonarr:
                         a, u, paths = self._scan_sonarr(
-                            sonarr, settings, instance_name,
+                            sonarr,
+                            settings,
+                            instance_name,
                             since=self._last_scan_timestamp if is_incremental else None,
                         )
                         added += a
@@ -159,13 +164,16 @@ class WantedScanner:
             try:
                 from config import get_radarr_instances
                 from radarr_client import get_radarr_client
+
                 instances = get_radarr_instances()
                 for inst in instances:
                     instance_name = inst.get("name", "Default")
                     radarr = get_radarr_client(instance_name=instance_name)
                     if radarr:
                         a, u, paths = self._scan_radarr(
-                            radarr, settings, instance_name,
+                            radarr,
+                            settings,
+                            instance_name,
                             since=self._last_scan_timestamp if is_incremental else None,
                         )
                         added += a
@@ -177,7 +185,8 @@ class WantedScanner:
             # Scan standalone items (if standalone mode enabled)
             try:
                 from config import get_settings as _get_standalone_settings
-                if getattr(_get_standalone_settings(), 'standalone_enabled', False):
+
+                if getattr(_get_standalone_settings(), "standalone_enabled", False):
                     sa, su, sp = self._scan_standalone()
                     added += sa
                     updated += su
@@ -191,6 +200,7 @@ class WantedScanner:
 
             duration = round(time.time() - start, 1)
             from db.wanted import get_wanted_count
+
             total_wanted = get_wanted_count()
 
             summary = {
@@ -209,7 +219,12 @@ class WantedScanner:
 
             logger.info(
                 "Wanted %s scan complete: +%d added, ~%d updated, -%d removed, %d total (%.1fs)",
-                scan_type, added, updated, removed, total_wanted, duration,
+                scan_type,
+                added,
+                updated,
+                removed,
+                total_wanted,
+                duration,
             )
             return summary
 
@@ -241,6 +256,7 @@ class WantedScanner:
         try:
             settings = get_settings()
             from sonarr_client import get_sonarr_client
+
             sonarr = get_sonarr_client()
             if not sonarr:
                 return {"error": "sonarr_not_configured"}
@@ -272,6 +288,7 @@ class WantedScanner:
         try:
             settings = get_settings()
             from radarr_client import get_radarr_client
+
             radarr = get_radarr_client()
             if not radarr:
                 return {"error": "radarr_not_configured"}
@@ -331,10 +348,12 @@ class WantedScanner:
 
         profile = get_movie_profile(movie_id)
         target_languages = profile.get("target_languages", [settings.target_language])
-        target_language_names = profile.get("target_language_names", [settings.target_language_name])
+        target_language_names = profile.get(
+            "target_language_names", [settings.target_language_name]
+        )
 
         probe_data = None
-        if settings.use_embedded_subs and mapped_path.lower().endswith(('.mkv', '.mp4', '.m4v')):
+        if settings.use_embedded_subs and mapped_path.lower().endswith((".mkv", ".mp4", ".m4v")):
             try:
                 probe_data = get_media_streams(mapped_path, use_cache=True)
             except Exception as e:
@@ -444,7 +463,9 @@ class WantedScanner:
                     filtered.append(s)
             logger.debug(
                 "Incremental Sonarr scan: %d/%d series modified since %s",
-                len(filtered), len(series_list), since_iso,
+                len(filtered),
+                len(series_list),
+                since_iso,
             )
             series_list = filtered
 
@@ -453,7 +474,13 @@ class WantedScanner:
         all_paths = set()
         total = len(series_list)
 
-        self._progress = {"current": 0, "total": total, "phase": f"Sonarr ({instance_name})", "added": 0, "updated": 0}
+        self._progress = {
+            "current": 0,
+            "total": total,
+            "phase": f"Sonarr ({instance_name})",
+            "added": 0,
+            "updated": 0,
+        }
         if self._socketio:
             self._socketio.emit("wanted_scan_progress", dict(self._progress))
 
@@ -461,7 +488,9 @@ class WantedScanner:
             series_id = series.get("id")
             if not series_id:
                 continue
-            a, u, paths = self._scan_sonarr_series(sonarr, series_id, settings, series, instance_name)
+            a, u, paths = self._scan_sonarr_series(
+                sonarr, series_id, settings, series, instance_name
+            )
             total_added += a
             total_updated += u
             all_paths.update(paths)
@@ -484,13 +513,11 @@ class WantedScanner:
             Dict mapping path -> probe_data (or None on error).
         """
         from config import get_settings
+
         max_workers = getattr(get_settings(), "scan_metadata_max_workers", 4)
         results = {}
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_path = {
-                executor.submit(get_media_streams, p, True): p
-                for p in paths
-            }
+            future_to_path = {executor.submit(get_media_streams, p, True): p for p in paths}
             for future in as_completed(future_to_path):
                 path = future_to_path[future]
                 try:
@@ -512,13 +539,16 @@ class WantedScanner:
             if not getattr(settings, "wanted_auto_extract", False):
                 return
             from routes.wanted import _extract_embedded_sub
+
             auto_translate = getattr(settings, "wanted_auto_translate", False)
             logger.info("[Auto-Extract] item %d -> %s", item_id, file_path)
             _extract_embedded_sub(item_id, file_path, auto_translate=auto_translate)
         except Exception as exc:
             logger.warning("[Auto-Extract] Failed for item %d: %s", item_id, exc)
 
-    def _scan_sonarr_series(self, sonarr, series_id, settings, series_info=None, instance_name=None):
+    def _scan_sonarr_series(
+        self, sonarr, series_id, settings, series_info=None, instance_name=None
+    ):
         """Scan a single series. Returns (added, updated, scanned_paths)."""
         if not series_info:
             series_info = sonarr.get_series_by_id(series_id) or {}
@@ -531,7 +561,9 @@ class WantedScanner:
         # Load language profile for this series
         profile = get_series_profile(series_id)
         target_languages = profile.get("target_languages", [settings.target_language])
-        target_language_names = profile.get("target_language_names", [settings.target_language_name])
+        target_language_names = profile.get(
+            "target_language_names", [settings.target_language_name]
+        )
 
         added = 0
         updated = 0
@@ -566,8 +598,7 @@ class WantedScanner:
         probe_results = {}
         if settings.use_embedded_subs and episode_data:
             probeable = [
-                mp for _, mp in episode_data
-                if mp.lower().endswith(('.mkv', '.mp4', '.m4v'))
+                mp for _, mp in episode_data if mp.lower().endswith((".mkv", ".mp4", ".m4v"))
             ]
             if probeable:
                 probe_results = self._batch_probe(probeable)
@@ -695,7 +726,9 @@ class WantedScanner:
                     filtered.append(m)
             logger.debug(
                 "Incremental Radarr scan: %d/%d movies modified since %s",
-                len(filtered), len(movies), since_iso,
+                len(filtered),
+                len(movies),
+                since_iso,
             )
             movies = filtered
 
@@ -704,7 +737,13 @@ class WantedScanner:
         all_paths = set()
         total = len(movies)
 
-        self._progress = {"current": 0, "total": total, "phase": f"Radarr ({instance_name})", "added": 0, "updated": 0}
+        self._progress = {
+            "current": 0,
+            "total": total,
+            "phase": f"Radarr ({instance_name})",
+            "added": 0,
+            "updated": 0,
+        }
         if self._socketio:
             self._socketio.emit("wanted_scan_progress", dict(self._progress))
 
@@ -730,7 +769,7 @@ class WantedScanner:
         """
         from standalone.scanner import StandaloneScanner
 
-        if not hasattr(self, '_standalone_scanner'):
+        if not hasattr(self, "_standalone_scanner"):
             self._standalone_scanner = StandaloneScanner()
 
         summary = self._standalone_scanner.scan_all_folders()
@@ -741,6 +780,7 @@ class WantedScanner:
         scanned_paths = set()
         try:
             from db import _db_lock, get_db
+
             db = get_db()
             with _db_lock:
                 rows = db.execute(
@@ -779,6 +819,7 @@ class WantedScanner:
                 existing = detect_existing_target_for_lang(path, target_lang)
             else:
                 from translator import detect_existing_target
+
                 existing = detect_existing_target(path)
             if existing == "ass":
                 to_remove_ids.append(item["id"])
@@ -793,6 +834,7 @@ class WantedScanner:
 
         if to_remove_ids:
             from db.wanted import delete_wanted_items_by_ids
+
             delete_wanted_items_by_ids(to_remove_ids)
             logger.info("Wanted cleanup: removed %d items", len(to_remove_ids))
 
@@ -822,6 +864,7 @@ class WantedScanner:
             max_items = settings.wanted_search_max_items_per_run
 
             from db.wanted import get_wanted_items
+
             result = get_wanted_items(page=1, per_page=max_items, status="wanted")
             items = result.get("data", [])
 
@@ -876,8 +919,7 @@ class WantedScanner:
             max_workers = min(4, total)
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 future_to_item = {
-                    executor.submit(process_wanted_item, item["id"]): item
-                    for item in eligible
+                    executor.submit(process_wanted_item, item["id"]): item for item in eligible
                 }
 
                 for future in as_completed(future_to_item):
@@ -905,13 +947,16 @@ class WantedScanner:
                         logger.warning("Search-all: error on item %d: %s", item["id"], e)
 
                     if socketio:
-                        socketio.emit("wanted_search_progress", {
-                            "processed": processed,
-                            "total": total,
-                            "found": found,
-                            "failed": failed,
-                            "current_item": item.get("title", str(item["id"])),
-                        })
+                        socketio.emit(
+                            "wanted_search_progress",
+                            {
+                                "processed": processed,
+                                "total": total,
+                                "found": found,
+                                "failed": failed,
+                                "current_item": item.get("title", str(item["id"])),
+                            },
+                        )
 
             duration = round(time.time() - start, 1)
             self._last_search_at = datetime.now(UTC).isoformat()
@@ -927,10 +972,15 @@ class WantedScanner:
 
             logger.info(
                 "Wanted search complete: %d/%d processed, %d found, %d failed (%.1fs)",
-                processed, total, found, failed, duration,
+                processed,
+                total,
+                found,
+                failed,
+                duration,
             )
 
             from events import emit_event
+
             emit_event("wanted_scan_complete", summary)
 
             return summary
@@ -971,7 +1021,9 @@ class WantedScanner:
         if search_interval > 0:
             if settings.wanted_search_on_startup:
                 thread = threading.Thread(
-                    target=self._run_search_with_context, args=(socketio,), daemon=True,
+                    target=self._run_search_with_context,
+                    args=(socketio,),
+                    daemon=True,
                 )
                 thread.start()
             self._schedule_next_search(search_interval)

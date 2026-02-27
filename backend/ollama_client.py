@@ -16,10 +16,10 @@ logger = logging.getLogger(__name__)
 
 # CJK Unicode ranges for hallucination detection (Qwen2.5 sometimes drifts into Chinese)
 _CJK_RE = re.compile(
-    r"[\u4e00-\u9fff"    # CJK Unified Ideographs
-    r"\u3400-\u4dbf"     # CJK Extension A
-    r"\u2e80-\u2eff"     # CJK Radicals
-    r"\uf900-\ufaff]"    # CJK Compatibility Ideographs
+    r"[\u4e00-\u9fff"  # CJK Unified Ideographs
+    r"\u3400-\u4dbf"  # CJK Extension A
+    r"\u2e80-\u2eff"  # CJK Radicals
+    r"\uf900-\ufaff]"  # CJK Compatibility Ideographs
 )
 
 
@@ -44,9 +44,7 @@ def check_ollama_health():
         except ValueError:
             return False, "Ollama returned invalid JSON"
         models = [m["name"] for m in data.get("models", [])]
-        model_found = any(
-            settings.ollama_model in name for name in models
-        )
+        model_found = any(settings.ollama_model in name for name in models)
         if not model_found:
             return False, f"Model '{settings.ollama_model}' not found. Available: {models}"
         return True, "OK"
@@ -138,7 +136,8 @@ def _parse_response(response_text, expected_count):
     if len(cleaned) > expected_count:
         logger.warning(
             "Got %d lines, expected %d. Trying to merge excess lines.",
-            len(cleaned), expected_count,
+            len(cleaned),
+            expected_count,
         )
         merged = []
         for i, line in enumerate(cleaned):
@@ -157,7 +156,9 @@ def _parse_response(response_text, expected_count):
         return cleaned[:expected_count]
 
     logger.warning(
-        "Line count mismatch: got %d, expected %d", len(cleaned), expected_count,
+        "Line count mismatch: got %d, expected %d",
+        len(cleaned),
+        expected_count,
     )
     return None
 
@@ -174,14 +175,16 @@ def build_prompt_with_glossary(prompt_template, glossary_entries, lines):
         str: Complete prompt with glossary and numbered lines
     """
     if not glossary_entries:
-        numbered = "\n".join(f"{i+1}: {line}" for i, line in enumerate(lines))
+        numbered = "\n".join(f"{i + 1}: {line}" for i, line in enumerate(lines))
         return prompt_template + numbered
 
     # Build glossary string (max 15 entries)
-    glossary_parts = [f"{entry['source_term']} → {entry['target_term']}" for entry in glossary_entries[:15]]
+    glossary_parts = [
+        f"{entry['source_term']} → {entry['target_term']}" for entry in glossary_entries[:15]
+    ]
     glossary_str = "Glossary: " + ", ".join(glossary_parts) + "\n\n"
 
-    numbered = "\n".join(f"{i+1}: {line}" for i, line in enumerate(lines))
+    numbered = "\n".join(f"{i + 1}: {line}" for i, line in enumerate(lines))
     return glossary_str + prompt_template + numbered
 
 
@@ -210,7 +213,9 @@ def translate_batch(lines, series_id=None):
         try:
             glossary_entries = get_glossary_for_series(series_id)
             if glossary_entries:
-                logger.debug("Loaded %d glossary entries for series %d", len(glossary_entries), series_id)
+                logger.debug(
+                    "Loaded %d glossary entries for series %d", len(glossary_entries), series_id
+                )
         except Exception as e:
             logger.debug("Failed to load glossary for series %d: %s", series_id, e)
 
@@ -226,16 +231,16 @@ def translate_batch(lines, series_id=None):
                 if tainted:
                     logger.warning(
                         "Attempt %d: CJK hallucination in %d lines (indices %s), retrying...",
-                        attempt, len(tainted), tainted,
+                        attempt,
+                        len(tainted),
+                        tainted,
                     )
                     ValueError("CJK hallucination detected")
                 else:
                     return parsed
             else:
                 logger.warning("Attempt %d: line count mismatch, retrying...", attempt)
-                ValueError(
-                    f"Expected {len(lines)} lines, got different count"
-                )
+                ValueError(f"Expected {len(lines)} lines, got different count")
         except (requests.RequestException, RuntimeError) as e:
             logger.warning("Attempt %d failed: %s", attempt, e)
 
@@ -280,7 +285,9 @@ def _translate_singles(lines, series_id=None):
                 response = _call_ollama(prompt)
                 translated = re.sub(r"^\d+[\.:]\s*", "", response.strip().split("\n")[0])
                 if _has_cjk_hallucination(translated):
-                    logger.warning("Single line %d, attempt %d: CJK hallucination, retrying", i, attempt)
+                    logger.warning(
+                        "Single line %d, attempt %d: CJK hallucination, retrying", i, attempt
+                    )
                     last_error = ValueError("CJK hallucination detected")
                 else:
                     results.append(translated)
@@ -294,7 +301,11 @@ def _translate_singles(lines, series_id=None):
                 time.sleep(wait)
 
         if last_error is not None:
-            logger.error("Failed to translate line %d after %d attempts, keeping original", i, settings.max_retries)
+            logger.error(
+                "Failed to translate line %d after %d attempts, keeping original",
+                i,
+                settings.max_retries,
+            )
             results.append(line)
 
     return results
@@ -319,8 +330,12 @@ def translate_all(lines, batch_size=None, series_id=None):
     if total == 0:
         return []
 
-    logger.info("Translating %d lines in batches of %d%s", total, batch_size,
-                f" (series_id: {series_id})" if series_id else "")
+    logger.info(
+        "Translating %d lines in batches of %d%s",
+        total,
+        batch_size,
+        f" (series_id: {series_id})" if series_id else "",
+    )
     results = []
 
     for start in range(0, total, batch_size):

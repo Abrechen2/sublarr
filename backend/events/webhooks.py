@@ -33,10 +33,12 @@ def _create_webhook_session(retry_count: int = 3) -> requests.Session:
         Configured requests.Session.
     """
     session = requests.Session()
-    session.headers.update({
-        "User-Agent": "Sublarr-Webhook/1.0",
-        "Content-Type": "application/json",
-    })
+    session.headers.update(
+        {
+            "User-Agent": "Sublarr-Webhook/1.0",
+            "Content-Type": "application/json",
+        }
+    )
 
     retry = Retry(
         total=retry_count,
@@ -147,6 +149,7 @@ class WebhookDispatcher:
         """
         try:
             from db.hooks import get_webhook_configs
+
             # Get exact match + wildcard webhooks
             exact_configs = get_webhook_configs(event_name=event_name)
             wildcard_configs = get_webhook_configs(event_name="*")
@@ -163,18 +166,19 @@ class WebhookDispatcher:
             if consecutive_failures >= _AUTO_DISABLE_THRESHOLD:
                 logger.warning(
                     "Webhook '%s' auto-disabled: %d consecutive failures",
-                    config.get("name", "?"), consecutive_failures,
+                    config.get("name", "?"),
+                    consecutive_failures,
                 )
                 continue
 
             try:
-                self._pool.submit(
-                    self._send_and_log, config, event_name, event_data
-                )
+                self._pool.submit(self._send_and_log, config, event_name, event_data)
             except Exception as e:
                 logger.error(
                     "Failed to submit webhook '%s' for event %s: %s",
-                    config.get("name", "?"), event_name, e,
+                    config.get("name", "?"),
+                    event_name,
+                    e,
                 )
 
     def _send_and_log(self, config: dict, event_name: str, event_data: dict) -> None:
@@ -192,6 +196,7 @@ class WebhookDispatcher:
 
             # Log execution to DB
             from db.hooks import log_hook_execution, update_webhook_trigger_stats
+
             log_hook_execution(
                 webhook_id=webhook_id,
                 event_name=event_name,
@@ -211,19 +216,25 @@ class WebhookDispatcher:
             if result["success"]:
                 logger.debug(
                     "Webhook '%s' sent for %s -> %d (%.0fms)",
-                    config.get("name", "?"), event_name,
-                    result.get("status_code", 0), result.get("duration_ms", 0),
+                    config.get("name", "?"),
+                    event_name,
+                    result.get("status_code", 0),
+                    result.get("duration_ms", 0),
                 )
             else:
                 logger.warning(
                     "Webhook '%s' failed for %s: %s",
-                    config.get("name", "?"), event_name, result.get("error", "unknown"),
+                    config.get("name", "?"),
+                    event_name,
+                    result.get("error", "unknown"),
                 )
 
         except Exception as e:
             logger.error(
                 "Unexpected error sending webhook '%s' for %s: %s",
-                config.get("name", "?"), event_name, e,
+                config.get("name", "?"),
+                event_name,
+                e,
             )
 
     def shutdown(self) -> None:
@@ -245,8 +256,10 @@ def init_webhook_subscribers(dispatcher: WebhookDispatcher) -> None:
 
     def _make_webhook_handler(event_name: str):
         """Create a handler that captures event_name via closure."""
+
         def _handler(sender, data=None, **kwargs):
             dispatcher.dispatch(event_name, data or {})
+
         return _handler
 
     count = 0

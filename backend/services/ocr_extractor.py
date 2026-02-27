@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 try:
     import pytesseract
     from PIL import Image
+
     TESSERACT_AVAILABLE = True
 except ImportError:
     TESSERACT_AVAILABLE = False
@@ -63,10 +64,14 @@ def extract_frame(
     cmd = [
         "ffmpeg",
         "-y",  # Overwrite output file
-        "-ss", str(timestamp),
-        "-i", video_path,
-        "-vframes", "1",  # Extract only one frame
-        "-vf", "scale=1920:-1",  # Scale to reasonable size for OCR
+        "-ss",
+        str(timestamp),
+        "-i",
+        video_path,
+        "-vframes",
+        "1",  # Extract only one frame
+        "-vf",
+        "scale=1920:-1",  # Scale to reasonable size for OCR
         output_path,
     ]
 
@@ -285,14 +290,21 @@ def batch_ocr_track(
     with tempfile.TemporaryDirectory() as tmp_dir:
         out_pattern = os.path.join(tmp_dir, "frame%08d.png")
         cmd = [
-            "ffmpeg", "-y", "-i", video_path,
-            "-map", f"0:{stream_index}",
-            "-vsync", "vfr",
+            "ffmpeg",
+            "-y",
+            "-i",
+            video_path,
+            "-map",
+            f"0:{stream_index}",
+            "-vsync",
+            "vfr",
             out_pattern,
         ]
         r = subprocess.run(cmd, capture_output=True, timeout=300)
         if r.returncode != 0:
-            raise RuntimeError(f"ffmpeg subtitle extraction failed: {r.stderr.decode(errors='replace')[:500]}")
+            raise RuntimeError(
+                f"ffmpeg subtitle extraction failed: {r.stderr.decode(errors='replace')[:500]}"
+            )
 
         frames = sorted(_glob.glob(os.path.join(tmp_dir, "frame*.png")))
         if not frames:
@@ -313,7 +325,12 @@ def batch_ocr_track(
             cues.append({"text": text})
         prev = text
 
-    logger.info("batch_ocr_track: extracted %d cues from stream %d of %s", len(cues), stream_index, video_path)
+    logger.info(
+        "batch_ocr_track: extracted %d cues from stream %d of %s",
+        len(cues),
+        stream_index,
+        video_path,
+    )
     return cues
 
 

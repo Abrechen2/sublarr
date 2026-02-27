@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 class _NoOpLock:
     """No-op lock -- SQLAlchemy handles thread safety via session scoping."""
+
     def __enter__(self):
         return self
 
@@ -39,6 +40,7 @@ def get_db():
     provides .execute(), .commit(), etc. -- similar interface.
     """
     from extensions import db
+
     return db.session
 
 

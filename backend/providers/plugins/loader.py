@@ -98,13 +98,17 @@ def discover_plugins(
                     found_in_file = True
                     logger.info(
                         "Discovered plugin provider: %s (%s) from %s",
-                        member.name, member.__name__, filename,
+                        member.name,
+                        member.__name__,
+                        filename,
                     )
                 else:
-                    errors.append({
-                        "file": filename,
-                        "error": f"Validation failed for {member.__name__}: {reason}",
-                    })
+                    errors.append(
+                        {
+                            "file": filename,
+                            "error": f"Validation failed for {member.__name__}: {reason}",
+                        }
+                    )
 
             if not found_in_file:
                 # Module loaded OK but no valid providers found -- not necessarily an error
@@ -113,7 +117,10 @@ def discover_plugins(
         except Exception as e:
             # Catch ALL exceptions: SyntaxError, ImportError, AttributeError, etc.
             logger.warning(
-                "Failed to load plugin %s: %s", filename, e, exc_info=True,
+                "Failed to load plugin %s: %s",
+                filename,
+                e,
+                exc_info=True,
             )
             errors.append({"file": filename, "error": str(e)})
             # Clean up partial module load
@@ -129,7 +136,11 @@ def unload_plugin(module_name: str) -> None:
     Args:
         module_name: The module name (e.g. 'sublarr_plugin_myprovider').
     """
-    full_name = module_name if module_name.startswith("sublarr_plugin_") else f"sublarr_plugin_{module_name}"
+    full_name = (
+        module_name
+        if module_name.startswith("sublarr_plugin_")
+        else f"sublarr_plugin_{module_name}"
+    )
     if full_name in sys.modules:
         del sys.modules[full_name]
         logger.debug("Unloaded plugin module: %s", full_name)

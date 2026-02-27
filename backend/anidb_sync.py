@@ -22,9 +22,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-ANIME_LIST_URL = (
-    "https://raw.githubusercontent.com/Anime-Lists/anime-lists/master/anime-list.xml"
-)
+ANIME_LIST_URL = "https://raw.githubusercontent.com/Anime-Lists/anime-lists/master/anime-list.xml"
 REQUEST_TIMEOUT_SECONDS = 30
 DEFAULT_INTERVAL_HOURS = 168  # weekly
 
@@ -74,11 +72,16 @@ def _process_xml(xml_bytes: bytes, app) -> dict:
     try:
         root = ET.fromstring(xml_bytes)
     except ET.ParseError as exc:
-        return {"series_processed": 0, "mappings_upserted": 0, "skipped": 0,
-                "error": f"XML parse error: {exc}"}
+        return {
+            "series_processed": 0,
+            "mappings_upserted": 0,
+            "skipped": 0,
+            "error": f"XML parse error: {exc}",
+        }
 
     with app.app_context():
         from db.repositories.anidb import AnidbRepository
+
         repo = AnidbRepository()
 
         for anime in root.findall("anime"):
@@ -124,12 +127,17 @@ def _process_xml(xml_bytes: bytes, app) -> dict:
                     except Exception as exc:
                         logger.debug(
                             "Failed to upsert mapping TVDB %d S%dE%d: %s",
-                            tvdb_id, tvdb_season, tvdb_ep, exc,
+                            tvdb_id,
+                            tvdb_season,
+                            tvdb_ep,
+                            exc,
                         )
 
     logger.info(
         "AniDB sync complete: %d series processed, %d mappings upserted, %d skipped",
-        series_processed, mappings_upserted, skipped,
+        series_processed,
+        mappings_upserted,
+        skipped,
     )
     return {
         "series_processed": series_processed,
@@ -149,8 +157,12 @@ def run_sync(app) -> dict:
     """
     with _sync_state_lock:
         if sync_state["running"]:
-            return {"error": "Sync already running", "series_processed": 0,
-                    "mappings_upserted": 0, "skipped": 0}
+            return {
+                "error": "Sync already running",
+                "series_processed": 0,
+                "mappings_upserted": 0,
+                "skipped": 0,
+            }
         sync_state["running"] = True
         sync_state["error"] = None
 
@@ -180,6 +192,7 @@ def run_sync(app) -> dict:
 
 def _now_iso() -> str:
     from datetime import datetime
+
     return datetime.now(UTC).isoformat()
 
 

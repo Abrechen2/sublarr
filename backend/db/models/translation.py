@@ -3,7 +3,6 @@
 All column types and defaults match the existing SCHEMA DDL in db/__init__.py exactly.
 """
 
-
 from sqlalchemy import Float, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -79,9 +78,7 @@ class TranslationBackendStats(db.Model):
     consecutive_failures: Mapped[int | None] = mapped_column(Integer, default=0)
     updated_at: Mapped[str] = mapped_column(Text, nullable=False)
 
-    __table_args__ = (
-        Index("idx_translation_backend_stats_updated", "updated_at"),
-    )
+    __table_args__ = (Index("idx_translation_backend_stats_updated", "updated_at"),)
 
 
 class WhisperJob(db.Model):
@@ -141,8 +138,7 @@ class TranslationMemory(db.Model):
         # For similarity scan within a language pair
         Index("idx_tm_lang_pair", "source_lang", "target_lang"),
         # Uniqueness: one translation per (source_lang, target_lang, text_hash)
-        UniqueConstraint("source_lang", "target_lang", "text_hash",
-                         name="uq_tm_lang_hash"),
+        UniqueConstraint("source_lang", "target_lang", "text_hash", name="uq_tm_lang_hash"),
     )
 
 

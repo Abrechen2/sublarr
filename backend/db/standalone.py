@@ -1,6 +1,5 @@
 """Standalone mode database operations -- delegating to SQLAlchemy repository."""
 
-
 from db.repositories.standalone import StandaloneRepository
 
 _repo = None
@@ -15,8 +14,10 @@ def _get_repo():
 
 # ---- Watched Folders ----
 
-def upsert_watched_folder(path: str, label: str = "", media_type: str = "auto",
-                          enabled: bool = True) -> int:
+
+def upsert_watched_folder(
+    path: str, label: str = "", media_type: str = "auto", enabled: bool = True
+) -> int:
     """Insert or update a watched folder by path. Returns the row id."""
     if enabled:
         # Create or update through the repository
@@ -27,8 +28,9 @@ def upsert_watched_folder(path: str, label: str = "", media_type: str = "auto",
         folders = _get_repo().get_watched_folders(enabled_only=False)
         for f in folders:
             if f["path"] == path:
-                _get_repo().update_watched_folder(f["id"], label=label,
-                                                   media_type=media_type, enabled=0)
+                _get_repo().update_watched_folder(
+                    f["id"], label=label, media_type=media_type, enabled=0
+                )
                 return f["id"]
         # Create as enabled then disable
         result = _get_repo().create_watched_folder(path, label, media_type)
@@ -55,17 +57,35 @@ def delete_watched_folder(folder_id: int) -> bool:
 
 # ---- Standalone Series ----
 
-def upsert_standalone_series(title: str, folder_path: str, year: int = None,
-                             tmdb_id: int = None, tvdb_id: int = None,
-                             anilist_id: int = None, imdb_id: str = "",
-                             poster_url: str = "", is_anime: bool = False,
-                             episode_count: int = 0, season_count: int = 0,
-                             metadata_source: str = "") -> int:
+
+def upsert_standalone_series(
+    title: str,
+    folder_path: str,
+    year: int = None,
+    tmdb_id: int = None,
+    tvdb_id: int = None,
+    anilist_id: int = None,
+    imdb_id: str = "",
+    poster_url: str = "",
+    is_anime: bool = False,
+    episode_count: int = 0,
+    season_count: int = 0,
+    metadata_source: str = "",
+) -> int:
     """Insert or update a standalone series by folder_path. Returns the row id."""
     result = _get_repo().upsert_standalone_series(
-        title, folder_path, year, tmdb_id, tvdb_id, anilist_id,
-        imdb_id, poster_url, is_anime, episode_count, season_count,
-        metadata_source
+        title,
+        folder_path,
+        year,
+        tmdb_id,
+        tvdb_id,
+        anilist_id,
+        imdb_id,
+        poster_url,
+        is_anime,
+        episode_count,
+        season_count,
+        metadata_source,
     )
     return result.get("id", 0) if isinstance(result, dict) else result
 
@@ -90,9 +110,16 @@ def delete_standalone_series(series_id: int) -> bool:
 
 # ---- Standalone Movies ----
 
-def upsert_standalone_movie(title: str, file_path: str, year: int = None,
-                            tmdb_id: int = None, imdb_id: str = "",
-                            poster_url: str = "", metadata_source: str = "") -> int:
+
+def upsert_standalone_movie(
+    title: str,
+    file_path: str,
+    year: int = None,
+    tmdb_id: int = None,
+    imdb_id: str = "",
+    poster_url: str = "",
+    metadata_source: str = "",
+) -> int:
     """Insert or update a standalone movie by file_path. Returns the row id."""
     result = _get_repo().upsert_standalone_movie(
         title, file_path, year, tmdb_id, imdb_id, poster_url, metadata_source
@@ -115,8 +142,8 @@ def delete_standalone_movie(movie_id: int) -> bool:
 
 # ---- Metadata Cache ----
 
-def cache_metadata(cache_key: str, provider: str, response_json: str,
-                   ttl_days: int = 30) -> None:
+
+def cache_metadata(cache_key: str, provider: str, response_json: str, ttl_days: int = 30) -> None:
     """Insert or replace a metadata cache entry with TTL."""
     return _get_repo().save_metadata_cache(cache_key, provider, response_json, ttl_days)
 
@@ -132,6 +159,7 @@ def cleanup_expired_cache() -> int:
 
 
 # ---- AniDB Mappings (via standalone repository) ----
+
 
 def get_anidb_mapping(tvdb_id: int) -> dict | None:
     """Get cached AniDB mapping for a TVDB ID."""

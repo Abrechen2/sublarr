@@ -145,14 +145,18 @@ def remove_hi():
         with open(abs_path, "w", encoding="utf-8") as f:
             f.write(cleaned)
 
-        logger.info("HI removal: %s -- %d lines -> %d lines", abs_path, original_lines, cleaned_lines)
+        logger.info(
+            "HI removal: %s -- %d lines -> %d lines", abs_path, original_lines, cleaned_lines
+        )
 
-        return jsonify({
-            "status": "cleaned",
-            "original_lines": original_lines,
-            "cleaned_lines": cleaned_lines,
-            "removed": original_lines - cleaned_lines,
-        })
+        return jsonify(
+            {
+                "status": "cleaned",
+                "original_lines": original_lines,
+                "cleaned_lines": cleaned_lines,
+                "removed": original_lines - cleaned_lines,
+            }
+        )
 
     except Exception as exc:
         logger.error("HI removal failed for %s: %s", abs_path, exc)
@@ -163,7 +167,9 @@ def remove_hi():
 
 
 _SRT_TIMESTAMP_RE = re.compile(r"(\d{2}):(\d{2}):(\d{2}),(\d{3})")
-_ASS_DIALOGUE_RE = re.compile(r"^(Dialogue:\s*\d+,)(\d+):(\d{2}):(\d{2})\.(\d{2}),(\d+):(\d{2}):(\d{2})\.(\d{2}),(.*)$")
+_ASS_DIALOGUE_RE = re.compile(
+    r"^(Dialogue:\s*\d+,)(\d+):(\d{2}):(\d{2})\.(\d{2}),(\d+):(\d{2}):(\d{2})\.(\d{2}),(.*)$"
+)
 
 
 def _shift_srt_timestamp(match, offset_ms: int) -> str:
@@ -280,8 +286,20 @@ def adjust_timing():
                 m = _ASS_DIALOGUE_RE.match(line)
                 if m:
                     prefix = m.group(1)
-                    start = _shift_ass_time(int(m.group(2)), int(m.group(3)), int(m.group(4)), int(m.group(5)), offset_ms)
-                    end = _shift_ass_time(int(m.group(6)), int(m.group(7)), int(m.group(8)), int(m.group(9)), offset_ms)
+                    start = _shift_ass_time(
+                        int(m.group(2)),
+                        int(m.group(3)),
+                        int(m.group(4)),
+                        int(m.group(5)),
+                        offset_ms,
+                    )
+                    end = _shift_ass_time(
+                        int(m.group(6)),
+                        int(m.group(7)),
+                        int(m.group(8)),
+                        int(m.group(9)),
+                        offset_ms,
+                    )
                     rest = m.group(10)
                     new_lines.append(f"{prefix}{start},{end},{rest}")
                     modified_count += 1
@@ -295,13 +313,17 @@ def adjust_timing():
         with open(abs_path, "w", encoding="utf-8") as f:
             f.write(result_content)
 
-        logger.info("Timing adjusted: %s -- %d lines shifted by %dms", abs_path, modified_count, offset_ms)
+        logger.info(
+            "Timing adjusted: %s -- %d lines shifted by %dms", abs_path, modified_count, offset_ms
+        )
 
-        return jsonify({
-            "status": "adjusted",
-            "lines_modified": modified_count,
-            "offset_ms": offset_ms,
-        })
+        return jsonify(
+            {
+                "status": "adjusted",
+                "lines_modified": modified_count,
+                "offset_ms": offset_ms,
+            }
+        )
 
     except Exception as exc:
         logger.error("Timing adjustment failed for %s: %s", abs_path, exc)
@@ -392,6 +414,7 @@ def common_fixes():
             # Try chardet detection if available
             try:
                 import chardet
+
                 with open(abs_path, "rb") as f:
                     raw = f.read()
                 detected = chardet.detect(raw)
@@ -416,6 +439,7 @@ def common_fixes():
             if ext in (".ass", ".ssa"):
                 try:
                     from ass_utils import fix_line_breaks
+
                     # Apply fix_line_breaks to Dialogue lines only
                     lines = content.split("\n")
                     new_lines = []
@@ -464,14 +488,22 @@ def common_fixes():
         with open(abs_path, "w", encoding="utf-8", newline="") as f:
             f.write(content)
 
-        logger.info("Common fixes applied to %s: %s (%d -> %d lines)", abs_path, applied, lines_before, lines_after)
+        logger.info(
+            "Common fixes applied to %s: %s (%d -> %d lines)",
+            abs_path,
+            applied,
+            lines_before,
+            lines_after,
+        )
 
-        return jsonify({
-            "status": "fixed",
-            "fixes_applied": applied,
-            "lines_before": lines_before,
-            "lines_after": lines_after,
-        })
+        return jsonify(
+            {
+                "status": "fixed",
+                "fixes_applied": applied,
+                "lines_before": lines_before,
+                "lines_after": lines_after,
+            }
+        )
 
     except Exception as exc:
         logger.error("Common fixes failed for %s: %s", abs_path, exc)
@@ -538,6 +570,7 @@ def preview_file():
         detected_encoding = "utf-8"
         try:
             import chardet
+
             with open(abs_path, "rb") as f:
                 raw = f.read(4096)
             det = chardet.detect(raw)
@@ -554,12 +587,14 @@ def preview_file():
         ext = os.path.splitext(abs_path)[1].lower()
         fmt = "ass" if ext in (".ass", ".ssa") else "srt"
 
-        return jsonify({
-            "format": fmt,
-            "lines": preview_lines,
-            "total_lines": total_lines,
-            "encoding": detected_encoding,
-        })
+        return jsonify(
+            {
+                "format": fmt,
+                "lines": preview_lines,
+                "total_lines": total_lines,
+                "encoding": detected_encoding,
+            }
+        )
 
     except Exception as exc:
         logger.error("Preview failed for %s: %s", abs_path, exc)
@@ -629,6 +664,7 @@ def get_file_content():
         detected_encoding = "utf-8"
         try:
             import chardet
+
             with open(abs_path, "rb") as f:
                 raw = f.read()
             det = chardet.detect(raw)
@@ -642,14 +678,16 @@ def get_file_content():
         ext = os.path.splitext(abs_path)[1].lower()
         fmt = "ass" if ext in (".ass", ".ssa") else "srt"
 
-        return jsonify({
-            "format": fmt,
-            "content": content,
-            "encoding": detected_encoding,
-            "size_bytes": os.path.getsize(abs_path),
-            "total_lines": len(content.splitlines()),
-            "last_modified": os.path.getmtime(abs_path),
-        })
+        return jsonify(
+            {
+                "format": fmt,
+                "content": content,
+                "encoding": detected_encoding,
+                "size_bytes": os.path.getsize(abs_path),
+                "total_lines": len(content.splitlines()),
+                "last_modified": os.path.getmtime(abs_path),
+            }
+        )
 
     except Exception as exc:
         logger.error("Content read failed for %s: %s", abs_path, exc)
@@ -730,10 +768,12 @@ def save_file_content():
         # Optimistic concurrency: check if file was modified since loaded
         current_mtime = os.path.getmtime(abs_path)
         if abs(current_mtime - float(last_modified)) > 0.01:
-            return jsonify({
-                "error": "File has been modified since you loaded it",
-                "current_mtime": current_mtime,
-            }), 409
+            return jsonify(
+                {
+                    "error": "File has been modified since you loaded it",
+                    "current_mtime": current_mtime,
+                }
+            ), 409
 
         # Create backup BEFORE writing (mandatory -- project safety rule)
         bak_path = _create_backup(abs_path)
@@ -746,11 +786,13 @@ def save_file_content():
 
         logger.info("Content saved: %s (backup: %s)", abs_path, bak_path)
 
-        return jsonify({
-            "status": "saved",
-            "backup_path": bak_path,
-            "new_mtime": new_mtime,
-        })
+        return jsonify(
+            {
+                "status": "saved",
+                "backup_path": bak_path,
+                "new_mtime": new_mtime,
+            }
+        )
 
     except Exception as exc:
         logger.error("Content save failed for %s: %s", abs_path, exc)
@@ -819,6 +861,7 @@ def get_backup_content():
         detected_encoding = "utf-8"
         try:
             import chardet
+
             with open(bak_path, "rb") as f:
                 raw = f.read()
             det = chardet.detect(raw)
@@ -829,11 +872,13 @@ def get_backup_content():
         with open(bak_path, encoding=detected_encoding, errors="replace") as f:
             content = f.read()
 
-        return jsonify({
-            "content": content,
-            "encoding": detected_encoding,
-            "backup_path": bak_path,
-        })
+        return jsonify(
+            {
+                "content": content,
+                "encoding": detected_encoding,
+                "backup_path": bak_path,
+            }
+        )
 
     except Exception as exc:
         logger.error("Backup read failed for %s: %s", abs_path, exc)
@@ -915,7 +960,11 @@ def validate_content():
             fmt = "srt"
 
     if fmt not in ("ass", "srt"):
-        return jsonify({"error": "Unable to determine format. Provide file_path with extension or format param ('ass' or 'srt')."}), 400
+        return jsonify(
+            {
+                "error": "Unable to determine format. Provide file_path with extension or format param ('ass' or 'srt')."
+            }
+        ), 400
 
     try:
         subs = pysubs2.SSAFile.from_string(content, format_=fmt)
@@ -927,26 +976,32 @@ def validate_content():
         if event_count == 0:
             warnings.append("No subtitle events found")
 
-        return jsonify({
-            "valid": True,
-            "event_count": event_count,
-            "style_count": style_count,
-            "warnings": warnings,
-        })
+        return jsonify(
+            {
+                "valid": True,
+                "event_count": event_count,
+                "style_count": style_count,
+                "warnings": warnings,
+            }
+        )
 
     except pysubs2.exceptions.UnknownFPSError as exc:
-        return jsonify({
-            "valid": False,
-            "error": f"FPS error: {exc}",
-            "warnings": [],
-        })
+        return jsonify(
+            {
+                "valid": False,
+                "error": f"FPS error: {exc}",
+                "warnings": [],
+            }
+        )
     except Exception as exc:
         logger.error("Validation failed: %s", exc)
-        return jsonify({
-            "valid": False,
-            "error": str(exc),
-            "warnings": [],
-        })
+        return jsonify(
+            {
+                "valid": False,
+                "error": str(exc),
+                "warnings": [],
+            }
+        )
 
 
 # -- Parse Cues (for Timeline) -------------------------------------------------
@@ -1040,12 +1095,14 @@ def parse_cues():
             end_sec = event.end / 1000.0
             if end_sec > max_end:
                 max_end = end_sec
-            cues.append({
-                "start": start_sec,
-                "end": end_sec,
-                "text": event.plaintext,
-                "style": event.style,
-            })
+            cues.append(
+                {
+                    "start": start_sec,
+                    "end": end_sec,
+                    "text": event.plaintext,
+                    "style": event.style,
+                }
+            )
 
         ext = os.path.splitext(abs_path)[1].lower()
         fmt = "ass" if ext in (".ass", ".ssa") else "srt"
@@ -1055,6 +1112,7 @@ def parse_cues():
         if fmt == "ass":
             try:
                 from ass_utils import classify_styles
+
                 dialog_styles, signs_styles = classify_styles(subs)
                 styles = {}
                 for s in dialog_styles:
@@ -1072,6 +1130,7 @@ def parse_cues():
         if os.path.exists(quality_sidecar_path):
             try:
                 import json as _json
+
                 with open(quality_sidecar_path, encoding="utf-8") as _qf:
                     quality_scores = _json.load(_qf)
             except Exception as _qe:
@@ -1081,14 +1140,17 @@ def parse_cues():
             for cue, score in zip(cues, quality_scores):
                 cue["quality_score"] = score
 
-        return jsonify({
-            "cues": cues,
-            "total_duration": max_end,
-            "cue_count": len(cues),
-            "format": fmt,
-            "styles": styles,
-            "has_quality_scores": quality_scores is not None and len(quality_scores) == len(cues),
-        })
+        return jsonify(
+            {
+                "cues": cues,
+                "total_duration": max_end,
+                "cue_count": len(cues),
+                "format": fmt,
+                "styles": styles,
+                "has_quality_scores": quality_scores is not None
+                and len(quality_scores) == len(cues),
+            }
+        )
 
     except Exception as exc:
         logger.error("Parse failed for %s: %s", abs_path, exc)
@@ -1201,13 +1263,15 @@ def health_check():
         for fp in file_paths:
             error, result = _validate_file_path(fp)
             if error:
-                results.append({
-                    "file_path": fp,
-                    "error": error,
-                    "score": 0,
-                    "issues": [],
-                    "checks_run": 0,
-                })
+                results.append(
+                    {
+                        "file_path": fp,
+                        "error": error,
+                        "score": 0,
+                        "issues": [],
+                        "checks_run": 0,
+                    }
+                )
                 continue
 
             abs_path = result
@@ -1231,25 +1295,29 @@ def health_check():
 
             except Exception as exc:
                 logger.error("Health check failed for %s: %s", abs_path, exc)
-                results.append({
-                    "file_path": fp,
-                    "error": str(exc),
-                    "score": 0,
-                    "issues": [],
-                    "checks_run": 0,
-                })
+                results.append(
+                    {
+                        "file_path": fp,
+                        "error": str(exc),
+                        "score": 0,
+                        "issues": [],
+                        "checks_run": 0,
+                    }
+                )
 
         valid_count = sum(1 for r in results if "error" not in r)
         avg_score = round(total_score / valid_count, 1) if valid_count > 0 else 0.0
 
-        return jsonify({
-            "results": results,
-            "summary": {
-                "total": len(results),
-                "avg_score": avg_score,
-                "total_issues": total_issues,
-            },
-        })
+        return jsonify(
+            {
+                "results": results,
+                "summary": {
+                    "total": len(results),
+                    "avg_score": avg_score,
+                    "total_issues": total_issues,
+                },
+            }
+        )
 
     return jsonify({"error": "file_path or file_paths is required"}), 400
 
@@ -1328,9 +1396,9 @@ def health_fix():
 
     invalid = set(fixes) - FIXABLE_CHECKS
     if invalid:
-        return jsonify({
-            "error": f"Invalid fix names: {invalid}. Valid: {sorted(FIXABLE_CHECKS)}"
-        }), 400
+        return jsonify(
+            {"error": f"Invalid fix names: {invalid}. Valid: {sorted(FIXABLE_CHECKS)}"}
+        ), 400
 
     error, result = _validate_file_path(file_path)
     if error:
@@ -1356,13 +1424,15 @@ def health_fix():
 
         logger.info("Health fix applied to %s: %s", abs_path, fix_result["fixes_applied"])
 
-        return jsonify({
-            "status": "fixed",
-            "fixes_applied": fix_result["fixes_applied"],
-            "counts": fix_result["counts"],
-            "new_score": check_result["score"],
-            "remaining_issues": len(check_result["issues"]),
-        })
+        return jsonify(
+            {
+                "status": "fixed",
+                "fixes_applied": fix_result["fixes_applied"],
+                "counts": fix_result["counts"],
+                "new_score": check_result["score"],
+                "remaining_issues": len(check_result["issues"]),
+            }
+        )
 
     except Exception as exc:
         logger.error("Health fix failed for %s: %s", abs_path, exc)
@@ -1460,23 +1530,36 @@ def advanced_sync():
         if operation == "offset":
             offset_ms = data.get("offset_ms")
             if offset_ms is None or not isinstance(offset_ms, (int, float)):
-                return jsonify({"error": "offset_ms (integer) is required for offset operation"}), 400
+                return jsonify(
+                    {"error": "offset_ms (integer) is required for offset operation"}
+                ), 400
             offset_ms = int(offset_ms)
 
             if preview:
-                return _sync_preview(subs, lambda s: s.shift(ms=offset_ms), operation, offset_ms=offset_ms)
+                return _sync_preview(
+                    subs, lambda s: s.shift(ms=offset_ms), operation, offset_ms=offset_ms
+                )
 
             _create_backup(abs_path)
             subs.shift(ms=offset_ms)
             subs.save(abs_path)
 
             logger.info("Advanced sync (offset %dms) applied to %s", offset_ms, abs_path)
-            return jsonify({"status": "synced", "operation": "offset", "events": event_count, "offset_ms": offset_ms})
+            return jsonify(
+                {
+                    "status": "synced",
+                    "operation": "offset",
+                    "events": event_count,
+                    "offset_ms": offset_ms,
+                }
+            )
 
         elif operation == "speed":
             speed_factor = data.get("speed_factor")
             if speed_factor is None or not isinstance(speed_factor, (int, float)):
-                return jsonify({"error": "speed_factor (float) is required for speed operation"}), 400
+                return jsonify(
+                    {"error": "speed_factor (float) is required for speed operation"}
+                ), 400
             speed_factor = float(speed_factor)
             if not (0.5 <= speed_factor <= 2.0):
                 return jsonify({"error": "speed_factor must be between 0.5 and 2.0"}), 400
@@ -1494,29 +1577,52 @@ def advanced_sync():
             subs.save(abs_path)
 
             logger.info("Advanced sync (speed %.2fx) applied to %s", speed_factor, abs_path)
-            return jsonify({"status": "synced", "operation": "speed", "events": event_count, "speed_factor": speed_factor})
+            return jsonify(
+                {
+                    "status": "synced",
+                    "operation": "speed",
+                    "events": event_count,
+                    "speed_factor": speed_factor,
+                }
+            )
 
         elif operation == "framerate":
             in_fps = data.get("in_fps")
             out_fps = data.get("out_fps")
             if in_fps is None or out_fps is None:
-                return jsonify({"error": "in_fps and out_fps are required for framerate operation"}), 400
+                return jsonify(
+                    {"error": "in_fps and out_fps are required for framerate operation"}
+                ), 400
             in_fps = float(in_fps)
             out_fps = float(out_fps)
             if in_fps <= 0 or out_fps <= 0:
                 return jsonify({"error": "in_fps and out_fps must be positive"}), 400
 
             if preview:
-                return _sync_preview(subs, lambda s: s.transform_framerate(in_fps, out_fps), operation,
-                                     in_fps=in_fps, out_fps=out_fps)
+                return _sync_preview(
+                    subs,
+                    lambda s: s.transform_framerate(in_fps, out_fps),
+                    operation,
+                    in_fps=in_fps,
+                    out_fps=out_fps,
+                )
 
             _create_backup(abs_path)
             subs.transform_framerate(in_fps, out_fps)
             subs.save(abs_path)
 
-            logger.info("Advanced sync (framerate %.3f->%.3f) applied to %s", in_fps, out_fps, abs_path)
-            return jsonify({"status": "synced", "operation": "framerate", "events": event_count,
-                            "in_fps": in_fps, "out_fps": out_fps})
+            logger.info(
+                "Advanced sync (framerate %.3f->%.3f) applied to %s", in_fps, out_fps, abs_path
+            )
+            return jsonify(
+                {
+                    "status": "synced",
+                    "operation": "framerate",
+                    "events": event_count,
+                    "in_fps": in_fps,
+                    "out_fps": out_fps,
+                }
+            )
 
     except Exception as exc:
         logger.error("Advanced sync failed for %s: %s", abs_path, exc)
@@ -1534,13 +1640,17 @@ def _sync_preview(subs, apply_fn, operation, **params):
 
     # Select 5 representative indices
     n = len(non_comment)
-    indices = sorted(set([
-        0,
-        max(0, n // 4),
-        max(0, n // 2),
-        max(0, 3 * n // 4),
-        n - 1,
-    ]))
+    indices = sorted(
+        set(
+            [
+                0,
+                max(0, n // 4),
+                max(0, n // 2),
+                max(0, 3 * n // 4),
+                n - 1,
+            ]
+        )
+    )
 
     # Capture before timestamps
     before = []
@@ -1558,19 +1668,23 @@ def _sync_preview(subs, apply_fn, operation, **params):
         i = b["index"]
         if i < len(non_comment_after):
             a = non_comment_after[i]
-            preview_events.append({
-                "index": i,
-                "text": b["text"],
-                "before": {"start": b["start"], "end": b["end"]},
-                "after": {"start": a.start, "end": a.end},
-            })
+            preview_events.append(
+                {
+                    "index": i,
+                    "text": b["text"],
+                    "before": {"start": b["start"], "end": b["end"]},
+                    "after": {"start": a.start, "end": a.end},
+                }
+            )
 
-    return jsonify({
-        "status": "preview",
-        "operation": operation,
-        "events": preview_events,
-        **params,
-    })
+    return jsonify(
+        {
+            "status": "preview",
+            "operation": operation,
+            "events": preview_events,
+            **params,
+        }
+    )
 
 
 # -- Compare -------------------------------------------------------------------
@@ -1653,6 +1767,7 @@ def compare_files():
             detected_encoding = "utf-8"
             try:
                 import chardet
+
                 with open(abs_path, "rb") as f:
                     raw = f.read()
                 det = chardet.detect(raw)
@@ -1666,13 +1781,15 @@ def compare_files():
             ext = os.path.splitext(abs_path)[1].lower()
             fmt = "ass" if ext in (".ass", ".ssa") else "srt"
 
-            panels.append({
-                "path": abs_path,
-                "content": content,
-                "format": fmt,
-                "encoding": detected_encoding,
-                "total_lines": len(content.splitlines()),
-            })
+            panels.append(
+                {
+                    "path": abs_path,
+                    "content": content,
+                    "format": fmt,
+                    "encoding": detected_encoding,
+                    "total_lines": len(content.splitlines()),
+                }
+            )
 
         except Exception as exc:
             logger.error("Compare read failed for %s: %s", abs_path, exc)
@@ -1770,6 +1887,7 @@ def overlap_fix():
                     type: string
     """
     import pysubs2
+
     data = request.get_json(force=True, silent=True) or {}
     error, result = _validate_file_path(data.get("file_path", ""))
     if error:
@@ -1812,6 +1930,7 @@ def timing_normalize():
                   default: 10000
     """
     import pysubs2
+
     data = request.get_json(force=True, silent=True) or {}
     error, result = _validate_file_path(data.get("file_path", ""))
     if error:
@@ -1856,6 +1975,7 @@ def merge_lines():
                   default: 200
     """
     import pysubs2
+
     data = request.get_json(force=True, silent=True) or {}
     error, result = _validate_file_path(data.get("file_path", ""))
     if error:
@@ -1907,6 +2027,7 @@ def split_lines():
                   default: 80
     """
     import pysubs2
+
     data = request.get_json(force=True, silent=True) or {}
     error, result = _validate_file_path(data.get("file_path", ""))
     if error:
@@ -1928,11 +2049,13 @@ def split_lines():
         dur = cue.end - cue.start
         per_part = dur // max(len(parts), 1)
         for idx, part in enumerate(parts):
-            new_subs.append(pysubs2.SSAEvent(
-                start=cue.start + idx * per_part,
-                end=cue.start + (idx + 1) * per_part,
-                text=part.strip(),
-            ))
+            new_subs.append(
+                pysubs2.SSAEvent(
+                    start=cue.start + idx * per_part,
+                    end=cue.start + (idx + 1) * per_part,
+                    text=part.strip(),
+                )
+            )
         split_count += 1
 
     new_subs.save(abs_path)
@@ -1961,6 +2084,7 @@ def spell_check():
                   default: de_DE
     """
     import pysubs2
+
     data = request.get_json(force=True, silent=True) or {}
     error, result = _validate_file_path(data.get("file_path", ""))
     if error:
@@ -1971,6 +2095,7 @@ def spell_check():
 
     try:
         import hunspell
+
         hobj = hunspell.HunSpell(
             f"/usr/share/hunspell/{language}.dic",
             f"/usr/share/hunspell/{language}.aff",
@@ -2062,6 +2187,7 @@ def convert_format():
             return jsonify({"error": f"Video not found: {video_path}"}), 404
 
         from ass_utils import extract_subtitle_stream, get_media_streams
+
         probe = get_media_streams(video_path)
         stream = next(
             (s for s in probe.get("streams", []) if s.get("index") == track_index),
@@ -2147,6 +2273,7 @@ def waveform_extract():
         return jsonify({"error": "video_path is required"}), 400
 
     from config import get_settings, map_path
+
     video_path = map_path(video_path)
 
     # Security: ensure video_path is under media_path
@@ -2170,9 +2297,19 @@ def waveform_extract():
         tmp = tempfile.NamedTemporaryFile(suffix=".opus", delete=False)
         tmp.close()
         cmd = [
-            "ffmpeg", "-y", "-i", video_path,
-            "-vn", "-ac", "1", "-ar", "22050",
-            "-c:a", "libopus", "-b:a", "32k",
+            "ffmpeg",
+            "-y",
+            "-i",
+            video_path,
+            "-vn",
+            "-ac",
+            "1",
+            "-ar",
+            "22050",
+            "-c:a",
+            "libopus",
+            "-b:a",
+            "32k",
             tmp.name,
         ]
         try:
@@ -2181,7 +2318,9 @@ def waveform_extract():
             return jsonify({"error": "Audio extraction timed out"}), 500
 
         if result.returncode != 0:
-            logger.error("ffmpeg waveform extraction failed: %s", result.stderr.decode(errors="replace"))
+            logger.error(
+                "ffmpeg waveform extraction failed: %s", result.stderr.decode(errors="replace")
+            )
             return jsonify({"error": "ffmpeg audio extraction failed"}), 500
 
         WAVEFORM_CACHE[cache_key] = tmp.name
@@ -2189,10 +2328,12 @@ def waveform_extract():
         logger.info("Waveform extracted: %s -> %s", video_path, audio_path)
 
     filename = os.path.basename(audio_path)
-    return jsonify({
-        "audio_url": f"/api/v1/tools/waveform-audio/{filename}",
-        "duration_s": _get_waveform_duration(video_path),
-    })
+    return jsonify(
+        {
+            "audio_url": f"/api/v1/tools/waveform-audio/{filename}",
+            "duration_s": _get_waveform_duration(video_path),
+        }
+    )
 
 
 @bp.route("/waveform-audio/<filename>", methods=["GET"])
@@ -2209,7 +2350,9 @@ def serve_waveform_audio(filename: str):
         return jsonify({"error": "Invalid filename"}), 400
     audio_path = os.path.join(tempfile.gettempdir(), safe_filename)
     # Verify resolved path stays within tempdir
-    if not os.path.realpath(audio_path).startswith(os.path.realpath(tempfile.gettempdir()) + os.sep):
+    if not os.path.realpath(audio_path).startswith(
+        os.path.realpath(tempfile.gettempdir()) + os.sep
+    ):
         return jsonify({"error": "Invalid filename"}), 400
     if not os.path.exists(audio_path):
         return jsonify({"error": "Not found"}), 404
@@ -2220,6 +2363,7 @@ def serve_waveform_audio(filename: str):
 def _get_waveform_duration(video_path: str) -> float:
     """Get video duration in seconds via ffprobe."""
     import json as _json
+
     cmd = ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", video_path]
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)

@@ -213,10 +213,12 @@ class KodiServer(MediaServer):
                 report["library_access"]["accessible"] = True
                 report["library_access"]["video_sources_count"] = len(sources)
                 for source in sources:
-                    report["library_access"]["video_sources"].append({
-                        "label": source.get("label", ""),
-                        "file": source.get("file", ""),
-                    })
+                    report["library_access"]["video_sources"].append(
+                        {
+                            "label": source.get("label", ""),
+                            "file": source.get("file", ""),
+                        }
+                    )
         except Exception as exc:
             logger.debug("Extended health check: video sources failed: %s", exc)
 

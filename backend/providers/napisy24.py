@@ -134,7 +134,9 @@ class Napisy24Provider(SubtitleProvider):
 
         # Only search for Polish subtitles
         if query.languages and "pl" not in query.languages:
-            logger.debug("Napisy24: skipping -- 'pl' not in requested languages %s", query.languages)
+            logger.debug(
+                "Napisy24: skipping -- 'pl' not in requested languages %s", query.languages
+            )
             return []
 
         # Requires file_path for hash computation
@@ -163,7 +165,9 @@ class Napisy24Provider(SubtitleProvider):
 
         logger.debug(
             "Napisy24: searching for hash=%s, size=%d, file=%s",
-            file_hash, file_size, filename,
+            file_hash,
+            file_size,
+            filename,
         )
 
         try:
@@ -224,9 +228,13 @@ class Napisy24Provider(SubtitleProvider):
         if download_info.startswith("http"):
             download_url = download_info
         elif download_info:
-            download_url = f"http://napisy24.pl/run/CheckSubAgent.php?mode=download&id={download_info}"
+            download_url = (
+                f"http://napisy24.pl/run/CheckSubAgent.php?mode=download&id={download_info}"
+            )
         else:
-            download_url = f"http://napisy24.pl/run/CheckSubAgent.php?mode=download&id={subtitle_id}"
+            download_url = (
+                f"http://napisy24.pl/run/CheckSubAgent.php?mode=download&id={subtitle_id}"
+            )
 
         result = SubtitleResult(
             provider_name=self.name,

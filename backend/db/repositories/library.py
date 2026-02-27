@@ -21,22 +21,27 @@ class LibraryRepository(BaseRepository):
 
     # Sort field allowlist for get_download_history
     _HISTORY_SORT_FIELDS = {
-        "downloaded_at":  SubtitleDownload.downloaded_at,
-        "score":          SubtitleDownload.score,
-        "provider_name":  SubtitleDownload.provider_name,
-        "language":       SubtitleDownload.language,
+        "downloaded_at": SubtitleDownload.downloaded_at,
+        "score": SubtitleDownload.score,
+        "provider_name": SubtitleDownload.provider_name,
+        "language": SubtitleDownload.language,
     }
 
     # ---- Download History ----------------------------------------------------
 
-    def get_download_history(self, page: int = 1, per_page: int = 50,
-                             provider: str = None, language: str = None,
-                             format: str = None,
-                             score_min: int = None,
-                             score_max: int = None,
-                             search: str = None,
-                             sort_by: str = "downloaded_at",
-                             sort_dir: str = "desc") -> dict:
+    def get_download_history(
+        self,
+        page: int = 1,
+        per_page: int = 50,
+        provider: str = None,
+        language: str = None,
+        format: str = None,
+        score_min: int = None,
+        score_max: int = None,
+        search: str = None,
+        sort_by: str = "downloaded_at",
+        sort_dir: str = "desc",
+    ) -> dict:
         """Get paginated download history with optional filters.
 
         Returns:
@@ -78,12 +83,7 @@ class LibraryRepository(BaseRepository):
         order = asc(sort_col) if sort_dir == "asc" else desc(sort_col)
 
         # Data query
-        data_stmt = (
-            select(SubtitleDownload)
-            .order_by(order)
-            .limit(per_page)
-            .offset(offset)
-        )
+        data_stmt = select(SubtitleDownload).order_by(order).limit(per_page).offset(offset)
         for cond in conditions:
             data_stmt = data_stmt.where(cond)
         entries = self.session.execute(data_stmt).scalars().all()
@@ -104,42 +104,49 @@ class LibraryRepository(BaseRepository):
             Dict with total_downloads, by_provider, by_format, by_language,
             last_24h, last_7d keys.
         """
-        total = self.session.execute(
-            select(func.count()).select_from(SubtitleDownload)
-        ).scalar() or 0
+        total = (
+            self.session.execute(select(func.count()).select_from(SubtitleDownload)).scalar() or 0
+        )
 
         # By provider
         by_provider_rows = self.session.execute(
-            select(SubtitleDownload.provider_name, func.count())
-            .group_by(SubtitleDownload.provider_name)
+            select(SubtitleDownload.provider_name, func.count()).group_by(
+                SubtitleDownload.provider_name
+            )
         ).all()
         by_provider = {row[0]: row[1] for row in by_provider_rows}
 
         # By format
         by_format_rows = self.session.execute(
-            select(SubtitleDownload.format, func.count())
-            .group_by(SubtitleDownload.format)
+            select(SubtitleDownload.format, func.count()).group_by(SubtitleDownload.format)
         ).all()
         by_format = {(row[0] or "unknown"): row[1] for row in by_format_rows}
 
         # By language
         by_language_rows = self.session.execute(
-            select(SubtitleDownload.language, func.count())
-            .group_by(SubtitleDownload.language)
+            select(SubtitleDownload.language, func.count()).group_by(SubtitleDownload.language)
         ).all()
         by_language = {(row[0] or "unknown"): row[1] for row in by_language_rows}
 
         # Last 24h and 7d
         now = datetime.now(UTC)
-        last_24h = self.session.execute(
-            select(func.count()).select_from(SubtitleDownload)
-            .where(SubtitleDownload.downloaded_at > (now - timedelta(days=1)).isoformat())
-        ).scalar() or 0
+        last_24h = (
+            self.session.execute(
+                select(func.count())
+                .select_from(SubtitleDownload)
+                .where(SubtitleDownload.downloaded_at > (now - timedelta(days=1)).isoformat())
+            ).scalar()
+            or 0
+        )
 
-        last_7d = self.session.execute(
-            select(func.count()).select_from(SubtitleDownload)
-            .where(SubtitleDownload.downloaded_at > (now - timedelta(days=7)).isoformat())
-        ).scalar() or 0
+        last_7d = (
+            self.session.execute(
+                select(func.count())
+                .select_from(SubtitleDownload)
+                .where(SubtitleDownload.downloaded_at > (now - timedelta(days=7)).isoformat())
+            ).scalar()
+            or 0
+        )
 
         return {
             "total_downloads": total,
@@ -152,9 +159,16 @@ class LibraryRepository(BaseRepository):
 
     # ---- Upgrade History -----------------------------------------------------
 
-    def record_upgrade(self, file_path: str, old_format: str, old_score: int,
-                       new_format: str, new_score: int,
-                       provider_name: str = "", upgrade_reason: str = ""):
+    def record_upgrade(
+        self,
+        file_path: str,
+        old_format: str,
+        old_score: int,
+        new_format: str,
+        new_score: int,
+        provider_name: str = "",
+        upgrade_reason: str = "",
+    ):
         """Record a subtitle upgrade in history."""
         now = self._now()
         entry = UpgradeHistory(
@@ -176,11 +190,7 @@ class LibraryRepository(BaseRepository):
         Returns:
             List of dicts ordered by upgraded_at descending.
         """
-        stmt = (
-            select(UpgradeHistory)
-            .order_by(UpgradeHistory.upgraded_at.desc())
-            .limit(limit)
-        )
+        stmt = select(UpgradeHistory).order_by(UpgradeHistory.upgraded_at.desc()).limit(limit)
         entries = self.session.execute(stmt).scalars().all()
         return [self._to_dict(e) for e in entries]
 
@@ -190,16 +200,18 @@ class LibraryRepository(BaseRepository):
         Returns:
             Dict with 'total' and 'srt_to_ass' counts.
         """
-        total = self.session.execute(
-            select(func.count()).select_from(UpgradeHistory)
-        ).scalar() or 0
+        total = self.session.execute(select(func.count()).select_from(UpgradeHistory)).scalar() or 0
 
-        srt_to_ass = self.session.execute(
-            select(func.count()).select_from(UpgradeHistory)
-            .where(
-                UpgradeHistory.old_format == "srt",
-                UpgradeHistory.new_format == "ass",
-            )
-        ).scalar() or 0
+        srt_to_ass = (
+            self.session.execute(
+                select(func.count())
+                .select_from(UpgradeHistory)
+                .where(
+                    UpgradeHistory.old_format == "srt",
+                    UpgradeHistory.new_format == "ass",
+                )
+            ).scalar()
+            or 0
+        )
 
         return {"total": total, "srt_to_ass": srt_to_ass}

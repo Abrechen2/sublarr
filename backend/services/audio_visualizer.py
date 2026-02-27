@@ -43,11 +43,15 @@ def extract_audio_track(
     cmd = [
         "ffmpeg",
         "-y",  # Overwrite output file
-        "-i", video_path,
+        "-i",
+        video_path,
         "-vn",  # No video
-        "-acodec", "pcm_s16le",  # 16-bit PCM
-        "-ar", "44100",  # Sample rate
-        "-ac", "1",  # Mono
+        "-acodec",
+        "pcm_s16le",  # 16-bit PCM
+        "-ar",
+        "44100",  # Sample rate
+        "-ac",
+        "1",  # Mono
     ]
 
     # Select specific audio track if specified
@@ -117,9 +121,12 @@ def _generate_waveform_data(
     # Use FFmpeg's astats filter to get RMS values
     cmd = [
         "ffmpeg",
-        "-i", audio_path,
-        "-af", "astats=metadata=1:reset=1",
-        "-f", "null",
+        "-i",
+        audio_path,
+        "-af",
+        "astats=metadata=1:reset=1",
+        "-f",
+        "null",
         "-",
     ]
 
@@ -162,9 +169,12 @@ def _generate_waveform_simple(
     # This gives us RMS values for each segment in a single pass
     cmd = [
         "ffmpeg",
-        "-i", audio_path,
-        "-af", f"astats=metadata=1:reset={reset_interval}",
-        "-f", "null",
+        "-i",
+        audio_path,
+        "-af",
+        f"astats=metadata=1:reset={reset_interval}",
+        "-f",
+        "null",
         "-",
     ]
 
@@ -244,9 +254,12 @@ def get_audio_duration(audio_path: str) -> float:
     """
     cmd = [
         "ffprobe",
-        "-v", "quiet",
-        "-show_entries", "format=duration",
-        "-of", "json",
+        "-v",
+        "quiet",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "json",
         audio_path,
     ]
 

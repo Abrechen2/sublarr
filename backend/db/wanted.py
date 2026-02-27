@@ -1,6 +1,5 @@
 """Wanted items database operations -- delegating to SQLAlchemy repository."""
 
-
 from db.repositories.wanted import WantedRepository
 
 _repo = None
@@ -13,40 +12,67 @@ def _get_repo():
     return _repo
 
 
-def upsert_wanted_item(item_type: str, file_path: str, title: str = "",
-                       season_episode: str = "", existing_sub: str = "",
-                       missing_languages: list = None,
-                       sonarr_series_id: int = None,
-                       sonarr_episode_id: int = None,
-                       radarr_movie_id: int = None,
-                       standalone_series_id: int = None,
-                       standalone_movie_id: int = None,
-                       upgrade_candidate: bool = False,
-                       current_score: int = 0,
-                       target_language: str = "",
-                       instance_name: str = "",
-                       subtitle_type: str = "full") -> tuple:
+def upsert_wanted_item(
+    item_type: str,
+    file_path: str,
+    title: str = "",
+    season_episode: str = "",
+    existing_sub: str = "",
+    missing_languages: list = None,
+    sonarr_series_id: int = None,
+    sonarr_episode_id: int = None,
+    radarr_movie_id: int = None,
+    standalone_series_id: int = None,
+    standalone_movie_id: int = None,
+    upgrade_candidate: bool = False,
+    current_score: int = 0,
+    target_language: str = "",
+    instance_name: str = "",
+    subtitle_type: str = "full",
+) -> tuple:
     """Insert or update a wanted item. Returns (row_id, was_updated)."""
     return _get_repo().upsert_wanted_item(
-        item_type, file_path, title, season_episode, existing_sub,
-        missing_languages, sonarr_series_id, sonarr_episode_id,
-        radarr_movie_id, standalone_series_id, standalone_movie_id,
-        upgrade_candidate, current_score, target_language, instance_name,
-        subtitle_type
+        item_type,
+        file_path,
+        title,
+        season_episode,
+        existing_sub,
+        missing_languages,
+        sonarr_series_id,
+        sonarr_episode_id,
+        radarr_movie_id,
+        standalone_series_id,
+        standalone_movie_id,
+        upgrade_candidate,
+        current_score,
+        target_language,
+        instance_name,
+        subtitle_type,
     )
 
 
-def get_wanted_items(page: int = 1, per_page: int = 50,
-                     item_type: str = None, status: str = None,
-                     series_id: int = None,
-                     subtitle_type: str = None,
-                     sort_by: str = "added_at",
-                     sort_dir: str = "desc",
-                     search: str = None) -> dict:
+def get_wanted_items(
+    page: int = 1,
+    per_page: int = 50,
+    item_type: str = None,
+    status: str = None,
+    series_id: int = None,
+    subtitle_type: str = None,
+    sort_by: str = "added_at",
+    sort_dir: str = "desc",
+    search: str = None,
+) -> dict:
     """Get paginated wanted items with optional filters, sorting, and text search."""
     return _get_repo().get_wanted_items(
-        page, per_page, item_type, status, series_id, subtitle_type,
-        sort_by=sort_by, sort_dir=sort_dir, search=search,
+        page,
+        per_page,
+        item_type,
+        status,
+        series_id,
+        subtitle_type,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        search=search,
     )
 
 
@@ -77,7 +103,7 @@ def set_wanted_retry_after(item_id: int, retry_after: str) -> bool:
 
 def delete_wanted_items(file_paths: list):
     """Delete wanted items by file paths (batch)."""
-    for fp in (file_paths or []):
+    for fp in file_paths or []:
         _get_repo().delete_wanted_by_file_path(fp)
 
 
@@ -143,6 +169,6 @@ def get_wanted_by_subtitle_type() -> dict:
 # Keep private helper for backward compat
 def _row_to_wanted(row) -> dict:
     """Convert a database row to a wanted item dict (legacy compat)."""
-    if hasattr(row, '__dict__'):
+    if hasattr(row, "__dict__"):
         return _get_repo()._row_to_wanted(row)
     return dict(row) if row else None

@@ -14,6 +14,7 @@ def _get_repo():
 
 # --- Scoring weights CRUD ---
 
+
 def get_scoring_weights(score_type: str) -> dict:
     """Get scoring weight overrides for a given type."""
     return _get_repo().get_scoring_weights(score_type)
@@ -40,6 +41,7 @@ def get_effective_weights(score_type: str) -> dict:
 
 
 # --- Provider score modifiers CRUD ---
+
 
 def get_provider_modifier(provider_name: str) -> int:
     """Get the score modifier for a provider."""

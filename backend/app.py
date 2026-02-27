@@ -50,6 +50,7 @@ def _has_app_context() -> bool:
     """Check if Flask application context is active (avoids import cycle)."""
     try:
         from flask import has_app_context
+
         return has_app_context()
     except Exception:
         return False
@@ -91,7 +92,10 @@ def _setup_logging(settings) -> None:
         if log_dir:
             os.makedirs(log_dir, exist_ok=True)
         from logging.handlers import RotatingFileHandler
-        fh = RotatingFileHandler(log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8")
+
+        fh = RotatingFileHandler(
+            log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+        )
         fh.setLevel(log_level)
         fh.setFormatter(formatter)
         root.addHandler(fh)
@@ -118,6 +122,7 @@ def create_app(testing=False):
 
     # Load config
     from config import get_settings, reload_settings
+
     settings = get_settings()
 
     # Set up logging
@@ -130,10 +135,12 @@ def create_app(testing=False):
 
     # Register structured error handlers (SublarrError -> JSON, generic 500)
     from error_handler import register_error_handlers
+
     register_error_handlers(app)
 
     # Initialize authentication
     from auth import init_auth
+
     init_auth(app)
 
     # ---- Flask-SQLAlchemy + Alembic initialization ----
@@ -154,6 +161,7 @@ def create_app(testing=False):
 
     from extensions import db as sa_db
     from extensions import migrate as sa_migrate
+
     sa_db.init_app(app)
     sa_migrate.init_app(app, sa_db, directory="db/migrations", render_as_batch=True)
 
@@ -163,6 +171,7 @@ def create_app(testing=False):
         from sqlalchemy import inspect as _inspect
 
         import db.models  # noqa: F401
+
         if not _inspect(sa_db.engine).has_table("alembic_version"):
             sa_db.create_all()
             logger.info("Fresh DB: ran create_all()")
@@ -171,6 +180,7 @@ def create_app(testing=False):
         # Enable SQLite WAL mode if using SQLite (match existing behavior)
         if not settings.database_url or settings.database_url.startswith("sqlite"):
             from sqlalchemy import text
+
             with sa_db.engine.connect() as conn:
                 conn.execute(text("PRAGMA journal_mode=WAL"))
                 conn.execute(text("PRAGMA busy_timeout=5000"))
@@ -178,20 +188,21 @@ def create_app(testing=False):
 
         # Initialize FTS5 search tables (virtual tables for global search)
         from db.search import init_search_tables
+
         init_search_tables()
 
         # Initialize cache and queue backends
         from cache import create_cache_backend
         from job_queue import create_job_queue
+
         app.cache_backend = create_cache_backend(
             settings.redis_url if settings.redis_cache_enabled else ""
         )
-        app.job_queue = create_job_queue(
-            settings.redis_url if settings.redis_queue_enabled else ""
-        )
+        app.job_queue = create_job_queue(settings.redis_url if settings.redis_queue_enabled else "")
 
         # Initialize database (legacy -- no-op now that SQLAlchemy handles lifecycle)
         from db import init_db
+
         init_db()
 
         # Remove duplicate wanted_items rows that may exist in databases created
@@ -200,15 +211,18 @@ def create_app(testing=False):
         # (file_path, target_language, subtitle_type) combination.
         try:
             from sqlalchemy import text as _text
+
             with sa_db.engine.connect() as _conn:
-                _dedup_result = _conn.execute(_text(
-                    "DELETE FROM wanted_items WHERE rowid NOT IN ("
-                    "  SELECT MIN(rowid) FROM wanted_items"
-                    "  GROUP BY file_path,"
-                    "    COALESCE(target_language, ''),"
-                    "    COALESCE(subtitle_type, 'full')"
-                    ")"
-                ))
+                _dedup_result = _conn.execute(
+                    _text(
+                        "DELETE FROM wanted_items WHERE rowid NOT IN ("
+                        "  SELECT MIN(rowid) FROM wanted_items"
+                        "  GROUP BY file_path,"
+                        "    COALESCE(target_language, ''),"
+                        "    COALESCE(subtitle_type, 'full')"
+                        ")"
+                    )
+                )
                 _conn.commit()
                 if _dedup_result.rowcount:
                     logger.warning(
@@ -224,6 +238,7 @@ def create_app(testing=False):
         if not testing:
             try:
                 from db.jobs import get_jobs, update_job
+
                 zombie_page = get_jobs(status="running", per_page=200)
                 for zombie in zombie_page.get("data", []):
                     update_job(zombie["id"], "failed", error="Server restarted — job interrupted")
@@ -246,6 +261,7 @@ def create_app(testing=False):
 
         # Apply DB config overrides on startup (settings saved via UI take precedence)
         from db.config import get_all_config_entries
+
         _db_overrides = get_all_config_entries()
         if _db_overrides:
             logger.info("Applying %d config overrides from database", len(_db_overrides))
@@ -258,6 +274,7 @@ def create_app(testing=False):
         if plugins_dir:
             os.makedirs(plugins_dir, exist_ok=True)
             from providers.plugins import init_plugin_manager
+
             plugin_mgr = init_plugin_manager(plugins_dir)
             loaded, plugin_errors = plugin_mgr.discover()
             if loaded:
@@ -270,6 +287,7 @@ def create_app(testing=False):
             if not testing and getattr(settings, "plugin_hot_reload", False):
                 try:
                     from providers.plugins.watcher import start_plugin_watcher
+
                     start_plugin_watcher(plugin_mgr, plugins_dir)
                     logger.info("Plugin hot-reload watcher started on %s", plugins_dir)
                 except ImportError:
@@ -278,6 +296,7 @@ def create_app(testing=False):
         # Initialize media server manager (loads configured instances)
         try:
             from mediaserver import get_media_server_manager
+
             ms_manager = get_media_server_manager()
             ms_manager.load_instances()
             types = ms_manager.get_all_server_types()
@@ -288,8 +307,10 @@ def create_app(testing=False):
         # Initialize standalone manager (folder watching + scanning)
         try:
             from config import get_settings as _get_standalone_settings
-            if getattr(_get_standalone_settings(), 'standalone_enabled', False):
+
+            if getattr(_get_standalone_settings(), "standalone_enabled", False):
                 from standalone import get_standalone_manager
+
                 get_standalone_manager()
                 logger.info("Standalone manager initialized")
         except Exception as e:
@@ -304,14 +325,17 @@ def create_app(testing=False):
 
         # Register blueprints
         from routes import register_blueprints
+
         register_blueprints(app)
 
         # Register OpenAPI spec (must be after register_blueprints)
         from openapi import register_all_paths
+
         register_all_paths(app)
 
         # Register Swagger UI blueprint
         from flask_swagger_ui import get_swaggerui_blueprint
+
         swagger_bp = get_swaggerui_blueprint(
             "/api/docs",
             "/api/v1/openapi.json",
@@ -349,6 +373,7 @@ def _register_app_routes(app):
 
         from config import get_settings
         from metrics import generate_metrics
+
         body, content_type = generate_metrics(get_settings().db_path)
         return Response(body, mimetype=content_type)
 
@@ -357,6 +382,7 @@ def _register_app_routes(app):
     def serve_spa(path):
         """Serve the React SPA frontend."""
         import os
+
         static_dir = app.static_folder or "static"
 
         # Try to serve the exact file first
@@ -370,30 +396,36 @@ def _register_app_routes(app):
 
         # No frontend built yet — return API info
         from version import __version__
-        return jsonify({
-            "name": "Sublarr",
-            "version": __version__,
-            "api": "/api/v1/health",
-            "message": "Frontend not built. Run 'npm run build' in frontend/ first.",
-        })
+
+        return jsonify(
+            {
+                "name": "Sublarr",
+                "version": __version__,
+                "api": "/api/v1/health",
+                "message": "Frontend not built. Run 'npm run build' in frontend/ first.",
+            }
+        )
 
 
 def _start_schedulers(settings, app=None):
     """Start background schedulers (wanted scanner, database backup, standalone watcher, cleanup)."""
     from wanted_scanner import get_scanner
+
     scanner = get_scanner()
     scanner.start_scheduler(socketio=socketio, app=app)
 
     from database_backup import start_backup_scheduler
+
     start_backup_scheduler(
         db_path=settings.db_path,
         backup_dir=settings.backup_dir,
     )
 
     # Start standalone watcher if enabled
-    if getattr(settings, 'standalone_enabled', False):
+    if getattr(settings, "standalone_enabled", False):
         try:
             from standalone import get_standalone_manager
+
             standalone_mgr = get_standalone_manager()
             standalone_mgr.start(socketio=socketio)
         except Exception as e:
@@ -403,6 +435,7 @@ def _start_schedulers(settings, app=None):
     if app is not None:
         try:
             from cleanup_scheduler import start_cleanup_scheduler
+
             start_cleanup_scheduler(app, socketio)
         except Exception as e:
             logging.getLogger(__name__).warning("Cleanup scheduler start failed: %s", e)
@@ -411,6 +444,7 @@ def _start_schedulers(settings, app=None):
     if app is not None:
         try:
             from anidb_sync import start_anidb_sync_scheduler
+
             start_anidb_sync_scheduler(app)
         except Exception as e:
             logging.getLogger(__name__).warning("AniDB sync scheduler start failed: %s", e)
@@ -420,6 +454,9 @@ if __name__ == "__main__":
     import os as _os
 
     from config import get_settings
+
     app = create_app()
     _debug = _os.environ.get("FLASK_DEBUG", "0") == "1"
-    socketio.run(app, host="0.0.0.0", port=get_settings().port, debug=_debug, allow_unsafe_werkzeug=_debug)
+    socketio.run(
+        app, host="0.0.0.0", port=get_settings().port, debug=_debug, allow_unsafe_werkzeug=_debug
+    )

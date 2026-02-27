@@ -192,10 +192,12 @@ def extract_audio():
         audio_path = extract_audio_track(mapped_path, audio_track_index)
         duration = get_audio_duration(audio_path)
 
-        return jsonify({
-            "audio_path": audio_path,
-            "duration": duration,
-        }), 200
+        return jsonify(
+            {
+                "audio_path": audio_path,
+                "duration": duration,
+            }
+        ), 200
     except RuntimeError as e:
         logger.error("Audio extraction failed: %s", e)
         return jsonify({"error": str(e)}), 500

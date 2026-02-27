@@ -27,7 +27,14 @@ except ImportError:
 
 # Video file patterns for watchdog matching (glob-style)
 VIDEO_PATTERNS = [
-    "*.mkv", "*.mp4", "*.avi", "*.m4v", "*.wmv", "*.flv", "*.webm", "*.ts",
+    "*.mkv",
+    "*.mp4",
+    "*.avi",
+    "*.m4v",
+    "*.wmv",
+    "*.flv",
+    "*.webm",
+    "*.ts",
 ]
 
 
@@ -43,8 +50,7 @@ class MediaFileWatcher(PatternMatchingEventHandler):
         debounce_seconds: Seconds to wait after the last event for a path before processing.
     """
 
-    def __init__(self, on_new_file: Callable[[str], None],
-                 debounce_seconds: float = 10.0):
+    def __init__(self, on_new_file: Callable[[str], None], debounce_seconds: float = 10.0):
         if _WATCHDOG_AVAILABLE:
             super().__init__(
                 patterns=VIDEO_PATTERNS,
@@ -126,8 +132,9 @@ class MediaFileWatcher(PatternMatchingEventHandler):
 _observer: Optional["Observer"] = None  # type: ignore[assignment]
 
 
-def start_watcher(folders: list[str], on_new_file: Callable[[str], None],
-                  debounce_seconds: float = 10.0):
+def start_watcher(
+    folders: list[str], on_new_file: Callable[[str], None], debounce_seconds: float = 10.0
+):
     """Start the filesystem watcher on the given folders.
 
     Creates a watchdog Observer, schedules a MediaFileWatcher handler
@@ -192,8 +199,9 @@ def stop_watcher() -> None:
             _observer = None
 
 
-def restart_watcher(folders: list[str], on_new_file: Callable[[str], None],
-                    debounce_seconds: float = 10.0):
+def restart_watcher(
+    folders: list[str], on_new_file: Callable[[str], None], debounce_seconds: float = 10.0
+):
     """Restart the filesystem watcher with new configuration.
 
     Stops any running observer, then starts a new one.

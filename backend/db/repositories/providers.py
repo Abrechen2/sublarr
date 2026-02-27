@@ -23,9 +23,14 @@ class ProviderRepository(BaseRepository):
 
     # ---- Provider Cache ----------------------------------------------------------
 
-    def cache_provider_results(self, provider_name: str, query_hash: str,
-                                results_json: str, ttl_hours: int = 6,
-                                format_filter: str = None):
+    def cache_provider_results(
+        self,
+        provider_name: str,
+        query_hash: str,
+        results_json: str,
+        ttl_hours: int = 6,
+        format_filter: str = None,
+    ):
         """Cache provider search results with TTL expiry.
 
         Updates existing entry for (provider_name, query_hash) instead of
@@ -37,10 +42,12 @@ class ProviderRepository(BaseRepository):
         expires_str = expires.isoformat()
 
         existing = self.session.execute(
-            select(ProviderCache).where(
+            select(ProviderCache)
+            .where(
                 ProviderCache.provider_name == provider_name,
                 ProviderCache.query_hash == query_hash,
-            ).limit(1)
+            )
+            .limit(1)
         ).scalar_one_or_none()
 
         if existing:
@@ -58,8 +65,9 @@ class ProviderRepository(BaseRepository):
             self.session.add(entry)
         self._commit()
 
-    def get_cached_results(self, provider_name: str, query_hash: str,
-                           format_filter: str = None) -> str | None:
+    def get_cached_results(
+        self, provider_name: str, query_hash: str, format_filter: str = None
+    ) -> str | None:
         """Get cached provider results if not expired.
 
         Returns:
@@ -82,9 +90,7 @@ class ProviderRepository(BaseRepository):
     def cleanup_expired_cache(self):
         """Remove expired cache entries."""
         now = datetime.now(UTC).isoformat()
-        self.session.execute(
-            delete(ProviderCache).where(ProviderCache.expires_at < now)
-        )
+        self.session.execute(delete(ProviderCache).where(ProviderCache.expires_at < now))
         self._commit()
 
     def get_provider_cache_stats(self) -> dict:
@@ -94,11 +100,8 @@ class ProviderRepository(BaseRepository):
             select(
                 ProviderCache.provider_name,
                 func.count().label("total"),
-                func.sum(
-                    func.cast(ProviderCache.expires_at > now, type_=None)
-                ).label("active"),
-            )
-            .group_by(ProviderCache.provider_name)
+                func.sum(func.cast(ProviderCache.expires_at > now, type_=None)).label("active"),
+            ).group_by(ProviderCache.provider_name)
         )
         # Use manual approach for SQLite compatibility
         all_entries = self.session.execute(
@@ -118,9 +121,7 @@ class ProviderRepository(BaseRepository):
         """Clear provider cache. If provider_name is given, only clear that provider."""
         if provider_name:
             self.session.execute(
-                delete(ProviderCache).where(
-                    ProviderCache.provider_name == provider_name
-                )
+                delete(ProviderCache).where(ProviderCache.provider_name == provider_name)
             )
         else:
             self.session.execute(delete(ProviderCache))
@@ -128,9 +129,16 @@ class ProviderRepository(BaseRepository):
 
     # ---- Subtitle Download History -----------------------------------------------
 
-    def record_subtitle_download(self, provider_name: str, subtitle_id: str,
-                                  language: str, fmt: str, file_path: str,
-                                  score: int, source: str = "provider"):
+    def record_subtitle_download(
+        self,
+        provider_name: str,
+        subtitle_id: str,
+        language: str,
+        fmt: str,
+        file_path: str,
+        score: int,
+        source: str = "provider",
+    ):
         """Record a subtitle download for history tracking.
 
         Args:
@@ -158,14 +166,11 @@ class ProviderRepository(BaseRepository):
 
     def get_provider_download_stats(self) -> dict:
         """Get download counts per provider, broken down by format."""
-        stmt = (
-            select(
-                SubtitleDownload.provider_name,
-                SubtitleDownload.format,
-                func.count(),
-            )
-            .group_by(SubtitleDownload.provider_name, SubtitleDownload.format)
-        )
+        stmt = select(
+            SubtitleDownload.provider_name,
+            SubtitleDownload.format,
+            func.count(),
+        ).group_by(SubtitleDownload.provider_name, SubtitleDownload.format)
         rows = self.session.execute(stmt).all()
 
         stats = {}
@@ -179,8 +184,7 @@ class ProviderRepository(BaseRepository):
 
     # ---- Provider Statistics -----------------------------------------------------
 
-    def record_search(self, provider_name: str, success: bool,
-                      response_time_ms: float = None):
+    def record_search(self, provider_name: str, success: bool, response_time_ms: float = None):
         """Record a search attempt and update provider statistics.
 
         Uses weighted running average for response times:
@@ -208,8 +212,8 @@ class ProviderRepository(BaseRepository):
                 old_avg = existing.avg_response_time_ms or 0
                 if total_searches > 1:
                     existing.avg_response_time_ms = (
-                        (old_avg * (total_searches - 1) + response_time_ms) / total_searches
-                    )
+                        old_avg * (total_searches - 1) + response_time_ms
+                    ) / total_searches
                 else:
                     existing.avg_response_time_ms = response_time_ms
 
@@ -368,8 +372,12 @@ class ProviderRepository(BaseRepository):
             )
             self.session.add(entry)
         self._commit()
-        logger.warning("Provider %s auto-disabled until %s (%d min cooldown)",
-                       provider_name, disabled_until, cooldown_minutes)
+        logger.warning(
+            "Provider %s auto-disabled until %s (%d min cooldown)",
+            provider_name,
+            disabled_until,
+            cooldown_minutes,
+        )
 
     def clear_auto_disable(self, provider_name: str) -> bool:
         """Manually clear auto-disable flag. Resets consecutive_failures to 0."""
@@ -381,8 +389,7 @@ class ProviderRepository(BaseRepository):
         entry.consecutive_failures = 0
         entry.updated_at = self._now()
         self._commit()
-        logger.info("Provider %s manually re-enabled (auto-disable cleared)",
-                     provider_name)
+        logger.info("Provider %s manually re-enabled (auto-disable cleared)", provider_name)
         return True
 
     def is_auto_disabled(self, provider_name: str) -> bool:
@@ -406,8 +413,7 @@ class ProviderRepository(BaseRepository):
                 entry.disabled_until = ""
                 entry.updated_at = now
                 self._commit()
-                logger.info("Provider %s auto-disable expired, re-enabled",
-                            provider_name)
+                logger.info("Provider %s auto-disable expired, re-enabled", provider_name)
                 return False
         return True
 
@@ -417,8 +423,7 @@ class ProviderRepository(BaseRepository):
         entries = self.session.execute(stmt).scalars().all()
         return [self._row_to_stats(e) for e in entries]
 
-    def get_provider_health_history(self, provider_name: str = None,
-                                     days: int = 7) -> list:
+    def get_provider_health_history(self, provider_name: str = None, days: int = 7) -> list:
         """Get provider health history entries."""
         cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
         stmt = select(ProviderStats).where(ProviderStats.updated_at >= cutoff)

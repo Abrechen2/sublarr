@@ -59,6 +59,4 @@ class CleanupHistory(db.Model):
     details_json: Mapped[str] = mapped_column(Text, default="{}")
     performed_at: Mapped[str] = mapped_column(Text, nullable=False)
 
-    __table_args__ = (
-        Index("idx_cleanup_history_performed_at", "performed_at"),
-    )
+    __table_args__ = (Index("idx_cleanup_history_performed_at", "performed_at"),)

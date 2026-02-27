@@ -22,6 +22,7 @@ def _is_postgresql() -> bool:
     """Detect if the current database backend is PostgreSQL."""
     try:
         from extensions import db
+
         return db.engine.dialect.name == "postgresql"
     except Exception:
         return False
@@ -52,6 +53,7 @@ def get_pool_stats() -> dict | None:
 
     try:
         from extensions import db
+
         pool = db.engine.pool
         return {
             "size": pool.size(),
@@ -166,7 +168,8 @@ def get_database_stats(db, db_path: str) -> dict:
             try:
                 # Allowlist table names to prevent any SQL injection via f-string
                 import re as _re
-                if not _re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', name):
+
+                if not _re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", name):
                     logger.warning("Skipping stats for table with non-standard name: %r", name)
                     continue
                 count = db.execute(f"SELECT COUNT(*) FROM [{name}]").fetchone()[0]
@@ -217,9 +220,7 @@ def _pg_health_report() -> dict:
         with sa_db.engine.connect() as conn:
             # Database size
             try:
-                row = conn.execute(
-                    text("SELECT pg_database_size(current_database())")
-                ).fetchone()
+                row = conn.execute(text("SELECT pg_database_size(current_database())")).fetchone()
                 details["size_bytes"] = row[0] if row else 0
             except Exception as exc:
                 logger.warning("Could not get database size: %s", exc)
@@ -245,9 +246,7 @@ def _pg_health_report() -> dict:
                         "ORDER BY size DESC LIMIT 20"
                     )
                 ).fetchall()
-                details["table_sizes"] = {
-                    row[0]: row[1] for row in rows
-                }
+                details["table_sizes"] = {row[0]: row[1] for row in rows}
             except Exception as exc:
                 logger.warning("Could not get table sizes: %s", exc)
                 details["table_sizes"] = {}
@@ -276,9 +275,7 @@ def _pg_health_report() -> dict:
                         "ORDER BY idx_scan DESC LIMIT 10"
                     )
                 ).fetchall()
-                details["index_usage"] = {
-                    row[0]: row[1] for row in rows
-                }
+                details["index_usage"] = {row[0]: row[1] for row in rows}
             except Exception as exc:
                 logger.warning("Could not get index usage: %s", exc)
                 details["index_usage"] = {}

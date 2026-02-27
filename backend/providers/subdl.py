@@ -40,14 +40,10 @@ _FORMAT_MAP = {
 }
 
 # Regex to extract release group from release name (e.g. "[SubGroup] Title" or "Title-SubGroup")
-_RELEASE_GROUP_RE = re.compile(
-    r"^\[([^\]]+)\]|[-.]([A-Za-z0-9]+)$"
-)
+_RELEASE_GROUP_RE = re.compile(r"^\[([^\]]+)\]|[-.]([A-Za-z0-9]+)$")
 
 # Episode number extraction from release name
-_EPISODE_RE = re.compile(
-    r"(?:S\d{1,2}E|E|EP|Episode[.\s_]?)(\d{1,3})\b", re.IGNORECASE
-)
+_EPISODE_RE = re.compile(r"(?:S\d{1,2}E|E|EP|Episode[.\s_]?)(\d{1,3})\b", re.IGNORECASE)
 
 
 def _extract_from_zip(archive_content: bytes) -> list[tuple[str, bytes]]:
@@ -71,7 +67,9 @@ def _extract_from_zip(archive_content: bytes) -> list[tuple[str, bytes]]:
     return results
 
 
-def _pick_best_subtitle(files: list[tuple[str, bytes]], query: VideoQuery) -> tuple[str, bytes] | None:
+def _pick_best_subtitle(
+    files: list[tuple[str, bytes]], query: VideoQuery
+) -> tuple[str, bytes] | None:
     """Pick the best subtitle file from an extracted archive.
 
     Prefers ASS over SRT, and matches episode number if available.
@@ -95,8 +93,13 @@ def _pick_best_subtitle(files: list[tuple[str, bytes]], query: VideoQuery) -> tu
             ep_str = f"{query.episode:02d}"
             name_lower = filename.lower()
             ep_patterns = [
-                f"e{ep_str}", f"ep{ep_str}", f"_{ep_str}_", f"- {ep_str}",
-                f" {ep_str} ", f"_{ep_str}.", f" {ep_str}.",
+                f"e{ep_str}",
+                f"ep{ep_str}",
+                f"_{ep_str}_",
+                f"- {ep_str}",
+                f" {ep_str} ",
+                f"_{ep_str}.",
+                f" {ep_str}.",
             ]
             for pattern in ep_patterns:
                 if pattern in name_lower:
@@ -123,11 +126,55 @@ class SubDLProvider(SubtitleProvider):
 
     name = "subdl"
     languages = {
-        "en", "de", "fr", "es", "it", "pt", "ru", "ja", "zh", "ko",
-        "ar", "nl", "pl", "sv", "da", "no", "fi", "cs", "hu", "tr",
-        "th", "vi", "id", "hi", "ms", "ro", "bg", "hr", "el", "he",
-        "uk", "sk", "sl", "sr", "lt", "lv", "et", "fa", "bn", "ta",
-        "te", "ml", "kn", "mr", "gu", "ur", "my", "km", "lo",
+        "en",
+        "de",
+        "fr",
+        "es",
+        "it",
+        "pt",
+        "ru",
+        "ja",
+        "zh",
+        "ko",
+        "ar",
+        "nl",
+        "pl",
+        "sv",
+        "da",
+        "no",
+        "fi",
+        "cs",
+        "hu",
+        "tr",
+        "th",
+        "vi",
+        "id",
+        "hi",
+        "ms",
+        "ro",
+        "bg",
+        "hr",
+        "el",
+        "he",
+        "uk",
+        "sk",
+        "sl",
+        "sr",
+        "lt",
+        "lv",
+        "et",
+        "fa",
+        "bn",
+        "ta",
+        "te",
+        "ml",
+        "kn",
+        "mr",
+        "gu",
+        "ur",
+        "my",
+        "km",
+        "lo",
     }
 
     # Plugin system attributes
@@ -168,11 +215,14 @@ class SubDLProvider(SubtitleProvider):
         if not self.session:
             return False, "Not initialized"
         try:
-            resp = self.session.get(API_BASE, params={
-                "api_key": self.api_key,
-                "film_name": "test",
-                "subs_per_page": 1,
-            })
+            resp = self.session.get(
+                API_BASE,
+                params={
+                    "api_key": self.api_key,
+                    "film_name": "test",
+                    "subs_per_page": 1,
+                },
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 if data.get("status"):
@@ -186,12 +236,14 @@ class SubDLProvider(SubtitleProvider):
 
     def search(self, query: VideoQuery) -> list[SubtitleResult]:
         if not self.session or not self.api_key:
-            logger.warning("SubDL: cannot search - session=%s, api_key=%s",
-                          self.session is not None, bool(self.api_key))
+            logger.warning(
+                "SubDL: cannot search - session=%s, api_key=%s",
+                self.session is not None,
+                bool(self.api_key),
+            )
             return []
 
-        logger.debug("SubDL: searching for %s (languages: %s)",
-                    query.display_name, query.languages)
+        logger.debug("SubDL: searching for %s (languages: %s)", query.display_name, query.languages)
         params = {
             "api_key": self.api_key,
             "subs_per_page": 30,
@@ -223,7 +275,9 @@ class SubDLProvider(SubtitleProvider):
                 return []
             params["film_name"] = search_term
 
-        logger.debug("SubDL: API request params: %s", {k: v for k, v in params.items() if k != "api_key"})
+        logger.debug(
+            "SubDL: API request params: %s", {k: v for k, v in params.items() if k != "api_key"}
+        )
         results = []
         try:
             resp = self.session.get(API_BASE, params=params)
@@ -240,8 +294,9 @@ class SubDLProvider(SubtitleProvider):
                 raise ProviderRateLimitError(error_msg)
 
             if resp.status_code != 200:
-                logger.warning("SubDL search failed: HTTP %d, response: %s",
-                              resp.status_code, resp.text[:200])
+                logger.warning(
+                    "SubDL search failed: HTTP %d, response: %s", resp.status_code, resp.text[:200]
+                )
                 return []
 
             data = resp.json()
@@ -318,8 +373,13 @@ class SubDLProvider(SubtitleProvider):
 
         logger.info("SubDL: found %d results", len(results))
         if results:
-            logger.debug("SubDL: top result - %s (score: %d, format: %s, language: %s)",
-                        results[0].filename, results[0].score, results[0].format.value, results[0].language)
+            logger.debug(
+                "SubDL: top result - %s (score: %d, format: %s, language: %s)",
+                results[0].filename,
+                results[0].score,
+                results[0].format.value,
+                results[0].language,
+            )
         return results
 
     def download(self, result: SubtitleResult) -> bytes:

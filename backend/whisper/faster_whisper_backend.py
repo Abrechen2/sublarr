@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 # Guard import: faster-whisper is optional
 try:
     from faster_whisper import WhisperModel
+
     HAS_FASTER_WHISPER = True
 except ImportError:
     HAS_FASTER_WHISPER = False
@@ -142,7 +143,10 @@ class FasterWhisperBackend(WhisperBackend):
 
         logger.info(
             "Loading Whisper model '%s' (device=%s, compute_type=%s, threads=%d)",
-            model_size, device, compute_type, cpu_threads,
+            model_size,
+            device,
+            compute_type,
+            cpu_threads,
         )
 
         start = time.time()
@@ -235,8 +239,11 @@ class FasterWhisperBackend(WhisperBackend):
 
             logger.info(
                 "Transcription complete: %d segments, %.1fs duration, detected=%s (%.1f%%), %.0fms",
-                segment_count, duration, info.language,
-                info.language_probability * 100, elapsed_ms,
+                segment_count,
+                duration,
+                info.language,
+                info.language_probability * 100,
+                elapsed_ms,
             )
 
             return TranscriptionResult(

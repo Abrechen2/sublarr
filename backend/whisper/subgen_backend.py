@@ -144,7 +144,9 @@ class SubgenBackend(WhisperBackend):
 
             logger.info(
                 "Subgen transcription complete: %d segments, ~%.1fs duration, %.0fms",
-                segment_count, duration, elapsed_ms,
+                segment_count,
+                duration,
+                elapsed_ms,
             )
 
             return TranscriptionResult(

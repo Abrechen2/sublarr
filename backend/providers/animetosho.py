@@ -48,9 +48,9 @@ def _extract_episode_number(text: str) -> int | None:
     """Try to extract episode number from a release name."""
     # Common patterns: " - 01 ", " E01 ", " EP01 ", "_01_", " 01v2 "
     patterns = [
-        r'[\s_]-[\s_](\d{2,3})(?:v\d)?[\s_\[\(.]',  # " - 01 " or " - 01v2 "
-        r'[Ee][Pp]?(\d{2,3})(?:v\d)?[\s_\[\(.]',  # E01, EP01
-        r'[\s_](\d{2,3})(?:v\d)?[\s_]?(?:\[|\(|\.(?:mkv|mp4))',  # " 01 [" or " 01."
+        r"[\s_]-[\s_](\d{2,3})(?:v\d)?[\s_\[\(.]",  # " - 01 " or " - 01v2 "
+        r"[Ee][Pp]?(\d{2,3})(?:v\d)?[\s_\[\(.]",  # E01, EP01
+        r"[\s_](\d{2,3})(?:v\d)?[\s_]?(?:\[|\(|\.(?:mkv|mp4))",  # " 01 [" or " 01."
     ]
     for pattern in patterns:
         m = re.search(pattern, text)
@@ -68,8 +68,23 @@ class AnimeToshoProvider(SubtitleProvider):
 
     name = "animetosho"
     languages = {
-        "en", "ja", "de", "fr", "es", "it", "pt", "ru", "zh", "ko",
-        "ar", "nl", "pl", "sv", "cs", "hu", "tr",
+        "en",
+        "ja",
+        "de",
+        "fr",
+        "es",
+        "it",
+        "pt",
+        "ru",
+        "zh",
+        "ko",
+        "ar",
+        "nl",
+        "pl",
+        "sv",
+        "cs",
+        "hu",
+        "tr",
     }
 
     # Plugin system attributes
@@ -113,8 +128,9 @@ class AnimeToshoProvider(SubtitleProvider):
             logger.warning("AnimeTosho: cannot search - session is None")
             return []
 
-        logger.debug("AnimeTosho: searching for %s (languages: %s)",
-                    query.display_name, query.languages)
+        logger.debug(
+            "AnimeTosho: searching for %s (languages: %s)", query.display_name, query.languages
+        )
         results = []
 
         # Build search query
@@ -152,7 +168,8 @@ class AnimeToshoProvider(SubtitleProvider):
                     params["eid"] = query.absolute_episode
                     logger.debug(
                         "AnimeTosho: using AniDB aid=%d eid=%d (absolute episode)",
-                        query.anidb_id, query.absolute_episode,
+                        query.anidb_id,
+                        query.absolute_episode,
                     )
 
             logger.debug("AnimeTosho: API request params: %s", params)
@@ -160,8 +177,11 @@ class AnimeToshoProvider(SubtitleProvider):
             logger.debug("AnimeTosho: API response status: %d", resp.status_code)
 
             if resp.status_code != 200:
-                logger.warning("AnimeTosho search failed: HTTP %d, response: %s",
-                              resp.status_code, resp.text[:200])
+                logger.warning(
+                    "AnimeTosho search failed: HTTP %d, response: %s",
+                    resp.status_code,
+                    resp.text[:200],
+                )
                 return []
 
             entries = resp.json()
@@ -180,8 +200,13 @@ class AnimeToshoProvider(SubtitleProvider):
 
         logger.info("AnimeTosho: found %d subtitle results", len(results))
         if results:
-            logger.debug("AnimeTosho: top result - %s (score: %d, format: %s, language: %s)",
-                        results[0].filename, results[0].score, results[0].format.value, results[0].language)
+            logger.debug(
+                "AnimeTosho: top result - %s (score: %d, format: %s, language: %s)",
+                results[0].filename,
+                results[0].score,
+                results[0].format.value,
+                results[0].language,
+            )
         return results
 
     def _process_entry(self, entry: dict, query: VideoQuery) -> list[SubtitleResult]:
@@ -201,10 +226,7 @@ class AnimeToshoProvider(SubtitleProvider):
         # releases that use absolute numbering in filenames.
         entry_episode = _extract_episode_number(title)
         if query.absolute_episode is not None:
-            episode_match = (
-                entry_episode is not None
-                and entry_episode == query.absolute_episode
-            )
+            episode_match = entry_episode is not None and entry_episode == query.absolute_episode
         else:
             episode_match = (
                 query.episode is not None
@@ -280,7 +302,18 @@ class AnimeToshoProvider(SubtitleProvider):
         lang_patterns = {
             "ja": [".ja.", ".jpn.", ".japanese.", "_ja_", "_jpn_", "[ja]", "[jpn]"],
             "en": [".en.", ".eng.", ".english.", "_en_", "_eng_", "[en]", "[eng]"],
-            "de": [".de.", ".deu.", ".ger.", ".german.", "_de_", "_deu_", "[de]", "[deu]", "[ger]", ".german"],
+            "de": [
+                ".de.",
+                ".deu.",
+                ".ger.",
+                ".german.",
+                "_de_",
+                "_deu_",
+                "[de]",
+                "[deu]",
+                "[ger]",
+                ".german",
+            ],
             "fr": [".fr.", ".fra.", ".fre.", ".french.", "_fr_", "[fr]", "[fra]"],
             "es": [".es.", ".spa.", ".spanish.", "_es_", "[es]", "[spa]"],
             "zh": [".zh.", ".chi.", ".chinese.", "_zh_", "[zh]", "[chi]"],
@@ -303,9 +336,21 @@ class AnimeToshoProvider(SubtitleProvider):
 
         # Check for common English fansub groups
         english_groups = [
-            "subsplease", "erai-raws", "horriblesubs", "judas",
-            "sallysubs", "yameii", "ember", "yor", "commie",
-            "gg", "coal", "doki", "fumetsu", "utw", "asenshi"
+            "subsplease",
+            "erai-raws",
+            "horriblesubs",
+            "judas",
+            "sallysubs",
+            "yameii",
+            "ember",
+            "yor",
+            "commie",
+            "gg",
+            "coal",
+            "doki",
+            "fumetsu",
+            "utw",
+            "asenshi",
         ]
         if any(group in title_lower for group in english_groups):
             return "en"
@@ -332,7 +377,7 @@ class AnimeToshoProvider(SubtitleProvider):
             content = _decompress_xz(content)
 
         # Handle ZIP if the downloaded file is actually a ZIP
-        if content[:4] == b'PK\x03\x04':
+        if content[:4] == b"PK\x03\x04":
             try:
                 with zipfile.ZipFile(io.BytesIO(content)) as zf:
                     for name in zf.namelist():

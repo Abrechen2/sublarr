@@ -65,7 +65,9 @@ def run_mediainfo(file_path: str) -> dict:
         RuntimeError: If mediainfo fails, times out, or returns invalid JSON.
     """
     if not _is_mediainfo_available():
-        raise FileNotFoundError("mediainfo not found in PATH — install mediainfo or switch engine to ffprobe")
+        raise FileNotFoundError(
+            "mediainfo not found in PATH — install mediainfo or switch engine to ffprobe"
+        )
 
     cmd = ["mediainfo", "--Output=JSON", file_path]
     try:
@@ -109,31 +111,35 @@ def _normalize_mediainfo(raw: dict) -> dict:
         track_type = track.get("@type", "")
 
         if track_type == "Audio":
-            streams.append({
-                "codec_type": "audio",
-                "codec_name": _map_codec(track.get("Format", "")),
-                "index": stream_index,
-                "tags": {
-                    "language": _normalize_language(track.get("Language", "")),
-                    "title": track.get("Title", ""),
-                },
-                "disposition": {},
-            })
+            streams.append(
+                {
+                    "codec_type": "audio",
+                    "codec_name": _map_codec(track.get("Format", "")),
+                    "index": stream_index,
+                    "tags": {
+                        "language": _normalize_language(track.get("Language", "")),
+                        "title": track.get("Title", ""),
+                    },
+                    "disposition": {},
+                }
+            )
             stream_index += 1
 
         elif track_type == "Text":
             # Forced: MediaInfo uses "Yes"/"No" string; ffprobe uses int 0/1
             forced = track.get("Forced", "No").strip().lower() == "yes"
-            streams.append({
-                "codec_type": "subtitle",
-                "codec_name": _map_codec(track.get("Format", "")),
-                "index": stream_index,
-                "tags": {
-                    "language": _normalize_language(track.get("Language", "")),
-                    "title": track.get("Title", ""),
-                },
-                "disposition": {"forced": 1 if forced else 0},
-            })
+            streams.append(
+                {
+                    "codec_type": "subtitle",
+                    "codec_name": _map_codec(track.get("Format", "")),
+                    "index": stream_index,
+                    "tags": {
+                        "language": _normalize_language(track.get("Language", "")),
+                        "title": track.get("Title", ""),
+                    },
+                    "disposition": {"forced": 1 if forced else 0},
+                }
+            )
             stream_index += 1
 
     return {"streams": streams}

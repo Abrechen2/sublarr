@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 # ---- Event Catalog -----------------------------------------------------------
 
+
 @bp.route("/events/catalog", methods=["GET"])
 def get_event_catalog():
     """Return the EVENT_CATALOG as a JSON list for UI dropdowns.
@@ -48,16 +49,19 @@ def get_event_catalog():
 
     items = []
     for name, meta in EVENT_CATALOG.items():
-        items.append({
-            "name": name,
-            "label": meta.get("label", name),
-            "description": meta.get("description", ""),
-            "payload_keys": meta.get("payload_keys", []),
-        })
+        items.append(
+            {
+                "name": name,
+                "label": meta.get("label", name),
+                "description": meta.get("description", ""),
+                "payload_keys": meta.get("payload_keys", []),
+            }
+        )
     return jsonify(items)
 
 
 # ---- Hook Config CRUD --------------------------------------------------------
+
 
 @bp.route("/hooks", methods=["GET"])
 def list_hooks():
@@ -328,6 +332,7 @@ def test_hook(hook_id):
 
 # ---- Webhook Config CRUD -----------------------------------------------------
 
+
 @bp.route("/webhooks", methods=["GET"])
 def list_webhooks():
     """List all webhook configs, optionally filtered by event_name.
@@ -518,7 +523,15 @@ def update_webhook(webhook_id):
         return jsonify({"error": "Webhook not found"}), 404
 
     data = request.get_json(silent=True) or {}
-    allowed_keys = {"name", "event_name", "url", "secret", "retry_count", "timeout_seconds", "enabled"}
+    allowed_keys = {
+        "name",
+        "event_name",
+        "url",
+        "secret",
+        "retry_count",
+        "timeout_seconds",
+        "enabled",
+    }
     updates = {k: v for k, v in data.items() if k in allowed_keys}
 
     if "enabled" in updates:
@@ -612,6 +625,7 @@ def test_webhook(webhook_id):
 
 # ---- Hook Log endpoints ------------------------------------------------------
 
+
 @bp.route("/hooks/logs", methods=["GET"])
 def list_hook_logs():
     """List hook execution logs with optional filters.
@@ -678,6 +692,7 @@ def clear_logs():
 
 # ---- Scoring Weight endpoints ------------------------------------------------
 
+
 @bp.route("/scoring/weights", methods=["GET"])
 def get_weights():
     """Return all scoring weights (episode + movie) merged with defaults.
@@ -718,14 +733,16 @@ def get_weights():
     from db.scoring import _DEFAULT_EPISODE_WEIGHTS, _DEFAULT_MOVIE_WEIGHTS, get_all_scoring_weights
 
     weights = get_all_scoring_weights()
-    return jsonify({
-        "episode": weights["episode"],
-        "movie": weights["movie"],
-        "defaults": {
-            "episode": _DEFAULT_EPISODE_WEIGHTS,
-            "movie": _DEFAULT_MOVIE_WEIGHTS,
-        },
-    })
+    return jsonify(
+        {
+            "episode": weights["episode"],
+            "movie": weights["movie"],
+            "defaults": {
+                "episode": _DEFAULT_EPISODE_WEIGHTS,
+                "movie": _DEFAULT_MOVIE_WEIGHTS,
+            },
+        }
+    )
 
 
 @bp.route("/scoring/weights", methods=["PUT"])
@@ -774,14 +791,17 @@ def update_weights():
 
     weights = get_all_scoring_weights()
     from db.scoring import _DEFAULT_EPISODE_WEIGHTS, _DEFAULT_MOVIE_WEIGHTS
-    return jsonify({
-        "episode": weights["episode"],
-        "movie": weights["movie"],
-        "defaults": {
-            "episode": _DEFAULT_EPISODE_WEIGHTS,
-            "movie": _DEFAULT_MOVIE_WEIGHTS,
-        },
-    })
+
+    return jsonify(
+        {
+            "episode": weights["episode"],
+            "movie": weights["movie"],
+            "defaults": {
+                "episode": _DEFAULT_EPISODE_WEIGHTS,
+                "movie": _DEFAULT_MOVIE_WEIGHTS,
+            },
+        }
+    )
 
 
 @bp.route("/scoring/weights", methods=["DELETE"])
@@ -806,6 +826,7 @@ def reset_weights():
 
 
 # ---- Provider Modifier endpoints ---------------------------------------------
+
 
 @bp.route("/scoring/modifiers", methods=["GET"])
 def get_modifiers():

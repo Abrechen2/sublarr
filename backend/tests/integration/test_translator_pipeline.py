@@ -77,7 +77,9 @@ def mock_settings():
     s.get_source_patterns.return_value = [".en.ass"]
     s.get_target_lang_tags.return_value = {"de", "deu", "ger", "german"}
     s.get_source_lang_tags.return_value = {"en", "eng", "english"}
-    s.get_prompt_template.return_value = "Translate from English to German.\nReturn ONLY the translated lines.\n"
+    s.get_prompt_template.return_value = (
+        "Translate from English to German.\nReturn ONLY the translated lines.\n"
+    )
     s.get_translation_config_hash.return_value = "abc123"
     s.ollama_model = "test-model"
     s.batch_size = 5
@@ -96,9 +98,12 @@ class TestCaseA:
         target = os.path.splitext(mkv_path)[0] + ".de.ass"
         Path(target).write_text(MINIMAL_ASS, encoding="utf-8")
 
-        with patch("translator.get_settings", return_value=mock_settings), \
-             patch("translator.get_media_streams", return_value=None):
+        with (
+            patch("translator.get_settings", return_value=mock_settings),
+            patch("translator.get_media_streams", return_value=None),
+        ):
             from translator import translate_file
+
             result = translate_file(mkv_path)
 
         assert result["success"] is True
@@ -135,6 +140,7 @@ class TestCaseB:
             mock_pm.return_value = manager
 
             from translator import translate_file
+
             result = translate_file(mkv_path)
 
         # Should attempt provider search
@@ -146,8 +152,9 @@ class TestCaseB:
     @patch("translator.get_settings")
     @patch("translator.get_media_streams")
     @patch("translator.translate_all")
-    def test_b2_translate_existing_srt(self, mock_translate, mock_probe, mock_gs,
-                                        mkv_path, mock_settings):
+    def test_b2_translate_existing_srt(
+        self, mock_translate, mock_probe, mock_gs, mkv_path, mock_settings
+    ):
         """B2: No ASS upgrade found — translate the existing SRT."""
         mock_gs.return_value = mock_settings
         mock_probe.return_value = None
@@ -166,6 +173,7 @@ class TestCaseB:
             mock_translate.return_value = ["Hallo Welt", "Wie geht es dir"]
 
             from translator import translate_file
+
             result = translate_file(mkv_path)
 
         # Result must be a dict with a success/status indicator
@@ -184,19 +192,35 @@ class TestCaseC:
     @patch("translator.select_best_subtitle_stream")
     @patch("translator.extract_subtitle_stream")
     @patch("translator.translate_all")
-    def test_c1_embedded_ass_extraction(self, mock_translate, mock_extract,
-                                         mock_select, mock_probe, mock_gs,
-                                         mkv_path, mock_settings, work_dir):
+    def test_c1_embedded_ass_extraction(
+        self,
+        mock_translate,
+        mock_extract,
+        mock_select,
+        mock_probe,
+        mock_gs,
+        mkv_path,
+        mock_settings,
+        work_dir,
+    ):
         """C1: Source ASS embedded → extract + translate to .de.ass."""
         mock_gs.return_value = mock_settings
 
         # Simulate ffprobe finding embedded streams
-        mock_probe.return_value = {"streams": [
-            {"index": 2, "codec_name": "ass", "codec_type": "subtitle",
-             "tags": {"language": "eng"}},
-        ]}
+        mock_probe.return_value = {
+            "streams": [
+                {
+                    "index": 2,
+                    "codec_name": "ass",
+                    "codec_type": "subtitle",
+                    "tags": {"language": "eng"},
+                },
+            ]
+        }
         mock_select.return_value = {
-            "index": 2, "format": "ass", "language": "eng",
+            "index": 2,
+            "format": "ass",
+            "language": "eng",
         }
 
         # extract_subtitle_stream returns a temp ASS file
@@ -208,6 +232,7 @@ class TestCaseC:
         mock_translate.return_value = ["Hallo Welt", "Wie geht es dir"]
 
         from translator import translate_file
+
         result = translate_file(mkv_path)
 
         assert result["success"] is True
@@ -216,14 +241,17 @@ class TestCaseC:
 
     def test_c4_no_source_no_provider_fails(self, mkv_path, mock_settings):
         """C4: No source subtitle, no provider result → fail."""
-        with patch("translator.get_settings", return_value=mock_settings), \
-             patch("translator.get_media_streams", return_value=None), \
-             patch("translator.get_provider_manager") as mock_pm:
+        with (
+            patch("translator.get_settings", return_value=mock_settings),
+            patch("translator.get_media_streams", return_value=None),
+            patch("translator.get_provider_manager") as mock_pm,
+        ):
             manager = MagicMock()
             manager.search_and_download_best.return_value = None
             mock_pm.return_value = manager
 
             from translator import translate_file
+
             result = translate_file(mkv_path)
 
         assert result["success"] is False
@@ -243,6 +271,7 @@ class TestErrorHandling:
                 target_language_name="German",
             )
             from translator import translate_file
+
             with pytest.raises(FileNotFoundError):
                 translate_file("/nonexistent/file.mkv")
 
@@ -251,15 +280,29 @@ class TestErrorHandling:
     @patch("translator.translate_all", side_effect=Exception("Ollama timeout"))
     @patch("translator.select_best_subtitle_stream")
     @patch("translator.extract_subtitle_stream")
-    def test_ollama_failure_returns_error(self, mock_extract, mock_select,
-                                           mock_translate, mock_probe, mock_gs,
-                                           mkv_path, mock_settings, work_dir):
+    def test_ollama_failure_returns_error(
+        self,
+        mock_extract,
+        mock_select,
+        mock_translate,
+        mock_probe,
+        mock_gs,
+        mkv_path,
+        mock_settings,
+        work_dir,
+    ):
         """Translation failure when Ollama is unreachable."""
         mock_gs.return_value = mock_settings
-        mock_probe.return_value = {"streams": [
-            {"index": 2, "codec_name": "ass", "codec_type": "subtitle",
-             "tags": {"language": "eng"}},
-        ]}
+        mock_probe.return_value = {
+            "streams": [
+                {
+                    "index": 2,
+                    "codec_name": "ass",
+                    "codec_type": "subtitle",
+                    "tags": {"language": "eng"},
+                },
+            ]
+        }
         mock_select.return_value = {"index": 2, "format": "ass", "language": "eng"}
 
         extracted_path = os.path.join(work_dir, "extracted.ass")
@@ -267,6 +310,7 @@ class TestErrorHandling:
         mock_extract.return_value = extracted_path
 
         from translator import translate_file
+
         result = translate_file(mkv_path)
 
         assert result["success"] is False

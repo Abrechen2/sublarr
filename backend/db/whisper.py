@@ -1,6 +1,5 @@
 """Whisper job database operations -- delegating to SQLAlchemy repository."""
 
-
 from db.repositories.whisper import WhisperRepository
 
 _repo = None

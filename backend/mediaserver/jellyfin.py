@@ -86,7 +86,9 @@ class JellyfinEmbyServer(MediaServer):
                         wait_seconds = 60
                     logger.warning(
                         "Jellyfin GET %s rate limited (attempt %d), waiting %ds",
-                        path, attempt, wait_seconds,
+                        path,
+                        attempt,
+                        wait_seconds,
                     )
                     if attempt < MAX_RETRIES:
                         time.sleep(wait_seconds)
@@ -94,19 +96,16 @@ class JellyfinEmbyServer(MediaServer):
                     else:
                         logger.error(
                             "Jellyfin GET %s rate limited after %d attempts",
-                            path, MAX_RETRIES,
+                            path,
+                            MAX_RETRIES,
                         )
                         return None
                 resp.raise_for_status()
                 return resp.json()
             except requests.ConnectionError as e:
-                logger.warning(
-                    "Jellyfin GET %s failed (attempt %d): %s", path, attempt, e
-                )
+                logger.warning("Jellyfin GET %s failed (attempt %d): %s", path, attempt, e)
             except requests.Timeout:
-                logger.warning(
-                    "Jellyfin GET %s timed out (attempt %d)", path, attempt
-                )
+                logger.warning("Jellyfin GET %s timed out (attempt %d)", path, attempt)
             except Exception as e:
                 logger.error("Jellyfin unexpected error on GET %s: %s", path, e)
                 return None
@@ -131,7 +130,9 @@ class JellyfinEmbyServer(MediaServer):
                         wait_seconds = 60
                     logger.warning(
                         "Jellyfin POST %s rate limited (attempt %d), waiting %ds",
-                        path, attempt, wait_seconds,
+                        path,
+                        attempt,
+                        wait_seconds,
                     )
                     if attempt < MAX_RETRIES:
                         time.sleep(wait_seconds)
@@ -139,19 +140,16 @@ class JellyfinEmbyServer(MediaServer):
                     else:
                         logger.error(
                             "Jellyfin POST %s rate limited after %d attempts",
-                            path, MAX_RETRIES,
+                            path,
+                            MAX_RETRIES,
                         )
                         return None
                 resp.raise_for_status()
                 return resp.json() if resp.content else {}
             except requests.ConnectionError as e:
-                logger.warning(
-                    "Jellyfin POST %s failed (attempt %d): %s", path, attempt, e
-                )
+                logger.warning("Jellyfin POST %s failed (attempt %d): %s", path, attempt, e)
             except requests.Timeout:
-                logger.warning(
-                    "Jellyfin POST %s timed out (attempt %d)", path, attempt
-                )
+                logger.warning("Jellyfin POST %s timed out (attempt %d)", path, attempt)
             except Exception as e:
                 logger.error("Jellyfin unexpected error on POST %s: %s", path, e)
                 return None
@@ -184,22 +182,28 @@ class JellyfinEmbyServer(MediaServer):
         if not item_id:
             logger.info(
                 "Item not found by path in %s, falling back to library refresh: %s",
-                self.server_type.title(), mapped_path,
+                self.server_type.title(),
+                mapped_path,
             )
             return self.refresh_library()
 
-        result = self._post(f"/Items/{item_id}/Refresh", data={
-            "Recursive": False,
-            "MetadataRefreshMode": "Default",
-            "ImageRefreshMode": "None",
-            "ReplaceAllMetadata": False,
-            "ReplaceAllImages": False,
-        })
+        result = self._post(
+            f"/Items/{item_id}/Refresh",
+            data={
+                "Recursive": False,
+                "MetadataRefreshMode": "Default",
+                "ImageRefreshMode": "None",
+                "ReplaceAllMetadata": False,
+                "ReplaceAllImages": False,
+            },
+        )
         if result is not None:
             type_str = f" ({item_type})" if item_type else ""
             logger.info(
                 "Triggered %s item refresh for %s%s",
-                self.server_type.title(), item_id, type_str,
+                self.server_type.title(),
+                item_id,
+                type_str,
             )
             return RefreshResult(
                 success=True,
@@ -246,12 +250,15 @@ class JellyfinEmbyServer(MediaServer):
         filename = os.path.basename(file_path)
         name = os.path.splitext(filename)[0]
 
-        result = self._get("/Items", params={
-            "searchTerm": name,
-            "Recursive": True,
-            "IncludeItemTypes": "Episode,Movie",
-            "Limit": 5,
-        })
+        result = self._get(
+            "/Items",
+            params={
+                "searchTerm": name,
+                "Recursive": True,
+                "IncludeItemTypes": "Episode,Movie",
+                "Limit": 5,
+            },
+        )
 
         if result and result.get("Items"):
             for item in result["Items"]:

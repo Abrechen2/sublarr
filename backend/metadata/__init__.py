@@ -63,6 +63,7 @@ class MetadataResolver:
         """Try to get cached metadata from DB. Returns None if unavailable."""
         try:
             from db import get_db
+
             db = get_db()
             if hasattr(db, "standalone") and hasattr(db.standalone, "get_cached_metadata"):
                 return db.standalone.get_cached_metadata(cache_key)
@@ -74,6 +75,7 @@ class MetadataResolver:
         """Try to cache metadata to DB. Silently ignores failures."""
         try:
             from db import get_db
+
             db = get_db()
             if hasattr(db, "standalone") and hasattr(db.standalone, "cache_metadata"):
                 db.standalone.cache_metadata(cache_key, data)

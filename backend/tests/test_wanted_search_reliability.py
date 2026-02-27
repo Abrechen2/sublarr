@@ -49,8 +49,15 @@ class TestProviderErrorHandling:
     @patch("wanted_search.get_provider_manager")
     @patch("wanted_search.update_wanted_status")
     @patch("wanted_search.update_wanted_search")
-    def test_provider_search_failure_continues(self, mock_update_search, mock_update_status,
-                                                mock_get_manager, mock_get_item, mock_wanted_item, temp_file):
+    def test_provider_search_failure_continues(
+        self,
+        mock_update_search,
+        mock_update_status,
+        mock_get_manager,
+        mock_get_item,
+        mock_wanted_item,
+        temp_file,
+    ):
         """Test that provider search failures don't abort the entire process."""
         mock_wanted_item["file_path"] = temp_file
         mock_get_item.return_value = mock_wanted_item
@@ -74,9 +81,16 @@ class TestProviderErrorHandling:
     @patch("wanted_search.update_wanted_status")
     @patch("wanted_search.update_wanted_search")
     @patch("wanted_search.build_query_from_wanted")
-    def test_save_subtitle_failure_continues(self, mock_build_query, mock_update_search,
-                                              mock_update_status, mock_get_manager, mock_get_item,
-                                              mock_wanted_item, temp_file):
+    def test_save_subtitle_failure_continues(
+        self,
+        mock_build_query,
+        mock_update_search,
+        mock_update_status,
+        mock_get_manager,
+        mock_get_item,
+        mock_wanted_item,
+        temp_file,
+    ):
         """Test that file save failures don't crash the process."""
         mock_wanted_item["file_path"] = temp_file
         mock_get_item.return_value = mock_wanted_item
@@ -109,8 +123,9 @@ class TestFileSystemGuards:
     @patch("wanted_search.get_wanted_item")
     @patch("wanted_search.get_provider_manager")
     @patch("wanted_search.update_wanted_status")
-    def test_disk_space_check_in_save(self, mock_update_status, mock_get_manager,
-                                       mock_get_item, mock_wanted_item, temp_file):
+    def test_disk_space_check_in_save(
+        self, mock_update_status, mock_get_manager, mock_get_item, mock_wanted_item, temp_file
+    ):
         """Test that save_subtitle checks disk space."""
         from providers import ProviderManager
         from providers.base import SubtitleFormat, SubtitleResult
@@ -149,9 +164,15 @@ class TestTranslationPipelineResilience:
     @patch("wanted_search.get_provider_manager")
     @patch("wanted_search.update_wanted_status")
     @patch("wanted_search._translate_external_ass")
-    def test_translation_failure_cleans_up_temp_file(self, mock_translate, mock_update_status,
-                                                      mock_get_manager, mock_get_item,
-                                                      mock_wanted_item, temp_file):
+    def test_translation_failure_cleans_up_temp_file(
+        self,
+        mock_translate,
+        mock_update_status,
+        mock_get_manager,
+        mock_get_item,
+        mock_wanted_item,
+        temp_file,
+    ):
         """Test that translation failures clean up temporary files."""
         mock_wanted_item["file_path"] = temp_file
         mock_get_item.return_value = mock_wanted_item
@@ -182,4 +203,7 @@ class TestTranslationPipelineResilience:
         # Note: In real code, cleanup happens in finally block
         assert "status" in result
         import os
-        assert not os.path.exists(temp_source_path), "Temp file should have been cleaned up after failure"
+
+        assert not os.path.exists(temp_source_path), (
+            "Temp file should have been cleaned up after failure"
+        )

@@ -133,7 +133,9 @@ class KitsunekkoProvider(SubtitleProvider):
 
         # Only search for Japanese language
         if query.languages and "ja" not in query.languages:
-            logger.debug("Kitsunekko: skipping -- 'ja' not in requested languages %s", query.languages)
+            logger.debug(
+                "Kitsunekko: skipping -- 'ja' not in requested languages %s", query.languages
+            )
             return []
 
         series_title = query.series_title or query.title
@@ -252,7 +254,11 @@ class KitsunekkoProvider(SubtitleProvider):
 
             # Build matches
             matches = {"series"}  # Matched by directory name
-            if query.episode is not None and file_episode is not None and file_episode == query.episode:
+            if (
+                query.episode is not None
+                and file_episode is not None
+                and file_episode == query.episode
+            ):
                 matches.add("episode")
 
             result = SubtitleResult(

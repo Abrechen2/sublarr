@@ -100,6 +100,7 @@ class TestToolsValidation:
         monkeypatch.setenv("SUBLARR_MEDIA_PATH", str(tmp_path))
         monkeypatch.setenv("SUBLARR_PATH_MAPPING", "")
         from config import reload_settings
+
         reload_settings()
 
         fake = str(tmp_path / "episode.de.srt")
@@ -111,6 +112,7 @@ class TestToolsValidation:
         monkeypatch.setenv("SUBLARR_MEDIA_PATH", str(tmp_path / "media"))
         monkeypatch.setenv("SUBLARR_PATH_MAPPING", "")
         from config import reload_settings
+
         reload_settings()
 
         outside = str(tmp_path / "other" / "episode.de.srt")
@@ -127,6 +129,7 @@ class TestToolsValidation:
         monkeypatch.setenv("SUBLARR_MEDIA_PATH", local)
         monkeypatch.setenv("SUBLARR_PATH_MAPPING", f"{remote}={local}")
         from config import reload_settings
+
         reload_settings()
 
         # Remote path that maps into media — file doesn't exist yet so expect 404 not 403

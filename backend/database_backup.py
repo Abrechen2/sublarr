@@ -33,6 +33,7 @@ def _is_postgresql() -> bool:
     """Detect if the current database backend is PostgreSQL."""
     try:
         from extensions import db
+
         return db.engine.dialect.name == "postgresql"
     except Exception:
         return False
@@ -57,6 +58,7 @@ def _get_database_url() -> str:
     """Get the current database URL from config."""
     try:
         from config import get_settings
+
         return get_settings().get_database_url()
     except Exception:
         return ""
@@ -142,9 +144,7 @@ class DatabaseBackup:
         verified = self._verify_sqlite_backup(dest)
         size = os.path.getsize(dest)
 
-        logger.info(
-            "SQLite backup created: %s (%d bytes, verified=%s)", dest, size, verified
-        )
+        logger.info("SQLite backup created: %s (%d bytes, verified=%s)", dest, size, verified)
         return {
             "path": dest,
             "filename": filename,
@@ -175,11 +175,15 @@ class DatabaseBackup:
 
         cmd = [
             "pg_dump",
-            "-h", pg["host"],
-            "-p", pg["port"],
-            "-U", pg["user"],
+            "-h",
+            pg["host"],
+            "-p",
+            pg["port"],
+            "-U",
+            pg["user"],
             "-Fc",  # Custom format (compressed)
-            "-f", dest,
+            "-f",
+            dest,
             pg["dbname"],
         ]
 
@@ -217,9 +221,7 @@ class DatabaseBackup:
 
         size = os.path.getsize(dest) if os.path.exists(dest) else 0
 
-        logger.info(
-            "PostgreSQL backup created: %s (%d bytes)", dest, size
-        )
+        logger.info("PostgreSQL backup created: %s (%d bytes)", dest, size)
         return {
             "path": dest,
             "filename": filename,
@@ -255,9 +257,7 @@ class DatabaseBackup:
         Matches both SQLite (.db) and PostgreSQL (.pgdump) backup files.
         """
         backups: list[dict] = []
-        pattern = re.compile(
-            r"^sublarr_(daily|weekly|monthly|manual)_(\d{8}_\d{6})\.(db|pgdump)$"
-        )
+        pattern = re.compile(r"^sublarr_(daily|weekly|monthly|manual)_(\d{8}_\d{6})\.(db|pgdump)$")
 
         if not os.path.isdir(self.backup_dir):
             return backups
@@ -273,14 +273,16 @@ class DatabaseBackup:
                 size = 0
 
             ext = match.group(3)
-            backups.append({
-                "filename": name,
-                "path": path,
-                "label": match.group(1),
-                "timestamp": match.group(2),
-                "size_bytes": size,
-                "backend": "postgresql" if ext == "pgdump" else "sqlite",
-            })
+            backups.append(
+                {
+                    "filename": name,
+                    "path": path,
+                    "label": match.group(1),
+                    "timestamp": match.group(2),
+                    "size_bytes": size,
+                    "backend": "postgresql" if ext == "pgdump" else "sqlite",
+                }
+            )
 
         return backups
 
@@ -349,7 +351,9 @@ class DatabaseBackup:
                 context={"backup_path": backup_path},
             ) from exc
 
-        logger.info("SQLite database restored from %s (safety backup at %s)", backup_path, safety_path)
+        logger.info(
+            "SQLite database restored from %s (safety backup at %s)", backup_path, safety_path
+        )
         return {
             "restored_from": backup_path,
             "safety_backup": safety_path,
@@ -370,10 +374,14 @@ class DatabaseBackup:
 
         cmd = [
             "pg_restore",
-            "-h", pg["host"],
-            "-p", pg["port"],
-            "-U", pg["user"],
-            "-d", pg["dbname"],
+            "-h",
+            pg["host"],
+            "-p",
+            pg["port"],
+            "-U",
+            pg["user"],
+            "-d",
+            pg["dbname"],
             "--clean",
             "--if-exists",
             backup_path,
@@ -475,6 +483,7 @@ def start_backup_scheduler(
             target = now.replace(hour=hour, minute=0, second=0, microsecond=0)
             if target <= now:
                 from datetime import timedelta
+
                 target += timedelta(days=1)
             wait_secs = (target - now).total_seconds()
             if _scheduler_stop.wait(timeout=wait_secs):

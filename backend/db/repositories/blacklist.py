@@ -17,9 +17,15 @@ logger = logging.getLogger(__name__)
 class BlacklistRepository(BaseRepository):
     """Repository for blacklist_entries table operations."""
 
-    def add_blacklist_entry(self, provider_name: str, subtitle_id: str,
-                            language: str = "", file_path: str = "",
-                            title: str = "", reason: str = "") -> int:
+    def add_blacklist_entry(
+        self,
+        provider_name: str,
+        subtitle_id: str,
+        language: str = "",
+        file_path: str = "",
+        title: str = "",
+        reason: str = "",
+    ) -> int:
         """Add a subtitle to the blacklist. Returns the entry ID.
 
         Uses INSERT OR IGNORE semantics via checking existence first.
@@ -61,9 +67,7 @@ class BlacklistRepository(BaseRepository):
 
     def clear_blacklist(self) -> int:
         """Remove all blacklist entries. Returns count deleted."""
-        count = self.session.execute(
-            select(func.count()).select_from(BlacklistEntry)
-        ).scalar()
+        count = self.session.execute(select(func.count()).select_from(BlacklistEntry)).scalar()
         self.session.query(BlacklistEntry).delete()
         self._commit()
         return count or 0
@@ -86,9 +90,7 @@ class BlacklistRepository(BaseRepository):
         """
         offset = (page - 1) * per_page
 
-        count = self.session.execute(
-            select(func.count()).select_from(BlacklistEntry)
-        ).scalar() or 0
+        count = self.session.execute(select(func.count()).select_from(BlacklistEntry)).scalar() or 0
 
         stmt = (
             select(BlacklistEntry)
@@ -109,6 +111,4 @@ class BlacklistRepository(BaseRepository):
 
     def get_blacklist_count(self) -> int:
         """Get total number of blacklisted subtitles."""
-        return self.session.execute(
-            select(func.count()).select_from(BlacklistEntry)
-        ).scalar() or 0
+        return self.session.execute(select(func.count()).select_from(BlacklistEntry)).scalar() or 0

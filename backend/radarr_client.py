@@ -38,6 +38,7 @@ def get_radarr_client(instance_name=None):
             return _clients_cache[instance_name]
 
         from config import get_radarr_instances
+
         instances = get_radarr_instances()
         for inst in instances:
             if inst.get("name") == instance_name:
@@ -52,6 +53,7 @@ def get_radarr_client(instance_name=None):
         return _client
 
     from config import get_radarr_instances
+
     instances = get_radarr_instances()
     if instances:
         # Use first instance
@@ -100,12 +102,19 @@ class RadarrClient:
                             wait_seconds = 60
                     else:
                         wait_seconds = 60
-                    logger.warning("Radarr GET %s rate limited (attempt %d), waiting %ds", path, attempt, wait_seconds)
+                    logger.warning(
+                        "Radarr GET %s rate limited (attempt %d), waiting %ds",
+                        path,
+                        attempt,
+                        wait_seconds,
+                    )
                     if attempt < MAX_RETRIES:
                         time.sleep(wait_seconds)
                         continue
                     else:
-                        logger.error("Radarr GET %s rate limited after %d attempts", path, MAX_RETRIES)
+                        logger.error(
+                            "Radarr GET %s rate limited after %d attempts", path, MAX_RETRIES
+                        )
                         return None
                 resp.raise_for_status()
                 return resp.json()
@@ -140,12 +149,19 @@ class RadarrClient:
                             wait_seconds = 60
                     else:
                         wait_seconds = 60
-                    logger.warning("Radarr POST %s rate limited (attempt %d), waiting %ds", path, attempt, wait_seconds)
+                    logger.warning(
+                        "Radarr POST %s rate limited (attempt %d), waiting %ds",
+                        path,
+                        attempt,
+                        wait_seconds,
+                    )
                     if attempt < MAX_RETRIES:
                         time.sleep(wait_seconds)
                         continue
                     else:
-                        logger.error("Radarr POST %s rate limited after %d attempts", path, MAX_RETRIES)
+                        logger.error(
+                            "Radarr POST %s rate limited after %d attempts", path, MAX_RETRIES
+                        )
                         return None
                 resp.raise_for_status()
                 return resp.json() if resp.content else {}
@@ -208,12 +224,16 @@ class RadarrClient:
             list: List of anime movie dicts
         """
         tags = self.get_tags()
-        anime_tag_ids = set(t["id"] for t in tags if t.get("label", "").lower() == anime_tag.lower())
+        anime_tag_ids = set(
+            t["id"] for t in tags if t.get("label", "").lower() == anime_tag.lower()
+        )
 
         all_movies = self.get_movies()
         anime_movies = []
         for movie in all_movies:
-            has_tag = anime_tag_ids and any(tag_id in anime_tag_ids for tag_id in movie.get("tags", []))
+            has_tag = anime_tag_ids and any(
+                tag_id in anime_tag_ids for tag_id in movie.get("tags", [])
+            )
             has_anime_genre = "anime" in [g.lower() for g in movie.get("genres", [])]
             if has_tag or has_anime_genre:
                 anime_movies.append(movie)
@@ -227,10 +247,13 @@ class RadarrClient:
         Returns:
             bool: True if command was sent successfully
         """
-        result = self._post("/command", data={
-            "name": "RescanMovie",
-            "movieId": movie_id,
-        })
+        result = self._post(
+            "/command",
+            data={
+                "name": "RescanMovie",
+                "movieId": movie_id,
+            },
+        )
         if result is not None:
             logger.info("Triggered Radarr RescanMovie for movie %d", movie_id)
             return True
@@ -304,10 +327,12 @@ class RadarrClient:
                     name = str(notif.get("name", "")).lower()
                     implementation = str(notif.get("implementation", "")).lower()
                     if "sublarr" in name or "sublarr" in implementation:
-                        report["webhook_status"]["sublarr_webhooks"].append({
-                            "name": notif.get("name", ""),
-                            "implementation": notif.get("implementation", ""),
-                        })
+                        report["webhook_status"]["sublarr_webhooks"].append(
+                            {
+                                "name": notif.get("name", ""),
+                                "implementation": notif.get("implementation", ""),
+                            }
+                        )
         except Exception as exc:
             logger.debug("Extended health check: notification query failed: %s", exc)
 
@@ -316,10 +341,12 @@ class RadarrClient:
             health = self._get("/health")
             if health is not None:
                 for item in health:
-                    report["health_issues"].append({
-                        "type": item.get("type", ""),
-                        "message": item.get("message", ""),
-                    })
+                    report["health_issues"].append(
+                        {
+                            "type": item.get("type", ""),
+                            "message": item.get("message", ""),
+                        }
+                    )
         except Exception as exc:
             logger.debug("Extended health check: health query failed: %s", exc)
 
@@ -335,14 +362,18 @@ class RadarrClient:
         result = []
 
         for movie in movies:
-            result.append({
-                "id": movie.get("id"),
-                "title": movie.get("title"),
-                "year": movie.get("year"),
-                "has_file": movie.get("hasFile", False),
-                "path": movie.get("path"),
-                "poster": movie.get("images", [{}])[0].get("remoteUrl", "") if movie.get("images") else "",
-                "status": movie.get("status"),
-            })
+            result.append(
+                {
+                    "id": movie.get("id"),
+                    "title": movie.get("title"),
+                    "year": movie.get("year"),
+                    "has_file": movie.get("hasFile", False),
+                    "path": movie.get("path"),
+                    "poster": movie.get("images", [{}])[0].get("remoteUrl", "")
+                    if movie.get("images")
+                    else "",
+                    "status": movie.get("status"),
+                }
+            )
 
         return result

@@ -41,7 +41,8 @@ class CacheRepository(BaseRepository):
         """
         try:
             from flask import current_app
-            cache_backend = getattr(current_app, 'cache_backend', None)
+
+            cache_backend = getattr(current_app, "cache_backend", None)
             if cache_backend:
                 return cache_backend.clear(prefix=prefix)
         except (RuntimeError, ImportError):
@@ -98,7 +99,7 @@ class CacheRepository(BaseRepository):
         results = []
 
         # Match on the directory path since subtitle files share the base name
-        base = file_path.rsplit('.', 1)[0] if '.' in file_path else file_path
+        base = file_path.rsplit(".", 1)[0] if "." in file_path else file_path
         like_pattern = base + "%"
 
         # Subtitle downloads
@@ -115,15 +116,17 @@ class CacheRepository(BaseRepository):
         ).all()
 
         for r in dl_rows:
-            results.append({
-                "action": "download",
-                "provider_name": r.provider_name,
-                "format": r.format,
-                "score": r.score,
-                "date": r.downloaded_at,
-                "status": "completed",
-                "error": "",
-            })
+            results.append(
+                {
+                    "action": "download",
+                    "provider_name": r.provider_name,
+                    "format": r.format,
+                    "score": r.score,
+                    "date": r.downloaded_at,
+                    "status": "completed",
+                    "error": "",
+                }
+            )
 
         # Translation jobs
         job_rows = self.session.execute(
@@ -141,15 +144,17 @@ class CacheRepository(BaseRepository):
         ).all()
 
         for r in job_rows:
-            results.append({
-                "action": "translate",
-                "provider_name": "",
-                "format": r.source_format or "",
-                "score": 0,
-                "date": r.created_at,
-                "status": r.status,
-                "error": r.error or "",
-            })
+            results.append(
+                {
+                    "action": "translate",
+                    "provider_name": "",
+                    "format": r.source_format or "",
+                    "score": 0,
+                    "date": r.created_at,
+                    "status": r.status,
+                    "error": r.error or "",
+                }
+            )
 
         # Sort combined results by date descending
         results.sort(key=lambda x: x["date"], reverse=True)
@@ -164,6 +169,7 @@ class CacheRepository(BaseRepository):
             AniDB ID as int, or None if not found or expired.
         """
         from config import get_settings
+
         settings = get_settings()
 
         mapping = self.session.get(AnidbMapping, tvdb_id)
@@ -177,7 +183,9 @@ class CacheRepository(BaseRepository):
                 last_used = datetime.fromisoformat(mapping.last_used)
                 age_days = (datetime.utcnow() - last_used).days
                 if age_days > cache_ttl_days:
-                    logger.debug("AniDB mapping for TVDB %d expired (age: %d days)", tvdb_id, age_days)
+                    logger.debug(
+                        "AniDB mapping for TVDB %d expired (age: %d days)", tvdb_id, age_days
+                    )
                     return None
             except (ValueError, TypeError):
                 return None
@@ -217,9 +225,7 @@ class CacheRepository(BaseRepository):
             Number of mappings deleted.
         """
         cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
-        result = self.session.execute(
-            delete(AnidbMapping).where(AnidbMapping.last_used < cutoff)
-        )
+        result = self.session.execute(delete(AnidbMapping).where(AnidbMapping.last_used < cutoff))
         self._commit()
         deleted = result.rowcount
         if deleted > 0:
@@ -232,20 +238,14 @@ class CacheRepository(BaseRepository):
         Returns:
             Dict with total_mappings, oldest_entry, newest_entry.
         """
-        total = self.session.execute(
-            select(func.count()).select_from(AnidbMapping)
-        ).scalar() or 0
+        total = self.session.execute(select(func.count()).select_from(AnidbMapping)).scalar() or 0
 
         oldest = self.session.execute(
-            select(AnidbMapping.created_at)
-            .order_by(AnidbMapping.created_at.asc())
-            .limit(1)
+            select(AnidbMapping.created_at).order_by(AnidbMapping.created_at.asc()).limit(1)
         ).scalar_one_or_none()
 
         newest = self.session.execute(
-            select(AnidbMapping.created_at)
-            .order_by(AnidbMapping.created_at.desc())
-            .limit(1)
+            select(AnidbMapping.created_at).order_by(AnidbMapping.created_at.desc()).limit(1)
         ).scalar_one_or_none()
 
         return {

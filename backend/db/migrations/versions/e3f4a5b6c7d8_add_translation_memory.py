@@ -32,8 +32,7 @@ def upgrade():
         sa.Column("translated_text", sa.Text(), nullable=False),
         sa.Column("created_at", sa.Text(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("source_lang", "target_lang", "text_hash",
-                            name="uq_tm_lang_hash"),
+        sa.UniqueConstraint("source_lang", "target_lang", "text_hash", name="uq_tm_lang_hash"),
     )
     # Fast exact-match lookup by (source_lang, target_lang, text_hash)
     op.create_index(

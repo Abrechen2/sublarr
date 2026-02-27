@@ -67,10 +67,12 @@ def start_scan():
 
     with _scan_lock:
         if _scan_state["running"]:
-            return jsonify({
-                "status": "already_running",
-                "scan_id": _scan_state["scan_id"],
-            }), 409
+            return jsonify(
+                {
+                    "status": "already_running",
+                    "scan_id": _scan_state["scan_id"],
+                }
+            ), 409
 
         scan_id = str(uuid.uuid4())
         _scan_state["running"] = True
@@ -84,6 +86,7 @@ def start_scan():
 
     def _run_scan():
         from dedup_engine import scan_for_duplicates
+
         try:
             result = scan_for_duplicates(media_path, socketio=socketio)
             with _scan_lock:
@@ -130,11 +133,13 @@ def scan_status():
                     nullable: true
     """
     with _scan_lock:
-        return jsonify({
-            "running": _scan_state["running"],
-            "scan_id": _scan_state["scan_id"],
-            "result": _scan_state["result"],
-        })
+        return jsonify(
+            {
+                "running": _scan_state["running"],
+                "scan_id": _scan_state["scan_id"],
+                "result": _scan_state["result"],
+            }
+        )
 
 
 @bp.route("/duplicates", methods=["GET"])
@@ -183,12 +188,14 @@ def get_duplicates():
     end = start + per_page
     paginated = all_groups[start:end]
 
-    return jsonify({
-        "groups": paginated,
-        "total": total,
-        "page": page,
-        "per_page": per_page,
-    })
+    return jsonify(
+        {
+            "groups": paginated,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+        }
+    )
 
 
 @bp.route("/duplicates/delete", methods=["POST"])
@@ -260,9 +267,7 @@ def delete_duplicates():
         if not delete_paths:
             return jsonify({"error": f"Group {i}: delete list is empty"}), 400
         if keep in delete_paths:
-            return jsonify({
-                "error": f"Group {i}: keep path '{keep}' is in the delete list"
-            }), 400
+            return jsonify({"error": f"Group {i}: keep path '{keep}' is in the delete list"}), 400
 
     # Execute deletions
     results = []
@@ -278,11 +283,13 @@ def delete_duplicates():
         total_deleted += result["deleted"]
         total_bytes_freed += result["bytes_freed"]
 
-    return jsonify({
-        "total_deleted": total_deleted,
-        "total_bytes_freed": total_bytes_freed,
-        "results": results,
-    })
+    return jsonify(
+        {
+            "total_deleted": total_deleted,
+            "total_bytes_freed": total_bytes_freed,
+            "results": results,
+        }
+    )
 
 
 # ---- Orphaned Subtitle Endpoints ----------------------------------------------
@@ -327,10 +334,12 @@ def scan_orphaned():
             _orphan_state["result"] = result
             _orphan_state["running"] = False
 
-        return jsonify({
-            "orphaned": result,
-            "count": len(result),
-        })
+        return jsonify(
+            {
+                "orphaned": result,
+                "count": len(result),
+            }
+        )
     except Exception as e:
         with _orphan_lock:
             _orphan_state["running"] = False
@@ -364,12 +373,16 @@ def get_orphaned():
         result = _orphan_state["result"]
 
     if result is None:
-        return jsonify({"orphaned": [], "count": 0, "message": "No scan results available. Run a scan first."})
+        return jsonify(
+            {"orphaned": [], "count": 0, "message": "No scan results available. Run a scan first."}
+        )
 
-    return jsonify({
-        "orphaned": result,
-        "count": len(result),
-    })
+    return jsonify(
+        {
+            "orphaned": result,
+            "count": len(result),
+        }
+    )
 
 
 @bp.route("/orphaned/delete", methods=["POST"])
@@ -461,11 +474,13 @@ def delete_orphaned():
     except Exception as e:
         logger.warning("Failed to log orphan cleanup: %s", e)
 
-    return jsonify({
-        "deleted": deleted,
-        "bytes_freed": bytes_freed,
-        "errors": errors,
-    })
+    return jsonify(
+        {
+            "deleted": deleted,
+            "bytes_freed": bytes_freed,
+            "errors": errors,
+        }
+    )
 
 
 # ---- Cleanup Rules Endpoints ---------------------------------------------------
@@ -708,16 +723,19 @@ def run_rule(rule_id: int):
         elif rule["rule_type"] == "orphaned":
             result = scan_orphaned_subtitles(media_path)
             repo.update_rule_last_run(rule_id)
-            return jsonify({
-                "status": "completed",
-                "rule": rule["name"],
-                "orphaned": result,
-                "count": len(result),
-            })
+            return jsonify(
+                {
+                    "status": "completed",
+                    "rule": rule["name"],
+                    "orphaned": result,
+                    "count": len(result),
+                }
+            )
 
         elif rule["rule_type"] == "old_backups":
             # Scan for .bak files and report
             import os
+
             bak_files = []
             for root, _dirs, files in os.walk(media_path):
                 for filename in files:
@@ -730,13 +748,15 @@ def run_rule(rule_id: int):
                         bak_files.append({"path": full_path, "size": size})
 
             repo.update_rule_last_run(rule_id)
-            return jsonify({
-                "status": "completed",
-                "rule": rule["name"],
-                "backup_files": bak_files,
-                "count": len(bak_files),
-                "total_size": sum(f["size"] for f in bak_files),
-            })
+            return jsonify(
+                {
+                    "status": "completed",
+                    "rule": rule["name"],
+                    "backup_files": bak_files,
+                    "count": len(bak_files),
+                    "total_size": sum(f["size"] for f in bak_files),
+                }
+            )
 
         else:
             return jsonify({"error": f"Unknown rule type: {rule['rule_type']}"}), 400
@@ -785,15 +805,17 @@ def cleanup_stats():
             for fmt, v in raw_by_format.items()
         ]
 
-        return jsonify({
-            "total_files": disk_stats.get("total_files", 0),
-            "total_size_bytes": disk_stats.get("total_size_bytes", 0),
-            "by_format": by_format,
-            "duplicate_files": disk_stats.get("duplicate_count", 0),
-            "duplicate_size_bytes": disk_stats.get("duplicate_size_bytes", 0),
-            "potential_savings_bytes": disk_stats.get("potential_savings_bytes", 0),
-            "trends": disk_stats.get("recent_cleanups", []),
-        })
+        return jsonify(
+            {
+                "total_files": disk_stats.get("total_files", 0),
+                "total_size_bytes": disk_stats.get("total_size_bytes", 0),
+                "by_format": by_format,
+                "duplicate_files": disk_stats.get("duplicate_count", 0),
+                "duplicate_size_bytes": disk_stats.get("duplicate_size_bytes", 0),
+                "potential_savings_bytes": disk_stats.get("potential_savings_bytes", 0),
+                "trends": disk_stats.get("recent_cleanups", []),
+            }
+        )
     except Exception as e:
         logger.error("Cleanup stats failed: %s", e)
         return jsonify({"error": str(e)}), 500
@@ -915,23 +937,28 @@ def preview_cleanup():
                 for f in sorted_files[1:]:
                     affected.append(f)
 
-            return jsonify({
-                "action": "dedup",
-                "affected_files": affected,
-                "total_size": sum(f["size"] for f in affected),
-                "groups": len(groups),
-            })
+            return jsonify(
+                {
+                    "action": "dedup",
+                    "affected_files": affected,
+                    "total_size": sum(f["size"] for f in affected),
+                    "groups": len(groups),
+                }
+            )
 
         elif action == "orphaned":
             from dedup_engine import scan_orphaned_subtitles
+
             orphaned = scan_orphaned_subtitles(media_path)
 
-            return jsonify({
-                "action": "orphaned",
-                "affected_files": orphaned,
-                "total_size": sum(f["size"] for f in orphaned),
-                "count": len(orphaned),
-            })
+            return jsonify(
+                {
+                    "action": "orphaned",
+                    "affected_files": orphaned,
+                    "total_size": sum(f["size"] for f in orphaned),
+                    "count": len(orphaned),
+                }
+            )
 
         elif action == "rule":
             rule_id = params.get("rule_id")
@@ -951,31 +978,38 @@ def preview_cleanup():
                     sorted_files = sorted(g["files"], key=lambda f: f["size"], reverse=True)
                     for f in sorted_files[1:]:
                         affected.append(f)
-                return jsonify({
-                    "action": "rule",
-                    "rule": rule["name"],
-                    "affected_files": affected,
-                    "total_size": sum(f["size"] for f in affected),
-                })
+                return jsonify(
+                    {
+                        "action": "rule",
+                        "rule": rule["name"],
+                        "affected_files": affected,
+                        "total_size": sum(f["size"] for f in affected),
+                    }
+                )
 
             elif rule["rule_type"] == "orphaned":
                 from dedup_engine import scan_orphaned_subtitles
+
                 orphaned = scan_orphaned_subtitles(media_path)
-                return jsonify({
-                    "action": "rule",
-                    "rule": rule["name"],
-                    "affected_files": orphaned,
-                    "total_size": sum(f["size"] for f in orphaned),
-                })
+                return jsonify(
+                    {
+                        "action": "rule",
+                        "rule": rule["name"],
+                        "affected_files": orphaned,
+                        "total_size": sum(f["size"] for f in orphaned),
+                    }
+                )
 
             else:
-                return jsonify({
-                    "action": "rule",
-                    "rule": rule["name"],
-                    "affected_files": [],
-                    "total_size": 0,
-                    "message": f"Preview not available for rule type: {rule['rule_type']}",
-                })
+                return jsonify(
+                    {
+                        "action": "rule",
+                        "rule": rule["name"],
+                        "affected_files": [],
+                        "total_size": 0,
+                        "message": f"Preview not available for rule type: {rule['rule_type']}",
+                    }
+                )
 
     except Exception as e:
         logger.error("Preview failed: %s", e)

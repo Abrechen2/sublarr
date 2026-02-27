@@ -38,6 +38,7 @@ def get_sonarr_client(instance_name=None):
             return _clients_cache[instance_name]
 
         from config import get_sonarr_instances
+
         instances = get_sonarr_instances()
         for inst in instances:
             if inst.get("name") == instance_name:
@@ -52,6 +53,7 @@ def get_sonarr_client(instance_name=None):
         return _client
 
     from config import get_sonarr_instances
+
     instances = get_sonarr_instances()
     if instances:
         # Use first instance
@@ -100,12 +102,19 @@ class SonarrClient:
                             wait_seconds = 60
                     else:
                         wait_seconds = 60
-                    logger.warning("Sonarr GET %s rate limited (attempt %d), waiting %ds", path, attempt, wait_seconds)
+                    logger.warning(
+                        "Sonarr GET %s rate limited (attempt %d), waiting %ds",
+                        path,
+                        attempt,
+                        wait_seconds,
+                    )
                     if attempt < MAX_RETRIES:
                         time.sleep(wait_seconds)
                         continue
                     else:
-                        logger.error("Sonarr GET %s rate limited after %d attempts", path, MAX_RETRIES)
+                        logger.error(
+                            "Sonarr GET %s rate limited after %d attempts", path, MAX_RETRIES
+                        )
                         return None
                 resp.raise_for_status()
                 return resp.json()
@@ -140,12 +149,19 @@ class SonarrClient:
                             wait_seconds = 60
                     else:
                         wait_seconds = 60
-                    logger.warning("Sonarr POST %s rate limited (attempt %d), waiting %ds", path, attempt, wait_seconds)
+                    logger.warning(
+                        "Sonarr POST %s rate limited (attempt %d), waiting %ds",
+                        path,
+                        attempt,
+                        wait_seconds,
+                    )
                     if attempt < MAX_RETRIES:
                         time.sleep(wait_seconds)
                         continue
                     else:
-                        logger.error("Sonarr POST %s rate limited after %d attempts", path, MAX_RETRIES)
+                        logger.error(
+                            "Sonarr POST %s rate limited after %d attempts", path, MAX_RETRIES
+                        )
                         return None
                 resp.raise_for_status()
                 return resp.json() if resp.content else {}
@@ -267,12 +283,16 @@ class SonarrClient:
             list: List of anime series dicts
         """
         tags = self.get_tags()
-        anime_tag_ids = set(t["id"] for t in tags if t.get("label", "").lower() == anime_tag.lower())
+        anime_tag_ids = set(
+            t["id"] for t in tags if t.get("label", "").lower() == anime_tag.lower()
+        )
 
         all_series = self.get_series()
         anime_series = []
         for series in all_series:
-            has_tag = anime_tag_ids and any(tag_id in anime_tag_ids for tag_id in series.get("tags", []))
+            has_tag = anime_tag_ids and any(
+                tag_id in anime_tag_ids for tag_id in series.get("tags", [])
+            )
             is_anime_type = series.get("seriesType", "").lower() == "anime"
             has_anime_genre = "anime" in [g.lower() for g in series.get("genres", [])]
             if has_tag or is_anime_type or has_anime_genre:
@@ -287,10 +307,13 @@ class SonarrClient:
         Returns:
             bool: True if command was sent successfully
         """
-        result = self._post("/command", data={
-            "name": "RescanSeries",
-            "seriesId": series_id,
-        })
+        result = self._post(
+            "/command",
+            data={
+                "name": "RescanSeries",
+                "seriesId": series_id,
+            },
+        )
         if result is not None:
             logger.info("Triggered Sonarr RescanSeries for series %d", series_id)
             return True
@@ -318,11 +341,8 @@ class SonarrClient:
 
         try:
             from anidb_mapper import get_anidb_id
-            anidb_id = get_anidb_id(
-                tvdb_id=tvdb_id,
-                series_title=series_title,
-                series=series
-            )
+
+            anidb_id = get_anidb_id(tvdb_id=tvdb_id, series_title=series_title, series=series)
         except Exception as e:
             logger.debug("Failed to resolve AniDB ID: %s", e)
 
@@ -404,10 +424,12 @@ class SonarrClient:
                     name = str(notif.get("name", "")).lower()
                     implementation = str(notif.get("implementation", "")).lower()
                     if "sublarr" in name or "sublarr" in implementation:
-                        report["webhook_status"]["sublarr_webhooks"].append({
-                            "name": notif.get("name", ""),
-                            "implementation": notif.get("implementation", ""),
-                        })
+                        report["webhook_status"]["sublarr_webhooks"].append(
+                            {
+                                "name": notif.get("name", ""),
+                                "implementation": notif.get("implementation", ""),
+                            }
+                        )
         except Exception as exc:
             logger.debug("Extended health check: notification query failed: %s", exc)
 
@@ -416,10 +438,12 @@ class SonarrClient:
             health = self._get("/health")
             if health is not None:
                 for item in health:
-                    report["health_issues"].append({
-                        "type": item.get("type", ""),
-                        "message": item.get("message", ""),
-                    })
+                    report["health_issues"].append(
+                        {
+                            "type": item.get("type", ""),
+                            "message": item.get("message", ""),
+                        }
+                    )
         except Exception as exc:
             logger.debug("Extended health check: health query failed: %s", exc)
 
@@ -437,16 +461,22 @@ class SonarrClient:
         for series in series_list:
             # Sonarr v3 nests counts under "statistics"
             stats = series.get("statistics", {})
-            result.append({
-                "id": series.get("id"),
-                "title": series.get("title"),
-                "year": series.get("year"),
-                "seasons": stats.get("seasonCount", series.get("seasonCount", 0)),
-                "episodes": stats.get("episodeCount", series.get("episodeCount", 0)),
-                "episodes_with_files": stats.get("episodeFileCount", series.get("episodeFileCount", 0)),
-                "path": series.get("path"),
-                "poster": series.get("images", [{}])[0].get("remoteUrl", "") if series.get("images") else "",
-                "status": series.get("status"),
-            })
+            result.append(
+                {
+                    "id": series.get("id"),
+                    "title": series.get("title"),
+                    "year": series.get("year"),
+                    "seasons": stats.get("seasonCount", series.get("seasonCount", 0)),
+                    "episodes": stats.get("episodeCount", series.get("episodeCount", 0)),
+                    "episodes_with_files": stats.get(
+                        "episodeFileCount", series.get("episodeFileCount", 0)
+                    ),
+                    "path": series.get("path"),
+                    "poster": series.get("images", [{}])[0].get("remoteUrl", "")
+                    if series.get("images")
+                    else "",
+                    "status": series.get("status"),
+                }
+            )
 
         return result

@@ -199,6 +199,7 @@ def collect_queue_metrics() -> None:
     try:
         from db.jobs import get_pending_job_count
         from db.wanted import get_wanted_summary
+
         JOB_QUEUE_SIZE.set(get_pending_job_count())
         summary = get_wanted_summary()
         WANTED_QUEUE_SIZE.set(summary.get("wanted", 0))
@@ -225,12 +226,11 @@ def collect_circuit_breaker_metrics() -> None:
 
     try:
         from providers import get_provider_manager
+
         manager = get_provider_manager()
         state_map = {"closed": 0, "open": 1, "half_open": 2}
         for name, cb in manager._circuit_breakers.items():
-            CIRCUIT_BREAKER_STATE.labels(provider=name).set(
-                state_map.get(cb.state.value, -1)
-            )
+            CIRCUIT_BREAKER_STATE.labels(provider=name).set(state_map.get(cb.state.value, -1))
     except Exception as exc:
         logger.debug("Failed to collect circuit breaker metrics: %s", exc)
 
@@ -241,9 +241,10 @@ def collect_db_pool_metrics() -> None:
         return
     try:
         from extensions import db as sa_db
+
         pool = sa_db.engine.pool
         # NullPool (SQLite) doesn't have these attrs
-        if hasattr(pool, 'size'):
+        if hasattr(pool, "size"):
             DB_POOL_SIZE.set(pool.size())
             DB_POOL_CHECKED_OUT.set(pool.checkedout())
             DB_POOL_OVERFLOW.set(pool.overflow())
@@ -258,7 +259,8 @@ def collect_cache_metrics() -> None:
         return
     try:
         from flask import current_app
-        cache = getattr(current_app, 'cache_backend', None)
+
+        cache = getattr(current_app, "cache_backend", None)
         if cache:
             stats = cache.get_stats()
             backend = stats.get("backend", "unknown")
@@ -274,8 +276,9 @@ def collect_redis_metrics() -> None:
         return
     try:
         from flask import current_app
-        cache = getattr(current_app, 'cache_backend', None)
-        if cache and hasattr(cache, 'redis'):
+
+        cache = getattr(current_app, "cache_backend", None)
+        if cache and hasattr(cache, "redis"):
             REDIS_CONNECTED.set(1)
             info = cache.redis.info("memory")
             REDIS_MEMORY_USED.set(info.get("used_memory", 0))
@@ -291,7 +294,8 @@ def collect_queue_job_metrics() -> None:
         return
     try:
         from flask import current_app
-        queue = getattr(current_app, 'job_queue', None)
+
+        queue = getattr(current_app, "job_queue", None)
         if queue:
             info = queue.get_backend_info()
             backend = info.get("type", "unknown")

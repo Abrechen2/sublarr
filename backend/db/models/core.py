@@ -4,7 +4,6 @@ All column types and defaults match the existing SCHEMA DDL in db/__init__.py ex
 Timestamp columns use Text (not DateTime) to preserve backward compatibility.
 """
 
-
 from sqlalchemy import Float, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -44,9 +43,7 @@ class DailyStats(db.Model):
     translated: Mapped[int | None] = mapped_column(Integer, default=0)
     failed: Mapped[int | None] = mapped_column(Integer, default=0)
     skipped: Mapped[int | None] = mapped_column(Integer, default=0)
-    by_format_json: Mapped[str | None] = mapped_column(
-        Text, default='{"ass": 0, "srt": 0}'
-    )
+    by_format_json: Mapped[str | None] = mapped_column(Text, default='{"ass": 0, "srt": 0}')
     by_source_json: Mapped[str | None] = mapped_column(Text, default="{}")
 
 
@@ -104,8 +101,9 @@ class WantedItem(db.Model):
         Index("idx_wanted_retry_after", "retry_after"),
         # Prevent duplicate entries for the same file + language + subtitle type.
         # The upsert logic relies on this for race-condition safety.
-        UniqueConstraint("file_path", "target_language", "subtitle_type",
-                         name="uq_wanted_file_lang_type"),
+        UniqueConstraint(
+            "file_path", "target_language", "subtitle_type", name="uq_wanted_file_lang_type"
+        ),
     )
 
 
@@ -135,25 +133,15 @@ class LanguageProfile(db.Model):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     source_language: Mapped[str] = mapped_column(Text, nullable=False, default="en")
-    source_language_name: Mapped[str] = mapped_column(
-        Text, nullable=False, default="English"
-    )
-    target_languages_json: Mapped[str] = mapped_column(
-        Text, nullable=False, default='["de"]'
-    )
+    source_language_name: Mapped[str] = mapped_column(Text, nullable=False, default="English")
+    target_languages_json: Mapped[str] = mapped_column(Text, nullable=False, default='["de"]')
     target_language_names_json: Mapped[str] = mapped_column(
         Text, nullable=False, default='["German"]'
     )
     is_default: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    translation_backend: Mapped[str | None] = mapped_column(
-        Text, default="ollama"
-    )
-    fallback_chain_json: Mapped[str | None] = mapped_column(
-        Text, default='["ollama"]'
-    )
-    forced_preference: Mapped[str | None] = mapped_column(
-        Text, default="disabled"
-    )
+    translation_backend: Mapped[str | None] = mapped_column(Text, default="ollama")
+    fallback_chain_json: Mapped[str | None] = mapped_column(Text, default='["ollama"]')
+    forced_preference: Mapped[str | None] = mapped_column(Text, default="disabled")
     created_at: Mapped[str] = mapped_column(Text, nullable=False)
     updated_at: Mapped[str] = mapped_column(Text, nullable=False)
 
@@ -219,19 +207,20 @@ class BlacklistEntry(db.Model):
 
 class FilterPreset(db.Model):
     """Saved filter configurations per page scope."""
+
     __tablename__ = "filter_presets"
 
-    id:          Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name:        Mapped[str] = mapped_column(String(100), nullable=False)
-    scope:       Mapped[str] = mapped_column(String(50), nullable=False)   # 'wanted'|'library'|'history'
-    conditions:  Mapped[str] = mapped_column(Text, nullable=False, default="{}")  # JSON condition tree
-    is_default:  Mapped[int] = mapped_column(Integer, nullable=False, default=0)   # 1 = auto-apply
-    created_at:  Mapped[str] = mapped_column(Text, nullable=False)
-    updated_at:  Mapped[str] = mapped_column(Text, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    scope: Mapped[str] = mapped_column(String(50), nullable=False)  # 'wanted'|'library'|'history'
+    conditions: Mapped[str] = mapped_column(
+        Text, nullable=False, default="{}"
+    )  # JSON condition tree
+    is_default: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 1 = auto-apply
+    created_at: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
 
-    __table_args__ = (
-        Index("idx_filter_presets_scope", "scope"),
-    )
+    __table_args__ = (Index("idx_filter_presets_scope", "scope"),)
 
 
 class AnidbAbsoluteMapping(db.Model):
@@ -240,15 +229,16 @@ class AnidbAbsoluteMapping(db.Model):
     Populated by the weekly AniDB sync job that fetches the anime-lists XML.
     The unique constraint on (tvdb_id, season, episode) enables safe upserts.
     """
+
     __tablename__ = "anidb_absolute_mappings"
 
-    id:                     Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tvdb_id:                Mapped[int] = mapped_column(Integer, nullable=False)
-    season:                 Mapped[int] = mapped_column(Integer, nullable=False)
-    episode:                Mapped[int] = mapped_column(Integer, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tvdb_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    season: Mapped[int] = mapped_column(Integer, nullable=False)
+    episode: Mapped[int] = mapped_column(Integer, nullable=False)
     anidb_absolute_episode: Mapped[int] = mapped_column(Integer, nullable=False)
-    updated_at:             Mapped[str] = mapped_column(Text, nullable=False)
-    source:                 Mapped[str | None] = mapped_column(Text, default="")
+    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    source: Mapped[str | None] = mapped_column(Text, default="")
 
     __table_args__ = (
         UniqueConstraint("tvdb_id", "season", "episode", name="uq_anidb_tvdb_se"),
@@ -263,11 +253,12 @@ class SeriesSettings(db.Model):
     absolute_order=1 means the series uses AniDB absolute episode ordering
     instead of TVDB season/episode numbering when searching providers.
     """
+
     __tablename__ = "series_settings"
 
     sonarr_series_id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    absolute_order:   Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0=off, 1=on
-    updated_at:       Mapped[str] = mapped_column(Text, nullable=False)
+    absolute_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0=off, 1=on
+    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
 
 
 __all__ = [

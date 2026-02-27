@@ -125,6 +125,7 @@ def mock_provider_manager(monkeypatch):
 @pytest.fixture
 def create_test_subtitle(temp_dir):
     """Factory fixture to create test subtitle files (ASS or SRT)."""
+
     def _create(fmt="ass", lang="en", lines=None):
         if lines is None:
             lines = ["Hello World", "How are you"]
@@ -137,16 +138,18 @@ def create_test_subtitle(temp_dir):
             content += "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
             content += "Style: Default,Arial,20,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1\n\n"
             content += "[Events]\n"
-            content += "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+            content += (
+                "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+            )
             for i, line in enumerate(lines):
-                start = f"0:00:{i*3+1:02d}.00"
-                end = f"0:00:{i*3+3:02d}.00"
+                start = f"0:00:{i * 3 + 1:02d}.00"
+                end = f"0:00:{i * 3 + 3:02d}.00"
                 content += f"Dialogue: 0,{start},{end},Default,,0,0,0,,{line}\n"
             path = str(base_path) + ".ass"
         else:
             content = ""
             for i, line in enumerate(lines, 1):
-                content += f"{i}\n00:00:{(i-1)*3+1:02d},000 --> 00:00:{(i-1)*3+3:02d},000\n{line}\n\n"
+                content += f"{i}\n00:00:{(i - 1) * 3 + 1:02d},000 --> 00:00:{(i - 1) * 3 + 3:02d},000\n{line}\n\n"
             path = str(base_path) + ".srt"
 
         Path(path).write_text(content, encoding="utf-8")

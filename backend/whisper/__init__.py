@@ -84,15 +84,17 @@ class WhisperManager:
             config = self._load_backend_config(name)
             has_config = bool(config)
 
-            result.append({
-                "name": cls.name,
-                "display_name": cls.display_name,
-                "config_fields": cls.config_fields,
-                "configured": has_config,
-                "active": name == active_name,
-                "supports_gpu": cls.supports_gpu,
-                "supports_language_detection": cls.supports_language_detection,
-            })
+            result.append(
+                {
+                    "name": cls.name,
+                    "display_name": cls.display_name,
+                    "config_fields": cls.config_fields,
+                    "configured": has_config,
+                    "active": name == active_name,
+                    "supports_gpu": cls.supports_gpu,
+                    "supports_language_detection": cls.supports_language_detection,
+                }
+            )
         return result
 
     def transcribe(
@@ -166,11 +168,12 @@ class WhisperManager:
         config = {}
         try:
             from db.config import get_all_config_entries
+
             all_entries = get_all_config_entries()
             prefix = f"whisper.{name}."
             for key, value in all_entries.items():
                 if key.startswith(prefix):
-                    short_key = key[len(prefix):]
+                    short_key = key[len(prefix) :]
                     config[short_key] = value
         except Exception as e:
             logger.debug("Could not load config_entries for whisper backend %s: %s", name, e)
@@ -185,6 +188,7 @@ class WhisperManager:
         """
         try:
             from db.config import get_config_entry
+
             name = get_config_entry("whisper_backend")
             if name and name in self._backend_classes:
                 return name
@@ -197,6 +201,7 @@ class WhisperManager:
         if self._circuit_breaker is None:
             try:
                 from config import get_settings
+
                 settings = get_settings()
                 threshold = settings.circuit_breaker_failure_threshold
                 cooldown = settings.circuit_breaker_cooldown_seconds
@@ -236,6 +241,7 @@ def _register_builtin_backends(manager: WhisperManager) -> None:
     # faster-whisper: optional dependency (faster_whisper package may not be installed)
     try:
         from whisper.faster_whisper_backend import FasterWhisperBackend
+
         manager.register_backend(FasterWhisperBackend)
     except ImportError:
         logger.info("Faster Whisper backend not available (faster-whisper package not installed)")
@@ -243,6 +249,7 @@ def _register_builtin_backends(manager: WhisperManager) -> None:
     # Subgen: uses stdlib requests (always available)
     try:
         from whisper.subgen_backend import SubgenBackend
+
         manager.register_backend(SubgenBackend)
     except ImportError:
         logger.info("Subgen backend not available (module not found)")

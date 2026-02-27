@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 try:
     from plexapi import exceptions as plex_exceptions
     from plexapi.server import PlexServer as _PlexServer
+
     _HAS_PLEXAPI = True
 except ImportError:
     _PlexServer = None
@@ -70,9 +71,7 @@ class PlexServer(MediaServer):
             Exception: If connection fails
         """
         if not _HAS_PLEXAPI:
-            raise RuntimeError(
-                "plexapi package not installed. Install with: pip install PlexAPI"
-            )
+            raise RuntimeError("plexapi package not installed. Install with: pip install PlexAPI")
 
         if self._server is None:
             self._server = _PlexServer(self.url, self.token)
@@ -149,10 +148,12 @@ class PlexServer(MediaServer):
             report["library_access"]["accessible"] = True
             report["library_access"]["section_count"] = len(sections)
             for section in sections:
-                report["library_access"]["sections"].append({
-                    "title": getattr(section, "title", ""),
-                    "type": getattr(section, "type", ""),
-                })
+                report["library_access"]["sections"].append(
+                    {
+                        "title": getattr(section, "title", ""),
+                        "type": getattr(section, "type", ""),
+                    }
+                )
         except Exception as exc:
             logger.debug("Extended health check: library sections failed: %s", exc)
 
@@ -200,7 +201,8 @@ class PlexServer(MediaServer):
                     item_title = getattr(item, "title", "Unknown")
                     logger.info(
                         "Triggered Plex item refresh for '%s' in section '%s'",
-                        item_title, section.title,
+                        item_title,
+                        section.title,
                     )
                     return RefreshResult(
                         success=True,
@@ -209,9 +211,7 @@ class PlexServer(MediaServer):
                         item_id=str(getattr(item, "ratingKey", "")),
                     )
             except Exception as e:
-                logger.debug(
-                    "Error searching Plex section '%s': %s", section.title, e
-                )
+                logger.debug("Error searching Plex section '%s': %s", section.title, e)
                 continue
 
         # Item not found -- fall back to full library refresh
@@ -236,7 +236,8 @@ class PlexServer(MediaServer):
                 except Exception as e:
                     logger.warning(
                         "Failed to update Plex section '%s': %s",
-                        section.title, e,
+                        section.title,
+                        e,
                     )
             logger.info("Triggered Plex full library refresh (%d sections)", len(sections))
             return RefreshResult(
@@ -265,13 +266,12 @@ class PlexServer(MediaServer):
             Plex item if found, None otherwise
         """
         import os
+
         mapped_dir = os.path.dirname(mapped_file_path)
 
         try:
             # Server-side filter by directory prefix
-            results = section.search(
-                filters={"Media__Part__file__startswith": mapped_dir}
-            )
+            results = section.search(filters={"Media__Part__file__startswith": mapped_dir})
         except Exception:
             # Fallback: some older Plex versions may not support this filter
             logger.debug(
@@ -303,7 +303,10 @@ class PlexServer(MediaServer):
                             for media in episode.media:
                                 for part in media.parts:
                                     if hasattr(part, "file"):
-                                        if mapped_file_path in part.file or part.file in mapped_file_path:
+                                        if (
+                                            mapped_file_path in part.file
+                                            or part.file in mapped_file_path
+                                        ):
                                             return episode
                 except Exception:
                     continue

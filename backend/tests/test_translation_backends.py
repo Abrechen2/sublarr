@@ -19,6 +19,7 @@ from db import _db_lock, close_db, get_db, init_db
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def _isolate_db(tmp_path):
     """Create an isolated temp database for each test, then tear down."""
@@ -38,6 +39,7 @@ def _isolate_db(tmp_path):
 def manager():
     """Return a fresh TranslationManager (no singleton, no builtin backends)."""
     from translation import TranslationManager
+
     return TranslationManager()
 
 
@@ -62,8 +64,7 @@ class MockBackend(TranslationBackend):
         super().__init__(**config)
         self.should_fail = should_fail
 
-    def translate_batch(self, lines, source_lang, target_lang,
-                        glossary_entries=None):
+    def translate_batch(self, lines, source_lang, target_lang, glossary_entries=None):
         if self.should_fail:
             return TranslationResult(
                 translated_lines=[],
@@ -88,6 +89,7 @@ class MockBackend(TranslationBackend):
 
 class MockBackendFail(MockBackend):
     """A second mock backend that always fails (different name for chaining)."""
+
     name = "mock_fail"
     display_name = "Mock Fail"
 
@@ -97,6 +99,7 @@ class MockBackendFail(MockBackend):
 
 class MockBackendAlt(MockBackend):
     """Alternative mock backend that always succeeds (different name)."""
+
     name = "mock_alt"
     display_name = "Mock Alt"
 
@@ -159,9 +162,7 @@ from translation.llm_utils import (
 
 def test_build_translation_prompt_basic():
     """Numbered lines produced, no glossary section."""
-    prompt = build_prompt_with_glossary(
-        "Translate:\n", None, ["Hello", "World"]
-    )
+    prompt = build_prompt_with_glossary("Translate:\n", None, ["Hello", "World"])
     assert "1: Hello" in prompt
     assert "2: World" in prompt
     assert "Glossary" not in prompt
@@ -183,10 +184,7 @@ def test_build_translation_prompt_with_glossary():
 
 def test_build_translation_prompt_glossary_max_15():
     """Only the first 15 glossary entries are used."""
-    entries = [
-        {"source_term": f"term_{i}", "target_term": f"ziel_{i}"}
-        for i in range(20)
-    ]
+    entries = [{"source_term": f"term_{i}", "target_term": f"ziel_{i}"} for i in range(20)]
     prompt = build_prompt_with_glossary("T:\n", entries, ["x"])
     assert "term_14" in prompt
     assert "term_15" not in prompt
@@ -276,9 +274,7 @@ def test_get_all_backends_lists_registered(manager):
 def test_translate_with_fallback_success(manager):
     """First backend succeeds, result is returned."""
     manager.register_backend(MockBackend)
-    result = manager.translate_with_fallback(
-        ["Hello"], "en", "de", fallback_chain=["mock"]
-    )
+    result = manager.translate_with_fallback(["Hello"], "en", "de", fallback_chain=["mock"])
     assert result.success is True
     assert result.translated_lines == ["translated:Hello"]
     assert result.backend_name == "mock"
@@ -298,9 +294,7 @@ def test_translate_with_fallback_tries_next(manager):
 def test_translate_with_fallback_all_fail(manager):
     """All backends fail, error result returned."""
     manager.register_backend(MockBackendFail)
-    result = manager.translate_with_fallback(
-        ["Hi"], "en", "de", fallback_chain=["mock_fail"]
-    )
+    result = manager.translate_with_fallback(["Hi"], "en", "de", fallback_chain=["mock_fail"])
     assert result.success is False
     assert "All backends failed" in result.error
 
@@ -433,7 +427,11 @@ def test_resolve_default_profile_backend():
 def test_resolve_series_profile_backend():
     """Series-specific profile returns its own backend setting."""
     pid = create_language_profile(
-        "DeepL Profile", "en", "English", ["de"], ["German"],
+        "DeepL Profile",
+        "en",
+        "English",
+        ["de"],
+        ["German"],
         translation_backend="deepl",
         fallback_chain=["deepl", "ollama"],
     )
@@ -446,7 +444,11 @@ def test_resolve_series_profile_backend():
 def test_fallback_chain_from_profile():
     """Profile's fallback_chain is a list of backend names."""
     pid = create_language_profile(
-        "Chain Test", "en", "English", ["fr"], ["French"],
+        "Chain Test",
+        "en",
+        "English",
+        ["fr"],
+        ["French"],
         translation_backend="openai_compat",
         fallback_chain=["openai_compat", "deepl", "ollama"],
     )
@@ -457,7 +459,11 @@ def test_fallback_chain_from_profile():
 def test_primary_backend_prepended_to_chain():
     """When fallback_chain is default, primary backend is the first entry."""
     pid = create_language_profile(
-        "Primary First", "en", "English", ["de"], ["German"],
+        "Primary First",
+        "en",
+        "English",
+        ["de"],
+        ["German"],
         translation_backend="libretranslate",
     )
     profile = get_language_profile(pid)
@@ -474,6 +480,7 @@ def test_primary_backend_prepended_to_chain():
 def test_ollama_backend_config_fields():
     """OllamaBackend has url, model, temperature fields."""
     from translation.ollama import OllamaBackend
+
     fields = OllamaBackend.config_fields
     keys = [f["key"] for f in fields]
     assert "url" in keys
@@ -484,6 +491,7 @@ def test_ollama_backend_config_fields():
 def test_deepl_backend_config_fields():
     """DeepLBackend has api_key field."""
     from translation.deepl_backend import DeepLBackend
+
     fields = DeepLBackend.config_fields
     keys = [f["key"] for f in fields]
     assert "api_key" in keys
@@ -492,6 +500,7 @@ def test_deepl_backend_config_fields():
 def test_libretranslate_backend_config_fields():
     """LibreTranslateBackend has url and api_key fields."""
     from translation.libretranslate import LibreTranslateBackend
+
     fields = LibreTranslateBackend.config_fields
     keys = [f["key"] for f in fields]
     assert "url" in keys
@@ -501,6 +510,7 @@ def test_libretranslate_backend_config_fields():
 def test_openai_compat_backend_config_fields():
     """OpenAICompatBackend has api_key, base_url, model fields."""
     from translation.openai_compat import OpenAICompatBackend
+
     fields = OpenAICompatBackend.config_fields
     keys = [f["key"] for f in fields]
     assert "api_key" in keys
@@ -511,6 +521,7 @@ def test_openai_compat_backend_config_fields():
 def test_google_backend_config_fields():
     """GoogleTranslateBackend has project_id field."""
     from translation.google_translate import GoogleTranslateBackend
+
     fields = GoogleTranslateBackend.config_fields
     keys = [f["key"] for f in fields]
     assert "project_id" in keys

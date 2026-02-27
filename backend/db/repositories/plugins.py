@@ -37,7 +37,7 @@ class PluginRepository(BaseRepository):
 
         config = {}
         for entry in entries:
-            bare_key = entry.key[len(prefix):]
+            bare_key = entry.key[len(prefix) :]
             config[bare_key] = entry.value
         return config
 
@@ -63,7 +63,7 @@ class PluginRepository(BaseRepository):
 
         configs: dict[str, dict] = {}
         for entry in entries:
-            remainder = entry.key[len(_PLUGIN_PREFIX):]
+            remainder = entry.key[len(_PLUGIN_PREFIX) :]
             parts = remainder.split(".", 1)
             if len(parts) != 2:
                 continue
@@ -80,8 +80,6 @@ class PluginRepository(BaseRepository):
             Number of deleted entries.
         """
         prefix = f"{_PLUGIN_PREFIX}{provider_name}."
-        result = self.session.execute(
-            delete(ConfigEntry).where(ConfigEntry.key.like(f"{prefix}%"))
-        )
+        result = self.session.execute(delete(ConfigEntry).where(ConfigEntry.key.like(f"{prefix}%")))
         self._commit()
         return result.rowcount

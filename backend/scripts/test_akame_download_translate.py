@@ -57,7 +57,9 @@ def main():
             series = s
             break
     if not series:
-        print("Serie 'Akame ga Kill! / Kill the Darkness' nicht gefunden. Vorhandene Serien (Auszug):")
+        print(
+            "Serie 'Akame ga Kill! / Kill the Darkness' nicht gefunden. Vorhandene Serien (Auszug):"
+        )
         for s in series_list[:15]:
             print(" -", s.get("title"))
         return 1
@@ -107,7 +109,9 @@ def main():
             episode_id = ep.get("id")
             break
     if not episode_id:
-        print("Keine Episode mit Datei gefunden. Bitte zuerst in Sonarr eine Episode herunterladen.")
+        print(
+            "Keine Episode mit Datei gefunden. Bitte zuerst in Sonarr eine Episode herunterladen."
+        )
         return 1
 
     print("Episode mit Datei:", episode_id)

@@ -58,7 +58,8 @@ class CircuitBreaker:
                 self._state = CircuitState.HALF_OPEN
                 logger.info(
                     "CircuitBreaker[%s]: OPEN → HALF_OPEN (cooldown %ds elapsed)",
-                    self.name, self.cooldown_seconds,
+                    self.name,
+                    self.cooldown_seconds,
                 )
 
     @property
@@ -87,7 +88,8 @@ class CircuitBreaker:
             if self._state != CircuitState.CLOSED:
                 logger.info(
                     "CircuitBreaker[%s]: %s → CLOSED (success)",
-                    self.name, self._state.value,
+                    self.name,
+                    self._state.value,
                 )
             self._state = CircuitState.CLOSED
             self._failure_count = 0
@@ -107,13 +109,13 @@ class CircuitBreaker:
                     self.name,
                 )
             elif (
-                self._state == CircuitState.CLOSED
-                and self._failure_count >= self.failure_threshold
+                self._state == CircuitState.CLOSED and self._failure_count >= self.failure_threshold
             ):
                 self._state = CircuitState.OPEN
                 logger.warning(
                     "CircuitBreaker[%s]: CLOSED → OPEN (%d consecutive failures)",
-                    self.name, self._failure_count,
+                    self.name,
+                    self._failure_count,
                 )
 
     def reset(self) -> None:
@@ -124,7 +126,9 @@ class CircuitBreaker:
             self._failure_count = 0
             self._last_failure_time = None
             if old_state != CircuitState.CLOSED:
-                logger.info("CircuitBreaker[%s]: %s → CLOSED (manual reset)", self.name, old_state.value)
+                logger.info(
+                    "CircuitBreaker[%s]: %s → CLOSED (manual reset)", self.name, old_state.value
+                )
 
     def get_status(self) -> dict:
         """Return a JSON-serialisable status dict."""

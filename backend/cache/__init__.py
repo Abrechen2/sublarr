@@ -90,6 +90,7 @@ def create_cache_backend(redis_url: str = "") -> CacheBackend:
         except ImportError:
             logger.info("redis package not installed, using memory cache")
             from cache.sqlite_cache import MemoryCacheBackend
+
             return MemoryCacheBackend()
 
         try:
@@ -101,9 +102,11 @@ def create_cache_backend(redis_url: str = "") -> CacheBackend:
             client.ping()
             logger.info("Redis cache connected: %s", redis_url)
             from cache.redis_cache import RedisCacheBackend
+
             return RedisCacheBackend(client)
         except Exception as e:
             logger.warning("Redis unavailable (%s), using memory cache", e)
 
     from cache.sqlite_cache import MemoryCacheBackend
+
     return MemoryCacheBackend()

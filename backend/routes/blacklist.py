@@ -226,6 +226,7 @@ def blacklist_count():
                     type: integer
     """
     from db.blacklist import get_blacklist_count
+
     return jsonify({"count": get_blacklist_count()})
 
 
@@ -333,10 +334,16 @@ def list_history():
     sort_dir = request.args.get("sort_dir", "desc")
 
     result = get_download_history(
-        page=page, per_page=per_page,
-        provider=provider, language=language,
-        format=format_filter, score_min=score_min, score_max=score_max,
-        search=search, sort_by=sort_by, sort_dir=sort_dir,
+        page=page,
+        per_page=per_page,
+        provider=provider,
+        language=language,
+        format=format_filter,
+        score_min=score_min,
+        score_max=score_max,
+        search=search,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
     )
     return jsonify(result)
 
@@ -374,4 +381,5 @@ def history_stats():
                       type: integer
     """
     from db.library import get_download_stats
+
     return jsonify(get_download_stats())

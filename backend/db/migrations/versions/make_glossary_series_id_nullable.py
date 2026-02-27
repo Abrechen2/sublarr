@@ -8,6 +8,7 @@ Allows glossary_entries.series_id to be NULL, enabling global glossary
 entries that apply to all series. Per-series entries (series_id set)
 override global entries with the same source_term during translation.
 """
+
 import sqlalchemy as sa
 from alembic import op
 

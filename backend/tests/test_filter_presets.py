@@ -11,12 +11,14 @@ from extensions import db as sa_db
 def app(tmp_path):
     """Create a Flask app with SQLite for testing."""
     import os
+
     db_path = str(tmp_path / "test.db")
     os.environ["SUBLARR_DB_PATH"] = db_path
     os.environ["SUBLARR_API_KEY"] = ""
     os.environ["SUBLARR_LOG_LEVEL"] = "ERROR"
 
     from config import reload_settings
+
     reload_settings()
 
     application = create_app(testing=True)
@@ -41,7 +43,10 @@ def repo(app):
 def test_create_and_list_preset(app, repo):
     """Created preset appears in list for correct scope."""
     with app.app_context():
-        conditions = {"logic": "AND", "conditions": [{"field": "status", "op": "eq", "value": "wanted"}]}
+        conditions = {
+            "logic": "AND",
+            "conditions": [{"field": "status", "op": "eq", "value": "wanted"}],
+        }
         preset = repo.create_preset("My Filter", "wanted", conditions)
         assert preset["name"] == "My Filter"
         assert preset["scope"] == "wanted"
@@ -78,9 +83,10 @@ def test_delete_nonexistent_preset(app, repo):
 def test_invalid_field_raises(app, repo):
     """Conditions with invalid field name raise ValueError."""
     with app.app_context():
-        bad_conditions = {"logic": "AND", "conditions": [
-            {"field": "injected; DROP TABLE--", "op": "eq", "value": "x"}
-        ]}
+        bad_conditions = {
+            "logic": "AND",
+            "conditions": [{"field": "injected; DROP TABLE--", "op": "eq", "value": "x"}],
+        }
         with pytest.raises(ValueError, match="not allowed"):
             repo.create_preset("Bad", "wanted", bad_conditions)
 

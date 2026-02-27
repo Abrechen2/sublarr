@@ -24,6 +24,7 @@ def _validate_jinja2_syntax(template_str: str) -> str | None:
         return None
     try:
         from jinja2 import Environment
+
         Environment(autoescape=True).parse(template_str)
         return None
     except Exception as e:
@@ -31,6 +32,7 @@ def _validate_jinja2_syntax(template_str: str) -> str | None:
 
 
 # ---- Template CRUD ----------------------------------------------------------
+
 
 @bp.route("/templates", methods=["GET"])
 def list_templates():
@@ -200,8 +202,7 @@ def update_template(template_id):
 
     repo = NotificationRepository()
     # Filter to only allowed update fields
-    allowed = {"name", "title_template", "body_template", "event_type",
-               "service_name", "enabled"}
+    allowed = {"name", "title_template", "body_template", "event_type", "service_name", "enabled"}
     update_data = {k: v for k, v in data.items() if k in allowed}
 
     result = repo.update_template(template_id, **update_data)
@@ -294,14 +295,17 @@ def preview_template(template_id):
     except Exception as e:
         return jsonify({"error": f"Template rendering failed: {e}"}), 400
 
-    return jsonify({
-        "title": rendered_title,
-        "body": rendered_body,
-        "variables_used": variables,
-    })
+    return jsonify(
+        {
+            "title": rendered_title,
+            "body": rendered_body,
+            "variables_used": variables,
+        }
+    )
 
 
 # ---- Template Variables -----------------------------------------------------
+
 
 @bp.route("/variables", methods=["GET"])
 def list_variables():
@@ -354,15 +358,18 @@ def get_variables(event_type):
     if meta is None:
         return jsonify({"error": f"Unknown event type: {event_type}"}), 404
 
-    return jsonify({
-        "event_type": event_type,
-        "label": meta.get("label", event_type),
-        "description": meta.get("description", ""),
-        "variables": meta.get("payload_keys", []),
-    })
+    return jsonify(
+        {
+            "event_type": event_type,
+            "label": meta.get("label", event_type),
+            "description": meta.get("description", ""),
+            "variables": meta.get("payload_keys", []),
+        }
+    )
 
 
 # ---- Quiet Hours ------------------------------------------------------------
+
 
 @bp.route("/quiet-hours", methods=["GET"])
 def list_quiet_hours():
@@ -438,6 +445,7 @@ def create_quiet_hours():
 
     # Validate time format HH:MM
     import re
+
     time_pattern = re.compile(r"^\d{2}:\d{2}$")
     if not time_pattern.match(start_time):
         return jsonify({"error": "start_time must be in HH:MM format"}), 400
@@ -479,12 +487,12 @@ def update_quiet_hours(config_id):
     from db.repositories.notifications import NotificationRepository
 
     data = request.get_json(silent=True) or {}
-    allowed = {"name", "start_time", "end_time", "days_of_week",
-               "exception_events", "enabled"}
+    allowed = {"name", "start_time", "end_time", "days_of_week", "exception_events", "enabled"}
     update_data = {k: v for k, v in data.items() if k in allowed}
 
     # Validate time format if provided
     import re
+
     time_pattern = re.compile(r"^\d{2}:\d{2}$")
     for field in ("start_time", "end_time"):
         if field in update_data and not time_pattern.match(update_data[field]):
@@ -527,6 +535,7 @@ def delete_quiet_hours(config_id):
 
 
 # ---- History ----------------------------------------------------------------
+
 
 @bp.route("/history", methods=["GET"])
 def list_history():
@@ -632,6 +641,7 @@ def clear_history():
 
 # ---- Event Filters ----------------------------------------------------------
 
+
 @bp.route("/filters", methods=["GET"])
 def get_filters():
     """Get current notification event filter configuration.
@@ -652,11 +662,13 @@ def get_filters():
     exclude_raw = config_repo.get_config_entry("notification_filter_exclude_events")
     content_raw = config_repo.get_config_entry("notification_filter_content_filters")
 
-    return jsonify({
-        "include_events": json.loads(include_raw) if include_raw else [],
-        "exclude_events": json.loads(exclude_raw) if exclude_raw else [],
-        "content_filters": json.loads(content_raw) if content_raw else [],
-    })
+    return jsonify(
+        {
+            "include_events": json.loads(include_raw) if include_raw else [],
+            "exclude_events": json.loads(exclude_raw) if exclude_raw else [],
+            "content_filters": json.loads(content_raw) if content_raw else [],
+        }
+    )
 
 
 @bp.route("/filters", methods=["PUT"])
@@ -704,20 +716,17 @@ def update_filters():
 
     if "include_events" in data:
         config_repo.save_config_entry(
-            "notification_filter_include_events",
-            json.dumps(data["include_events"])
+            "notification_filter_include_events", json.dumps(data["include_events"])
         )
 
     if "exclude_events" in data:
         config_repo.save_config_entry(
-            "notification_filter_exclude_events",
-            json.dumps(data["exclude_events"])
+            "notification_filter_exclude_events", json.dumps(data["exclude_events"])
         )
 
     if "content_filters" in data:
         config_repo.save_config_entry(
-            "notification_filter_content_filters",
-            json.dumps(data["content_filters"])
+            "notification_filter_content_filters", json.dumps(data["content_filters"])
         )
 
     return jsonify({"success": True})

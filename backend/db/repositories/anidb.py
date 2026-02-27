@@ -22,9 +22,7 @@ class AnidbRepository(BaseRepository):
 
     # ---- Absolute episode lookups -------------------------------------------
 
-    def get_anidb_absolute(
-        self, tvdb_id: int, season: int, episode: int
-    ) -> int | None:
+    def get_anidb_absolute(self, tvdb_id: int, season: int, episode: int) -> int | None:
         """Return the AniDB absolute episode number for a given TVDB S/E.
 
         Returns:
@@ -86,11 +84,15 @@ class AnidbRepository(BaseRepository):
             List of dicts with keys: id, tvdb_id, season, episode,
             anidb_absolute_episode, updated_at, source.
         """
-        rows = self.session.execute(
-            select(AnidbAbsoluteMapping)
-            .where(AnidbAbsoluteMapping.tvdb_id == tvdb_id)
-            .order_by(AnidbAbsoluteMapping.season, AnidbAbsoluteMapping.episode)
-        ).scalars().all()
+        rows = (
+            self.session.execute(
+                select(AnidbAbsoluteMapping)
+                .where(AnidbAbsoluteMapping.tvdb_id == tvdb_id)
+                .order_by(AnidbAbsoluteMapping.season, AnidbAbsoluteMapping.episode)
+            )
+            .scalars()
+            .all()
+        )
         return [self._to_dict(r) for r in rows]
 
     def clear_for_tvdb(self, tvdb_id: int) -> int:
@@ -100,9 +102,7 @@ class AnidbRepository(BaseRepository):
             Number of rows deleted.
         """
         result = self.session.execute(
-            delete(AnidbAbsoluteMapping).where(
-                AnidbAbsoluteMapping.tvdb_id == tvdb_id
-            )
+            delete(AnidbAbsoluteMapping).where(AnidbAbsoluteMapping.tvdb_id == tvdb_id)
         )
         self._commit()
         deleted = result.rowcount
@@ -124,9 +124,11 @@ class AnidbRepository(BaseRepository):
     def count_mappings(self) -> int:
         """Return the total number of stored absolute episode mappings."""
         from sqlalchemy import func
-        return self.session.execute(
-            select(func.count()).select_from(AnidbAbsoluteMapping)
-        ).scalar() or 0
+
+        return (
+            self.session.execute(select(func.count()).select_from(AnidbAbsoluteMapping)).scalar()
+            or 0
+        )
 
     # ---- Series settings (absolute_order flag) --------------------------------
 
@@ -155,9 +157,7 @@ class AnidbRepository(BaseRepository):
                 )
             )
         self._commit()
-        logger.debug(
-            "Series %d absolute_order set to %s", sonarr_series_id, enabled
-        )
+        logger.debug("Series %d absolute_order set to %s", sonarr_series_id, enabled)
 
     def get_series_settings(self, sonarr_series_id: int) -> dict | None:
         """Return the full settings dict for a series, or None if not set."""
@@ -170,9 +170,11 @@ class AnidbRepository(BaseRepository):
         Returns:
             List of sonarr_series_id integers.
         """
-        rows = self.session.execute(
-            select(SeriesSettings.sonarr_series_id).where(
-                SeriesSettings.absolute_order == 1
+        rows = (
+            self.session.execute(
+                select(SeriesSettings.sonarr_series_id).where(SeriesSettings.absolute_order == 1)
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         return list(rows)

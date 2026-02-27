@@ -101,9 +101,7 @@ class DeepLBackend(TranslationBackend):
     def _get_client(self):
         """Create or return cached DeepL client (lazy initialization)."""
         if not _DEEPL_AVAILABLE:
-            raise RuntimeError(
-                "deepl package not installed. Install with: pip install deepl"
-            )
+            raise RuntimeError("deepl package not installed. Install with: pip install deepl")
         if self._client is None:
             api_key = self.config.get("api_key", "")
             if not api_key:
@@ -130,9 +128,7 @@ class DeepLBackend(TranslationBackend):
             TranslationResult with translated lines
         """
         if not _DEEPL_AVAILABLE:
-            raise RuntimeError(
-                "deepl package not installed. Install with: pip install deepl"
-            )
+            raise RuntimeError("deepl package not installed. Install with: pip install deepl")
 
         try:
             client = self._get_client()
@@ -144,9 +140,7 @@ class DeepLBackend(TranslationBackend):
 
             # Handle glossary if entries provided
             if glossary_entries:
-                glossary = self._get_or_create_glossary(
-                    source, target, glossary_entries
-                )
+                glossary = self._get_or_create_glossary(source, target, glossary_entries)
                 if glossary:
                     kwargs["glossary"] = glossary
 
@@ -237,11 +231,7 @@ class DeepLBackend(TranslationBackend):
         try:
             client = self._get_client()
             usage = client.get_usage()
-            plan = (
-                "Free"
-                if self.config.get("api_key", "").endswith(":fx")
-                else "Pro"
-            )
+            plan = "Free" if self.config.get("api_key", "").endswith(":fx") else "Pro"
             return (
                 True,
                 f"OK ({plan}, {usage.character.count}/{usage.character.limit} chars)",
@@ -254,11 +244,7 @@ class DeepLBackend(TranslationBackend):
         try:
             client = self._get_client()
             usage = client.get_usage()
-            plan = (
-                "Free"
-                if self.config.get("api_key", "").endswith(":fx")
-                else "Pro"
-            )
+            plan = "Free" if self.config.get("api_key", "").endswith(":fx") else "Pro"
             return {
                 "characters_used": usage.character.count,
                 "characters_limit": usage.character.limit,

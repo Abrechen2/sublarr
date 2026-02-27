@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 # Import guard: openai is optional
 try:
     from openai import OpenAI
+
     _HAS_OPENAI = True
 except ImportError:
     _HAS_OPENAI = False
@@ -175,9 +176,7 @@ class OpenAICompatBackend(TranslationBackend):
         )
 
         start_time = time.time()
-        prompt = build_translation_prompt(
-            lines, source_lang, target_lang, glossary_entries
-        )
+        prompt = build_translation_prompt(lines, source_lang, target_lang, glossary_entries)
 
         try:
             client = self._get_client()
@@ -201,9 +200,7 @@ class OpenAICompatBackend(TranslationBackend):
 
                 parsed = parse_llm_response(response_text, len(lines))
                 if parsed is None:
-                    logger.warning(
-                        "Attempt %d: line count mismatch, retrying...", attempt
-                    )
+                    logger.warning("Attempt %d: line count mismatch, retrying...", attempt)
                     last_error = f"Expected {len(lines)} lines, got different count"
                     continue
 
@@ -212,7 +209,9 @@ class OpenAICompatBackend(TranslationBackend):
                 if tainted:
                     logger.warning(
                         "Attempt %d: CJK hallucination in %d lines (indices %s), retrying...",
-                        attempt, len(tainted), tainted,
+                        attempt,
+                        len(tainted),
+                        tainted,
                     )
                     last_error = "CJK hallucination detected"
                     continue
@@ -254,7 +253,10 @@ class OpenAICompatBackend(TranslationBackend):
             if self._model in model_ids:
                 return True, f"OK (model '{self._model}' available)"
             # Model might still work even if not in first 10
-            return True, f"OK (connected; model '{self._model}' not in first 10 listed: {model_ids})"
+            return (
+                True,
+                f"OK (connected; model '{self._model}' not in first 10 listed: {model_ids})",
+            )
         except RuntimeError as e:
             return False, str(e)
         except Exception as e:

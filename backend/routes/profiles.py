@@ -34,6 +34,7 @@ def list_language_profiles():
                       type: object
     """
     from db.profiles import get_all_language_profiles
+
     profiles = get_all_language_profiles()
     return jsonify({"profiles": profiles})
 
@@ -122,7 +123,11 @@ def create_language_profile_endpoint():
 
     try:
         profile_id = create_language_profile(
-            name, source_lang, source_name, target_langs, target_names,
+            name,
+            source_lang,
+            source_name,
+            target_langs,
+            target_names,
             translation_backend=translation_backend,
             fallback_chain=fallback_chain,
             forced_preference=forced_preference,
@@ -204,16 +209,27 @@ def update_language_profile_endpoint(profile_id):
 
     data = request.get_json() or {}
     fields = {}
-    for key in ("name", "source_language", "source_language_name",
-                "target_languages", "target_language_names",
-                "translation_backend", "fallback_chain", "forced_preference"):
+    for key in (
+        "name",
+        "source_language",
+        "source_language_name",
+        "target_languages",
+        "target_language_names",
+        "translation_backend",
+        "fallback_chain",
+        "forced_preference",
+    ):
         if key in data:
             fields[key] = data[key]
 
     if not fields:
         return jsonify({"error": "No fields to update"}), 400
 
-    if "forced_preference" in fields and fields["forced_preference"] not in ("disabled", "separate", "auto"):
+    if "forced_preference" in fields and fields["forced_preference"] not in (
+        "disabled",
+        "separate",
+        "auto",
+    ):
         return jsonify({"error": "forced_preference must be one of: disabled, separate, auto"}), 400
 
     try:
@@ -340,7 +356,9 @@ def assign_profile():
     else:
         return jsonify({"error": "type must be 'series' or 'movie'"}), 400
 
-    return jsonify({"status": "assigned", "type": item_type, "arr_id": arr_id, "profile_id": profile_id})
+    return jsonify(
+        {"status": "assigned", "type": item_type, "arr_id": arr_id, "profile_id": profile_id}
+    )
 
 
 # ─── Glossary Endpoints ──────────────────────────────────────────────────────
@@ -584,6 +602,7 @@ def list_prompt_presets():
                       type: object
     """
     from db.translation import get_prompt_presets
+
     presets = get_prompt_presets()
     return jsonify({"presets": presets})
 
@@ -608,6 +627,7 @@ def get_default_preset():
           description: No default preset found
     """
     from db.translation import get_default_prompt_preset
+
     preset = get_default_prompt_preset()
     if not preset:
         return jsonify({"error": "No default preset found"}), 404

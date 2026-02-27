@@ -18,13 +18,13 @@ SUBTITLE_TYPES = ("full", "forced", "signs")
 
 # Standard forced/signs filename patterns (Plex/Jellyfin/Emby/Kodi compatible)
 FORCED_FILENAME_RE = re.compile(
-    r'\.(?:forced|signs?|foreign)\.(?:ass|srt|ssa|vtt)$',
+    r"\.(?:forced|signs?|foreign)\.(?:ass|srt|ssa|vtt)$",
     re.IGNORECASE,
 )
 
 # Stream title keywords indicating forced/signs content
 FORCED_STREAM_TITLE_RE = re.compile(
-    r'\b(?:forced|signs?|songs?|foreign)\b',
+    r"\b(?:forced|signs?|songs?|foreign)\b",
     re.IGNORECASE,
 )
 
@@ -82,6 +82,7 @@ def detect_subtitle_type(stream_info=None, file_path=None, ass_content=None):
     if ass_content is not None:
         try:
             from ass_utils import classify_styles
+
             dialog_styles, signs_styles = classify_styles(ass_content)
             if signs_styles and not dialog_styles:
                 signals.append(("signs", 0.7))
@@ -155,11 +156,11 @@ def classify_forced_result(result_filename: str, provider_data: dict = None) -> 
 
     # Check for signs/songs keywords in filename (common in fansub releases)
     # e.g., "[SubGroup] Show - 01 (Signs & Songs).ass"
-    if re.search(r'\bsigns?\s*[&+]\s*songs?\b', name_lower):
+    if re.search(r"\bsigns?\s*[&+]\s*songs?\b", name_lower):
         return "signs"
-    if re.search(r'\bsigns?\s*only\b', name_lower):
+    if re.search(r"\bsigns?\s*only\b", name_lower):
         return "signs"
-    if re.search(r'\bforced\b', name_lower):
+    if re.search(r"\bforced\b", name_lower):
         return "forced"
 
     return "full"

@@ -1,6 +1,5 @@
 """Hook and webhook database operations -- delegating to SQLAlchemy repository."""
 
-
 from db.repositories.hooks import HookRepository
 
 _repo = None
@@ -15,8 +14,10 @@ def _get_repo():
 
 # ---- Hook configs CRUD ----
 
-def create_hook_config(name: str, event_name: str, script_path: str,
-                       timeout_seconds: int = 30) -> dict:
+
+def create_hook_config(
+    name: str, event_name: str, script_path: str, timeout_seconds: int = 30
+) -> dict:
     """Create a new hook configuration."""
     return _get_repo().create_hook(name, event_name, script_path, timeout_seconds)
 
@@ -43,12 +44,17 @@ def delete_hook_config(hook_id: int) -> None:
 
 # ---- Webhook configs CRUD ----
 
-def create_webhook_config(name: str, event_name: str, url: str,
-                          secret: str = "", retry_count: int = 3,
-                          timeout_seconds: int = 10) -> dict:
+
+def create_webhook_config(
+    name: str,
+    event_name: str,
+    url: str,
+    secret: str = "",
+    retry_count: int = 3,
+    timeout_seconds: int = 10,
+) -> dict:
     """Create a new webhook configuration."""
-    return _get_repo().create_webhook(name, event_name, url, secret,
-                                       retry_count, timeout_seconds)
+    return _get_repo().create_webhook(name, event_name, url, secret, retry_count, timeout_seconds)
 
 
 def get_webhook_configs(event_name: str = None) -> list:
@@ -73,24 +79,39 @@ def delete_webhook_config(webhook_id: int) -> None:
 
 # ---- Hook log ----
 
-def log_hook_execution(hook_id: int = None, webhook_id: int = None,
-                       event_name: str = "", hook_type: str = "",
-                       success: bool = False, exit_code: int = None,
-                       status_code: int = None, stdout: str = "",
-                       stderr: str = "", error: str = "",
-                       duration_ms: float = 0) -> dict:
+
+def log_hook_execution(
+    hook_id: int = None,
+    webhook_id: int = None,
+    event_name: str = "",
+    hook_type: str = "",
+    success: bool = False,
+    exit_code: int = None,
+    status_code: int = None,
+    stdout: str = "",
+    stderr: str = "",
+    error: str = "",
+    duration_ms: float = 0,
+) -> dict:
     """Record a hook or webhook execution in the log."""
     return _get_repo().create_hook_log(
-        hook_id, webhook_id, event_name, hook_type, success,
-        exit_code, status_code, stdout, stderr, error, duration_ms
+        hook_id,
+        webhook_id,
+        event_name,
+        hook_type,
+        success,
+        exit_code,
+        status_code,
+        stdout,
+        stderr,
+        error,
+        duration_ms,
     )
 
 
-def get_hook_logs(hook_id: int = None, webhook_id: int = None,
-                  limit: int = 50) -> list:
+def get_hook_logs(hook_id: int = None, webhook_id: int = None, limit: int = 50) -> list:
     """Get hook execution logs, optionally filtered."""
-    return _get_repo().get_hook_logs(limit=limit, hook_id=hook_id,
-                                      webhook_id=webhook_id)
+    return _get_repo().get_hook_logs(limit=limit, hook_id=hook_id, webhook_id=webhook_id)
 
 
 def clear_hook_logs() -> int:
@@ -100,13 +121,14 @@ def clear_hook_logs() -> int:
 
 # ---- Trigger stats helpers ----
 
+
 def update_hook_trigger_stats(hook_id: int, success: bool) -> None:
     """Update hook trigger statistics after execution."""
     _get_repo().record_hook_triggered(hook_id, success)
 
 
-def update_webhook_trigger_stats(webhook_id: int, success: bool,
-                                 status_code: int = 0,
-                                 error: str = "") -> None:
+def update_webhook_trigger_stats(
+    webhook_id: int, success: bool, status_code: int = 0, error: str = ""
+) -> None:
     """Update webhook trigger statistics after execution."""
     _get_repo().record_webhook_triggered(webhook_id, success, status_code, error)

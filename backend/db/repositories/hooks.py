@@ -21,8 +21,14 @@ class HookRepository(BaseRepository):
 
     # ---- Hook configs CRUD -------------------------------------------------------
 
-    def create_hook(self, name: str, event_name: str, script_path: str,
-                    timeout_seconds: int = 30, enabled: bool = True) -> dict:
+    def create_hook(
+        self,
+        name: str,
+        event_name: str,
+        script_path: str,
+        timeout_seconds: int = 30,
+        enabled: bool = True,
+    ) -> dict:
         """Create a new hook configuration.
 
         Returns:
@@ -101,9 +107,7 @@ class HookRepository(BaseRepository):
             return False
 
         # Delete associated hook_log entries
-        self.session.execute(
-            delete(HookLog).where(HookLog.hook_id == hook_id)
-        )
+        self.session.execute(delete(HookLog).where(HookLog.hook_id == hook_id))
         self.session.delete(entry)
         self._commit()
         return True
@@ -127,9 +131,16 @@ class HookRepository(BaseRepository):
 
     # ---- Webhook configs CRUD ----------------------------------------------------
 
-    def create_webhook(self, name: str, event_name: str, url: str,
-                       secret: str = "", retry_count: int = 3,
-                       timeout_seconds: int = 10, enabled: bool = True) -> dict:
+    def create_webhook(
+        self,
+        name: str,
+        event_name: str,
+        url: str,
+        secret: str = "",
+        retry_count: int = 3,
+        timeout_seconds: int = 10,
+        enabled: bool = True,
+    ) -> dict:
         """Create a new webhook configuration.
 
         Returns:
@@ -173,8 +184,7 @@ class HookRepository(BaseRepository):
             "updated_at": now,
         }
 
-    def get_webhooks(self, event_name: str = None,
-                     enabled_only: bool = False) -> list:
+    def get_webhooks(self, event_name: str = None, enabled_only: bool = False) -> list:
         """Get all webhook configs, optionally filtered.
 
         Returns:
@@ -215,15 +225,14 @@ class HookRepository(BaseRepository):
             return False
 
         # Delete associated hook_log entries
-        self.session.execute(
-            delete(HookLog).where(HookLog.webhook_id == webhook_id)
-        )
+        self.session.execute(delete(HookLog).where(HookLog.webhook_id == webhook_id))
         self.session.delete(entry)
         self._commit()
         return True
 
-    def record_webhook_triggered(self, webhook_id: int, success: bool,
-                                  status_code: int = 0, error: str = ""):
+    def record_webhook_triggered(
+        self, webhook_id: int, success: bool, status_code: int = 0, error: str = ""
+    ):
         """Update webhook trigger statistics after execution.
 
         Increments trigger_count, tracks consecutive_failures, sets
@@ -250,12 +259,20 @@ class HookRepository(BaseRepository):
 
     # ---- Hook log ----------------------------------------------------------------
 
-    def create_hook_log(self, hook_id: int = None, webhook_id: int = None,
-                        event_name: str = "", hook_type: str = "",
-                        success: bool = False, exit_code: int = None,
-                        status_code: int = None, stdout: str = "",
-                        stderr: str = "", error: str = "",
-                        duration_ms: float = 0) -> dict:
+    def create_hook_log(
+        self,
+        hook_id: int = None,
+        webhook_id: int = None,
+        event_name: str = "",
+        hook_type: str = "",
+        success: bool = False,
+        exit_code: int = None,
+        status_code: int = None,
+        stdout: str = "",
+        stderr: str = "",
+        error: str = "",
+        duration_ms: float = 0,
+    ) -> dict:
         """Record a hook or webhook execution in the log.
 
         Returns:
@@ -295,8 +312,9 @@ class HookRepository(BaseRepository):
             "triggered_at": now,
         }
 
-    def get_hook_logs(self, limit: int = 50, offset: int = 0,
-                      hook_id: int = None, webhook_id: int = None) -> list:
+    def get_hook_logs(
+        self, limit: int = 50, offset: int = 0, hook_id: int = None, webhook_id: int = None
+    ) -> list:
         """Get hook execution logs, optionally filtered.
 
         Returns:
@@ -312,8 +330,7 @@ class HookRepository(BaseRepository):
         entries = self.session.execute(stmt).scalars().all()
         return [self._row_to_log(e) for e in entries]
 
-    def get_hook_log_count(self, hook_id: int = None,
-                           webhook_id: int = None) -> int:
+    def get_hook_log_count(self, hook_id: int = None, webhook_id: int = None) -> int:
         """Get total count of hook logs, optionally filtered."""
         stmt = select(func.count()).select_from(HookLog)
         if hook_id is not None:
@@ -331,9 +348,7 @@ class HookRepository(BaseRepository):
     def clear_old_hook_logs(self, days: int) -> int:
         """Delete hook logs older than N days. Returns count deleted."""
         cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
-        result = self.session.execute(
-            delete(HookLog).where(HookLog.triggered_at < cutoff)
-        )
+        result = self.session.execute(delete(HookLog).where(HookLog.triggered_at < cutoff))
         self._commit()
         return result.rowcount
 

@@ -78,6 +78,7 @@ API_KEY_REGISTRY = {
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _mask_value(val: str) -> str:
     """Mask a secret value, showing first 4 + '***' + last 4 chars.
 
@@ -101,11 +102,13 @@ def _get_service_info(service_name: str) -> dict:
     keys_list = []
     for key_name in entry["keys"]:
         raw = get_config_entry(key_name) or ""
-        keys_list.append({
-            "name": key_name,
-            "status": "configured" if raw else "missing",
-            "masked_value": _mask_value(raw) if raw else "(not set)",
-        })
+        keys_list.append(
+            {
+                "name": key_name,
+                "status": "configured" if raw else "missing",
+                "masked_value": _mask_value(raw) if raw else "(not set)",
+            }
+        )
 
     all_configured = all(k["status"] == "configured" for k in keys_list)
     any_configured = any(k["status"] == "configured" for k in keys_list)
@@ -123,15 +126,21 @@ def _get_service_info(service_name: str) -> dict:
 # Test helpers (lazy imports to avoid circular dependencies)
 # ---------------------------------------------------------------------------
 
+
 def _test_sonarr() -> dict:
     """Test Sonarr connection."""
     try:
         from sonarr_client import get_sonarr_client
+
         client = get_sonarr_client()
         if client is None:
             return {"success": False, "message": "Sonarr client not configured"}
         result = client.test_connection()
-        return result if isinstance(result, dict) else {"success": bool(result), "message": "OK" if result else "Failed"}
+        return (
+            result
+            if isinstance(result, dict)
+            else {"success": bool(result), "message": "OK" if result else "Failed"}
+        )
     except Exception as e:
         return {"success": False, "message": str(e)}
 
@@ -140,11 +149,16 @@ def _test_radarr() -> dict:
     """Test Radarr connection."""
     try:
         from radarr_client import get_radarr_client
+
         client = get_radarr_client()
         if client is None:
             return {"success": False, "message": "Radarr client not configured"}
         result = client.test_connection()
-        return result if isinstance(result, dict) else {"success": bool(result), "message": "OK" if result else "Failed"}
+        return (
+            result
+            if isinstance(result, dict)
+            else {"success": bool(result), "message": "OK" if result else "Failed"}
+        )
     except Exception as e:
         return {"success": False, "message": str(e)}
 
@@ -153,10 +167,14 @@ def _test_provider(service_name: str) -> dict:
     """Test a subtitle provider by name."""
     try:
         from providers import get_provider_manager
+
         manager = get_provider_manager()
         provider = manager.get_provider(service_name)
         if provider is None:
-            return {"success": False, "message": f"Provider '{service_name}' not found or not enabled"}
+            return {
+                "success": False,
+                "message": f"Provider '{service_name}' not found or not enabled",
+            }
         # Use a lightweight connectivity test if available
         if hasattr(provider, "test_connection"):
             return provider.test_connection()
@@ -169,6 +187,7 @@ def _test_deepl() -> dict:
     """Test DeepL translation backend."""
     try:
         from translation import get_translation_manager
+
         manager = get_translation_manager()
         if manager is None:
             return {"success": False, "message": "Translation manager not available"}
@@ -186,6 +205,7 @@ def _test_apprise() -> dict:
     """Test Apprise notification delivery."""
     try:
         from notifier import test_notification
+
         return test_notification()
     except Exception as e:
         return {"success": False, "message": str(e)}
@@ -203,6 +223,7 @@ _TEST_DISPATCH = {
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/", methods=["GET"])
 def list_services():
@@ -331,11 +352,13 @@ def update_service_keys(service):
     logger.info("API keys updated for service '%s': %s", service, saved_keys)
 
     info = _get_service_info(service)
-    return jsonify({
-        "status": "updated",
-        "updated_keys": saved_keys,
-        "service": info,
-    })
+    return jsonify(
+        {
+            "status": "updated",
+            "updated_keys": saved_keys,
+            "service": info,
+        }
+    )
 
 
 def _invalidate_for_service(service: str):
@@ -343,19 +366,24 @@ def _invalidate_for_service(service: str):
     try:
         if service == "sonarr":
             from sonarr_client import invalidate_client
+
             invalidate_client()
         elif service == "radarr":
             from radarr_client import invalidate_client
+
             invalidate_client()
         elif service == "apprise":
             from notifier import invalidate_notifier
+
             invalidate_notifier()
         elif service in ("opensubtitles", "jimaku", "subdl"):
             from providers import invalidate_manager
+
             invalidate_manager()
         elif service == "deepl":
             try:
                 from translation import invalidate_translation_manager
+
                 invalidate_translation_manager()
             except ImportError:
                 pass
@@ -457,16 +485,19 @@ def export_keys():
         # Get all glossary entries -- use a broad query
         from db.models import GlossaryEntry
         from extensions import db as sa_db
+
         with sa_db.session() as session:
             rows = session.query(GlossaryEntry).all()
             for row in rows:
-                all_glossary.append({
-                    "id": row.id,
-                    "series_id": row.series_id,
-                    "source_term": row.source_term,
-                    "target_term": row.target_term,
-                    "notes": row.notes or "",
-                })
+                all_glossary.append(
+                    {
+                        "id": row.id,
+                        "series_id": row.series_id,
+                        "source_term": row.source_term,
+                        "target_term": row.target_term,
+                        "notes": row.notes or "",
+                    }
+                )
     except Exception as exc:
         logger.warning("Could not export glossary entries: %s", exc)
 
@@ -476,11 +507,17 @@ def export_keys():
         zf.writestr("config.json", json.dumps(safe_config, indent=2))
         zf.writestr("profiles.json", json.dumps(profiles, indent=2))
         zf.writestr("glossary.json", json.dumps(all_glossary, indent=2))
-        zf.writestr("manifest.json", json.dumps({
-            "format": "sublarr-export",
-            "version": 1,
-            "exported_at": datetime.now(UTC).isoformat(),
-        }, indent=2))
+        zf.writestr(
+            "manifest.json",
+            json.dumps(
+                {
+                    "format": "sublarr-export",
+                    "version": 1,
+                    "exported_at": datetime.now(UTC).isoformat(),
+                },
+                indent=2,
+            ),
+        )
     buf.seek(0)
 
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
@@ -556,7 +593,9 @@ def _import_zip(uploaded) -> tuple:
     # Import config.json
     if "config.json" in zf.namelist():
         config_data = json.loads(zf.read("config.json"))
-        valid_keys = set(Settings.model_fields.keys()) if hasattr(Settings, "model_fields") else set()
+        valid_keys = (
+            set(Settings.model_fields.keys()) if hasattr(Settings, "model_fields") else set()
+        )
         for key, value in config_data.items():
             str_val = str(value)
             # Skip masked secrets
@@ -571,6 +610,7 @@ def _import_zip(uploaded) -> tuple:
     if "profiles.json" in zf.namelist():
         try:
             from db.profiles import create_language_profile
+
             profiles_data = json.loads(zf.read("profiles.json"))
             for p in profiles_data:
                 try:
@@ -594,6 +634,7 @@ def _import_zip(uploaded) -> tuple:
     if "glossary.json" in zf.namelist():
         try:
             from db.repositories import add_glossary_entry
+
             glossary_data = json.loads(zf.read("glossary.json"))
             for g in glossary_data:
                 try:
@@ -658,12 +699,14 @@ def _import_csv(uploaded) -> tuple:
     all_overrides = get_all_config_entries()
     reload_settings(all_overrides)
 
-    return jsonify({
-        "status": "imported",
-        "imported": imported,
-        "skipped": skipped,
-        "errors": errors,
-    })
+    return jsonify(
+        {
+            "status": "imported",
+            "imported": imported,
+            "skipped": skipped,
+            "errors": errors,
+        }
+    )
 
 
 @bp.route("/import/bazarr", methods=["POST"])
@@ -734,6 +777,7 @@ def import_bazarr():
                     # Extract DB to temp file for sqlite3 access
                     import os
                     import tempfile
+
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tmp:
                         tmp.write(zf.read(name))
                         tmp_path = tmp.name

@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 # Watched Folders
 # ---------------------------------------------------------------------------
 
+
 @bp.route("/folders", methods=["GET"])
 def list_folders():
     """List all watched folders (enabled_only=False for settings display).
@@ -197,9 +198,7 @@ def update_folder(folder_id):
         return jsonify({"error": f"Directory does not exist: {path}"}), 400
 
     try:
-        upsert_watched_folder(
-            path=path, label=label, media_type=media_type, enabled=enabled
-        )
+        upsert_watched_folder(path=path, label=label, media_type=media_type, enabled=enabled)
         updated = get_watched_folder(folder_id)
         return jsonify(updated)
     except Exception as e:
@@ -254,6 +253,7 @@ def delete_folder(folder_id):
 # ---------------------------------------------------------------------------
 # Standalone Series
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/series", methods=["GET"])
 def list_series():
@@ -406,6 +406,7 @@ def delete_series(series_id):
 # Standalone Movies
 # ---------------------------------------------------------------------------
 
+
 @bp.route("/movies", methods=["GET"])
 def list_movies():
     """List all standalone movies with wanted status.
@@ -507,6 +508,7 @@ def delete_movie(movie_id):
 # Scanner Control
 # ---------------------------------------------------------------------------
 
+
 @bp.route("/scan", methods=["POST"])
 def scan_all():
     """Trigger a full scan of all watched folders.
@@ -529,9 +531,11 @@ def scan_all():
                   message:
                     type: string
     """
+
     def _run_scan():
         try:
             from standalone.scanner import StandaloneScanner
+
             scanner = StandaloneScanner()
             scanner.scan_all_folders()
         except Exception as e:
@@ -580,6 +584,7 @@ def scan_folder(folder_id):
     def _run_scan():
         try:
             from standalone.scanner import StandaloneScanner
+
             scanner = StandaloneScanner()
             scanner.scan_folder(folder["path"])
         except Exception as e:
@@ -619,15 +624,18 @@ def get_status():
     """
     try:
         from standalone import get_standalone_manager
+
         manager = get_standalone_manager()
         status = manager.get_status()
         return jsonify(status)
     except ImportError:
         # StandaloneManager not yet implemented
-        return jsonify({
-            "status": "not_implemented",
-            "message": "StandaloneManager is not yet implemented",
-        }), 501
+        return jsonify(
+            {
+                "status": "not_implemented",
+                "message": "StandaloneManager is not yet implemented",
+            }
+        ), 501
     except Exception as e:
         logger.error("Failed to get standalone status: %s", e)
         return jsonify({"error": "Failed to get standalone status"}), 500
@@ -636,6 +644,7 @@ def get_status():
 # ---------------------------------------------------------------------------
 # Metadata
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/series/<int:series_id>/refresh-metadata", methods=["POST"])
 def refresh_series_metadata(series_id):
@@ -679,6 +688,7 @@ def refresh_series_metadata(series_id):
 
     try:
         from metadata import MetadataResolver
+
         resolver = MetadataResolver()
 
         # Clear cached metadata for this series
@@ -691,6 +701,7 @@ def refresh_series_metadata(series_id):
         if result:
             # Update the series record with new metadata
             from db.standalone import upsert_standalone_series
+
             upsert_standalone_series(
                 title=result.get("title", title),
                 folder_path=series["folder_path"],

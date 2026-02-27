@@ -177,11 +177,14 @@ def _run_job(job_data):
         _update_stats(result)
 
         # Emit WebSocket event
-        socketio.emit("job_update", {
-            "id": job_id,
-            "status": status,
-            "result": result,
-        })
+        socketio.emit(
+            "job_update",
+            {
+                "id": job_id,
+                "status": status,
+                "result": result,
+            },
+        )
 
     except Exception as e:
         logger.exception("Job %s failed", job_id)
@@ -329,11 +332,13 @@ def translate_async():
     thread = threading.Thread(target=_run_with_ctx, daemon=True)
     thread.start()
 
-    return jsonify({
-        "job_id": job["id"],
-        "status": "queued",
-        "file_path": file_path,
-    }), 202
+    return jsonify(
+        {
+            "job_id": job["id"],
+            "status": "queued",
+            "file_path": file_path,
+        }
+    ), 202
 
 
 @bp.route("/translate/sync", methods=["POST"])
@@ -437,11 +442,13 @@ def translate_sync():
             logger.warning("Enqueue sync translate failed, running in request: %s", e)
             queue = None
         else:
-            return jsonify({
-                "job_id": job["id"],
-                "status": "queued",
-                "file_path": file_path,
-            }), 202
+            return jsonify(
+                {
+                    "job_id": job["id"],
+                    "status": "queued",
+                    "file_path": file_path,
+                }
+            ), 202
 
     try:
         result = translate_file(file_path, force=force, arr_context=arr_context)
@@ -501,6 +508,7 @@ def job_status(job_id):
           description: Job not found
     """
     from db.jobs import get_job
+
     job = get_job(job_id)
     if not job:
         return jsonify({"error": "Job not found"}), 404
@@ -558,6 +566,7 @@ def list_jobs():
                     type: integer
     """
     from db.jobs import get_jobs
+
     try:
         page = request.args.get("page", 1, type=int)
         per_page = min(request.args.get("per_page", 50, type=int), 200)
@@ -638,12 +647,14 @@ def retry_job(job_id):
     thread = threading.Thread(target=_run_with_ctx, daemon=True)
     thread.start()
 
-    return jsonify({
-        "status": "queued",
-        "job_id": new_job["id"],
-        "original_job_id": job_id,
-        "file_path": file_path,
-    }), 202
+    return jsonify(
+        {
+            "status": "queued",
+            "job_id": new_job["id"],
+            "original_job_id": job_id,
+            "file_path": file_path,
+        }
+    ), 202
 
 
 # ─── Batch Endpoints ─────────────────────────────────────────────────────────
@@ -744,36 +755,40 @@ def batch_start():
         end = start + per_page
         page_files = files[start:end]
 
-        return jsonify({
-            "dry_run": True,
-            "files_found": total_files,
-            "page": page,
-            "per_page": per_page,
-            "total_pages": total_pages,
-            "files": [
-                {
-                    "path": f["path"],
-                    "target_status": f["target_status"],
-                    "size_mb": round(f["size_mb"], 1),
-                }
-                for f in page_files
-            ],
-        })
+        return jsonify(
+            {
+                "dry_run": True,
+                "files_found": total_files,
+                "page": page,
+                "per_page": per_page,
+                "total_pages": total_pages,
+                "files": [
+                    {
+                        "path": f["path"],
+                        "target_status": f["target_status"],
+                        "size_mb": round(f["size_mb"], 1),
+                    }
+                    for f in page_files
+                ],
+            }
+        )
 
     with batch_lock:
         if batch_state["running"]:
             return jsonify({"error": "Batch already running"}), 409
 
-        batch_state.update({
-            "running": True,
-            "total": len(files),
-            "processed": 0,
-            "succeeded": 0,
-            "failed": 0,
-            "skipped": 0,
-            "current_file": None,
-            "errors": [],
-        })
+        batch_state.update(
+            {
+                "running": True,
+                "total": len(files),
+                "processed": 0,
+                "succeeded": 0,
+                "failed": 0,
+                "skipped": 0,
+                "current_file": None,
+                "errors": [],
+            }
+        )
 
     _app = current_app._get_current_object()
 
@@ -795,40 +810,50 @@ def batch_start():
                                     batch_state["succeeded"] += 1
                             else:
                                 batch_state["failed"] += 1
-                                batch_state["errors"].append({
-                                    "file": f["path"],
-                                    "error": result.get("error"),
-                                })
+                                batch_state["errors"].append(
+                                    {
+                                        "file": f["path"],
+                                        "error": result.get("error"),
+                                    }
+                                )
 
                         _update_stats(result)
 
                         # WebSocket notification
-                        socketio.emit("batch_progress", {
-                            "processed": batch_state["processed"],
-                            "total": batch_state["total"],
-                            "current_file": f["path"],
-                            "success": result["success"],
-                        })
+                        socketio.emit(
+                            "batch_progress",
+                            {
+                                "processed": batch_state["processed"],
+                                "total": batch_state["total"],
+                                "current_file": f["path"],
+                                "success": result["success"],
+                            },
+                        )
 
                         # Callback notification
                         if callback_url:
-                            _send_callback(callback_url, {
-                                "event": "file_completed",
-                                "file": f["path"],
-                                "success": result["success"],
-                                "processed": batch_state["processed"],
-                                "total": batch_state["total"],
-                            })
+                            _send_callback(
+                                callback_url,
+                                {
+                                    "event": "file_completed",
+                                    "file": f["path"],
+                                    "success": result["success"],
+                                    "processed": batch_state["processed"],
+                                    "total": batch_state["total"],
+                                },
+                            )
 
                     except Exception as e:
                         logger.exception("Batch: failed on %s", f["path"])
                         with batch_lock:
                             batch_state["processed"] += 1
                             batch_state["failed"] += 1
-                            batch_state["errors"].append({
-                                "file": f["path"],
-                                "error": str(e),
-                            })
+                            batch_state["errors"].append(
+                                {
+                                    "file": f["path"],
+                                    "error": str(e),
+                                }
+                            )
             finally:
                 with batch_lock:
                     batch_state["running"] = False
@@ -839,6 +864,7 @@ def batch_start():
 
                 try:
                     from notifier import send_notification
+
                     send_notification(
                         title="Sublarr: Batch Complete",
                         body=f"Batch finished: {snapshot['succeeded']} succeeded, {snapshot['failed']} failed, {snapshot['skipped']} skipped",
@@ -848,21 +874,26 @@ def batch_start():
                     pass
 
         if callback_url:
-            _send_callback(callback_url, {
-                "event": "batch_completed",
-                "total": snapshot["total"],
-                "succeeded": snapshot["succeeded"],
-                "failed": snapshot["failed"],
-                "skipped": snapshot["skipped"],
-            })
+            _send_callback(
+                callback_url,
+                {
+                    "event": "batch_completed",
+                    "total": snapshot["total"],
+                    "succeeded": snapshot["succeeded"],
+                    "failed": snapshot["failed"],
+                    "skipped": snapshot["skipped"],
+                },
+            )
 
     thread = threading.Thread(target=_run_batch, daemon=True)
     thread.start()
 
-    return jsonify({
-        "status": "started",
-        "total_files": len(files),
-    }), 202
+    return jsonify(
+        {
+            "status": "started",
+            "total_files": len(files),
+        }
+    ), 202
 
 
 @bp.route("/batch/status", methods=["GET"])
@@ -942,12 +973,14 @@ def retranslate_status():
     current_hash = s.get_translation_config_hash()
     outdated = get_outdated_jobs_count(current_hash)
 
-    return jsonify({
-        "current_hash": current_hash,
-        "outdated_count": outdated,
-        "ollama_model": s.ollama_model,
-        "target_language": s.target_language,
-    })
+    return jsonify(
+        {
+            "current_hash": current_hash,
+            "outdated_count": outdated,
+            "ollama_model": s.ollama_model,
+            "target_language": s.target_language,
+        }
+    )
 
 
 @bp.route("/retranslate/<int:job_id>", methods=["POST"])
@@ -1025,19 +1058,24 @@ def retranslate_single(job_id):
     def _run():
         with _app.app_context():
             _run_job(new_job)
-            emit_event("translation_complete", {
-                "file_path": file_path,
-                "job_id": new_job["id"],
-            })
+            emit_event(
+                "translation_complete",
+                {
+                    "file_path": file_path,
+                    "job_id": new_job["id"],
+                },
+            )
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
 
-    return jsonify({
-        "status": "started",
-        "job_id": new_job["id"],
-        "file_path": file_path,
-    }), 202
+    return jsonify(
+        {
+            "status": "started",
+            "job_id": new_job["id"],
+            "file_path": file_path,
+        }
+    ), 202
 
 
 @bp.route("/retranslate/batch", methods=["POST"])
@@ -1124,27 +1162,35 @@ def retranslate_batch():
                     failed += 1
                     logger.warning("Re-translate batch: error on %s: %s", file_path, e)
 
-                socketio.emit("retranslation_progress", {
-                    "processed": processed,
-                    "total": total,
+                socketio.emit(
+                    "retranslation_progress",
+                    {
+                        "processed": processed,
+                        "total": total,
+                        "succeeded": succeeded,
+                        "failed": failed,
+                        "current_file": file_path,
+                    },
+                )
+
+            emit_event(
+                "translation_complete",
+                {
+                    "count": processed,
                     "succeeded": succeeded,
                     "failed": failed,
-                    "current_file": file_path,
-                })
-
-            emit_event("translation_complete", {
-                "count": processed,
-                "succeeded": succeeded,
-                "failed": failed,
-            })
+                },
+            )
 
     thread = threading.Thread(target=_run_retranslate, daemon=True)
     thread.start()
 
-    return jsonify({
-        "status": "started",
-        "total": total,
-    }), 202
+    return jsonify(
+        {
+            "status": "started",
+            "total": total,
+        }
+    ), 202
 
 
 # ─── Backend Management Endpoints ─────────────────────────────────────────────
@@ -1186,6 +1232,7 @@ def list_backends():
                             type: object
     """
     from translation import get_translation_manager
+
     manager = get_translation_manager()
     backends = manager.get_all_backends()
     return jsonify({"backends": backends})
@@ -1228,6 +1275,7 @@ def test_backend(name):
           description: Backend not found
     """
     from translation import get_translation_manager
+
     manager = get_translation_manager()
     backend = manager.get_backend(name)
 
@@ -1363,7 +1411,7 @@ def get_backend_config(name):
     config = {}
     for key, value in all_entries.items():
         if key.startswith(prefix):
-            short_key = key[len(prefix):]
+            short_key = key[len(prefix) :]
             config[short_key] = value
 
     # Build set of password field keys for masking
@@ -1458,6 +1506,7 @@ def ollama_pull_model():
     if not ollama_url:
         try:
             from config import get_settings
+
             ollama_url = get_settings().ollama_url
         except Exception:
             ollama_url = "http://localhost:11434"
@@ -1471,7 +1520,9 @@ def ollama_pull_model():
         resp.raise_for_status()
         return jsonify({"ok": True, "model": model, "status": resp.json().get("status", "done")})
     except requests.Timeout:
-        return jsonify({"error": f"Pull timed out for '{model}' — try pulling manually via CLI"}), 502
+        return jsonify(
+            {"error": f"Pull timed out for '{model}' — try pulling manually via CLI"}
+        ), 502
     except requests.ConnectionError:
         return jsonify({"error": f"Cannot connect to Ollama at {ollama_url}"}), 502
     except requests.HTTPError as e:
@@ -1507,6 +1558,7 @@ def backend_stats():
                       additionalProperties: true
     """
     from db.translation import get_backend_stats
+
     stats = get_backend_stats()
     return jsonify({"stats": stats})
 
@@ -1514,6 +1566,7 @@ def backend_stats():
 # ---------------------------------------------------------------------------
 # Translation Memory Cache Endpoints
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/translation-memory/stats", methods=["GET"])
 def translation_memory_stats():
@@ -1540,6 +1593,7 @@ def translation_memory_stats():
     """
     try:
         from db.translation import get_translation_cache_stats
+
         stats = get_translation_cache_stats()
         return jsonify(stats)
     except Exception as e:
@@ -1574,6 +1628,7 @@ def clear_translation_memory_cache():
     """
     try:
         from db.translation import clear_translation_cache
+
         deleted = clear_translation_cache()
         logger.info("Translation memory cache cleared: %d entries deleted", deleted)
         return jsonify({"cleared": True, "deleted": deleted})

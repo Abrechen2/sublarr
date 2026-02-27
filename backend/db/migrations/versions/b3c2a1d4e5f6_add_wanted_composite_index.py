@@ -8,6 +8,7 @@ Add composite index (status, item_type) on wanted_items for the most common
 multi-filter query pattern used by get_wanted_items(). Replaces two separate
 single-column index scans with a single composite index scan.
 """
+
 from alembic import op
 
 # revision identifiers, used by Alembic.

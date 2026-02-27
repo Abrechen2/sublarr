@@ -14,21 +14,25 @@ from enum import StrEnum
 
 class ProviderError(Exception):
     """Base exception for provider errors (auth, rate-limit, network)."""
+
     pass
 
 
 class ProviderAuthError(ProviderError):
     """Authentication or authorization failed."""
+
     pass
 
 
 class ProviderRateLimitError(ProviderError):
     """Provider rate limit exceeded."""
+
     pass
 
 
 class ProviderTimeoutError(ProviderError):
     """Provider request timed out."""
+
     pass
 
 
@@ -197,9 +201,11 @@ def _get_cached_weights(score_type: str) -> dict:
     """
     with _scoring_cache_lock:
         now = _time.time()
-        if (_scoring_cache["data"] is not None
-                and _scoring_cache["score_type"] == score_type
-                and now < _scoring_cache["expires"]):
+        if (
+            _scoring_cache["data"] is not None
+            and _scoring_cache["score_type"] == score_type
+            and now < _scoring_cache["expires"]
+        ):
             return _scoring_cache["data"]
 
         defaults = EPISODE_SCORES if score_type == "episode" else MOVIE_SCORES
@@ -207,6 +213,7 @@ def _get_cached_weights(score_type: str) -> dict:
 
         try:
             from db.scoring import get_scoring_weights
+
             db_overrides = get_scoring_weights(score_type)
         except Exception:
             pass  # DB not initialized or import error — use defaults only
@@ -236,6 +243,7 @@ def _get_cached_modifier(provider_name: str) -> int:
 
         try:
             from db.scoring import get_all_provider_modifiers
+
             _modifier_cache["data"] = get_all_provider_modifiers()
         except Exception:
             _modifier_cache["data"] = {}

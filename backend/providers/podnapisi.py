@@ -40,48 +40,48 @@ _FORMAT_MAP = {
 # Podnapisi uses numeric language codes.
 # Mapping from ISO 639-1 to Podnapisi language IDs.
 _LANG_TO_PODNAPISI = {
-    "en": 2,    # English
-    "de": 14,   # German
-    "fr": 8,    # French
-    "es": 28,   # Spanish
-    "it": 9,    # Italian
-    "pt": 26,   # Portuguese
-    "sl": 1,    # Slovenian
-    "hr": 38,   # Croatian
-    "sr": 36,   # Serbian
-    "bs": 42,   # Bosnian
-    "cs": 7,    # Czech
-    "sk": 37,   # Slovak
-    "pl": 23,   # Polish
-    "hu": 20,   # Hungarian
-    "ro": 13,   # Romanian
-    "bg": 33,   # Bulgarian
-    "tr": 30,   # Turkish
-    "el": 16,   # Greek
-    "nl": 15,   # Dutch
-    "sv": 25,   # Swedish
-    "da": 24,   # Danish
-    "no": 22,   # Norwegian
-    "fi": 17,   # Finnish
-    "ru": 27,   # Russian
-    "ar": 12,   # Arabic
-    "zh": 17,   # Chinese (simplified)
-    "ja": 11,   # Japanese
-    "ko": 4,    # Korean
-    "he": 18,   # Hebrew
-    "uk": 40,   # Ukrainian
-    "et": 34,   # Estonian
-    "lv": 39,   # Latvian
-    "lt": 21,   # Lithuanian
-    "fa": 52,   # Persian
-    "vi": 45,   # Vietnamese
-    "id": 47,   # Indonesian
-    "th": 44,   # Thai
-    "mk": 35,   # Macedonian
-    "sq": 41,   # Albanian
-    "ca": 53,   # Catalan
-    "eu": 54,   # Basque
-    "gl": 55,   # Galician
+    "en": 2,  # English
+    "de": 14,  # German
+    "fr": 8,  # French
+    "es": 28,  # Spanish
+    "it": 9,  # Italian
+    "pt": 26,  # Portuguese
+    "sl": 1,  # Slovenian
+    "hr": 38,  # Croatian
+    "sr": 36,  # Serbian
+    "bs": 42,  # Bosnian
+    "cs": 7,  # Czech
+    "sk": 37,  # Slovak
+    "pl": 23,  # Polish
+    "hu": 20,  # Hungarian
+    "ro": 13,  # Romanian
+    "bg": 33,  # Bulgarian
+    "tr": 30,  # Turkish
+    "el": 16,  # Greek
+    "nl": 15,  # Dutch
+    "sv": 25,  # Swedish
+    "da": 24,  # Danish
+    "no": 22,  # Norwegian
+    "fi": 17,  # Finnish
+    "ru": 27,  # Russian
+    "ar": 12,  # Arabic
+    "zh": 17,  # Chinese (simplified)
+    "ja": 11,  # Japanese
+    "ko": 4,  # Korean
+    "he": 18,  # Hebrew
+    "uk": 40,  # Ukrainian
+    "et": 34,  # Estonian
+    "lv": 39,  # Latvian
+    "lt": 21,  # Lithuanian
+    "fa": 52,  # Persian
+    "vi": 45,  # Vietnamese
+    "id": 47,  # Indonesian
+    "th": 44,  # Thai
+    "mk": 35,  # Macedonian
+    "sq": 41,  # Albanian
+    "ca": 53,  # Catalan
+    "eu": 54,  # Basque
+    "gl": 55,  # Galician
 }
 
 # Reverse mapping: Podnapisi ID -> ISO 639-1 code
@@ -95,10 +95,14 @@ def _parse_xml(content: bytes):
     """
     try:
         from lxml import etree
+
         return etree.fromstring(content)
     except ImportError:
-        logger.debug("Podnapisi: lxml not available, using stdlib xml.etree (performance may be degraded)")
+        logger.debug(
+            "Podnapisi: lxml not available, using stdlib xml.etree (performance may be degraded)"
+        )
         import xml.etree.ElementTree as ET
+
         return ET.fromstring(content)
 
 
@@ -131,11 +135,48 @@ class PodnapisiProvider(SubtitleProvider):
 
     name = "podnapisi"
     languages = {
-        "en", "de", "fr", "es", "it", "pt", "sl", "hr", "sr", "bs",
-        "cs", "sk", "pl", "hu", "ro", "bg", "tr", "el", "nl", "sv",
-        "da", "no", "fi", "ru", "ar", "zh", "ja", "ko", "he", "uk",
-        "et", "lv", "lt", "fa", "vi", "id", "th", "mk", "sq", "ca",
-        "eu", "gl",
+        "en",
+        "de",
+        "fr",
+        "es",
+        "it",
+        "pt",
+        "sl",
+        "hr",
+        "sr",
+        "bs",
+        "cs",
+        "sk",
+        "pl",
+        "hu",
+        "ro",
+        "bg",
+        "tr",
+        "el",
+        "nl",
+        "sv",
+        "da",
+        "no",
+        "fi",
+        "ru",
+        "ar",
+        "zh",
+        "ja",
+        "ko",
+        "he",
+        "uk",
+        "et",
+        "lv",
+        "lt",
+        "fa",
+        "vi",
+        "id",
+        "th",
+        "mk",
+        "sq",
+        "ca",
+        "eu",
+        "gl",
     }
 
     # Plugin system attributes
@@ -187,8 +228,9 @@ class PodnapisiProvider(SubtitleProvider):
             logger.warning("Podnapisi: cannot search - session is None")
             return []
 
-        logger.debug("Podnapisi: searching for %s (languages: %s)",
-                     query.display_name, query.languages)
+        logger.debug(
+            "Podnapisi: searching for %s (languages: %s)", query.display_name, query.languages
+        )
 
         # Build search keyword
         search_term = query.series_title or query.title
@@ -198,7 +240,7 @@ class PodnapisiProvider(SubtitleProvider):
 
         # Build query params
         params = {
-            "sXML": 1,     # XML response format
+            "sXML": 1,  # XML response format
             "sK": search_term,
         }
 
@@ -269,8 +311,12 @@ class PodnapisiProvider(SubtitleProvider):
 
         logger.info("Podnapisi: found %d subtitle results", len(results))
         if results:
-            logger.debug("Podnapisi: top result - %s (format: %s, language: %s)",
-                        results[0].filename, results[0].format.value, results[0].language)
+            logger.debug(
+                "Podnapisi: top result - %s (format: %s, language: %s)",
+                results[0].filename,
+                results[0].format.value,
+                results[0].language,
+            )
         return results
 
     def _parse_subtitle_element(self, elem, query: VideoQuery) -> SubtitleResult | None:
@@ -399,7 +445,7 @@ class PodnapisiProvider(SubtitleProvider):
         content = resp.content
 
         # Podnapisi returns ZIP archives -- extract the first subtitle file
-        if content[:4] == b'PK\x03\x04':
+        if content[:4] == b"PK\x03\x04":
             extracted = _extract_from_zip(content)
             if extracted:
                 filename, sub_content = extracted

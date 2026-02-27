@@ -54,9 +54,12 @@ def get_audio_streams(file_path: str) -> list[dict]:
 
     cmd = [
         "ffprobe",
-        "-v", "quiet",
-        "-select_streams", "a",
-        "-print_format", "json",
+        "-v",
+        "quiet",
+        "-select_streams",
+        "a",
+        "-print_format",
+        "json",
         "-show_streams",
         file_path,
     ]
@@ -86,13 +89,15 @@ def get_audio_streams(file_path: str) -> list[dict]:
     for idx, stream in enumerate(streams):
         tags = stream.get("tags", {})
         language = tags.get("language", "und")
-        result.append({
-            "stream_index": idx,
-            "codec": stream.get("codec_name", "unknown"),
-            "channels": stream.get("channels", 0),
-            "language": language,
-            "title": tags.get("title", ""),
-        })
+        result.append(
+            {
+                "stream_index": idx,
+                "codec": stream.get("codec_name", "unknown"),
+                "channels": stream.get("channels", 0),
+                "language": language,
+                "title": tags.get("title", ""),
+            }
+        )
 
     return result
 
@@ -144,8 +149,11 @@ def select_audio_track(
         if stream_lang in acceptable_tags:
             logger.info(
                 "Selected audio track %d (%s, %s, %dch) matching language '%s'",
-                stream["stream_index"], stream["language"],
-                stream["codec"], stream["channels"], preferred_language,
+                stream["stream_index"],
+                stream["language"],
+                stream["codec"],
+                stream["channels"],
+                preferred_language,
             )
             return stream
 
@@ -153,8 +161,11 @@ def select_audio_track(
     fallback = streams[0]
     logger.info(
         "No audio track matching '%s' found, falling back to track %d (%s, %s, %dch)",
-        preferred_language, fallback["stream_index"], fallback["language"],
-        fallback["codec"], fallback["channels"],
+        preferred_language,
+        fallback["stream_index"],
+        fallback["language"],
+        fallback["codec"],
+        fallback["channels"],
     )
     return fallback
 
@@ -179,18 +190,25 @@ def extract_audio_to_wav(
     """
     cmd = [
         "ffmpeg",
-        "-i", file_path,
-        "-map", f"0:a:{stream_index}",
-        "-acodec", "pcm_s16le",
-        "-ar", "16000",
-        "-ac", "1",
+        "-i",
+        file_path,
+        "-map",
+        f"0:a:{stream_index}",
+        "-acodec",
+        "pcm_s16le",
+        "-ar",
+        "16000",
+        "-ac",
+        "1",
         "-y",  # Overwrite output
         output_path,
     ]
 
     logger.info(
         "Extracting audio track %d from %s to %s",
-        stream_index, os.path.basename(file_path), os.path.basename(output_path),
+        stream_index,
+        os.path.basename(file_path),
+        os.path.basename(output_path),
     )
 
     try:
@@ -214,7 +232,8 @@ def extract_audio_to_wav(
     file_size = os.path.getsize(output_path)
     logger.info(
         "Extracted audio: %s (%.1f MB)",
-        os.path.basename(output_path), file_size / (1024 * 1024),
+        os.path.basename(output_path),
+        file_size / (1024 * 1024),
     )
 
     return output_path

@@ -24,6 +24,7 @@ bp = Blueprint("integrations", __name__, url_prefix="/api/v1/integrations")
 # 1. Bazarr Mapping Report
 # ---------------------------------------------------------------------------
 
+
 @bp.route("/bazarr/mapping-report", methods=["POST"])
 def bazarr_mapping_report():
     """Generate a detailed mapping report of a Bazarr database.
@@ -42,6 +43,7 @@ def bazarr_mapping_report():
 
     try:
         from bazarr_migrator import generate_mapping_report
+
         report = generate_mapping_report(db_path)
         return jsonify(report)
     except Exception as exc:
@@ -52,6 +54,7 @@ def bazarr_mapping_report():
 # ---------------------------------------------------------------------------
 # 2. Compatibility Check (Batch)
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/compat-check", methods=["POST"])
 def compat_check_batch():
@@ -75,6 +78,7 @@ def compat_check_batch():
 
     try:
         from compat_checker import batch_check_compatibility
+
         result = batch_check_compatibility(subtitle_paths, video_path, target)
         return jsonify(result)
     except Exception as exc:
@@ -85,6 +89,7 @@ def compat_check_batch():
 # ---------------------------------------------------------------------------
 # 3. Compatibility Check (Single)
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/compat-check/single", methods=["POST"])
 def compat_check_single():
@@ -109,9 +114,11 @@ def compat_check_single():
     try:
         if target == "plex":
             from compat_checker import check_plex_compatibility
+
             result = check_plex_compatibility(subtitle_path, video_path)
         else:
             from compat_checker import check_kodi_compatibility
+
             result = check_kodi_compatibility(subtitle_path, video_path)
         return jsonify(result)
     except Exception as exc:
@@ -122,6 +129,7 @@ def compat_check_single():
 # ---------------------------------------------------------------------------
 # 4. Extended Health: Sonarr
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/health/sonarr", methods=["GET"])
 def health_sonarr():
@@ -145,10 +153,12 @@ def health_sonarr():
                 health = client.extended_health_check()
                 results.append({"name": name, **health})
             except Exception as exc:
-                results.append({
-                    "name": name,
-                    "connection": {"healthy": False, "message": str(exc)},
-                })
+                results.append(
+                    {
+                        "name": name,
+                        "connection": {"healthy": False, "message": str(exc)},
+                    }
+                )
 
         return jsonify({"instances": results})
     except Exception as exc:
@@ -159,6 +169,7 @@ def health_sonarr():
 # ---------------------------------------------------------------------------
 # 5. Extended Health: Radarr
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/health/radarr", methods=["GET"])
 def health_radarr():
@@ -182,10 +193,12 @@ def health_radarr():
                 health = client.extended_health_check()
                 results.append({"name": name, **health})
             except Exception as exc:
-                results.append({
-                    "name": name,
-                    "connection": {"healthy": False, "message": str(exc)},
-                })
+                results.append(
+                    {
+                        "name": name,
+                        "connection": {"healthy": False, "message": str(exc)},
+                    }
+                )
 
         return jsonify({"instances": results})
     except Exception as exc:
@@ -197,6 +210,7 @@ def health_radarr():
 # 6. Extended Health: Jellyfin
 # ---------------------------------------------------------------------------
 
+
 @bp.route("/health/jellyfin", methods=["GET"])
 def health_jellyfin():
     """Extended health check for Jellyfin/Emby instances via media server manager."""
@@ -206,13 +220,14 @@ def health_jellyfin():
         manager = get_media_server_manager()
         manager.load_instances()
         jellyfin_instances = [
-            inst for inst in manager._instances.values()
-            if type(inst).name == "jellyfin"
+            inst for inst in manager._instances.values() if type(inst).name == "jellyfin"
         ]
         if not jellyfin_instances:
-            return jsonify({
-                "connection": {"healthy": False, "message": "Jellyfin not configured"},
-            })
+            return jsonify(
+                {
+                    "connection": {"healthy": False, "message": "Jellyfin not configured"},
+                }
+            )
 
         instance = jellyfin_instances[0]
         healthy, message = instance.health_check()
@@ -225,6 +240,7 @@ def health_jellyfin():
 # ---------------------------------------------------------------------------
 # 7. Extended Health: Media Servers
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/health/mediaservers", methods=["GET"])
 def health_mediaservers():
@@ -273,6 +289,7 @@ def health_mediaservers():
 # 8. Export Config
 # ---------------------------------------------------------------------------
 
+
 @bp.route("/export", methods=["POST"])
 def export_config_endpoint():
     """Export Sublarr config in a specified format.
@@ -285,12 +302,15 @@ def export_config_endpoint():
 
     valid_formats = {"bazarr", "plex", "kodi", "json"}
     if export_format not in valid_formats:
-        return jsonify({
-            "error": f"Invalid format '{export_format}'. Supported: {', '.join(sorted(valid_formats))}"
-        }), 400
+        return jsonify(
+            {
+                "error": f"Invalid format '{export_format}'. Supported: {', '.join(sorted(valid_formats))}"
+            }
+        ), 400
 
     try:
         from export_manager import export_config
+
         result = export_config(export_format, include_secrets=include_secrets)
         return jsonify(result)
     except Exception as exc:
@@ -301,6 +321,7 @@ def export_config_endpoint():
 # ---------------------------------------------------------------------------
 # 9. Export ZIP
 # ---------------------------------------------------------------------------
+
 
 @bp.route("/export/zip", methods=["POST"])
 def export_zip_endpoint():
@@ -319,12 +340,15 @@ def export_zip_endpoint():
     valid_formats = {"bazarr", "plex", "kodi", "json"}
     invalid = set(formats) - valid_formats
     if invalid:
-        return jsonify({
-            "error": f"Invalid format(s): {', '.join(sorted(invalid))}. Supported: {', '.join(sorted(valid_formats))}"
-        }), 400
+        return jsonify(
+            {
+                "error": f"Invalid format(s): {', '.join(sorted(invalid))}. Supported: {', '.join(sorted(valid_formats))}"
+            }
+        ), 400
 
     try:
         from export_manager import export_to_zip
+
         zip_bytes = export_to_zip(formats, include_secrets=include_secrets)
         return Response(
             zip_bytes,
@@ -342,11 +366,13 @@ def export_zip_endpoint():
 # 10. Aggregated Health: All Services
 # ---------------------------------------------------------------------------
 
+
 def _health_all_sonarr():
     out = []
     try:
         from config import get_sonarr_instances
         from sonarr_client import SonarrClient
+
         for inst in get_sonarr_instances():
             name = inst.get("name", "Unnamed")
             try:
@@ -365,6 +391,7 @@ def _health_all_radarr():
     try:
         from config import get_radarr_instances
         from radarr_client import RadarrClient
+
         for inst in get_radarr_instances():
             name = inst.get("name", "Unnamed")
             try:
@@ -381,11 +408,11 @@ def _health_all_radarr():
 def _health_all_jellyfin():
     try:
         from mediaserver import get_media_server_manager
+
         manager = get_media_server_manager()
         manager.load_instances()
         jellyfin_instances = [
-            inst for inst in manager._instances.values()
-            if type(inst).name == "jellyfin"
+            inst for inst in manager._instances.values() if type(inst).name == "jellyfin"
         ]
         if not jellyfin_instances:
             return "jellyfin", {"connection": {"healthy": False, "message": "Not configured"}}
@@ -400,6 +427,7 @@ def _health_all_media_servers():
     out = []
     try:
         from mediaserver import get_media_server_manager
+
         manager = get_media_server_manager()
         manager.load_instances()
         for instance_key, instance in manager._instances.items():

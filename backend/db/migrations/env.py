@@ -63,8 +63,15 @@ def stamp_existing_db_if_needed(connection):
             "Existing database detected without alembic_version table. "
             "Stamping at 'head' to skip initial migration."
         )
-        connection.execute(text("CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) NOT NULL PRIMARY KEY)"))
-        connection.execute(text("INSERT INTO alembic_version (version_num) VALUES (:rev)"), {"rev": _STAMP_REVISION})
+        connection.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) NOT NULL PRIMARY KEY)"
+            )
+        )
+        connection.execute(
+            text("INSERT INTO alembic_version (version_num) VALUES (:rev)"),
+            {"rev": _STAMP_REVISION},
+        )
         connection.commit()
         logger.info("Database stamped at 'head' successfully.")
 

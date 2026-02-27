@@ -18,9 +18,9 @@ logger = logging.getLogger(__name__)
 class QualityRepository(BaseRepository):
     """Repository for subtitle_health_results table operations."""
 
-    def save_health_result(self, file_path: str, score: int,
-                           issues_json: str, checks_run: int,
-                           checked_at: str) -> dict:
+    def save_health_result(
+        self, file_path: str, score: int, issues_json: str, checks_run: int, checked_at: str
+    ) -> dict:
         """Save or update a health check result for a file.
 
         Creates a new record each time (for trend tracking).
@@ -93,7 +93,8 @@ class QualityRepository(BaseRepository):
                 func.count().label("check_count"),
             )
             .where(
-                SubtitleHealthResult.checked_at > (datetime.now(UTC) - timedelta(days=days)).isoformat()
+                SubtitleHealthResult.checked_at
+                > (datetime.now(UTC) - timedelta(days=days)).isoformat()
             )
             .group_by(func.substr(SubtitleHealthResult.checked_at, 1, 10))
             .order_by(func.substr(SubtitleHealthResult.checked_at, 1, 10))
@@ -102,11 +103,13 @@ class QualityRepository(BaseRepository):
 
         trends = []
         for row in rows:
-            trends.append({
-                "date": row[0],
-                "avg_score": float(row[1]) if row[1] is not None else 0.0,
-                "check_count": row[2],
-            })
+            trends.append(
+                {
+                    "date": row[0],
+                    "avg_score": float(row[1]) if row[1] is not None else 0.0,
+                    "check_count": row[2],
+                }
+            )
         return trends
 
     def delete_health_results(self, file_path: str) -> int:
@@ -115,10 +118,7 @@ class QualityRepository(BaseRepository):
         Returns:
             Count of deleted records.
         """
-        stmt = (
-            select(SubtitleHealthResult)
-            .where(SubtitleHealthResult.file_path == file_path)
-        )
+        stmt = select(SubtitleHealthResult).where(SubtitleHealthResult.file_path == file_path)
         entries = self.session.execute(stmt).scalars().all()
         count = len(entries)
         for entry in entries:

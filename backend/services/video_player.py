@@ -53,15 +53,24 @@ def generate_hls_playlist(
     cmd = [
         "ffmpeg",
         "-y",
-        "-i", video_path,
-        "-c:v", "libx264",
-        "-c:a", "aac",
-        "-b:v", settings["bitrate"],
-        "-vf", f"scale={settings['scale']}",
-        "-hls_time", str(segment_duration),
-        "-hls_playlist_type", "vod",
-        "-hls_segment_filename", segment_pattern,
-        "-start_number", "0",
+        "-i",
+        video_path,
+        "-c:v",
+        "libx264",
+        "-c:a",
+        "aac",
+        "-b:v",
+        settings["bitrate"],
+        "-vf",
+        f"scale={settings['scale']}",
+        "-hls_time",
+        str(segment_duration),
+        "-hls_playlist_type",
+        "vod",
+        "-hls_segment_filename",
+        segment_pattern,
+        "-start_number",
+        "0",
         playlist_path,
     ]
 
@@ -119,11 +128,16 @@ def generate_screenshot(
     cmd = [
         "ffmpeg",
         "-y",
-        "-ss", str(timestamp),
-        "-i", video_path,
-        "-vframes", "1",
-        "-vf", f"scale={width}:-1",
-        "-q:v", "2",  # High quality
+        "-ss",
+        str(timestamp),
+        "-i",
+        video_path,
+        "-vframes",
+        "1",
+        "-vf",
+        f"scale={width}:-1",
+        "-q:v",
+        "2",  # High quality
         output_path,
     ]
 
@@ -172,7 +186,8 @@ def convert_subtitle_to_webvtt(
     cmd = [
         "ffmpeg",
         "-y",
-        "-i", subtitle_path,
+        "-i",
+        subtitle_path,
         output_path,
     ]
 
@@ -231,15 +246,24 @@ def embed_subtitle_in_video(
     cmd = [
         "ffmpeg",
         "-y",
-        "-i", video_path,
-        "-i", subtitle_path,
-        "-c:v", "copy",  # Copy video stream
-        "-c:a", "copy",  # Copy audio stream
-        "-c:s", codec,   # Subtitle codec
-        "-map", "0:v",
-        "-map", "0:a",
-        "-map", "1:s",
-        "-metadata:s:s:0", f"language={language}",
+        "-i",
+        video_path,
+        "-i",
+        subtitle_path,
+        "-c:v",
+        "copy",  # Copy video stream
+        "-c:a",
+        "copy",  # Copy audio stream
+        "-c:s",
+        codec,  # Subtitle codec
+        "-map",
+        "0:v",
+        "-map",
+        "0:a",
+        "-map",
+        "1:s",
+        "-metadata:s:s:0",
+        f"language={language}",
         output_path,
     ]
 

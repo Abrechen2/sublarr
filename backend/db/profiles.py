@@ -1,6 +1,5 @@
 """Language profile database operations -- delegating to SQLAlchemy repository."""
 
-
 from db.repositories.profiles import ProfileRepository
 
 _repo = None
@@ -15,15 +14,27 @@ def _get_repo():
 
 # ---- Profile CRUD ----
 
-def create_language_profile(name: str, source_lang: str, source_name: str,
-                             target_langs: list, target_names: list,
-                             translation_backend: str = "ollama",
-                             fallback_chain: list = None,
-                             forced_preference: str = "disabled") -> int:
+
+def create_language_profile(
+    name: str,
+    source_lang: str,
+    source_name: str,
+    target_langs: list,
+    target_names: list,
+    translation_backend: str = "ollama",
+    fallback_chain: list = None,
+    forced_preference: str = "disabled",
+) -> int:
     """Create a new language profile. Returns the profile ID."""
     return _get_repo().create_profile(
-        name, source_lang, source_name, target_langs, target_names,
-        translation_backend, fallback_chain, forced_preference
+        name,
+        source_lang,
+        source_name,
+        target_langs,
+        target_names,
+        translation_backend,
+        fallback_chain,
+        forced_preference,
     )
 
 
@@ -53,6 +64,7 @@ def get_default_profile() -> dict:
 
 
 # ---- Series profile assignments ----
+
 
 def get_series_profile(sonarr_series_id: int) -> dict:
     """Get the language profile assigned to a series. Falls back to default."""
@@ -99,6 +111,6 @@ def get_series_missing_counts() -> dict:
 # Keep private helper for backward compat
 def _row_to_profile(row) -> dict:
     """Convert a database row to a profile dict (legacy compat)."""
-    if hasattr(row, '__dict__'):
+    if hasattr(row, "__dict__"):
         return _get_repo()._row_to_profile(row)
     return dict(row) if row else None

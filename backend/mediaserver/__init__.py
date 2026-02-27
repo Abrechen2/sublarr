@@ -47,11 +47,13 @@ class MediaServerManager:
         """
         result = []
         for name, cls in self._server_classes.items():
-            result.append({
-                "name": cls.name,
-                "display_name": cls.display_name,
-                "config_fields": cls.config_fields,
-            })
+            result.append(
+                {
+                    "name": cls.name,
+                    "display_name": cls.display_name,
+                    "config_fields": cls.config_fields,
+                }
+            )
         return result
 
     def load_instances(self) -> None:
@@ -78,7 +80,8 @@ class MediaServerManager:
             if not cls:
                 logger.warning(
                     "Unknown media server type '%s' at index %d, skipping",
-                    server_type, idx,
+                    server_type,
+                    idx,
                 )
                 continue
 
@@ -94,12 +97,15 @@ class MediaServerManager:
                 self._instances[instance_key] = instance
                 logger.info(
                     "Created media server instance: %s (%s)",
-                    entry.get("name", instance_key), server_type,
+                    entry.get("name", instance_key),
+                    server_type,
                 )
             except Exception as e:
                 logger.error(
                     "Failed to create media server %s at index %d: %s",
-                    server_type, idx, e,
+                    server_type,
+                    idx,
+                    e,
                 )
 
     def refresh_all(self, file_path: str, item_type: str = "") -> list[RefreshResult]:
@@ -126,11 +132,13 @@ class MediaServerManager:
                     "Skipping media server %s (circuit breaker OPEN)",
                     instance_key,
                 )
-                results.append(RefreshResult(
-                    success=False,
-                    message=f"Skipped {instance_key} (circuit breaker OPEN)",
-                    server_name=instance.config.get("name", instance_key),
-                ))
+                results.append(
+                    RefreshResult(
+                        success=False,
+                        message=f"Skipped {instance_key} (circuit breaker OPEN)",
+                        server_name=instance.config.get("name", instance_key),
+                    )
+                )
                 continue
 
             try:
@@ -142,14 +150,14 @@ class MediaServerManager:
                 results.append(result)
             except Exception as e:
                 cb.record_failure()
-                logger.warning(
-                    "Media server %s refresh failed: %s", instance_key, e
+                logger.warning("Media server %s refresh failed: %s", instance_key, e)
+                results.append(
+                    RefreshResult(
+                        success=False,
+                        message=f"Error refreshing {instance_key}: {e}",
+                        server_name=instance.config.get("name", instance_key),
+                    )
                 )
-                results.append(RefreshResult(
-                    success=False,
-                    message=f"Error refreshing {instance_key}: {e}",
-                    server_name=instance.config.get("name", instance_key),
-                ))
 
         return results
 
@@ -163,23 +171,27 @@ class MediaServerManager:
         for instance_key, instance in self._instances.items():
             try:
                 healthy, message = instance.health_check()
-                results.append({
-                    "name": instance.config.get("name", instance_key),
-                    "type": type(instance).name,
-                    "instance_key": instance_key,
-                    "healthy": healthy,
-                    "message": message,
-                    "enabled": self._instance_enabled.get(instance_key, True),
-                })
+                results.append(
+                    {
+                        "name": instance.config.get("name", instance_key),
+                        "type": type(instance).name,
+                        "instance_key": instance_key,
+                        "healthy": healthy,
+                        "message": message,
+                        "enabled": self._instance_enabled.get(instance_key, True),
+                    }
+                )
             except Exception as e:
-                results.append({
-                    "name": instance.config.get("name", instance_key),
-                    "type": type(instance).name,
-                    "instance_key": instance_key,
-                    "healthy": False,
-                    "message": str(e),
-                    "enabled": self._instance_enabled.get(instance_key, True),
-                })
+                results.append(
+                    {
+                        "name": instance.config.get("name", instance_key),
+                        "type": type(instance).name,
+                        "instance_key": instance_key,
+                        "healthy": False,
+                        "message": str(e),
+                        "enabled": self._instance_enabled.get(instance_key, True),
+                    }
+                )
         return results
 
     def invalidate_instances(self) -> None:
@@ -193,6 +205,7 @@ class MediaServerManager:
         if instance_key not in self._circuit_breakers:
             try:
                 from config import get_settings
+
                 settings = get_settings()
                 threshold = settings.circuit_breaker_failure_threshold
                 cooldown = settings.circuit_breaker_cooldown_seconds
@@ -214,6 +227,7 @@ class MediaServerManager:
         """
         try:
             from db.config import get_config_entry
+
             raw = get_config_entry("media_servers_json")
             if raw:
                 data = json.loads(raw)
@@ -248,15 +262,18 @@ def invalidate_media_server_manager() -> None:
 def _register_builtin_servers(manager: MediaServerManager) -> None:
     """Register all built-in media server backends."""
     from mediaserver.jellyfin import JellyfinEmbyServer
+
     manager.register_server_type(JellyfinEmbyServer)
 
     # Plex: optional dependency (plexapi package may not be installed)
     try:
         from mediaserver.plex import PlexServer
+
         manager.register_server_type(PlexServer)
     except ImportError:
         logger.info("Plex backend not available (plexapi package not installed)")
 
     # Kodi: uses stdlib requests (always available)
     from mediaserver.kodi import KodiServer
+
     manager.register_server_type(KodiServer)

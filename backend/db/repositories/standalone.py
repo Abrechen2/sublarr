@@ -27,8 +27,7 @@ class StandaloneRepository(BaseRepository):
 
     # ---- Watched Folders ---------------------------------------------------------
 
-    def create_watched_folder(self, path: str, label: str = "",
-                               media_type: str = "auto") -> dict:
+    def create_watched_folder(self, path: str, label: str = "", media_type: str = "auto") -> dict:
         """Create a new watched folder.
 
         Returns:
@@ -100,13 +99,21 @@ class StandaloneRepository(BaseRepository):
 
     # ---- Standalone Series -------------------------------------------------------
 
-    def upsert_standalone_series(self, title: str, folder_path: str,
-                                  year: int = None, tmdb_id: int = None,
-                                  tvdb_id: int = None, anilist_id: int = None,
-                                  imdb_id: str = "", poster_url: str = "",
-                                  is_anime: bool = False, episode_count: int = 0,
-                                  season_count: int = 0,
-                                  metadata_source: str = "") -> dict:
+    def upsert_standalone_series(
+        self,
+        title: str,
+        folder_path: str,
+        year: int = None,
+        tmdb_id: int = None,
+        tvdb_id: int = None,
+        anilist_id: int = None,
+        imdb_id: str = "",
+        poster_url: str = "",
+        is_anime: bool = False,
+        episode_count: int = 0,
+        season_count: int = 0,
+        metadata_source: str = "",
+    ) -> dict:
         """Insert or update a standalone series by folder_path.
 
         Returns:
@@ -116,9 +123,7 @@ class StandaloneRepository(BaseRepository):
         is_anime_int = 1 if is_anime else 0
 
         # Check for existing series by folder_path
-        stmt = select(StandaloneSeries).where(
-            StandaloneSeries.folder_path == folder_path
-        )
+        stmt = select(StandaloneSeries).where(StandaloneSeries.folder_path == folder_path)
         existing = self.session.execute(stmt).scalars().first()
 
         if existing:
@@ -181,9 +186,7 @@ class StandaloneRepository(BaseRepository):
 
     def get_standalone_series_by_folder(self, folder_path: str) -> dict | None:
         """Get a standalone series by its folder path."""
-        stmt = select(StandaloneSeries).where(
-            StandaloneSeries.folder_path == folder_path
-        )
+        stmt = select(StandaloneSeries).where(StandaloneSeries.folder_path == folder_path)
         entry = self.session.execute(stmt).scalars().first()
         if not entry:
             return None
@@ -191,10 +194,16 @@ class StandaloneRepository(BaseRepository):
 
     # ---- Standalone Movies -------------------------------------------------------
 
-    def upsert_standalone_movie(self, title: str, file_path: str,
-                                 year: int = None, tmdb_id: int = None,
-                                 imdb_id: str = "", poster_url: str = "",
-                                 metadata_source: str = "") -> dict:
+    def upsert_standalone_movie(
+        self,
+        title: str,
+        file_path: str,
+        year: int = None,
+        tmdb_id: int = None,
+        imdb_id: str = "",
+        poster_url: str = "",
+        metadata_source: str = "",
+    ) -> dict:
         """Insert or update a standalone movie by file_path.
 
         Returns:
@@ -203,9 +212,7 @@ class StandaloneRepository(BaseRepository):
         now = self._now()
 
         # Check for existing movie by file_path
-        stmt = select(StandaloneMovie).where(
-            StandaloneMovie.file_path == file_path
-        )
+        stmt = select(StandaloneMovie).where(StandaloneMovie.file_path == file_path)
         existing = self.session.execute(stmt).scalars().first()
 
         if existing:
@@ -258,9 +265,7 @@ class StandaloneRepository(BaseRepository):
 
     def get_standalone_movie_by_path(self, file_path: str) -> dict | None:
         """Get a standalone movie by its file path."""
-        stmt = select(StandaloneMovie).where(
-            StandaloneMovie.file_path == file_path
-        )
+        stmt = select(StandaloneMovie).where(StandaloneMovie.file_path == file_path)
         entry = self.session.execute(stmt).scalars().first()
         if not entry:
             return None
@@ -278,8 +283,9 @@ class StandaloneRepository(BaseRepository):
             return None
         return self._to_dict(entry)
 
-    def save_metadata_cache(self, cache_key: str, provider: str,
-                             response_json: str, ttl_days: int = 30):
+    def save_metadata_cache(
+        self, cache_key: str, provider: str, response_json: str, ttl_days: int = 30
+    ):
         """Insert or replace a metadata cache entry with TTL."""
         now = datetime.utcnow()
         cached_at = now.isoformat()
@@ -305,9 +311,7 @@ class StandaloneRepository(BaseRepository):
     def clear_expired_metadata_cache(self) -> int:
         """Delete all expired metadata cache entries. Returns count deleted."""
         now = datetime.utcnow().isoformat()
-        result = self.session.execute(
-            delete(MetadataCache).where(MetadataCache.expires_at <= now)
-        )
+        result = self.session.execute(delete(MetadataCache).where(MetadataCache.expires_at <= now))
         self._commit()
         return result.rowcount
 
@@ -323,8 +327,7 @@ class StandaloneRepository(BaseRepository):
         self._commit()
         return self._to_dict(entry)
 
-    def save_anidb_mapping(self, tvdb_id: int, anidb_id: int,
-                            series_title: str = ""):
+    def save_anidb_mapping(self, tvdb_id: int, anidb_id: int, series_title: str = ""):
         """Save or update an AniDB mapping in the cache."""
         now = self._now()
         existing = self.session.get(AnidbMapping, tvdb_id)
@@ -346,9 +349,7 @@ class StandaloneRepository(BaseRepository):
     def clear_old_anidb_mappings(self, ttl_days: int = 90) -> int:
         """Remove AniDB mappings older than specified days. Returns count deleted."""
         cutoff = (datetime.utcnow() - timedelta(days=ttl_days)).isoformat()
-        result = self.session.execute(
-            delete(AnidbMapping).where(AnidbMapping.last_used < cutoff)
-        )
+        result = self.session.execute(delete(AnidbMapping).where(AnidbMapping.last_used < cutoff))
         self._commit()
         return result.rowcount
 

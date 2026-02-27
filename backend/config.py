@@ -22,7 +22,9 @@ class Settings(BaseSettings):
     port: int = 5765
     api_key: str = ""  # Empty = no auth required
     log_level: str = "INFO"
-    log_file: str = "log/sublarr.log"  # In-Repo default; Docker: set SUBLARR_LOG_FILE=/config/sublarr.log
+    log_file: str = (
+        "log/sublarr.log"  # In-Repo default; Docker: set SUBLARR_LOG_FILE=/config/sublarr.log
+    )
     media_path: str = "/media"
     db_path: str = "/config/sublarr.db"
 
@@ -92,17 +94,23 @@ class Settings(BaseSettings):
     path_mapping: str = ""
 
     # ffmpeg / ffprobe
-    ffmpeg_timeout: int = 120  # Seconds before ffmpeg subtitle-extraction is killed (SUBLARR_FFMPEG_TIMEOUT)
+    ffmpeg_timeout: int = (
+        120  # Seconds before ffmpeg subtitle-extraction is killed (SUBLARR_FFMPEG_TIMEOUT)
+    )
 
     # Scan Metadata Engine
     scan_metadata_engine: str = "auto"  # "ffprobe" | "mediainfo" | "auto"
     scan_metadata_max_workers: int = 4  # Parallel workers for batch metadata scans
 
     # Wanted System
-    wanted_scan_interval_hours: int = 6  # 0 = disabled
+    wanted_scan_interval_hours: int = (
+        0  # 0 = disabled; scan is event-driven (webhook / manual / file-watcher)
+    )
     wanted_anime_only: bool = True
-    wanted_anime_movies_only: bool = False  # Filter Radarr movies by anime tag (separate from wanted_anime_only)
-    wanted_scan_on_startup: bool = True
+    wanted_anime_movies_only: bool = (
+        False  # Filter Radarr movies by anime tag (separate from wanted_anime_only)
+    )
+    wanted_scan_on_startup: bool = False
     wanted_auto_extract: bool = False  # Auto-extract embedded subs during wanted scan
     wanted_auto_translate: bool = False  # Auto-translate after auto-extract during wanted scan
     wanted_max_search_attempts: int = 3
@@ -124,8 +132,8 @@ class Settings(BaseSettings):
     webhook_auto_translate: bool = True
 
     # Video Sync (ffsubsync / alass)
-    auto_sync_after_download: bool = False   # Auto-sync subtitle against video after download
-    auto_sync_engine: str = "ffsubsync"      # Engine for auto-sync: "ffsubsync" | "alass"
+    auto_sync_after_download: bool = False  # Auto-sync subtitle against video after download
+    auto_sync_engine: str = "ffsubsync"  # Engine for auto-sync: "ffsubsync" | "alass"
 
     # Wanted Search Scheduler
     wanted_search_interval_hours: int = 24  # 0 = disabled
@@ -151,7 +159,9 @@ class Settings(BaseSettings):
     # Circuit Breaker
     circuit_breaker_failure_threshold: int = 5  # Consecutive failures before opening
     circuit_breaker_cooldown_seconds: int = 60  # Seconds in OPEN before HALF_OPEN probe
-    provider_auto_disable_cooldown_minutes: int = 30  # Minutes before auto-disabled provider is re-enabled
+    provider_auto_disable_cooldown_minutes: int = (
+        30  # Minutes before auto-disabled provider is re-enabled
+    )
 
     # Logging
     log_format: str = "text"  # "text" or "json" (structured JSON for log aggregation)
@@ -183,14 +193,14 @@ class Settings(BaseSettings):
 
     # Database (PERF-01, PERF-02)
     database_url: str = ""  # Empty = SQLite at db_path. Set to postgresql://... for PG.
-    db_pool_size: int = 5           # SQLAlchemy pool_size (ignored for SQLite)
+    db_pool_size: int = 5  # SQLAlchemy pool_size (ignored for SQLite)
     db_pool_max_overflow: int = 10  # SQLAlchemy max_overflow (ignored for SQLite)
-    db_pool_recycle: int = 3600     # Recycle connections after N seconds
+    db_pool_recycle: int = 3600  # Recycle connections after N seconds
 
     # Redis (PERF-04, PERF-06)
-    redis_url: str = ""             # Empty = no Redis. e.g., redis://localhost:6379/0
-    redis_cache_enabled: bool = True   # Use Redis for provider cache (when redis_url set)
-    redis_queue_enabled: bool = True   # Use Redis+RQ for job queue (when redis_url set)
+    redis_url: str = ""  # Empty = no Redis. e.g., redis://localhost:6379/0
+    redis_cache_enabled: bool = True  # Use Redis for provider cache (when redis_url set)
+    redis_queue_enabled: bool = True  # Use Redis+RQ for job queue (when redis_url set)
 
     model_config = {
         "env_prefix": "SUBLARR_",
@@ -219,6 +229,7 @@ class Settings(BaseSettings):
         # Try to get default preset from database
         try:
             from db.translation import get_default_prompt_preset
+
             preset = get_default_prompt_preset()
             if preset and preset.get("prompt_template"):
                 template = preset["prompt_template"]
@@ -284,7 +295,11 @@ class Settings(BaseSettings):
         _SENSITIVE_PARTS = {"password", "pin", "secret", "token", "api_key"}
         data = self.model_dump()
         for key in list(data.keys()):
-            if "api_key" in key or "key" in key.split("_") or any(s in key for s in _SENSITIVE_PARTS):
+            if (
+                "api_key" in key
+                or "key" in key.split("_")
+                or any(s in key for s in _SENSITIVE_PARTS)
+            ):
                 if data[key]:
                     data[key] = "***configured***"
                 else:
@@ -317,8 +332,8 @@ def map_path(path: str) -> str:
             continue
 
         if path.startswith(remote_prefix):
-            mapped = local_prefix + path[len(remote_prefix):]
-            if os.name == 'nt':
+            mapped = local_prefix + path[len(remote_prefix) :]
+            if os.name == "nt":
                 mapped = mapped.replace("/", "\\")
             return mapped
 
@@ -399,7 +414,11 @@ def reload_settings(overrides: dict = None) -> Settings:
             expected_type = type(base_data[key])
             try:
                 if expected_type is bool:
-                    update[key] = value.lower() in ("true", "1", "yes") if isinstance(value, str) else bool(value)
+                    update[key] = (
+                        value.lower() in ("true", "1", "yes")
+                        if isinstance(value, str)
+                        else bool(value)
+                    )
                 elif expected_type is int:
                     update[key] = int(value)
                 elif expected_type is float:
@@ -424,6 +443,7 @@ def get_sonarr_instances() -> list[dict]:
     Returns list of instance dicts: [{"name": "...", "url": "...", "api_key": "...", "path_mapping": "..."}]
     """
     import json
+
     settings = get_settings()
 
     # Try new multi-instance config
@@ -437,12 +457,14 @@ def get_sonarr_instances() -> list[dict]:
 
     # Fallback to legacy single-instance config
     if settings.sonarr_url and settings.sonarr_api_key:
-        return [{
-            "name": "Default",
-            "url": settings.sonarr_url,
-            "api_key": settings.sonarr_api_key,
-            "path_mapping": settings.path_mapping,
-        }]
+        return [
+            {
+                "name": "Default",
+                "url": settings.sonarr_url,
+                "api_key": settings.sonarr_api_key,
+                "path_mapping": settings.path_mapping,
+            }
+        ]
 
     return []
 
@@ -453,6 +475,7 @@ def get_radarr_instances() -> list[dict]:
     Returns list of instance dicts: [{"name": "...", "url": "...", "api_key": "...", "path_mapping": "..."}]
     """
     import json
+
     settings = get_settings()
 
     # Try new multi-instance config
@@ -466,12 +489,14 @@ def get_radarr_instances() -> list[dict]:
 
     # Fallback to legacy single-instance config
     if settings.radarr_url and settings.radarr_api_key:
-        return [{
-            "name": "Default",
-            "url": settings.radarr_url,
-            "api_key": settings.radarr_api_key,
-            "path_mapping": settings.path_mapping,
-        }]
+        return [
+            {
+                "name": "Default",
+                "url": settings.radarr_url,
+                "api_key": settings.radarr_api_key,
+                "path_mapping": settings.path_mapping,
+            }
+        ]
 
     return []
 
@@ -502,13 +527,15 @@ def get_media_server_instances() -> list[dict]:
     # Fallback to legacy single-instance Jellyfin config
     settings = get_settings()
     if settings.jellyfin_url and settings.jellyfin_api_key:
-        migrated = [{
-            "type": "jellyfin",
-            "name": "Jellyfin",
-            "enabled": True,
-            "url": settings.jellyfin_url,
-            "api_key": settings.jellyfin_api_key,
-        }]
+        migrated = [
+            {
+                "type": "jellyfin",
+                "name": "Jellyfin",
+                "enabled": True,
+                "url": settings.jellyfin_url,
+                "api_key": settings.jellyfin_api_key,
+            }
+        ]
         # One-time migration: store back into config_entries
         try:
             save_config_entry("media_servers_json", json.dumps(migrated))

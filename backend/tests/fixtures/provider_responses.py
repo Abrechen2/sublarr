@@ -24,11 +24,7 @@ OPENSEARCH_RESPONSE = {
                 "release": "Attack.on.Titan.S01E01.1080p.BluRay.x264",
                 "comments": "",
                 "legacy_subtitle_id": 12345,
-                "uploader": {
-                    "uploader_id": 1,
-                    "name": "test_uploader",
-                    "rank": "trusted"
-                },
+                "uploader": {"uploader_id": 1, "name": "test_uploader", "rank": "trusted"},
                 "feature_details": {
                     "feature_id": 123,
                     "feature_type": "episode",
@@ -38,40 +34,30 @@ OPENSEARCH_RESPONSE = {
                     "imdb_id": 1234567,
                     "tmdb_id": 12345,
                     "season_number": 1,
-                    "episode_number": 1
+                    "episode_number": 1,
                 },
                 "url": "https://api.opensubtitles.com/api/v1/subtitles/12345",
                 "related_links": {
                     "label": "Download",
                     "url": "https://api.opensubtitles.com/api/v1/subtitles/12345/download",
-                    "img_url": ""
+                    "img_url": "",
                 },
                 "files": [
                     {
                         "file_id": 67890,
                         "cd_number": 1,
-                        "file_name": "Attack.on.Titan.S01E01.1080p.BluRay.x264.ass"
+                        "file_name": "Attack.on.Titan.S01E01.1080p.BluRay.x264.ass",
                     }
-                ]
-            }
+                ],
+            },
         }
     ],
-    "meta": {
-        "page": 1,
-        "per_page": 1,
-        "total_count": 1,
-        "total_pages": 1
-    }
+    "meta": {"page": 1, "per_page": 1, "total_count": 1, "total_pages": 1},
 }
 
 OPENSEARCH_EMPTY_RESPONSE = {
     "data": [],
-    "meta": {
-        "page": 1,
-        "per_page": 1,
-        "total_count": 0,
-        "total_pages": 0
-    }
+    "meta": {"page": 1, "per_page": 1, "total_count": 0, "total_pages": 0},
 }
 
 # Jimaku mock responses
@@ -86,10 +72,10 @@ JIMAKU_SEARCH_RESPONSE = {
             "download_url": "https://jimaku.example.com/download/123",
             "file_name": "Attack.on.Titan.S01E01.ass",
             "release_group": "FansubGroup",
-            "score": 180
+            "score": 180,
         }
     ],
-    "total": 1
+    "total": 1,
 }
 
 # AnimeTosho mock responses
@@ -117,25 +103,15 @@ SUBDL_SEARCH_RESPONSE = {
             "format": "ass",
             "download_url": "https://subdl.example.com/download/123",
             "file_name": "Attack.on.Titan.S01E01.ass",
-            "score": 150
+            "score": 150,
         }
     ],
-    "total": 1
+    "total": 1,
 }
 
 # Error responses
-PROVIDER_ERROR_RESPONSE = {
-    "error": {
-        "code": 500,
-        "message": "Internal server error"
-    }
-}
+PROVIDER_ERROR_RESPONSE = {"error": {"code": 500, "message": "Internal server error"}}
 
 PROVIDER_TIMEOUT_RESPONSE = None  # Simulates timeout
 
-PROVIDER_RATE_LIMIT_RESPONSE = {
-    "error": {
-        "code": 429,
-        "message": "Rate limit exceeded"
-    }
-}
+PROVIDER_RATE_LIMIT_RESPONSE = {"error": {"code": 429, "message": "Rate limit exceeded"}}

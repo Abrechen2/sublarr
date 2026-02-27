@@ -78,5 +78,7 @@ class TestHistoryOperations:
         """Test retrieving download history."""
         history = get_download_history(page=1, per_page=50)
         data_key = next((k for k in ("data", "history", "items") if k in history), None)
-        assert data_key is not None, f"Expected 'data', 'history', or 'items' key, got: {list(history.keys())}"
+        assert data_key is not None, (
+            f"Expected 'data', 'history', or 'items' key, got: {list(history.keys())}"
+        )
         assert isinstance(history[data_key], list)

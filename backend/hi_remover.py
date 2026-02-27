@@ -9,26 +9,22 @@ import re
 # Compiled HI patterns for performance
 _HI_PATTERNS = [
     # Square brackets: [music], [door slams], [laughing]
-    re.compile(r'\[(?:music|♪|♫)[^\]]*\]', re.IGNORECASE),
-    re.compile(r'\[[A-Z][A-Z\s,.\'\-]+\]'),           # [DOOR SLAMS]
-    re.compile(r'\[[a-z][a-z\s,.\'\-]+\]'),            # [laughing]
-
+    re.compile(r"\[(?:music|♪|♫)[^\]]*\]", re.IGNORECASE),
+    re.compile(r"\[[A-Z][A-Z\s,.\'\-]+\]"),  # [DOOR SLAMS]
+    re.compile(r"\[[a-z][a-z\s,.\'\-]+\]"),  # [laughing]
     # Round brackets: (gasps), (music playing)
-    re.compile(r'\((?:music|♪|♫)[^\)]*\)', re.IGNORECASE),
-    re.compile(r'\([A-Z][A-Z\s,.\'\-]+\)'),            # (GASPS)
-    re.compile(r'\([a-z][a-z\s,.\'\-]+\)'),            # (sighs)
-
+    re.compile(r"\((?:music|♪|♫)[^\)]*\)", re.IGNORECASE),
+    re.compile(r"\([A-Z][A-Z\s,.\'\-]+\)"),  # (GASPS)
+    re.compile(r"\([a-z][a-z\s,.\'\-]+\)"),  # (sighs)
     # Music symbols: ♪ text ♪
-    re.compile(r'♪[^♪]*♪'),
-    re.compile(r'♫[^♫]*♫'),
-    re.compile(r'^♪.*$', re.MULTILINE),
-    re.compile(r'^♫.*$', re.MULTILINE),
-
+    re.compile(r"♪[^♪]*♪"),
+    re.compile(r"♫[^♫]*♫"),
+    re.compile(r"^♪.*$", re.MULTILINE),
+    re.compile(r"^♫.*$", re.MULTILINE),
     # Speaker labels: JOHN:, MAN 1:
-    re.compile(r'^[A-Z][A-Z\s]{1,20}:\s*', re.MULTILINE),
-
+    re.compile(r"^[A-Z][A-Z\s]{1,20}:\s*", re.MULTILINE),
     # Standalone music symbols
-    re.compile(r'^[\s]*[♪♫]+[\s]*$', re.MULTILINE),
+    re.compile(r"^[\s]*[♪♫]+[\s]*$", re.MULTILINE),
 ]
 
 
@@ -39,14 +35,14 @@ def remove_hi_markers(text: str) -> str:
     """
     result = text
     for pattern in _HI_PATTERNS:
-        result = pattern.sub('', result)
+        result = pattern.sub("", result)
 
     # Clean up: collapse multiple spaces, strip lines
-    result = re.sub(r'  +', ' ', result)
+    result = re.sub(r"  +", " ", result)
     # Remove blank lines
-    lines = [line.strip() for line in result.split('\n')]
+    lines = [line.strip() for line in result.split("\n")]
     lines = [line for line in lines if line]
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def remove_hi_from_srt(content: str) -> str:
@@ -55,11 +51,11 @@ def remove_hi_from_srt(content: str) -> str:
     Preserves SRT structure (sequence numbers, timestamps) but removes
     HI markers from the text portions.
     """
-    blocks = content.strip().split('\n\n')
+    blocks = content.strip().split("\n\n")
     cleaned_blocks = []
 
     for block in blocks:
-        lines = block.split('\n')
+        lines = block.split("\n")
         if len(lines) < 3:
             cleaned_blocks.append(block)
             continue
@@ -67,14 +63,14 @@ def remove_hi_from_srt(content: str) -> str:
         # First line = sequence number, second = timestamp, rest = text
         seq = lines[0]
         timestamp = lines[1]
-        text = '\n'.join(lines[2:])
+        text = "\n".join(lines[2:])
 
         cleaned_text = remove_hi_markers(text)
         if cleaned_text.strip():
             cleaned_blocks.append(f"{seq}\n{timestamp}\n{cleaned_text}")
         # If text is empty after removal, skip the entire block
 
-    return '\n\n'.join(cleaned_blocks)
+    return "\n\n".join(cleaned_blocks)
 
 
 def remove_hi_from_ass_events(texts: list[str]) -> list[str]:

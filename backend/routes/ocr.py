@@ -107,13 +107,15 @@ def extract_ocr():
         return jsonify({"error": "File not found"}), 404
 
     if not TESSERACT_AVAILABLE:
-        return jsonify({
-            "error": "OCR not available (pytesseract not installed)",
-            "text": "",
-            "frames": 0,
-            "successful_frames": 0,
-            "quality": 0,
-        }), 500
+        return jsonify(
+            {
+                "error": "OCR not available (pytesseract not installed)",
+                "text": "",
+                "frames": 0,
+                "successful_frames": 0,
+                "quality": 0,
+            }
+        ), 500
 
     try:
         result = ocr_subtitle_stream(
@@ -206,11 +208,13 @@ def preview_ocr():
         return jsonify({"error": "File not found"}), 404
 
     if not TESSERACT_AVAILABLE:
-        return jsonify({
-            "error": "OCR not available (pytesseract not installed)",
-            "frame_path": "",
-            "preview_text": "",
-        }), 500
+        return jsonify(
+            {
+                "error": "OCR not available (pytesseract not installed)",
+                "frame_path": "",
+                "preview_text": "",
+            }
+        ), 500
 
     try:
         result = preview_frame(mapped_path, timestamp, stream_index)
@@ -278,6 +282,7 @@ def batch_extract():
         return jsonify({"error": "video_path and stream_index are required"}), 400
 
     from config import map_path
+
     video_path = map_path(video_path)
     if not os.path.exists(video_path):
         return jsonify({"error": f"Video not found: {video_path}"}), 404

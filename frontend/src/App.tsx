@@ -70,23 +70,23 @@ function GlobalWebSocketListener() {
   useWebSocket({
     onWebhookReceived: (data: unknown) => {
       const d = data as Record<string, unknown>
-      toast(`Webhook: ${d.title || 'Download received'}`, 'info')
+      toast(`Webhook: ${String(d.title ?? 'Download received')}`, 'info')
     },
     onWebhookCompleted: (data: unknown) => {
       const d = data as Record<string, unknown>
-      toast(`Auto-processed: ${d.title || d.file_path || 'file'}`, 'success')
+      toast(`Auto-processed: ${String(d.title ?? d.file_path ?? 'file')}`, 'success')
     },
     onUpgradeCompleted: (data: unknown) => {
       const d = data as Record<string, unknown>
-      toast(`Upgraded: ${d.file_path || 'subtitle'}`, 'success')
+      toast(`Upgraded: ${String(d.file_path ?? 'subtitle')}`, 'success')
     },
     onWantedSearchCompleted: (data: unknown) => {
       const d = data as Record<string, unknown>
-      toast(`Search complete: ${d.found || 0} found`, 'info')
+      toast(`Search complete: ${String(d.found ?? 0)} found`, 'info')
     },
     onRetranslationCompleted: (data: unknown) => {
       const d = data as Record<string, unknown>
-      const count = d.count || d.succeeded || 0
+      const count = String(d.count ?? d.succeeded ?? 0)
       toast(`Re-translated: ${count} files`, 'success')
     },
     onConfigUpdated: (data: unknown) => {

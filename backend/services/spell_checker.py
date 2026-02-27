@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 # Try to import pyenchant, but make it optional
 try:
     import enchant
+
     ENCHANT_AVAILABLE = True
 except ImportError:
     ENCHANT_AVAILABLE = False
@@ -123,11 +124,13 @@ class SpellChecker:
         for word, position in words:
             if not self.check_word(word):
                 suggestions = self.suggest(word)
-                errors.append({
-                    "word": word,
-                    "position": position,
-                    "suggestions": suggestions,
-                })
+                errors.append(
+                    {
+                        "word": word,
+                        "position": position,
+                        "suggestions": suggestions,
+                    }
+                )
 
         return errors
 
@@ -229,13 +232,15 @@ def check_subtitle_file(
             # Check spelling
             errors = checker.check_text(text)
             for error in errors:
-                all_errors.append({
-                    **error,
-                    "line": event.index + 1,
-                    "text": text,
-                    "start_time": event.start,
-                    "end_time": event.end,
-                })
+                all_errors.append(
+                    {
+                        **error,
+                        "line": event.index + 1,
+                        "text": text,
+                        "start_time": event.start,
+                        "end_time": event.end,
+                    }
+                )
 
             # Count words
             words = checker._extract_words(text)

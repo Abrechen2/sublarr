@@ -32,8 +32,21 @@ MIN_FREE_SPACE_MB = 100
 
 # Common English words that indicate a subtitle was not actually translated
 ENGLISH_MARKER_WORDS = {
-    "the", "and", "that", "have", "for", "not", "with", "you",
-    "this", "but", "from", "they", "will", "what", "about",
+    "the",
+    "and",
+    "that",
+    "have",
+    "for",
+    "not",
+    "with",
+    "you",
+    "this",
+    "but",
+    "from",
+    "they",
+    "will",
+    "what",
+    "about",
 }
 
 
@@ -45,6 +58,7 @@ def _get_whisper_fallback_min_score() -> int:
     """
     try:
         from db.config import get_config_entry
+
         value = get_config_entry("whisper_fallback_min_score")
         if value is None:
             return 0  # disabled by default
@@ -58,6 +72,7 @@ def _is_whisper_enabled() -> bool:
     """Check if Whisper transcription is enabled in config."""
     try:
         from db.config import get_config_entry
+
         enabled = get_config_entry("whisper_enabled")
         return enabled is not None and enabled.lower() in ("true", "1", "yes")
     except Exception:
@@ -103,8 +118,12 @@ def _submit_whisper_job(mkv_path: str, arr_context: dict = None):
             socketio=socketio,
         )
 
-        logger.info("Case D: Submitted Whisper job %s for %s (language: %s)",
-                    job_id, os.path.basename(mkv_path), source_lang)
+        logger.info(
+            "Case D: Submitted Whisper job %s for %s (language: %s)",
+            job_id,
+            os.path.basename(mkv_path),
+            source_lang,
+        )
 
         return {
             "success": True,
@@ -182,6 +201,7 @@ def _get_cache_config() -> tuple:
     """
     try:
         from db.config import get_config_entry
+
         enabled_val = get_config_entry("translation_memory_enabled")
         enabled = enabled_val is None or enabled_val.lower() not in ("false", "0", "no")
         threshold_val = get_config_entry("translation_memory_similarity_threshold")
@@ -195,7 +215,6 @@ def _get_cache_config() -> tuple:
         return True, 1.0
 
 
-
 def _get_quality_config():
     """Read translation quality scoring config from config_entries DB.
 
@@ -207,6 +226,7 @@ def _get_quality_config():
     """
     try:
         from db.config import get_config_entry
+
         enabled_val = get_config_entry("translation_quality_enabled")
         enabled = enabled_val is None or enabled_val.lower() not in ("false", "0", "no")
         threshold_val = get_config_entry("translation_quality_threshold")
@@ -267,7 +287,12 @@ def _evaluate_and_retry_lines(
             retry += 1
             logger.info(
                 "Quality retry %d/%d for line %d (score=%d < threshold=%d): %r",
-                retry, max_retries, idx, score, threshold, src[:60],
+                retry,
+                max_retries,
+                idx,
+                score,
+                threshold,
+                src[:60],
             )
             try:
                 result = manager.translate_with_fallback(
@@ -331,6 +356,7 @@ def _write_quality_sidecar(subtitle_path, scores):
     if not scores:
         return
     import json as _json
+
     sidecar_path = subtitle_path + ".quality.json"
     try:
         with open(sidecar_path, "w", encoding="utf-8") as f:
@@ -391,9 +417,7 @@ def _store_translations_in_cache(source_lines, translated_lines, source_lang, ta
             logger.debug("Cache store error: %s", e)
 
 
-
-def _translate_with_manager(lines, source_lang, target_lang,
-                            arr_context=None, series_id=None):
+def _translate_with_manager(lines, source_lang, target_lang, arr_context=None, series_id=None):
     """Translate lines using TranslationManager with profile-based backend selection.
 
     Resolves the backend and fallback chain from the language profile associated
@@ -421,12 +445,16 @@ def _translate_with_manager(lines, source_lang, target_lang,
     try:
         if series_id:
             from db.translation import get_merged_glossary_for_series
+
             entries = get_merged_glossary_for_series(series_id)
             if entries:
                 glossary_entries = entries
-                logger.debug("Loaded %d merged glossary entries for series %d", len(entries), series_id)
+                logger.debug(
+                    "Loaded %d merged glossary entries for series %d", len(entries), series_id
+                )
         else:
             from db.translation import get_global_glossary
+
             global_entries = get_global_glossary()
             if global_entries:
                 glossary_entries = [
@@ -448,7 +476,9 @@ def _translate_with_manager(lines, source_lang, target_lang,
         if cache_hits:
             logger.debug(
                 "Translation memory: %d/%d lines from cache, %d need LLM",
-                cache_hits, len(lines), len(uncached_lines),
+                cache_hits,
+                len(lines),
+                len(uncached_lines),
             )
     else:
         cached_results = [None] * len(lines)
@@ -458,6 +488,7 @@ def _translate_with_manager(lines, source_lang, target_lang,
     # If every line was served from cache, skip LLM entirely
     if not uncached_lines:
         from translation.base import TranslationResult
+
         synthetic = TranslationResult(
             success=True,
             translated_lines=cached_results,
@@ -476,7 +507,7 @@ def _translate_with_manager(lines, source_lang, target_lang,
     if len(uncached_lines) > batch_size:
         logger.debug("Chunking %d lines into batches of %d", len(uncached_lines), batch_size)
         for chunk_start in range(0, len(uncached_lines), batch_size):
-            chunk = uncached_lines[chunk_start:chunk_start + batch_size]
+            chunk = uncached_lines[chunk_start : chunk_start + batch_size]
             chunk_result = manager.translate_with_fallback(
                 chunk, source_lang, target_lang, fallback_chain, glossary_entries
             )
@@ -538,8 +569,9 @@ def detect_existing_target(mkv_path, probe_data=None):
     return detect_existing_target_for_lang(mkv_path, settings.target_language, probe_data)
 
 
-def detect_existing_target_for_lang(mkv_path, target_language, probe_data=None,
-                                    subtitle_type: str = "full"):
+def detect_existing_target_for_lang(
+    mkv_path, target_language, probe_data=None, subtitle_type: str = "full"
+):
     """Detect existing subtitles for a specific target language and subtitle type.
 
     When subtitle_type is "forced", only checks for .forced. pattern files
@@ -551,6 +583,7 @@ def detect_existing_target_for_lang(mkv_path, target_language, probe_data=None,
         None if no target language subtitle exists.
     """
     from config import _get_language_tags
+
     base = os.path.splitext(mkv_path)[0]
     lang_tags = _get_language_tags(target_language)
 
@@ -638,8 +671,7 @@ def check_disk_space(path):
     free_mb = stat.free / (1024 * 1024)
     if free_mb < MIN_FREE_SPACE_MB:
         raise RuntimeError(
-            f"Insufficient disk space: {free_mb:.0f}MB free, "
-            f"need at least {MIN_FREE_SPACE_MB}MB"
+            f"Insufficient disk space: {free_mb:.0f}MB free, need at least {MIN_FREE_SPACE_MB}MB"
         )
 
 
@@ -672,7 +704,9 @@ def _check_translation_quality(original_texts, translated_texts):
 
     identical = sum(1 for o, t in zip(original_texts, translated_texts) if o.strip() == t.strip())
     if identical > len(original_texts) * 0.5:
-        warnings.append(f"{identical}/{len(original_texts)} lines identical to original (possibly untranslated)")
+        warnings.append(
+            f"{identical}/{len(original_texts)} lines identical to original (possibly untranslated)"
+        )
 
     for i, (orig, trans) in enumerate(zip(original_texts, translated_texts)):
         if len(orig) > 5 and len(trans) > 0:
@@ -703,16 +737,21 @@ def validate_translation_output(original_texts, translated_texts, format="ass"):
     total_orig = sum(len(t) for t in original_texts)
     total_trans = sum(len(t) for t in translated_texts)
     if total_orig > 0 and total_trans > total_orig * 1.5:
-        errors.append(f"Output too long: {total_trans/total_orig:.1f}x")
+        errors.append(f"Output too long: {total_trans / total_orig:.1f}x")
     empty = sum(1 for t in translated_texts if not t.strip())
     if empty > len(translated_texts) * 0.3:
         errors.append(f"Too many empty lines: {empty}/{len(translated_texts)}")
     return len(errors) == 0, errors
 
 
-def translate_ass(mkv_path, stream_info, probe_data,
-                  target_language=None, target_language_name=None,
-                  arr_context=None):
+def translate_ass(
+    mkv_path,
+    stream_info,
+    probe_data,
+    target_language=None,
+    target_language_name=None,
+    arr_context=None,
+):
     """Translate an ASS subtitle stream to target language .{lang}.ass."""
     output_path = get_output_path_for_lang(mkv_path, "ass", target_language)
     check_disk_space(output_path)
@@ -765,6 +804,7 @@ def translate_ass(mkv_path, stream_info, probe_data,
         settings = get_settings()
         if settings.hi_removal_enabled:
             from hi_remover import remove_hi_from_ass_events
+
             dialog_texts = remove_hi_from_ass_events(dialog_texts)
 
         series_id = _extract_series_id(arr_context)
@@ -793,10 +833,14 @@ def translate_ass(mkv_path, stream_info, probe_data,
         if _q_enabled:
             _, _q_fallback_chain = _resolve_backend_for_context(arr_context, tgt_lang)
             translated_texts, quality_scores = _evaluate_and_retry_lines(
-                dialog_texts, translated_texts,
-                settings.source_language, tgt_lang,
-                _q_fallback_chain, None,
-                _q_threshold, _q_max_retries,
+                dialog_texts,
+                translated_texts,
+                settings.source_language,
+                tgt_lang,
+                _q_fallback_chain,
+                None,
+                _q_threshold,
+                _q_max_retries,
             )
 
         translated_count = 0
@@ -818,7 +862,9 @@ def translate_ass(mkv_path, stream_info, probe_data,
         logger.info("Saved ASS translation: %s", output_path)
 
         _write_quality_sidecar(output_path, quality_scores)
-        _quality_stats = _compute_quality_stats(quality_scores, _q_threshold) if quality_scores else {}
+        _quality_stats = (
+            _compute_quality_stats(quality_scores, _q_threshold) if quality_scores else {}
+        )
 
         return {
             "success": True,
@@ -857,8 +903,13 @@ def translate_srt_from_stream(mkv_path, stream_info, target_language=None, arr_c
 
     try:
         extract_subtitle_stream(mkv_path, stream_info, tmp_path)
-        return _translate_srt(tmp_path, output_path, source="embedded_srt",
-                              target_language=target_language, arr_context=arr_context)
+        return _translate_srt(
+            tmp_path,
+            output_path,
+            source="embedded_srt",
+            target_language=target_language,
+            arr_context=arr_context,
+        )
     except Exception as e:
         logger.exception("SRT stream translation failed for %s", mkv_path)
         return _fail_result(str(e))
@@ -867,8 +918,9 @@ def translate_srt_from_stream(mkv_path, stream_info, target_language=None, arr_c
             os.unlink(tmp_path)
 
 
-def translate_srt_from_file(mkv_path, srt_path, source="external_srt",
-                           target_language=None, arr_context=None):
+def translate_srt_from_file(
+    mkv_path, srt_path, source="external_srt", target_language=None, arr_context=None
+):
     """Translate an external SRT file to target language .{lang}.srt."""
     output_path = get_output_path_for_lang(mkv_path, "srt", target_language)
     check_disk_space(output_path)
@@ -910,6 +962,7 @@ def _translate_srt(srt_path, output_path, source="srt", target_language=None, ar
     # HI-removal before translation
     if get_settings().hi_removal_enabled:
         from hi_remover import remove_hi_markers
+
         dialog_texts = [remove_hi_markers(t) for t in dialog_texts]
 
     logger.info("SRT lines to translate: %d", len(dialog_texts))
@@ -927,7 +980,9 @@ def _translate_srt(srt_path, output_path, source="srt", target_language=None, ar
 
     # Validate translation output
     validation_errors = []
-    is_valid, validation_errors = validate_translation_output(dialog_texts, translated_texts, format="srt")
+    is_valid, validation_errors = validate_translation_output(
+        dialog_texts, translated_texts, format="srt"
+    )
     if not is_valid:
         logger.warning("SRT translation validation failed: %s", validation_errors)
         # Retry logic: max 2 retries
@@ -940,7 +995,9 @@ def _translate_srt(srt_path, output_path, source="srt", target_language=None, ar
                 arr_context=arr_context,
                 series_id=series_id,
             )
-            is_valid, validation_errors = validate_translation_output(dialog_texts, translated_texts, format="srt")
+            is_valid, validation_errors = validate_translation_output(
+                dialog_texts, translated_texts, format="srt"
+            )
             if is_valid:
                 break
             logger.warning("SRT retry %d validation failed: %s", retry + 1, validation_errors)
@@ -963,10 +1020,14 @@ def _translate_srt(srt_path, output_path, source="srt", target_language=None, ar
     if _q_enabled:
         _, _q_fallback_chain = _resolve_backend_for_context(arr_context, tgt_lang)
         translated_texts, quality_scores = _evaluate_and_retry_lines(
-            dialog_texts, translated_texts,
-            settings.source_language, tgt_lang,
-            _q_fallback_chain, None,
-            _q_threshold, _q_max_retries,
+            dialog_texts,
+            translated_texts,
+            settings.source_language,
+            tgt_lang,
+            _q_fallback_chain,
+            None,
+            _q_threshold,
+            _q_max_retries,
         )
 
     translated_count = 0
@@ -1045,9 +1106,7 @@ def _search_providers_for_target_ass(mkv_path, context=None, target_language=Non
         query = _build_video_query(mkv_path, context)
         query.languages = [tgt_lang]
 
-        result = manager.search_and_download_best(
-            query, format_filter=SubtitleFormat.ASS
-        )
+        result = manager.search_and_download_best(query, format_filter=SubtitleFormat.ASS)
         if result and result.content:
             output_path = get_output_path_for_lang(mkv_path, "ass", tgt_lang)
             manager.save_subtitle(result, output_path)
@@ -1086,14 +1145,17 @@ def _search_providers_for_source_sub(mkv_path, context=None):
         query.languages = [settings.source_language]
 
         # Try ASS first
-        result = manager.search_and_download_best(
-            query, format_filter=SubtitleFormat.ASS
-        )
+        result = manager.search_and_download_best(query, format_filter=SubtitleFormat.ASS)
         if result and result.content:
             base = os.path.splitext(mkv_path)[0]
             tmp_path = f"{base}.{settings.source_language}.ass"
             manager.save_subtitle(result, tmp_path)
-            logger.info("Provider %s delivered source ASS: %s (score=%d)", result.provider_name, tmp_path, result.score)
+            logger.info(
+                "Provider %s delivered source ASS: %s (score=%d)",
+                result.provider_name,
+                tmp_path,
+                result.score,
+            )
             return tmp_path, "ass", result.score
 
         # Fall back to any format (SRT most likely)
@@ -1103,7 +1165,13 @@ def _search_providers_for_source_sub(mkv_path, context=None):
             ext = result.format.value if result.format.value != "unknown" else "srt"
             tmp_path = f"{base}.{settings.source_language}.{ext}"
             manager.save_subtitle(result, tmp_path)
-            logger.info("Provider %s delivered source %s: %s (score=%d)", result.provider_name, ext, tmp_path, result.score)
+            logger.info(
+                "Provider %s delivered source %s: %s (score=%d)",
+                result.provider_name,
+                ext,
+                tmp_path,
+                result.score,
+            )
             return tmp_path, ext, result.score
     except ProviderAuthError as e:
         logger.error("Provider authentication failed — check API keys: %s", e)
@@ -1128,6 +1196,7 @@ def _record_config_hash_for_result(result, file_path):
         backend_name = result.get("stats", {}).get("backend_name", "ollama")
         config_hash = settings.get_translation_config_hash(backend_name=backend_name)
         from db.translation import record_translation_config
+
         # For non-Ollama backends, model is not relevant
         model_info = settings.ollama_model if backend_name == "ollama" else backend_name
         record_translation_config(
@@ -1142,8 +1211,9 @@ def _record_config_hash_for_result(result, file_path):
         logger.debug("Failed to record config hash: %s", e)
 
 
-def translate_file(mkv_path, force=False, arr_context=None,
-                   target_language=None, target_language_name=None):
+def translate_file(
+    mkv_path, force=False, arr_context=None, target_language=None, target_language_name=None
+):
     """Translate subtitles for a single MKV file.
 
     Four-case priority chain (target language ASS is always the goal):
@@ -1199,7 +1269,8 @@ def translate_file(mkv_path, force=False, arr_context=None,
 
         # B1: Provider search for target ASS
         target_ass_path = _search_providers_for_target_ass(
-            mkv_path, arr_context, target_language=tgt_lang)
+            mkv_path, arr_context, target_language=tgt_lang
+        )
         if target_ass_path:
             logger.info("Case B1: Provider found target ASS (upgrade from SRT)")
             return _skip_result(
@@ -1211,9 +1282,14 @@ def translate_file(mkv_path, force=False, arr_context=None,
         best_ass = select_best_subtitle_stream(probe_data, format_filter="ass")
         if best_ass:
             logger.info("Case B2: Upgrading — translating source ASS to target ASS")
-            result = translate_ass(mkv_path, best_ass, probe_data,
-                                   target_language=tgt_lang, target_language_name=tgt_name,
-                                   arr_context=arr_context)
+            result = translate_ass(
+                mkv_path,
+                best_ass,
+                probe_data,
+                target_language=tgt_lang,
+                target_language_name=tgt_name,
+                arr_context=arr_context,
+            )
             if result["success"]:
                 result["stats"]["upgrade_from_srt"] = True
                 _record_config_hash_for_result(result, mkv_path)
@@ -1230,9 +1306,14 @@ def translate_file(mkv_path, force=False, arr_context=None,
     best_stream = select_best_subtitle_stream(probe_data)
     if best_stream and best_stream["format"] == "ass":
         logger.info("Case C1: Translating source ASS to target ASS")
-        result = translate_ass(mkv_path, best_stream, probe_data,
-                               target_language=tgt_lang, target_language_name=tgt_name,
-                               arr_context=arr_context)
+        result = translate_ass(
+            mkv_path,
+            best_stream,
+            probe_data,
+            target_language=tgt_lang,
+            target_language_name=tgt_name,
+            arr_context=arr_context,
+        )
         if result["success"]:
             _record_config_hash_for_result(result, mkv_path)
             _notify_integrations(arr_context, file_path=mkv_path)
@@ -1241,8 +1322,9 @@ def translate_file(mkv_path, force=False, arr_context=None,
     # C2: Source SRT embedded → .{lang}.srt
     if best_stream and best_stream["format"] == "srt":
         logger.info("Case C2: Translating embedded source SRT to target SRT")
-        result = translate_srt_from_stream(mkv_path, best_stream,
-                                           target_language=tgt_lang, arr_context=arr_context)
+        result = translate_srt_from_stream(
+            mkv_path, best_stream, target_language=tgt_lang, arr_context=arr_context
+        )
         if result["success"]:
             _record_config_hash_for_result(result, mkv_path)
             _notify_integrations(arr_context, file_path=mkv_path)
@@ -1252,8 +1334,9 @@ def translate_file(mkv_path, force=False, arr_context=None,
     ext_srt = find_external_source_sub(mkv_path)
     if ext_srt:
         logger.info("Case C2b: Translating external source SRT to target SRT")
-        result = translate_srt_from_file(mkv_path, ext_srt,
-                                         target_language=tgt_lang, arr_context=arr_context)
+        result = translate_srt_from_file(
+            mkv_path, ext_srt, target_language=tgt_lang, arr_context=arr_context
+        )
         if result["success"]:
             _record_config_hash_for_result(result, mkv_path)
             _notify_integrations(arr_context, file_path=mkv_path)
@@ -1268,23 +1351,35 @@ def translate_file(mkv_path, force=False, arr_context=None,
     if _below_threshold:
         logger.info(
             "Case C3: Provider source score %d < threshold %d for %s -- skipping, will try Whisper fallback",
-            src_score, _min_score, mkv_path,
+            src_score,
+            _min_score,
+            mkv_path,
         )
         src_path = None  # discard below-threshold result; fall through to Case D
 
     if src_path:
         if src_fmt == "ass":
-            logger.info("Case C3: Translating provider source ASS to target ASS (score=%d)", src_score)
-            result = _translate_external_ass(mkv_path, src_path,
-                                             target_language=tgt_lang,
-                                             target_language_name=tgt_name,
-                                             arr_context=arr_context)
+            logger.info(
+                "Case C3: Translating provider source ASS to target ASS (score=%d)", src_score
+            )
+            result = _translate_external_ass(
+                mkv_path,
+                src_path,
+                target_language=tgt_lang,
+                target_language_name=tgt_name,
+                arr_context=arr_context,
+            )
         else:
-            logger.info("Case C3: Translating provider source SRT to target SRT (score=%d)", src_score)
-            result = translate_srt_from_file(mkv_path, src_path,
-                                             source="provider_source_srt",
-                                             target_language=tgt_lang,
-                                             arr_context=arr_context)
+            logger.info(
+                "Case C3: Translating provider source SRT to target SRT (score=%d)", src_score
+            )
+            result = translate_srt_from_file(
+                mkv_path,
+                src_path,
+                source="provider_source_srt",
+                target_language=tgt_lang,
+                arr_context=arr_context,
+            )
         if result and result["success"]:
             _record_config_hash_for_result(result, mkv_path)
             _notify_integrations(arr_context, file_path=mkv_path)
@@ -1298,20 +1393,28 @@ def translate_file(mkv_path, force=False, arr_context=None,
         if _below_threshold:
             logger.info(
                 "Case D: Provider score %d below threshold %d, using Whisper fallback for %s",
-                src_score, _min_score, mkv_path,
+                src_score,
+                _min_score,
+                mkv_path,
             )
         else:
-            logger.info("Case D: No subtitle source found, attempting Whisper transcription for %s", mkv_path)
+            logger.info(
+                "Case D: No subtitle source found, attempting Whisper transcription for %s",
+                mkv_path,
+            )
         whisper_result = _submit_whisper_job(mkv_path, arr_context)
         if whisper_result:
             return whisper_result
-        logger.warning("Case D: Whisper transcription not available or failed to submit for %s", mkv_path)
+        logger.warning(
+            "Case D: Whisper transcription not available or failed to submit for %s", mkv_path
+        )
 
     return _fail_result(f"No {settings.source_language_name} subtitle source found")
 
 
-def _translate_external_ass(mkv_path, ass_path, target_language=None,
-                           target_language_name=None, arr_context=None):
+def _translate_external_ass(
+    mkv_path, ass_path, target_language=None, target_language_name=None, arr_context=None
+):
     """Translate a downloaded external ASS file to target language."""
     output_path = get_output_path_for_lang(mkv_path, "ass", target_language)
     check_disk_space(output_path)
@@ -1350,6 +1453,7 @@ def _translate_external_ass(mkv_path, ass_path, target_language=None,
         # HI-removal before translation
         if get_settings().hi_removal_enabled:
             from hi_remover import remove_hi_from_ass_events
+
             dialog_texts = remove_hi_from_ass_events(dialog_texts)
 
         # Extract series_id for glossary
@@ -1365,7 +1469,9 @@ def _translate_external_ass(mkv_path, ass_path, target_language=None,
         )
 
         # Validate translation output
-        is_valid, validation_errors = validate_translation_output(dialog_texts, translated_texts, format="ass")
+        is_valid, validation_errors = validate_translation_output(
+            dialog_texts, translated_texts, format="ass"
+        )
         if not is_valid:
             logger.warning("Translation validation failed: %s", validation_errors)
             # Retry logic: max 2 retries
@@ -1378,7 +1484,9 @@ def _translate_external_ass(mkv_path, ass_path, target_language=None,
                     arr_context=arr_context,
                     series_id=series_id,
                 )
-                is_valid, validation_errors = validate_translation_output(dialog_texts, translated_texts, format="ass")
+                is_valid, validation_errors = validate_translation_output(
+                    dialog_texts, translated_texts, format="ass"
+                )
                 if is_valid:
                     break
                 logger.warning("Retry %d validation failed: %s", retry + 1, validation_errors)
@@ -1404,10 +1512,14 @@ def _translate_external_ass(mkv_path, ass_path, target_language=None,
         if _q_enabled:
             _, _q_fallback_chain = _resolve_backend_for_context(arr_context, tgt_lang)
             translated_texts, quality_scores = _evaluate_and_retry_lines(
-                dialog_texts, translated_texts,
-                settings.source_language, tgt_lang,
-                _q_fallback_chain, None,
-                _q_threshold, _q_max_retries,
+                dialog_texts,
+                translated_texts,
+                settings.source_language,
+                tgt_lang,
+                _q_fallback_chain,
+                None,
+                _q_threshold,
+                _q_max_retries,
             )
 
         translated_count = 0
@@ -1429,7 +1541,9 @@ def _translate_external_ass(mkv_path, ass_path, target_language=None,
         logger.info("Saved ASS translation from external source: %s", output_path)
 
         _write_quality_sidecar(output_path, quality_scores)
-        _quality_stats = _compute_quality_stats(quality_scores, _q_threshold) if quality_scores else {}
+        _quality_stats = (
+            _compute_quality_stats(quality_scores, _q_threshold) if quality_scores else {}
+        )
 
         return {
             "success": True,
@@ -1472,6 +1586,7 @@ def _notify_integrations(context, file_path=None):
 
     try:
         from mediaserver import get_media_server_manager
+
         manager = get_media_server_manager()
         results = manager.refresh_all(file_path, item_type)
         for r in results:
@@ -1502,11 +1617,13 @@ def scan_directory(directory, force=False):
             if target_status == "ass" and not force:
                 continue  # Goal achieved, skip
 
-            files.append({
-                "path": mkv_path,
-                "target_status": target_status,
-                "size_mb": os.path.getsize(mkv_path) / (1024 * 1024),
-            })
+            files.append(
+                {
+                    "path": mkv_path,
+                    "target_status": target_status,
+                    "size_mb": os.path.getsize(mkv_path) / (1024 * 1024),
+                }
+            )
     return files
 
 
@@ -1521,14 +1638,20 @@ def _get_job_queue():
     """
     try:
         from flask import current_app
-        return getattr(current_app, 'job_queue', None)
+
+        return getattr(current_app, "job_queue", None)
     except (RuntimeError, ImportError):
         return None
 
 
-def submit_translation_job(file_path, force=False, arr_context=None,
-                           target_language=None, target_language_name=None,
-                           job_id=None):
+def submit_translation_job(
+    file_path,
+    force=False,
+    arr_context=None,
+    target_language=None,
+    target_language_name=None,
+    job_id=None,
+):
     """Submit a translation job via the app job queue.
 
     When a job queue is available (RQ with Redis, or MemoryJobQueue), the

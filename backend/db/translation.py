@@ -1,6 +1,5 @@
 """Translation config, glossary, preset, and backend stats operations -- delegating to SQLAlchemy repository."""
 
-
 from db.repositories.translation import TranslationRepository
 
 _repo = None
@@ -15,8 +14,10 @@ def _get_repo():
 
 # --- Translation Config History ---
 
-def record_translation_config(config_hash: str, ollama_model: str,
-                               prompt_template: str, target_language: str):
+
+def record_translation_config(
+    config_hash: str, ollama_model: str, prompt_template: str, target_language: str
+):
     """Record or update a translation config hash."""
     return _get_repo().record_translation_config(
         config_hash, ollama_model, prompt_template, target_language
@@ -25,8 +26,10 @@ def record_translation_config(config_hash: str, ollama_model: str,
 
 # --- Glossary Operations ---
 
-def add_glossary_entry(series_id: int | None = None, source_term: str = "",
-                       target_term: str = "", notes: str = "") -> int:
+
+def add_glossary_entry(
+    series_id: int | None = None, source_term: str = "", target_term: str = "", notes: str = ""
+) -> int:
     """Add a new glossary entry. Returns the entry ID.
 
     When series_id is None, creates a global glossary entry.
@@ -61,8 +64,9 @@ def get_glossary_entry(entry_id: int) -> dict | None:
     return _get_repo().get_glossary_entry(entry_id)
 
 
-def update_glossary_entry(entry_id: int, source_term: str = None,
-                          target_term: str = None, notes: str = None) -> bool:
+def update_glossary_entry(
+    entry_id: int, source_term: str = None, target_term: str = None, notes: str = None
+) -> bool:
     """Update a glossary entry. Returns True if updated."""
     return _get_repo().update_glossary_entry(entry_id, source_term, target_term, notes)
 
@@ -87,6 +91,7 @@ def search_glossary_terms(series_id: int | None = None, query: str = "") -> list
 
 # --- Prompt Presets Operations ---
 
+
 def add_prompt_preset(name: str, prompt_template: str, is_default: bool = False) -> int:
     """Add a new prompt preset. Returns the preset ID."""
     return _get_repo().add_prompt_preset(name, prompt_template, is_default)
@@ -107,8 +112,9 @@ def get_default_prompt_preset() -> dict | None:
     return _get_repo().get_default_prompt_preset()
 
 
-def update_prompt_preset(preset_id: int, name: str = None,
-                         prompt_template: str = None, is_default: bool = None) -> bool:
+def update_prompt_preset(
+    preset_id: int, name: str = None, prompt_template: str = None, is_default: bool = None
+) -> bool:
     """Update a prompt preset. Returns True if updated."""
     return _get_repo().update_prompt_preset(preset_id, name, prompt_template, is_default)
 
@@ -119,6 +125,7 @@ def delete_prompt_preset(preset_id: int) -> bool:
 
 
 # --- Translation Backend Stats Operations ---
+
 
 def record_backend_success(backend_name: str, response_time_ms: float, characters_used: int):
     """Record a successful translation for a backend."""
@@ -151,6 +158,7 @@ def reset_backend_stats(backend_name: str) -> bool:
 
 
 # --- Translation Memory Cache Operations ---
+
 
 def lookup_translation_cache(
     source_lang: str,

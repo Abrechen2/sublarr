@@ -35,11 +35,12 @@ def get_config():
     """
     from config import get_settings
     from db.config import get_config_entry
+
     s = get_settings()
     cfg = s.get_safe_config()
     # Include namespaced extension config entries (dot-notation keys not in Pydantic Settings)
     _extension_keys = [
-        'translation.context_window_size',
+        "translation.context_window_size",
     ]
     for _k in _extension_keys:
         _v = get_config_entry(_k)
@@ -96,11 +97,13 @@ def test_path_mapping():
         return jsonify({"error": "remote_path is required"}), 400
 
     mapped = map_path(remote_path)
-    return jsonify({
-        "remote_path": remote_path,
-        "mapped_path": mapped,
-        "exists": os.path.exists(mapped),
-    })
+    return jsonify(
+        {
+            "remote_path": remote_path,
+            "mapped_path": mapped,
+            "exists": os.path.exists(mapped),
+        }
+    )
 
 
 @bp.route("/config", methods=["PUT"])
@@ -154,18 +157,22 @@ def update_config():
         return jsonify({"error": "No config values provided"}), 400
 
     # Validate that keys exist in Settings
-    valid_keys = set(Settings.model_fields.keys()) if hasattr(Settings, 'model_fields') else set()
+    valid_keys = set(Settings.model_fields.keys()) if hasattr(Settings, "model_fields") else set()
     saved_keys = []
 
     for key, value in data.items():
         # Skip masked password values (user didn't change them)
-        if str(value) == '***configured***':
+        if str(value) == "***configured***":
             continue
         # Allow known config keys OR namespaced extension keys (dot-notation, e.g. translation.context_window_size)
-        is_extension_key = '.' in key
+        is_extension_key = "." in key
         if not valid_keys or key in valid_keys or is_extension_key:
             # Sanitize credentials: strip whitespace from API keys and passwords
-            sanitized_value = str(value).strip() if isinstance(value, str) or 'api_key' in key.lower() or 'password' in key.lower() else str(value)
+            sanitized_value = (
+                str(value).strip()
+                if isinstance(value, str) or "api_key" in key.lower() or "password" in key.lower()
+                else str(value)
+            )
             save_config_entry(key, sanitized_value)
             saved_keys.append(key)
 
@@ -180,21 +187,43 @@ def update_config():
     from radarr_client import invalidate_client as _inv_radarr
     from sonarr_client import invalidate_client as _inv_sonarr
 
-    if any(k.startswith('sonarr_') for k in saved_keys):
+    if any(k.startswith("sonarr_") for k in saved_keys):
         _inv_sonarr()
-    if any(k.startswith('radarr_') for k in saved_keys):
+    if any(k.startswith("radarr_") for k in saved_keys):
         _inv_radarr()
-    if any(k.startswith('provider_') or k.startswith('scoring_') or
-           k in {'opensubtitles_api_key', 'jimaku_api_key', 'subdl_api_key',
-                 'min_score', 'source_language', 'target_language'} for k in saved_keys):
+    if any(
+        k.startswith("provider_")
+        or k.startswith("scoring_")
+        or k
+        in {
+            "opensubtitles_api_key",
+            "jimaku_api_key",
+            "subdl_api_key",
+            "min_score",
+            "source_language",
+            "target_language",
+        }
+        for k in saved_keys
+    ):
         _inv_providers()
-    if any(k.startswith('jellyfin_') or k.startswith('emby_') or
-           k.startswith('plex_') or k.startswith('kodi_') or
-           k.startswith('media_server') for k in saved_keys):
+    if any(
+        k.startswith("jellyfin_")
+        or k.startswith("emby_")
+        or k.startswith("plex_")
+        or k.startswith("kodi_")
+        or k.startswith("media_server")
+        for k in saved_keys
+    ):
         _inv_media()
-    if any(k.startswith('notification') or k.startswith('pushover') or
-           k.startswith('gotify') or k.startswith('ntfy') or
-           k.startswith('discord') or k.startswith('slack') for k in saved_keys):
+    if any(
+        k.startswith("notification")
+        or k.startswith("pushover")
+        or k.startswith("gotify")
+        or k.startswith("ntfy")
+        or k.startswith("discord")
+        or k.startswith("slack")
+        for k in saved_keys
+    ):
         _inv_notifier()
     invalidate_scanner()
     invalidate_response_cache()
@@ -202,6 +231,7 @@ def update_config():
     # Reload media server instances with new config
     try:
         from mediaserver import get_media_server_manager
+
         get_media_server_manager().load_instances()
     except Exception:
         pass
@@ -212,21 +242,23 @@ def update_config():
 
     # Invalidate scoring cache if scoring-related keys changed
     scoring_keys_changed = any(
-        k.startswith("scoring_") or k.startswith("provider_modifier_")
-        for k in saved_keys
+        k.startswith("scoring_") or k.startswith("provider_modifier_") for k in saved_keys
     )
     if scoring_keys_changed:
         try:
             from providers.base import invalidate_scoring_cache
+
             invalidate_scoring_cache()
         except Exception:
             pass
 
-    return jsonify({
-        "status": "saved",
-        "updated_keys": saved_keys,
-        "config": settings.get_safe_config(),
-    })
+    return jsonify(
+        {
+            "status": "saved",
+            "updated_keys": saved_keys,
+            "config": settings.get_safe_config(),
+        }
+    )
 
 
 @bp.route("/onboarding/status", methods=["GET"])
@@ -264,13 +296,17 @@ def onboarding_status():
 
     settings = get_settings()
     completed = get_config_entry("onboarding_completed")
-    return jsonify({
-        "completed": completed == "true",
-        "has_sonarr": bool(settings.sonarr_url and settings.sonarr_api_key),
-        "has_radarr": bool(settings.radarr_url and settings.radarr_api_key),
-        "has_ollama": bool(settings.ollama_url),
-        "has_providers": bool(settings.opensubtitles_api_key or settings.jimaku_api_key or settings.subdl_api_key),
-    })
+    return jsonify(
+        {
+            "completed": completed == "true",
+            "has_sonarr": bool(settings.sonarr_url and settings.sonarr_api_key),
+            "has_radarr": bool(settings.radarr_url and settings.radarr_api_key),
+            "has_ollama": bool(settings.ollama_url),
+            "has_providers": bool(
+                settings.opensubtitles_api_key or settings.jimaku_api_key or settings.subdl_api_key
+            ),
+        }
+    )
 
 
 @bp.route("/onboarding/complete", methods=["POST"])
@@ -296,6 +332,7 @@ def onboarding_complete():
                     type: string
     """
     from db.config import save_config_entry
+
     save_config_entry("onboarding_completed", "true")
     return jsonify({"status": "completed"})
 
@@ -321,6 +358,7 @@ def export_config():
                 additionalProperties: true
     """
     from config import get_settings
+
     s = get_settings()
     return jsonify(s.get_safe_config())
 
@@ -378,14 +416,23 @@ def import_config():
     if not data:
         return jsonify({"error": "No config data provided"}), 400
 
-    valid_keys = set(Settings.model_fields.keys()) if hasattr(Settings, 'model_fields') else set()
-    secret_keys = {"api_key", "sonarr_api_key", "radarr_api_key", "jellyfin_api_key",
-                   "opensubtitles_api_key", "opensubtitles_password",
-                   "jimaku_api_key", "subdl_api_key"}
+    valid_keys = set(Settings.model_fields.keys()) if hasattr(Settings, "model_fields") else set()
+    secret_keys = {
+        "api_key",
+        "sonarr_api_key",
+        "radarr_api_key",
+        "jellyfin_api_key",
+        "opensubtitles_api_key",
+        "opensubtitles_password",
+        "jimaku_api_key",
+        "subdl_api_key",
+    }
 
     # Fail-closed: if valid_keys cannot be determined, reject the import entirely
     if not valid_keys:
-        return jsonify({"error": "Cannot determine valid config keys - import rejected for safety"}), 500
+        return jsonify(
+            {"error": "Cannot determine valid config keys - import rejected for safety"}
+        ), 500
 
     imported = []
     skipped_secrets = []
@@ -394,7 +441,7 @@ def import_config():
         if key in secret_keys:
             skipped_secrets.append(key)
             continue
-        if str(value) == '***configured***':
+        if str(value) == "***configured***":
             continue
         if key in valid_keys:
             save_config_entry(key, str(value))
@@ -409,6 +456,7 @@ def import_config():
     from providers import invalidate_manager as _inv_providers
     from radarr_client import invalidate_client as _inv_radarr
     from sonarr_client import invalidate_client as _inv_sonarr
+
     _inv_sonarr()
     _inv_radarr()
     _inv_media()
@@ -418,15 +466,18 @@ def import_config():
     # Reload media server instances with new config
     try:
         from mediaserver import get_media_server_manager
+
         get_media_server_manager().load_instances()
     except Exception:
         pass
 
     logger.info("Config imported: %s (skipped secrets: %s)", imported, skipped_secrets)
 
-    return jsonify({
-        "status": "imported",
-        "imported_keys": imported,
-        "skipped_secrets": skipped_secrets,
-        "config": settings.get_safe_config(),
-    })
+    return jsonify(
+        {
+            "status": "imported",
+            "imported_keys": imported,
+            "skipped_secrets": skipped_secrets,
+            "config": settings.get_safe_config(),
+        }
+    )

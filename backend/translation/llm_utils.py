@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 
 # CJK Unicode ranges for hallucination detection (Qwen2.5 sometimes drifts into Chinese)
 _CJK_RE = re.compile(
-    r"[\u4e00-\u9fff"    # CJK Unified Ideographs
-    r"\u3400-\u4dbf"     # CJK Extension A
-    r"\u2e80-\u2eff"     # CJK Radicals
-    r"\uf900-\ufaff]"    # CJK Compatibility Ideographs
+    r"[\u4e00-\u9fff"  # CJK Unified Ideographs
+    r"\u3400-\u4dbf"  # CJK Extension A
+    r"\u2e80-\u2eff"  # CJK Radicals
+    r"\uf900-\ufaff]"  # CJK Compatibility Ideographs
 )
 
 # Score extraction from LLM evaluation responses (matches 0-100, prefers last match)
@@ -69,7 +69,8 @@ def parse_llm_response(response_text: str, expected_count: int) -> list[str] | N
     if len(cleaned) > expected_count:
         logger.warning(
             "Got %d lines, expected %d. Trying to merge excess lines.",
-            len(cleaned), expected_count,
+            len(cleaned),
+            expected_count,
         )
         merged = []
         for i, line in enumerate(cleaned):
@@ -88,7 +89,9 @@ def parse_llm_response(response_text: str, expected_count: int) -> list[str] | N
         return None
 
     logger.warning(
-        "Line count mismatch: got %d, expected %d", len(cleaned), expected_count,
+        "Line count mismatch: got %d, expected %d",
+        len(cleaned),
+        expected_count,
     )
     return None
 
@@ -109,17 +112,16 @@ def build_prompt_with_glossary(
         Complete prompt with glossary and numbered lines
     """
     if not glossary_entries:
-        numbered = "\n".join(f"{i+1}: {line}" for i, line in enumerate(lines))
+        numbered = "\n".join(f"{i + 1}: {line}" for i, line in enumerate(lines))
         return prompt_template + numbered
 
     # Build glossary string (max 15 entries)
     glossary_parts = [
-        f"{entry['source_term']} \u2192 {entry['target_term']}"
-        for entry in glossary_entries[:15]
+        f"{entry['source_term']} \u2192 {entry['target_term']}" for entry in glossary_entries[:15]
     ]
     glossary_str = "Glossary: " + ", ".join(glossary_parts) + "\n\n"
 
-    numbered = "\n".join(f"{i+1}: {line}" for i, line in enumerate(lines))
+    numbered = "\n".join(f"{i + 1}: {line}" for i, line in enumerate(lines))
     return glossary_str + prompt_template + numbered
 
 
@@ -147,6 +149,7 @@ def build_translation_prompt(
     """
     if prompt_template is None:
         from config import get_settings
+
         prompt_template = get_settings().get_prompt_template()
 
     return build_prompt_with_glossary(prompt_template, glossary_entries, lines)

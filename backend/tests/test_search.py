@@ -11,12 +11,14 @@ from extensions import db as sa_db
 def app(tmp_path):
     """Create a Flask app with in-memory SQLite for testing."""
     import os
+
     db_path = str(tmp_path / "test.db")
     os.environ["SUBLARR_DB_PATH"] = db_path
     os.environ["SUBLARR_API_KEY"] = ""
     os.environ["SUBLARR_LOG_LEVEL"] = "ERROR"
 
     from config import reload_settings
+
     reload_settings()
 
     application = create_app(testing=True)

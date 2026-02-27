@@ -73,10 +73,7 @@ def test_jobs_endpoint(client):
 
 def test_translate_endpoint_missing_file(client):
     """Test translate endpoint with missing file."""
-    response = client.post(
-        "/api/v1/translate",
-        json={"file_path": "/nonexistent/file.mkv"}
-    )
+    response = client.post("/api/v1/translate", json={"file_path": "/nonexistent/file.mkv"})
     assert response.status_code == 404
 
 

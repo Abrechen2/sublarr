@@ -4,7 +4,6 @@ Supports Jinja2 template rendering, notification history tracking,
 and quiet hours suppression for the notification management system.
 """
 
-
 from sqlalchemy import Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 

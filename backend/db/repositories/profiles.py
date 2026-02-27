@@ -29,11 +29,17 @@ class ProfileRepository(BaseRepository):
 
     # ---- Profile CRUD ----
 
-    def create_profile(self, name: str, source_lang: str, source_name: str,
-                       target_langs: list, target_names: list,
-                       translation_backend: str = "ollama",
-                       fallback_chain: list = None,
-                       forced_preference: str = "disabled") -> int:
+    def create_profile(
+        self,
+        name: str,
+        source_lang: str,
+        source_name: str,
+        target_langs: list,
+        target_names: list,
+        translation_backend: str = "ollama",
+        fallback_chain: list = None,
+        forced_preference: str = "disabled",
+    ) -> int:
         """Create a new language profile. Returns the profile ID."""
         if forced_preference not in VALID_FORCED_PREFERENCES:
             raise ValueError(
@@ -109,17 +115,23 @@ class ProfileRepository(BaseRepository):
         if not profile:
             return False
 
-        allowed = {"name", "source_language", "source_language_name",
-                   "target_languages", "target_language_names",
-                   "translation_backend", "fallback_chain", "forced_preference"}
+        allowed = {
+            "name",
+            "source_language",
+            "source_language_name",
+            "target_languages",
+            "target_language_names",
+            "translation_backend",
+            "fallback_chain",
+            "forced_preference",
+        }
 
         # Validate forced_preference if provided
         if "forced_preference" in fields:
             fp = fields["forced_preference"]
             if fp not in VALID_FORCED_PREFERENCES:
                 raise ValueError(
-                    f"Invalid forced_preference '{fp}'. "
-                    f"Must be one of: {VALID_FORCED_PREFERENCES}"
+                    f"Invalid forced_preference '{fp}'. Must be one of: {VALID_FORCED_PREFERENCES}"
                 )
 
         for key, value in fields.items():
@@ -148,14 +160,10 @@ class ProfileRepository(BaseRepository):
 
         # Cascade-delete series/movie assignments
         self.session.execute(
-            delete(SeriesLanguageProfile).where(
-                SeriesLanguageProfile.profile_id == profile_id
-            )
+            delete(SeriesLanguageProfile).where(SeriesLanguageProfile.profile_id == profile_id)
         )
         self.session.execute(
-            delete(MovieLanguageProfile).where(
-                MovieLanguageProfile.profile_id == profile_id
-            )
+            delete(MovieLanguageProfile).where(MovieLanguageProfile.profile_id == profile_id)
         )
         self.session.delete(profile)
         self._commit()
@@ -254,22 +262,16 @@ class ProfileRepository(BaseRepository):
 
     def get_series_profile_map(self) -> dict:
         """Get all series -> {profile_id, profile_name} map for library enrichment."""
-        stmt = (
-            select(
-                SeriesLanguageProfile.sonarr_series_id,
-                LanguageProfile.id,
-                LanguageProfile.name,
-            )
-            .join(
-                LanguageProfile,
-                SeriesLanguageProfile.profile_id == LanguageProfile.id,
-            )
+        stmt = select(
+            SeriesLanguageProfile.sonarr_series_id,
+            LanguageProfile.id,
+            LanguageProfile.name,
+        ).join(
+            LanguageProfile,
+            SeriesLanguageProfile.profile_id == LanguageProfile.id,
         )
         rows = self.session.execute(stmt).all()
-        return {
-            row[0]: {"profile_id": row[1], "profile_name": row[2]}
-            for row in rows
-        }
+        return {row[0]: {"profile_id": row[1], "profile_name": row[2]} for row in rows}
 
     def get_series_missing_counts(self) -> dict:
         """Get wanted item counts per series: {series_id: count}."""
@@ -299,9 +301,7 @@ class ProfileRepository(BaseRepository):
             del d["target_languages_json"]
 
         try:
-            d["target_language_names"] = json.loads(
-                d.get("target_language_names_json", "[]")
-            )
+            d["target_language_names"] = json.loads(d.get("target_language_names_json", "[]"))
         except json.JSONDecodeError:
             d["target_language_names"] = []
         if "target_language_names_json" in d:
@@ -310,9 +310,7 @@ class ProfileRepository(BaseRepository):
         # Translation backend fields (added in Phase 2)
         d["translation_backend"] = d.get("translation_backend", "ollama")
         try:
-            d["fallback_chain"] = json.loads(
-                d.get("fallback_chain_json", '["ollama"]')
-            )
+            d["fallback_chain"] = json.loads(d.get("fallback_chain_json", '["ollama"]'))
         except (json.JSONDecodeError, TypeError):
             d["fallback_chain"] = ["ollama"]
         if "fallback_chain_json" in d:

@@ -12,9 +12,14 @@ def _get_repo():
     return _repo
 
 
-def add_blacklist_entry(provider_name: str, subtitle_id: str,
-                        language: str = "", file_path: str = "",
-                        title: str = "", reason: str = "") -> int:
+def add_blacklist_entry(
+    provider_name: str,
+    subtitle_id: str,
+    language: str = "",
+    file_path: str = "",
+    title: str = "",
+    reason: str = "",
+) -> int:
     """Add a subtitle to the blacklist. Returns the entry ID."""
     return _get_repo().add_blacklist_entry(
         provider_name, subtitle_id, language, file_path, title, reason

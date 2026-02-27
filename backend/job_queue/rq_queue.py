@@ -57,9 +57,7 @@ def _rq_job_to_info(job) -> JobInfo:
     completed_at = None
     if job.ended_at:
         completed_at = (
-            job.ended_at.isoformat()
-            if isinstance(job.ended_at, datetime)
-            else str(job.ended_at)
+            job.ended_at.isoformat() if isinstance(job.ended_at, datetime) else str(job.ended_at)
         )
 
     # Get function name

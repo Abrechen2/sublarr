@@ -92,6 +92,7 @@ class WhisperQueue:
         # Persist to DB
         try:
             from db.whisper import create_whisper_job
+
             create_whisper_job(job_id, file_path, language)
         except Exception as e:
             logger.error("Failed to persist whisper job %s to DB: %s", job_id, e)
@@ -138,6 +139,7 @@ class WhisperQueue:
         # Update DB
         try:
             from db.whisper import update_whisper_job
+
             update_whisper_job(job_id, status="cancelled")
         except Exception as e:
             logger.error("Failed to update cancelled job %s in DB: %s", job_id, e)
@@ -174,15 +176,25 @@ class WhisperQueue:
                         return
 
                 now = datetime.utcnow().isoformat()
-                self._update_job(job_id, status="extracting", progress=0.0, phase="extracting", started_at=now)
+                self._update_job(
+                    job_id, status="extracting", progress=0.0, phase="extracting", started_at=now
+                )
                 self._emit_progress(socketio, job_id, "extracting", 0.0, "Selecting audio track...")
 
                 # Phase 1: Audio extraction (0-10%)
                 from whisper.audio import extract_audio_to_wav, select_audio_track
 
-                track = select_audio_track(file_path, preferred_language=source_language or language or "ja")
+                track = select_audio_track(
+                    file_path, preferred_language=source_language or language or "ja"
+                )
                 self._update_job(job_id, progress=0.05)
-                self._emit_progress(socketio, job_id, "extracting", 0.05, f"Extracting audio track {track['stream_index']}...")
+                self._emit_progress(
+                    socketio,
+                    job_id,
+                    "extracting",
+                    0.05,
+                    f"Extracting audio track {track['stream_index']}...",
+                )
 
                 # Create temp file for extracted audio
                 temp_fd, temp_audio_path = tempfile.mkstemp(suffix=".wav", prefix="whisper_")
@@ -194,7 +206,9 @@ class WhisperQueue:
 
                 # Phase 2: Transcription (10-95%)
                 self._update_job(job_id, status="transcribing", phase="transcribing")
-                self._emit_progress(socketio, job_id, "transcribing", 0.10, "Starting transcription...")
+                self._emit_progress(
+                    socketio, job_id, "transcribing", 0.10, "Starting transcription..."
+                )
 
                 def progress_callback(ratio: float):
                     """Map Whisper progress (0-1) to our 10-95% range."""
@@ -222,6 +236,7 @@ class WhisperQueue:
                 # Persist to DB
                 try:
                     from db.whisper import update_whisper_job
+
                     update_whisper_job(
                         job_id,
                         status="completed",
@@ -245,6 +260,7 @@ class WhisperQueue:
                         import os as _os
 
                         from db.providers import record_subtitle_download
+
                         srt_path = _os.path.splitext(file_path)[0] + "." + language + ".srt"
                         record_subtitle_download(
                             provider_name="whisper",
@@ -257,28 +273,42 @@ class WhisperQueue:
                         )
                         logger.debug("Whisper job %s: recorded download for %s", job_id, srt_path)
                     except Exception as rec_err:
-                        logger.warning("Whisper job %s: failed to record download: %s", job_id, rec_err)
+                        logger.warning(
+                            "Whisper job %s: failed to record download: %s", job_id, rec_err
+                        )
 
                 # Phase 4: Complete
-                self._update_job(job_id, status="completed", progress=1.0, phase="completed",
-                                 completed_at=datetime.utcnow().isoformat())
+                self._update_job(
+                    job_id,
+                    status="completed",
+                    progress=1.0,
+                    phase="completed",
+                    completed_at=datetime.utcnow().isoformat(),
+                )
                 self._emit_progress(socketio, job_id, "completed", 1.0, "Transcription complete")
 
                 try:
                     from events import emit_event
-                    emit_event("whisper_complete", {
-                        "job_id": job_id,
-                        "segment_count": result.segment_count,
-                        "detected_language": result.detected_language,
-                        "duration_seconds": result.duration_seconds,
-                        "processing_time_ms": elapsed_ms,
-                    })
+
+                    emit_event(
+                        "whisper_complete",
+                        {
+                            "job_id": job_id,
+                            "segment_count": result.segment_count,
+                            "detected_language": result.detected_language,
+                            "duration_seconds": result.duration_seconds,
+                            "processing_time_ms": elapsed_ms,
+                        },
+                    )
                 except Exception:
                     pass
 
                 logger.info(
                     "Whisper job %s completed: %d segments, %.1fs duration, %.0fms processing",
-                    job_id, result.segment_count, result.duration_seconds, elapsed_ms,
+                    job_id,
+                    result.segment_count,
+                    result.duration_seconds,
+                    elapsed_ms,
                 )
 
         except Exception as e:
@@ -286,13 +316,16 @@ class WhisperQueue:
             logger.error("Whisper job %s failed: %s", job_id, error_msg)
 
             self._update_job(
-                job_id, status="failed", error=error_msg,
+                job_id,
+                status="failed",
+                error=error_msg,
                 completed_at=datetime.utcnow().isoformat(),
             )
 
             # Persist failure to DB
             try:
                 from db.whisper import update_whisper_job
+
                 update_whisper_job(
                     job_id,
                     status="failed",
@@ -304,10 +337,14 @@ class WhisperQueue:
 
             try:
                 from events import emit_event
-                emit_event("whisper_failed", {
-                    "job_id": job_id,
-                    "error": error_msg[:500],
-                })
+
+                emit_event(
+                    "whisper_failed",
+                    {
+                        "job_id": job_id,
+                        "error": error_msg[:500],
+                    },
+                )
             except Exception:
                 pass
 
@@ -335,11 +372,14 @@ class WhisperQueue:
         if socketio is None:
             return
         try:
-            socketio.emit("whisper_progress", {
-                "job_id": job_id,
-                "phase": phase,
-                "progress": round(progress, 3),
-                "message": message,
-            })
+            socketio.emit(
+                "whisper_progress",
+                {
+                    "job_id": job_id,
+                    "phase": phase,
+                    "progress": round(progress, 3),
+                    "message": message,
+                },
+            )
         except Exception:
             pass  # Non-critical -- don't let WebSocket errors break the job

@@ -20,8 +20,15 @@ class CleanupRepository(BaseRepository):
 
     # ---- Subtitle Hashes -------------------------------------------------------
 
-    def upsert_hash(self, file_path: str, content_hash: str, file_size: int,
-                    format: str, language: str = None, line_count: int = None) -> dict:
+    def upsert_hash(
+        self,
+        file_path: str,
+        content_hash: str,
+        file_size: int,
+        format: str,
+        language: str = None,
+        line_count: int = None,
+    ) -> dict:
         """Insert or update a subtitle hash record.
 
         Returns:
@@ -96,19 +103,21 @@ class CleanupRepository(BaseRepository):
             )
             files = self.session.execute(files_stmt).scalars().all()
 
-            groups.append({
-                "hash": content_hash,
-                "count": count,
-                "files": [
-                    {
-                        "path": f.file_path,
-                        "size": f.file_size,
-                        "format": f.format,
-                        "language": f.language,
-                    }
-                    for f in files
-                ],
-            })
+            groups.append(
+                {
+                    "hash": content_hash,
+                    "count": count,
+                    "files": [
+                        {
+                            "path": f.file_path,
+                            "size": f.file_size,
+                            "format": f.format,
+                            "language": f.language,
+                        }
+                        for f in files
+                    ],
+                }
+            )
 
         return groups
 
@@ -146,8 +155,9 @@ class CleanupRepository(BaseRepository):
 
     # ---- Cleanup Rules ---------------------------------------------------------
 
-    def create_rule(self, name: str, rule_type: str,
-                    config_json: str = "{}", enabled: bool = True) -> dict:
+    def create_rule(
+        self, name: str, rule_type: str, config_json: str = "{}", enabled: bool = True
+    ) -> dict:
         """Create a new cleanup rule.
 
         Returns:
@@ -234,9 +244,15 @@ class CleanupRepository(BaseRepository):
 
     # ---- Cleanup History -------------------------------------------------------
 
-    def log_cleanup(self, action_type: str, files_processed: int = 0,
-                    files_deleted: int = 0, bytes_freed: int = 0,
-                    details_json: str = "{}", rule_id: int = None) -> dict:
+    def log_cleanup(
+        self,
+        action_type: str,
+        files_processed: int = 0,
+        files_deleted: int = 0,
+        bytes_freed: int = 0,
+        details_json: str = "{}",
+        rule_id: int = None,
+    ) -> dict:
         """Log a cleanup operation to history.
 
         Returns:
@@ -311,19 +327,13 @@ class CleanupRepository(BaseRepository):
         hash_stats = self.get_hash_stats()
 
         # By format breakdown
-        format_stmt = (
-            select(
-                SubtitleHash.format,
-                func.count().label("count"),
-                func.coalesce(func.sum(SubtitleHash.file_size), 0).label("size"),
-            )
-            .group_by(SubtitleHash.format)
-        )
+        format_stmt = select(
+            SubtitleHash.format,
+            func.count().label("count"),
+            func.coalesce(func.sum(SubtitleHash.file_size), 0).label("size"),
+        ).group_by(SubtitleHash.format)
         format_rows = self.session.execute(format_stmt).all()
-        by_format = {
-            row[0]: {"count": row[1], "size": row[2]}
-            for row in format_rows
-        }
+        by_format = {row[0]: {"count": row[1], "size": row[2]} for row in format_rows}
 
         # Duplicate stats
         dup_subquery = (
@@ -336,13 +346,10 @@ class CleanupRepository(BaseRepository):
             .subquery()
         )
 
-        dup_files_stmt = (
-            select(
-                func.count().label("dup_count"),
-                func.coalesce(func.sum(SubtitleHash.file_size), 0).label("dup_size"),
-            )
-            .join(dup_subquery, SubtitleHash.content_hash == dup_subquery.c.content_hash)
-        )
+        dup_files_stmt = select(
+            func.count().label("dup_count"),
+            func.coalesce(func.sum(SubtitleHash.file_size), 0).label("dup_size"),
+        ).join(dup_subquery, SubtitleHash.content_hash == dup_subquery.c.content_hash)
         dup_row = self.session.execute(dup_files_stmt).one()
         duplicate_count = dup_row[0]
         duplicate_size = dup_row[1]
@@ -371,10 +378,7 @@ class CleanupRepository(BaseRepository):
             .order_by(func.substr(CleanupHistory.performed_at, 1, 10))
         )
         trend_rows = self.session.execute(trend_stmt).all()
-        recent_cleanups = [
-            {"date": row[0], "bytes_freed": row[1]}
-            for row in trend_rows
-        ]
+        recent_cleanups = [{"date": row[0], "bytes_freed": row[1]} for row in trend_rows]
 
         return {
             "total_files": hash_stats["total_files"],

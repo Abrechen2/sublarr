@@ -73,15 +73,17 @@ class TranslationManager:
             config = self._load_backend_config(name)
             has_config = bool(config)
 
-            result.append({
-                "name": cls.name,
-                "display_name": cls.display_name,
-                "config_fields": cls.config_fields,
-                "configured": has_config,
-                "supports_glossary": cls.supports_glossary,
-                "supports_batch": cls.supports_batch,
-                "max_batch_size": cls.max_batch_size,
-            })
+            result.append(
+                {
+                    "name": cls.name,
+                    "display_name": cls.display_name,
+                    "config_fields": cls.config_fields,
+                    "configured": has_config,
+                    "supports_glossary": cls.supports_glossary,
+                    "supports_batch": cls.supports_batch,
+                    "max_batch_size": cls.max_batch_size,
+                }
+            )
         return result
 
     def translate_with_fallback(
@@ -114,9 +116,7 @@ class TranslationManager:
             # Check circuit breaker
             cb = self._get_circuit_breaker(backend_name)
             if not cb.allow_request():
-                logger.info(
-                    "Skipping backend %s (circuit breaker OPEN)", backend_name
-                )
+                logger.info("Skipping backend %s (circuit breaker OPEN)", backend_name)
                 continue
 
             backend = self.get_backend(backend_name)
@@ -125,9 +125,7 @@ class TranslationManager:
 
             try:
                 start_time = time.time()
-                result = backend.translate_batch(
-                    lines, source_lang, target_lang, glossary_entries
-                )
+                result = backend.translate_batch(lines, source_lang, target_lang, glossary_entries)
                 elapsed_ms = (time.time() - start_time) * 1000
 
                 if result.success:
@@ -145,9 +143,7 @@ class TranslationManager:
                 last_error = str(e)
                 cb.record_failure()
                 self._record_failure(backend_name, str(e))
-                logger.warning(
-                    "Backend %s failed: %s", backend_name, e
-                )
+                logger.warning("Backend %s failed: %s", backend_name, e)
 
         return TranslationResult(
             translated_lines=[],
@@ -155,7 +151,6 @@ class TranslationManager:
             error=f"All backends failed. Last error: {last_error}",
             success=False,
         )
-
 
     def evaluate_line_quality(
         self,
@@ -214,7 +209,10 @@ class TranslationManager:
                     score = parse_quality_score(raw_response)
                     logger.debug(
                         "Quality eval via %s: score=%d for %r -> %r",
-                        backend_name, score, source_text[:40], translated_text[:40],
+                        backend_name,
+                        score,
+                        source_text[:40],
+                        translated_text[:40],
                     )
                     return score
             except Exception as exc:
@@ -263,11 +261,12 @@ class TranslationManager:
         config = {}
         try:
             from db.config import get_all_config_entries
+
             all_entries = get_all_config_entries()
             prefix = f"backend.{name}."
             for key, value in all_entries.items():
                 if key.startswith(prefix):
-                    short_key = key[len(prefix):]
+                    short_key = key[len(prefix) :]
                     config[short_key] = value
         except Exception as e:
             logger.debug("Could not load config_entries for backend %s: %s", name, e)
@@ -276,6 +275,7 @@ class TranslationManager:
         if name == "ollama" and not config:
             try:
                 from config import get_settings
+
                 settings = get_settings()
                 config = {
                     "url": settings.ollama_url,
@@ -297,6 +297,7 @@ class TranslationManager:
             if name not in self._circuit_breakers:
                 try:
                     from config import get_settings
+
                     settings = get_settings()
                     threshold = settings.circuit_breaker_failure_threshold
                     cooldown = settings.circuit_breaker_cooldown_seconds
@@ -314,6 +315,7 @@ class TranslationManager:
         """Record successful translation in backend stats."""
         try:
             from db.translation import record_backend_success
+
             record_backend_success(
                 backend_name,
                 result.response_time_ms,
@@ -326,6 +328,7 @@ class TranslationManager:
         """Record failed translation in backend stats."""
         try:
             from db.translation import record_backend_failure
+
             record_backend_failure(backend_name, error)
         except Exception as e:
             logger.debug("Failed to record backend failure: %s", e)
@@ -357,22 +360,26 @@ def invalidate_translation_manager() -> None:
 def _register_builtin_backends(manager: TranslationManager) -> None:
     """Register all built-in translation backends."""
     from translation.ollama import OllamaBackend
+
     manager.register_backend(OllamaBackend)
 
     # DeepL: optional dependency (deepl package may not be installed)
     try:
         from translation.deepl_backend import DeepLBackend
+
         manager.register_backend(DeepLBackend)
     except ImportError:
         logger.info("DeepL backend not available (deepl package not installed)")
 
     # LibreTranslate: uses stdlib requests (always available)
     from translation.libretranslate import LibreTranslateBackend
+
     manager.register_backend(LibreTranslateBackend)
 
     # OpenAI-compatible: optional dependency (openai package may not be installed)
     try:
         from translation.openai_compat import OpenAICompatBackend
+
         manager.register_backend(OpenAICompatBackend)
     except ImportError:
         logger.info("OpenAI-compatible backend not available (openai package not installed)")
@@ -380,6 +387,9 @@ def _register_builtin_backends(manager: TranslationManager) -> None:
     # Google Cloud Translation: optional dependency (google-cloud-translate may not be installed)
     try:
         from translation.google_translate import GoogleTranslateBackend
+
         manager.register_backend(GoogleTranslateBackend)
     except ImportError:
-        logger.info("Google Translation backend not available (google-cloud-translate package not installed)")
+        logger.info(
+            "Google Translation backend not available (google-cloud-translate package not installed)"
+        )

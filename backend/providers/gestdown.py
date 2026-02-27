@@ -46,10 +46,46 @@ class GestdownProvider(SubtitleProvider):
 
     name = "gestdown"
     languages = {
-        "en", "de", "fr", "es", "it", "pt", "nl", "pl", "sv", "da",
-        "no", "fi", "cs", "hu", "tr", "ro", "el", "he", "ar", "zh",
-        "ja", "ko", "ru", "bg", "hr", "sr", "sk", "sl", "ca", "eu",
-        "gl", "uk", "et", "lv", "lt", "fa", "id", "ms", "th", "vi",
+        "en",
+        "de",
+        "fr",
+        "es",
+        "it",
+        "pt",
+        "nl",
+        "pl",
+        "sv",
+        "da",
+        "no",
+        "fi",
+        "cs",
+        "hu",
+        "tr",
+        "ro",
+        "el",
+        "he",
+        "ar",
+        "zh",
+        "ja",
+        "ko",
+        "ru",
+        "bg",
+        "hr",
+        "sr",
+        "sk",
+        "sl",
+        "ca",
+        "eu",
+        "gl",
+        "uk",
+        "et",
+        "lv",
+        "lt",
+        "fa",
+        "id",
+        "ms",
+        "th",
+        "vi",
     }
 
     # Plugin system attributes
@@ -102,12 +138,36 @@ class GestdownProvider(SubtitleProvider):
         # Hardcoded fallback for the most common languages
         # These are Gestdown's internal IDs matching Addic7ed's system
         fallback = {
-            "en": 1, "fr": 8, "es": 4, "de": 11, "it": 7,
-            "pt": 10, "nl": 17, "ro": 26, "pl": 23, "cs": 14,
-            "hu": 20, "tr": 16, "el": 15, "ar": 38, "he": 22,
-            "zh": 24, "ja": 35, "ko": 37, "ru": 19, "sv": 18,
-            "da": 29, "no": 25, "fi": 31, "bg": 35, "hr": 38,
-            "sr": 36, "sk": 33, "sl": 42, "ca": 34, "eu": 39,
+            "en": 1,
+            "fr": 8,
+            "es": 4,
+            "de": 11,
+            "it": 7,
+            "pt": 10,
+            "nl": 17,
+            "ro": 26,
+            "pl": 23,
+            "cs": 14,
+            "hu": 20,
+            "tr": 16,
+            "el": 15,
+            "ar": 38,
+            "he": 22,
+            "zh": 24,
+            "ja": 35,
+            "ko": 37,
+            "ru": 19,
+            "sv": 18,
+            "da": 29,
+            "no": 25,
+            "fi": 31,
+            "bg": 35,
+            "hr": 38,
+            "sr": 36,
+            "sk": 33,
+            "sl": 42,
+            "ca": 34,
+            "eu": 39,
         }
 
         if not self.session:
@@ -120,24 +180,52 @@ class GestdownProvider(SubtitleProvider):
                 data = resp.json()
                 lang_map = {}
                 # API returns a list of language objects with id and name
-                for lang_obj in data if isinstance(data, list) else data.get("languages", data.get("items", [])):
+                for lang_obj in (
+                    data if isinstance(data, list) else data.get("languages", data.get("items", []))
+                ):
                     lang_id = lang_obj.get("id")
                     lang_name = (lang_obj.get("name") or "").lower()
                     # Map language names to ISO 639-1 codes
                     name_to_iso = {
-                        "english": "en", "french": "fr", "spanish": "es",
-                        "german": "de", "italian": "it", "portuguese": "pt",
-                        "dutch": "nl", "romanian": "ro", "polish": "pl",
-                        "czech": "cs", "hungarian": "hu", "turkish": "tr",
-                        "greek": "el", "arabic": "ar", "hebrew": "he",
-                        "chinese": "zh", "japanese": "ja", "korean": "ko",
-                        "russian": "ru", "swedish": "sv", "danish": "da",
-                        "norwegian": "no", "finnish": "fi", "bulgarian": "bg",
-                        "croatian": "hr", "serbian": "sr", "slovak": "sk",
-                        "slovenian": "sl", "catalan": "ca", "basque": "eu",
-                        "galician": "gl", "ukrainian": "uk", "estonian": "et",
-                        "latvian": "lv", "lithuanian": "lt", "persian": "fa",
-                        "indonesian": "id", "malay": "ms", "thai": "th",
+                        "english": "en",
+                        "french": "fr",
+                        "spanish": "es",
+                        "german": "de",
+                        "italian": "it",
+                        "portuguese": "pt",
+                        "dutch": "nl",
+                        "romanian": "ro",
+                        "polish": "pl",
+                        "czech": "cs",
+                        "hungarian": "hu",
+                        "turkish": "tr",
+                        "greek": "el",
+                        "arabic": "ar",
+                        "hebrew": "he",
+                        "chinese": "zh",
+                        "japanese": "ja",
+                        "korean": "ko",
+                        "russian": "ru",
+                        "swedish": "sv",
+                        "danish": "da",
+                        "norwegian": "no",
+                        "finnish": "fi",
+                        "bulgarian": "bg",
+                        "croatian": "hr",
+                        "serbian": "sr",
+                        "slovak": "sk",
+                        "slovenian": "sl",
+                        "catalan": "ca",
+                        "basque": "eu",
+                        "galician": "gl",
+                        "ukrainian": "uk",
+                        "estonian": "et",
+                        "latvian": "lv",
+                        "lithuanian": "lt",
+                        "persian": "fa",
+                        "indonesian": "id",
+                        "malay": "ms",
+                        "thai": "th",
                         "vietnamese": "vi",
                     }
                     iso_code = name_to_iso.get(lang_name)
@@ -170,8 +258,11 @@ class GestdownProvider(SubtitleProvider):
                     # API may return the show directly or nested
                     show = data if "id" in data else data.get("show")
                     if show and show.get("id"):
-                        logger.debug("Gestdown: found show by TVDB ID %d: %s",
-                                    query.tvdb_id, show.get("name", "unknown"))
+                        logger.debug(
+                            "Gestdown: found show by TVDB ID %d: %s",
+                            query.tvdb_id,
+                            show.get("name", "unknown"),
+                        )
                         return show
                 elif resp.status_code == 429:
                     raise ProviderRateLimitError("Gestdown rate limit exceeded")
@@ -193,8 +284,11 @@ class GestdownProvider(SubtitleProvider):
                 if shows:
                     # Pick the first match
                     show = shows[0]
-                    logger.debug("Gestdown: found show by name search '%s': %s",
-                                series_title, show.get("name", "unknown"))
+                    logger.debug(
+                        "Gestdown: found show by name search '%s': %s",
+                        series_title,
+                        show.get("name", "unknown"),
+                    )
                     return show
             elif resp.status_code == 429:
                 raise ProviderRateLimitError("Gestdown rate limit exceeded")
@@ -219,14 +313,14 @@ class GestdownProvider(SubtitleProvider):
             logger.debug("Gestdown: skipping non-episode query")
             return []
 
-        logger.debug("Gestdown: searching for %s (languages: %s)",
-                     query.display_name, query.languages)
+        logger.debug(
+            "Gestdown: searching for %s (languages: %s)", query.display_name, query.languages
+        )
 
         # Step 1: Find the show
         show = self._find_show(query)
         if not show:
-            logger.debug("Gestdown: show not found for '%s'",
-                        query.series_title or query.title)
+            logger.debug("Gestdown: show not found for '%s'", query.series_title or query.title)
             return []
 
         show_id = show.get("id")
@@ -246,8 +340,10 @@ class GestdownProvider(SubtitleProvider):
                 continue
 
             try:
-                url = (f"{API_BASE}/subtitles/get/{show_id}"
-                       f"/{query.season}/{query.episode}/{gestdown_lang_id}")
+                url = (
+                    f"{API_BASE}/subtitles/get/{show_id}"
+                    f"/{query.season}/{query.episode}/{gestdown_lang_id}"
+                )
                 resp = self.session.get(url)
 
                 if resp.status_code == 429:
@@ -260,13 +356,22 @@ class GestdownProvider(SubtitleProvider):
                     resp = self.session.get(url)
 
                 if resp.status_code != 200:
-                    logger.debug("Gestdown: subtitle fetch returned HTTP %d for %s S%02dE%02d lang=%s",
-                                resp.status_code, show.get("name", "?"),
-                                query.season, query.episode, lang_code)
+                    logger.debug(
+                        "Gestdown: subtitle fetch returned HTTP %d for %s S%02dE%02d lang=%s",
+                        resp.status_code,
+                        show.get("name", "?"),
+                        query.season,
+                        query.episode,
+                        lang_code,
+                    )
                     continue
 
                 data = resp.json()
-                subtitles = data if isinstance(data, list) else data.get("subtitles", data.get("matchingSubtitles", []))
+                subtitles = (
+                    data
+                    if isinstance(data, list)
+                    else data.get("subtitles", data.get("matchingSubtitles", []))
+                )
 
                 for sub in subtitles:
                     # Filter: only completed subtitles
@@ -310,13 +415,21 @@ class GestdownProvider(SubtitleProvider):
             except ProviderRateLimitError:
                 raise
             except Exception as e:
-                logger.error("Gestdown: error fetching subtitles for lang %s: %s",
-                           lang_code, e, exc_info=True)
+                logger.error(
+                    "Gestdown: error fetching subtitles for lang %s: %s",
+                    lang_code,
+                    e,
+                    exc_info=True,
+                )
 
         logger.info("Gestdown: found %d subtitle results", len(results))
         if results:
-            logger.debug("Gestdown: top result - %s (format: %s, language: %s)",
-                        results[0].filename, results[0].format.value, results[0].language)
+            logger.debug(
+                "Gestdown: top result - %s (format: %s, language: %s)",
+                results[0].filename,
+                results[0].format.value,
+                results[0].language,
+            )
         return results
 
     def download(self, result: SubtitleResult) -> bytes:

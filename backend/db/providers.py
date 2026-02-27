@@ -1,6 +1,5 @@
 """Provider cache and statistics database operations -- delegating to SQLAlchemy repository."""
 
-
 from db.repositories.providers import ProviderRepository
 
 _repo = None
@@ -15,16 +14,23 @@ def _get_repo():
 
 # ---- Provider Cache ----
 
-def cache_provider_results(provider_name: str, query_hash: str, results_json: str,
-                          ttl_hours: int = 6, format_filter: str = None):
+
+def cache_provider_results(
+    provider_name: str,
+    query_hash: str,
+    results_json: str,
+    ttl_hours: int = 6,
+    format_filter: str = None,
+):
     """Cache provider search results."""
     return _get_repo().cache_provider_results(
         provider_name, query_hash, results_json, ttl_hours, format_filter
     )
 
 
-def get_cached_results(provider_name: str, query_hash: str,
-                       format_filter: str = None) -> str | None:
+def get_cached_results(
+    provider_name: str, query_hash: str, format_filter: str = None
+) -> str | None:
     """Get cached provider results if not expired."""
     return _get_repo().get_cached_results(provider_name, query_hash, format_filter)
 
@@ -53,6 +59,7 @@ def clear_provider_cache(provider_name: str = None):
     # Clear fast cache layer
     try:
         from db.repositories.cache import CacheRepository
+
         prefix = f"provider:{provider_name}:" if provider_name else "provider:"
         CacheRepository.invalidate_app_cache(prefix=prefix)
     except Exception:
@@ -60,9 +67,15 @@ def clear_provider_cache(provider_name: str = None):
     return _get_repo().clear_provider_cache(provider_name)
 
 
-def record_subtitle_download(provider_name: str, subtitle_id: str, language: str,
-                              fmt: str, file_path: str, score: int,
-                              source: str = "provider"):
+def record_subtitle_download(
+    provider_name: str,
+    subtitle_id: str,
+    language: str,
+    fmt: str,
+    file_path: str,
+    score: int,
+    source: str = "provider",
+):
     """Record a subtitle download for history tracking.
 
     Args:
@@ -75,16 +88,17 @@ def record_subtitle_download(provider_name: str, subtitle_id: str, language: str
 
 # ---- Provider Statistics ----
 
-def update_provider_stats(provider_name: str, success: bool, score: int = 0,
-                          response_time_ms: float = None):
+
+def update_provider_stats(
+    provider_name: str, success: bool, score: int = 0, response_time_ms: float = None
+):
     """Update provider statistics after a search/download attempt."""
     _get_repo().record_search(provider_name, success, response_time_ms)
     if success and score > 0:
         _get_repo().record_download(provider_name, score)
 
 
-def record_search(provider_name: str, success: bool,
-                  response_time_ms: float = None):
+def record_search(provider_name: str, success: bool, response_time_ms: float = None):
     """Record a search attempt."""
     return _get_repo().record_search(provider_name, success, response_time_ms)
 
@@ -115,6 +129,7 @@ def clear_provider_stats(provider_name: str) -> bool:
 
 
 # ---- Auto-disable ----
+
 
 def auto_disable_provider(provider_name: str, cooldown_minutes: int = 30):
     """Auto-disable a provider with a cooldown period."""

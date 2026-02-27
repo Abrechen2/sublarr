@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 # Main dispatcher
 # ---------------------------------------------------------------------------
 
+
 def export_config(format: str, include_secrets: bool = False) -> dict:
     """Export Sublarr configuration in the specified format.
 
@@ -47,7 +48,9 @@ def export_config(format: str, include_secrets: bool = False) -> dict:
             "data": None,
             "filename": "",
             "content_type": "application/json",
-            "warnings": [f"Unknown export format: {format}. Supported: {', '.join(sorted(exporters.keys()))}"],
+            "warnings": [
+                f"Unknown export format: {format}. Supported: {', '.join(sorted(exporters.keys()))}"
+            ],
         }
 
     # _export_plex_format and _export_kodi_format don't take include_secrets
@@ -89,6 +92,7 @@ def export_to_zip(formats: list, include_secrets: bool = False) -> bytes:
 # ---------------------------------------------------------------------------
 # Format-specific exporters
 # ---------------------------------------------------------------------------
+
 
 def _export_bazarr_format(include_secrets: bool = False) -> dict:
     """Export config in Bazarr-compatible structure.
@@ -175,21 +179,25 @@ def _export_plex_format() -> dict:
 
         if video_path:
             compat = check_plex_compatibility(sub_path, video_path)
-            plex_subtitles.append({
-                "path": sub_path,
-                "language": sub_info.get("language", ""),
-                "format": sub_info.get("format", ""),
-                "plex_compatible": compat["compatible"],
-                "issues": compat["issues"],
-            })
+            plex_subtitles.append(
+                {
+                    "path": sub_path,
+                    "language": sub_info.get("language", ""),
+                    "format": sub_info.get("format", ""),
+                    "plex_compatible": compat["compatible"],
+                    "issues": compat["issues"],
+                }
+            )
         else:
-            plex_subtitles.append({
-                "path": sub_path,
-                "language": sub_info.get("language", ""),
-                "format": sub_info.get("format", ""),
-                "plex_compatible": None,
-                "issues": ["No associated video file found"],
-            })
+            plex_subtitles.append(
+                {
+                    "path": sub_path,
+                    "language": sub_info.get("language", ""),
+                    "format": sub_info.get("format", ""),
+                    "plex_compatible": None,
+                    "issues": ["No associated video file found"],
+                }
+            )
 
     data = {
         "media_path": media_path,
@@ -233,21 +241,25 @@ def _export_kodi_format() -> dict:
 
         if video_path:
             compat = check_kodi_compatibility(sub_path, video_path)
-            kodi_subtitles.append({
-                "path": sub_path,
-                "language": sub_info.get("language", ""),
-                "format": sub_info.get("format", ""),
-                "kodi_compatible": compat["compatible"],
-                "issues": compat["issues"],
-            })
+            kodi_subtitles.append(
+                {
+                    "path": sub_path,
+                    "language": sub_info.get("language", ""),
+                    "format": sub_info.get("format", ""),
+                    "kodi_compatible": compat["compatible"],
+                    "issues": compat["issues"],
+                }
+            )
         else:
-            kodi_subtitles.append({
-                "path": sub_path,
-                "language": sub_info.get("language", ""),
-                "format": sub_info.get("format", ""),
-                "kodi_compatible": None,
-                "issues": ["No associated video file found"],
-            })
+            kodi_subtitles.append(
+                {
+                    "path": sub_path,
+                    "language": sub_info.get("language", ""),
+                    "format": sub_info.get("format", ""),
+                    "kodi_compatible": None,
+                    "issues": ["No associated video file found"],
+                }
+            )
 
     data = {
         "media_path": media_path,
@@ -326,6 +338,7 @@ def _export_json_format(include_secrets: bool = False) -> dict:
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _mask_secret(value: str) -> str:
     """Mask a secret value for safe display."""
     if not value:
@@ -339,6 +352,7 @@ def _get_version() -> str:
     """Get Sublarr version string."""
     try:
         from version import __version__
+
         return __version__
     except ImportError:
         return "unknown"
@@ -351,6 +365,7 @@ def _get_config_entries(warnings: list) -> dict:
     """
     try:
         from db.config import get_all_config_entries
+
         entries = get_all_config_entries()
         if entries:
             return entries
@@ -360,6 +375,7 @@ def _get_config_entries(warnings: list) -> dict:
     # Fallback to settings
     try:
         from config import get_settings
+
         return get_settings().model_dump()
     except Exception as exc:
         warnings.append(f"Could not load settings: {exc}")
@@ -370,6 +386,7 @@ def _get_media_path(warnings: list) -> str:
     """Get the configured media path."""
     try:
         from config import get_settings
+
         return get_settings().media_path
     except Exception as exc:
         warnings.append(f"Could not determine media path: {exc}")
@@ -380,6 +397,7 @@ def _get_language_profiles(warnings: list) -> list:
     """Load language profiles from database."""
     try:
         from db.profiles import get_all_language_profiles
+
         return get_all_language_profiles()
     except Exception as exc:
         warnings.append(f"Could not load language profiles: {exc}")
@@ -390,6 +408,7 @@ def _get_provider_stats_summary(warnings: list) -> dict:
     """Get a summary of provider statistics."""
     try:
         from db.repositories import ProviderRepository
+
         repo = ProviderRepository()
         stats = repo.get_all_provider_stats()
         return {
@@ -448,6 +467,7 @@ def _scan_subtitle_files(media_path: str, warnings: list) -> list:
                 # Try to find matching video file
                 # Strip lang code and modifiers to get base name
                 from compat_checker import _get_sub_basename
+
                 sub_base = _get_sub_basename(f)
                 video_path = video_files.get(sub_base.lower(), "")
 
@@ -466,12 +486,14 @@ def _scan_subtitle_files(media_path: str, warnings: list) -> list:
                         except OSError:
                             pass
 
-                results.append({
-                    "path": sub_path,
-                    "language": lang_code or "",
-                    "format": ext.lstrip(".").lower(),
-                    "video_path": video_path,
-                })
+                results.append(
+                    {
+                        "path": sub_path,
+                        "language": lang_code or "",
+                        "format": ext.lstrip(".").lower(),
+                        "video_path": video_path,
+                    }
+                )
     except OSError as exc:
         warnings.append(f"Error scanning media path: {exc}")
 

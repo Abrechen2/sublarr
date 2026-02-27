@@ -22,8 +22,7 @@ class JobRepository(BaseRepository):
 
     # ---- Job CRUD ----
 
-    def create_job(self, file_path: str, force: bool = False,
-                   arr_context: dict = None) -> dict:
+    def create_job(self, file_path: str, force: bool = False, arr_context: dict = None) -> dict:
         """Create a new translation job in the database."""
         job_id = str(uuid.uuid4())[:8]
         now = self._now()
@@ -53,8 +52,7 @@ class JobRepository(BaseRepository):
             "error": None,
         }
 
-    def update_job(self, job_id: str, status: str, result: dict = None,
-                   error: str = None):
+    def update_job(self, job_id: str, status: str, result: dict = None, error: str = None):
         """Update a job's status and result."""
         now = self._now() if status in ("completed", "failed") else ""
         stats_json = json.dumps(result.get("stats", {})) if result else "{}"
@@ -83,8 +81,7 @@ class JobRepository(BaseRepository):
             return None
         return self._row_to_job(job)
 
-    def get_jobs(self, page: int = 1, per_page: int = 50,
-                 status: str = None) -> dict:
+    def get_jobs(self, page: int = 1, per_page: int = 50, status: str = None) -> dict:
         """Get paginated job list."""
         offset = (page - 1) * per_page
 
@@ -117,9 +114,7 @@ class JobRepository(BaseRepository):
 
     def get_pending_job_count(self) -> int:
         """Get count of queued/running jobs."""
-        stmt = select(func.count()).select_from(Job).where(
-            Job.status.in_(["queued", "running"])
-        )
+        stmt = select(func.count()).select_from(Job).where(Job.status.in_(["queued", "running"]))
         return self.session.execute(stmt).scalar()
 
     def delete_job(self, job_id: str) -> bool:
@@ -141,10 +136,14 @@ class JobRepository(BaseRepository):
 
     def get_outdated_jobs_count(self, current_hash: str) -> int:
         """Get count of completed jobs with a different config hash."""
-        stmt = select(func.count()).select_from(Job).where(
-            Job.status == "completed",
-            Job.config_hash != "",
-            Job.config_hash != current_hash,
+        stmt = (
+            select(func.count())
+            .select_from(Job)
+            .where(
+                Job.status == "completed",
+                Job.config_hash != "",
+                Job.config_hash != current_hash,
+            )
         )
         return self.session.execute(stmt).scalar()
 
@@ -165,8 +164,9 @@ class JobRepository(BaseRepository):
 
     # ---- Daily Stats ----
 
-    def record_daily_stats(self, success: bool, skipped: bool = False,
-                           fmt: str = "", source: str = ""):
+    def record_daily_stats(
+        self, success: bool, skipped: bool = False, fmt: str = "", source: str = ""
+    ):
         """Record a translation result in daily stats (upsert with JSON merge)."""
         today = date.today().isoformat()
 
@@ -221,21 +221,13 @@ class JobRepository(BaseRepository):
 
     def get_daily_stats(self, days: int = 30) -> list:
         """Get last N days of daily stats."""
-        stmt = (
-            select(DailyStats)
-            .order_by(DailyStats.date.desc())
-            .limit(days)
-        )
+        stmt = select(DailyStats).order_by(DailyStats.date.desc()).limit(days)
         rows = self.session.execute(stmt).scalars().all()
         return [self._to_dict(r) for r in rows]
 
     def get_stats_summary(self) -> dict:
         """Get aggregated stats summary (last 30 days)."""
-        stmt = (
-            select(DailyStats)
-            .order_by(DailyStats.date.desc())
-            .limit(30)
-        )
+        stmt = select(DailyStats).order_by(DailyStats.date.desc()).limit(30)
         rows = self.session.execute(stmt).scalars().all()
 
         total_translated = 0
@@ -258,12 +250,14 @@ class JobRepository(BaseRepository):
             for k, v in by_source.items():
                 by_source_total[k] = by_source_total.get(k, 0) + v
 
-            daily.append({
-                "date": row.date,
-                "translated": row.translated or 0,
-                "failed": row.failed or 0,
-                "skipped": row.skipped or 0,
-            })
+            daily.append(
+                {
+                    "date": row.date,
+                    "translated": row.translated or 0,
+                    "failed": row.failed or 0,
+                    "skipped": row.skipped or 0,
+                }
+            )
 
         # Today's stats
         today_row = self.session.get(DailyStats, date.today().isoformat())

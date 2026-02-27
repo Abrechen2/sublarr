@@ -69,6 +69,7 @@ class RetryingSession(requests.Session):
         # Handle rate limiting
         if resp.status_code == 429:
             from providers.base import ProviderRateLimitError
+
             retry_after = resp.headers.get("Retry-After")
             if retry_after:
                 try:
@@ -84,14 +85,19 @@ class RetryingSession(requests.Session):
         # Handle auth errors
         if resp.status_code in (401, 403):
             from providers.base import ProviderAuthError
+
             raise ProviderAuthError(f"Authentication failed for {url}: HTTP {resp.status_code}")
 
         # Check remaining rate limit headers
-        remaining = resp.headers.get("X-RateLimit-Remaining") or resp.headers.get("x-ratelimit-remaining")
+        remaining = resp.headers.get("X-RateLimit-Remaining") or resp.headers.get(
+            "x-ratelimit-remaining"
+        )
         if remaining is not None:
             try:
                 if int(remaining) <= 1:
-                    reset_at = resp.headers.get("X-RateLimit-Reset") or resp.headers.get("x-ratelimit-reset")
+                    reset_at = resp.headers.get("X-RateLimit-Reset") or resp.headers.get(
+                        "x-ratelimit-reset"
+                    )
                     if reset_at:
                         try:
                             reset_value = float(reset_at)

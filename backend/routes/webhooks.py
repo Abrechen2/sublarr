@@ -29,11 +29,14 @@ def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None, mo
     s = get_settings()
     delay = s.webhook_delay_minutes * 60
 
-    emit_event("webhook_received", {
-        "file_path": file_path,
-        "title": title,
-        "delay_minutes": s.webhook_delay_minutes,
-    })
+    emit_event(
+        "webhook_received",
+        {
+            "file_path": file_path,
+            "title": title,
+            "delay_minutes": s.webhook_delay_minutes,
+        },
+    )
 
     # Step 1: Configurable delay
     if delay > 0:
@@ -66,15 +69,18 @@ def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None, mo
     if s.webhook_auto_search:
         try:
             from db.wanted import get_wanted_item_by_path
+
             wanted_item = get_wanted_item_by_path(file_path)
 
             if wanted_item and s.webhook_auto_translate:
                 from wanted_search import process_wanted_item
+
                 process_result = process_wanted_item(wanted_item["id"])
                 result_info["steps"].append({"process": process_result})
                 logger.info("Webhook pipeline: process result: %s", process_result.get("status"))
             elif wanted_item:
                 from wanted_search import search_wanted_item
+
                 search_result = search_wanted_item(wanted_item["id"])
                 result_info["steps"].append({"search": search_result})
             else:
@@ -95,6 +101,7 @@ def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None, mo
     # Send notification
     try:
         from notifier import send_notification
+
         send_notification(
             title=f"Sublarr: {title}",
             body=f"Subtitle pipeline completed for {title}",
@@ -171,11 +178,11 @@ def webhook_sonarr():
 
     # Auth: if API key is configured, require it on webhook endpoints too
     _s = get_settings()
-    _api_key = getattr(_s, 'api_key', None)
+    _api_key = getattr(_s, "api_key", None)
     if _api_key:
-        _provided = request.headers.get('X-Api-Key', '')
+        _provided = request.headers.get("X-Api-Key", "")
         if not hmac.compare_digest(_provided, _api_key):
-            return jsonify({'error': 'Unauthorized'}), 401
+            return jsonify({"error": "Unauthorized"}), 401
 
     data = request.get_json() or {}
     event_type = data.get("eventType", "")
@@ -207,12 +214,14 @@ def webhook_sonarr():
     thread.start()
 
     s = get_settings()
-    return jsonify({
-        "status": "queued",
-        "file_path": file_path,
-        "delay_minutes": s.webhook_delay_minutes,
-        "auto_pipeline": s.webhook_auto_search,
-    }), 202
+    return jsonify(
+        {
+            "status": "queued",
+            "file_path": file_path,
+            "delay_minutes": s.webhook_delay_minutes,
+            "auto_pipeline": s.webhook_auto_search,
+        }
+    ), 202
 
 
 @bp.route("/webhook/radarr", methods=["POST"])
@@ -283,11 +292,11 @@ def webhook_radarr():
 
     # Auth: if API key is configured, require it on webhook endpoints too
     _s = get_settings()
-    _api_key = getattr(_s, 'api_key', None)
+    _api_key = getattr(_s, "api_key", None)
     if _api_key:
-        _provided = request.headers.get('X-Api-Key', '')
+        _provided = request.headers.get("X-Api-Key", "")
         if not hmac.compare_digest(_provided, _api_key):
-            return jsonify({'error': 'Unauthorized'}), 401
+            return jsonify({"error": "Unauthorized"}), 401
 
     data = request.get_json() or {}
     event_type = data.get("eventType", "")
@@ -308,14 +317,19 @@ def webhook_radarr():
 
             # Delete wanted items for this file path
             from db.wanted import delete_wanted_items
-            deleted_count = delete_wanted_items([file_path])
-            logger.info("Deleted %d wanted items for deleted movie file: %s", deleted_count, file_path)
 
-            return jsonify({
-                "status": "deleted",
-                "file_path": file_path,
-                "wanted_items_removed": deleted_count,
-            }), 200
+            deleted_count = delete_wanted_items([file_path])
+            logger.info(
+                "Deleted %d wanted items for deleted movie file: %s", deleted_count, file_path
+            )
+
+            return jsonify(
+                {
+                    "status": "deleted",
+                    "file_path": file_path,
+                    "wanted_items_removed": deleted_count,
+                }
+            ), 200
         else:
             return jsonify({"status": "ignored", "reason": "No file path in webhook payload"}), 200
 
@@ -344,9 +358,11 @@ def webhook_radarr():
     thread.start()
 
     s = get_settings()
-    return jsonify({
-        "status": "queued",
-        "file_path": file_path,
-        "delay_minutes": s.webhook_delay_minutes,
-        "auto_pipeline": s.webhook_auto_search,
-    }), 202
+    return jsonify(
+        {
+            "status": "queued",
+            "file_path": file_path,
+            "delay_minutes": s.webhook_delay_minutes,
+            "auto_pipeline": s.webhook_auto_search,
+        }
+    ), 202

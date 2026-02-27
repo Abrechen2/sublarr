@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 # Import guard: google-cloud-translate is optional
 try:
     from google.cloud import translate_v3
+
     _HAS_GOOGLE = True
 except ImportError:
     _HAS_GOOGLE = False
@@ -175,9 +176,7 @@ class GoogleTranslateBackend(TranslationBackend):
         """Check if Google Cloud Translation is reachable and configured."""
         try:
             client = self._create_client()
-            response = client.get_supported_languages(
-                request={"parent": self._parent}
-            )
+            response = client.get_supported_languages(request={"parent": self._parent})
             lang_count = len(response.languages)
             return True, f"OK ({lang_count} languages supported)"
         except RuntimeError as e:

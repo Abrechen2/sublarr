@@ -51,6 +51,7 @@ class StandaloneManager:
 
     def __init__(self):
         from standalone.scanner import StandaloneScanner
+
         self._scanner = StandaloneScanner()
         self._watcher_running = False
         self._socketio = None
@@ -65,6 +66,7 @@ class StandaloneManager:
 
         try:
             from config import get_settings
+
             settings = get_settings()
 
             if not getattr(settings, "standalone_enabled", False):
@@ -72,6 +74,7 @@ class StandaloneManager:
                 return
 
             from db.standalone import get_watched_folders
+
             folders = get_watched_folders(enabled_only=True)
             if not folders:
                 logger.info("Standalone mode enabled but no watched folders configured")
@@ -82,6 +85,7 @@ class StandaloneManager:
 
             # Start filesystem watcher
             from standalone.watcher import start_watcher
+
             observer = start_watcher(
                 folder_paths,
                 on_new_file=self._on_new_file,
@@ -93,9 +97,7 @@ class StandaloneManager:
             thread = threading.Thread(target=self._initial_scan, daemon=True)
             thread.start()
 
-            logger.info(
-                "Standalone mode started: watching %d folder(s)", len(folder_paths)
-            )
+            logger.info("Standalone mode started: watching %d folder(s)", len(folder_paths))
 
         except Exception as e:
             logger.error("Failed to start standalone mode: %s", e)
@@ -104,6 +106,7 @@ class StandaloneManager:
         """Stop standalone mode: stop watcher."""
         try:
             from standalone.watcher import stop_watcher
+
             stop_watcher()
         except Exception as e:
             logger.warning("Error stopping standalone watcher: %s", e)
@@ -126,12 +129,14 @@ class StandaloneManager:
 
         try:
             from config import get_settings
+
             enabled = getattr(get_settings(), "standalone_enabled", False)
         except Exception:
             pass
 
         try:
             from db.standalone import get_watched_folders
+
             folders_count = len(get_watched_folders(enabled_only=True))
         except Exception:
             pass
@@ -149,6 +154,7 @@ class StandaloneManager:
             summary = self._scanner.scan_all_folders()
             try:
                 from events import emit_event
+
                 emit_event("standalone_scan_complete", summary)
             except Exception:
                 pass
@@ -165,15 +171,21 @@ class StandaloneManager:
             result = self._scanner.process_single_file(path)
             try:
                 from events import emit_event
-                emit_event("standalone_file_detected", {
-                    "path": path,
-                    **result,
-                })
+
+                emit_event(
+                    "standalone_file_detected",
+                    {
+                        "path": path,
+                        **result,
+                    },
+                )
             except Exception:
                 pass
             logger.info(
                 "Processed new file: %s (type=%s, wanted=%s)",
-                path, result.get("type"), result.get("wanted"),
+                path,
+                result.get("type"),
+                result.get("wanted"),
             )
         except Exception as e:
             logger.error("Error processing new file via watcher: %s", e)

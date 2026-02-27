@@ -78,6 +78,7 @@ class CleanupScheduler:
         """Read cleanup schedule interval from config."""
         try:
             from db.repositories.config import ConfigRepository
+
             repo = ConfigRepository()
             value = repo.get_config_entry("cleanup_schedule_interval_hours")
             if value is not None:
@@ -136,7 +137,9 @@ class CleanupScheduler:
                 created = job.get("created_at", "")
                 # Only expire if the job has been running longer than the cutoff
                 if created and created < cutoff:
-                    update_job(job["id"], "failed", error="Job timed out — running for more than 2 hours")
+                    update_job(
+                        job["id"], "failed", error="Job timed out — running for more than 2 hours"
+                    )
                     logger.warning("Expired zombie job %s (created_at=%s)", job["id"], created)
                     expired += 1
             if expired:
@@ -198,6 +201,7 @@ class CleanupScheduler:
                 elif rule_type == "old_backups":
                     # Scan only, do not auto-delete backups
                     import os
+
                     bak_count = 0
                     bak_size = 0
                     for root, _dirs, files in os.walk(media_path):
@@ -213,7 +217,9 @@ class CleanupScheduler:
                         files_processed=bak_count,
                         rule_id=rule_id,
                     )
-                    logger.info("Scheduled backup scan: %d .bak files (%d bytes)", bak_count, bak_size)
+                    logger.info(
+                        "Scheduled backup scan: %d .bak files (%d bytes)", bak_count, bak_size
+                    )
 
                 else:
                     logger.warning("Unknown rule type: %s", rule_type)

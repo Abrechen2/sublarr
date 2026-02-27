@@ -45,6 +45,7 @@ def get_library():
 
     try:
         from sonarr_client import get_sonarr_client
+
         sonarr = get_sonarr_client()
         if sonarr:
             series_list = sonarr.get_library_info()
@@ -61,7 +62,9 @@ def get_library():
                     if default_profile is None:
                         default_profile = get_default_profile()
                     s["profile_id"] = default_profile.get("id", 0) if default_profile else 0
-                    s["profile_name"] = default_profile.get("name", "Default") if default_profile else "Default"
+                    s["profile_name"] = (
+                        default_profile.get("name", "Default") if default_profile else "Default"
+                    )
                 s["missing_count"] = missing_map.get(sid, 0)
             result["series"] = series_list
     except Exception as e:
@@ -69,6 +72,7 @@ def get_library():
 
     try:
         from radarr_client import get_radarr_client
+
         radarr = get_radarr_client()
         if radarr:
             result["movies"] = radarr.get_library_info()
@@ -105,6 +109,7 @@ def get_sonarr_instances():
                       type: string
     """
     from config import get_sonarr_instances
+
     instances = get_sonarr_instances()
     return jsonify(instances)
 
@@ -136,6 +141,7 @@ def get_radarr_instances():
                       type: string
     """
     from config import get_radarr_instances
+
     instances = get_radarr_instances()
     return jsonify(instances)
 
@@ -191,6 +197,7 @@ def test_sonarr_instance():
 
     try:
         from sonarr_client import SonarrClient
+
         client = SonarrClient(url, api_key)
         is_healthy, message = client.health_check()
         return jsonify({"healthy": is_healthy, "message": message})
@@ -249,6 +256,7 @@ def test_radarr_instance():
 
     try:
         from radarr_client import RadarrClient
+
         client = RadarrClient(url, api_key)
         is_healthy, message = client.health_check()
         return jsonify({"healthy": is_healthy, "message": message})
@@ -330,8 +338,16 @@ def get_series_detail(series_id):
     profile = get_series_profile(series_id)
     if not profile:
         profile = get_default_profile()
-    target_languages = profile.get("target_languages", [settings.target_language]) if profile else [settings.target_language]
-    target_language_names = profile.get("target_language_names", [settings.target_language_name]) if profile else [settings.target_language_name]
+    target_languages = (
+        profile.get("target_languages", [settings.target_language])
+        if profile
+        else [settings.target_language]
+    )
+    target_language_names = (
+        profile.get("target_language_names", [settings.target_language_name])
+        if profile
+        else [settings.target_language_name]
+    )
     profile_name = profile.get("name", "Default") if profile else "Default"
 
     # Get all episodes + episode files in parallel
@@ -349,21 +365,22 @@ def get_series_detail(series_id):
                 ep_id_to_file[ep["id"]] = file_info
 
     # Collect file paths for episodes that need subtitle detection
-    episodes_to_check = {
-        ep_id: info["path"]
-        for ep_id, info in ep_id_to_file.items()
-    }
+    episodes_to_check = {ep_id: info["path"] for ep_id, info in ep_id_to_file.items()}
 
     def _detect_subtitles(file_path: str) -> dict:
         mapped = map_path(file_path)
-        return {lang: detect_existing_target_for_lang(mapped, lang) or "" for lang in target_languages}
+        return {
+            lang: detect_existing_target_for_lang(mapped, lang) or "" for lang in target_languages
+        }
 
     # Parallel filesystem I/O — ~8x faster for series with many episodes
     subtitle_map: dict = {}
     if episodes_to_check:
         with ThreadPoolExecutor(max_workers=min(8, len(episodes_to_check))) as executor:
-            futures = {ep_id: executor.submit(_detect_subtitles, path)
-                       for ep_id, path in episodes_to_check.items()}
+            futures = {
+                ep_id: executor.submit(_detect_subtitles, path)
+                for ep_id, path in episodes_to_check.items()
+            }
         subtitle_map = {ep_id: f.result() for ep_id, f in futures.items()}
 
     # Fallback 1: subtitle_downloads — records saved at download time with format
@@ -374,8 +391,7 @@ def get_series_detail(series_id):
     if ep_id_to_file:
         try:
             ep_id_to_mapped = {
-                ep_id: map_path(info["path"])
-                for ep_id, info in ep_id_to_file.items()
+                ep_id: map_path(info["path"]) for ep_id, info in ep_id_to_file.items()
             }
             mapped_to_ep_id = {v: k for k, v in ep_id_to_mapped.items()}
             paths = list(mapped_to_ep_id.keys())
@@ -452,17 +468,19 @@ def get_series_detail(series_id):
             if audio_lang:
                 audio_languages = [a.strip() for a in audio_lang.split("/") if a.strip()]
 
-        episodes.append({
-            "id": ep.get("id"),
-            "season": ep.get("seasonNumber", 0),
-            "episode": ep.get("episodeNumber", 0),
-            "title": ep.get("title", ""),
-            "has_file": has_file,
-            "file_path": file_path or "",
-            "subtitles": subtitles,
-            "audio_languages": audio_languages,
-            "monitored": ep.get("monitored", False),
-        })
+        episodes.append(
+            {
+                "id": ep.get("id"),
+                "season": ep.get("seasonNumber", 0),
+                "episode": ep.get("episodeNumber", 0),
+                "title": ep.get("title", ""),
+                "has_file": has_file,
+                "file_path": file_path or "",
+                "subtitles": subtitles,
+                "audio_languages": audio_languages,
+                "monitored": ep.get("monitored", False),
+            }
+        )
 
     # Get poster and fanart
     poster = ""
@@ -489,31 +507,34 @@ def get_series_detail(series_id):
     absolute_order = False
     try:
         from db.repositories.anidb import AnidbRepository
+
         absolute_order = AnidbRepository().get_absolute_order(series_id)
     except Exception as _e:
         logger.debug("Could not load series settings for %d: %s", series_id, _e)
 
-    return jsonify({
-        "id": series.get("id"),
-        "title": series.get("title", ""),
-        "year": series.get("year"),
-        "path": series.get("path", ""),
-        "poster": poster,
-        "fanart": fanart,
-        "overview": series.get("overview", ""),
-        "status": series.get("status", ""),
-        "season_count": _season_count,
-        "episode_count": _episode_count,
-        "episode_file_count": _episode_file_count,
-        "tags": tags,
-        "profile_name": profile_name,
-        "target_languages": target_languages,
-        "target_language_names": target_language_names,
-        "source_language": settings.source_language,
-        "source_language_name": settings.source_language_name,
-        "absolute_order": absolute_order,
-        "episodes": episodes,
-    })
+    return jsonify(
+        {
+            "id": series.get("id"),
+            "title": series.get("title", ""),
+            "year": series.get("year"),
+            "path": series.get("path", ""),
+            "poster": poster,
+            "fanart": fanart,
+            "overview": series.get("overview", ""),
+            "status": series.get("status", ""),
+            "season_count": _season_count,
+            "episode_count": _episode_count,
+            "episode_file_count": _episode_file_count,
+            "tags": tags,
+            "profile_name": profile_name,
+            "target_languages": target_languages,
+            "target_language_names": target_language_names,
+            "source_language": settings.source_language,
+            "source_language_name": settings.source_language_name,
+            "absolute_order": absolute_order,
+            "episodes": episodes,
+        }
+    )
 
 
 @bp.route("/library/series/<int:series_id>/settings", methods=["PUT"])
@@ -624,7 +645,11 @@ def episode_search(episode_id):
 
     series_id = episode.get("seriesId")
     profile = get_series_profile(series_id) if series_id else get_default_profile()
-    target_languages = profile.get("target_languages", [settings.target_language]) if profile else [settings.target_language]
+    target_languages = (
+        profile.get("target_languages", [settings.target_language])
+        if profile
+        else [settings.target_language]
+    )
 
     # Use the first target language (primary)
     target_lang = target_languages[0] if target_languages else settings.target_language
@@ -705,7 +730,11 @@ def episode_search_providers_interactive(episode_id):
 
     series_id = episode.get("seriesId")
     profile = get_series_profile(series_id) if series_id else get_default_profile()
-    target_languages = profile.get("target_languages", [settings.target_language]) if profile else [settings.target_language]
+    target_languages = (
+        profile.get("target_languages", [settings.target_language])
+        if profile
+        else [settings.target_language]
+    )
     target_lang = target_languages[0] if target_languages else settings.target_language
 
     wanted = find_wanted_by_episode(episode_id, target_lang)
@@ -805,7 +834,11 @@ def episode_download_specific(episode_id):
 
     series_id = episode.get("seriesId")
     profile = get_series_profile(series_id) if series_id else get_default_profile()
-    target_languages = profile.get("target_languages", [settings.target_language]) if profile else [settings.target_language]
+    target_languages = (
+        profile.get("target_languages", [settings.target_language])
+        if profile
+        else [settings.target_language]
+    )
     target_lang = target_languages[0] if target_languages else settings.target_language
 
     wanted = find_wanted_by_episode(episode_id, target_lang)
@@ -833,13 +866,16 @@ def episode_download_specific(episode_id):
     if not result.get("success"):
         return jsonify(result), 400
 
-    emit_event("wanted_item_processed", {
-        "wanted_id": item_id,
-        "episode_id": episode_id,
-        "status": "found",
-        "output_path": result.get("path"),
-        "provider": provider_name,
-    })
+    emit_event(
+        "wanted_item_processed",
+        {
+            "wanted_id": item_id,
+            "episode_id": episode_id,
+            "status": "found",
+            "output_path": result.get("path"),
+            "provider": provider_name,
+        },
+    )
     return jsonify(result)
 
 

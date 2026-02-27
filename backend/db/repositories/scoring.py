@@ -133,10 +133,7 @@ class ScoringRepository(BaseRepository):
         Returns:
             Dict mapping provider_name -> modifier (int).
         """
-        stmt = (
-            select(ProviderScoreModifier)
-            .order_by(ProviderScoreModifier.provider_name)
-        )
+        stmt = select(ProviderScoreModifier).order_by(ProviderScoreModifier.provider_name)
         entries = self.session.execute(stmt).scalars().all()
         return {e.provider_name: e.modifier for e in entries}
 

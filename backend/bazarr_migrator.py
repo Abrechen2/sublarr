@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 # Config Parsing
 # ---------------------------------------------------------------------------
 
+
 def parse_bazarr_config(file_content: str, filename: str) -> dict:
     """Parse a Bazarr config file into a normalized dict.
 
@@ -30,7 +31,13 @@ def parse_bazarr_config(file_content: str, filename: str) -> dict:
         Normalized dict with keys: sonarr, radarr, general, raw, warnings.
     """
     if not file_content or not file_content.strip():
-        return {"sonarr": {}, "radarr": {}, "general": {}, "raw": {}, "warnings": ["Empty config file"]}
+        return {
+            "sonarr": {},
+            "radarr": {},
+            "general": {},
+            "raw": {},
+            "warnings": ["Empty config file"],
+        }
 
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
@@ -51,6 +58,7 @@ def _parse_yaml(content: str) -> dict:
     warnings = []
     try:
         import yaml
+
         data = yaml.safe_load(content)
     except ImportError:
         warnings.append("PyYAML not installed -- cannot parse YAML config")
@@ -124,14 +132,20 @@ def _normalize_config(data: dict, warnings: list) -> dict:
     general = data.get("general", data.get("General", {}))
     if isinstance(general, dict):
         result["general"] = {
-            "source_language": general.get("serie_default_language", general.get("default_language", "")),
+            "source_language": general.get(
+                "serie_default_language", general.get("default_language", "")
+            ),
             "target_language": general.get("serie_default_hi", ""),
-            "use_embedded": general.get("use_embedded_subs", general.get("embedded_subs_show_desired", "")),
+            "use_embedded": general.get(
+                "use_embedded_subs", general.get("embedded_subs_show_desired", "")
+            ),
             "branch": general.get("branch", ""),
         }
 
     # Extract subtitle provider settings
-    providers_section = data.get("opensubtitles", data.get("OpenSubtitles", data.get("opensubtitlescom", {})))
+    providers_section = data.get(
+        "opensubtitles", data.get("OpenSubtitles", data.get("opensubtitlescom", {}))
+    )
     if isinstance(providers_section, dict):
         result["general"]["opensubtitles_username"] = providers_section.get("username", "")
         result["general"]["opensubtitles_password"] = providers_section.get("password", "")
@@ -143,6 +157,7 @@ def _normalize_config(data: dict, warnings: list) -> dict:
 # ---------------------------------------------------------------------------
 # Database Migration
 # ---------------------------------------------------------------------------
+
 
 def migrate_bazarr_db(db_path: str) -> dict:
     """Read a Bazarr SQLite database and extract relevant data.
@@ -185,10 +200,14 @@ def migrate_bazarr_db(db_path: str) -> dict:
         result["blacklist"] = _read_blacklist(conn, result["warnings"])
 
         # Read Sonarr settings
-        result["sonarr_config"] = _read_settings_table(conn, "table_settings_sonarr", result["warnings"])
+        result["sonarr_config"] = _read_settings_table(
+            conn, "table_settings_sonarr", result["warnings"]
+        )
 
         # Read Radarr settings
-        result["radarr_config"] = _read_settings_table(conn, "table_settings_radarr", result["warnings"])
+        result["radarr_config"] = _read_settings_table(
+            conn, "table_settings_radarr", result["warnings"]
+        )
 
         # Read history, shows, movies
         result["history"] = _read_history(conn, result["warnings"])
@@ -219,11 +238,13 @@ def _read_language_profiles(conn: sqlite3.Connection, warnings: list) -> list:
                 if isinstance(items, list):
                     for item in items:
                         if isinstance(item, dict):
-                            profile["languages"].append({
-                                "language": item.get("language", ""),
-                                "hi": item.get("hi", "False"),
-                                "forced": item.get("forced", "False"),
-                            })
+                            profile["languages"].append(
+                                {
+                                    "language": item.get("language", ""),
+                                    "hi": item.get("hi", "False"),
+                                    "forced": item.get("forced", "False"),
+                                }
+                            )
             except (json.JSONDecodeError, TypeError):
                 warnings.append(f"Could not parse languages for profile '{profile['name']}'")
 
@@ -244,12 +265,14 @@ def _read_blacklist(conn: sqlite3.Connection, warnings: list) -> list:
         cursor = conn.execute("SELECT * FROM table_blacklist")
         for row in cursor:
             row_dict = dict(row)
-            blacklist.append({
-                "provider": row_dict.get("provider", ""),
-                "subtitle_id": row_dict.get("subs_id", ""),
-                "timestamp": row_dict.get("timestamp", ""),
-                "language": row_dict.get("language", ""),
-            })
+            blacklist.append(
+                {
+                    "provider": row_dict.get("provider", ""),
+                    "subtitle_id": row_dict.get("subs_id", ""),
+                    "timestamp": row_dict.get("timestamp", ""),
+                    "language": row_dict.get("language", ""),
+                }
+            )
     except sqlite3.OperationalError as exc:
         warnings.append(f"table_blacklist not found: {exc}")
 
@@ -501,8 +524,12 @@ def generate_mapping_report(db_path: str) -> dict:
                 gen_row = gen_cursor.fetchone()
                 if gen_row:
                     gen_dict = dict(gen_row)
-                    report["compatibility"]["bazarr_version"] = str(gen_dict.get("bazarr_version", ""))
-                    report["compatibility"]["schema_version"] = str(gen_dict.get("db_version", gen_dict.get("schema_version", "")))
+                    report["compatibility"]["bazarr_version"] = str(
+                        gen_dict.get("bazarr_version", "")
+                    )
+                    report["compatibility"]["schema_version"] = str(
+                        gen_dict.get("db_version", gen_dict.get("schema_version", ""))
+                    )
         except sqlite3.OperationalError:
             pass
 
@@ -515,6 +542,7 @@ def generate_mapping_report(db_path: str) -> dict:
 # ---------------------------------------------------------------------------
 # Preview & Apply
 # ---------------------------------------------------------------------------
+
 
 def preview_migration(config_data: dict, db_data: dict) -> dict:
     """Generate a human-readable preview of what the migration will import.
@@ -544,16 +572,20 @@ def preview_migration(config_data: dict, db_data: dict) -> dict:
         port = sonarr.get("port", "")
         if port:
             url = f"{url}:{port}"
-        preview["config_entries"].append({
-            "key": "sonarr_url",
-            "value": url,
-            "source": "Bazarr config (sonarr)",
-        })
-        preview["config_entries"].append({
-            "key": "sonarr_api_key",
-            "value": _mask_preview(sonarr["api_key"]),
-            "source": "Bazarr config (sonarr)",
-        })
+        preview["config_entries"].append(
+            {
+                "key": "sonarr_url",
+                "value": url,
+                "source": "Bazarr config (sonarr)",
+            }
+        )
+        preview["config_entries"].append(
+            {
+                "key": "sonarr_api_key",
+                "value": _mask_preview(sonarr["api_key"]),
+                "source": "Bazarr config (sonarr)",
+            }
+        )
 
     radarr = config_data.get("radarr", {})
     if radarr.get("url") and radarr.get("api_key"):
@@ -561,38 +593,48 @@ def preview_migration(config_data: dict, db_data: dict) -> dict:
         port = radarr.get("port", "")
         if port:
             url = f"{url}:{port}"
-        preview["config_entries"].append({
-            "key": "radarr_url",
-            "value": url,
-            "source": "Bazarr config (radarr)",
-        })
-        preview["config_entries"].append({
-            "key": "radarr_api_key",
-            "value": _mask_preview(radarr["api_key"]),
-            "source": "Bazarr config (radarr)",
-        })
+        preview["config_entries"].append(
+            {
+                "key": "radarr_url",
+                "value": url,
+                "source": "Bazarr config (radarr)",
+            }
+        )
+        preview["config_entries"].append(
+            {
+                "key": "radarr_api_key",
+                "value": _mask_preview(radarr["api_key"]),
+                "source": "Bazarr config (radarr)",
+            }
+        )
 
     general = config_data.get("general", {})
     if general.get("opensubtitles_api_key"):
-        preview["config_entries"].append({
-            "key": "opensubtitles_api_key",
-            "value": _mask_preview(general["opensubtitles_api_key"]),
-            "source": "Bazarr config (opensubtitles)",
-        })
+        preview["config_entries"].append(
+            {
+                "key": "opensubtitles_api_key",
+                "value": _mask_preview(general["opensubtitles_api_key"]),
+                "source": "Bazarr config (opensubtitles)",
+            }
+        )
     if general.get("opensubtitles_username"):
-        preview["config_entries"].append({
-            "key": "opensubtitles_username",
-            "value": general["opensubtitles_username"],
-            "source": "Bazarr config (opensubtitles)",
-        })
+        preview["config_entries"].append(
+            {
+                "key": "opensubtitles_username",
+                "value": general["opensubtitles_username"],
+                "source": "Bazarr config (opensubtitles)",
+            }
+        )
 
     # Profiles from DB
     for p in db_data.get("profiles", []):
         lang_list = [lang.get("language", "?") for lang in p.get("languages", [])]
-        preview["profiles"].append({
-            "name": p.get("name", "Unnamed"),
-            "languages": lang_list,
-        })
+        preview["profiles"].append(
+            {
+                "name": p.get("name", "Unnamed"),
+                "languages": lang_list,
+            }
+        )
 
     # Blacklist count
     preview["blacklist_count"] = len(db_data.get("blacklist", []))
@@ -670,6 +712,7 @@ def apply_migration(config_data: dict, db_data: dict) -> dict:
     # Import language profiles from DB
     try:
         from db.profiles import create_language_profile
+
         for p in db_data.get("profiles", []):
             try:
                 languages = p.get("languages", [])
@@ -697,6 +740,7 @@ def apply_migration(config_data: dict, db_data: dict) -> dict:
     # Import blacklist entries from DB
     try:
         from db.repositories import add_blacklist_entry
+
         for entry in db_data.get("blacklist", []):
             try:
                 add_blacklist_entry(
@@ -714,6 +758,7 @@ def apply_migration(config_data: dict, db_data: dict) -> dict:
     try:
         from config import reload_settings
         from db.config import get_all_config_entries
+
         all_overrides = get_all_config_entries()
         reload_settings(all_overrides)
     except Exception as exc:

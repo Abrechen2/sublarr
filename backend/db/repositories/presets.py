@@ -13,19 +13,26 @@ logger = logging.getLogger(__name__)
 
 # Allowed filter field names per scope (prevents injection via preset conditions)
 ALLOWED_FIELDS = {
-    "wanted": {"status", "item_type", "subtitle_type", "target_language", "upgrade_candidate", "title"},
+    "wanted": {
+        "status",
+        "item_type",
+        "subtitle_type",
+        "target_language",
+        "upgrade_candidate",
+        "title",
+    },
     "library": {"item_type", "language", "provider"},
     "history": {"provider_name", "language", "format", "score"},
 }
 
 SUPPORTED_OPERATORS = {
-    "eq":       lambda col, val: col == val,
-    "neq":      lambda col, val: col != val,
+    "eq": lambda col, val: col == val,
+    "neq": lambda col, val: col != val,
     "contains": lambda col, val: col.ilike(f"%{val}%"),
-    "starts":   lambda col, val: col.ilike(f"{val}%"),
-    "gt":       lambda col, val: col > val,
-    "lt":       lambda col, val: col < val,
-    "in":       lambda col, val: col.in_(val if isinstance(val, list) else [val]),
+    "starts": lambda col, val: col.ilike(f"{val}%"),
+    "gt": lambda col, val: col > val,
+    "lt": lambda col, val: col < val,
+    "in": lambda col, val: col.in_(val if isinstance(val, list) else [val]),
 }
 
 
@@ -41,8 +48,9 @@ class FilterPresetsRepository(BaseRepository):
         row = self.session.get(FilterPreset, preset_id)
         return self._preset_to_dict(row) if row else None
 
-    def create_preset(self, name: str, scope: str, conditions: dict,
-                      is_default: bool = False) -> dict:
+    def create_preset(
+        self, name: str, scope: str, conditions: dict, is_default: bool = False
+    ) -> dict:
         self._validate_conditions(conditions, scope)
         now = datetime.now(UTC).isoformat()
         preset = FilterPreset(
@@ -57,9 +65,9 @@ class FilterPresetsRepository(BaseRepository):
         self._commit()
         return self._preset_to_dict(preset)
 
-    def update_preset(self, preset_id: int, name: str = None,
-                      conditions: dict = None,
-                      is_default: bool = None) -> dict | None:
+    def update_preset(
+        self, preset_id: int, name: str = None, conditions: dict = None, is_default: bool = None
+    ) -> dict | None:
         row = self.session.get(FilterPreset, preset_id)
         if not row:
             return None
@@ -78,9 +86,7 @@ class FilterPresetsRepository(BaseRepository):
         row = self.session.get(FilterPreset, preset_id)
         if not row:
             return False
-        self.session.execute(
-            delete(FilterPreset).where(FilterPreset.id == preset_id)
-        )
+        self.session.execute(delete(FilterPreset).where(FilterPreset.id == preset_id))
         self._commit()
         return True
 
@@ -99,10 +105,7 @@ class FilterPresetsRepository(BaseRepository):
             ValueError: If field or operator not in allowed maps.
         """
         if "logic" in node:
-            sub_clauses = [
-                self.build_clause(c, field_map)
-                for c in node.get("conditions", [])
-            ]
+            sub_clauses = [self.build_clause(c, field_map) for c in node.get("conditions", [])]
             if not sub_clauses:
                 return and_()  # empty group = no restriction
             combinator = and_ if node["logic"].upper() == "AND" else or_

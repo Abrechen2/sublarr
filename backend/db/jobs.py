@@ -1,6 +1,5 @@
 """Job and daily stats database operations -- delegating to SQLAlchemy repository."""
 
-
 from db.repositories.jobs import JobRepository
 
 _repo = None
@@ -14,6 +13,7 @@ def _get_repo():
 
 
 # ---- Job CRUD ----
+
 
 def create_job(file_path: str, force: bool = False, arr_context: dict = None) -> dict:
     """Create a new translation job in the database."""
@@ -57,6 +57,7 @@ def delete_old_jobs(days: int) -> int:
 
 # ---- Stats Operations ----
 
+
 def record_stat(success: bool, skipped: bool = False, fmt: str = "", source: str = ""):
     """Record a translation result in daily stats."""
     return _get_repo().record_daily_stats(success, skipped, fmt, source)
@@ -85,6 +86,6 @@ def get_outdated_jobs(current_hash: str, limit: int = 100) -> list:
 # Keep private helper for backward compat (some code may import it)
 def _row_to_job(row) -> dict:
     """Convert a database row to a job dict (legacy compat)."""
-    if hasattr(row, '__dict__'):
+    if hasattr(row, "__dict__"):
         return _get_repo()._row_to_job(row)
     return dict(row) if row else None

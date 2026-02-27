@@ -17,7 +17,10 @@ logger = logging.getLogger(__name__)
 class PluginMarketplace:
     """Manages community plugin marketplace."""
 
-    def __init__(self, registry_url: str = "https://raw.githubusercontent.com/sublarr-community/plugins/main/registry.json"):
+    def __init__(
+        self,
+        registry_url: str = "https://raw.githubusercontent.com/sublarr-community/plugins/main/registry.json",
+    ):
         """Initialize marketplace with registry URL.
 
         Args:

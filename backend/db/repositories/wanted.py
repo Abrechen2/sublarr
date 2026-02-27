@@ -22,19 +22,25 @@ logger = logging.getLogger(__name__)
 class WantedRepository(BaseRepository):
     """Repository for wanted_items table operations."""
 
-    def upsert_wanted_item(self, item_type: str, file_path: str, title: str = "",
-                           season_episode: str = "", existing_sub: str = "",
-                           missing_languages: list = None,
-                           sonarr_series_id: int = None,
-                           sonarr_episode_id: int = None,
-                           radarr_movie_id: int = None,
-                           standalone_series_id: int = None,
-                           standalone_movie_id: int = None,
-                           upgrade_candidate: bool = False,
-                           current_score: int = 0,
-                           target_language: str = "",
-                           instance_name: str = "",
-                           subtitle_type: str = "full") -> tuple:
+    def upsert_wanted_item(
+        self,
+        item_type: str,
+        file_path: str,
+        title: str = "",
+        season_episode: str = "",
+        existing_sub: str = "",
+        missing_languages: list = None,
+        sonarr_series_id: int = None,
+        sonarr_episode_id: int = None,
+        radarr_movie_id: int = None,
+        standalone_series_id: int = None,
+        standalone_movie_id: int = None,
+        upgrade_candidate: bool = False,
+        current_score: int = 0,
+        target_language: str = "",
+        instance_name: str = "",
+        subtitle_type: str = "full",
+    ) -> tuple:
         """Insert or update a wanted item (matched on file_path + target_language + subtitle_type).
 
         The uniqueness check includes subtitle_type so that a single file can have
@@ -138,27 +144,36 @@ class WantedRepository(BaseRepository):
             self.session.rollback()
             existing = self.session.execute(stmt).scalars().first()
             if existing:
-                logger.debug("Race condition on upsert for %s — returning existing %d", file_path, existing.id)
+                logger.debug(
+                    "Race condition on upsert for %s — returning existing %d",
+                    file_path,
+                    existing.id,
+                )
                 return existing.id, True
             raise
 
     # Sort field allowlist for get_wanted_items
     _SORT_FIELDS = {
-        "added_at":       WantedItem.added_at,
-        "title":          WantedItem.title,
+        "added_at": WantedItem.added_at,
+        "title": WantedItem.title,
         "last_search_at": WantedItem.last_search_at,
-        "current_score":  WantedItem.current_score,
-        "search_count":   WantedItem.search_count,
+        "current_score": WantedItem.current_score,
+        "search_count": WantedItem.search_count,
     }
 
-    def get_wanted_items(self, page: int = 1, per_page: int = 50,
-                         item_type: str = None, status: str = None,
-                         series_id: int = None,
-                         subtitle_type: str = None,
-                         sort_by: str = "added_at",
-                         sort_dir: str = "desc",
-                         search: str = None,
-                         preset_conditions: dict = None) -> dict:
+    def get_wanted_items(
+        self,
+        page: int = 1,
+        per_page: int = 50,
+        item_type: str = None,
+        status: str = None,
+        series_id: int = None,
+        subtitle_type: str = None,
+        sort_by: str = "added_at",
+        sort_dir: str = "desc",
+        search: str = None,
+        preset_conditions: dict = None,
+    ) -> dict:
         """Get paginated wanted items with optional filters, sorting, and text search."""
         offset = (page - 1) * per_page
 
@@ -185,6 +200,7 @@ class WantedRepository(BaseRepository):
         # Preset condition tree (AND/OR filter presets)
         if preset_conditions is not None:
             from db.repositories.presets import FilterPresetsRepository
+
             wanted_field_map = {
                 "status": WantedItem.status,
                 "item_type": WantedItem.item_type,
@@ -193,9 +209,7 @@ class WantedRepository(BaseRepository):
                 "upgrade_candidate": WantedItem.upgrade_candidate,
                 "title": WantedItem.title,
             }
-            clause = FilterPresetsRepository().build_clause(
-                preset_conditions, wanted_field_map
-            )
+            clause = FilterPresetsRepository().build_clause(preset_conditions, wanted_field_map)
             conditions.append(clause)
 
         # Count query
@@ -209,12 +223,7 @@ class WantedRepository(BaseRepository):
         order = asc(sort_col) if sort_dir == "asc" else desc(sort_col)
 
         # Data query
-        data_stmt = (
-            select(WantedItem)
-            .order_by(order)
-            .limit(per_page)
-            .offset(offset)
-        )
+        data_stmt = select(WantedItem).order_by(order).limit(per_page).offset(offset)
         if conditions:
             data_stmt = data_stmt.where(*conditions)
         rows = self.session.execute(data_stmt).scalars().all()
@@ -235,9 +244,9 @@ class WantedRepository(BaseRepository):
             return None
         return self._row_to_wanted(item)
 
-    def get_wanted_by_file_path(self, file_path: str,
-                                target_language: str = None,
-                                subtitle_type: str = None) -> dict | None:
+    def get_wanted_by_file_path(
+        self, file_path: str, target_language: str = None, subtitle_type: str = None
+    ) -> dict | None:
         """Get a wanted item by file path (optionally with language/type filter)."""
         stmt = select(WantedItem).where(WantedItem.file_path == file_path)
         if target_language is not None:
@@ -249,8 +258,7 @@ class WantedRepository(BaseRepository):
             return None
         return self._row_to_wanted(item)
 
-    def update_wanted_status(self, item_id: int, status: str,
-                             error: str = "") -> bool:
+    def update_wanted_status(self, item_id: int, status: str, error: str = "") -> bool:
         """Update a wanted item's status."""
         item = self.session.get(WantedItem, item_id)
         if not item:
@@ -289,35 +297,25 @@ class WantedRepository(BaseRepository):
         total = self.session.execute(total_stmt).scalar()
 
         # By type
-        by_type_stmt = select(
-            WantedItem.item_type, func.count()
-        ).group_by(WantedItem.item_type)
-        by_type = {
-            row[0]: row[1]
-            for row in self.session.execute(by_type_stmt).all()
-        }
+        by_type_stmt = select(WantedItem.item_type, func.count()).group_by(WantedItem.item_type)
+        by_type = {row[0]: row[1] for row in self.session.execute(by_type_stmt).all()}
 
         # By status
-        by_status_stmt = select(
-            WantedItem.status, func.count()
-        ).group_by(WantedItem.status)
-        by_status = {
-            row[0]: row[1]
-            for row in self.session.execute(by_status_stmt).all()
-        }
+        by_status_stmt = select(WantedItem.status, func.count()).group_by(WantedItem.status)
+        by_status = {row[0]: row[1] for row in self.session.execute(by_status_stmt).all()}
 
         # By existing_sub
-        by_existing_stmt = select(
-            WantedItem.existing_sub, func.count()
-        ).group_by(WantedItem.existing_sub)
+        by_existing_stmt = select(WantedItem.existing_sub, func.count()).group_by(
+            WantedItem.existing_sub
+        )
         by_existing = {}
         for row in self.session.execute(by_existing_stmt).all():
             key = row[0] if row[0] else "none"
             by_existing[key] = row[1]
 
         # Upgradeable
-        upgradeable_stmt = select(func.count()).select_from(WantedItem).where(
-            WantedItem.upgrade_candidate == 1
+        upgradeable_stmt = (
+            select(func.count()).select_from(WantedItem).where(WantedItem.upgrade_candidate == 1)
         )
         upgradeable = self.session.execute(upgradeable_stmt).scalar()
 
@@ -331,17 +329,13 @@ class WantedRepository(BaseRepository):
 
     def get_wanted_for_series(self, sonarr_series_id: int) -> list:
         """Get all wanted items for a specific series."""
-        stmt = select(WantedItem).where(
-            WantedItem.sonarr_series_id == sonarr_series_id
-        )
+        stmt = select(WantedItem).where(WantedItem.sonarr_series_id == sonarr_series_id)
         rows = self.session.execute(stmt).scalars().all()
         return [self._row_to_wanted(r) for r in rows]
 
     def get_wanted_for_movie(self, radarr_movie_id: int) -> list:
         """Get all wanted items for a specific movie."""
-        stmt = select(WantedItem).where(
-            WantedItem.radarr_movie_id == radarr_movie_id
-        )
+        stmt = select(WantedItem).where(WantedItem.radarr_movie_id == radarr_movie_id)
         rows = self.session.execute(stmt).scalars().all()
         return [self._row_to_wanted(r) for r in rows]
 
@@ -373,8 +367,10 @@ class WantedRepository(BaseRepository):
     def cleanup_wanted_items(self, instance_name: str = None) -> list:
         """Get wanted items with file_path, target_language, instance_name, and id for cleanup."""
         stmt = select(
-            WantedItem.id, WantedItem.file_path,
-            WantedItem.target_language, WantedItem.instance_name
+            WantedItem.id,
+            WantedItem.file_path,
+            WantedItem.target_language,
+            WantedItem.instance_name,
         )
         rows = self.session.execute(stmt).all()
         return [
@@ -402,17 +398,14 @@ class WantedRepository(BaseRepository):
 
     def get_upgradeable_count(self) -> int:
         """Get count of items marked as upgrade candidates."""
-        stmt = select(func.count()).select_from(WantedItem).where(
-            WantedItem.upgrade_candidate == 1
-        )
+        stmt = select(func.count()).select_from(WantedItem).where(WantedItem.upgrade_candidate == 1)
         return self.session.execute(stmt).scalar()
 
-    def find_wanted_by_episode(self, sonarr_episode_id: int,
-                               target_language: str = "") -> dict | None:
+    def find_wanted_by_episode(
+        self, sonarr_episode_id: int, target_language: str = ""
+    ) -> dict | None:
         """Find a wanted item for a specific episode + language."""
-        stmt = select(WantedItem).where(
-            WantedItem.sonarr_episode_id == sonarr_episode_id
-        )
+        stmt = select(WantedItem).where(WantedItem.sonarr_episode_id == sonarr_episode_id)
         if target_language:
             stmt = stmt.where(WantedItem.target_language == target_language)
         stmt = stmt.limit(1)
@@ -448,9 +441,7 @@ class WantedRepository(BaseRepository):
 
     def get_wanted_by_subtitle_type(self) -> dict:
         """Get wanted item counts grouped by subtitle_type."""
-        stmt = select(
-            WantedItem.subtitle_type, func.count()
-        ).group_by(WantedItem.subtitle_type)
+        stmt = select(WantedItem.subtitle_type, func.count()).group_by(WantedItem.subtitle_type)
         rows = self.session.execute(stmt).all()
         result = {}
         for row in rows:
