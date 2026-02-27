@@ -35,7 +35,6 @@ NDH6SA~*
 
 # Claude Code
 .claude/*
-!.claude/plans/
 .mcp.json
 
 # Playwright MCP

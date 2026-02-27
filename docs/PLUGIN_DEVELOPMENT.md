@@ -425,6 +425,6 @@ See the built-in plugins in `backend/providers/plugins/` for reference implement
 
 ## Support
 
-- GitHub Issues: [Sublarr Issues](https://github.com/denniswittke/sublarr/issues)
+- GitHub Issues: [Sublarr Issues](https://github.com/Abrechen2/sublarr/issues)
 - Discord: [Sublarr Discord](https://discord.gg/sublarr)
 - Documentation: [Sublarr Docs](https://docs.sublarr.app)

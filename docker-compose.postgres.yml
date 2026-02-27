@@ -7,13 +7,13 @@
 # services alongside Sublarr. The default docker-compose.yml (SQLite, no Redis)
 # remains unchanged for zero-config deployments.
 #
-# IMPORTANT: Change POSTGRES_PASSWORD and SUBLARR_DATABASE_URL password
-# before using in production!
+# IMPORTANT: Set POSTGRES_PASSWORD in your .env file before starting.
+# The compose file will refuse to start without it.
 
 services:
   sublarr:
     environment:
-      - SUBLARR_DATABASE_URL=postgresql://sublarr:sublarr_secret@db:5432/sublarr
+      - SUBLARR_DATABASE_URL=postgresql://sublarr:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/sublarr
       - SUBLARR_REDIS_URL=redis://redis:6379/0
     depends_on:
       db:
@@ -27,7 +27,7 @@ services:
     environment:
       POSTGRES_DB: sublarr
       POSTGRES_USER: sublarr
-      POSTGRES_PASSWORD: sublarr_secret
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

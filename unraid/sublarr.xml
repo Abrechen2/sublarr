@@ -1,27 +1,27 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>sublarr</Name>
-  <Repository>ghcr.io/abrechen2/sublarr:0.9.1-beta</Repository>
+  <Repository>ghcr.io/abrechen2/sublarr:0.12.0-beta</Repository>
   <Registry>https://ghcr.io/abrechen2/sublarr</Registry>
   <Network>bridge</Network>
   <Privileged>false</Privileged>
-  <Support>https://github.com/denniswittke/sublarr/issues</Support>
-  <Project>https://github.com/denniswittke/sublarr</Project>
+  <Support>https://github.com/Abrechen2/sublarr/issues</Support>
+  <Project>https://github.com/Abrechen2/sublarr</Project>
   <Overview>Standalone Subtitle Manager and Translator for Anime/Media (v0.9.1-beta). Downloads subtitles from 11 providers (AnimeTosho, Jimaku, OpenSubtitles, SubDL, Gestdown, Podnapisi, Kitsunekko, Napisy24, Titrari, LegendasDivx, and custom plugins). Translates via multiple backends (Ollama, DeepL, LibreTranslate, OpenAI-compatible, Google). Supports Whisper speech-to-text fallback, standalone mode (no Sonarr/Radarr required), Plex/Kodi/Jellyfin/Emby library refresh, forced subtitle management, event hooks, dark/light theme, and English/German UI.</Overview>
   <Category>MediaApp:Other</Category>
   <WebUI>http://[IP]:[PORT:5765]</WebUI>
-  <Icon>https://raw.githubusercontent.com/denniswittke/sublarr/main/logo.svg</Icon>
+  <Icon>https://raw.githubusercontent.com/Abrechen2/sublarr/master/logo.png</Icon>
   <ExtraParams/>
   <DateInstalled/>
   <Description>Standalone Subtitle Manager and Translator for Anime/Media. A Bazarr replacement with ASS-first subtitle scoring, multi-backend LLM translation, plugin system, Whisper speech-to-text, and standalone folder-watch mode. Supports 11 built-in providers plus custom plugins.</Description>
   <Config Name="Web UI Port" Target="5765" Default="5765" Mode="tcp" Description="Web UI and API port. Swagger UI available at /api/docs." Type="Port" Display="always" Required="true" Mask="false">5765</Config>
   <Config Name="Config Path" Target="/config" Default="/mnt/user/appdata/sublarr" Mode="rw" Description="Application config, database, plugins, and backups" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/sublarr</Config>
   <Config Name="Media Path" Target="/media" Default="/mnt/user/media" Mode="rw" Description="Root media library path (must match Sonarr/Radarr path mappings)" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/media</Config>
-  <Config Name="Sonarr URL" Target="SUBLARR_SONARR_URL" Default="http://192.168.178.36:8989" Mode="" Description="Sonarr instance URL (leave empty for standalone mode)" Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Sonarr URL" Target="SUBLARR_SONARR_URL" Default="http://YOUR_SERVER_IP:8989" Mode="" Description="Sonarr instance URL (leave empty for standalone mode)" Type="Variable" Display="always" Required="false" Mask="false"/>
   <Config Name="Sonarr API Key" Target="SUBLARR_SONARR_API_KEY" Default="" Mode="" Description="Sonarr API Key" Type="Variable" Display="always" Required="false" Mask="true"/>
-  <Config Name="Radarr URL" Target="SUBLARR_RADARR_URL" Default="http://192.168.178.36:7878" Mode="" Description="Radarr instance URL (leave empty for standalone mode)" Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Radarr URL" Target="SUBLARR_RADARR_URL" Default="http://YOUR_SERVER_IP:7878" Mode="" Description="Radarr instance URL (leave empty for standalone mode)" Type="Variable" Display="always" Required="false" Mask="false"/>
   <Config Name="Radarr API Key" Target="SUBLARR_RADARR_API_KEY" Default="" Mode="" Description="Radarr API Key" Type="Variable" Display="always" Required="false" Mask="true"/>
-  <Config Name="Ollama URL" Target="SUBLARR_OLLAMA_URL" Default="http://192.168.178.155:11434" Mode="" Description="Ollama LLM server URL (default translation backend)" Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Ollama URL" Target="SUBLARR_OLLAMA_URL" Default="http://YOUR_OLLAMA_IP:11434" Mode="" Description="Ollama LLM server URL (default translation backend)" Type="Variable" Display="always" Required="false" Mask="false"/>
   <Config Name="Ollama Model" Target="SUBLARR_OLLAMA_MODEL" Default="qwen2.5:14b-instruct" Mode="" Description="Ollama model for translation" Type="Variable" Display="always" Required="false" Mask="false">qwen2.5:14b-instruct</Config>
   <Config Name="Target Language" Target="SUBLARR_TARGET_LANGUAGE" Default="de" Mode="" Description="Target subtitle language (ISO 639-1)" Type="Variable" Display="always" Required="false" Mask="false">de</Config>
   <Config Name="Path Mapping" Target="SUBLARR_PATH_MAPPING" Default="" Mode="" Description="Remote=Local path mapping (semicolon-separated)" Type="Variable" Display="advanced" Required="false" Mask="false"/>

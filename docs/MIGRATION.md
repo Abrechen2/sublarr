@@ -20,7 +20,7 @@ v0.9.0-beta is a massive feature release adding plugin extensibility, multi-back
 
 1. **Pull the new image:**
    ```bash
-   docker pull ghcr.io/denniswittke/sublarr:0.9.0-beta
+   docker pull ghcr.io/abrechen2/sublarr:0.12.0-beta
    ```
 
 2. **Stop the existing container:**
@@ -37,7 +37,7 @@ v0.9.0-beta is a massive feature release adding plugin extensibility, multi-back
    ```yaml
    services:
      sublarr:
-       image: ghcr.io/denniswittke/sublarr:0.9.0-beta
+       image: ghcr.io/abrechen2/sublarr:0.12.0-beta
        # ... rest of config unchanged
    ```
 
@@ -52,7 +52,7 @@ v0.9.0-beta is a massive feature release adding plugin extensibility, multi-back
 
 1. Go to Docker tab in Unraid
 2. Click the Sublarr container icon and select "Edit"
-3. Update the Repository field to `ghcr.io/denniswittke/sublarr:0.9.0-beta`
+3. Update the Repository field to `ghcr.io/abrechen2/sublarr:0.12.0-beta`
 4. Click Apply
 5. The container will re-pull and restart automatically
 
@@ -175,6 +175,6 @@ If you use the `SUBLARR_API_KEY` setting, all existing authenticated endpoints c
 
 ## Questions or Issues?
 
-- Open a [GitHub Issue](https://github.com/denniswittke/sublarr/issues) for bugs or feature requests
+- Open a [GitHub Issue](https://github.com/Abrechen2/sublarr/issues) for bugs or feature requests
 - Check the [User Guide](USER-GUIDE.md) for setup instructions
 - Browse the [API documentation](http://localhost:5765/api/docs) via Swagger UI

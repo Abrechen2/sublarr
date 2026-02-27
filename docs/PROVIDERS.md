@@ -1209,7 +1209,7 @@ Community contributions welcome! See the [Plugin Development](#plugin-developmen
 
 ## Questions?
 
-- Open a [GitHub Issue](https://github.com/denniswittke/sublarr/issues) for provider-related questions
+- Open a [GitHub Issue](https://github.com/Abrechen2/sublarr/issues) for provider-related questions
 - Browse the [API documentation](http://localhost:5765/api/docs) via Swagger UI
 - Review existing provider implementations in `backend/providers/` as examples
 - Test thoroughly before submitting a pull request
