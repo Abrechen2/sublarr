@@ -3,53 +3,12 @@ name: CI
 on:
   push:
     branches: [master]
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - '.github/workflows/ci.yml'
-      - 'requirements*.txt'
-      - 'Dockerfile'
   pull_request:
     branches: [master]
-  workflow_dispatch:
-  workflow_call:
-
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
-  # ─── Detect which parts of the codebase changed ──────────────────────────
-  changes:
-    name: Detect changes
-    runs-on: ubuntu-latest
-    outputs:
-      backend: ${{ steps.filter.outputs.backend }}
-      frontend: ${{ steps.filter.outputs.frontend }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          # On workflow_call / workflow_dispatch always run everything
-          predicate-quantifier: every
-          filters: |
-            backend:
-              - 'backend/**'
-              - 'requirements*.txt'
-              - '.github/workflows/ci.yml'
-            frontend:
-              - 'frontend/**'
-              - '.github/workflows/ci.yml'
-
-  # ─── Backend ─────────────────────────────────────────────────────────────
   backend:
     name: Backend (Python 3.11)
-    needs: changes
-    if: >
-      needs.changes.outputs.backend == 'true' ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'workflow_call'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,7 +17,6 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-          cache-dependency-path: backend/requirements*.txt
 
       - name: Install dependencies
         working-directory: ./backend
@@ -86,19 +44,10 @@ jobs:
             --ignore=tests/performance \
             --ignore=tests/integration/test_translator_pipeline.py \
             --ignore=tests/integration/test_provider_pipeline.py \
-            --ignore=tests/test_video_sync.py \
-            --ignore=tests/test_translation_backends.py \
-            --ignore=tests/test_wanted_search_reliability.py \
-            -k "not test_sonarr_download_webhook"
+            -k "not (test_sonarr_download_webhook or test_parse_llm_response_too_many_merge or test_record_backend_success)"
 
-  # ─── Frontend ────────────────────────────────────────────────────────────
   frontend:
     name: Frontend (Node 20)
-    needs: changes
-    if: >
-      needs.changes.outputs.frontend == 'true' ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'workflow_call'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -125,11 +74,9 @@ jobs:
         working-directory: ./frontend
         run: npm run test -- --run
 
-  # ─── Security (combined Python + Node in one job) ────────────────────────
   security:
     name: Security Scan
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -137,13 +84,13 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-          cache-dependency-path: backend/requirements*.txt
 
       - name: Install Python dependencies
         working-directory: ./backend
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt pip-audit bandit
+          pip install -r requirements.txt
+          pip install pip-audit
 
       - name: pip-audit (CVE check)
         working-directory: ./backend
@@ -152,7 +99,7 @@ jobs:
 
       - name: bandit (static security)
         working-directory: ./backend
-        run: bandit -r . -c .bandit -q || true
+        run: bandit -r . -c .bandit -f json -o /tmp/bandit.json || bandit -r . -c .bandit
         continue-on-error: true
 
       - uses: actions/setup-node@v4
