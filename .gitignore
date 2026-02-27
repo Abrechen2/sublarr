@@ -60,3 +60,8 @@ coverage.xml
 htmlcov/
 frontend/lint-results.json
 frontend/test-results/
+CLAUDE.md
+backend/CLAUDE.md
+backend/providers/CLAUDE.md
+backend/translation/CLAUDE.md
+frontend/CLAUDE.md
