@@ -275,15 +275,27 @@ Sublarr will automatically download and translate subtitles for every new import
 
 ### Ollama (Local LLM)
 
-```bash
-# Install a translation model (recommended for subtitle translation)
-ollama pull qwen2.5:14b-instruct
+Sublarr ships a **custom fine-tuned model** on HuggingFace, purpose-trained on 75k anime subtitle pairs for EN→DE translation:
 
-# Or a smaller/faster alternative
-ollama pull qwen2.5:7b-instruct
+```bash
+# Recommended: Sublarr custom anime-subtitle model (EN→DE)
+ollama pull hf.co/Sublarr/anime-translator-v6-GGUF:Q4_K_M
+```
+
+Then set in your `.env`:
+```env
+SUBLARR_OLLAMA_MODEL=hf.co/Sublarr/anime-translator-v6-GGUF:Q4_K_M
+```
+
+Alternatively, any general-purpose instruction model works too:
+```bash
+ollama pull qwen2.5:14b-instruct   # good general model, 14B
+ollama pull qwen2.5:7b-instruct    # smaller, faster
 ```
 
 Set `SUBLARR_OLLAMA_URL` to your Ollama host. For Docker, use `http://host.docker.internal:11434`.
+
+> **Model info:** [huggingface.co/Sublarr](https://huggingface.co/Sublarr) — BLEU-1: 0.281, 7 GB, GGUF Q4_K_M quantization.
 
 ---
 

@@ -29,7 +29,7 @@ All Sublarr settings use the `SUBLARR_` prefix and can be set via:
 | Variable | Default | Description |
 |---|---|---|
 | `SUBLARR_OLLAMA_URL` | `http://localhost:11434` | Ollama base URL |
-| `SUBLARR_OLLAMA_MODEL` | `qwen2.5:14b-instruct` | Model for translation |
+| `SUBLARR_OLLAMA_MODEL` | `qwen2.5:14b-instruct` | Model for translation. Recommended: `hf.co/Sublarr/anime-translator-v6-GGUF:Q4_K_M` (custom fine-tuned, EN→DE anime subtitles — see [huggingface.co/Sublarr](https://huggingface.co/Sublarr)) |
 | `SUBLARR_SOURCE_LANGUAGE` | `en` | Source subtitle language code |
 | `SUBLARR_TARGET_LANGUAGE` | `de` | Default target language code |
 | `SUBLARR_SOURCE_LANGUAGE_NAME` | `English` | Human-readable source language name (used in prompts) |
