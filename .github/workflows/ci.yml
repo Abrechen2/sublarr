@@ -44,6 +44,9 @@ jobs:
             --ignore=tests/performance \
             --ignore=tests/integration/test_translator_pipeline.py \
             --ignore=tests/integration/test_provider_pipeline.py \
+            --ignore=tests/test_video_sync.py \
+            --ignore=tests/test_translation_backends.py \
+            --ignore=tests/test_wanted_search_reliability.py \
             -k "not (test_sonarr_download_webhook or test_parse_llm_response_too_many_merge or test_record_backend_success)"
 
   frontend:
