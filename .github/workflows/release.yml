@@ -1,0 +1,194 @@
+name: Release
+
+# ─── Triggers ────────────────────────────────────────────────────────────────
+# Automatic: push a tag like v0.12.1-beta or v1.0.0
+# Manual:    workflow_dispatch with explicit version + toggles
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release — must match backend/VERSION exactly (e.g. 0.12.1-beta)'
+        required: true
+      skip_tests:
+        description: 'Skip CI checks (use with caution)'
+        type: boolean
+        default: false
+      push_docker:
+        description: 'Push Docker image to GHCR'
+        type: boolean
+        default: true
+      create_release:
+        description: 'Create GitHub Release'
+        type: boolean
+        default: true
+
+# Only one release can run at a time
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # ─── 1. Validate ───────────────────────────────────────────────────────────
+  validate:
+    name: Validate version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      tag:     ${{ steps.ver.outputs.tag }}
+      prerelease: ${{ steps.ver.outputs.prerelease }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version & tag
+        id: ver
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            TAG="${{ github.ref_name }}"          # e.g. v0.12.1-beta
+            VERSION="${TAG#v}"                     # strip leading v
+          else
+            VERSION="${{ inputs.version }}"
+            TAG="v${VERSION}"
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
+
+          # Mark as pre-release if version contains alpha/beta/rc
+          if [[ "$VERSION" =~ (alpha|beta|rc) ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "Releasing: $TAG (prerelease=$VERSION)"
+
+      - name: Verify backend/VERSION matches
+        run: |
+          CURRENT=$(tr -d '[:space:]' < backend/VERSION)
+          EXPECTED="${{ steps.ver.outputs.version }}"
+          if [[ "$CURRENT" != "$EXPECTED" ]]; then
+            echo "❌  backend/VERSION is '$CURRENT', expected '$EXPECTED'"
+            echo "    Bump the version in backend/VERSION and push a new commit first."
+            exit 1
+          fi
+          echo "✅  backend/VERSION = $CURRENT"
+
+      - name: Check release does not already exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.ver.outputs.tag }}"
+          if gh release view "$TAG" &>/dev/null 2>&1; then
+            echo "❌  Release $TAG already exists. Aborting."
+            exit 1
+          fi
+          echo "✅  Release $TAG does not exist yet"
+
+  # ─── 2. CI checks ─────────────────────────────────────────────────────────
+  ci:
+    name: CI checks
+    needs: validate
+    if: ${{ !inputs.skip_tests || github.event_name == 'push' }}
+    uses: ./.github/workflows/ci.yml
+
+  # ─── 3. Docker build & push ────────────────────────────────────────────────
+  docker:
+    name: Build & push Docker image
+    needs: [validate, ci]
+    # Run if validate passed AND (ci passed OR ci was skipped via input)
+    if: |
+      always() &&
+      needs.validate.result == 'success' &&
+      (needs.ci.result == 'success' || needs.ci.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ inputs.push_docker != false }}
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ needs.validate.outputs.version }}
+            ghcr.io/${{ github.repository }}:latest
+          labels: |
+            org.opencontainers.image.version=${{ needs.validate.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─── 4. GitHub Release ────────────────────────────────────────────────────
+  release:
+    name: Create GitHub Release
+    needs: [validate, docker]
+    if: |
+      always() &&
+      needs.validate.result == 'success' &&
+      needs.docker.result == 'success' &&
+      inputs.create_release != false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract changelog section
+        id: notes
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+
+          # Pull the section between ## [VERSION] and the next ## [
+          NOTES=$(awk "
+            /^## \[$VERSION\]/ { found=1; next }
+            /^## \[/           { if (found) exit }
+            found              { print }
+          " CHANGELOG.md | sed '/^[[:space:]]*$/d' | head -80)
+
+          if [[ -z "$NOTES" ]]; then
+            NOTES="See CHANGELOG.md for details."
+          fi
+
+          # Write to file to avoid quoting issues
+          echo "$NOTES" > /tmp/release-notes.md
+          echo "notes_file=/tmp/release-notes.md" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.validate.outputs.tag }}"
+          PRERELEASE="${{ needs.validate.outputs.prerelease }}"
+          NOTES_FILE="${{ steps.notes.outputs.notes_file }}"
+
+          PRERELEASE_FLAG=""
+          if [[ "$PRERELEASE" == "true" ]]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          gh release create "$TAG" \
+            --title "Sublarr $TAG" \
+            --notes-file "$NOTES_FILE" \
+            $PRERELEASE_FLAG

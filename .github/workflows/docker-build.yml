@@ -3,9 +3,25 @@ name: Build & Push Docker Image
 on:
   push:
     branches: [master]
-    tags: ['v*']
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'Dockerfile'
+      - 'requirements*.txt'
+      - '.github/workflows/docker-build.yml'
   pull_request:
     branches: [master]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'Dockerfile'
+  workflow_dispatch:
+
+# Tag pushes (releases) are handled by release.yml, not here.
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   REGISTRY: ghcr.io
@@ -13,6 +29,7 @@ env:
 
 jobs:
   build:
+    name: Build${{ github.event_name != 'pull_request' && ' & Push' || '' }} Docker image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -42,10 +59,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=ref,event=branch
-            type=sha,prefix=
+            type=sha,prefix=sha-,format=short
 
       - name: Build and push
         uses: docker/build-push-action@v6
