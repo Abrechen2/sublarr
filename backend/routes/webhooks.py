@@ -1,14 +1,14 @@
 """Webhook routes -- /webhook/sonarr, /webhook/radarr."""
 
-import time
-import logging
 import hmac
+import logging
 import threading
+import time
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 
-from extensions import socketio
 from events import emit_event
+from extensions import socketio
 
 bp = Blueprint("webhooks", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -20,11 +20,11 @@ def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None, mo
     Each step is individually configurable. Emits WebSocket events at each stage.
     """
     from config import get_settings
-    from wanted_scanner import get_scanner
     from db.jobs import create_job
 
     # Import _run_job from translate module for direct translation fallback
     from routes.translate import _run_job
+    from wanted_scanner import get_scanner
 
     s = get_settings()
     delay = s.webhook_delay_minutes * 60

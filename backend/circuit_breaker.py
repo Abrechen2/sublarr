@@ -12,16 +12,15 @@ State transitions:
     HALF_OPEN → OPEN      when the probe call fails
 """
 
-import time
 import logging
 import threading
-from enum import Enum
-from typing import Optional
+import time
+from enum import StrEnum
 
 logger = logging.getLogger(__name__)
 
 
-class CircuitState(str, Enum):
+class CircuitState(StrEnum):
     CLOSED = "closed"
     OPEN = "open"
     HALF_OPEN = "half_open"
@@ -48,7 +47,7 @@ class CircuitBreaker:
 
         self._state = CircuitState.CLOSED
         self._failure_count = 0
-        self._last_failure_time: Optional[float] = None
+        self._last_failure_time: float | None = None
         self._lock = threading.Lock()
 
     def _check_half_open_transition_locked(self) -> None:

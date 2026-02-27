@@ -6,7 +6,7 @@ All endpoints are under /api/v1/.
 
 import logging
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 
 bp = Blueprint("hooks", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -144,7 +144,7 @@ def create_hook():
     if not name:
         return jsonify({"error": "name is required"}), 400
     if not event_name or event_name not in EVENT_CATALOG:
-        return jsonify({"error": f"event_name must be a valid event from the catalog"}), 400
+        return jsonify({"error": "event_name must be a valid event from the catalog"}), 400
     if not script_path:
         return jsonify({"error": "script_path is required"}), 400
 
@@ -309,8 +309,8 @@ def test_hook(hook_id):
           description: Hook not found
     """
     from db.hooks import get_hook_config
-    from events.hooks import HookEngine
     from events.catalog import EVENT_CATALOG
+    from events.hooks import HookEngine
 
     hook = get_hook_config(hook_id)
     if hook is None:
@@ -591,8 +591,8 @@ def test_webhook(webhook_id):
           description: Webhook not found
     """
     from db.hooks import get_webhook_config
-    from events.webhooks import WebhookDispatcher
     from events.catalog import EVENT_CATALOG
+    from events.webhooks import WebhookDispatcher
 
     webhook = get_webhook_config(webhook_id)
     if webhook is None:
@@ -715,7 +715,7 @@ def get_weights():
                         additionalProperties:
                           type: number
     """
-    from db.scoring import get_all_scoring_weights, _DEFAULT_EPISODE_WEIGHTS, _DEFAULT_MOVIE_WEIGHTS
+    from db.scoring import _DEFAULT_EPISODE_WEIGHTS, _DEFAULT_MOVIE_WEIGHTS, get_all_scoring_weights
 
     weights = get_all_scoring_weights()
     return jsonify({
@@ -862,7 +862,7 @@ def update_modifiers():
                 additionalProperties:
                   type: integer
     """
-    from db.scoring import set_provider_modifier, get_all_provider_modifiers
+    from db.scoring import get_all_provider_modifiers, set_provider_modifier
     from providers.base import invalidate_scoring_cache
 
     data = request.get_json(silent=True) or {}

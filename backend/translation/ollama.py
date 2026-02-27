@@ -5,16 +5,16 @@ Preserves all existing translation logic: batch translation, retry with
 exponential backoff, CJK hallucination detection, and single-line fallback.
 """
 
-import time
 import logging
+import time
 
 import requests
 
 from translation.base import TranslationBackend, TranslationResult
 from translation.llm_utils import (
     build_translation_prompt,
-    parse_llm_response,
     has_cjk_hallucination,
+    parse_llm_response,
 )
 
 logger = logging.getLogger(__name__)
@@ -167,7 +167,6 @@ class OllamaBackend(TranslationBackend):
             lines, source_lang, target_lang, glossary_entries
         )
 
-        last_error = None
         for attempt in range(1, self._max_retries + 1):
             try:
                 response = self._call_ollama(prompt)
@@ -180,7 +179,6 @@ class OllamaBackend(TranslationBackend):
                             "Attempt %d: CJK hallucination in %d lines (indices %s), retrying...",
                             attempt, len(tainted), tainted,
                         )
-                        last_error = "CJK hallucination detected"
                     else:
                         elapsed_ms = (time.time() - start_time) * 1000
                         return TranslationResult(
@@ -192,10 +190,10 @@ class OllamaBackend(TranslationBackend):
                         )
                 else:
                     logger.warning("Attempt %d: line count mismatch, retrying...", attempt)
-                    last_error = f"Expected {len(lines)} lines, got different count"
+                    f"Expected {len(lines)} lines, got different count"
             except (requests.RequestException, RuntimeError) as e:
                 logger.warning("Attempt %d failed: %s", attempt, e)
-                last_error = str(e)
+                str(e)
 
             if attempt < self._max_retries:
                 wait = self._backoff_base * (2 ** (attempt - 1))

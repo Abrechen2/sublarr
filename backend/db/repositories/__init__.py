@@ -7,27 +7,27 @@ Module-level convenience functions delegate to repository instances, providing
 a drop-in replacement API for the existing db/ modules.
 """
 
+from db.repositories.anidb import AnidbRepository
 from db.repositories.base import BaseRepository
-from db.repositories.config import ConfigRepository
 from db.repositories.blacklist import BlacklistRepository
 from db.repositories.cache import CacheRepository
-from db.repositories.plugins import PluginRepository
-from db.repositories.jobs import JobRepository
-from db.repositories.wanted import WantedRepository
-from db.repositories.profiles import ProfileRepository
-from db.repositories.scoring import ScoringRepository
-from db.repositories.library import LibraryRepository
-from db.repositories.providers import ProviderRepository
-from db.repositories.hooks import HookRepository
-from db.repositories.standalone import StandaloneRepository
-from db.repositories.whisper import WhisperRepository
-from db.repositories.translation import TranslationRepository
-from db.repositories.quality import QualityRepository
-from db.repositories.search import SearchRepository
-from db.repositories.presets import FilterPresetsRepository
-from db.repositories.notifications import NotificationRepository
 from db.repositories.cleanup import CleanupRepository
-from db.repositories.anidb import AnidbRepository
+from db.repositories.config import ConfigRepository
+from db.repositories.hooks import HookRepository
+from db.repositories.jobs import JobRepository
+from db.repositories.library import LibraryRepository
+from db.repositories.notifications import NotificationRepository
+from db.repositories.plugins import PluginRepository
+from db.repositories.presets import FilterPresetsRepository
+from db.repositories.profiles import ProfileRepository
+from db.repositories.providers import ProviderRepository
+from db.repositories.quality import QualityRepository
+from db.repositories.scoring import ScoringRepository
+from db.repositories.search import SearchRepository
+from db.repositories.standalone import StandaloneRepository
+from db.repositories.translation import TranslationRepository
+from db.repositories.wanted import WantedRepository
+from db.repositories.whisper import WhisperRepository
 
 __all__ = [
     # Base

@@ -1,13 +1,13 @@
 """Wanted routes — /wanted, /wanted/batch-search, /wanted/search-all."""
 
-import os
 import logging
+import os
 import threading
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, current_app, jsonify, request
 
-from extensions import socketio
 from events import emit_event
+from extensions import socketio
 
 bp = Blueprint("wanted", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -174,8 +174,8 @@ def wanted_summary():
                     additionalProperties:
                       type: integer
     """
+    from db.wanted import get_wanted_by_subtitle_type, get_wanted_summary
     from wanted_scanner import get_scanner
-    from db.wanted import get_wanted_summary, get_wanted_by_subtitle_type
 
     scanner = get_scanner()
     summary = get_wanted_summary()
@@ -344,7 +344,7 @@ def delete_wanted(item_id):
         404:
           description: Item not found
     """
-    from db.wanted import get_wanted_item, delete_wanted_item
+    from db.wanted import delete_wanted_item, get_wanted_item
 
     item = get_wanted_item(item_id)
     if not item:
@@ -1039,10 +1039,10 @@ def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = F
         file_path: Absolute path to the media file.
         auto_translate: If True, trigger translation after extraction.
     """
-    from ass_utils import get_media_streams, select_best_subtitle_stream, extract_subtitle_stream
-    from translator import get_output_path_for_lang
-    from db.wanted import get_wanted_item, delete_wanted_item
+    from ass_utils import extract_subtitle_stream, get_media_streams, select_best_subtitle_stream
     from config import get_settings
+    from db.wanted import delete_wanted_item, get_wanted_item
+    from translator import get_output_path_for_lang
 
     settings = get_settings()
 
@@ -1155,10 +1155,10 @@ def extract_embedded_sub(item_id):
         404:
           description: Item, file, or subtitle stream not found
     """
-    from ass_utils import get_media_streams, select_best_subtitle_stream, extract_subtitle_stream
-    from translator import get_output_path_for_lang
-    from db.wanted import get_wanted_item, delete_wanted_item
+    from ass_utils import extract_subtitle_stream, get_media_streams, select_best_subtitle_stream
     from config import get_settings
+    from db.wanted import delete_wanted_item, get_wanted_item
+    from translator import get_output_path_for_lang
 
     settings = get_settings()
 

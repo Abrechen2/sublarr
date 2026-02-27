@@ -7,9 +7,9 @@ Shares LLM utilities (prompt building, response parsing, CJK hallucination
 detection) with OllamaBackend via translation.llm_utils.
 """
 
-import time
 import logging
 import threading
+import time
 
 from translation.base import TranslationBackend, TranslationResult
 
@@ -170,8 +170,8 @@ class OpenAICompatBackend(TranslationBackend):
 
         from translation.llm_utils import (
             build_translation_prompt,
-            parse_llm_response,
             has_cjk_hallucination,
+            parse_llm_response,
         )
 
         start_time = time.time()

@@ -7,16 +7,15 @@ and anidb_mappings tables. Return types match the existing functions exactly.
 
 import logging
 from datetime import datetime, timedelta
-from typing import Optional
 
-from sqlalchemy import select, func, delete
+from sqlalchemy import delete, select
 
 from db.models.standalone import (
-    WatchedFolder,
-    StandaloneSeries,
-    StandaloneMovie,
-    MetadataCache,
     AnidbMapping,
+    MetadataCache,
+    StandaloneMovie,
+    StandaloneSeries,
+    WatchedFolder,
 )
 from db.repositories.base import BaseRepository
 
@@ -61,7 +60,7 @@ class StandaloneRepository(BaseRepository):
         entries = self.session.execute(stmt).scalars().all()
         return [self._row_to_folder(e) for e in entries]
 
-    def get_watched_folder(self, folder_id: int) -> Optional[dict]:
+    def get_watched_folder(self, folder_id: int) -> dict | None:
         """Get a single watched folder by ID."""
         entry = self.session.get(WatchedFolder, folder_id)
         if not entry:
@@ -158,7 +157,7 @@ class StandaloneRepository(BaseRepository):
             self._commit()
             return self._row_to_series(series)
 
-    def get_standalone_series(self, series_id: int) -> Optional[dict]:
+    def get_standalone_series(self, series_id: int) -> dict | None:
         """Get a single standalone series by ID."""
         entry = self.session.get(StandaloneSeries, series_id)
         if not entry:
@@ -180,7 +179,7 @@ class StandaloneRepository(BaseRepository):
         self._commit()
         return True
 
-    def get_standalone_series_by_folder(self, folder_path: str) -> Optional[dict]:
+    def get_standalone_series_by_folder(self, folder_path: str) -> dict | None:
         """Get a standalone series by its folder path."""
         stmt = select(StandaloneSeries).where(
             StandaloneSeries.folder_path == folder_path
@@ -235,7 +234,7 @@ class StandaloneRepository(BaseRepository):
             self._commit()
             return self._row_to_movie(movie)
 
-    def get_standalone_movie(self, movie_id: int) -> Optional[dict]:
+    def get_standalone_movie(self, movie_id: int) -> dict | None:
         """Get a single standalone movie by ID."""
         entry = self.session.get(StandaloneMovie, movie_id)
         if not entry:
@@ -257,7 +256,7 @@ class StandaloneRepository(BaseRepository):
         self._commit()
         return True
 
-    def get_standalone_movie_by_path(self, file_path: str) -> Optional[dict]:
+    def get_standalone_movie_by_path(self, file_path: str) -> dict | None:
         """Get a standalone movie by its file path."""
         stmt = select(StandaloneMovie).where(
             StandaloneMovie.file_path == file_path
@@ -269,7 +268,7 @@ class StandaloneRepository(BaseRepository):
 
     # ---- Metadata Cache ----------------------------------------------------------
 
-    def get_metadata_cache(self, cache_key: str) -> Optional[dict]:
+    def get_metadata_cache(self, cache_key: str) -> dict | None:
         """Get a cached metadata entry if not expired."""
         now = datetime.utcnow().isoformat()
         entry = self.session.get(MetadataCache, cache_key)
@@ -314,7 +313,7 @@ class StandaloneRepository(BaseRepository):
 
     # ---- AniDB Mappings ----------------------------------------------------------
 
-    def get_anidb_mapping(self, tvdb_id: int) -> Optional[dict]:
+    def get_anidb_mapping(self, tvdb_id: int) -> dict | None:
         """Get cached AniDB ID for a TVDB ID. Updates last_used on read."""
         entry = self.session.get(AnidbMapping, tvdb_id)
         if not entry:

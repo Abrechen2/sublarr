@@ -3,7 +3,7 @@
 import json
 import logging
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 
 bp = Blueprint("mediaservers", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -145,7 +145,7 @@ def save_instances():
           description: Validation error
     """
     from db.config import save_config_entry
-    from mediaserver import invalidate_media_server_manager, get_media_server_manager
+    from mediaserver import get_media_server_manager, invalidate_media_server_manager
 
     body = request.get_json()
     if not isinstance(body, list):

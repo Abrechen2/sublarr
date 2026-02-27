@@ -12,7 +12,7 @@ import logging
 import threading
 import uuid
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 
 bp = Blueprint("cleanup", __name__, url_prefix="/api/v1/cleanup")
 logger = logging.getLogger(__name__)
@@ -413,6 +413,7 @@ def delete_orphaned():
           description: Missing file_paths
     """
     import os
+
     from config import get_settings
     from db.repositories.cleanup import CleanupRepository
 

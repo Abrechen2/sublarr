@@ -4,11 +4,11 @@ Uses Tesseract OCR to extract text from video frames containing subtitle images.
 Inspired by SubtitleEdit's OCR functionality.
 """
 
+import contextlib
+import logging
 import os
 import subprocess
-import logging
 import tempfile
-from typing import Optional, List, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ __all__ = [
 def extract_frame(
     video_path: str,
     timestamp: float,
-    output_path: Optional[str] = None,
+    output_path: str | None = None,
 ) -> str:
     """Extract a single frame from video at specific timestamp using FFmpeg.
 
@@ -93,8 +93,8 @@ def extract_frames_sequence(
     start_time: float,
     end_time: float,
     interval: float = 1.0,
-    output_dir: Optional[str] = None,
-) -> List[str]:
+    output_dir: str | None = None,
+) -> list[str]:
     """Extract multiple frames from video at regular intervals.
 
     Args:
@@ -179,10 +179,10 @@ def ocr_subtitle_stream(
     video_path: str,
     stream_index: int,
     language: str = "eng",
-    start_time: Optional[float] = None,
-    end_time: Optional[float] = None,
+    start_time: float | None = None,
+    end_time: float | None = None,
     interval: float = 1.0,
-) -> Dict:
+) -> dict:
     """Extract text from embedded image subtitle stream using OCR.
 
     This is the main entry point for OCR functionality.
@@ -241,10 +241,8 @@ def ocr_subtitle_stream(
 
     # Clean up temporary frames
     for frame_path in frame_paths:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(frame_path)
-        except OSError:
-            pass
 
     # Calculate quality score
     quality = int((successful_frames / len(frame_paths)) * 100) if frame_paths else 0
@@ -264,7 +262,7 @@ def batch_ocr_track(
     video_path: str,
     stream_index: int,
     language: str = "eng",
-) -> List[Dict]:
+) -> list[dict]:
     """Extract and OCR an entire image subtitle track from an MKV in one pass.
 
     Args:
@@ -308,8 +306,8 @@ def batch_ocr_track(
             texts = list(pool.map(_ocr_frame, frames))
 
     # Deduplicate consecutive identical lines
-    cues: List[Dict] = []
-    prev: Optional[str] = None
+    cues: list[dict] = []
+    prev: str | None = None
     for text in texts:
         if text and text != prev:
             cues.append({"text": text})
@@ -322,8 +320,8 @@ def batch_ocr_track(
 def preview_frame(
     video_path: str,
     timestamp: float,
-    stream_index: Optional[int] = None,
-) -> Dict:
+    stream_index: int | None = None,
+) -> dict:
     """Preview a single frame for OCR (returns frame path and estimated text).
 
     Args:
@@ -338,10 +336,8 @@ def preview_frame(
 
     preview_text = ""
     if TESSERACT_AVAILABLE:
-        try:
+        with contextlib.suppress(Exception):
             preview_text = ocr_image(frame_path, language="eng")
-        except Exception:
-            pass
 
     return {
         "frame_path": frame_path,

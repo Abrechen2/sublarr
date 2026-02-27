@@ -5,27 +5,26 @@ Target language ASS is always the goal — SRT output only when no ASS source ex
 All language-specific logic is parameterized via config.py.
 """
 
+import logging
 import os
 import re
 import shutil
 import tempfile
-import logging
 
 import pysubs2
 
-from config import get_settings
 from ass_utils import (
+    classify_styles,
+    extract_subtitle_stream,
+    extract_tags,
+    fix_line_breaks,
     get_media_streams,
     has_target_language_stream,
-    select_best_subtitle_stream,
-    extract_subtitle_stream,
-    classify_styles,
-    extract_tags,
     restore_tags,
-    fix_line_breaks,
+    select_best_subtitle_stream,
 )
+from config import get_settings
 from translation import get_translation_manager
-from translation.base import TranslationResult
 
 logger = logging.getLogger(__name__)
 
@@ -77,10 +76,11 @@ def _submit_whisper_job(mkv_path: str, arr_context: dict = None):
         is not available.
     """
     try:
-        from whisper import get_whisper_manager
-        from routes.whisper import _get_queue
-        from extensions import socketio
         import uuid
+
+        from extensions import socketio
+        from routes.whisper import _get_queue
+        from whisper import get_whisper_manager
 
         manager = get_whisper_manager()
         backend = manager.get_active_backend()
@@ -120,22 +120,22 @@ def _submit_whisper_job(mkv_path: str, arr_context: dict = None):
 
 def _extract_series_id(arr_context):
     """Extract Sonarr series_id from arr_context.
-    
+
     Returns:
         int or None: Series ID if found, None otherwise
     """
     if not arr_context:
         return None
-    
+
     # Try direct series_id field
     if arr_context.get("sonarr_series_id"):
         return arr_context["sonarr_series_id"]
-    
+
     # Try series.id (from webhook)
     series = arr_context.get("series", {})
     if isinstance(series, dict) and series.get("id"):
         return series["id"]
-    
+
     return None
 
 
@@ -152,7 +152,7 @@ def _resolve_backend_for_context(arr_context, target_language):
     Returns:
         tuple: (translation_backend: str, fallback_chain: list[str])
     """
-    from db.profiles import get_default_profile, get_series_profile, get_movie_profile
+    from db.profiles import get_default_profile, get_movie_profile, get_series_profile
 
     profile = None
     if arr_context:
@@ -1032,7 +1032,11 @@ def _search_providers_for_target_ass(mkv_path, context=None, target_language=Non
     """
     try:
         from providers import get_provider_manager
-        from providers.base import VideoQuery, SubtitleFormat, ProviderAuthError, ProviderRateLimitError
+        from providers.base import (
+            ProviderAuthError,
+            ProviderRateLimitError,
+            SubtitleFormat,
+        )
 
         settings = get_settings()
         tgt_lang = target_language or settings.target_language
@@ -1069,7 +1073,11 @@ def _search_providers_for_source_sub(mkv_path, context=None):
     """
     try:
         from providers import get_provider_manager
-        from providers.base import VideoQuery, SubtitleFormat, ProviderAuthError, ProviderRateLimitError
+        from providers.base import (
+            ProviderAuthError,
+            ProviderRateLimitError,
+            SubtitleFormat,
+        )
 
         settings = get_settings()
         manager = get_provider_manager()

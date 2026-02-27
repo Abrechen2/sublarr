@@ -5,9 +5,9 @@ operations. Return types match the existing functions exactly.
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select, func, or_, asc, desc
+from sqlalchemy import asc, desc, func, or_, select
 
 from db.models.core import UpgradeHistory
 from db.models.providers import SubtitleDownload
@@ -130,7 +130,7 @@ class LibraryRepository(BaseRepository):
         by_language = {(row[0] or "unknown"): row[1] for row in by_language_rows}
 
         # Last 24h and 7d
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         last_24h = self.session.execute(
             select(func.count()).select_from(SubtitleDownload)
             .where(SubtitleDownload.downloaded_at > (now - timedelta(days=1)).isoformat())

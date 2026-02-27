@@ -20,7 +20,6 @@ Quick Start:
 from providers.base import (
     SubtitleProvider,
     SubtitleResult,
-    SubtitleFormat,
     VideoQuery,
 )
 from providers.http_session import create_session

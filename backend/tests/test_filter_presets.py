@@ -3,8 +3,8 @@
 import pytest
 
 from app import create_app
-from extensions import db as sa_db
 from db.repositories.presets import FilterPresetsRepository
+from extensions import db as sa_db
 
 
 @pytest.fixture()

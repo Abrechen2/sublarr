@@ -1,6 +1,5 @@
 """Translation config, glossary, preset, and backend stats operations -- delegating to SQLAlchemy repository."""
 
-from typing import Optional
 
 from db.repositories.translation import TranslationRepository
 
@@ -26,7 +25,7 @@ def record_translation_config(config_hash: str, ollama_model: str,
 
 # --- Glossary Operations ---
 
-def add_glossary_entry(series_id: Optional[int] = None, source_term: str = "",
+def add_glossary_entry(series_id: int | None = None, source_term: str = "",
                        target_term: str = "", notes: str = "") -> int:
     """Add a new glossary entry. Returns the entry ID.
 
@@ -35,7 +34,7 @@ def add_glossary_entry(series_id: Optional[int] = None, source_term: str = "",
     return _get_repo().add_glossary_entry(series_id, source_term, target_term, notes)
 
 
-def get_glossary_entries(series_id: Optional[int] = None) -> list:
+def get_glossary_entries(series_id: int | None = None) -> list:
     """Get glossary entries. When series_id is None, returns global entries."""
     if series_id is None:
         return get_global_glossary()
@@ -57,7 +56,7 @@ def get_glossary_for_series(series_id: int) -> list:
     return _get_repo().get_glossary_for_series(series_id)
 
 
-def get_glossary_entry(entry_id: int) -> Optional[dict]:
+def get_glossary_entry(entry_id: int) -> dict | None:
     """Get a single glossary entry by ID."""
     return _get_repo().get_glossary_entry(entry_id)
 
@@ -78,7 +77,7 @@ def delete_glossary_entries_for_series(series_id: int) -> int:
     return _get_repo().delete_glossary_entries_for_series(series_id)
 
 
-def search_glossary_terms(series_id: Optional[int] = None, query: str = "") -> list:
+def search_glossary_terms(series_id: int | None = None, query: str = "") -> list:
     """Search glossary entries by source or target term (case-insensitive).
 
     When series_id is None, searches global entries only.
@@ -98,12 +97,12 @@ def get_prompt_presets() -> list:
     return _get_repo().get_prompt_presets()
 
 
-def get_prompt_preset(preset_id: int) -> Optional[dict]:
+def get_prompt_preset(preset_id: int) -> dict | None:
     """Get a single prompt preset by ID."""
     return _get_repo().get_prompt_preset(preset_id)
 
 
-def get_default_prompt_preset() -> Optional[dict]:
+def get_default_prompt_preset() -> dict | None:
     """Get the default prompt preset."""
     return _get_repo().get_default_prompt_preset()
 
@@ -141,7 +140,7 @@ def get_all_backend_stats() -> list:
     return _get_repo().get_backend_stats()
 
 
-def get_backend_stat(backend_name: str) -> Optional[dict]:
+def get_backend_stat(backend_name: str) -> dict | None:
     """Get stats for a single translation backend."""
     return _get_repo().get_backend_stat(backend_name)
 
@@ -158,7 +157,7 @@ def lookup_translation_cache(
     target_lang: str,
     source_text: str,
     similarity_threshold: float = 1.0,
-) -> Optional[str]:
+) -> str | None:
     """Look up a cached translation.
 
     Args:

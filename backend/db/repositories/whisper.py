@@ -5,9 +5,8 @@ operations. Return types match the existing functions exactly.
 """
 
 import logging
-from typing import Optional
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 
 from db.models.translation import WhisperJob
 from db.repositories.base import BaseRepository
@@ -63,7 +62,7 @@ class WhisperRepository(BaseRepository):
             setattr(job, key, value)
         self._commit()
 
-    def get_whisper_job(self, job_id: str) -> Optional[dict]:
+    def get_whisper_job(self, job_id: str) -> dict | None:
         """Get a whisper job by ID.
 
         Returns:

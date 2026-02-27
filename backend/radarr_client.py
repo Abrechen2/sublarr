@@ -23,20 +23,20 @@ _clients_cache = {}  # Cache for multi-instance clients: {instance_name: RadarrC
 
 def get_radarr_client(instance_name=None):
     """Get or create a Radarr client. Returns None if not configured.
-    
+
     Args:
         instance_name: Optional instance name. If None, uses first available instance or legacy config.
-    
+
     Returns:
         RadarrClient instance or None
     """
     global _client, _clients_cache
-    
+
     # If instance_name is specified, use multi-instance logic
     if instance_name is not None:
         if instance_name in _clients_cache:
             return _clients_cache[instance_name]
-        
+
         from config import get_radarr_instances
         instances = get_radarr_instances()
         for inst in instances:
@@ -46,11 +46,11 @@ def get_radarr_client(instance_name=None):
                 return client
         logger.warning("Radarr instance '%s' not found", instance_name)
         return None
-    
+
     # Legacy singleton behavior (for backward compatibility)
     if _client is not None:
         return _client
-    
+
     from config import get_radarr_instances
     instances = get_radarr_instances()
     if instances:
@@ -58,7 +58,7 @@ def get_radarr_client(instance_name=None):
         inst = instances[0]
         _client = RadarrClient(inst["url"], inst["api_key"])
         return _client
-    
+
     # Fallback to legacy config
     settings = get_settings()
     if not settings.radarr_url or not settings.radarr_api_key:

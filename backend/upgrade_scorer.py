@@ -4,9 +4,9 @@ Scores existing subtitles based on format and file characteristics, then compare
 with new candidates to determine if an upgrade should proceed.
 """
 
+import logging
 import os
 import time
-import logging
 
 logger = logging.getLogger(__name__)
 

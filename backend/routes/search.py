@@ -1,7 +1,8 @@
 """Global search route -- GET /api/v1/search"""
 
-from flask import Blueprint, request, jsonify
-from db.search import search_all, rebuild_search_index
+from flask import Blueprint, jsonify, request
+
+from db.search import rebuild_search_index, search_all
 
 bp = Blueprint("search", __name__, url_prefix="/api/v1")
 

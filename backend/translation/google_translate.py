@@ -5,8 +5,8 @@ translation with native glossary support. Requires a Google Cloud project
 with the Translation API enabled and service account credentials.
 """
 
-import os
 import logging
+import os
 
 from translation.base import TranslationBackend, TranslationResult
 

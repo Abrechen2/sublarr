@@ -12,17 +12,16 @@ The new Whisper backend system provides:
 License: GPL-3.0
 """
 
-import warnings
 import logging
+import warnings
 
+from providers import register_provider
 from providers.base import (
+    ProviderError,
     SubtitleProvider,
     SubtitleResult,
-    SubtitleFormat,
     VideoQuery,
-    ProviderError,
 )
-from providers import register_provider
 
 warnings.warn(
     "WhisperSubgenProvider is deprecated. Use the Whisper backend system "

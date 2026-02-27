@@ -43,7 +43,7 @@ class TestDatabasePerformance:
     def test_get_wanted_items_performance(self, temp_db, benchmark):
         """Benchmark wanted items query performance."""
         from db.wanted import get_wanted_items
-        
+
         result = benchmark(get_wanted_items, page=1, per_page=50)
         assert "items" in result
         # Database query should be fast (< 50ms)
@@ -52,7 +52,7 @@ class TestDatabasePerformance:
     def test_get_history_performance(self, temp_db, benchmark):
         """Benchmark history query performance."""
         from db.library import get_download_history
-        
+
         result = benchmark(get_download_history, page=1, per_page=50)
         assert "history" in result or "items" in result
         # Database query should be fast (< 50ms)

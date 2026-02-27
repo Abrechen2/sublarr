@@ -8,7 +8,7 @@ import logging
 import os
 import threading
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 
 bp = Blueprint("standalone", __name__, url_prefix="/api/v1/standalone")
 logger = logging.getLogger(__name__)
@@ -102,7 +102,7 @@ def add_folder():
         500:
           description: Server error
     """
-    from db.standalone import upsert_watched_folder, get_watched_folder
+    from db.standalone import get_watched_folder, upsert_watched_folder
 
     data = request.get_json(silent=True) or {}
     path = data.get("path", "").strip()
@@ -237,7 +237,7 @@ def delete_folder(folder_id):
         500:
           description: Server error
     """
-    from db.standalone import get_watched_folder, delete_watched_folder
+    from db.standalone import delete_watched_folder, get_watched_folder
 
     folder = get_watched_folder(folder_id)
     if not folder:
@@ -276,8 +276,8 @@ def list_series():
         500:
           description: Server error
     """
+    from db import _db_lock, get_db
     from db.standalone import get_standalone_series
-    from db import get_db, _db_lock
 
     try:
         series_list = get_standalone_series()
@@ -325,8 +325,8 @@ def get_series(series_id):
         500:
           description: Server error
     """
+    from db import _db_lock, get_db
     from db.standalone import get_standalone_series
-    from db import get_db, _db_lock
 
     try:
         series = get_standalone_series(series_id)
@@ -378,8 +378,8 @@ def delete_series(series_id):
         500:
           description: Server error
     """
-    from db.standalone import get_standalone_series, delete_standalone_series
-    from db import get_db, _db_lock
+    from db import _db_lock, get_db
+    from db.standalone import delete_standalone_series, get_standalone_series
 
     series = get_standalone_series(series_id)
     if not series:
@@ -427,8 +427,8 @@ def list_movies():
         500:
           description: Server error
     """
+    from db import _db_lock, get_db
     from db.standalone import get_standalone_movies
-    from db import get_db, _db_lock
 
     try:
         movies = get_standalone_movies()
@@ -479,8 +479,8 @@ def delete_movie(movie_id):
         500:
           description: Server error
     """
-    from db.standalone import get_standalone_movies, delete_standalone_movie
-    from db import get_db, _db_lock
+    from db import _db_lock, get_db
+    from db.standalone import delete_standalone_movie, get_standalone_movies
 
     movie = get_standalone_movies(movie_id)
     if not movie:

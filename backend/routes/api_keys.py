@@ -3,14 +3,14 @@
 Centralized API key registry with test, rotate, export/import, and Bazarr migration.
 """
 
-import io
 import csv
+import io
 import json
 import logging
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, jsonify, request, send_file
 
 bp = Blueprint("api_keys", __name__, url_prefix="/api/v1/api-keys")
 logger = logging.getLogger(__name__)
@@ -308,9 +308,8 @@ def update_service_keys(service):
     if not data:
         return jsonify({"error": "No key data provided"}), 400
 
-    from db.config import save_config_entry
     from config import reload_settings
-    from db.config import get_all_config_entries
+    from db.config import get_all_config_entries, save_config_entry
 
     saved_keys = []
     for key_name in entry["keys"]:
@@ -443,7 +442,7 @@ def export_keys():
     """
     from config import get_settings
     from db.profiles import get_all_language_profiles
-    from db.repositories import get_glossary_entries, TranslationRepository
+    from db.repositories import TranslationRepository
 
     settings = get_settings()
     safe_config = settings.get_safe_config()
@@ -454,10 +453,10 @@ def export_keys():
     # Collect all glossary entries (across all series)
     all_glossary = []
     try:
-        repo = TranslationRepository()
+        TranslationRepository()
         # Get all glossary entries -- use a broad query
-        from extensions import db as sa_db
         from db.models import GlossaryEntry
+        from extensions import db as sa_db
         with sa_db.session() as session:
             rows = session.query(GlossaryEntry).all()
             for row in rows:
@@ -480,11 +479,11 @@ def export_keys():
         zf.writestr("manifest.json", json.dumps({
             "format": "sublarr-export",
             "version": 1,
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
         }, indent=2))
     buf.seek(0)
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     return send_file(
         buf,
         mimetype="application/zip",
@@ -544,9 +543,8 @@ def import_keys():
 
 def _import_zip(uploaded) -> tuple:
     """Import from a Sublarr ZIP export."""
-    from db.config import save_config_entry
     from config import Settings, reload_settings
-    from db.config import get_all_config_entries
+    from db.config import get_all_config_entries, save_config_entry
 
     try:
         zf = zipfile.ZipFile(io.BytesIO(uploaded.read()))
@@ -620,9 +618,8 @@ def _import_zip(uploaded) -> tuple:
 
 def _import_csv(uploaded) -> tuple:
     """Import API keys from a CSV file (service, key_name, key_value)."""
-    from db.config import save_config_entry
     from config import reload_settings
-    from db.config import get_all_config_entries
+    from db.config import get_all_config_entries, save_config_entry
 
     content = uploaded.read().decode("utf-8", errors="replace")
     reader = csv.reader(io.StringIO(content))
@@ -708,13 +705,17 @@ def import_bazarr():
     confirm = request.form.get("confirm", "false").lower() == "true"
 
     try:
-        from bazarr_migrator import parse_bazarr_config, migrate_bazarr_db, preview_migration, apply_migration
+        from bazarr_migrator import (
+            apply_migration,
+            migrate_bazarr_db,
+            parse_bazarr_config,
+            preview_migration,
+        )
     except ImportError as exc:
         return jsonify({"error": f"Bazarr migrator not available: {exc}"}), 500
 
     config_data = {}
     db_data = {}
-    warnings = []
 
     content = uploaded.read()
     filename = uploaded.filename or ""
@@ -731,8 +732,8 @@ def import_bazarr():
                     config_data.update(parsed)
                 elif basename.endswith(".db"):
                     # Extract DB to temp file for sqlite3 access
-                    import tempfile
                     import os
+                    import tempfile
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tmp:
                         tmp.write(zf.read(name))
                         tmp_path = tmp.name

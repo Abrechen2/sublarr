@@ -1,6 +1,5 @@
 """Wanted items database operations -- delegating to SQLAlchemy repository."""
 
-from typing import Optional
 
 from db.repositories.wanted import WantedRepository
 
@@ -51,12 +50,12 @@ def get_wanted_items(page: int = 1, per_page: int = 50,
     )
 
 
-def get_wanted_item(item_id: int) -> Optional[dict]:
+def get_wanted_item(item_id: int) -> dict | None:
     """Get a single wanted item by ID."""
     return _get_repo().get_wanted_item(item_id)
 
 
-def get_wanted_item_by_path(file_path: str) -> Optional[dict]:
+def get_wanted_item_by_path(file_path: str) -> dict | None:
     """Get a wanted item by file path."""
     return _get_repo().get_wanted_by_file_path(file_path)
 
@@ -117,7 +116,7 @@ def get_upgradeable_count() -> int:
     return _get_repo().get_upgradeable_count()
 
 
-def find_wanted_by_episode(sonarr_episode_id: int, target_language: str = "") -> Optional[dict]:
+def find_wanted_by_episode(sonarr_episode_id: int, target_language: str = "") -> dict | None:
     """Find a wanted item for a specific episode + language."""
     return _get_repo().find_wanted_by_episode(sonarr_episode_id, target_language)
 

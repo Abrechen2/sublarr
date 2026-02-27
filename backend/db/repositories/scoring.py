@@ -6,9 +6,9 @@ operations. Return types match the existing functions exactly.
 
 import logging
 
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 
-from db.models.providers import ScoringWeights, ProviderScoreModifier
+from db.models.providers import ProviderScoreModifier, ScoringWeights
 from db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)

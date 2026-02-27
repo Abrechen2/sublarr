@@ -11,9 +11,8 @@ lookups in O(1) via index while preserving the normalized text for
 optional fuzzy/similarity-based matching.
 """
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "e3f4a5b6c7d8"

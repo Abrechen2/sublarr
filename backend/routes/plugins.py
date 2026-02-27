@@ -1,7 +1,8 @@
 """Plugin management routes -- /plugins, /plugins/reload, /plugins/<name>/config."""
 
 import logging
-from flask import Blueprint, request, jsonify
+
+from flask import Blueprint, jsonify, request
 
 bp = Blueprint("plugins", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -85,8 +86,8 @@ def reload_plugins():
         503:
           description: Plugin system not initialized
     """
-    from providers.plugins import get_plugin_manager
     from providers import invalidate_manager
+    from providers.plugins import get_plugin_manager
 
     manager = get_plugin_manager()
     if not manager:

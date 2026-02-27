@@ -11,24 +11,23 @@ License: GPL-3.0
 """
 
 import io
+import logging
 import os
 import re
-import logging
 import zipfile
 from datetime import date
-from typing import Optional
 from urllib.parse import urljoin
 
+from providers import register_provider
 from providers.base import (
+    ProviderAuthError,
+    ProviderError,
+    ProviderRateLimitError,
+    SubtitleFormat,
     SubtitleProvider,
     SubtitleResult,
-    SubtitleFormat,
     VideoQuery,
-    ProviderError,
-    ProviderAuthError,
-    ProviderRateLimitError,
 )
-from providers import register_provider
 from providers.http_session import create_session
 
 logger = logging.getLogger(__name__)
@@ -132,7 +131,7 @@ def _detect_format_from_filename(filename: str) -> SubtitleFormat:
     return _FORMAT_MAP.get(ext, SubtitleFormat.SRT)
 
 
-def _extract_subtitle_from_archive(content: bytes) -> Optional[tuple[str, bytes]]:
+def _extract_subtitle_from_archive(content: bytes) -> tuple[str, bytes] | None:
     """Extract the first subtitle file from a ZIP or RAR archive.
 
     Returns (filename, content) or None if no subtitle found.
@@ -457,7 +456,7 @@ class LegendasDivxProvider(SubtitleProvider):
         logger.info("LegendasDivx: found %d results", len(results))
         return results
 
-    def _parse_result_row(self, row, query: VideoQuery) -> Optional[SubtitleResult]:
+    def _parse_result_row(self, row, query: VideoQuery) -> SubtitleResult | None:
         """Parse a single result row into a SubtitleResult.
 
         Returns None if the row is not a valid subtitle result.
@@ -593,7 +592,7 @@ class LegendasDivxProvider(SubtitleProvider):
         logger.info("LegendasDivx: downloaded %s (%d bytes)", result.filename, len(content))
         return content
 
-    def _resolve_download_url(self, detail_url: str) -> Optional[str]:
+    def _resolve_download_url(self, detail_url: str) -> str | None:
         """Fetch a detail page and extract the actual download link."""
         if not _HAS_BS4:
             return None

@@ -16,28 +16,29 @@ Usage:
         content = manager.download(results[0])
 """
 
-import os
-import logging
 import hashlib
 import json
-from typing import Optional
-from datetime import datetime, timedelta, timezone
+import logging
+import os
 import threading
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FutureTimeoutError
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as FutureTimeoutError
+from datetime import UTC, datetime, timedelta
+from typing import Optional
 
-from providers.base import (
-    SubtitleProvider,
-    SubtitleResult,
-    SubtitleFormat,
-    VideoQuery,
-    compute_score,
-    ProviderAuthError,
-    ProviderRateLimitError,
-    ProviderTimeoutError,
-)
 from circuit_breaker import CircuitBreaker
 from forced_detection import classify_forced_result
+from providers.base import (
+    ProviderAuthError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,  # noqa: F401 — re-exported for callers
+    SubtitleFormat,
+    SubtitleProvider,
+    SubtitleResult,
+    VideoQuery,
+    compute_score,
+)
 
 
 def _detect_format_from_content(content: bytes) -> SubtitleFormat:
@@ -240,7 +241,7 @@ class ProviderManager:
                         total = stats.get("total_searches", 0) or 1
                         success_rate = (stats.get("successful_downloads", 0) or 0) / total
                         provider_success_rates[name] = success_rate
-            
+
             # Sort by success rate (descending), then by manual priority
             if provider_success_rates:
                 # Create priority list: high success rate first, then manual priority
@@ -249,17 +250,17 @@ class ProviderManager:
                     key=lambda x: (-x[1], manual_priority_list.index(x[0]) if x[0] in manual_priority_list else 999)
                 )
                 priority_list = [name for name, _ in sorted_by_success]
-                
+
                 # Add providers not in stats (new providers) at the end, in manual priority order
                 for name in manual_priority_list:
                     if name in enabled_set and name not in priority_list:
                         priority_list.append(name)
-                
+
                 # Add any remaining enabled providers
                 for name in enabled_set:
                     if name not in priority_list and name in _PROVIDER_CLASSES:
                         priority_list.append(name)
-                
+
                 logger.info("Auto-prioritized providers by success rate: %s", priority_list)
             else:
                 # Not enough stats, use manual priority
@@ -294,7 +295,7 @@ class ProviderManager:
                 logger.debug("Initializing provider %s with config keys: %s", name, list(config.keys()))
                 provider = _PROVIDER_CLASSES[name](**config)
                 provider.initialize()
-                
+
                 # Check if provider was actually initialized
                 if hasattr(provider, 'session') and provider.session is None:
                     logger.warning("Provider %s initialized but session is None (likely missing API key)", name)
@@ -321,7 +322,7 @@ class ProviderManager:
                 logger.debug("Initializing provider %s (fallback) with config keys: %s", name, list(config.keys()))
                 provider = _PROVIDER_CLASSES[name](**config)
                 provider.initialize()
-                
+
                 # Check if provider was actually initialized
                 if hasattr(provider, 'session') and provider.session is None:
                     logger.warning("Provider %s initialized but session is None (likely missing API key)", name)
@@ -401,7 +402,7 @@ class ProviderManager:
                 return class_limit
         return self.PROVIDER_RATE_LIMITS.get(provider_name, (0, 0))
 
-    def _compute_dynamic_timeout(self, provider_name: str, stats: dict) -> Optional[int]:
+    def _compute_dynamic_timeout(self, provider_name: str, stats: dict) -> int | None:
         """Compute a dynamic timeout from provider stats (avg response time × multiplier + buffer).
 
         Returns None if dynamic timeouts are disabled or there are too few samples.
@@ -422,7 +423,7 @@ class ProviderManager:
         max_s = getattr(self.settings, "provider_dynamic_timeout_max_secs", 30)
         return int(max(min_s, min((avg_ms * multiplier / 1000) + buffer, max_s)))
 
-    def _get_timeout(self, provider_name: str, all_stats: Optional[dict] = None) -> int:
+    def _get_timeout(self, provider_name: str, all_stats: dict | None = None) -> int:
         """Get timeout for a provider (seconds).
 
         Priority:
@@ -470,7 +471,7 @@ class ProviderManager:
         if max_requests == 0 and window_seconds == 0:
             return True  # No rate limit configured
         with self._rate_limit_lock:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             timestamps = self._rate_limits[provider_name]
 
             # Remove old timestamps outside the window
@@ -521,7 +522,7 @@ class ProviderManager:
             results.append(result)
         return results
 
-    def _make_cache_key(self, query: VideoQuery, format_filter: Optional[SubtitleFormat] = None) -> str:
+    def _make_cache_key(self, query: VideoQuery, format_filter: SubtitleFormat | None = None) -> str:
         """Generate a cache key for a query."""
         key_parts = [
             query.file_path or "",
@@ -541,7 +542,6 @@ class ProviderManager:
         import time as _time
 
         retries = self._get_retries(name)
-        last_error = None
         elapsed_ms = 0.0
 
         # Check if provider is initialized
@@ -574,11 +574,9 @@ class ProviderManager:
                     wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
                     logger.debug("Waiting %ds before retry...", wait_time)
                     _time.sleep(wait_time)
-                    last_error = e
                 else:
                     return [], 0.0  # Don't retry indefinitely for rate limits
             except Exception as e:
-                last_error = e
                 if attempt < retries:
                     logger.debug("Provider %s search failed (attempt %d/%d), retrying: %s",
                                name, attempt + 1, retries + 1, e, exc_info=True)
@@ -593,7 +591,8 @@ class ProviderManager:
 
         Auto-disables when consecutive_failures >= 2x circuit_breaker_failure_threshold.
         """
-        from db.providers import get_provider_stats as _get_stats, auto_disable_provider
+        from db.providers import auto_disable_provider
+        from db.providers import get_provider_stats as _get_stats
         stats = _get_stats(name)
         if not stats:
             return
@@ -606,7 +605,7 @@ class ProviderManager:
     def search(
         self,
         query: VideoQuery,
-        format_filter: Optional[SubtitleFormat] = None,
+        format_filter: SubtitleFormat | None = None,
         min_score: int = 0,
         early_exit: bool = True,
     ) -> list[SubtitleResult]:
@@ -643,7 +642,7 @@ class ProviderManager:
                 logger.debug("Fast cache lookup failed (non-blocking): %s", e)
 
         # Tier 2: Persistent DB cache lookup
-        from db.providers import get_cached_results, cache_provider_results
+        from db.providers import cache_provider_results, get_cached_results
         cached_json = get_cached_results("combined", cache_key, format_filter.value if format_filter else None)
         if cached_json:
             try:
@@ -665,7 +664,10 @@ class ProviderManager:
         perfect_match_found = False
 
         # Parallel search with ThreadPoolExecutor
-        from db.providers import update_provider_stats, auto_disable_provider, is_provider_auto_disabled
+        from db.providers import (
+            is_provider_auto_disabled,
+            update_provider_stats,
+        )
 
         # Batch-fetch provider stats for dynamic timeout computation (single DB query)
         _dyn_stats: dict = {}
@@ -831,18 +833,18 @@ class ProviderManager:
     def search_with_fallback(
         self,
         query: VideoQuery,
-        format_filter: Optional[SubtitleFormat] = None,
+        format_filter: SubtitleFormat | None = None,
         min_score: int = 0,
         early_exit: bool = True,
     ) -> list[SubtitleResult]:
         """Search providers with fallback to embedded subtitles.
-        
+
         Args:
             query: What to search for
             format_filter: Only return results of this format (e.g. ASS)
             min_score: Minimum score threshold
             early_exit: If True, stop searching when a perfect match is found
-        
+
         Returns:
             List of SubtitleResult sorted by score (highest first)
         """
@@ -850,23 +852,23 @@ class ProviderManager:
         results = self.search(query, format_filter=format_filter, min_score=min_score, early_exit=early_exit)
         if results:
             return results
-        
+
         # 2. Fallback: Check embedded subtitles
         if not query.file_path or not os.path.exists(query.file_path):
             return []
-        
+
         try:
             from ass_utils import get_media_streams, has_target_language_stream
-            from providers.base import SubtitleResult, SubtitleFormat
+            from providers.base import SubtitleFormat, SubtitleResult
 
             probe_data = get_media_streams(query.file_path)
             if not probe_data:
                 return []
-            
+
             # Check for target language embedded subtitle
             target_lang = query.languages[0] if query.languages else None
             embedded_format = has_target_language_stream(probe_data, target_language=target_lang)
-            
+
             if embedded_format:
                 # Create pseudo-result for embedded subtitle
                 embedded_result = SubtitleResult(
@@ -881,10 +883,10 @@ class ProviderManager:
                 return [embedded_result]
         except Exception as e:
             logger.debug("Fallback embedded subtitle check failed: %s", e)
-        
+
         return []
 
-    def download(self, result: SubtitleResult) -> Optional[bytes]:
+    def download(self, result: SubtitleResult) -> bytes | None:
         """Download a subtitle from its provider.
 
         Args:
@@ -897,7 +899,7 @@ class ProviderManager:
         if result.provider_name == "embedded":
             logger.debug("Skipping download for embedded subtitle")
             return b""  # Return empty bytes, extraction happens elsewhere
-        
+
         provider = self._providers.get(result.provider_name)
         if not provider:
             logger.error("Provider %s not available for download", result.provider_name)
@@ -922,9 +924,9 @@ class ProviderManager:
     def search_and_download_best(
         self,
         query: VideoQuery,
-        format_filter: Optional[SubtitleFormat] = None,
+        format_filter: SubtitleFormat | None = None,
         min_score: int = 0,
-    ) -> Optional[SubtitleResult]:
+    ) -> SubtitleResult | None:
         """Convenience: search with fallback, pick best, download it.
 
         Returns:

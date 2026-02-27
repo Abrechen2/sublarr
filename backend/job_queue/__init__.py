@@ -12,9 +12,10 @@ Factory function auto-detects Redis/RQ availability and falls back gracefully.
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -35,10 +36,10 @@ class JobInfo:
     func_name: str
     status: JobStatus
     enqueued_at: str
-    started_at: Optional[str] = None
-    completed_at: Optional[str] = None
-    result: Optional[Any] = None
-    error: Optional[str] = None
+    started_at: str | None = None
+    completed_at: str | None = None
+    result: Any | None = None
+    error: str | None = None
 
 
 class QueueBackend(ABC):
@@ -59,7 +60,7 @@ class QueueBackend(ABC):
         """
 
     @abstractmethod
-    def get_job(self, job_id: str) -> Optional[JobInfo]:
+    def get_job(self, job_id: str) -> JobInfo | None:
         """Get job status and metadata.
 
         Returns:
@@ -79,11 +80,11 @@ class QueueBackend(ABC):
         """Get number of pending (queued) jobs."""
 
     @abstractmethod
-    def get_active_jobs(self) -> List[JobInfo]:
+    def get_active_jobs(self) -> list[JobInfo]:
         """Get currently executing jobs."""
 
     @abstractmethod
-    def get_failed_jobs(self, limit: int = 50) -> List[JobInfo]:
+    def get_failed_jobs(self, limit: int = 50) -> list[JobInfo]:
         """Get failed jobs.
 
         Args:

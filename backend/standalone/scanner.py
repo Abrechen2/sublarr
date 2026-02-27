@@ -9,7 +9,6 @@ import logging
 import os
 import threading
 import time
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +146,7 @@ class StandaloneScanner:
         Returns:
             Tuple of (series_count, movie_count, wanted_count).
         """
-        from standalone.parser import is_video_file, parse_media_file, group_files_by_series
+        from standalone.parser import group_files_by_series, is_video_file, parse_media_file
 
         folder_path = folder["path"]
         if not os.path.isdir(folder_path):
@@ -494,7 +493,7 @@ class StandaloneScanner:
             return ["de"]  # Ultimate fallback
 
     def _check_existing_subtitle(self, file_path: str,
-                                 target_lang: str) -> Optional[str]:
+                                 target_lang: str) -> str | None:
         """Check if a target language subtitle already exists for a file.
 
         Args:
@@ -540,7 +539,7 @@ class StandaloneScanner:
             Number of items removed.
         """
         try:
-            from db import get_db, _db_lock
+            from db import _db_lock, get_db
 
             db = get_db()
             with _db_lock:

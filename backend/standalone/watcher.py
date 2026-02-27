@@ -9,13 +9,14 @@ import logging
 import os
 import threading
 import time
-from typing import Callable, Optional
+from collections.abc import Callable
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 try:
-    from watchdog.observers import Observer
     from watchdog.events import PatternMatchingEventHandler
+    from watchdog.observers import Observer
 
     _WATCHDOG_AVAILABLE = True
 except ImportError:

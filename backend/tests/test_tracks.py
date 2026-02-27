@@ -10,7 +10,6 @@ from app import create_app
 from config import reload_settings
 from db import close_db
 
-
 SAMPLE_STREAMS = [
     {"index": 0, "codec_type": "video", "codec_name": "h264", "tags": {}, "disposition": {}},
     {"index": 1, "codec_type": "audio", "codec_name": "aac", "tags": {"language": "jpn"}, "disposition": {"default": 1, "forced": 0}},

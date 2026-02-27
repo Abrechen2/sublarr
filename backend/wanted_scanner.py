@@ -9,20 +9,19 @@ only process items modified since the last scan timestamp. Every Nth scan
 (FULL_SCAN_INTERVAL) forces a full rescan as safety fallback.
 """
 
-import os
-import time
 import logging
+import os
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+from ass_utils import get_media_streams, has_target_language_audio, has_target_language_stream
 from config import get_settings, map_path
+from db.profiles import get_movie_profile, get_series_profile
+from db.wanted import upsert_wanted_item
 from translator import detect_existing_target_for_lang, get_output_path_for_lang
 from upgrade_scorer import score_existing_subtitle
-from ass_utils import get_media_streams, has_target_language_stream, has_target_language_audio
-from db.wanted import upsert_wanted_item, get_all_wanted_file_paths
-from db.profiles import get_series_profile, get_movie_profile, get_default_profile
-from forced_detection import is_forced_external_sub
 
 logger = logging.getLogger(__name__)
 
@@ -139,8 +138,8 @@ class WantedScanner:
 
             # Scan all Sonarr instances
             try:
-                from sonarr_client import get_sonarr_client
                 from config import get_sonarr_instances
+                from sonarr_client import get_sonarr_client
                 instances = get_sonarr_instances()
                 for inst in instances:
                     instance_name = inst.get("name", "Default")
@@ -158,8 +157,8 @@ class WantedScanner:
 
             # Scan all Radarr instances
             try:
-                from radarr_client import get_radarr_client
                 from config import get_radarr_instances
+                from radarr_client import get_radarr_client
                 instances = get_radarr_instances()
                 for inst in instances:
                     instance_name = inst.get("name", "Default")
@@ -203,8 +202,8 @@ class WantedScanner:
                 "scan_type": scan_type,
             }
 
-            self._last_scan_at = datetime.now(timezone.utc).isoformat()
-            self._last_scan_timestamp = datetime.now(timezone.utc)
+            self._last_scan_at = datetime.now(UTC).isoformat()
+            self._last_scan_timestamp = datetime.now(UTC)
             self._scan_count += 1
             self._last_summary = summary
 
@@ -741,7 +740,7 @@ class WantedScanner:
         # Collect all file paths from standalone wanted items
         scanned_paths = set()
         try:
-            from db import get_db, _db_lock
+            from db import _db_lock, get_db
             db = get_db()
             with _db_lock:
                 rows = db.execute(
@@ -828,7 +827,7 @@ class WantedScanner:
 
             # Filter: adaptive backoff (or fixed 1h fallback when disabled)
             eligible = []
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             adaptive_enabled = getattr(settings, "wanted_adaptive_backoff_enabled", True)
 
             for item in items:
@@ -840,7 +839,7 @@ class WantedScanner:
                             retry_at = datetime.fromisoformat(retry_after_str)
                             # Ensure both datetimes are comparable (add UTC if naive)
                             if retry_at.tzinfo is None:
-                                retry_at = retry_at.replace(tzinfo=timezone.utc)
+                                retry_at = retry_at.replace(tzinfo=UTC)
                             if now < retry_at:
                                 continue
                         except (ValueError, TypeError):
@@ -852,7 +851,7 @@ class WantedScanner:
                         try:
                             last = datetime.fromisoformat(last_str)
                             if last.tzinfo is None:
-                                last = last.replace(tzinfo=timezone.utc)
+                                last = last.replace(tzinfo=UTC)
                             if (now - last).total_seconds() < 3600:
                                 continue
                         except (ValueError, TypeError):
@@ -862,7 +861,7 @@ class WantedScanner:
                     eligible.append(item)
 
             if not eligible:
-                self._last_search_at = datetime.now(timezone.utc).isoformat()
+                self._last_search_at = datetime.now(UTC).isoformat()
                 return {"total": 0, "processed": 0, "found": 0, "failed": 0, "skipped": 0}
 
             from wanted_search import process_wanted_item
@@ -915,7 +914,7 @@ class WantedScanner:
                         })
 
             duration = round(time.time() - start, 1)
-            self._last_search_at = datetime.now(timezone.utc).isoformat()
+            self._last_search_at = datetime.now(UTC).isoformat()
 
             summary = {
                 "total": total,

@@ -1,7 +1,8 @@
 """Filter presets routes -- /api/v1/filter-presets"""
 
-from flask import Blueprint, request, jsonify
-from db.presets import list_presets, get_preset, create_preset, update_preset, delete_preset
+from flask import Blueprint, jsonify, request
+
+from db.presets import create_preset, delete_preset, list_presets, update_preset
 
 bp = Blueprint("filter_presets", __name__, url_prefix="/api/v1")
 

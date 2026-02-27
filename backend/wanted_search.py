@@ -6,31 +6,33 @@ ThreadPoolExecutor. Provider-level rate limiters and circuit breakers
 handle concurrency safety.
 """
 
+import contextlib
+import logging
 import os
 import re
-import time
-import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
-from config import get_settings, map_path
-from db.wanted import (
-    get_wanted_item, get_wanted_items, update_wanted_status,
-    update_wanted_search, set_wanted_retry_after,
-)
+from config import get_settings
+from db.jobs import create_job, record_stat, update_job
 from db.library import record_upgrade
 from db.providers import record_subtitle_download
-from db.jobs import create_job, update_job, record_stat
-from upgrade_scorer import should_upgrade
+from db.wanted import (
+    get_wanted_item,
+    get_wanted_items,
+    set_wanted_retry_after,
+    update_wanted_search,
+    update_wanted_status,
+)
 from providers import get_provider_manager
-from providers.base import VideoQuery, SubtitleFormat
+from providers.base import SubtitleFormat, VideoQuery
 from translator import get_forced_output_path
+from upgrade_scorer import should_upgrade
 
 logger = logging.getLogger(__name__)
 
 
-def _compute_retry_after(search_count: int, settings) -> Optional[str]:
+def _compute_retry_after(search_count: int, settings) -> str | None:
     """Compute ISO retry_after timestamp using exponential backoff.
 
     Formula: delay = min(base_hours × 2^(search_count-1), cap_hours)
@@ -41,7 +43,7 @@ def _compute_retry_after(search_count: int, settings) -> Optional[str]:
     base = getattr(settings, "wanted_backoff_base_hours", 1.0)
     cap = getattr(settings, "wanted_backoff_cap_hours", 168)
     delay_hours = min(base * (2 ** max(search_count - 1, 0)), cap)
-    return (datetime.now(timezone.utc) + timedelta(hours=delay_hours)).isoformat()
+    return (datetime.now(UTC) + timedelta(hours=delay_hours)).isoformat()
 
 
 def _set_adaptive_retry_after(item_id: int, search_count: int, settings) -> None:
@@ -89,7 +91,7 @@ def _parse_filename_for_metadata(file_path: str) -> dict:
 
     filename = os.path.basename(file_path)
     name_without_ext = os.path.splitext(filename)[0]
-    
+
     result = {
         "series_title": "",
         "title": "",
@@ -97,7 +99,7 @@ def _parse_filename_for_metadata(file_path: str) -> dict:
         "episode": None,
         "year": None,
     }
-    
+
     # Try to extract season/episode
     for pattern in _EPISODE_PATTERNS:
         match = pattern.search(name_without_ext)
@@ -108,12 +110,12 @@ def _parse_filename_for_metadata(file_path: str) -> dict:
             else:
                 result["episode"] = int(match.group(1))
             break
-    
+
     # Extract year (4 digits, likely between 1900-2100)
     year_match = re.search(r'\b(19|20)\d{2}\b', name_without_ext)
     if year_match:
         result["year"] = int(year_match.group(0))
-    
+
     # Extract series/movie title (everything before season/episode/year)
     # Remove common release group tags and quality indicators
     title_parts = re.split(r'[Ss]\d+[Ee]\d+|\.\d{4}\.|\[.*?\]|\(.*?\)', name_without_ext)
@@ -123,12 +125,12 @@ def _parse_filename_for_metadata(file_path: str) -> dict:
         clean_title = re.sub(r'\b\d+p\b', '', clean_title, flags=re.IGNORECASE).strip(' .-_')
         # Remove codec tags (x264, x265, etc.)
         clean_title = re.sub(r'\b(x264|x265|h264|h265|hevc)\b', '', clean_title, flags=re.IGNORECASE).strip(' .-_')
-        
+
         if result["season"] is not None:
             result["series_title"] = clean_title
         else:
             result["title"] = clean_title
-    
+
     return result
 
 
@@ -172,7 +174,7 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
                         query.anidb_id = meta.get("anidb_id")
                         query.anilist_id = meta.get("anilist_id")
                         metadata_available = True
-                        logger.debug("Built query from Sonarr metadata: %s S%02dE%02d", 
+                        logger.debug("Built query from Sonarr metadata: %s S%02dE%02d",
                                    query.series_title, query.season or 0, query.episode or 0)
             except Exception as e:
                 logger.warning("Failed to get Sonarr metadata for wanted %d: %s",
@@ -222,7 +224,7 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
                         query.tmdb_id = meta.get("tmdb_id")
                         query.genres = meta.get("genres", [])
                         metadata_available = True
-                        logger.debug("Built query from Radarr metadata: %s (%s)", 
+                        logger.debug("Built query from Radarr metadata: %s (%s)",
                                    query.title, query.year or "no year")
             except Exception as e:
                 logger.warning("Failed to get Radarr metadata for wanted %d: %s",
@@ -251,7 +253,7 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
     if not metadata_available:
         logger.debug("Metadata unavailable, parsing filename: %s", wanted_item["file_path"])
         parsed = _parse_filename_for_metadata(wanted_item["file_path"])
-        
+
         if not query.series_title and parsed["series_title"]:
             query.series_title = parsed["series_title"]
         if not query.title and parsed["title"]:
@@ -262,9 +264,9 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
             query.episode = parsed["episode"]
         if query.year is None and parsed["year"] is not None:
             query.year = parsed["year"]
-        
+
         logger.debug("Parsed from filename: series=%s, title=%s, S%02dE%02d, year=%s",
-                     query.series_title or "N/A", query.title or "N/A", 
+                     query.series_title or "N/A", query.title or "N/A",
                      query.season or 0, query.episode or 0, query.year or "N/A")
 
     # Resolve AniDB absolute episode if the series has absolute_order enabled.
@@ -326,7 +328,7 @@ def _get_priority_key(result, target_lang, source_lang):
     """Calculate priority: target.ass=0, source.ass=1, target.srt=2, source.srt=3"""
     is_target = result["language"] == target_lang
     is_ass = result["format"] == "ass"
-    
+
     if is_target and is_ass:
         return (0, -result["score"])  # Highest priority: target.ass
     elif not is_target and is_ass:
@@ -547,7 +549,7 @@ def process_wanted_item(item_id: int) -> dict:
         if result and result.content:
             _ass_had_results = True
             # Download source ASS and translate it
-            from translator import get_output_path_for_lang, _translate_external_ass
+            from translator import _translate_external_ass, get_output_path_for_lang
             base = os.path.splitext(file_path)[0]
             tmp_source_path = f"{base}.{settings.source_language}.ass"
             try:
@@ -788,10 +790,8 @@ def process_wanted_item(item_id: int) -> dict:
             update_job(job["id"], "failed", error=error)
         except Exception:
             pass  # job may not have been created
-        try:
+        with contextlib.suppress(Exception):
             record_stat(success=False)
-        except Exception:
-            pass
         logger.exception("Wanted %d: Process failed: %s", item_id, error)
         update_wanted_status(item_id, "failed", error=error)
         _set_adaptive_retry_after(item_id, item["search_count"] + 1, settings)
@@ -1256,7 +1256,7 @@ def _try_auto_sync(subtitle_path: str, video_path: str, settings) -> None:
         logger.warning("Auto-sync: alass requires a reference track — skipping auto-sync for %s", subtitle_path)
         return
     try:
-        from services.video_sync import sync_with_ffsubsync, SyncUnavailableError
+        from services.video_sync import SyncUnavailableError, sync_with_ffsubsync
         logger.info("Auto-sync: starting ffsubsync for %s against %s", subtitle_path, video_path)
         sync_with_ffsubsync(subtitle_path, video_path)
         logger.info("Auto-sync: complete for %s", subtitle_path)

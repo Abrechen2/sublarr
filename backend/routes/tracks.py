@@ -1,8 +1,12 @@
 """Tracks routes."""
 
-import logging, os, tempfile
+import logging
+import os
+import tempfile
+
 from flask import Blueprint, jsonify, request
-from ass_utils import get_media_streams, extract_subtitle_stream
+
+from ass_utils import extract_subtitle_stream, get_media_streams
 from config import map_path
 
 bp = Blueprint("tracks", __name__, url_prefix="/api/v1")
@@ -130,7 +134,7 @@ def use_track_as_source(ep_id, index):
         fd, tmp_path = tempfile.mkstemp(suffix="." + ext)
         os.close(fd)
         extract_subtitle_stream(video_path, stream_info, tmp_path)
-        with open(tmp_path, "r", encoding="utf-8", errors="replace") as fh:
+        with open(tmp_path, encoding="utf-8", errors="replace") as fh:
             content = fh.read()
     except RuntimeError as exc:
         return jsonify({"error": "Extraction failed: " + str(exc)}), 500

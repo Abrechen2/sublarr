@@ -23,20 +23,20 @@ _clients_cache = {}  # Cache for multi-instance clients: {instance_name: SonarrC
 
 def get_sonarr_client(instance_name=None):
     """Get or create a Sonarr client. Returns None if not configured.
-    
+
     Args:
         instance_name: Optional instance name. If None, uses first available instance or legacy config.
-    
+
     Returns:
         SonarrClient instance or None
     """
     global _client, _clients_cache
-    
+
     # If instance_name is specified, use multi-instance logic
     if instance_name is not None:
         if instance_name in _clients_cache:
             return _clients_cache[instance_name]
-        
+
         from config import get_sonarr_instances
         instances = get_sonarr_instances()
         for inst in instances:
@@ -46,11 +46,11 @@ def get_sonarr_client(instance_name=None):
                 return client
         logger.warning("Sonarr instance '%s' not found", instance_name)
         return None
-    
+
     # Legacy singleton behavior (for backward compatibility)
     if _client is not None:
         return _client
-    
+
     from config import get_sonarr_instances
     instances = get_sonarr_instances()
     if instances:
@@ -58,7 +58,7 @@ def get_sonarr_client(instance_name=None):
         inst = instances[0]
         _client = SonarrClient(inst["url"], inst["api_key"])
         return _client
-    
+
     # Fallback to legacy config
     settings = get_settings()
     if not settings.sonarr_url or not settings.sonarr_api_key:
@@ -300,7 +300,7 @@ class SonarrClient:
         """Get rich metadata for building a VideoQuery.
 
         Returns:
-            dict: {series_title, season, episode, year, imdb_id, tvdb_id, 
+            dict: {series_title, season, episode, year, imdb_id, tvdb_id,
                    anidb_id, anilist_id, title}
             or None on error
         """
@@ -310,12 +310,12 @@ class SonarrClient:
         episode = self.get_episode_by_id(episode_id)
         if not episode:
             return None
-        
+
         # Extract AniDB ID using mapper service
         anidb_id = None
         tvdb_id = series.get("tvdbId")
         series_title = series.get("title", "")
-        
+
         try:
             from anidb_mapper import get_anidb_id
             anidb_id = get_anidb_id(
@@ -325,7 +325,7 @@ class SonarrClient:
             )
         except Exception as e:
             logger.debug("Failed to resolve AniDB ID: %s", e)
-        
+
         # Extract AniList ID from Custom Fields (if available)
         anilist_id = None
         custom_fields = series.get("customFields", {})
@@ -340,7 +340,7 @@ class SonarrClient:
                             break
                     except (ValueError, TypeError):
                         continue
-        
+
         return {
             "series_title": series_title,
             "year": series.get("year"),

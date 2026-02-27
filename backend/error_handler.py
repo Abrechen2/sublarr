@@ -5,12 +5,11 @@ and troubleshooting hints. All SublarrError subtypes are automatically
 caught by Flask error handlers and returned as structured JSON.
 """
 
-import uuid
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+import uuid
+from datetime import UTC, datetime
 
-from flask import request, jsonify, g
+from flask import g, jsonify
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +33,10 @@ class SublarrError(Exception):
     def __init__(
         self,
         message: str,
-        code: Optional[str] = None,
-        http_status: Optional[int] = None,
-        context: Optional[dict] = None,
-        troubleshooting: Optional[str] = None,
+        code: str | None = None,
+        http_status: int | None = None,
+        context: dict | None = None,
+        troubleshooting: str | None = None,
     ) -> None:
         super().__init__(message)
         if code is not None:
@@ -133,7 +132,7 @@ def _build_error_response(error: SublarrError) -> dict:
     response: dict = {
         "error": str(error),
         "code": error.code,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
     # Include request ID if available
@@ -198,5 +197,5 @@ def register_error_handlers(app: object) -> None:
             "error": "Internal server error",
             "code": "INTERNAL_ERROR",
             "request_id": request_id,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }), 500

@@ -16,7 +16,6 @@ Usage:
 """
 
 import logging
-from typing import Optional
 from dataclasses import asdict
 
 from providers.plugins.loader import discover_plugins, unload_plugin
@@ -117,10 +116,10 @@ class PluginManager:
 
 
 # Module-level singleton
-_plugin_manager: Optional[PluginManager] = None
+_plugin_manager: PluginManager | None = None
 
 
-def get_plugin_manager() -> Optional[PluginManager]:
+def get_plugin_manager() -> PluginManager | None:
     """Get the current plugin manager instance (may be None if not initialized)."""
     return _plugin_manager
 

@@ -1,14 +1,15 @@
 """Shared pytest fixtures for all tests."""
 
-import pytest
 import os
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
 
-from config import reload_settings
-from db import init_db, get_db, close_db
+import pytest
+
 from app import create_app
+from config import reload_settings
+from db import close_db, get_db, init_db
 
 
 @pytest.fixture
@@ -17,18 +18,18 @@ def temp_db():
     # Create temporary database file
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = f.name
-    
+
     # Set environment variable
     os.environ["SUBLARR_DB_PATH"] = db_path
     os.environ["SUBLARR_API_KEY"] = ""  # Disable auth for tests
     os.environ["SUBLARR_LOG_LEVEL"] = "ERROR"  # Reduce log noise in tests
-    
+
     # Reload settings and initialize database
     reload_settings()
     init_db()
-    
+
     yield db_path
-    
+
     # Cleanup — close DB connection before deleting (Windows file locking)
     close_db()
     try:
@@ -108,7 +109,8 @@ def mock_ollama(monkeypatch):
 def mock_provider_manager(monkeypatch):
     """Mock the ProviderManager singleton."""
     from unittest.mock import MagicMock
-    from providers.base import SubtitleResult, SubtitleFormat
+
+    from providers.base import SubtitleFormat, SubtitleResult
 
     manager = MagicMock()
     manager.search.return_value = []
@@ -157,27 +159,27 @@ def create_test_subtitle(temp_dir):
 def mock_requests(monkeypatch):
     """Mock requests library for HTTP calls."""
     import requests
-    
+
     class MockResponse:
         def __init__(self, json_data, status_code=200):
             self.json_data = json_data
             self.status_code = status_code
             self.text = str(json_data)
-        
+
         def json(self):
             return self.json_data
-        
+
         def raise_for_status(self):
             if self.status_code >= 400:
                 raise requests.exceptions.HTTPError(f"HTTP {self.status_code}")
-    
+
     def mock_get(*args, **kwargs):
         return MockResponse({})
-    
+
     def mock_post(*args, **kwargs):
         return MockResponse({})
-    
+
     monkeypatch.setattr(requests, "get", mock_get)
     monkeypatch.setattr(requests, "post", mock_post)
-    
+
     return {"get": mock_get, "post": mock_post}

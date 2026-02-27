@@ -15,6 +15,7 @@ import logging
 import threading
 import time
 import xml.etree.ElementTree as ET
+from datetime import UTC
 from typing import Optional
 
 import requests
@@ -178,8 +179,8 @@ def run_sync(app) -> dict:
 
 
 def _now_iso() -> str:
-    from datetime import datetime, timezone
-    return datetime.now(timezone.utc).isoformat()
+    from datetime import datetime
+    return datetime.now(UTC).isoformat()
 
 
 class AnidbSyncScheduler:
@@ -188,7 +189,7 @@ class AnidbSyncScheduler:
     def __init__(self, app, interval_hours: int = DEFAULT_INTERVAL_HOURS):
         self._app = app
         self._interval_hours = interval_hours
-        self._timer: Optional[threading.Timer] = None
+        self._timer: threading.Timer | None = None
         self._running = False
 
     def start(self) -> None:

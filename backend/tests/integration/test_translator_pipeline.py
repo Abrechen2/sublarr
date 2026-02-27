@@ -7,12 +7,12 @@ Covers the three-case priority chain:
     Case C: No target → full pipeline (C1 embedded, C3 provider, C4 fail)
 """
 
-import os
 import json
-import tempfile
+import os
 import shutil
+import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 

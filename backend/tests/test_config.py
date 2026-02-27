@@ -1,8 +1,10 @@
 """Tests for config.py — Settings and language tag handling."""
 
 import os
+
 import pytest
-from config import get_settings, reload_settings, _get_language_tags
+
+from config import _get_language_tags, get_settings, reload_settings
 
 
 def test_default_settings():
@@ -32,7 +34,7 @@ def test_language_tags():
     assert "deu" in _get_language_tags("de")
     assert "ger" in _get_language_tags("de")
     assert "german" in _get_language_tags("de")
-    
+
     assert "en" in _get_language_tags("en")
     assert "eng" in _get_language_tags("en")
     assert "english" in _get_language_tags("en")

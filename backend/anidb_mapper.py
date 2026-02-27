@@ -9,8 +9,6 @@ License: GPL-3.0
 """
 
 import logging
-from typing import Optional
-from datetime import datetime, timedelta
 
 from config import get_settings
 from db.cache import get_anidb_mapping, save_anidb_mapping
@@ -18,22 +16,22 @@ from db.cache import get_anidb_mapping, save_anidb_mapping
 logger = logging.getLogger(__name__)
 
 
-def extract_anidb_from_custom_fields(series: dict, custom_field_name: str = None) -> Optional[int]:
+def extract_anidb_from_custom_fields(series: dict, custom_field_name: str = None) -> int | None:
     """Extract AniDB ID from Sonarr series Custom Fields.
-    
+
     Args:
         series: Sonarr series dict (from API)
         custom_field_name: Optional custom field name to check (defaults to config)
-    
+
     Returns:
         AniDB ID as int, or None if not found
     """
     if not series:
         return None
-    
+
     settings = get_settings()
     field_name = custom_field_name or settings.anidb_custom_field_name
-    
+
     # Check customFields dict (Sonarr v3 structure)
     custom_fields = series.get("customFields", {})
     if custom_fields:
@@ -46,7 +44,7 @@ def extract_anidb_from_custom_fields(series: dict, custom_field_name: str = None
             "AniDB ID",
             "anidb",
         ]
-        
+
         for name in possible_names:
             if not name:
                 continue
@@ -60,33 +58,33 @@ def extract_anidb_from_custom_fields(series: dict, custom_field_name: str = None
                         return anidb_id
                 except (ValueError, TypeError):
                     continue
-    
+
     return None
 
 
-def get_anidb_id(tvdb_id: Optional[int] = None, series_title: str = "", 
-                 series: dict = None) -> Optional[int]:
+def get_anidb_id(tvdb_id: int | None = None, series_title: str = "",
+                 series: dict = None) -> int | None:
     """Resolve AniDB ID from multiple sources.
-    
+
     Priority order:
     1. Sonarr Custom Fields (if series dict provided)
     2. Local cache (if tvdb_id provided)
     3. Future: External mapping APIs
-    
+
     Args:
         tvdb_id: Optional TVDB ID for cache lookup
         series_title: Optional series title (for logging)
         series: Optional Sonarr series dict (for Custom Fields extraction)
-    
+
     Returns:
         AniDB ID as int, or None if not found
     """
     settings = get_settings()
-    
+
     # Check if AniDB integration is enabled
     if not settings.anidb_enabled:
         return None
-    
+
     # Strategy 1: Sonarr Custom Fields (highest priority)
     if series:
         anidb_id = extract_anidb_from_custom_fields(series)
@@ -98,16 +96,16 @@ def get_anidb_id(tvdb_id: Optional[int] = None, series_title: str = "",
                 except Exception as e:
                     logger.warning("Failed to cache AniDB mapping: %s", e)
             return anidb_id
-    
+
     # Strategy 2: Local cache (if TVDB ID available)
     if tvdb_id and settings.anidb_fallback_to_mapping:
         cached = get_anidb_mapping(tvdb_id)
         if cached:
             logger.debug("Found cached AniDB ID %d for TVDB ID %d", cached, tvdb_id)
             return cached
-    
+
     # Strategy 3: External mapping APIs (future implementation)
     # Could use AniList API, TheTVDB cross-references, etc.
     # For now, return None if not found in Custom Fields or cache
-    
+
     return None

@@ -8,7 +8,6 @@ parent directories.
 import logging
 import os
 import re
-from typing import Optional
 
 from guessit import guessit
 
@@ -90,10 +89,7 @@ def detect_anime_indicators(filename: str) -> bool:
 
     # Absolute numbering alone (without S01E01 pattern) is a moderate indicator
     # Only flag as anime if there's no SxxExx pattern present
-    if has_absolute_ep and not re.search(r"S\d{1,2}E\d{1,2}", filename, re.IGNORECASE):
-        return True
-
-    return False
+    return bool(has_absolute_ep and not re.search(r"S\d{1,2}E\d{1,2}", filename, re.IGNORECASE))
 
 
 def parse_media_file(file_path: str) -> dict:
@@ -228,7 +224,7 @@ def _extract_title(guess: dict, parent_dir: str) -> str:
     return title
 
 
-def _normalize_episode(episode_val) -> Optional[int]:
+def _normalize_episode(episode_val) -> int | None:
     """Normalize episode value from guessit (may be int, list, or None)."""
     if episode_val is None:
         return None
@@ -237,8 +233,8 @@ def _normalize_episode(episode_val) -> Optional[int]:
     return int(episode_val)
 
 
-def _calculate_confidence(title: str, season: Optional[int],
-                          episode: Optional[int], media_type: str,
+def _calculate_confidence(title: str, season: int | None,
+                          episode: int | None, media_type: str,
                           guess: dict) -> str:
     """Calculate parsing confidence level.
 

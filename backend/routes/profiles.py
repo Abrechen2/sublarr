@@ -1,7 +1,8 @@
 """Profile routes — /language-profiles/*, /glossary/*, /prompt-presets/*."""
 
 import logging
-from flask import Blueprint, request, jsonify
+
+from flask import Blueprint, jsonify, request
 
 from cache_response import cached_get, invalidate_response_cache
 
@@ -316,7 +317,7 @@ def assign_profile():
         404:
           description: Profile not found
     """
-    from db.profiles import assign_series_profile, assign_movie_profile, get_language_profile
+    from db.profiles import assign_movie_profile, assign_series_profile, get_language_profile
 
     data = request.get_json() or {}
 
@@ -649,9 +650,9 @@ def create_prompt_preset():
         400:
           description: Missing name or prompt_template
     """
-    from db.translation import add_prompt_preset, get_prompt_preset
     from config import reload_settings
     from db.config import get_all_config_entries
+    from db.translation import add_prompt_preset, get_prompt_preset
 
     data = request.get_json() or {}
     name = data.get("name", "").strip()
@@ -712,9 +713,9 @@ def update_prompt_preset_endpoint(preset_id):
         404:
           description: Preset not found
     """
-    from db.translation import get_prompt_preset, update_prompt_preset
     from config import reload_settings
     from db.config import get_all_config_entries
+    from db.translation import get_prompt_preset, update_prompt_preset
 
     preset = get_prompt_preset(preset_id)
     if not preset:

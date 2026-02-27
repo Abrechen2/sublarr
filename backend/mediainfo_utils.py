@@ -4,11 +4,11 @@ Provides run_mediainfo() which returns the same normalized format as run_ffprobe
 in ass_utils.py — {"streams": [...]} with ffprobe-compatible field names.
 """
 
-import json
-import shutil
-import logging
-import subprocess
 import functools
+import json
+import logging
+import shutil
+import subprocess
 
 logger = logging.getLogger(__name__)
 

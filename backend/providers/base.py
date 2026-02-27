@@ -9,8 +9,7 @@ License: GPL-3.0 (compatible with Bazarr source)
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 
 class ProviderError(Exception):
@@ -33,7 +32,7 @@ class ProviderTimeoutError(ProviderError):
     pass
 
 
-class SubtitleFormat(str, Enum):
+class SubtitleFormat(StrEnum):
     ASS = "ass"
     SRT = "srt"
     SSA = "ssa"
@@ -52,22 +51,22 @@ class VideoQuery:
 
     # Common
     title: str = ""
-    year: Optional[int] = None
+    year: int | None = None
     imdb_id: str = ""  # e.g. "tt1234567"
-    tmdb_id: Optional[int] = None  # The Movie Database ID
+    tmdb_id: int | None = None  # The Movie Database ID
     genres: list[str] = field(default_factory=list)  # Movie genres
 
     # Episode-specific
     series_title: str = ""
-    season: Optional[int] = None
-    episode: Optional[int] = None
+    season: int | None = None
+    episode: int | None = None
     episode_title: str = ""
 
     # Anime IDs (for specialized providers)
-    anidb_id: Optional[int] = None
-    anidb_episode_id: Optional[int] = None
-    anilist_id: Optional[int] = None
-    tvdb_id: Optional[int] = None
+    anidb_id: int | None = None
+    anidb_episode_id: int | None = None
+    anilist_id: int | None = None
+    tvdb_id: int | None = None
 
     # Release info (for scoring)
     release_group: str = ""
@@ -80,7 +79,7 @@ class VideoQuery:
 
     # AniDB absolute episode order (set by build_query_from_wanted when series
     # has absolute_order=True and a mapping exists in anidb_absolute_mappings)
-    absolute_episode: Optional[int] = None
+    absolute_episode: int | None = None
 
     # Forced/signs subtitle search
     forced_only: bool = False  # When True, providers filter for forced/signs subtitles
@@ -115,13 +114,13 @@ class SubtitleResult:
     download_url: str = ""
 
     # Content (populated after download)
-    content: Optional[bytes] = field(default=None, repr=False)
+    content: bytes | None = field(default=None, repr=False)
 
     # Matching metadata
     release_info: str = ""
     hearing_impaired: bool = False
     forced: bool = False
-    fps: Optional[float] = None
+    fps: float | None = None
 
     # Scoring
     score: int = 0
@@ -174,8 +173,8 @@ MOVIE_SCORES = {
 
 # ─── Configurable scoring cache ───────────────────────────────────────────────
 
-import time as _time
 import threading as _threading
+import time as _time
 
 _SCORING_CACHE_TTL = 60  # seconds
 

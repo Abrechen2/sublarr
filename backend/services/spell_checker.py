@@ -6,7 +6,6 @@ Uses pyenchant (Python binding for Hunspell) for spell checking.
 
 import logging
 import re
-from typing import List, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +49,7 @@ class SpellChecker:
         # Custom word list (e.g., from glossary)
         self.custom_words: set[str] = set()
 
-    def add_custom_words(self, words: List[str]):
+    def add_custom_words(self, words: list[str]):
         """Add custom words to ignore list (e.g., character names, locations).
 
         Args:
@@ -82,7 +81,7 @@ class SpellChecker:
         # Check with dictionary
         return self.dict.check(clean_word)
 
-    def suggest(self, word: str, max_suggestions: int = 5) -> List[str]:
+    def suggest(self, word: str, max_suggestions: int = 5) -> list[str]:
         """Get spelling suggestions for a word.
 
         Args:
@@ -106,7 +105,7 @@ class SpellChecker:
             logger.debug("Failed to get suggestions for %s: %s", word, e)
             return []
 
-    def check_text(self, text: str) -> List[Dict]:
+    def check_text(self, text: str) -> list[dict]:
         """Check spelling in a text string.
 
         Args:
@@ -151,7 +150,7 @@ class SpellChecker:
         word = re.sub(r"[^\w\s'-]", "", word)
         return word.strip()
 
-    def _extract_words(self, text: str) -> List[Tuple[str, int]]:
+    def _extract_words(self, text: str) -> list[tuple[str, int]]:
         """Extract words from text with their positions.
 
         Args:
@@ -184,8 +183,8 @@ class SpellChecker:
 def check_subtitle_file(
     file_path: str,
     language: str = "en_US",
-    custom_words: Optional[List[str]] = None,
-) -> Dict:
+    custom_words: list[str] | None = None,
+) -> dict:
     """Check spelling in a subtitle file.
 
     Args:
@@ -257,7 +256,7 @@ def check_subtitle_file(
         }
 
 
-def get_available_dictionaries() -> List[str]:
+def get_available_dictionaries() -> list[str]:
     """Get list of available dictionary languages.
 
     Returns:

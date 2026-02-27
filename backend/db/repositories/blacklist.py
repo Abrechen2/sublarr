@@ -6,7 +6,7 @@ operations. Return types match the existing functions exactly.
 
 import logging
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 
 from db.models.core import BlacklistEntry
 from db.repositories.base import BaseRepository

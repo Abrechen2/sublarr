@@ -6,12 +6,13 @@ and translation pipeline failures.
 
 import os
 import tempfile
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
-from wanted_search import process_wanted_item, search_wanted_item
-from providers.base import SubtitleResult, SubtitleFormat
+import pytest
+
 from error_handler import SublarrError
+from providers.base import SubtitleFormat, SubtitleResult
+from wanted_search import process_wanted_item, search_wanted_item
 
 
 @pytest.fixture
@@ -53,15 +54,15 @@ class TestProviderErrorHandling:
         """Test that provider search failures don't abort the entire process."""
         mock_wanted_item["file_path"] = temp_file
         mock_get_item.return_value = mock_wanted_item
-        
+
         # Mock provider manager to raise exception on search
         mock_manager = Mock()
         mock_manager.search.side_effect = Exception("Provider API error")
         mock_get_manager.return_value = mock_manager
-        
+
         # Should not raise, but return results (empty if all searches fail)
         result = search_wanted_item(1)
-        
+
         assert "wanted_id" in result
         assert result["wanted_id"] == 1
         # Should have empty results but not crash
@@ -79,7 +80,7 @@ class TestProviderErrorHandling:
         """Test that file save failures don't crash the process."""
         mock_wanted_item["file_path"] = temp_file
         mock_get_item.return_value = mock_wanted_item
-        
+
         # Mock provider to return result but fail on save
         mock_result = Mock(spec=SubtitleResult)
         mock_result.content = b"test content"
@@ -87,15 +88,15 @@ class TestProviderErrorHandling:
         mock_result.format = SubtitleFormat.ASS
         mock_result.score = 100
         mock_result.language = "de"
-        
+
         mock_manager = Mock()
         mock_manager.search_and_download_best.return_value = mock_result
         mock_manager.save_subtitle.side_effect = OSError("Disk full")
         mock_get_manager.return_value = mock_manager
-        
+
         # Should not raise, but continue to next step
         result = process_wanted_item(1)
-        
+
         # Should have tried to save and failed, but continued
         assert mock_manager.save_subtitle.called
         # Process should continue (not crash)
@@ -112,14 +113,14 @@ class TestFileSystemGuards:
                                        mock_get_item, mock_wanted_item, temp_file):
         """Test that save_subtitle checks disk space."""
         from providers import ProviderManager
-        from providers.base import SubtitleResult, SubtitleFormat
-        
+        from providers.base import SubtitleFormat, SubtitleResult
+
         mock_wanted_item["file_path"] = temp_file
         mock_get_item.return_value = mock_wanted_item
-        
+
         # Create a real ProviderManager instance
         manager = ProviderManager()
-        
+
         # Create a test result
         result = SubtitleResult(
             provider_name="test",
@@ -131,11 +132,11 @@ class TestFileSystemGuards:
             score=100,
             content=b"test content",
         )
-        
+
         # Mock disk_usage to return low space
         with patch("shutil.disk_usage") as mock_disk:
             mock_disk.return_value.free = 50 * 1024 * 1024  # 50MB (below 100MB threshold)
-            
+
             # Should raise RuntimeError for insufficient disk space
             with pytest.raises(RuntimeError, match="Insufficient disk space"):
                 manager.save_subtitle(result, temp_file.replace(".mkv", ".de.ass"))
@@ -154,7 +155,7 @@ class TestTranslationPipelineResilience:
         """Test that translation failures clean up temporary files."""
         mock_wanted_item["file_path"] = temp_file
         mock_get_item.return_value = mock_wanted_item
-        
+
         # Mock provider to return source ASS
         mock_result = Mock(spec=SubtitleResult)
         mock_result.content = b"test content"
@@ -162,21 +163,21 @@ class TestTranslationPipelineResilience:
         mock_result.format = SubtitleFormat.ASS
         mock_result.score = 100
         mock_result.language = "en"
-        
+
         mock_manager = Mock()
         mock_manager.search_and_download_best.return_value = mock_result
         mock_get_manager.return_value = mock_manager
-        
+
         # Mock translation to fail
         mock_translate.side_effect = Exception("Translation failed")
-        
+
         # Create temp file path
         base = os.path.splitext(temp_file)[0]
         temp_source_path = f"{base}.en.ass"
-        
+
         # Process should handle translation failure
         result = process_wanted_item(1)
-        
+
         # Temp file should be cleaned up (or at least attempted)
         # Note: In real code, cleanup happens in finally block
         assert "status" in result

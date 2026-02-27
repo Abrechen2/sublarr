@@ -10,9 +10,9 @@ simply won't be registered (ImportError caught in whisper/__init__.py).
 
 import logging
 import time
-from typing import Optional, Callable
+from collections.abc import Callable
 
-from whisper.base import WhisperBackend, TranscriptionResult
+from whisper.base import TranscriptionResult, WhisperBackend
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +167,7 @@ class FasterWhisperBackend(WhisperBackend):
         audio_path: str,
         language: str = "",
         task: str = "transcribe",
-        progress_callback: Optional[Callable[[float], None]] = None,
+        progress_callback: Callable[[float], None] | None = None,
     ) -> TranscriptionResult:
         """Transcribe audio using faster-whisper with VAD filtering.
 
@@ -269,7 +269,7 @@ class FasterWhisperBackend(WhisperBackend):
             return False, "faster-whisper not installed"
 
         try:
-            model = self._get_or_load_model()
+            self._get_or_load_model()
             model_size = self.config.get("model_size", "medium")
             device = self.config.get("device", "auto")
             return True, f"Model {model_size} loaded on {device}"

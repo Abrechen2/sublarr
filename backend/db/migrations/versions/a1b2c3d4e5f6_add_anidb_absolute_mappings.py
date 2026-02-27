@@ -8,9 +8,8 @@ Adds two tables for Phase 25 (AniDB Absolute Episode Order):
   - anidb_absolute_mappings: TVDB season/episode → AniDB absolute episode
   - series_settings: per-series flags (currently: absolute_order)
 """
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "a1b2c3d4e5f6"

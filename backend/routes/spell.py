@@ -1,15 +1,14 @@
 """Spell checking routes — /spell/check, /spell/dictionaries."""
 
-import os
 import logging
+import os
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 
 from config import get_settings
 from services.spell_checker import (
     check_subtitle_file,
     get_available_dictionaries,
-    SpellChecker,
 )
 
 bp = Blueprint("spell", __name__, url_prefix="/api/v1")
@@ -111,7 +110,7 @@ def check_spelling():
             result = check_subtitle_file(mapped_path, language, custom_words)
         else:
             # Check content directly
-            from services.spell_checker import SpellChecker, ENCHANT_AVAILABLE
+            from services.spell_checker import ENCHANT_AVAILABLE, SpellChecker
 
             if not ENCHANT_AVAILABLE:
                 return jsonify({
@@ -136,7 +135,7 @@ def check_spelling():
     except RuntimeError as e:
         logger.error("Spell checking failed: %s", e)
         return jsonify({"error": str(e)}), 500
-    except Exception as e:
+    except Exception:
         logger.exception("Unexpected error during spell checking")
         return jsonify({"error": "Internal server error"}), 500
 
@@ -168,6 +167,6 @@ def list_dictionaries():
     try:
         dictionaries = get_available_dictionaries()
         return jsonify({"dictionaries": dictionaries}), 200
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to list dictionaries")
         return jsonify({"error": "Internal server error"}), 500

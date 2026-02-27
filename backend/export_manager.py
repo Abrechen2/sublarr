@@ -15,7 +15,6 @@ import json
 import logging
 import os
 import zipfile
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 

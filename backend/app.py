@@ -5,8 +5,8 @@ configures the application, initializes extensions, registers blueprints,
 and starts background schedulers.
 """
 
-import os
 import logging
+import os
 
 from flask import Flask
 
@@ -20,6 +20,7 @@ class StructuredJSONFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         import json as _json
+
         from flask import g as _g
 
         entry = {
@@ -151,15 +152,17 @@ def create_app(testing=False):
             "connect_args": {"check_same_thread": False},
         }
 
-    from extensions import db as sa_db, migrate as sa_migrate
+    from extensions import db as sa_db
+    from extensions import migrate as sa_migrate
     sa_db.init_app(app)
     sa_migrate.init_app(app, sa_db, directory="db/migrations", render_as_batch=True)
 
     with app.app_context():
         # Import all models so they register with metadata
-        import db.models  # noqa: F401
         # For new databases: create all tables (skip if Alembic already tracks schema)
         from sqlalchemy import inspect as _inspect
+
+        import db.models  # noqa: F401
         if not _inspect(sa_db.engine).has_table("alembic_version"):
             sa_db.create_all()
             logger.info("Fresh DB: ran create_all()")
@@ -267,7 +270,7 @@ def create_app(testing=False):
             if not testing and getattr(settings, "plugin_hot_reload", False):
                 try:
                     from providers.plugins.watcher import start_plugin_watcher
-                    watcher = start_plugin_watcher(plugin_mgr, plugins_dir)
+                    start_plugin_watcher(plugin_mgr, plugins_dir)
                     logger.info("Plugin hot-reload watcher started on %s", plugins_dir)
                 except ImportError:
                     logger.warning("watchdog not installed, plugin hot-reload disabled")
@@ -287,7 +290,7 @@ def create_app(testing=False):
             from config import get_settings as _get_standalone_settings
             if getattr(_get_standalone_settings(), 'standalone_enabled', False):
                 from standalone import get_standalone_manager
-                standalone_mgr = get_standalone_manager()
+                get_standalone_manager()
                 logger.info("Standalone manager initialized")
         except Exception as e:
             logger.warning("Standalone manager initialization failed: %s", e)
@@ -342,9 +345,10 @@ def _register_app_routes(app):
     @app.route("/api/v1/metrics", methods=["GET"])
     def prometheus_metrics():
         """Prometheus metrics endpoint (protected by auth hook)."""
-        from metrics import generate_metrics
-        from config import get_settings
         from flask import Response
+
+        from config import get_settings
+        from metrics import generate_metrics
         body, content_type = generate_metrics(get_settings().db_path)
         return Response(body, mimetype=content_type)
 
@@ -414,6 +418,7 @@ def _start_schedulers(settings, app=None):
 
 if __name__ == "__main__":
     import os as _os
+
     from config import get_settings
     app = create_app()
     _debug = _os.environ.get("FLASK_DEBUG", "0") == "1"

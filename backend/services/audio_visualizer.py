@@ -4,20 +4,19 @@ Generates waveform data points from video/audio files for frontend visualization
 Inspired by SubtitleEdit's waveform feature.
 """
 
-import os
 import json
-import subprocess
 import logging
+import os
+import subprocess
 import tempfile
-from typing import Optional, List, Dict
 
 logger = logging.getLogger(__name__)
 
 
 def extract_audio_track(
     video_path: str,
-    audio_track_index: Optional[int] = None,
-    output_path: Optional[str] = None,
+    audio_track_index: int | None = None,
+    output_path: str | None = None,
 ) -> str:
     """Extract audio track from video file using FFmpeg.
 
@@ -80,7 +79,7 @@ def _generate_waveform_data(
     width: int = 2000,
     height: int = 200,
     method: str = "rms",
-) -> List[Dict[str, float]]:
+) -> list[dict[str, float]]:
     """Generate waveform data points from audio file using FFmpeg.
 
     Uses FFmpeg's showwavespic filter to generate waveform visualization data.
@@ -119,13 +118,13 @@ def _generate_waveform_data(
     cmd = [
         "ffmpeg",
         "-i", audio_path,
-        "-af", f"astats=metadata=1:reset=1",
+        "-af", "astats=metadata=1:reset=1",
         "-f", "null",
         "-",
     ]
 
     try:
-        result = subprocess.run(
+        subprocess.run(
             cmd,
             capture_output=True,
             text=True,
@@ -147,7 +146,7 @@ def _generate_waveform_simple(
     audio_path: str,
     duration: float,
     num_samples: int,
-) -> List[Dict[str, float]]:
+) -> list[dict[str, float]]:
     """Generate waveform using FFmpeg's astats filter with reset interval.
 
     This uses a single FFmpeg call with astats filter that resets at regular
@@ -264,10 +263,10 @@ def get_audio_duration(audio_path: str) -> float:
 
 def generate_waveform_json(
     video_path: str,
-    audio_track_index: Optional[int] = None,
+    audio_track_index: int | None = None,
     width: int = 2000,
     sample_rate: int = 100,
-) -> Dict:
+) -> dict:
     """Generate complete waveform JSON data for frontend.
 
     This is the main entry point that extracts audio and generates waveform.

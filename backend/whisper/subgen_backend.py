@@ -8,11 +8,11 @@ No local GPU/model management required.
 import logging
 import re
 import time
-from typing import Optional, Callable
+from collections.abc import Callable
 
 import requests
 
-from whisper.base import WhisperBackend, TranscriptionResult
+from whisper.base import TranscriptionResult, WhisperBackend
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ class SubgenBackend(WhisperBackend):
         audio_path: str,
         language: str = "",
         task: str = "transcribe",
-        progress_callback: Optional[Callable[[float], None]] = None,
+        progress_callback: Callable[[float], None] | None = None,
     ) -> TranscriptionResult:
         """Transcribe audio by sending it to the Subgen /asr endpoint.
 

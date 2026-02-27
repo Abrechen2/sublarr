@@ -3,10 +3,11 @@
 All language-specific logic is parameterized via config.py settings.
 """
 
-import re
 import json
-import subprocess
 import logging
+import os
+import re
+import subprocess
 
 from config import get_settings
 
@@ -369,6 +370,7 @@ def run_ffprobe(file_path, use_cache=True):
         RuntimeError: If ffprobe fails, times out, or returns invalid JSON
     """
     import os
+
     from db.cache import get_ffprobe_cache, set_ffprobe_cache
 
     # Check cache if enabled
@@ -433,8 +435,9 @@ def get_media_streams(file_path, use_cache=True):
         FileNotFoundError: If engine=mediainfo and mediainfo is not installed.
     """
     import os
-    from db.cache import get_ffprobe_cache, set_ffprobe_cache
+
     from config import get_settings
+    from db.cache import get_ffprobe_cache, set_ffprobe_cache
 
     settings = get_settings()
     engine = getattr(settings, "scan_metadata_engine", "auto")

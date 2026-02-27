@@ -2,8 +2,9 @@
 
 import json
 import logging
-from datetime import datetime, timezone
-from sqlalchemy import select, delete, and_, or_
+from datetime import UTC, datetime
+
+from sqlalchemy import and_, delete, or_, select
 
 from db.models.core import FilterPreset
 from db.repositories.base import BaseRepository
@@ -43,7 +44,7 @@ class FilterPresetsRepository(BaseRepository):
     def create_preset(self, name: str, scope: str, conditions: dict,
                       is_default: bool = False) -> dict:
         self._validate_conditions(conditions, scope)
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         preset = FilterPreset(
             name=name,
             scope=scope,
@@ -69,7 +70,7 @@ class FilterPresetsRepository(BaseRepository):
             row.conditions = json.dumps(conditions)
         if is_default is not None:
             row.is_default = 1 if is_default else 0
-        row.updated_at = datetime.now(timezone.utc).isoformat()
+        row.updated_at = datetime.now(UTC).isoformat()
         self._commit()
         return self._preset_to_dict(row)
 

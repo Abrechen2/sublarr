@@ -1,6 +1,5 @@
 """Hook and webhook database operations -- delegating to SQLAlchemy repository."""
 
-from typing import Optional
 
 from db.repositories.hooks import HookRepository
 
@@ -27,7 +26,7 @@ def get_hook_configs(event_name: str = None) -> list:
     return _get_repo().get_hooks(event_name)
 
 
-def get_hook_config(hook_id: int) -> Optional[dict]:
+def get_hook_config(hook_id: int) -> dict | None:
     """Get a single hook config by ID."""
     return _get_repo().get_hook(hook_id)
 
@@ -57,7 +56,7 @@ def get_webhook_configs(event_name: str = None) -> list:
     return _get_repo().get_webhooks(event_name)
 
 
-def get_webhook_config(webhook_id: int) -> Optional[dict]:
+def get_webhook_config(webhook_id: int) -> dict | None:
     """Get a single webhook config by ID."""
     return _get_repo().get_webhook(webhook_id)
 

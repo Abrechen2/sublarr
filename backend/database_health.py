@@ -9,10 +9,9 @@ Supports both SQLite and PostgreSQL backends:
 Both backends return the same top-level dict shape from ``get_health_report()``.
 """
 
-import os
+import contextlib
 import logging
-import sqlite3
-from typing import Optional
+import os
 
 from error_handler import DatabaseIntegrityError
 
@@ -43,7 +42,7 @@ def get_health_report() -> dict:
     return _sqlite_health_report()
 
 
-def get_pool_stats() -> Optional[dict]:
+def get_pool_stats() -> dict | None:
     """Return connection pool statistics (PostgreSQL only).
 
     Returns None for SQLite (which uses StaticPool / NullPool).
@@ -71,8 +70,8 @@ def get_pool_stats() -> Optional[dict]:
 
 def _sqlite_health_report() -> dict:
     """Build a health report for SQLite backend."""
-    from db import get_db
     from config import get_settings
+    from db import get_db
 
     db = get_db()
     s = get_settings()
@@ -188,18 +187,14 @@ def vacuum(db, db_path: str) -> dict:
         Dict with ``before_bytes``, ``after_bytes``, ``saved_bytes``.
     """
     before = 0
-    try:
+    with contextlib.suppress(OSError):
         before = os.path.getsize(db_path)
-    except OSError:
-        pass
 
     db.execute("VACUUM")
 
     after = 0
-    try:
+    with contextlib.suppress(OSError):
         after = os.path.getsize(db_path)
-    except OSError:
-        pass
 
     saved = before - after
     logger.info("VACUUM complete: %d -> %d bytes (saved %d)", before, after, saved)
@@ -211,8 +206,9 @@ def vacuum(db, db_path: str) -> dict:
 
 def _pg_health_report() -> dict:
     """Build a health report for PostgreSQL backend."""
-    from extensions import db as sa_db
     from sqlalchemy import text
+
+    from extensions import db as sa_db
 
     details: dict = {}
     status = "healthy"

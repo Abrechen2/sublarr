@@ -5,7 +5,6 @@ instance with other applications.
 """
 
 import logging
-from typing import Dict, Optional
 
 from cache import CacheBackend
 
@@ -38,7 +37,7 @@ class RedisCacheBackend(CacheBackend):
         """Add namespace prefix to a key."""
         return f"{_KEY_PREFIX}{key}"
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         """Get cached value by key."""
         value = self.redis.get(self._prefixed(key))
         if value is not None:
@@ -119,7 +118,7 @@ class RedisCacheBackend(CacheBackend):
 
     # ---- Batch operations ----
 
-    def mget(self, keys: list) -> Dict[str, Optional[str]]:
+    def mget(self, keys: list) -> dict[str, str | None]:
         """Get multiple keys at once using Redis MGET.
 
         Args:

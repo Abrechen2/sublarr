@@ -10,8 +10,8 @@ import threading
 import time
 import uuid
 from concurrent.futures import Future, ThreadPoolExecutor
-from datetime import datetime, timezone
-from typing import Any, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from job_queue import JobInfo, JobStatus, QueueBackend
 
@@ -65,7 +65,7 @@ class MemoryJobQueue(QueueBackend):
         if job_id is None:
             job_id = uuid.uuid4().hex[:8]
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         func_name = getattr(func, "__name__", str(func))
 
         with self._lock:
@@ -109,7 +109,7 @@ class MemoryJobQueue(QueueBackend):
         Returns:
             The result of func(*args, **kwargs).
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         with self._lock:
             if job_id in self._jobs:
                 self._jobs[job_id]["status"] = JobStatus.RUNNING
@@ -124,7 +124,7 @@ class MemoryJobQueue(QueueBackend):
             job_id: The job ID.
             future: The completed Future.
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         with self._lock:
             if job_id not in self._jobs:
                 return
@@ -140,7 +140,7 @@ class MemoryJobQueue(QueueBackend):
                 self._jobs[job_id]["status"] = JobStatus.COMPLETED
                 self._jobs[job_id]["result"] = future.result()
 
-    def get_job(self, job_id: str) -> Optional[JobInfo]:
+    def get_job(self, job_id: str) -> JobInfo | None:
         """Get job status from the in-memory tracker.
 
         Args:
@@ -182,7 +182,7 @@ class MemoryJobQueue(QueueBackend):
             future = meta.get("future")
             if future is not None and future.cancel():
                 meta["status"] = JobStatus.CANCELLED
-                meta["completed_at"] = datetime.now(timezone.utc).isoformat()
+                meta["completed_at"] = datetime.now(UTC).isoformat()
                 logger.debug("Cancelled job %s", job_id)
                 return True
 
@@ -197,7 +197,7 @@ class MemoryJobQueue(QueueBackend):
                 if meta["status"] == JobStatus.QUEUED
             )
 
-    def get_active_jobs(self) -> List[JobInfo]:
+    def get_active_jobs(self) -> list[JobInfo]:
         """Get currently running jobs."""
         with self._lock:
             results = []
@@ -215,7 +215,7 @@ class MemoryJobQueue(QueueBackend):
                     ))
             return results
 
-    def get_failed_jobs(self, limit: int = 50) -> List[JobInfo]:
+    def get_failed_jobs(self, limit: int = 50) -> list[JobInfo]:
         """Get failed jobs.
 
         Args:

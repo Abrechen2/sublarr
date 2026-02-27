@@ -1,8 +1,7 @@
 """Language profile database operations -- delegating to SQLAlchemy repository."""
 
-from typing import Optional
 
-from db.repositories.profiles import ProfileRepository, VALID_FORCED_PREFERENCES
+from db.repositories.profiles import ProfileRepository
 
 _repo = None
 
@@ -28,7 +27,7 @@ def create_language_profile(name: str, source_lang: str, source_name: str,
     )
 
 
-def get_language_profile(profile_id: int) -> Optional[dict]:
+def get_language_profile(profile_id: int) -> dict | None:
     """Get a language profile by ID."""
     return _get_repo().get_profile(profile_id)
 

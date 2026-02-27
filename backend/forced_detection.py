@@ -6,9 +6,9 @@ title keywords, and ASS style analysis. Returns a type and confidence
 score for reliable classification.
 """
 
+import logging
 import os
 import re
-import logging
 from collections import Counter
 
 logger = logging.getLogger(__name__)
@@ -140,9 +140,8 @@ def classify_forced_result(result_filename: str, provider_data: dict = None) -> 
         str: 'full', 'forced', or 'signs'
     """
     # Check provider-specific metadata first
-    if provider_data:
-        if provider_data.get("foreign_parts_only"):
-            return "forced"
+    if provider_data and provider_data.get("foreign_parts_only"):
+        return "forced"
 
     # Check filename patterns
     if not result_filename:

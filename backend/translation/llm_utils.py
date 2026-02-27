@@ -5,8 +5,8 @@ translation backends (Ollama, OpenAI-compatible) for prompt building, response
 parsing, and CJK hallucination detection.
 """
 
-import re
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 

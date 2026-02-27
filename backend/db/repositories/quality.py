@@ -4,11 +4,10 @@ Provides save, fetch, series-level queries, trend aggregation,
 and cleanup operations for SubtitleHealthResult records.
 """
 
-import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 
 from db.models.quality import SubtitleHealthResult
 from db.repositories.base import BaseRepository
@@ -94,7 +93,7 @@ class QualityRepository(BaseRepository):
                 func.count().label("check_count"),
             )
             .where(
-                SubtitleHealthResult.checked_at > (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+                SubtitleHealthResult.checked_at > (datetime.now(UTC) - timedelta(days=days)).isoformat()
             )
             .group_by(func.substr(SubtitleHealthResult.checked_at, 1, 10))
             .order_by(func.substr(SubtitleHealthResult.checked_at, 1, 10))

@@ -11,18 +11,18 @@ License: GPL-3.0
 """
 
 import io
+import logging
 import os
 import zipfile
-import logging
 
+from providers import register_provider
 from providers.base import (
+    ProviderRateLimitError,
+    SubtitleFormat,
     SubtitleProvider,
     SubtitleResult,
-    SubtitleFormat,
     VideoQuery,
-    ProviderRateLimitError,
 )
-from providers import register_provider
 from providers.http_session import create_session
 
 logger = logging.getLogger(__name__)

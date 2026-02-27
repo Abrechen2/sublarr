@@ -13,10 +13,9 @@ key, because users configure multiple named instances.
 
 import json
 import logging
-from typing import Optional
 
-from mediaserver.base import MediaServer, RefreshResult
 from circuit_breaker import CircuitBreaker
+from mediaserver.base import MediaServer, RefreshResult
 
 logger = logging.getLogger(__name__)
 
@@ -228,7 +227,7 @@ class MediaServerManager:
 
 # --- Singleton ---
 
-_manager: Optional[MediaServerManager] = None
+_manager: MediaServerManager | None = None
 
 
 def get_media_server_manager() -> MediaServerManager:

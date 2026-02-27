@@ -9,21 +9,20 @@ License: GPL-3.0
 """
 
 import io
+import logging
 import os
 import re
 import zipfile
-import logging
-from typing import Optional
 
+from providers import register_provider
 from providers.base import (
-    SubtitleProvider,
-    SubtitleResult,
-    SubtitleFormat,
-    VideoQuery,
     ProviderAuthError,
     ProviderRateLimitError,
+    SubtitleFormat,
+    SubtitleProvider,
+    SubtitleResult,
+    VideoQuery,
 )
-from providers import register_provider
 from providers.http_session import create_session
 
 logger = logging.getLogger(__name__)
@@ -72,7 +71,7 @@ def _extract_from_zip(archive_content: bytes) -> list[tuple[str, bytes]]:
     return results
 
 
-def _pick_best_subtitle(files: list[tuple[str, bytes]], query: VideoQuery) -> Optional[tuple[str, bytes]]:
+def _pick_best_subtitle(files: list[tuple[str, bytes]], query: VideoQuery) -> tuple[str, bytes] | None:
     """Pick the best subtitle file from an extracted archive.
 
     Prefers ASS over SRT, and matches episode number if available.
@@ -187,11 +186,11 @@ class SubDLProvider(SubtitleProvider):
 
     def search(self, query: VideoQuery) -> list[SubtitleResult]:
         if not self.session or not self.api_key:
-            logger.warning("SubDL: cannot search - session=%s, api_key=%s", 
+            logger.warning("SubDL: cannot search - session=%s, api_key=%s",
                           self.session is not None, bool(self.api_key))
             return []
 
-        logger.debug("SubDL: searching for %s (languages: %s)", 
+        logger.debug("SubDL: searching for %s (languages: %s)",
                     query.display_name, query.languages)
         params = {
             "api_key": self.api_key,
@@ -229,19 +228,19 @@ class SubDLProvider(SubtitleProvider):
         try:
             resp = self.session.get(API_BASE, params=params)
             logger.debug("SubDL: API response status: %d", resp.status_code)
-            
+
             if resp.status_code == 401 or resp.status_code == 403:
                 error_msg = f"SubDL authentication failed: HTTP {resp.status_code}"
                 logger.error(error_msg)
                 raise ProviderAuthError(error_msg)
-            
+
             if resp.status_code == 429:
                 error_msg = f"SubDL rate limit exceeded: HTTP {resp.status_code}"
                 logger.warning(error_msg)
                 raise ProviderRateLimitError(error_msg)
-            
+
             if resp.status_code != 200:
-                logger.warning("SubDL search failed: HTTP %d, response: %s", 
+                logger.warning("SubDL search failed: HTTP %d, response: %s",
                               resp.status_code, resp.text[:200])
                 return []
 
@@ -250,7 +249,7 @@ class SubDLProvider(SubtitleProvider):
                 error_msg = data.get("error", "Unknown error")
                 logger.warning("SubDL: API returned status=false, error: %s", error_msg)
                 return []
-            
+
             logger.debug("SubDL: API returned %d subtitles", len(data.get("subtitles", [])))
 
             for sub in data.get("subtitles", []):

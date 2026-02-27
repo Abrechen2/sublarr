@@ -11,7 +11,7 @@ import json
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -85,7 +85,7 @@ class WebhookDispatcher:
         payload = {
             "event_name": event_name,
             "version": 1,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "data": event_data,
         }
 

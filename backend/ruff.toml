@@ -9,10 +9,18 @@ target-version = "py311"
 # SIM = Simplify (code simplification), BLE = Blind Except (exception handling)
 select = ["E", "F", "I", "N", "W", "UP", "SIM", "BLE"]  # UP = pyupgrade
 ignore = [
-    "E501",  # Line too long (handled by formatter)
-    "W191",  # Indentation contains tabs (we use spaces)
-    "SIM108",  # Use ternary operator (can reduce readability)
-    "BLE001",  # Blind except (we handle specific exceptions where needed)
+    "E501",   # Line too long (handled by formatter)
+    "W191",   # Indentation contains tabs (we use spaces)
+    "SIM108", # Use ternary operator (can reduce readability)
+    "SIM102", # Nested if → single if (readability preference)
+    "SIM105", # contextlib.suppress (explicit try/except is clearer)
+    "BLE001", # Blind except (we handle specific exceptions where needed)
+    "E741",   # Ambiguous variable name `l` (used for line in subtitle loops)
+    "N806",   # Uppercase variable in function (module-level constants in functions)
+    "N817",   # CamelCase imported as acronym (e.g. TPE for ThreadPoolExecutor)
+    "SIM115", # Use context manager for file open (explicit try/except preferred)
+    "E402",   # Module level import not at top (intentional lazy/conditional imports)
+    "UP035",  # typing.Dict/List deprecated (gradual migration)
 ]
 
 [lint.isort]
@@ -20,7 +28,8 @@ known-first-party = ["providers", "config", "database", "server"]
 
 [lint.per-file-ignores]
 # Ignore specific rules for test files
-"tests/**/*.py" = ["E501", "F401"]  # Allow long lines and unused imports in tests
+"tests/**/*.py" = ["E501", "F401", "E402", "F823"]  # Allow long lines, unused imports, late imports, pre-assign refs in tests
+"routes/tracks.py" = ["E701", "E702"]  # Intentional one-liners for compact stream parsing
 
 [format]
 quote-style = "double"

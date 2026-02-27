@@ -5,7 +5,7 @@ the Flask-SQLAlchemy request-scoped session and common CRUD helpers.
 """
 
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from extensions import db
 
@@ -68,4 +68,4 @@ class BaseRepository:
 
     def _now(self) -> str:
         """Return current UTC time as ISO format string."""
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()

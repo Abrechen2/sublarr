@@ -3,7 +3,6 @@
 All column types and defaults match the existing SCHEMA DDL in db/__init__.py exactly.
 """
 
-from typing import Optional
 
 from sqlalchemy import Index, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -18,10 +17,10 @@ class WatchedFolder(db.Model):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     path: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
-    label: Mapped[Optional[str]] = mapped_column(Text, default="")
-    media_type: Mapped[Optional[str]] = mapped_column(Text, default="auto")
-    enabled: Mapped[Optional[int]] = mapped_column(Integer, default=1)
-    last_scan_at: Mapped[Optional[str]] = mapped_column(Text, default="")
+    label: Mapped[str | None] = mapped_column(Text, default="")
+    media_type: Mapped[str | None] = mapped_column(Text, default="auto")
+    enabled: Mapped[int | None] = mapped_column(Integer, default=1)
+    last_scan_at: Mapped[str | None] = mapped_column(Text, default="")
     created_at: Mapped[str] = mapped_column(Text, nullable=False)
     updated_at: Mapped[str] = mapped_column(Text, nullable=False)
 
@@ -33,17 +32,17 @@ class StandaloneSeries(db.Model):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(Text, nullable=False)
-    year: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     folder_path: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
-    tmdb_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    tvdb_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    anilist_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    imdb_id: Mapped[Optional[str]] = mapped_column(Text, default="")
-    poster_url: Mapped[Optional[str]] = mapped_column(Text, default="")
-    is_anime: Mapped[Optional[int]] = mapped_column(Integer, default=0)
-    episode_count: Mapped[Optional[int]] = mapped_column(Integer, default=0)
-    season_count: Mapped[Optional[int]] = mapped_column(Integer, default=0)
-    metadata_source: Mapped[Optional[str]] = mapped_column(Text, default="")
+    tmdb_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tvdb_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    anilist_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    imdb_id: Mapped[str | None] = mapped_column(Text, default="")
+    poster_url: Mapped[str | None] = mapped_column(Text, default="")
+    is_anime: Mapped[int | None] = mapped_column(Integer, default=0)
+    episode_count: Mapped[int | None] = mapped_column(Integer, default=0)
+    season_count: Mapped[int | None] = mapped_column(Integer, default=0)
+    metadata_source: Mapped[str | None] = mapped_column(Text, default="")
     created_at: Mapped[str] = mapped_column(Text, nullable=False)
     updated_at: Mapped[str] = mapped_column(Text, nullable=False)
 
@@ -60,12 +59,12 @@ class StandaloneMovie(db.Model):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(Text, nullable=False)
-    year: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     file_path: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
-    tmdb_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    imdb_id: Mapped[Optional[str]] = mapped_column(Text, default="")
-    poster_url: Mapped[Optional[str]] = mapped_column(Text, default="")
-    metadata_source: Mapped[Optional[str]] = mapped_column(Text, default="")
+    tmdb_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    imdb_id: Mapped[str | None] = mapped_column(Text, default="")
+    poster_url: Mapped[str | None] = mapped_column(Text, default="")
+    metadata_source: Mapped[str | None] = mapped_column(Text, default="")
     created_at: Mapped[str] = mapped_column(Text, nullable=False)
     updated_at: Mapped[str] = mapped_column(Text, nullable=False)
 
@@ -93,9 +92,9 @@ class AnidbMapping(db.Model):
 
     tvdb_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     anidb_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    series_title: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[Optional[str]] = mapped_column(Text)
-    last_used: Mapped[Optional[str]] = mapped_column(Text)
+    series_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[str | None] = mapped_column(Text)
+    last_used: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (Index("idx_anidb_mappings_anidb_id", "anidb_id"),)
 

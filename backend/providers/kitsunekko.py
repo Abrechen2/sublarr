@@ -10,20 +10,20 @@ License: GPL-3.0
 """
 
 import io
+import logging
 import os
 import re
-import logging
 import zipfile
 from urllib.parse import quote, urljoin
 
+from providers import register_provider
 from providers.base import (
+    ProviderError,
+    SubtitleFormat,
     SubtitleProvider,
     SubtitleResult,
-    SubtitleFormat,
     VideoQuery,
-    ProviderError,
 )
-from providers import register_provider
 from providers.http_session import create_session
 
 logger = logging.getLogger(__name__)

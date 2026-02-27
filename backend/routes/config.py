@@ -1,11 +1,12 @@
 """Config routes — /config, /settings/*, /onboarding/*, /config/export, /config/import."""
 
-import os
 import logging
-from flask import Blueprint, request, jsonify
+import os
 
-from events import emit_event
+from flask import Blueprint, jsonify, request
+
 from cache_response import cached_get, invalidate_response_cache
+from events import emit_event
 
 bp = Blueprint("config", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -144,8 +145,8 @@ def update_config():
         400:
           description: No config values provided
     """
-    from config import Settings, get_settings, reload_settings
-    from db.config import save_config_entry, get_all_config_entries
+    from config import Settings, reload_settings
+    from db.config import get_all_config_entries, save_config_entry
     from wanted_scanner import invalidate_scanner
 
     data = request.get_json() or {}
@@ -173,11 +174,11 @@ def update_config():
     settings = reload_settings(all_overrides)
 
     # Selectively invalidate singleton clients based on which keys changed
-    from sonarr_client import invalidate_client as _inv_sonarr
-    from radarr_client import invalidate_client as _inv_radarr
     from mediaserver import invalidate_media_server_manager as _inv_media
-    from providers import invalidate_manager as _inv_providers
     from notifier import invalidate_notifier as _inv_notifier
+    from providers import invalidate_manager as _inv_providers
+    from radarr_client import invalidate_client as _inv_radarr
+    from sonarr_client import invalidate_client as _inv_sonarr
 
     if any(k.startswith('sonarr_') for k in saved_keys):
         _inv_sonarr()
@@ -370,7 +371,7 @@ def import_config():
           description: No config data provided
     """
     from config import Settings, reload_settings
-    from db.config import save_config_entry, get_all_config_entries
+    from db.config import get_all_config_entries, save_config_entry
     from wanted_scanner import invalidate_scanner
 
     data = request.get_json() or {}
@@ -404,10 +405,10 @@ def import_config():
     settings = reload_settings(all_overrides)
 
     # Invalidate caches
-    from sonarr_client import invalidate_client as _inv_sonarr
-    from radarr_client import invalidate_client as _inv_radarr
     from mediaserver import invalidate_media_server_manager as _inv_media
     from providers import invalidate_manager as _inv_providers
+    from radarr_client import invalidate_client as _inv_radarr
+    from sonarr_client import invalidate_client as _inv_sonarr
     _inv_sonarr()
     _inv_radarr()
     _inv_media()

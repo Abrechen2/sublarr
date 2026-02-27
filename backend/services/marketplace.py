@@ -4,13 +4,10 @@ Manages GitHub-based plugin registry, installation, updates, and validation.
 Inspired by Bazarr's provider ecosystem but with better architecture.
 """
 
-import os
-import json
 import logging
-import subprocess
-import tempfile
+import os
 import shutil
-from typing import List, Dict, Optional
+import subprocess
 
 import requests
 
@@ -27,9 +24,9 @@ class PluginMarketplace:
             registry_url: URL to plugin registry JSON file
         """
         self.registry_url = registry_url
-        self.registry_cache: Optional[Dict] = None
+        self.registry_cache: dict | None = None
 
-    def fetch_registry(self) -> Dict:
+    def fetch_registry(self) -> dict:
         """Fetch plugin registry from GitHub.
 
         Returns:
@@ -49,7 +46,7 @@ class PluginMarketplace:
         except Exception as e:
             raise RuntimeError(f"Failed to fetch plugin registry: {e}")
 
-    def list_plugins(self, category: Optional[str] = None) -> List[Dict]:
+    def list_plugins(self, category: str | None = None) -> list[dict]:
         """List available plugins from registry.
 
         Args:
@@ -66,7 +63,7 @@ class PluginMarketplace:
 
         return plugins
 
-    def get_plugin_info(self, plugin_name: str) -> Optional[Dict]:
+    def get_plugin_info(self, plugin_name: str) -> dict | None:
         """Get detailed information about a plugin.
 
         Args:
@@ -85,8 +82,8 @@ class PluginMarketplace:
         self,
         plugin_name: str,
         plugins_dir: str,
-        version: Optional[str] = None,
-    ) -> Dict:
+        version: str | None = None,
+    ) -> dict:
         """Install a plugin from the marketplace.
 
         Args:
@@ -124,8 +121,8 @@ class PluginMarketplace:
         repo_url: str,
         plugin_name: str,
         plugins_dir: str,
-        version: Optional[str] = None,
-    ) -> Dict:
+        version: str | None = None,
+    ) -> dict:
         """Install plugin from Git repository.
 
         Args:
@@ -178,7 +175,7 @@ class PluginMarketplace:
         zip_url: str,
         plugin_name: str,
         plugins_dir: str,
-    ) -> Dict:
+    ) -> dict:
         """Install plugin from ZIP file.
 
         Args:
@@ -189,8 +186,8 @@ class PluginMarketplace:
         Returns:
             Installation result dict
         """
-        import zipfile
         import io
+        import zipfile
 
         try:
             response = requests.get(zip_url, timeout=60)
@@ -219,7 +216,7 @@ class PluginMarketplace:
         except Exception as e:
             raise RuntimeError(f"ZIP installation failed: {e}")
 
-    def _validate_plugin(self, plugin_path: str) -> Dict:
+    def _validate_plugin(self, plugin_path: str) -> dict:
         """Validate installed plugin.
 
         Args:
@@ -250,7 +247,7 @@ class PluginMarketplace:
             "warnings": warnings,
         }
 
-    def check_updates(self, installed_plugins: List[str]) -> Dict[str, Dict]:
+    def check_updates(self, installed_plugins: list[str]) -> dict[str, dict]:
         """Check for updates for installed plugins.
 
         Args:
@@ -260,7 +257,7 @@ class PluginMarketplace:
             Dict mapping plugin names to update info
         """
         registry = self.fetch_registry()
-        plugins = registry.get("plugins", [])
+        registry.get("plugins", [])
         updates = {}
 
         for plugin_name in installed_plugins:
@@ -275,7 +272,7 @@ class PluginMarketplace:
 
         return updates
 
-    def uninstall_plugin(self, plugin_name: str, plugins_dir: str) -> Dict:
+    def uninstall_plugin(self, plugin_name: str, plugins_dir: str) -> dict:
         """Uninstall a plugin.
 
         Args:

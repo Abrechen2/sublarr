@@ -7,8 +7,8 @@ connection argument, delegates to the legacy pattern.
 
 import logging
 import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator
 
 from error_handler import DatabaseError
 

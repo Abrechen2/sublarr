@@ -9,7 +9,7 @@ import functools
 import hmac
 import logging
 
-from flask import request, jsonify
+from flask import jsonify, request
 
 from config import get_settings
 

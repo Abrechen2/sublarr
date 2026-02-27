@@ -1,7 +1,8 @@
 """Blacklist and history routes — /blacklist/*, /history/*."""
 
 import logging
-from flask import Blueprint, request, jsonify
+
+from flask import Blueprint, jsonify, request
 
 bp = Blueprint("blacklist", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)

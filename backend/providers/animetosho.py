@@ -8,19 +8,19 @@ API: https://feed.animetosho.org/
 """
 
 import io
+import logging
+import lzma
 import os
 import re
-import lzma
 import zipfile
-import logging
 
+from providers import register_provider
 from providers.base import (
+    SubtitleFormat,
     SubtitleProvider,
     SubtitleResult,
-    SubtitleFormat,
     VideoQuery,
 )
-from providers import register_provider
 from providers.http_session import create_session
 
 logger = logging.getLogger(__name__)
@@ -158,9 +158,9 @@ class AnimeToshoProvider(SubtitleProvider):
             logger.debug("AnimeTosho: API request params: %s", params)
             resp = self.session.get(FEED_API, params=params)
             logger.debug("AnimeTosho: API response status: %d", resp.status_code)
-            
+
             if resp.status_code != 200:
-                logger.warning("AnimeTosho search failed: HTTP %d, response: %s", 
+                logger.warning("AnimeTosho search failed: HTTP %d, response: %s",
                               resp.status_code, resp.text[:200])
                 return []
 
@@ -168,7 +168,7 @@ class AnimeToshoProvider(SubtitleProvider):
             if not isinstance(entries, list):
                 logger.warning("AnimeTosho: API returned non-list response: %s", type(entries))
                 return []
-            
+
             logger.debug("AnimeTosho: API returned %d entries", len(entries))
 
             for entry in entries:

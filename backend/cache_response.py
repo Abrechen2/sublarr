@@ -8,7 +8,7 @@ import json
 import logging
 from functools import wraps
 
-from flask import request, current_app, Response
+from flask import Response, current_app, request
 
 logger = logging.getLogger(__name__)
 

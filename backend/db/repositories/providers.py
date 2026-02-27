@@ -8,12 +8,11 @@ existing formula: (old_avg * (total_searches - 1) + new_time) / total_searches.
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select, func, delete
+from sqlalchemy import delete, func, select
 
-from db.models.providers import ProviderCache, SubtitleDownload, ProviderStats
+from db.models.providers import ProviderCache, ProviderStats, SubtitleDownload
 from db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
@@ -32,7 +31,7 @@ class ProviderRepository(BaseRepository):
         Updates existing entry for (provider_name, query_hash) instead of
         inserting a duplicate (M3 fix).
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         expires = now + timedelta(hours=ttl_hours)
         cached_at_str = now.isoformat()
         expires_str = expires.isoformat()
@@ -60,13 +59,13 @@ class ProviderRepository(BaseRepository):
         self._commit()
 
     def get_cached_results(self, provider_name: str, query_hash: str,
-                           format_filter: str = None) -> Optional[str]:
+                           format_filter: str = None) -> str | None:
         """Get cached provider results if not expired.
 
         Returns:
             Cached results JSON string or None.
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         stmt = (
             select(ProviderCache.results_json)
             .where(
@@ -82,7 +81,7 @@ class ProviderRepository(BaseRepository):
 
     def cleanup_expired_cache(self):
         """Remove expired cache entries."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         self.session.execute(
             delete(ProviderCache).where(ProviderCache.expires_at < now)
         )
@@ -90,8 +89,8 @@ class ProviderRepository(BaseRepository):
 
     def get_provider_cache_stats(self) -> dict:
         """Get aggregated cache stats per provider (total entries, active/expired)."""
-        now = datetime.now(timezone.utc).isoformat()
-        stmt = (
+        now = datetime.now(UTC).isoformat()
+        (
             select(
                 ProviderCache.provider_name,
                 func.count().label("total"),
@@ -352,7 +351,7 @@ class ProviderRepository(BaseRepository):
 
     def auto_disable_provider(self, provider_name: str, cooldown_minutes: int = 30):
         """Auto-disable a provider with a cooldown period."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         disabled_until = (now + timedelta(minutes=cooldown_minutes)).isoformat()
 
         existing = self.session.get(ProviderStats, provider_name)
@@ -400,7 +399,7 @@ class ProviderRepository(BaseRepository):
         # Check if cooldown has expired
         disabled_until = entry.disabled_until
         if disabled_until:
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(UTC).isoformat()
             if disabled_until < now:
                 # Cooldown expired, clear auto-disable
                 entry.auto_disabled = 0
@@ -421,7 +420,7 @@ class ProviderRepository(BaseRepository):
     def get_provider_health_history(self, provider_name: str = None,
                                      days: int = 7) -> list:
         """Get provider health history entries."""
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
         stmt = select(ProviderStats).where(ProviderStats.updated_at >= cutoff)
         if provider_name:
             stmt = stmt.where(ProviderStats.provider_name == provider_name)
@@ -443,7 +442,7 @@ class ProviderRepository(BaseRepository):
         """
         stmt = select(ProviderStats)
         entries = self.session.execute(stmt).scalars().all()
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         result = {}
         for entry in entries:
             stats = self._row_to_stats(entry)

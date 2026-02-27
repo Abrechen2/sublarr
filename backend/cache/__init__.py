@@ -9,7 +9,6 @@ Factory function auto-detects Redis availability and falls back gracefully.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +24,7 @@ class CacheBackend(ABC):
         self._misses: int = 0
 
     @abstractmethod
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         """Get cached value by key.
 
         Returns:

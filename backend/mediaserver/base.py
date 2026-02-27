@@ -7,7 +7,6 @@ TranslationBackend ABC pattern in translation/base.py.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -17,7 +16,7 @@ class RefreshResult:
     success: bool
     message: str
     server_name: str = ""
-    item_id: Optional[str] = None
+    item_id: str | None = None
 
 
 class MediaServer(ABC):

@@ -1,6 +1,6 @@
 """Test data fixtures for Sublarr tests."""
 
-from typing import Dict, Any
+from typing import Any, Dict
 
 # Sample video query data
 SAMPLE_VIDEO_QUERY = {
@@ -125,19 +125,19 @@ RADARR_WEBHOOK_PAYLOAD = {
 }
 
 # Helper function to create test data
-def create_test_video_query(**overrides) -> Dict[str, Any]:
+def create_test_video_query(**overrides) -> dict[str, Any]:
     """Create a test video query with optional overrides."""
     query = SAMPLE_VIDEO_QUERY.copy()
     query.update(overrides)
     return query
 
-def create_test_series(**overrides) -> Dict[str, Any]:
+def create_test_series(**overrides) -> dict[str, Any]:
     """Create a test series with optional overrides."""
     series = SAMPLE_SERIES.copy()
     series.update(overrides)
     return series
 
-def create_test_episode(**overrides) -> Dict[str, Any]:
+def create_test_episode(**overrides) -> dict[str, Any]:
     """Create a test episode with optional overrides."""
     episode = SAMPLE_EPISODE.copy()
     episode.update(overrides)

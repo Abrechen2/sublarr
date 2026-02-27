@@ -10,7 +10,6 @@ single-column index scans with a single composite index scan.
 """
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
 revision = "b3c2a1d4e5f6"
 down_revision = "fa890ea72dab"

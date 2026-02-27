@@ -1,17 +1,17 @@
 """Translation routes — /translate, /batch, /retranslate, /status, /jobs."""
 
-import os
-import time
-import logging
-import threading
 import ipaddress
+import logging
+import os
+import threading
+import time
 from urllib.parse import urlparse
 
 import requests
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, current_app, jsonify, request
 
-from extensions import socketio
 from events import emit_event
+from extensions import socketio
 
 bp = Blueprint("translate", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -159,8 +159,8 @@ def _update_stats(result):
 
 def _run_job(job_data):
     """Execute a translation job in a background thread."""
+    from db.jobs import record_stat, update_job
     from translator import translate_file
-    from db.jobs import update_job, record_stat
 
     job_id = job_data["id"]
     try:
@@ -299,9 +299,8 @@ def translate_async():
         404:
           description: File not found
     """
-    from db.jobs import create_job
-    from error_handler import TranslationError
     from config import get_settings
+    from db.jobs import create_job
 
     data = request.get_json() or {}
     file_path = data.get("file_path")
@@ -406,10 +405,10 @@ def translate_sync():
         500:
           description: Translation failed
     """
-    from db.jobs import create_job
-    from translator import translate_file
-    from error_handler import TranslationError
     from config import get_settings
+    from db.jobs import create_job
+    from error_handler import TranslationError
+    from translator import translate_file
 
     data = request.get_json() or {}
     file_path = data.get("file_path")
@@ -609,8 +608,8 @@ def retry_job(job_id):
         404:
           description: Job or file not found
     """
-    from db.jobs import get_job, create_job
     from config import get_settings
+    from db.jobs import create_job, get_job
 
     job = get_job(job_id)
     if not job:
@@ -711,7 +710,7 @@ def batch_start():
         409:
           description: Batch already running
     """
-    from translator import translate_file, scan_directory
+    from translator import scan_directory, translate_file
 
     data = request.get_json() or {}
     directory = data.get("directory")
@@ -936,8 +935,8 @@ def retranslate_status():
                   target_language:
                     type: string
     """
-    from db.jobs import get_outdated_jobs_count
     from config import get_settings
+    from db.jobs import get_outdated_jobs_count
 
     s = get_settings()
     current_hash = s.get_translation_config_hash()
@@ -986,9 +985,9 @@ def retranslate_single(job_id):
         404:
           description: Item or file not found
     """
-    from db.jobs import get_job, create_job
-    from db.wanted import get_wanted_item
     from config import get_settings
+    from db.jobs import create_job, get_job
+    from db.wanted import get_wanted_item
 
     job = get_job(str(job_id))
     if not job:
@@ -1078,9 +1077,9 @@ def retranslate_batch():
                   total:
                     type: integer
     """
+    from config import get_settings
     from db.jobs import get_outdated_jobs
     from translator import translate_file
-    from config import get_settings
 
     s = get_settings()
     current_hash = s.get_translation_config_hash()
@@ -1288,8 +1287,8 @@ def save_backend_config(name):
         404:
           description: Backend not found
     """
-    from translation import get_translation_manager
     from db.config import save_config_entry
+    from translation import get_translation_manager
 
     data = request.get_json() or {}
     if not data:
@@ -1343,8 +1342,8 @@ def get_backend_config(name):
         404:
           description: Backend not found
     """
-    from translation import get_translation_manager
     from db.config import get_all_config_entries
+    from translation import get_translation_manager
 
     # Validate backend exists
     manager = get_translation_manager()

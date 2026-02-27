@@ -13,7 +13,7 @@ import logging
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from flask import Blueprint, jsonify, request, Response
+from flask import Blueprint, Response, jsonify, request
 
 logger = logging.getLogger(__name__)
 

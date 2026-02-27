@@ -8,7 +8,6 @@ into Sublarr.
 import json
 import logging
 import sqlite3
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +69,6 @@ def _parse_yaml(content: str) -> dict:
 def _parse_ini(content: str) -> dict:
     """Parse INI format Bazarr config."""
     import configparser
-    import io
 
     warnings = []
     parser = configparser.ConfigParser()
@@ -462,7 +460,7 @@ def generate_mapping_report(db_path: str) -> dict:
                     if sample_row:
                         masked = {}
                         for col_name in columns:
-                            val = sample_row[col_name] if col_name in sample_row.keys() else None
+                            val = sample_row.get(col_name, None)
                             if col_name.lower() in _SENSITIVE_FIELDS and val:
                                 masked[col_name] = "***"
                             else:
@@ -847,7 +845,7 @@ def batch_migrate_bazarr_instances(instances: list[dict]) -> dict:
             # Parse config if provided
             config_data = {}
             if instance.get("config_path"):
-                with open(instance["config_path"], "r", encoding="utf-8") as f:
+                with open(instance["config_path"], encoding="utf-8") as f:
                     config_content = f.read()
                 config_data = parse_bazarr_config(config_content, instance["config_path"])
 

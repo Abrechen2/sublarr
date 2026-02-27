@@ -4,9 +4,9 @@ Uses RQ with Redis for persistent job queues that survive container restarts.
 Requires a separate `rq worker` process to execute enqueued jobs.
 """
 
+import contextlib
 import logging
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import datetime
 
 from job_queue import JobInfo, JobStatus, QueueBackend
 
@@ -69,10 +69,8 @@ def _rq_job_to_info(job) -> JobInfo:
     result = None
     error = None
     if status == JobStatus.COMPLETED:
-        try:
+        with contextlib.suppress(Exception):
             result = job.result
-        except Exception:
-            pass
     elif status == JobStatus.FAILED:
         error = str(job.exc_info) if job.exc_info else "Unknown error"
 
@@ -132,7 +130,7 @@ class RQJobQueue(QueueBackend):
         logger.debug("Enqueued job %s: %s", job.id, getattr(func, "__name__", str(func)))
         return job.id
 
-    def get_job(self, job_id: str) -> Optional[JobInfo]:
+    def get_job(self, job_id: str) -> JobInfo | None:
         """Get job status from RQ.
 
         Args:
@@ -141,8 +139,8 @@ class RQJobQueue(QueueBackend):
         Returns:
             JobInfo if found, None if job doesn't exist.
         """
-        from rq.job import Job as RQJob
         from rq.exceptions import NoSuchJobError
+        from rq.job import Job as RQJob
 
         try:
             job = RQJob.fetch(job_id, connection=self.redis_client)
@@ -162,8 +160,8 @@ class RQJobQueue(QueueBackend):
         Returns:
             True if the job was found and cancelled.
         """
-        from rq.job import Job as RQJob
         from rq.exceptions import NoSuchJobError
+        from rq.job import Job as RQJob
 
         try:
             job = RQJob.fetch(job_id, connection=self.redis_client)
@@ -180,7 +178,7 @@ class RQJobQueue(QueueBackend):
         """Get number of pending jobs in the RQ queue."""
         return len(self.queue)
 
-    def get_active_jobs(self) -> List[JobInfo]:
+    def get_active_jobs(self) -> list[JobInfo]:
         """Get currently executing jobs from the started job registry."""
         from rq.job import Job as RQJob
 
@@ -198,7 +196,7 @@ class RQJobQueue(QueueBackend):
             logger.debug("Error fetching active jobs: %s", e)
         return results
 
-    def get_failed_jobs(self, limit: int = 50) -> List[JobInfo]:
+    def get_failed_jobs(self, limit: int = 50) -> list[JobInfo]:
         """Get failed jobs from the failed job registry.
 
         Args:

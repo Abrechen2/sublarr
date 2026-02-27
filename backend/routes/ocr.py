@@ -1,20 +1,19 @@
 """OCR routes — /ocr/extract, /ocr/preview, /ocr/batch-extract."""
 
-import os
-import uuid
-import threading
 import logging
+import os
+import threading
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, jsonify, request, send_file
 
 from config import get_settings
 from services.ocr_extractor import (
+    TESSERACT_AVAILABLE,
     batch_ocr_track,
     ocr_subtitle_stream,
     preview_frame,
-    extract_frame,
-    TESSERACT_AVAILABLE,
 )
 
 bp = Blueprint("ocr", __name__, url_prefix="/api/v1")
@@ -130,7 +129,7 @@ def extract_ocr():
     except RuntimeError as e:
         logger.error("OCR extraction failed: %s", e)
         return jsonify({"error": str(e)}), 500
-    except Exception as e:
+    except Exception:
         logger.exception("Unexpected error during OCR extraction")
         return jsonify({"error": "Internal server error"}), 500
 
@@ -229,7 +228,7 @@ def preview_ocr():
     except RuntimeError as e:
         logger.error("OCR preview failed: %s", e)
         return jsonify({"error": str(e)}), 500
-    except Exception as e:
+    except Exception:
         logger.exception("Unexpected error during OCR preview")
         return jsonify({"error": "Internal server error"}), 500
 

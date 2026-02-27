@@ -7,7 +7,6 @@ ABC pattern in providers/base.py.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
@@ -18,7 +17,7 @@ class TranslationResult:
     backend_name: str = ""
     response_time_ms: float = 0
     characters_used: int = 0
-    error: Optional[str] = None
+    error: str | None = None
     success: bool = True
 
 

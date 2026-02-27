@@ -2,9 +2,8 @@
 
 import logging
 import uuid
-from typing import Optional
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 
 from extensions import socketio
 
@@ -86,6 +85,7 @@ def transcribe():
           description: File not found
     """
     import os
+
     from whisper import get_whisper_manager
 
     data = request.get_json() or {}
@@ -234,7 +234,7 @@ def delete_job(job_id):
         409:
           description: Cannot delete job in progress
     """
-    from db.whisper import get_whisper_job, delete_whisper_job
+    from db.whisper import delete_whisper_job, get_whisper_job
 
     job = get_whisper_job(job_id)
     if not job:
@@ -361,8 +361,8 @@ def get_backend_config(name):
         404:
           description: Backend not found
     """
-    from whisper import get_whisper_manager
     from db.config import get_all_config_entries
+    from whisper import get_whisper_manager
 
     # Validate backend exists
     manager = get_whisper_manager()
@@ -440,8 +440,8 @@ def save_backend_config(name):
         404:
           description: Backend not found
     """
-    from whisper import get_whisper_manager
     from db.config import save_config_entry
+    from whisper import get_whisper_manager
 
     data = request.get_json() or {}
     if not data:

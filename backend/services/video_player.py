@@ -4,11 +4,10 @@ Uses FFmpeg to transcode videos to HLS format for browser compatibility.
 Provides screenshot generation and subtitle embedding capabilities.
 """
 
+import logging
 import os
 import subprocess
-import logging
 import tempfile
-from typing import Optional, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +17,7 @@ def generate_hls_playlist(
     output_dir: str,
     segment_duration: int = 10,
     quality: str = "medium",
-) -> Dict:
+) -> dict:
     """Generate HLS playlist and segments from video file.
 
     Args:
@@ -93,7 +92,7 @@ def generate_hls_playlist(
 def generate_screenshot(
     video_path: str,
     timestamp: float,
-    output_path: Optional[str] = None,
+    output_path: str | None = None,
     width: int = 1920,
 ) -> str:
     """Generate screenshot from video at specific timestamp.
@@ -148,7 +147,7 @@ def generate_screenshot(
 
 def convert_subtitle_to_webvtt(
     subtitle_path: str,
-    output_path: Optional[str] = None,
+    output_path: str | None = None,
 ) -> str:
     """Convert subtitle file (ASS/SRT) to WebVTT format for browser playback.
 

@@ -5,13 +5,14 @@ GET  /api/v1/tools/video-sync/engines  → available engines { ffsubsync, alass 
 GET  /api/v1/tools/video-sync/<job_id> → job status
 """
 
-import os
+import contextlib
 import logging
-import uuid
+import os
 import threading
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 
 bp = Blueprint("video_sync", __name__, url_prefix="/api/v1/tools")
 logger = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ def _run_sync(job_id: str, engine: str, subtitle_path: str,
               cleanup_ref: str | None) -> None:
     _update_job(job_id, "running")
     try:
-        from services.video_sync import sync_with_ffsubsync, sync_with_alass
+        from services.video_sync import sync_with_alass, sync_with_ffsubsync
         if engine == "ffsubsync":
             result = sync_with_ffsubsync(subtitle_path, video_path)
         elif engine == "alass":
@@ -51,10 +52,8 @@ def _run_sync(job_id: str, engine: str, subtitle_path: str,
         _update_job(job_id, "failed", error=str(exc))
     finally:
         if cleanup_ref:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(cleanup_ref)
-            except OSError:
-                pass
 
 
 @bp.route("/video-sync/engines", methods=["GET"])
@@ -109,7 +108,7 @@ def start_sync():
     cleanup_ref = None
     if engine == "alass" and reference_track_index is not None and video_path:
         try:
-            from ass_utils import get_media_streams, extract_subtitle_stream
+            from ass_utils import extract_subtitle_stream, get_media_streams
             probe = get_media_streams(video_path)
             stream = next(
                 (s for s in probe.get("streams", []) if s.get("index") == reference_track_index),

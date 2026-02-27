@@ -7,7 +7,6 @@ Native glossary support with caching for repeated translations.
 import hashlib
 import json
 import logging
-from typing import Optional
 
 from translation.base import TranslationBackend, TranslationResult
 
@@ -96,7 +95,7 @@ class DeepLBackend(TranslationBackend):
 
     def __init__(self, **config):
         super().__init__(**config)
-        self._client: Optional[object] = None
+        self._client: object | None = None
         self._glossary_cache: dict[tuple, object] = {}  # key: (source, target, content_hash)
 
     def _get_client(self):

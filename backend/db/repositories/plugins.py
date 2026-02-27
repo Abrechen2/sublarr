@@ -9,7 +9,7 @@ Return types match the existing functions exactly.
 
 import logging
 
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 
 from db.models.core import ConfigEntry
 from db.repositories.base import BaseRepository

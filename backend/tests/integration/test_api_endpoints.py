@@ -1,12 +1,14 @@
 """Integration tests for API endpoints."""
 
-import pytest
 import json
+
+import pytest
+
 from tests.fixtures.test_data import (
-    SAMPLE_VIDEO_QUERY,
-    SAMPLE_SERIES,
     SAMPLE_EPISODE,
     SAMPLE_LANGUAGE_PROFILE,
+    SAMPLE_SERIES,
+    SAMPLE_VIDEO_QUERY,
 )
 
 

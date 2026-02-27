@@ -6,7 +6,6 @@ plexapi is an optional dependency -- the class is still importable without it.
 """
 
 import logging
-from typing import Optional
 
 import requests
 
@@ -16,8 +15,8 @@ logger = logging.getLogger(__name__)
 
 # Guard plexapi import -- optional dependency
 try:
-    from plexapi.server import PlexServer as _PlexServer
     from plexapi import exceptions as plex_exceptions
+    from plexapi.server import PlexServer as _PlexServer
     _HAS_PLEXAPI = True
 except ImportError:
     _PlexServer = None
@@ -61,7 +60,7 @@ class PlexServer(MediaServer):
         super().__init__(**config)
         self.url = config.get("url", "http://localhost:32400").rstrip("/")
         self.token = config.get("token", "")
-        self._server: Optional[object] = None  # Lazily created PlexServer
+        self._server: object | None = None  # Lazily created PlexServer
 
     def _get_server(self):
         """Lazily create and cache the plexapi PlexServer connection.

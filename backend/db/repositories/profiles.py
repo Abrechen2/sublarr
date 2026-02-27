@@ -7,15 +7,14 @@ SeriesLanguageProfile and MovieLanguageProfile.
 
 import json
 import logging
-from typing import Optional
 
-from sqlalchemy import select, func, delete
+from sqlalchemy import delete, func, select
 
 from config import get_settings
 from db.models.core import (
     LanguageProfile,
-    SeriesLanguageProfile,
     MovieLanguageProfile,
+    SeriesLanguageProfile,
     WantedItem,
 )
 from db.repositories.base import BaseRepository
@@ -71,7 +70,7 @@ class ProfileRepository(BaseRepository):
         rows = self.session.execute(stmt).scalars().all()
         return [self._row_to_profile(r) for r in rows]
 
-    def get_profile(self, profile_id: int) -> Optional[dict]:
+    def get_profile(self, profile_id: int) -> dict | None:
         """Get a language profile by ID."""
         profile = self.session.get(LanguageProfile, profile_id)
         if not profile:

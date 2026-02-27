@@ -5,19 +5,18 @@ ASS scoring bonus, hash-match scoring, and provider fallback.
 """
 
 import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from circuit_breaker import CircuitBreaker, CircuitState
 from providers.base import (
-    SubtitleResult,
+    EPISODE_SCORES,
     SubtitleFormat,
+    SubtitleResult,
     VideoQuery,
     compute_score,
-    EPISODE_SCORES,
 )
-
 
 # ─── Circuit Breaker Unit Tests ─────────────────────────────────────────────
 

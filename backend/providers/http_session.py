@@ -4,9 +4,8 @@ Adapted from Bazarr's RetryingSession pattern. Provides a requests.Session
 wrapper that handles transient failures gracefully.
 """
 
-import time
 import logging
-from typing import Optional
+import time
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -45,7 +44,7 @@ class RetryingSession(requests.Session):
     def __init__(self, timeout: int = 15):
         super().__init__()
         self.default_timeout = timeout
-        self._rate_limit_until: Optional[float] = None
+        self._rate_limit_until: float | None = None
 
     def request(self, method, url, **kwargs):
         # Apply default timeout

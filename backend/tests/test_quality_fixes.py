@@ -2,6 +2,7 @@
 
 import pysubs2
 import pytest
+
 from config import reload_settings
 
 

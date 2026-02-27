@@ -7,11 +7,10 @@ Return types match the existing functions exactly.
 
 import logging
 from datetime import datetime, timedelta
-from typing import Optional
 
-from sqlalchemy import select, func, delete
+from sqlalchemy import delete, func, select
 
-from db.models.hooks import HookConfig, WebhookConfig, HookLog
+from db.models.hooks import HookConfig, HookLog, WebhookConfig
 from db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
@@ -75,7 +74,7 @@ class HookRepository(BaseRepository):
         entries = self.session.execute(stmt).scalars().all()
         return [self._row_to_hook(e) for e in entries]
 
-    def get_hook(self, hook_id: int) -> Optional[dict]:
+    def get_hook(self, hook_id: int) -> dict | None:
         """Get a single hook config by ID."""
         entry = self.session.get(HookConfig, hook_id)
         if not entry:
@@ -189,7 +188,7 @@ class HookRepository(BaseRepository):
         entries = self.session.execute(stmt).scalars().all()
         return [self._row_to_webhook(e) for e in entries]
 
-    def get_webhook(self, webhook_id: int) -> Optional[dict]:
+    def get_webhook(self, webhook_id: int) -> dict | None:
         """Get a single webhook config by ID."""
         entry = self.session.get(WebhookConfig, webhook_id)
         if not entry:

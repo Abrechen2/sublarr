@@ -1,7 +1,8 @@
 """Library routes — /library, /sonarr/*, /radarr/*, /episodes/*."""
 
 import logging
-from flask import Blueprint, request, jsonify
+
+from flask import Blueprint, jsonify, request
 
 bp = Blueprint("library", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ def get_library():
                       type: object
                       additionalProperties: true
     """
-    from db.profiles import get_series_profile_map, get_default_profile
+    from db.profiles import get_default_profile, get_series_profile_map
     from db.wanted import get_series_missing_counts
 
     result = {"series": [], "movies": []}
@@ -308,11 +309,12 @@ def get_series_detail(series_id):
           description: Sonarr not configured
     """
     from concurrent.futures import ThreadPoolExecutor
+
+    from config import get_settings, map_path
+    from db import _db_lock, get_db
+    from db.profiles import get_default_profile, get_series_profile
     from sonarr_client import get_sonarr_client
     from translator import detect_existing_target_for_lang
-    from db.profiles import get_series_profile, get_default_profile
-    from config import get_settings, map_path
-    from db import get_db, _db_lock
 
     settings = get_settings()
 
@@ -604,11 +606,11 @@ def episode_search(episode_id):
         503:
           description: Sonarr not configured
     """
-    from sonarr_client import get_sonarr_client
-    from db.profiles import get_series_profile, get_default_profile
-    from db.wanted import find_wanted_by_episode, upsert_wanted_item
-    from wanted_search import search_wanted_item
     from config import get_settings, map_path
+    from db.profiles import get_default_profile, get_series_profile
+    from db.wanted import find_wanted_by_episode, upsert_wanted_item
+    from sonarr_client import get_sonarr_client
+    from wanted_search import search_wanted_item
 
     settings = get_settings()
 
@@ -686,11 +688,11 @@ def episode_search_providers_interactive(episode_id):
         503:
           description: Sonarr not configured
     """
-    from sonarr_client import get_sonarr_client
-    from db.profiles import get_series_profile, get_default_profile
-    from db.wanted import find_wanted_by_episode, upsert_wanted_item
-    from wanted_search import search_providers_for_item
     from config import get_settings, map_path
+    from db.profiles import get_default_profile, get_series_profile
+    from db.wanted import find_wanted_by_episode, upsert_wanted_item
+    from sonarr_client import get_sonarr_client
+    from wanted_search import search_providers_for_item
 
     settings = get_settings()
     sonarr = get_sonarr_client()
@@ -776,12 +778,12 @@ def episode_download_specific(episode_id):
         503:
           description: Sonarr not configured
     """
-    from sonarr_client import get_sonarr_client
-    from db.profiles import get_series_profile, get_default_profile
-    from db.wanted import find_wanted_by_episode, upsert_wanted_item
-    from wanted_search import download_specific_for_item
     from config import get_settings, map_path
+    from db.profiles import get_default_profile, get_series_profile
+    from db.wanted import find_wanted_by_episode, upsert_wanted_item
     from events import emit_event
+    from sonarr_client import get_sonarr_client
+    from wanted_search import download_specific_for_item
 
     settings = get_settings()
     sonarr = get_sonarr_client()
@@ -875,9 +877,9 @@ def episode_history(episode_id):
         503:
           description: Sonarr not configured
     """
-    from sonarr_client import get_sonarr_client
-    from db.cache import get_episode_history
     from config import map_path
+    from db.cache import get_episode_history
+    from sonarr_client import get_sonarr_client
 
     sonarr = get_sonarr_client()
     if not sonarr:

@@ -7,13 +7,12 @@ quiet hours checking with overnight range and day-of-week support.
 import json
 import logging
 from datetime import datetime
-from typing import Optional
 
-from sqlalchemy import select, func, delete
+from sqlalchemy import delete, func, select
 
 from db.models.notifications import (
-    NotificationTemplate,
     NotificationHistory,
+    NotificationTemplate,
     QuietHoursConfig,
 )
 from db.repositories.base import BaseRepository

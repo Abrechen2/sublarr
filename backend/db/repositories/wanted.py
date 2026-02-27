@@ -9,10 +9,8 @@ with conditional handling for empty/null target_language.
 
 import json
 import logging
-from datetime import datetime
-from typing import Optional
 
-from sqlalchemy import select, func, delete, and_, or_, asc, desc
+from sqlalchemy import asc, delete, desc, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from db.models.core import WantedItem
@@ -230,7 +228,7 @@ class WantedRepository(BaseRepository):
             "total_pages": total_pages,
         }
 
-    def get_wanted_item(self, item_id: int) -> Optional[dict]:
+    def get_wanted_item(self, item_id: int) -> dict | None:
         """Get a single wanted item by ID."""
         item = self.session.get(WantedItem, item_id)
         if not item:
@@ -239,7 +237,7 @@ class WantedRepository(BaseRepository):
 
     def get_wanted_by_file_path(self, file_path: str,
                                 target_language: str = None,
-                                subtitle_type: str = None) -> Optional[dict]:
+                                subtitle_type: str = None) -> dict | None:
         """Get a wanted item by file path (optionally with language/type filter)."""
         stmt = select(WantedItem).where(WantedItem.file_path == file_path)
         if target_language is not None:
@@ -410,7 +408,7 @@ class WantedRepository(BaseRepository):
         return self.session.execute(stmt).scalar()
 
     def find_wanted_by_episode(self, sonarr_episode_id: int,
-                               target_language: str = "") -> Optional[dict]:
+                               target_language: str = "") -> dict | None:
         """Find a wanted item for a specific episode + language."""
         stmt = select(WantedItem).where(
             WantedItem.sonarr_episode_id == sonarr_episode_id

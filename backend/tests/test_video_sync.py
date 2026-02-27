@@ -1,7 +1,6 @@
 """Tests for backend/routes/video_sync.py and backend/services/video_sync.py."""
 
-from unittest.mock import patch, MagicMock
-
+from unittest.mock import MagicMock, patch
 
 # ─── Engine endpoint ─────────────────────────────────────────────────────────
 
@@ -136,7 +135,7 @@ def test_sync_status_reflects_queued_state(client, tmp_path):
 
 def test_sync_unavailable_error_when_ffsubsync_missing(tmp_path):
     """sync_with_ffsubsync raises SyncUnavailableError when not installed."""
-    from services.video_sync import sync_with_ffsubsync, SyncUnavailableError
+    from services.video_sync import SyncUnavailableError, sync_with_ffsubsync
     sub = tmp_path / "ep.srt"
     sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n")
     with patch("services.video_sync.FFSUBSYNC_AVAILABLE", False):
@@ -149,7 +148,7 @@ def test_sync_unavailable_error_when_ffsubsync_missing(tmp_path):
 
 def test_sync_unavailable_error_when_alass_missing(tmp_path):
     """sync_with_alass raises SyncUnavailableError when not installed."""
-    from services.video_sync import sync_with_alass, SyncUnavailableError
+    from services.video_sync import SyncUnavailableError, sync_with_alass
     sub = tmp_path / "ep.srt"
     sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n")
     with patch("services.video_sync.ALASS_AVAILABLE", False):

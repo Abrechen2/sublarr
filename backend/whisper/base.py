@@ -5,8 +5,8 @@ Adapted from the TranslationBackend ABC pattern in translation/base.py.
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import Optional, Callable
+from collections.abc import Callable
+from dataclasses import dataclass
 
 
 @dataclass
@@ -20,7 +20,7 @@ class TranscriptionResult:
     segment_count: int = 0
     backend_name: str = ""
     processing_time_ms: float = 0.0
-    error: Optional[str] = None
+    error: str | None = None
     success: bool = True
 
 
@@ -55,7 +55,7 @@ class WhisperBackend(ABC):
         audio_path: str,
         language: str = "",
         task: str = "transcribe",
-        progress_callback: Optional[Callable[[float], None]] = None,
+        progress_callback: Callable[[float], None] | None = None,
     ) -> TranscriptionResult:
         """Transcribe audio file to SRT subtitle content.
 

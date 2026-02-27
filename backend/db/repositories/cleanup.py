@@ -4,13 +4,12 @@ Provides deduplication queries, rule management, cleanup history logging,
 and disk space analysis aggregations.
 """
 
-import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select, func, delete
+from sqlalchemy import delete, func, select
 
-from db.models.cleanup import SubtitleHash, CleanupRule, CleanupHistory
+from db.models.cleanup import CleanupHistory, CleanupRule, SubtitleHash
 from db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
@@ -351,7 +350,7 @@ class CleanupRepository(BaseRepository):
         # Potential savings = duplicate_size - (unique hash count * average single file size)
         # Simplified: count files that could be removed (total dups - one per group)
         groups = self.get_duplicate_groups()
-        potential_removable = sum(g["count"] - 1 for g in groups)
+        sum(g["count"] - 1 for g in groups)
         # Estimate savings: total dup size - keep one per group
         potential_savings = 0
         for g in groups:
@@ -366,7 +365,7 @@ class CleanupRepository(BaseRepository):
                 func.coalesce(func.sum(CleanupHistory.bytes_freed), 0).label("freed"),
             )
             .where(
-                CleanupHistory.performed_at > (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+                CleanupHistory.performed_at > (datetime.now(UTC) - timedelta(days=30)).isoformat()
             )
             .group_by(func.substr(CleanupHistory.performed_at, 1, 10))
             .order_by(func.substr(CleanupHistory.performed_at, 1, 10))

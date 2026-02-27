@@ -5,14 +5,13 @@ Return types match the existing functions exactly.
 """
 
 import json
-import uuid
 import logging
+import uuid
 from datetime import date, datetime, timedelta
-from typing import Optional
 
-from sqlalchemy import select, func, delete
+from sqlalchemy import delete, func, select
 
-from db.models.core import Job, DailyStats
+from db.models.core import DailyStats, Job
 from db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
@@ -77,7 +76,7 @@ class JobRepository(BaseRepository):
             job.config_hash = config_hash
             self._commit()
 
-    def get_job(self, job_id: str) -> Optional[dict]:
+    def get_job(self, job_id: str) -> dict | None:
         """Get a job by ID."""
         job = self.session.get(Job, job_id)
         if not job:

@@ -8,9 +8,6 @@ Kodi docs: https://kodi.wiki/view/Subtitles
 """
 
 import os
-import re
-from typing import Optional
-
 
 # ---------------------------------------------------------------------------
 # Common ISO 639 language codes (reasonable hardcoded set of ~50 common codes)
@@ -75,7 +72,7 @@ _ISO_639_2 = {
 # Private helpers
 # ---------------------------------------------------------------------------
 
-def _extract_lang_code(subtitle_filename: str) -> Optional[str]:
+def _extract_lang_code(subtitle_filename: str) -> str | None:
     """Extract language code from a subtitle filename.
 
     Supports patterns:

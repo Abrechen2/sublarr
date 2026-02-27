@@ -6,21 +6,20 @@ Scraped via ``GET /metrics`` (unauthenticated, for Prometheus).
 Requires: ``prometheus_client``, ``psutil``
 """
 
-import os
 import logging
-from typing import Optional
+import os
 
 try:
     import psutil
     from prometheus_client import (
+        CONTENT_TYPE_LATEST,
+        REGISTRY,
+        CollectorRegistry,  # noqa: F401 — imported for type hints in callers
         Counter,
         Gauge,
         Histogram,
         Info,
         generate_latest,
-        CONTENT_TYPE_LATEST,
-        CollectorRegistry,
-        REGISTRY,
     )
 
     METRICS_AVAILABLE = True

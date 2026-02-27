@@ -1,16 +1,17 @@
 """System routes — /health, /stats, /database/*, /backup/*, /statistics, /logs, /notifications/*."""
 
-import io
-import os
+import contextlib
 import csv
+import io
 import json
+import logging
+import os
 import time
 import zipfile
-import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, jsonify, request, send_file
 from sqlalchemy import text
 
 from version import __version__
@@ -182,10 +183,10 @@ def health_detailed():
         503:
           description: One or more subsystems degraded
     """
-    from database_health import check_integrity, get_database_stats
-    from ollama_client import check_ollama_health
-    from db import get_db
     from config import get_settings
+    from database_health import check_integrity, get_database_stats
+    from db import get_db
+    from ollama_client import check_ollama_health
 
     s = get_settings()
     subsystems: dict = {}
@@ -328,8 +329,8 @@ def health_detailed():
 
     # Whisper Backends
     try:
-        from whisper import get_whisper_manager
         from db.config import get_config_entry
+        from whisper import get_whisper_manager
         whisper_enabled = get_config_entry("whisper_enabled")
         if whisper_enabled and whisper_enabled.lower() in ("true", "1", "yes"):
             wm = get_whisper_manager()
@@ -365,7 +366,7 @@ def health_detailed():
 
     # Arr Connectivity (Sonarr + Radarr instances)
     try:
-        from config import get_sonarr_instances, get_radarr_instances
+        from config import get_radarr_instances, get_sonarr_instances
 
         sonarr_checks = []
         for inst in get_sonarr_instances():
@@ -489,8 +490,8 @@ def get_stats():
                   quality_warnings:
                     type: integer
     """
-    from db.jobs import get_stats_summary, get_pending_job_count
-    from routes.translate import batch_state, batch_lock, stats_lock, _memory_stats
+    from db.jobs import get_pending_job_count, get_stats_summary
+    from routes.translate import _memory_stats, batch_lock, batch_state, stats_lock
 
     db_stats = get_stats_summary()
 
@@ -544,9 +545,9 @@ def database_health():
         503:
           description: Database integrity check failed
     """
+    from config import get_settings
     from database_health import check_integrity, get_database_stats
     from db import get_db
-    from config import get_settings
 
     db = get_db()
     is_ok, message = check_integrity(db)
@@ -596,8 +597,8 @@ def create_backup():
                   label:
                     type: string
     """
-    from database_backup import DatabaseBackup
     from config import get_settings
+    from database_backup import DatabaseBackup
 
     s = get_settings()
     backup = DatabaseBackup(
@@ -648,8 +649,8 @@ def list_backups():
                         created_at:
                           type: string
     """
-    from database_backup import DatabaseBackup
     from config import get_settings
+    from database_backup import DatabaseBackup
 
     s = get_settings()
     backup = DatabaseBackup(db_path=s.db_path, backup_dir=s.backup_dir)
@@ -696,9 +697,9 @@ def restore_backup():
         400:
           description: Missing filename or confirmation
     """
-    from database_backup import DatabaseBackup
-    from db import get_db, close_db
     from config import get_settings
+    from database_backup import DatabaseBackup
+    from db import close_db, get_db
 
     data = request.get_json() or {}
     filename = data.get("filename", "")
@@ -763,8 +764,8 @@ def create_full_backup():
                     items:
                       type: string
     """
-    from database_backup import DatabaseBackup
     from config import get_settings
+    from database_backup import DatabaseBackup
 
     s = get_settings()
     backup = DatabaseBackup(
@@ -784,7 +785,7 @@ def create_full_backup():
 
     # Step 3: Create ZIP in memory
     buffer = io.BytesIO()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     timestamp = now.strftime("%Y%m%d_%H%M%S")
 
     db_backend = db_result.get("backend", "sqlite")
@@ -908,10 +909,10 @@ def restore_full_backup():
         400:
           description: Invalid or missing file
     """
-    from database_backup import DatabaseBackup
-    from db import get_db, close_db
-    from db.config import save_config_entry, get_all_config_entries
     from config import Settings, get_settings, reload_settings
+    from database_backup import DatabaseBackup
+    from db import close_db, get_db
+    from db.config import get_all_config_entries, save_config_entry
 
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded. Use multipart/form-data with key 'file'"}), 400
@@ -974,10 +975,8 @@ def restore_full_backup():
                     get_db()
                     db_restored = True
                 finally:
-                    try:
+                    with contextlib.suppress(OSError):
                         os.unlink(tmp_path)
-                    except OSError:
-                        pass
 
             # Reload settings with DB overrides
             all_overrides = get_all_config_entries()
@@ -985,10 +984,10 @@ def restore_full_backup():
 
             # Invalidate caches
             try:
-                from sonarr_client import invalidate_client as _inv_sonarr
-                from radarr_client import invalidate_client as _inv_radarr
                 from mediaserver import invalidate_media_server_manager as _inv_media
                 from providers import invalidate_manager as _inv_providers
+                from radarr_client import invalidate_client as _inv_radarr
+                from sonarr_client import invalidate_client as _inv_sonarr
                 _inv_sonarr()
                 _inv_radarr()
                 _inv_media()
@@ -1062,7 +1061,7 @@ def list_full_backups():
             ts_part = name[len("sublarr_full_"):].replace(".zip", "")
             try:
                 dt = datetime.strptime(ts_part, "%Y%m%d_%H%M%S")
-                created_at = dt.replace(tzinfo=timezone.utc).isoformat()
+                created_at = dt.replace(tzinfo=UTC).isoformat()
             except ValueError:
                 created_at = ""
         backups.append({
@@ -1130,7 +1129,7 @@ def get_statistics():
                   range:
                     type: string
     """
-    from db import get_db, _db_lock
+    from db import _db_lock, get_db
     from db.providers import get_provider_stats
 
     range_param = request.args.get("range", "30d")
@@ -1240,7 +1239,7 @@ def export_statistics():
                 type: string
                 format: binary
     """
-    from db import get_db, _db_lock
+    from db import _db_lock, get_db
     from db.providers import get_provider_stats
 
     range_param = request.args.get("range", "30d")
@@ -1265,7 +1264,7 @@ def export_statistics():
             "skipped": d["skipped"],
         })
 
-    today = datetime.now(timezone.utc).strftime("%Y%m%d")
+    today = datetime.now(UTC).strftime("%Y%m%d")
 
     if export_format == "csv":
         output = io.StringIO()
@@ -1300,7 +1299,7 @@ def export_statistics():
             "providers": providers,
             "downloads_by_provider": downloads_by_provider,
             "range": range_param,
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
         }
 
         json_bytes = json.dumps(stats_data, indent=2).encode("utf-8")
@@ -1492,9 +1491,9 @@ def vacuum_database():
                   size_after:
                     type: integer
     """
+    from config import get_settings
     from database_health import vacuum
     from db import get_db
-    from config import get_settings
 
     db = get_db()
     result = vacuum(db, get_settings().db_path)
@@ -1554,7 +1553,7 @@ def get_logs():
     log_entries = []
     if os.path.exists(log_file):
         try:
-            with open(log_file, "r", encoding="utf-8", errors="replace") as f:
+            with open(log_file, encoding="utf-8", errors="replace") as f:
                 recent = list(collections.deque(f, maxlen=lines))
                 for line in recent:
                     if level and f"[{level}]" not in line:

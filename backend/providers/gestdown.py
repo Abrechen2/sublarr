@@ -10,19 +10,18 @@ Rate limit: Conservative 30 req/60s
 License: GPL-3.0
 """
 
+import logging
 import os
 import time
-import logging
-from typing import Optional
 
+from providers import register_provider
 from providers.base import (
+    ProviderRateLimitError,
+    SubtitleFormat,
     SubtitleProvider,
     SubtitleResult,
-    SubtitleFormat,
     VideoQuery,
-    ProviderRateLimitError,
 )
-from providers import register_provider
 from providers.http_session import create_session
 
 logger = logging.getLogger(__name__)
@@ -62,7 +61,7 @@ class GestdownProvider(SubtitleProvider):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.session = None
-        self._language_cache: Optional[dict[str, int]] = None
+        self._language_cache: dict[str, int] | None = None
 
     def initialize(self):
         logger.debug("Gestdown: initializing (no API key required)")
@@ -154,7 +153,7 @@ class GestdownProvider(SubtitleProvider):
         self._language_cache = fallback
         return fallback
 
-    def _find_show(self, query: VideoQuery) -> Optional[dict]:
+    def _find_show(self, query: VideoQuery) -> dict | None:
         """Look up a show by TVDB ID or name search.
 
         Returns the show dict with at least an 'id' (UUID) field, or None.

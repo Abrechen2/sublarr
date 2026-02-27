@@ -8,15 +8,14 @@ for avg_response_time_ms exactly as in the original module.
 """
 
 import logging
-from typing import Optional
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 
 from db.models.translation import (
-    TranslationConfigHistory,
     GlossaryEntry,
     PromptPreset,
     TranslationBackendStats,
+    TranslationConfigHistory,
 )
 from db.repositories.base import BaseRepository
 
@@ -62,7 +61,7 @@ class TranslationRepository(BaseRepository):
 
     # ---- Glossary Operations -------------------------------------------------
 
-    def add_glossary_entry(self, series_id: Optional[int], source_term: str,
+    def add_glossary_entry(self, series_id: int | None, source_term: str,
                            target_term: str, notes: str = "") -> int:
         """Add a new glossary entry. Returns the entry ID.
 
@@ -159,7 +158,7 @@ class TranslationRepository(BaseRepository):
         merged = {**global_dict, **series_dict}
         return list(merged.values())[:30]
 
-    def get_glossary_entry(self, entry_id: int) -> Optional[dict]:
+    def get_glossary_entry(self, entry_id: int) -> dict | None:
         """Get a single glossary entry by ID."""
         entry = self.session.get(GlossaryEntry, entry_id)
         return self._to_dict(entry)
@@ -207,7 +206,7 @@ class TranslationRepository(BaseRepository):
         self._commit()
         return result.rowcount
 
-    def search_glossary_terms(self, series_id: Optional[int], query: str) -> list[dict]:
+    def search_glossary_terms(self, series_id: int | None, query: str) -> list[dict]:
         """Search glossary entries by source or target term (case-insensitive).
 
         When series_id is None, searches global entries only.
@@ -263,12 +262,12 @@ class TranslationRepository(BaseRepository):
         entries = self.session.execute(stmt).scalars().all()
         return [self._to_dict(e) for e in entries]
 
-    def get_prompt_preset(self, preset_id: int) -> Optional[dict]:
+    def get_prompt_preset(self, preset_id: int) -> dict | None:
         """Get a single prompt preset by ID."""
         entry = self.session.get(PromptPreset, preset_id)
         return self._to_dict(entry)
 
-    def get_default_prompt_preset(self) -> Optional[dict]:
+    def get_default_prompt_preset(self) -> dict | None:
         """Get the default prompt preset."""
         stmt = select(PromptPreset).where(PromptPreset.is_default == 1).limit(1)
         entry = self.session.execute(stmt).scalar_one_or_none()
@@ -415,7 +414,7 @@ class TranslationRepository(BaseRepository):
         entries = self.session.execute(stmt).scalars().all()
         return [self._to_dict(e) for e in entries]
 
-    def get_backend_stat(self, backend_name: str) -> Optional[dict]:
+    def get_backend_stat(self, backend_name: str) -> dict | None:
         """Get stats for a single translation backend."""
         entry = self.session.get(TranslationBackendStats, backend_name)
         return self._to_dict(entry)
@@ -453,7 +452,7 @@ class TranslationRepository(BaseRepository):
         target_lang: str,
         source_text: str,
         similarity_threshold: float = 1.0,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Look up a translation in the memory cache.
 
         Performs an exact hash match first. When similarity_threshold < 1.0,
@@ -506,7 +505,7 @@ class TranslationRepository(BaseRepository):
         ).all()
 
         best_ratio = 0.0
-        best_translation: Optional[str] = None
+        best_translation: str | None = None
 
         for row in candidates:
             ratio = difflib.SequenceMatcher(
@@ -574,6 +573,7 @@ class TranslationRepository(BaseRepository):
             Number of rows deleted.
         """
         from sqlalchemy import delete as sa_delete
+
         from db.models.translation import TranslationMemory
 
         result = self.session.execute(sa_delete(TranslationMemory))

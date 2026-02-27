@@ -9,20 +9,20 @@ API: http://napisy24.pl/run/CheckSubAgent.php
 License: GPL-3.0
 """
 
-import io
-import os
 import hashlib
+import io
 import logging
+import os
 import zipfile
 
+from providers import register_provider
 from providers.base import (
+    ProviderError,
+    SubtitleFormat,
     SubtitleProvider,
     SubtitleResult,
-    SubtitleFormat,
     VideoQuery,
-    ProviderError,
 )
-from providers import register_provider
 from providers.http_session import create_session
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ def _compute_napisy24_hash(file_path: str) -> str | None:
             data = f.read(HASH_CHUNK_SIZE)
             md5.update(data)
         return md5.hexdigest()
-    except (OSError, IOError) as e:
+    except OSError as e:
         logger.warning("Napisy24: failed to compute hash for %s: %s", file_path, e)
         return None
 

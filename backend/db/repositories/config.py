@@ -5,7 +5,6 @@ operations. Return types match the existing functions exactly.
 """
 
 import logging
-from typing import Optional
 
 from sqlalchemy import select
 
@@ -25,7 +24,7 @@ class ConfigRepository(BaseRepository):
         self.session.merge(entry)
         self._commit()
 
-    def get_config_entry(self, key: str) -> Optional[str]:
+    def get_config_entry(self, key: str) -> str | None:
         """Get a config entry value by key.
 
         Returns:

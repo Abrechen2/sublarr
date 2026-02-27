@@ -8,21 +8,19 @@ API: https://jimaku.cc/api/docs
 """
 
 import io
-import os
-import re
-import zipfile
 import logging
-from typing import Optional
+import os
+import zipfile
 
+from providers import register_provider
 from providers.base import (
-    SubtitleProvider,
-    SubtitleResult,
-    SubtitleFormat,
-    VideoQuery,
     ProviderAuthError,
     ProviderRateLimitError,
+    SubtitleFormat,
+    SubtitleProvider,
+    SubtitleResult,
+    VideoQuery,
 )
-from providers import register_provider
 from providers.http_session import create_session
 
 logger = logging.getLogger(__name__)
@@ -229,7 +227,7 @@ class JimakuProvider(SubtitleProvider):
         if not entries:
             logger.debug("Jimaku: no entries found")
             return []
-        
+
         logger.debug("Jimaku: found %d entries", len(entries))
 
         # For each entry, get available subtitle files
@@ -295,19 +293,19 @@ class JimakuProvider(SubtitleProvider):
                 error_msg = f"Jimaku authentication failed: HTTP {resp.status_code}"
                 logger.error(error_msg)
                 raise ProviderAuthError(error_msg)
-            
+
             if resp.status_code == 429:
                 error_msg = f"Jimaku rate limit exceeded: HTTP {resp.status_code}"
                 logger.warning(error_msg)
                 raise ProviderRateLimitError(error_msg)
-            
+
             if resp.status_code == 200:
                 data = resp.json()
                 entries = data if isinstance(data, list) else [data]
                 logger.debug("Jimaku: found %d entries by AniList ID", len(entries))
                 return entries
             else:
-                logger.warning("Jimaku AniList search failed: HTTP %d, response: %s", 
+                logger.warning("Jimaku AniList search failed: HTTP %d, response: %s",
                              resp.status_code, resp.text[:200])
         except Exception as e:
             logger.warning("Jimaku AniList search failed: %s", e, exc_info=True)
@@ -325,19 +323,19 @@ class JimakuProvider(SubtitleProvider):
                 error_msg = f"Jimaku authentication failed: HTTP {resp.status_code}"
                 logger.error(error_msg)
                 raise ProviderAuthError(error_msg)
-            
+
             if resp.status_code == 429:
                 error_msg = f"Jimaku rate limit exceeded: HTTP {resp.status_code}"
                 logger.warning(error_msg)
                 raise ProviderRateLimitError(error_msg)
-            
+
             if resp.status_code == 200:
                 data = resp.json()
                 entries = data if isinstance(data, list) else [data]
                 logger.debug("Jimaku: found %d entries by name", len(entries))
                 return entries
             else:
-                logger.warning("Jimaku name search failed: HTTP %d, response: %s", 
+                logger.warning("Jimaku name search failed: HTTP %d, response: %s",
                              resp.status_code, resp.text[:200])
         except Exception as e:
             logger.warning("Jimaku name search failed: %s", e, exc_info=True)

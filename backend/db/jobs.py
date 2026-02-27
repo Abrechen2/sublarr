@@ -1,6 +1,5 @@
 """Job and daily stats database operations -- delegating to SQLAlchemy repository."""
 
-from typing import Optional
 
 from db.repositories.jobs import JobRepository
 
@@ -26,7 +25,7 @@ def update_job(job_id: str, status: str, result: dict = None, error: str = None)
     return _get_repo().update_job(job_id, status, result, error)
 
 
-def get_job(job_id: str) -> Optional[dict]:
+def get_job(job_id: str) -> dict | None:
     """Get a job by ID."""
     return _get_repo().get_job(job_id)
 

@@ -13,15 +13,15 @@ Backup rotation:
     - monthly: keep N most recent  (default 3)
 """
 
+import contextlib
+import logging
 import os
 import re
 import shutil
 import sqlite3
-import logging
 import subprocess
 import threading
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 from error_handler import DatabaseBackupError, DatabaseRestoreError
@@ -117,7 +117,7 @@ class DatabaseBackup:
 
     def _backup_sqlite(self, label: str = "daily") -> dict:
         """Create a backup using the SQLite backup API."""
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         filename = f"sublarr_{label}_{timestamp}.db"
         dest = os.path.join(self.backup_dir, filename)
 
@@ -131,10 +131,8 @@ class DatabaseBackup:
         except Exception as exc:
             # Clean up partial file
             if os.path.exists(dest):
-                try:
+                with contextlib.suppress(OSError):
                     os.remove(dest)
-                except OSError:
-                    pass
             raise DatabaseBackupError(
                 f"SQLite backup failed: {exc}",
                 context={"dest": dest},
@@ -161,7 +159,7 @@ class DatabaseBackup:
 
     def _backup_postgresql(self, label: str = "daily") -> dict:
         """Create a backup using pg_dump (custom format for compression)."""
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         filename = f"sublarr_{label}_{timestamp}.pgdump"
         dest = os.path.join(self.backup_dir, filename)
 
@@ -200,10 +198,8 @@ class DatabaseBackup:
                 )
         except subprocess.TimeoutExpired:
             if os.path.exists(dest):
-                try:
+                with contextlib.suppress(OSError):
                     os.remove(dest)
-                except OSError:
-                    pass
             raise DatabaseBackupError(
                 "pg_dump timed out after 300 seconds",
                 context={"dest": dest},
@@ -212,10 +208,8 @@ class DatabaseBackup:
             raise
         except Exception as exc:
             if os.path.exists(dest):
-                try:
+                with contextlib.suppress(OSError):
                     os.remove(dest)
-                except OSError:
-                    pass
             raise DatabaseBackupError(
                 f"PostgreSQL backup failed: {exc}",
                 context={"dest": dest},
@@ -348,10 +342,8 @@ class DatabaseBackup:
                     os.remove(wal)
         except Exception as exc:
             # Attempt rollback
-            try:
+            with contextlib.suppress(Exception):
                 shutil.copy2(safety_path, self.db_path)
-            except Exception:
-                pass
             raise DatabaseRestoreError(
                 f"Restore failed (rolled back): {exc}",
                 context={"backup_path": backup_path},
@@ -454,7 +446,7 @@ class DatabaseBackup:
 
 # ── Scheduled backup (lightweight timer loop) ────────────────────────────────
 
-_scheduler_thread: Optional[threading.Thread] = None
+_scheduler_thread: threading.Thread | None = None
 _scheduler_stop = threading.Event()
 
 
@@ -479,7 +471,7 @@ def start_backup_scheduler(
         backup = DatabaseBackup(db_path, backup_dir)
         while not _scheduler_stop.is_set():
             # Sleep until the next scheduled hour
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             target = now.replace(hour=hour, minute=0, second=0, microsecond=0)
             if target <= now:
                 from datetime import timedelta
@@ -490,7 +482,7 @@ def start_backup_scheduler(
 
             try:
                 # Determine label
-                day = datetime.now(timezone.utc)
+                day = datetime.now(UTC)
                 if day.day == 1:
                     label = "monthly"
                 elif day.weekday() == 0:  # Monday

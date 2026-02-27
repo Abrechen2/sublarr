@@ -4,55 +4,55 @@ All models use Flask-SQLAlchemy's db.Model as the base class.
 Import all models from here to ensure Alembic autogenerate detects them.
 """
 
+from db.models.cleanup import (
+    CleanupHistory,
+    CleanupRule,
+    SubtitleHash,
+)
 from db.models.core import (
-    Job,
-    DailyStats,
-    ConfigEntry,
-    WantedItem,
-    UpgradeHistory,
-    LanguageProfile,
-    SeriesLanguageProfile,
-    MovieLanguageProfile,
-    FfprobeCache,
     BlacklistEntry,
+    ConfigEntry,
+    DailyStats,
+    FfprobeCache,
     FilterPreset,
-)
-from db.models.providers import (
-    ProviderCache,
-    SubtitleDownload,
-    ProviderStats,
-    ProviderScoreModifier,
-    ScoringWeights,
-)
-from db.models.translation import (
-    TranslationConfigHistory,
-    GlossaryEntry,
-    PromptPreset,
-    TranslationBackendStats,
-    WhisperJob,
+    Job,
+    LanguageProfile,
+    MovieLanguageProfile,
+    SeriesLanguageProfile,
+    UpgradeHistory,
+    WantedItem,
 )
 from db.models.hooks import (
     HookConfig,
-    WebhookConfig,
     HookLog,
-)
-from db.models.standalone import (
-    WatchedFolder,
-    StandaloneSeries,
-    StandaloneMovie,
-    MetadataCache,
-    AnidbMapping,
-)
-from db.models.quality import SubtitleHealthResult
-from db.models.cleanup import (
-    SubtitleHash,
-    CleanupRule,
-    CleanupHistory,
+    WebhookConfig,
 )
 from db.models.notifications import (
-    NotificationTemplate,
     NotificationHistory,
+    NotificationTemplate,
     QuietHoursConfig,
+)
+from db.models.providers import (
+    ProviderCache,
+    ProviderScoreModifier,
+    ProviderStats,
+    ScoringWeights,
+    SubtitleDownload,
+)
+from db.models.quality import SubtitleHealthResult
+from db.models.standalone import (
+    AnidbMapping,
+    MetadataCache,
+    StandaloneMovie,
+    StandaloneSeries,
+    WatchedFolder,
+)
+from db.models.translation import (
+    GlossaryEntry,
+    PromptPreset,
+    TranslationBackendStats,
+    TranslationConfigHistory,
+    WhisperJob,
 )
 
 __all__ = [

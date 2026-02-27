@@ -5,12 +5,12 @@ the active backend instance with lazy creation, delegates transcription
 calls with circuit breaker protection, and tracks progress.
 """
 
-import time
 import logging
-from typing import Optional, Callable
+import time
+from collections.abc import Callable
 
-from whisper.base import WhisperBackend, TranscriptionResult
 from circuit_breaker import CircuitBreaker
+from whisper.base import TranscriptionResult, WhisperBackend
 
 logger = logging.getLogger(__name__)
 
@@ -26,16 +26,16 @@ class WhisperManager:
 
     def __init__(self):
         self._backend_classes: dict[str, type[WhisperBackend]] = {}
-        self._backend: Optional[WhisperBackend] = None
-        self._backend_name: Optional[str] = None
-        self._circuit_breaker: Optional[CircuitBreaker] = None
+        self._backend: WhisperBackend | None = None
+        self._backend_name: str | None = None
+        self._circuit_breaker: CircuitBreaker | None = None
 
     def register_backend(self, cls: type[WhisperBackend]) -> None:
         """Register a backend class by its name attribute."""
         self._backend_classes[cls.name] = cls
         logger.debug("Registered whisper backend: %s", cls.name)
 
-    def get_backend(self, name: str) -> Optional[WhisperBackend]:
+    def get_backend(self, name: str) -> WhisperBackend | None:
         """Get or create a backend instance by name (lazy creation).
 
         Config is loaded from config_entries DB table using
@@ -61,7 +61,7 @@ class WhisperManager:
             logger.error("Failed to create whisper backend %s: %s", name, e)
             return None
 
-    def get_active_backend(self) -> Optional[WhisperBackend]:
+    def get_active_backend(self) -> WhisperBackend | None:
         """Get the currently configured active backend.
 
         Reads whisper_backend config entry to determine which backend to use.
@@ -99,7 +99,7 @@ class WhisperManager:
         self,
         audio_path: str,
         language: str = "",
-        progress_callback: Optional[Callable[[float], None]] = None,
+        progress_callback: Callable[[float], None] | None = None,
     ) -> TranscriptionResult:
         """Transcribe audio using the active backend with circuit breaker.
 
@@ -213,7 +213,7 @@ class WhisperManager:
 
 # --- Singleton ---
 
-_manager: Optional[WhisperManager] = None
+_manager: WhisperManager | None = None
 
 
 def get_whisper_manager() -> WhisperManager:

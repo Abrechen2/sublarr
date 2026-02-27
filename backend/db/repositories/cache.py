@@ -8,11 +8,10 @@ anidb_mappings operations. Return types match the existing functions exactly.
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import Optional
 
-from sqlalchemy import select, func, delete
+from sqlalchemy import delete, func, select
 
-from db.models.core import FfprobeCache, Job, BlacklistEntry
+from db.models.core import FfprobeCache, Job
 from db.models.providers import SubtitleDownload
 from db.models.standalone import AnidbMapping
 from db.repositories.base import BaseRepository
@@ -53,7 +52,7 @@ class CacheRepository(BaseRepository):
 
     # ---- FFprobe Cache -------------------------------------------------------
 
-    def get_ffprobe_cache(self, file_path: str, mtime: float) -> Optional[dict]:
+    def get_ffprobe_cache(self, file_path: str, mtime: float) -> dict | None:
         """Get cached ffprobe data if file hasn't changed (mtime matches)."""
         entry = self.session.execute(
             select(FfprobeCache.probe_data_json).where(
@@ -158,7 +157,7 @@ class CacheRepository(BaseRepository):
 
     # ---- AniDB Mapping Operations ---------------------------------------------
 
-    def get_anidb_mapping(self, tvdb_id: int) -> Optional[int]:
+    def get_anidb_mapping(self, tvdb_id: int) -> int | None:
         """Get cached AniDB ID for a TVDB ID.
 
         Returns:

@@ -6,12 +6,11 @@ Bad plugins (syntax errors, missing dependencies, etc.) are caught and
 logged -- they never crash the application.
 """
 
-import os
-import sys
+import importlib.util
 import inspect
 import logging
-import importlib.util
-from typing import Optional
+import os
+import sys
 
 from providers.base import SubtitleProvider
 from providers.plugins.manifest import validate_plugin

@@ -6,7 +6,9 @@ The LIKE-based search_all() queries are compatible with both.
 """
 
 import logging
+
 from sqlalchemy import text
+
 from db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)

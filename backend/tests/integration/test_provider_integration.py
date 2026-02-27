@@ -1,10 +1,12 @@
 """Integration tests for provider system."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 from tests.fixtures.provider_responses import (
-    OPENSEARCH_RESPONSE,
     OPENSEARCH_EMPTY_RESPONSE,
+    OPENSEARCH_RESPONSE,
     PROVIDER_ERROR_RESPONSE,
 )
 
@@ -69,7 +71,7 @@ class TestProviderDownload:
     def test_provider_download_success(self, mock_download, client):
         """Test successful subtitle download."""
         mock_download.return_value = b"Subtitle content"
-        
+
         # Test download (mock)
         result = mock_download("12345")
         assert result == b"Subtitle content"
@@ -78,7 +80,7 @@ class TestProviderDownload:
     def test_provider_download_error(self, mock_download, client):
         """Test subtitle download with error."""
         mock_download.side_effect = Exception("Download failed")
-        
+
         with pytest.raises(Exception):
             mock_download("12345")
 
@@ -89,7 +91,7 @@ class TestProviderManager:
     def test_provider_manager_initialization(self, client):
         """Test that provider manager can be initialized."""
         from providers import get_provider_manager
-        
+
         manager = get_provider_manager()
         assert manager is not None
 

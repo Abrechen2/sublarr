@@ -7,19 +7,19 @@ API docs: https://opensubtitles.stoplight.io/docs/opensubtitles-api/
 License: GPL-3.0
 """
 
-import os
+import contextlib
 import logging
-from typing import Optional
+import os
 
+from providers import register_provider
 from providers.base import (
-    SubtitleProvider,
-    SubtitleResult,
-    SubtitleFormat,
-    VideoQuery,
     ProviderAuthError,
     ProviderRateLimitError,
+    SubtitleFormat,
+    SubtitleProvider,
+    SubtitleResult,
+    VideoQuery,
 )
-from providers import register_provider
 from providers.http_session import create_session
 
 logger = logging.getLogger(__name__)
@@ -105,7 +105,7 @@ class OpenSubtitlesProvider(SubtitleProvider):
         self.username = username
         self.password = password
         self.session = None
-        self._token: Optional[str] = None
+        self._token: str | None = None
 
     def initialize(self):
         if not self.api_key:
@@ -153,10 +153,8 @@ class OpenSubtitlesProvider(SubtitleProvider):
         if self.session:
             # Logout if we have a token
             if self._token:
-                try:
+                with contextlib.suppress(Exception):
                     self.session.delete(f"{API_BASE}/logout")
-                except Exception:
-                    pass
             self.session.close()
             self.session = None
 
@@ -177,11 +175,11 @@ class OpenSubtitlesProvider(SubtitleProvider):
 
     def search(self, query: VideoQuery) -> list[SubtitleResult]:
         if not self.session or not self.api_key:
-            logger.warning("OpenSubtitles: cannot search - session=%s, api_key=%s", 
+            logger.warning("OpenSubtitles: cannot search - session=%s, api_key=%s",
                           self.session is not None, bool(self.api_key))
             return []
 
-        logger.debug("OpenSubtitles: searching for %s (languages: %s)", 
+        logger.debug("OpenSubtitles: searching for %s (languages: %s)",
                     query.display_name, query.languages)
         results = []
 
@@ -223,19 +221,19 @@ class OpenSubtitlesProvider(SubtitleProvider):
         try:
             resp = self.session.get(f"{API_BASE}/subtitles", params=params)
             logger.debug("OpenSubtitles: API response status: %d", resp.status_code)
-            
+
             if resp.status_code == 401 or resp.status_code == 403:
                 error_msg = f"OpenSubtitles authentication failed: HTTP {resp.status_code}"
                 logger.error(error_msg)
                 raise ProviderAuthError(error_msg)
-            
+
             if resp.status_code == 429:
                 error_msg = f"OpenSubtitles rate limit exceeded: HTTP {resp.status_code}"
                 logger.warning(error_msg)
                 raise ProviderRateLimitError(error_msg)
-            
+
             if resp.status_code != 200:
-                logger.warning("OpenSubtitles search failed: HTTP %d, response: %s", 
+                logger.warning("OpenSubtitles search failed: HTTP %d, response: %s",
                               resp.status_code, resp.text[:200])
                 return []
 

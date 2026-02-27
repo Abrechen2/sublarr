@@ -1,6 +1,5 @@
 """Whisper job database operations -- delegating to SQLAlchemy repository."""
 
-from typing import Optional
 
 from db.repositories.whisper import WhisperRepository
 
@@ -24,7 +23,7 @@ def update_whisper_job(job_id: str, **kwargs) -> None:
     return _get_repo().update_whisper_job(job_id, **kwargs)
 
 
-def get_whisper_job(job_id: str) -> Optional[dict]:
+def get_whisper_job(job_id: str) -> dict | None:
     """Get a whisper job by ID."""
     return _get_repo().get_whisper_job(job_id)
 

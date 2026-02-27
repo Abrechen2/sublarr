@@ -1,11 +1,14 @@
 """Tests for database.py -- SQLite persistence."""
 
+import contextlib
 import os
 import tempfile
+
 import pytest
+
 from config import reload_settings
-from db import get_db, close_db, init_db
-from db.jobs import create_job, update_job, get_job, record_stat, get_stats_summary
+from db import close_db, get_db, init_db
+from db.jobs import create_job, get_job, get_stats_summary, record_stat, update_job
 
 
 @pytest.fixture
@@ -33,10 +36,8 @@ def temp_db():
     ctx.pop()
     close_db()
     if os.path.exists(db_path):
-        try:
+        with contextlib.suppress(PermissionError):
             os.unlink(db_path)
-        except PermissionError:
-            pass
     for key in ("SUBLARR_DB_PATH", "SUBLARR_API_KEY", "SUBLARR_LOG_LEVEL"):
         os.environ.pop(key, None)
     reload_settings()

@@ -8,7 +8,6 @@ Thread-safe via threading.Lock.
 import logging
 import threading
 import time
-from typing import Optional
 
 from cache import CacheBackend
 
@@ -66,7 +65,7 @@ class MemoryCacheBackend(CacheBackend):
         if expired_keys:
             logger.debug("Evicted %d expired cache entries", len(expired_keys))
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         """Get cached value by key, returning None if expired or missing."""
         self._maybe_evict()
         with self._lock:

@@ -13,5 +13,5 @@ try:
     if os.path.isfile(_VERSION_FILE):
         with open(_VERSION_FILE, encoding="utf-8") as f:
             __version__ = f.read().strip() or __version__
-except (OSError, IOError):
+except OSError:
     pass

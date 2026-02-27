@@ -1,16 +1,15 @@
 """Video player routes — HLS streaming, screenshots, subtitle conversion."""
 
-import os
 import logging
+import os
 
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, jsonify, request, send_file
 
 from config import get_settings
 from services.video_player import (
+    convert_subtitle_to_webvtt,
     generate_hls_playlist,
     generate_screenshot,
-    convert_subtitle_to_webvtt,
-    embed_subtitle_in_video,
 )
 
 bp = Blueprint("video", __name__, url_prefix="/api/v1")
@@ -97,7 +96,7 @@ def get_video_stream():
     except RuntimeError as e:
         logger.error("HLS generation failed: %s", e)
         return jsonify({"error": str(e)}), 500
-    except Exception as e:
+    except Exception:
         logger.exception("Unexpected error generating HLS stream")
         return jsonify({"error": "Internal server error"}), 500
 
@@ -150,7 +149,7 @@ def get_video_segment():
         if os.path.exists(segment_path):
             return send_file(segment_path, mimetype="video/mp2t")
         return jsonify({"error": "Segment not found"}), 404
-    except Exception as e:
+    except Exception:
         logger.exception("Error serving segment")
         return jsonify({"error": "Internal server error"}), 500
 
@@ -231,7 +230,7 @@ def create_screenshot():
     except RuntimeError as e:
         logger.error("Screenshot generation failed: %s", e)
         return jsonify({"error": str(e)}), 500
-    except Exception as e:
+    except Exception:
         logger.exception("Unexpected error generating screenshot")
         return jsonify({"error": "Internal server error"}), 500
 
@@ -306,6 +305,6 @@ def get_subtitle_webvtt():
     except RuntimeError as e:
         logger.error("Subtitle conversion failed: %s", e)
         return jsonify({"error": str(e)}), 500
-    except Exception as e:
+    except Exception:
         logger.exception("Unexpected error converting subtitle")
         return jsonify({"error": "Internal server error"}), 500

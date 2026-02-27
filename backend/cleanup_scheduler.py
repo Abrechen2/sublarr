@@ -5,8 +5,10 @@ Reads cleanup_schedule_interval_hours from config_entries (default: 168 = weekly
 Runs enabled cleanup rules in order: dedup scan then rule execution.
 """
 
+import contextlib
 import logging
 import threading
+from datetime import UTC
 
 logger = logging.getLogger(__name__)
 
@@ -122,10 +124,11 @@ class CleanupScheduler:
         Handles threads that die mid-job without updating the DB (distinct from
         startup cleanup which only catches jobs interrupted by a restart).
         """
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
+
         from db.jobs import get_jobs, update_job
 
-        cutoff = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+        cutoff = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
         try:
             page = get_jobs(status="running", per_page=500)
             expired = 0
@@ -143,8 +146,8 @@ class CleanupScheduler:
 
     def _execute_cleanup(self):
         """Run all enabled cleanup rules in order."""
-        from db.repositories.cleanup import CleanupRepository
         from config import get_settings
+        from db.repositories.cleanup import CleanupRepository
         from dedup_engine import scan_for_duplicates, scan_orphaned_subtitles
 
         # Always run zombie-job expiry regardless of user-configured cleanup rules
@@ -200,10 +203,8 @@ class CleanupScheduler:
                     for root, _dirs, files in os.walk(media_path):
                         for filename in files:
                             if ".bak" in filename:
-                                try:
+                                with contextlib.suppress(OSError):
                                     bak_size += os.path.getsize(os.path.join(root, filename))
-                                except OSError:
-                                    pass
                                 bak_count += 1
 
                     repo.update_rule_last_run(rule_id)

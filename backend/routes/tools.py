@@ -1,13 +1,14 @@
 """Subtitle processing tools -- /tools/remove-hi, /tools/adjust-timing, /tools/common-fixes, /tools/preview, /tools/content, /tools/backup, /tools/validate, /tools/parse, /tools/health-check, /tools/health-fix, /tools/advanced-sync, /tools/compare, /tools/quality-trends."""
 
+import contextlib
+import logging
 import os
 import re
 import shutil
-import logging
 import subprocess
 import tempfile
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 
 bp = Blueprint("tools", __name__, url_prefix="/api/v1/tools")
 logger = logging.getLogger(__name__)
@@ -112,7 +113,7 @@ def remove_hi():
         500:
           description: Processing error
     """
-    from hi_remover import remove_hi_markers, remove_hi_from_srt
+    from hi_remover import remove_hi_from_srt, remove_hi_markers
 
     data = request.get_json() or {}
     file_path = data.get("file_path", "")
@@ -124,7 +125,7 @@ def remove_hi():
     abs_path = result
 
     try:
-        with open(abs_path, "r", encoding="utf-8") as f:
+        with open(abs_path, encoding="utf-8") as f:
             content = f.read()
 
         original_lines = len(content.splitlines())
@@ -255,7 +256,7 @@ def adjust_timing():
     abs_path = result
 
     try:
-        with open(abs_path, "r", encoding="utf-8") as f:
+        with open(abs_path, encoding="utf-8") as f:
             content = f.read()
 
         ext = os.path.splitext(abs_path)[1].lower()
@@ -397,10 +398,10 @@ def common_fixes():
                 encoding = detected.get("encoding", "utf-8") or "utf-8"
                 content = raw.decode(encoding, errors="replace")
             except ImportError:
-                with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
+                with open(abs_path, encoding="utf-8", errors="replace") as f:
                     content = f.read()
         else:
-            with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
+            with open(abs_path, encoding="utf-8", errors="replace") as f:
                 content = f.read()
 
         lines_before = len(content.splitlines())
@@ -544,7 +545,7 @@ def preview_file():
         except ImportError:
             pass
 
-        with open(abs_path, "r", encoding=detected_encoding, errors="replace") as f:
+        with open(abs_path, encoding=detected_encoding, errors="replace") as f:
             all_lines = f.readlines()
 
         total_lines = len(all_lines)
@@ -635,7 +636,7 @@ def get_file_content():
         except ImportError:
             pass
 
-        with open(abs_path, "r", encoding=detected_encoding, errors="replace") as f:
+        with open(abs_path, encoding=detected_encoding, errors="replace") as f:
             content = f.read()
 
         ext = os.path.splitext(abs_path)[1].lower()
@@ -825,7 +826,7 @@ def get_backup_content():
         except ImportError:
             pass
 
-        with open(bak_path, "r", encoding=detected_encoding, errors="replace") as f:
+        with open(bak_path, encoding=detected_encoding, errors="replace") as f:
             content = f.read()
 
         return jsonify({
@@ -1071,7 +1072,7 @@ def parse_cues():
         if os.path.exists(quality_sidecar_path):
             try:
                 import json as _json
-                with open(quality_sidecar_path, "r", encoding="utf-8") as _qf:
+                with open(quality_sidecar_path, encoding="utf-8") as _qf:
                     quality_scores = _json.load(_qf)
             except Exception as _qe:
                 logger.debug("Failed to load quality sidecar %s: %s", quality_sidecar_path, _qe)
@@ -1151,8 +1152,9 @@ def health_check():
           description: Processing error
     """
     import json as json_mod
-    from health_checker import run_health_checks
+
     from db.quality import save_health_result
+    from health_checker import run_health_checks
 
     data = request.get_json() or {}
     file_path = data.get("file_path", "")
@@ -1313,8 +1315,9 @@ def health_fix():
           description: Processing error
     """
     import json as json_mod
-    from health_checker import apply_fixes, run_health_checks, FIXABLE_CHECKS
+
     from db.quality import save_health_result
+    from health_checker import FIXABLE_CHECKS, apply_fixes, run_health_checks
 
     data = request.get_json() or {}
     file_path = data.get("file_path", "")
@@ -1657,7 +1660,7 @@ def compare_files():
             except ImportError:
                 pass
 
-            with open(abs_path, "r", encoding=detected_encoding, errors="replace") as f:
+            with open(abs_path, encoding=detected_encoding, errors="replace") as f:
                 content = f.read()
 
             ext = os.path.splitext(abs_path)[1].lower()
@@ -2036,6 +2039,7 @@ def convert_format():
           description: Conversion failed
     """
     import pysubs2
+
     from config import map_path
 
     data = request.get_json(force=True, silent=True) or {}
@@ -2057,7 +2061,7 @@ def convert_format():
         if not os.path.exists(video_path):
             return jsonify({"error": f"Video not found: {video_path}"}), 404
 
-        from ass_utils import get_media_streams, extract_subtitle_stream
+        from ass_utils import extract_subtitle_stream, get_media_streams
         probe = get_media_streams(video_path)
         stream = next(
             (s for s in probe.get("streams", []) if s.get("index") == track_index),
@@ -2091,10 +2095,8 @@ def convert_format():
         return jsonify({"error": f"Conversion failed: {e}"}), 500
     finally:
         if cleanup_source:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(source_path)
-            except OSError:
-                pass
 
     logger.info("Converted %s -> %s (%s)", source_path, output_path, target_format)
     return jsonify({"output_path": output_path, "format": target_format})
@@ -2144,7 +2146,7 @@ def waveform_extract():
     if not video_path:
         return jsonify({"error": "video_path is required"}), 400
 
-    from config import map_path, get_settings
+    from config import get_settings, map_path
     video_path = map_path(video_path)
 
     # Security: ensure video_path is under media_path

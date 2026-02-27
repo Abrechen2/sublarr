@@ -1,9 +1,11 @@
 """Provider routes — /providers, /providers/test, /providers/search, /providers/stats, /providers/cache/clear."""
 
+import contextlib
 import logging
-from flask import Blueprint, request, jsonify
 
-from cache_response import cached_get, invalidate_response_cache
+from flask import Blueprint, jsonify, request
+
+from cache_response import cached_get
 
 bp = Blueprint("providers", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -121,7 +123,7 @@ def test_provider(provider_name):
     """
     try:
         from providers import get_provider_manager
-        from providers.base import VideoQuery, ProviderAuthError, ProviderRateLimitError
+        from providers.base import ProviderAuthError, ProviderRateLimitError, VideoQuery
 
         manager = get_provider_manager()
         provider = manager._providers.get(provider_name)
@@ -278,9 +280,9 @@ def search_providers():
                   total:
                     type: integer
     """
-    from providers import get_provider_manager
-    from providers.base import VideoQuery, SubtitleFormat
     from config import get_settings
+    from providers import get_provider_manager
+    from providers.base import SubtitleFormat, VideoQuery
 
     data = request.get_json() or {}
 
@@ -298,10 +300,8 @@ def search_providers():
 
     format_filter = None
     if data.get("format"):
-        try:
+        with contextlib.suppress(ValueError):
             format_filter = SubtitleFormat(data["format"])
-        except ValueError:
-            pass
 
     try:
         manager = get_provider_manager()
@@ -358,8 +358,9 @@ def provider_stats():
                     additionalProperties: true
     """
     from db.providers import (
-        get_provider_cache_stats, get_provider_download_stats,
         get_all_provider_stats_enriched,
+        get_provider_cache_stats,
+        get_provider_download_stats,
     )
 
     cache_stats = get_provider_cache_stats()

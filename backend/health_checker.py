@@ -5,10 +5,10 @@ a quality scoring system (0-100), and 6 auto-fix functions for
 common problems. Uses pysubs2 for subtitle parsing.
 """
 
+import logging
 import os
 import shutil
-import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -356,7 +356,7 @@ def run_health_checks(file_path: str) -> dict:
             "checks_run": 0,
             "issues": [],
             "score": 0,
-            "checked_at": datetime.now(timezone.utc).isoformat(),
+            "checked_at": datetime.now(UTC).isoformat(),
         }
 
     # Parse subtitle
@@ -376,7 +376,7 @@ def run_health_checks(file_path: str) -> dict:
                 "fix": None,
             }],
             "score": 0,
-            "checked_at": datetime.now(timezone.utc).isoformat(),
+            "checked_at": datetime.now(UTC).isoformat(),
         }
 
     # Run encoding check (needs raw_bytes)
@@ -400,7 +400,7 @@ def run_health_checks(file_path: str) -> dict:
         "checks_run": checks_run,
         "issues": all_issues,
         "score": score,
-        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "checked_at": datetime.now(UTC).isoformat(),
     }
 
 

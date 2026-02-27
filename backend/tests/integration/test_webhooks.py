@@ -1,8 +1,10 @@
 """Integration tests for webhook endpoints."""
 
-import pytest
 import json
-from tests.fixtures.test_data import SONARR_WEBHOOK_PAYLOAD, RADARR_WEBHOOK_PAYLOAD
+
+import pytest
+
+from tests.fixtures.test_data import RADARR_WEBHOOK_PAYLOAD, SONARR_WEBHOOK_PAYLOAD
 
 
 class TestSonarrWebhooks:

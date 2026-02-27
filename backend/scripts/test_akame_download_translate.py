@@ -74,7 +74,7 @@ def main():
     else:
         wanted_data = r.json()
         items = wanted_data.get("data") or wanted_data.get("items") or []
-    total = len(items)
+    len(items)
 
     if items:
         # Ein Wanted-Item verarbeiten (kompletter Pipeline: Suche → Download → Übersetzung)

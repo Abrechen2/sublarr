@@ -1,8 +1,9 @@
 """Tests for ass_utils.py — subtitle utilities."""
 
-import pytest
-from ass_utils import classify_styles, extract_tags, restore_tags, fix_line_breaks
 import pysubs2
+import pytest
+
+from ass_utils import classify_styles, extract_tags, fix_line_breaks, restore_tags
 
 
 def test_classify_styles():
@@ -10,11 +11,11 @@ def test_classify_styles():
     subs = pysubs2.SSAFile()
     subs.styles["Default"] = pysubs2.SSAStyle()
     subs.styles["Sign"] = pysubs2.SSAStyle()
-    
+
     event1 = pysubs2.SSAEvent(text="Hello", style="Default")
     event2 = pysubs2.SSAEvent(text="Sign text", style="Sign")
     subs.events = [event1, event2]
-    
+
     dialog, signs = classify_styles(subs)
     assert "Default" in dialog
     assert "Sign" in signs

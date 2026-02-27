@@ -4,9 +4,8 @@ All column types and defaults match the existing SCHEMA DDL in db/__init__.py ex
 Timestamp columns use Text (not DateTime) to preserve backward compatibility.
 """
 
-from typing import Optional
 
-from sqlalchemy import Index, Integer, Float, Text, String, UniqueConstraint
+from sqlalchemy import Float, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from extensions import db
@@ -20,15 +19,15 @@ class Job(db.Model):
     id: Mapped[str] = mapped_column(String(8), primary_key=True)
     file_path: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="queued")
-    source_format: Mapped[Optional[str]] = mapped_column(String(10), default="")
-    output_path: Mapped[Optional[str]] = mapped_column(Text, default="")
-    stats_json: Mapped[Optional[str]] = mapped_column(Text, default="{}")
-    error: Mapped[Optional[str]] = mapped_column(Text, default="")
-    force: Mapped[Optional[int]] = mapped_column(Integer, default=0)
-    bazarr_context_json: Mapped[Optional[str]] = mapped_column(Text, default="")
-    config_hash: Mapped[Optional[str]] = mapped_column(String(12), default="")
+    source_format: Mapped[str | None] = mapped_column(String(10), default="")
+    output_path: Mapped[str | None] = mapped_column(Text, default="")
+    stats_json: Mapped[str | None] = mapped_column(Text, default="{}")
+    error: Mapped[str | None] = mapped_column(Text, default="")
+    force: Mapped[int | None] = mapped_column(Integer, default=0)
+    bazarr_context_json: Mapped[str | None] = mapped_column(Text, default="")
+    config_hash: Mapped[str | None] = mapped_column(String(12), default="")
     created_at: Mapped[str] = mapped_column(Text, nullable=False)
-    completed_at: Mapped[Optional[str]] = mapped_column(Text, default="")
+    completed_at: Mapped[str | None] = mapped_column(Text, default="")
 
     __table_args__ = (
         Index("idx_jobs_status", "status"),
@@ -42,13 +41,13 @@ class DailyStats(db.Model):
     __tablename__ = "daily_stats"
 
     date: Mapped[str] = mapped_column(Text, primary_key=True)
-    translated: Mapped[Optional[int]] = mapped_column(Integer, default=0)
-    failed: Mapped[Optional[int]] = mapped_column(Integer, default=0)
-    skipped: Mapped[Optional[int]] = mapped_column(Integer, default=0)
-    by_format_json: Mapped[Optional[str]] = mapped_column(
+    translated: Mapped[int | None] = mapped_column(Integer, default=0)
+    failed: Mapped[int | None] = mapped_column(Integer, default=0)
+    skipped: Mapped[int | None] = mapped_column(Integer, default=0)
+    by_format_json: Mapped[str | None] = mapped_column(
         Text, default='{"ass": 0, "srt": 0}'
     )
-    by_source_json: Mapped[Optional[str]] = mapped_column(Text, default="{}")
+    by_source_json: Mapped[str | None] = mapped_column(Text, default="{}")
 
 
 class ConfigEntry(db.Model):
@@ -68,28 +67,28 @@ class WantedItem(db.Model):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     item_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    sonarr_series_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    sonarr_episode_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    radarr_movie_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    sonarr_series_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sonarr_episode_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    radarr_movie_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     title: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    season_episode: Mapped[Optional[str]] = mapped_column(Text, default="")
+    season_episode: Mapped[str | None] = mapped_column(Text, default="")
     file_path: Mapped[str] = mapped_column(Text, nullable=False)
-    existing_sub: Mapped[Optional[str]] = mapped_column(Text, default="")
-    missing_languages: Mapped[Optional[str]] = mapped_column(Text, default="[]")
+    existing_sub: Mapped[str | None] = mapped_column(Text, default="")
+    missing_languages: Mapped[str | None] = mapped_column(Text, default="[]")
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="wanted")
-    last_search_at: Mapped[Optional[str]] = mapped_column(Text, default="")
-    search_count: Mapped[Optional[int]] = mapped_column(Integer, default=0)
-    error: Mapped[Optional[str]] = mapped_column(Text, default="")
+    last_search_at: Mapped[str | None] = mapped_column(Text, default="")
+    search_count: Mapped[int | None] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text, default="")
     added_at: Mapped[str] = mapped_column(Text, nullable=False)
     updated_at: Mapped[str] = mapped_column(Text, nullable=False)
-    upgrade_candidate: Mapped[Optional[int]] = mapped_column(Integer, default=0)
-    current_score: Mapped[Optional[int]] = mapped_column(Integer, default=0)
-    target_language: Mapped[Optional[str]] = mapped_column(Text, default="")
-    instance_name: Mapped[Optional[str]] = mapped_column(Text, default="")
-    standalone_series_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    standalone_movie_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    subtitle_type: Mapped[Optional[str]] = mapped_column(String(20), default="full")
-    retry_after: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
+    upgrade_candidate: Mapped[int | None] = mapped_column(Integer, default=0)
+    current_score: Mapped[int | None] = mapped_column(Integer, default=0)
+    target_language: Mapped[str | None] = mapped_column(Text, default="")
+    instance_name: Mapped[str | None] = mapped_column(Text, default="")
+    standalone_series_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    standalone_movie_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    subtitle_type: Mapped[str | None] = mapped_column(String(20), default="full")
+    retry_after: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
 
     __table_args__ = (
         Index("idx_wanted_status", "status"),
@@ -117,12 +116,12 @@ class UpgradeHistory(db.Model):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     file_path: Mapped[str] = mapped_column(Text, nullable=False)
-    old_format: Mapped[Optional[str]] = mapped_column(Text)
-    old_score: Mapped[Optional[int]] = mapped_column(Integer)
-    new_format: Mapped[Optional[str]] = mapped_column(Text)
-    new_score: Mapped[Optional[int]] = mapped_column(Integer)
-    provider_name: Mapped[Optional[str]] = mapped_column(Text)
-    upgrade_reason: Mapped[Optional[str]] = mapped_column(Text)
+    old_format: Mapped[str | None] = mapped_column(Text)
+    old_score: Mapped[int | None] = mapped_column(Integer)
+    new_format: Mapped[str | None] = mapped_column(Text)
+    new_score: Mapped[int | None] = mapped_column(Integer)
+    provider_name: Mapped[str | None] = mapped_column(Text)
+    upgrade_reason: Mapped[str | None] = mapped_column(Text)
     upgraded_at: Mapped[str] = mapped_column(Text, nullable=False)
 
     __table_args__ = (Index("idx_upgrade_history_path", "file_path"),)
@@ -146,13 +145,13 @@ class LanguageProfile(db.Model):
         Text, nullable=False, default='["German"]'
     )
     is_default: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    translation_backend: Mapped[Optional[str]] = mapped_column(
+    translation_backend: Mapped[str | None] = mapped_column(
         Text, default="ollama"
     )
-    fallback_chain_json: Mapped[Optional[str]] = mapped_column(
+    fallback_chain_json: Mapped[str | None] = mapped_column(
         Text, default='["ollama"]'
     )
-    forced_preference: Mapped[Optional[str]] = mapped_column(
+    forced_preference: Mapped[str | None] = mapped_column(
         Text, default="disabled"
     )
     created_at: Mapped[str] = mapped_column(Text, nullable=False)
@@ -206,10 +205,10 @@ class BlacklistEntry(db.Model):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     provider_name: Mapped[str] = mapped_column(Text, nullable=False)
     subtitle_id: Mapped[str] = mapped_column(Text, nullable=False)
-    language: Mapped[Optional[str]] = mapped_column(Text, default="")
-    file_path: Mapped[Optional[str]] = mapped_column(Text, default="")
-    title: Mapped[Optional[str]] = mapped_column(Text, default="")
-    reason: Mapped[Optional[str]] = mapped_column(Text, default="")
+    language: Mapped[str | None] = mapped_column(Text, default="")
+    file_path: Mapped[str | None] = mapped_column(Text, default="")
+    title: Mapped[str | None] = mapped_column(Text, default="")
+    reason: Mapped[str | None] = mapped_column(Text, default="")
     added_at: Mapped[str] = mapped_column(Text, nullable=False)
 
     __table_args__ = (
@@ -249,7 +248,7 @@ class AnidbAbsoluteMapping(db.Model):
     episode:                Mapped[int] = mapped_column(Integer, nullable=False)
     anidb_absolute_episode: Mapped[int] = mapped_column(Integer, nullable=False)
     updated_at:             Mapped[str] = mapped_column(Text, nullable=False)
-    source:                 Mapped[Optional[str]] = mapped_column(Text, default="")
+    source:                 Mapped[str | None] = mapped_column(Text, default="")
 
     __table_args__ = (
         UniqueConstraint("tvdb_id", "season", "episode", name="uq_anidb_tvdb_se"),

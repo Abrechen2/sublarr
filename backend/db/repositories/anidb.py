@@ -8,9 +8,8 @@ the anime-lists XML from GitHub weekly.
 """
 
 import logging
-from typing import Optional
 
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 
 from db.models.core import AnidbAbsoluteMapping, SeriesSettings
 from db.repositories.base import BaseRepository
@@ -25,7 +24,7 @@ class AnidbRepository(BaseRepository):
 
     def get_anidb_absolute(
         self, tvdb_id: int, season: int, episode: int
-    ) -> Optional[int]:
+    ) -> int | None:
         """Return the AniDB absolute episode number for a given TVDB S/E.
 
         Returns:
@@ -46,7 +45,7 @@ class AnidbRepository(BaseRepository):
         season: int,
         episode: int,
         anidb_absolute_episode: int,
-        source: Optional[str] = None,
+        source: str | None = None,
     ) -> None:
         """Insert or update an absolute episode mapping.
 
@@ -160,7 +159,7 @@ class AnidbRepository(BaseRepository):
             "Series %d absolute_order set to %s", sonarr_series_id, enabled
         )
 
-    def get_series_settings(self, sonarr_series_id: int) -> Optional[dict]:
+    def get_series_settings(self, sonarr_series_id: int) -> dict | None:
         """Return the full settings dict for a series, or None if not set."""
         row = self.session.get(SeriesSettings, sonarr_series_id)
         return self._to_dict(row) if row else None

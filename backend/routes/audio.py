@@ -1,14 +1,14 @@
 """Audio routes — waveform visualization endpoints."""
 
-import os
 import logging
+import os
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 
 from config import get_settings
 from services.audio_visualizer import (
-    generate_waveform_json,
     extract_audio_track,
+    generate_waveform_json,
     get_audio_duration,
 )
 
@@ -119,7 +119,7 @@ def get_waveform():
     except RuntimeError as e:
         logger.error("Waveform generation failed: %s", e)
         return jsonify({"error": str(e)}), 500
-    except Exception as e:
+    except Exception:
         logger.exception("Unexpected error generating waveform")
         return jsonify({"error": "Internal server error"}), 500
 
@@ -199,6 +199,6 @@ def extract_audio():
     except RuntimeError as e:
         logger.error("Audio extraction failed: %s", e)
         return jsonify({"error": str(e)}), 500
-    except Exception as e:
+    except Exception:
         logger.exception("Unexpected error extracting audio")
         return jsonify({"error": "Internal server error"}), 500

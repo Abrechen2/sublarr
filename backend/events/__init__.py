@@ -9,7 +9,7 @@ Provides:
 
 import logging
 
-from events.catalog import EVENT_CATALOG, CATALOG_VERSION
+from events.catalog import CATALOG_VERSION, EVENT_CATALOG
 
 logger = logging.getLogger(__name__)
 

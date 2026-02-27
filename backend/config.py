@@ -4,16 +4,15 @@ All settings can be overridden via environment variables with the SUBLARR_ prefi
 or via a .env file. Example: SUBLARR_PORT=8080
 """
 
+import hashlib
 import logging
 import os
-import hashlib
 import threading
 
 logger = logging.getLogger(__name__)
 
+
 from pydantic_settings import BaseSettings
-from pydantic import Field
-from typing import Optional
 
 
 class Settings(BaseSettings):
@@ -211,7 +210,7 @@ class Settings(BaseSettings):
 
     def get_prompt_template(self) -> str:
         """Get the translation prompt template.
-        
+
         Priority:
         1. Default prompt preset from database (if exists)
         2. prompt_template setting (if set)
@@ -230,11 +229,11 @@ class Settings(BaseSettings):
         except Exception as exc:
             # Database might not be initialized yet, fall through
             logger.debug("Could not load default prompt preset: %s", exc)
-        
+
         # Fall back to config setting
         if self.prompt_template:
             return self.prompt_template
-        
+
         # Auto-generated template
         return (
             f"Translate these anime subtitle lines from {self.source_language_name} to {self.target_language_name}.\n"
@@ -362,7 +361,7 @@ def _get_language_tags(lang_code: str) -> set[str]:
 
 
 # Singleton settings instance
-_settings: Optional[Settings] = None
+_settings: Settings | None = None
 _settings_lock = threading.Lock()
 
 
@@ -421,12 +420,12 @@ def reload_settings(overrides: dict = None) -> Settings:
 
 def get_sonarr_instances() -> list[dict]:
     """Get Sonarr instances from config, with fallback to legacy settings.
-    
+
     Returns list of instance dicts: [{"name": "...", "url": "...", "api_key": "...", "path_mapping": "..."}]
     """
     import json
     settings = get_settings()
-    
+
     # Try new multi-instance config
     if settings.sonarr_instances_json:
         try:
@@ -435,7 +434,7 @@ def get_sonarr_instances() -> list[dict]:
                 return instances
         except (json.JSONDecodeError, TypeError):
             pass
-    
+
     # Fallback to legacy single-instance config
     if settings.sonarr_url and settings.sonarr_api_key:
         return [{
@@ -444,18 +443,18 @@ def get_sonarr_instances() -> list[dict]:
             "api_key": settings.sonarr_api_key,
             "path_mapping": settings.path_mapping,
         }]
-    
+
     return []
 
 
 def get_radarr_instances() -> list[dict]:
     """Get Radarr instances from config, with fallback to legacy settings.
-    
+
     Returns list of instance dicts: [{"name": "...", "url": "...", "api_key": "...", "path_mapping": "..."}]
     """
     import json
     settings = get_settings()
-    
+
     # Try new multi-instance config
     if settings.radarr_instances_json:
         try:
@@ -464,7 +463,7 @@ def get_radarr_instances() -> list[dict]:
                 return instances
         except (json.JSONDecodeError, TypeError):
             pass
-    
+
     # Fallback to legacy single-instance config
     if settings.radarr_url and settings.radarr_api_key:
         return [{
@@ -487,6 +486,7 @@ def get_media_server_instances() -> list[dict]:
         [{"type": "jellyfin", "name": "...", "enabled": true, "url": "...", "api_key": "..."}]
     """
     import json
+
     from db.config import get_config_entry, save_config_entry
 
     # Try new multi-instance config from DB

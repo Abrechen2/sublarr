@@ -1,6 +1,5 @@
 """Standalone mode database operations -- delegating to SQLAlchemy repository."""
 
-from typing import Optional
 
 from db.repositories.standalone import StandaloneRepository
 
@@ -44,7 +43,7 @@ def get_watched_folders(enabled_only: bool = True) -> list:
     return _get_repo().get_watched_folders(enabled_only)
 
 
-def get_watched_folder(folder_id: int) -> Optional[dict]:
+def get_watched_folder(folder_id: int) -> dict | None:
     """Get a single watched folder by ID."""
     return _get_repo().get_watched_folder(folder_id)
 
@@ -79,7 +78,7 @@ def get_standalone_series(series_id: int = None):
         return _get_repo().get_all_standalone_series()
 
 
-def get_standalone_series_by_folder(folder_path: str) -> Optional[dict]:
+def get_standalone_series_by_folder(folder_path: str) -> dict | None:
     """Get a standalone series by its folder path."""
     return _get_repo().get_standalone_series_by_folder(folder_path)
 
@@ -122,7 +121,7 @@ def cache_metadata(cache_key: str, provider: str, response_json: str,
     return _get_repo().save_metadata_cache(cache_key, provider, response_json, ttl_days)
 
 
-def get_cached_metadata(cache_key: str) -> Optional[dict]:
+def get_cached_metadata(cache_key: str) -> dict | None:
     """Get a cached metadata entry if not expired."""
     return _get_repo().get_metadata_cache(cache_key)
 
@@ -134,7 +133,7 @@ def cleanup_expired_cache() -> int:
 
 # ---- AniDB Mappings (via standalone repository) ----
 
-def get_anidb_mapping(tvdb_id: int) -> Optional[dict]:
+def get_anidb_mapping(tvdb_id: int) -> dict | None:
     """Get cached AniDB mapping for a TVDB ID."""
     return _get_repo().get_anidb_mapping(tvdb_id)
 

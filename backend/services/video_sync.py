@@ -4,13 +4,14 @@ Wraps ffsubsync and alass CLI tools. Both are optional dependencies —
 SyncUnavailableError is raised when an engine is not installed.
 """
 
-import os
-import re
-import sys
-import shutil
+import contextlib
 import logging
+import os
 import platform
+import re
+import shutil
 import subprocess
+import sys
 import tempfile
 
 logger = logging.getLogger(__name__)
@@ -130,8 +131,8 @@ def get_available_engines() -> dict:
 
 def _install_alass_binary() -> None:
     """Download and install the alass binary for the current platform."""
-    import urllib.request
     import stat
+    import urllib.request
 
     system = platform.system().lower()
     machine = platform.machine().lower()
@@ -208,10 +209,8 @@ def _make_backup(file_path: str) -> str:
 
 
 def _safe_remove(path: str) -> None:
-    try:
+    with contextlib.suppress(OSError):
         os.unlink(path)
-    except OSError:
-        pass
 
 
 def _parse_ffsubsync_shift(output: str) -> int:

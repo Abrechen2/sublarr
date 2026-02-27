@@ -8,7 +8,7 @@ event filters, and template variable discovery.
 import json
 import logging
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 
 bp = Blueprint("notifications_mgmt", __name__, url_prefix="/api/v1/notifications")
 logger = logging.getLogger(__name__)
@@ -272,7 +272,7 @@ def preview_template(template_id):
           description: Rendering error
     """
     from db.repositories.notifications import NotificationRepository
-    from notifier import render_template, get_sample_payload
+    from notifier import get_sample_payload, render_template
 
     repo = NotificationRepository()
     template = repo.get_template(template_id)

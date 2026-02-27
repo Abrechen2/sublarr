@@ -3,9 +3,9 @@
 All configuration is loaded from config.py Settings.
 """
 
+import logging
 import re
 import time
-import logging
 
 import requests
 
@@ -83,7 +83,7 @@ def _call_ollama(prompt):
         json=payload,
         timeout=settings.request_timeout,
     )
-    
+
     # Handle rate limiting (429) before raise_for_status
     if resp.status_code == 429:
         retry_after = resp.headers.get("Retry-After")
@@ -96,7 +96,7 @@ def _call_ollama(prompt):
             wait_seconds = 60
         logger.warning("Ollama API rate limited, waiting %ds", wait_seconds)
         raise RuntimeError(f"Ollama rate limited, retry after {wait_seconds}s")
-    
+
     resp.raise_for_status()
 
     try:
@@ -164,23 +164,23 @@ def _parse_response(response_text, expected_count):
 
 def build_prompt_with_glossary(prompt_template, glossary_entries, lines):
     """Build a translation prompt with glossary terms prepended.
-    
+
     Args:
         prompt_template: Base prompt template
         glossary_entries: List of {source_term, target_term} dicts (max 15)
         lines: List of subtitle lines to translate
-    
+
     Returns:
         str: Complete prompt with glossary and numbered lines
     """
     if not glossary_entries:
         numbered = "\n".join(f"{i+1}: {line}" for i, line in enumerate(lines))
         return prompt_template + numbered
-    
+
     # Build glossary string (max 15 entries)
     glossary_parts = [f"{entry['source_term']} → {entry['target_term']}" for entry in glossary_entries[:15]]
     glossary_str = "Glossary: " + ", ".join(glossary_parts) + "\n\n"
-    
+
     numbered = "\n".join(f"{i+1}: {line}" for i, line in enumerate(lines))
     return glossary_str + prompt_template + numbered
 
@@ -203,7 +203,7 @@ def translate_batch(lines, series_id=None):
 
     settings = get_settings()
     prompt_template = settings.get_prompt_template()
-    
+
     # Load glossary if series_id provided
     glossary_entries = []
     if series_id:
@@ -213,10 +213,9 @@ def translate_batch(lines, series_id=None):
                 logger.debug("Loaded %d glossary entries for series %d", len(glossary_entries), series_id)
         except Exception as e:
             logger.debug("Failed to load glossary for series %d: %s", series_id, e)
-    
+
     prompt = build_prompt_with_glossary(prompt_template, glossary_entries, lines)
 
-    last_error = None
     for attempt in range(1, settings.max_retries + 1):
         try:
             response = _call_ollama(prompt)
@@ -229,17 +228,16 @@ def translate_batch(lines, series_id=None):
                         "Attempt %d: CJK hallucination in %d lines (indices %s), retrying...",
                         attempt, len(tainted), tainted,
                     )
-                    last_error = ValueError("CJK hallucination detected")
+                    ValueError("CJK hallucination detected")
                 else:
                     return parsed
             else:
                 logger.warning("Attempt %d: line count mismatch, retrying...", attempt)
-                last_error = ValueError(
+                ValueError(
                     f"Expected {len(lines)} lines, got different count"
                 )
         except (requests.RequestException, RuntimeError) as e:
             logger.warning("Attempt %d failed: %s", attempt, e)
-            last_error = e
 
         if attempt < settings.max_retries:
             wait = settings.backoff_base * (2 ** (attempt - 1))
@@ -263,7 +261,7 @@ def _translate_singles(lines, series_id=None):
     """
     settings = get_settings()
     prompt_template = settings.get_prompt_template()
-    
+
     # Load glossary if series_id provided
     glossary_entries = []
     if series_id:

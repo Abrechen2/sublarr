@@ -1,6 +1,5 @@
 """Provider cache and statistics database operations -- delegating to SQLAlchemy repository."""
 
-from typing import Optional
 
 from db.repositories.providers import ProviderRepository
 
@@ -25,7 +24,7 @@ def cache_provider_results(provider_name: str, query_hash: str, results_json: st
 
 
 def get_cached_results(provider_name: str, query_hash: str,
-                       format_filter: str = None) -> Optional[str]:
+                       format_filter: str = None) -> str | None:
     """Get cached provider results if not expired."""
     return _get_repo().get_cached_results(provider_name, query_hash, format_filter)
 

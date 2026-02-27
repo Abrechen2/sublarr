@@ -4,10 +4,11 @@ MetadataResolver orchestrates lookups across all three providers with
 caching via the metadata_cache DB table.
 """
 
+import contextlib
 import logging
 
-from metadata.tmdb_client import TMDBClient
 from metadata.anilist_client import AniListClient
+from metadata.tmdb_client import TMDBClient
 from metadata.tvdb_client import TVDBClient
 
 logger = logging.getLogger(__name__)
@@ -259,10 +260,8 @@ class MetadataResolver:
         # Extract year from first_air_date
         first_air_date = search_result.get("first_air_date", "")
         if first_air_date and len(first_air_date) >= 4:
-            try:
+            with contextlib.suppress(ValueError):
                 result["year"] = int(first_air_date[:4])
-            except ValueError:
-                pass
 
         # Enrich from details
         if details:
@@ -360,10 +359,8 @@ class MetadataResolver:
         # Extract year from release_date
         release_date = search_result.get("release_date", "")
         if release_date and len(release_date) >= 4:
-            try:
+            with contextlib.suppress(ValueError):
                 result["year"] = int(release_date[:4])
-            except ValueError:
-                pass
 
         # Enrich from external IDs
         if external_ids:

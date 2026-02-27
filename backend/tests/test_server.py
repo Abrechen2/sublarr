@@ -1,11 +1,13 @@
 """Tests for Flask API endpoints (app.py / Blueprint routes)."""
 
-import pytest
 import os
 import tempfile
+
+import pytest
+
+from app import create_app
 from config import reload_settings
 from db import close_db
-from app import create_app
 
 
 @pytest.fixture

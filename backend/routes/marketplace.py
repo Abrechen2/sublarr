@@ -2,7 +2,7 @@
 
 import logging
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 
 from config import get_settings
 from services.marketplace import PluginMarketplace
@@ -156,7 +156,7 @@ def install_marketplace_plugin():
     except RuntimeError as e:
         logger.error("Plugin installation failed: %s", e)
         return jsonify({"error": str(e)}), 500
-    except Exception as e:
+    except Exception:
         logger.exception("Unexpected error during plugin installation")
         return jsonify({"error": "Internal server error"}), 500
 
@@ -206,7 +206,7 @@ def uninstall_marketplace_plugin():
     except RuntimeError as e:
         logger.error("Plugin uninstallation failed: %s", e)
         return jsonify({"error": str(e)}), 500
-    except Exception as e:
+    except Exception:
         logger.exception("Unexpected error during plugin uninstallation")
         return jsonify({"error": "Internal server error"}), 500
 

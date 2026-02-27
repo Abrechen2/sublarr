@@ -8,10 +8,9 @@ degradation handled in app.py).
 
 import logging
 import threading
-from typing import Optional
 
+from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileSystemEvent
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,7 @@ class PluginFileWatcher(FileSystemEventHandler):
         super().__init__()
         self.plugin_manager = plugin_manager
         self.debounce_seconds = debounce_seconds
-        self._timer: Optional[threading.Timer] = None
+        self._timer: threading.Timer | None = None
         self._lock = threading.Lock()
 
     def _is_plugin_file(self, path: str) -> bool:
@@ -43,9 +42,7 @@ class PluginFileWatcher(FileSystemEventHandler):
         # Extract filename from path
         import os
         filename = os.path.basename(path)
-        if filename.startswith("_") or filename.startswith("."):
-            return False
-        return True
+        return not (filename.startswith("_") or filename.startswith("."))
 
     def on_modified(self, event: FileSystemEvent) -> None:
         """Handle file modification events."""

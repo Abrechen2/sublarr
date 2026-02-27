@@ -41,7 +41,7 @@ def trigger_refresh():
         409:
           description: Sync already running
     """
-    from anidb_sync import sync_state, run_sync
+    from anidb_sync import run_sync, sync_state
 
     if sync_state["running"]:
         return jsonify({"success": False, "error": "Sync already running"}), 409

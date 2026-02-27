@@ -5,14 +5,14 @@ progress tracking via WebSocket, and persistent state in the whisper_jobs
 DB table.
 """
 
-import os
 import logging
+import os
 import tempfile
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from whisper.base import TranscriptionResult
 
@@ -32,11 +32,11 @@ class WhisperJob:
     status: str = "queued"  # queued/extracting/transcribing/saving/completed/failed/cancelled
     progress: float = 0.0
     phase: str = ""
-    result: Optional[TranscriptionResult] = None
-    error: Optional[str] = None
+    result: TranscriptionResult | None = None
+    error: str | None = None
     created_at: str = ""
-    started_at: Optional[str] = None
-    completed_at: Optional[str] = None
+    started_at: str | None = None
+    completed_at: str | None = None
 
 
 class WhisperQueue:
@@ -108,7 +108,7 @@ class WhisperQueue:
         logger.info("Submitted whisper job %s for %s (language: %s)", job_id, file_path, language)
         return job_id
 
-    def get_job(self, job_id: str) -> Optional[WhisperJob]:
+    def get_job(self, job_id: str) -> WhisperJob | None:
         """Get a job by ID."""
         with self._lock:
             return self._jobs.get(job_id)
@@ -178,7 +178,7 @@ class WhisperQueue:
                 self._emit_progress(socketio, job_id, "extracting", 0.0, "Selecting audio track...")
 
                 # Phase 1: Audio extraction (0-10%)
-                from whisper.audio import select_audio_track, extract_audio_to_wav
+                from whisper.audio import extract_audio_to_wav, select_audio_track
 
                 track = select_audio_track(file_path, preferred_language=source_language or language or "ja")
                 self._update_job(job_id, progress=0.05)
@@ -242,8 +242,9 @@ class WhisperQueue:
                 # Record Whisper-generated subtitle in download history
                 if result.srt_content:
                     try:
-                        from db.providers import record_subtitle_download
                         import os as _os
+
+                        from db.providers import record_subtitle_download
                         srt_path = _os.path.splitext(file_path)[0] + "." + language + ".srt"
                         record_subtitle_download(
                             provider_name="whisper",

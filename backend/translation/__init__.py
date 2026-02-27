@@ -5,13 +5,12 @@ instances with lazy creation, delegates translation calls with fallback chains,
 and tracks per-backend statistics via circuit breakers.
 """
 
-import time
 import logging
 import threading
-from typing import Optional
+import time
 
-from translation.base import TranslationBackend, TranslationResult
 from circuit_breaker import CircuitBreaker
+from translation.base import TranslationBackend, TranslationResult
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +34,7 @@ class TranslationManager:
         self._backend_classes[cls.name] = cls
         logger.debug("Registered translation backend: %s", cls.name)
 
-    def get_backend(self, name: str) -> Optional[TranslationBackend]:
+    def get_backend(self, name: str) -> TranslationBackend | None:
         """Get or create a backend instance by name (lazy, thread-safe creation).
 
         Config is loaded from config_entries DB table using
@@ -187,9 +186,9 @@ class TranslationManager:
             Integer quality score 0-100; DEFAULT_QUALITY_SCORE (50) on failure
         """
         from translation.llm_utils import (
+            DEFAULT_QUALITY_SCORE,
             build_evaluation_prompt,
             parse_quality_score,
-            DEFAULT_QUALITY_SCORE,
         )
 
         # Only LLM-based backends can evaluate; skip rule-based translation services
@@ -228,7 +227,7 @@ class TranslationManager:
         )
         return DEFAULT_QUALITY_SCORE
 
-    def _call_backend_raw(self, backend, prompt: str) -> "Optional[str]":
+    def _call_backend_raw(self, backend, prompt: str) -> "str | None":
         """Call a backend with a raw prompt and return the raw text response.
 
         Supports Ollama (_call_ollama) and OpenAI-compatible (_call_openai) backends.
@@ -334,7 +333,7 @@ class TranslationManager:
 
 # ─── Singleton ────────────────────────────────────────────────────────────────
 
-_manager: Optional[TranslationManager] = None
+_manager: TranslationManager | None = None
 _manager_lock = threading.Lock()
 
 

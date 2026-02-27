@@ -5,15 +5,15 @@ backend stats recording, profile-based backend resolution, and individual
 backend config field smoke tests. All external services are mocked.
 """
 
-import os
 import json
-import pytest
+import os
 import tempfile
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from config import reload_settings
-from db import init_db, close_db, get_db, _db_lock
-
+from db import _db_lock, close_db, get_db, init_db
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -150,10 +150,10 @@ def test_translation_result_success_false():
 # =========================================================================
 
 from translation.llm_utils import (
-    build_translation_prompt,
     build_prompt_with_glossary,
-    parse_llm_response,
+    build_translation_prompt,
     has_cjk_hallucination,
+    parse_llm_response,
 )
 
 
@@ -342,10 +342,10 @@ def test_invalidate_backend_clears_cache(manager):
 # =========================================================================
 
 from db.translation import (
-    record_backend_success,
-    record_backend_failure,
-    get_backend_stats,
     get_backend_stat,
+    get_backend_stats,
+    record_backend_failure,
+    record_backend_success,
 )
 
 
@@ -415,11 +415,11 @@ def test_avg_response_time_weighted():
 # =========================================================================
 
 from db.profiles import (
+    assign_series_profile,
     create_language_profile,
     get_default_profile,
-    get_series_profile,
-    assign_series_profile,
     get_language_profile,
+    get_series_profile,
 )
 
 

@@ -1,7 +1,9 @@
 """Tests for /tools/convert subtitle format conversion endpoint."""
 
 import os
+
 import pytest
+
 from config import reload_settings
 
 

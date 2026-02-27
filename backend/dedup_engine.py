@@ -47,7 +47,7 @@ def compute_subtitle_hash(file_path: str) -> dict:
         raise FileNotFoundError(f"File not found: {file_path}")
 
     # Read content
-    with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+    with open(file_path, encoding="utf-8", errors="replace") as f:
         content = f.read()
 
     # Normalize: strip, replace \r\n with \n
