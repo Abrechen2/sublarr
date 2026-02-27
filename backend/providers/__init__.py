@@ -529,7 +529,7 @@ class ProviderManager:
             format_filter.value if format_filter else "",
         ]
         key_str = "|".join(key_parts)
-        return hashlib.md5(key_str.encode()).hexdigest()
+        return hashlib.md5(key_str.encode(), usedforsecurity=False).hexdigest()  # noqa: S324
 
     def _search_provider_with_retry(self, name: str, provider: SubtitleProvider,
                                     query: VideoQuery) -> tuple[list[SubtitleResult], float]:

@@ -24,7 +24,7 @@ def _validate_jinja2_syntax(template_str: str) -> str | None:
         return None
     try:
         from jinja2 import Environment
-        Environment().parse(template_str)
+        Environment(autoescape=True).parse(template_str)
         return None
     except Exception as e:
         return str(e)

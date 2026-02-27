@@ -45,7 +45,7 @@ def _compute_napisy24_hash(file_path: str) -> str | None:
         MD5 hex digest of first 10MB, or None if file cannot be read
     """
     try:
-        md5 = hashlib.md5()
+        md5 = hashlib.md5(usedforsecurity=False)  # noqa: S324
         with open(file_path, "rb") as f:
             data = f.read(HASH_CHUNK_SIZE)
             md5.update(data)

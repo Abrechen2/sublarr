@@ -1,0 +1,12 @@
+[bandit]
+# Confirmed false positives — do not suppress real issues here
+skips =
+    # B104: Binding to 0.0.0.0 — expected for Docker container
+    B104,
+    # B608: SQL injection via f-string — all flagged queries use ? placeholders correctly
+    # (library.py, bazarr_migrator.py, database_health.py — parameterized, not user-interpolated)
+    B608,
+    # B108: Insecure temp dir — hooks.py uses cwd="/tmp" for subprocess, no mktemp()
+    B108,
+    # B314: XML from trusted subtitle provider APIs (AniDB, Podnapisi) — acceptable risk
+    B314
