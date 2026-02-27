@@ -4,7 +4,6 @@
  * Self-contained: fetches own data via useHealth.
  * Renders colored status dots for each configured service.
  */
-import { useTranslation } from 'react-i18next'
 import { useHealth } from '@/hooks/useApi'
 
 /** Convert raw API service key to a readable display name.
@@ -15,7 +14,6 @@ function formatServiceName(key: string): string {
 }
 
 export default function ServiceStatusWidget() {
-  const { t } = useTranslation('dashboard')
   const { data: health, isLoading } = useHealth()
 
   if (isLoading || !health?.services) {

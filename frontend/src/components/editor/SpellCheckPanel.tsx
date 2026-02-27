@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useSpellCheck, useSpellDictionaries } from '@/hooks/useApi'
-import { CheckCircle, X, AlertCircle, Loader2, RefreshCw, Wand2 } from 'lucide-react'
+import { CheckCircle, X, AlertCircle, Loader2, RefreshCw } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import type { SpellCheckError } from '@/api/client'
 
@@ -33,7 +33,7 @@ export function SpellCheckPanel({
   const [selectedError, setSelectedError] = useState<SpellCheckError | null>(null)
 
   const spellCheckMutation = useSpellCheck()
-  const { data: dictionaries } = useSpellDictionaries()
+  const { data: _dictionaries } = useSpellDictionaries()
 
   // Run spell check when content changes (debounced)
   useEffect(() => {
@@ -64,7 +64,7 @@ export function SpellCheckPanel({
         customWords,
       })
       setErrors(result.errors || [])
-    } catch (err) {
+    } catch (_err) {
       toast('Spell check failed', 'error')
       setErrors([])
     } finally {

@@ -39,7 +39,7 @@ const HistoryTableRow = memo(function HistoryTableRow({
   entry,
   selected,
   index,
-  visibleIds,
+  visibleIds: _visibleIds,
   onToggle,
   onPreview,
   onDiff,

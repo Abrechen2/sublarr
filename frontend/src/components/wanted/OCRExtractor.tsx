@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from 'react'
 import { useExtractOCR, usePreviewOCRFrame } from '@/hooks/useApi'
-import { Loader2, Play, Eye, Download, AlertCircle, CheckCircle } from 'lucide-react'
+import { Loader2, Play, Eye, AlertCircle, CheckCircle } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import type { OCRExtractResult, OCRPreviewResult } from '@/api/client'
 
@@ -42,7 +42,7 @@ export function OCRExtractor({
         streamIndex,
       })
       setPreviewFrame(result)
-    } catch (err) {
+    } catch (_err) {
       toast('Preview failed', 'error')
     }
   }, [filePath, timestamp, streamIndex, previewMutation])
@@ -58,7 +58,7 @@ export function OCRExtractor({
       setExtractResult(result)
       onExtracted?.(result.text)
       toast(`OCR completed: ${result.successful_frames}/${result.frames} frames, quality: ${result.quality}%`, 'success')
-    } catch (err) {
+    } catch (_err) {
       toast('OCR extraction failed', 'error')
     } finally {
       setIsExtracting(false)

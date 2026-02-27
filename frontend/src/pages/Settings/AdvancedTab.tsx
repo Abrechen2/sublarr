@@ -7,7 +7,7 @@ import {
   useFullBackups, useCreateFullBackup, useRestoreFullBackup,
   useSubtitleTool, usePreviewSubtitle,
 } from '@/hooks/useApi'
-import { Save, Loader2, Trash2, Plus, Edit2, X, Check, Globe, Upload, Download, Eye, FolderOpen, RefreshCw, RotateCcw, HardDrive, AlertTriangle, Wrench } from 'lucide-react'
+import { Loader2, Trash2, Plus, Edit2, X, Check, Globe, Upload, Download, Eye, FolderOpen, RefreshCw, RotateCcw, HardDrive, AlertTriangle, Wrench } from 'lucide-react'
 import { ChevronUp, ChevronDown } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import { downloadFullBackupUrl } from '@/api/client'

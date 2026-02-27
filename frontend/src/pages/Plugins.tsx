@@ -5,7 +5,6 @@
  */
 
 import { useState, useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
 import { Search, Download, Trash2, ExternalLink, Loader2, Package, Star } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import {
@@ -14,19 +13,7 @@ import {
   useUninstallMarketplacePlugin,
 } from '@/hooks/useApi'
 
-interface Plugin {
-  name: string
-  version: string
-  description: string
-  author: string
-  category: 'provider' | 'translation' | 'tool'
-  url: string
-  rating?: number
-  downloads?: number
-}
-
 export function PluginsPage() {
-  const { t } = useTranslation('plugins')
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'provider' | 'translation' | 'tool'>('all')
   const [installedPlugins, setInstalledPlugins] = useState<string[]>([])
@@ -50,7 +37,7 @@ export function PluginsPage() {
       await installMutation.mutateAsync({ pluginName })
       setInstalledPlugins((prev) => [...prev, pluginName])
       toast(`Plugin "${pluginName}" installed successfully`, 'success')
-    } catch (err) {
+    } catch (_err) {
       toast(`Failed to install plugin "${pluginName}"`, 'error')
     }
   }, [installMutation])
@@ -60,7 +47,7 @@ export function PluginsPage() {
       await uninstallMutation.mutateAsync(pluginName)
       setInstalledPlugins((prev) => prev.filter((name) => name !== pluginName))
       toast(`Plugin "${pluginName}" uninstalled`, 'success')
-    } catch (err) {
+    } catch (_err) {
       toast(`Failed to uninstall plugin "${pluginName}"`, 'error')
     }
   }, [uninstallMutation])

@@ -6,7 +6,7 @@ import {
   useExportConfig, useImportConfig,
 } from '@/hooks/useApi'
 import {
-  Save, Loader2, TestTube, Trash2, Plus, RefreshCw, Upload, FileDown, X, Check,
+  Save, Loader2, TestTube, Trash2, Plus, Upload, FileDown, X, Check,
   Settings2, Download, Server, Languages, Zap, Globe, Cog,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'

@@ -20,6 +20,6 @@ describe('ProgressBar', () => {
 
   it('hides label when showLabel is false', () => {
     const { container } = render(<ProgressBar value={50} max={100} showLabel={false} />)
-    expect(container.querySelector('span')).not.toHaveTextContent('%')
+    expect(container.querySelector('span')).toBeNull()
   })
 })

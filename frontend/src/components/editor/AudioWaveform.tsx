@@ -8,7 +8,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useWaveform } from '@/hooks/useApi'
 import { Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2 } from 'lucide-react'
-import { toast } from '@/components/shared/Toast'
 
 interface AudioWaveformProps {
   videoPath: string | null
@@ -23,7 +22,7 @@ export function AudioWaveform({
   videoPath,
   audioTrackIndex,
   currentTime = 0,
-  duration,
+  duration: _duration,
   onTimeSelect,
   className = '',
 }: AudioWaveformProps) {

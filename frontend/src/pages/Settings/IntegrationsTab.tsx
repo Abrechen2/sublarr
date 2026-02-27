@@ -19,7 +19,7 @@ import {
   useExportIntegrationConfig, useExportIntegrationConfigZip,
 } from '@/hooks/useApi'
 import type {
-  BazarrMappingReport, CompatBatchResult, ExtendedHealthAllResponse, ExtendedHealthCheck, ExportResult,
+  BazarrMappingReport, CompatBatchResult, ExtendedHealthCheck, ExportResult,
 } from '@/lib/types'
 
 // ─── Section Wrapper ────────────────────────────────────────────────────────

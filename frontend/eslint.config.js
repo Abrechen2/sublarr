@@ -26,14 +26,22 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       'react-hooks/exhaustive-deps': 'warn',
+      // React Compiler rules (react-hooks v5+) — codebase not yet Compiler-compatible
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/preserve-manual-memoization': 'off',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       'no-debugger': 'warn',
+      'no-empty': ['error', { allowEmptyCatch: true }],
     },
   },
 
