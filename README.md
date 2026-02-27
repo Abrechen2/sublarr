@@ -41,11 +41,11 @@ It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up
 
 | Feature | Status |
 |---------|--------|
-| Subtitle search & download (11 providers) | Core — works well |
-| ASS-first scoring, deduplication, trust scoring | Core — works well |
-| Sonarr/Radarr webhook integration | Core — works well |
-| Subtitle editor, waveform sync, format conversion | Core — works well |
-| LLM translation via Ollama | **Beta within beta** — works for EN→DE anime, quality varies |
+| Subtitle search & download (11 providers) | Core — most-tested path |
+| ASS-first scoring, deduplication, trust scoring | Core — most-tested path |
+| Sonarr/Radarr webhook integration | Core — most-tested path |
+| Subtitle editor, waveform sync, format conversion | Core — functional, rough edges possible |
+| LLM translation via Ollama | **Beta within beta** — EN→DE anime only, quality varies |
 | Fine-tuned anime model (anime-translator-v6) | **Experimental** — BLEU benchmark only, real-world YMMV |
 
 > **Note on LLM translation:** It's there, it works for my setup, but it's not the reason to choose Sublarr over alternatives. If local AI translation is your main goal, manage your expectations.
