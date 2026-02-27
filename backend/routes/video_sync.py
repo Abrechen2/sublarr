@@ -155,3 +155,17 @@ def sync_status(job_id: str):
     if job is None:
         return jsonify({"error": "Job not found"}), 404
     return jsonify({"job_id": job_id, **job})
+
+
+@bp.route("/video-sync/install/<engine>", methods=["POST"])
+def install_engine(engine: str):
+    """Install a sync engine (ffsubsync or alass)."""
+    if engine not in ("ffsubsync", "alass"):
+        return jsonify({"error": f"Unknown engine: {engine!r}"}), 400
+    try:
+        from services.video_sync import install_engine as _install
+        result = _install(engine)
+        return jsonify(result)
+    except Exception as exc:
+        logger.exception("Engine install failed: %s", engine)
+        return jsonify({"success": False, "error": str(exc)}), 500

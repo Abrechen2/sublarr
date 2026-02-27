@@ -8,6 +8,7 @@
 
 import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react'
 import { Loader2, X, Eye, Pencil, GitCompare, RefreshCw, Activity } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSubtitleContent } from '@/hooks/useApi'
 import { autoSyncFile, overlapFix, timingNormalize, mergeLines, splitLines, spellCheck } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
@@ -48,6 +49,7 @@ export default function SubtitleEditorModal({
   onClose,
   videoPath,
 }: SubtitleEditorModalProps) {
+  const queryClient = useQueryClient()
   const [mode, setMode] = useState<EditorMode>(initialMode)
   const [content, setContent] = useState<string | null>(null)
   const [lastModified, setLastModified] = useState<number | null>(null)
@@ -150,13 +152,16 @@ export default function SubtitleEditorModal({
     if (fixLoading || !filePath) return
     setFixLoading(name)
     fn()
-      .then((msg) => { toast(msg) })
+      .then((msg) => {
+        toast(msg)
+        void queryClient.invalidateQueries({ queryKey: ['subtitle-content', filePath] })
+      })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : `${name} fehlgeschlagen`
         toast(msg, 'error')
       })
       .finally(() => setFixLoading(null))
-  }, [fixLoading, filePath])
+  }, [fixLoading, filePath, queryClient])
 
   const qualityFixes = [
     { key: 'overlap', label: 'Überlappungen', fn: () => overlapFix(filePath!).then(r => `${r.fixed} Überlappungen behoben`) },
@@ -322,6 +327,7 @@ export default function SubtitleEditorModal({
 
             {mode === 'edit' && content !== null && format !== null && lastModified !== null && (
               <SubtitleEditor
+                key={lastModified}
                 filePath={filePath}
                 initialContent={content}
                 format={format}

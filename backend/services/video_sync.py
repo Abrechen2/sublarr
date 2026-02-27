@@ -6,8 +6,10 @@ SyncUnavailableError is raised when an engine is not installed.
 
 import os
 import re
+import sys
 import shutil
 import logging
+import platform
 import subprocess
 import tempfile
 
@@ -20,10 +22,6 @@ def _check_module(name: str) -> bool:
         return True
     except ImportError:
         return False
-
-
-FFSUBSYNC_AVAILABLE = bool(shutil.which("ffsubsync") or _check_module("ffsubsync"))
-ALASS_AVAILABLE = bool(shutil.which("alass"))
 
 
 class SyncUnavailableError(Exception):
@@ -42,7 +40,7 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
         SyncUnavailableError: ffsubsync is not installed
         RuntimeError: ffsubsync exited with a non-zero status
     """
-    if not FFSUBSYNC_AVAILABLE:
+    if not (shutil.which("ffsubsync") or _check_module("ffsubsync")):
         raise SyncUnavailableError(
             "ffsubsync is not installed. Install with: pip install ffsubsync"
         )
@@ -89,7 +87,7 @@ def sync_with_alass(subtitle_path: str, reference_path: str) -> dict:
         SyncUnavailableError: alass is not installed
         RuntimeError: alass exited with a non-zero status
     """
-    if not ALASS_AVAILABLE:
+    if not shutil.which("alass"):
         raise SyncUnavailableError(
             "alass is not installed. Download from: https://github.com/kaegi/alass/releases"
         )
@@ -123,11 +121,82 @@ def sync_with_alass(subtitle_path: str, reference_path: str) -> dict:
 
 
 def get_available_engines() -> dict:
-    """Return which sync engines are currently available."""
+    """Return which sync engines are currently installed (checked at call time)."""
     return {
-        "ffsubsync": FFSUBSYNC_AVAILABLE,
-        "alass": ALASS_AVAILABLE,
+        "ffsubsync": bool(shutil.which("ffsubsync") or _check_module("ffsubsync")),
+        "alass": bool(shutil.which("alass")),
     }
+
+
+def _install_alass_binary() -> None:
+    """Download and install the alass binary for the current platform."""
+    import urllib.request
+    import stat
+
+    system = platform.system().lower()
+    machine = platform.machine().lower()
+
+    # Map platform to GitHub release asset name
+    if system == "linux":
+        asset = "alass-linux64" if "x86_64" in machine or "amd64" in machine else None
+    elif system == "darwin":
+        asset = "alass-osx"
+    elif system == "windows":
+        asset = "alass-win64.exe"
+    else:
+        asset = None
+
+    if not asset:
+        raise RuntimeError(f"No alass binary available for {system}/{machine}")
+
+    url = f"https://github.com/kaegi/alass/releases/latest/download/{asset}"
+    install_name = "alass.exe" if system == "windows" else "alass"
+
+    # Install to ~/.local/bin (Linux/Mac) or next to Python (Windows)
+    if system == "windows":
+        install_dir = os.path.dirname(sys.executable)
+    else:
+        install_dir = os.path.expanduser("~/.local/bin")
+        os.makedirs(install_dir, exist_ok=True)
+
+    install_path = os.path.join(install_dir, install_name)
+    logger.info("Downloading alass from %s → %s", url, install_path)
+
+    with urllib.request.urlopen(url, timeout=60) as resp:  # noqa: S310
+        data = resp.read()
+
+    with open(install_path, "wb") as f:
+        f.write(data)
+
+    if system != "windows":
+        os.chmod(install_path, os.stat(install_path).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+
+    logger.info("alass installed to %s", install_path)
+
+
+def install_engine(engine: str) -> dict:
+    """Install a sync engine. Returns { success, message }.
+
+    Supported engines:
+        ffsubsync — installed via pip
+        alass     — downloaded binary from GitHub releases
+    """
+    if engine == "ffsubsync":
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "ffsubsync"],
+            capture_output=True, text=True, timeout=300,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"pip install ffsubsync failed: {result.stderr.strip()}")
+        logger.info("ffsubsync installed successfully")
+        return {"success": True, "message": "ffsubsync installed"}
+
+    elif engine == "alass":
+        _install_alass_binary()
+        return {"success": True, "message": "alass installed"}
+
+    else:
+        raise ValueError(f"Unknown engine: {engine!r}")
 
 
 def _make_backup(file_path: str) -> str:

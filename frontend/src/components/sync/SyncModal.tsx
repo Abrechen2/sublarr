@@ -7,8 +7,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { X, Loader2, Check, AlertTriangle } from 'lucide-react'
-import { getSyncEngines, startVideoSync, getSyncJobStatus, listEpisodeTracks } from '@/api/client'
+import { X, Loader2, Check, AlertTriangle, Download } from 'lucide-react'
+import { getSyncEngines, startVideoSync, getSyncJobStatus, listEpisodeTracks, installSyncEngine } from '@/api/client'
 import type { Track } from '@/lib/types'
 
 interface SyncModalProps {
@@ -30,6 +30,7 @@ export function SyncModal({ episodeId, subtitlePath, videoPath, onClose, onCompl
   const [status, setStatus] = useState<JobStatus>('idle')
   const [shiftMs, setShiftMs] = useState<number | undefined>()
   const [error, setError] = useState<string | null>(null)
+  const [installing, setInstalling] = useState<string | null>(null)
 
   const fileName = subtitlePath.split(/[\\/]/).pop() ?? subtitlePath
 
@@ -86,8 +87,25 @@ export function SyncModal({ episodeId, subtitlePath, videoPath, onClose, onCompl
     }
   }, [subtitlePath, videoPath, engine, refTrackIdx])
 
+  const handleInstall = useCallback(async (eng: 'ffsubsync' | 'alass') => {
+    setInstalling(eng)
+    setError(null)
+    try {
+      await installSyncEngine(eng)
+      const updated = await getSyncEngines()
+      setEngines(updated)
+    } catch (e: unknown) {
+      const msg = e && typeof e === 'object' && 'response' in e
+        ? ((e as { response?: { data?: { error?: string } } }).response?.data?.error ?? `Installation fehlgeschlagen`)
+        : `Installation fehlgeschlagen`
+      setError(msg)
+    } finally {
+      setInstalling(null)
+    }
+  }, [])
+
   const isRunning = status === 'starting' || status === 'queued' || status === 'running'
-  const canStart = status === 'idle' && !(engine === 'alass' && refTrackIdx === undefined)
+  const canStart = status === 'idle' && engines[engine] !== false && !(engine === 'alass' && refTrackIdx === undefined)
 
   const statusLabel: Record<JobStatus, string> = {
     idle: '',
@@ -141,23 +159,42 @@ export function SyncModal({ episodeId, subtitlePath, videoPath, onClose, onCompl
             </p>
             <div className="flex gap-2">
               {(['ffsubsync', 'alass'] as const).map((e) => (
-                <button
-                  key={e}
-                  onClick={() => setEngine(e)}
-                  disabled={isRunning || engines[e] === false}
-                  className="flex-1 px-3 py-2 rounded text-xs font-medium transition-colors"
-                  style={{
-                    backgroundColor: engine === e ? 'var(--accent-bg)' : 'var(--bg-primary)',
-                    border: `1px solid ${engine === e ? 'var(--accent-dim)' : 'var(--border)'}`,
-                    color: engine === e ? 'var(--accent)' : 'var(--text-secondary)',
-                    opacity: engines[e] === false ? 0.4 : 1,
-                  }}
-                >
-                  {e}
+                <div key={e} className="flex-1 flex flex-col gap-1">
+                  <button
+                    onClick={() => setEngine(e)}
+                    disabled={isRunning || engines[e] === false}
+                    className="w-full px-3 py-2 rounded text-xs font-medium transition-colors"
+                    style={{
+                      backgroundColor: engine === e ? 'var(--accent-bg)' : 'var(--bg-primary)',
+                      border: `1px solid ${engine === e ? 'var(--accent-dim)' : 'var(--border)'}`,
+                      color: engine === e ? 'var(--accent)' : 'var(--text-secondary)',
+                      opacity: engines[e] === false ? 0.4 : 1,
+                    }}
+                  >
+                    {e}
+                    {engines[e] === false && (
+                      <span className="ml-1" style={{ color: 'var(--text-muted)' }}>(nicht installiert)</span>
+                    )}
+                  </button>
                   {engines[e] === false && (
-                    <span className="ml-1" style={{ color: 'var(--text-muted)' }}>(nicht installiert)</span>
+                    <button
+                      onClick={() => void handleInstall(e)}
+                      disabled={installing !== null}
+                      className="w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs transition-colors"
+                      style={{
+                        backgroundColor: 'var(--bg-primary)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--accent)',
+                        opacity: installing !== null ? 0.5 : 1,
+                      }}
+                    >
+                      {installing === e
+                        ? <Loader2 size={11} className="animate-spin" />
+                        : <Download size={11} />}
+                      Installieren
+                    </button>
                   )}
-                </button>
+                </div>
               ))}
             </div>
             <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>

@@ -855,14 +855,20 @@ def batch_extract():
         400:
           description: item_ids missing or empty
     """
-    from db.wanted import get_wanted_item
+    from db.wanted import get_wanted_item, get_wanted_items
 
     data = request.get_json(force=True, silent=True) or {}
     item_ids = data.get("item_ids", [])
+    series_id = data.get("series_id")
     auto_translate = bool(data.get("auto_translate", False))
 
+    # Allow caller to pass series_id to extract all wanted items for that series
+    if not item_ids and series_id:
+        page = get_wanted_items(page=1, per_page=500, series_id=int(series_id))
+        item_ids = [it["id"] for it in page.get("items", [])]
+
     if not item_ids:
-        return jsonify({"error": "item_ids required"}), 400
+        return jsonify({"error": "item_ids or series_id required"}), 400
 
     results = []
     succeeded = 0

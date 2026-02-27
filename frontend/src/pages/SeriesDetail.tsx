@@ -547,10 +547,11 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
 
 // ─── Season Group ──────────────────────────────────────────────────────────
 
-function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync, onHealthCheck, healthScores, onOpenEditor, t }: {
+function SeasonGroup({ season, episodes, targetLanguages, seriesId, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync, onHealthCheck, healthScores, onOpenEditor, t }: {
   season: number
   episodes: EpisodeInfo[]
   targetLanguages: string[]
+  seriesId: number | null
   expandedEp: { id: number; mode: 'search' | 'history' | 'glossary' | 'tracks' } | null
   onSearch: (ep: EpisodeInfo) => void
   onInteractiveSearch: (ep: EpisodeInfo) => void
@@ -1060,7 +1061,7 @@ function SeasonGroup({ season, episodes, targetLanguages, expandedEp, onSearch, 
                 Search
               </button>
               <button
-                onClick={() => { void batchExtractEmbedded([...selectedEpisodes]); clearAll() }}
+                onClick={() => { void batchExtractEmbedded([], false, seriesId ?? undefined); clearAll() }}
                 className="px-3 py-1 rounded text-xs font-medium"
                 style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
               >
@@ -1614,6 +1615,7 @@ export function SeriesDetailPage() {
             season={season}
             episodes={episodes}
             targetLanguages={series.target_languages}
+            seriesId={seriesId}
             expandedEp={expandedEp}
             onSearch={handleSearch}
             onInteractiveSearch={(ep) => setInteractiveEp({ id: ep.id, title: `${series.title} ${ep.title ? `– ${ep.title}` : ''}`.trim() })}

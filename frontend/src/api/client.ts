@@ -155,15 +155,19 @@ export async function startWantedBatchSearch(itemIds?: number[], seriesId?: numb
   return data
 }
 
-/** Extract embedded subtitles for multiple wanted items. */
+/** Extract embedded subtitles for multiple wanted items or a whole series. */
 export async function batchExtractEmbedded(
   itemIds: number[],
   autoTranslate = false,
+  seriesId?: number,
 ): Promise<{ succeeded: number; failed: number; results: unknown[] }> {
-  const { data } = await api.post('/wanted/batch-extract', {
-    item_ids: itemIds,
-    auto_translate: autoTranslate,
-  })
+  const body: Record<string, unknown> = { auto_translate: autoTranslate }
+  if (seriesId != null) {
+    body.series_id = seriesId
+  } else {
+    body.item_ids = itemIds
+  }
+  const { data } = await api.post('/wanted/batch-extract', body)
   return data
 }
 
@@ -1370,6 +1374,11 @@ export async function refreshAnidbMapping(): Promise<{ success: boolean; message
 
 export async function getSyncEngines(): Promise<Record<string, boolean>> {
   const { data } = await api.get('/tools/video-sync/engines')
+  return data
+}
+
+export async function installSyncEngine(engine: 'ffsubsync' | 'alass'): Promise<{ success: boolean; message?: string; error?: string }> {
+  const { data } = await api.post(`/tools/video-sync/install/${engine}`)
   return data
 }
 

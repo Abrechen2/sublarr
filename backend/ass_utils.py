@@ -291,7 +291,7 @@ def select_best_subtitle_stream(ffprobe_data, format_filter=None):
         if codec in ("ass", "ssa") and format_filter != "srt":
             info["format"] = "ass"
             ass_streams.append(info)
-        elif codec in ("subrip", "srt") and format_filter != "ass":
+        elif codec in ("subrip", "srt", "mov_text", "webvtt", "text", "microdvd") and format_filter != "ass":
             info["format"] = "srt"
             srt_streams.append(info)
 
@@ -336,6 +336,13 @@ def select_best_subtitle_stream(ffprobe_data, format_filter=None):
             if s["language"] not in target_tags:
                 logger.info("Selected stream %d: '%s' (SRT fallback)", s["sub_index"], s["title"])
                 return s
+
+    # P7: target-language SRT as last resort (e.g. German dub in MP4)
+    if srt_streams:
+        tgt_srt = [s for s in srt_streams if s["language"] in target_tags]
+        if tgt_srt:
+            logger.info("Selected stream %d: '%s' (Target lang SRT last resort)", tgt_srt[0]["sub_index"], tgt_srt[0]["title"])
+            return tgt_srt[0]
 
     # Last resort: any ASS stream at all
     if ass_streams:
@@ -485,11 +492,14 @@ def extract_subtitle_stream(mkv_path, stream_info, output_path):
     Raises:
         RuntimeError: If ffmpeg fails
     """
+    ext = os.path.splitext(output_path)[1].lower().lstrip(".")
+    _encoder_map = {"srt": "srt", "ass": "ass", "ssa": "ass", "vtt": "webvtt"}
+    encoder = _encoder_map.get(ext, "copy")
     cmd = [
         "ffmpeg", "-y",
         "-i", mkv_path,
         "-map", f"0:s:{stream_info['sub_index']}",
-        "-c:s", "copy",
+        "-c:s", encoder,
         output_path,
     ]
     from config import get_settings
