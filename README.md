@@ -8,7 +8,7 @@
 
 *arr-compatible · LLM-powered · Self-hosted · Open Source
 
-[![Version](https://img.shields.io/badge/version-0.11.0--beta-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
+[![Version](https://img.shields.io/badge/version-0.12.0--beta-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776ab.svg)](https://www.python.org/)
 [![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
@@ -22,21 +22,28 @@
 
 ---
 
+> [!WARNING]
+> **This is BETA software.** Sublarr is under active development and may contain bugs, incomplete features, or breaking changes between versions.
+>
+> **Use at your own risk.** The author assumes no responsibility for data loss, corrupted files, deleted subtitles, or any other damage caused by using this software. Always keep backups of your subtitle files and media library before enabling automation features.
+>
+> Beta releases (`0.x.y-beta`) may change configuration formats, database schemas, or API contracts without notice. Read the [CHANGELOG](CHANGELOG.md) before upgrading.
+
+---
+
 Sublarr is a self-hosted subtitle manager for anime and media libraries. It automatically searches subtitle providers, scores and downloads the best match (ASS-first), and translates subtitles into your target language using a local LLM — all without sending your data to third-party services.
 
 It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up your language profiles, and let it handle everything automatically via webhooks.
 
 ---
 
-## ☕ Support This Project
+## 💙 Support This Project
 
 If Sublarr saves you time, please consider supporting continued development:
 
 <a href="https://www.paypal.com/donate?hosted_button_id=GLXYTD3FV9Y78">
   <img src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif" alt="Donate via PayPal" />
 </a>
-
-<!-- Alternatively: https://github.com/sponsors/Abrechen2 -->
 
 ---
 
@@ -70,7 +77,7 @@ If Sublarr saves you time, please consider supporting continued development:
 ### 🔧 Subtitle Tools
 - **Waveform editor** — wavesurfer.js audio visualization with per-cue region markers
 - **CodeMirror editor** — syntax-highlighted ASS/SRT editing with diff view
-- **Video sync** — ffsubsync & alass integration for automatic timing correction
+- **Video sync** — ffsubsync & alass integration for automatic timing correction (install directly from the UI)
 - **Format conversion** — convert between ASS, SRT, VTT, SSA via pysubs2
 - **Quality fixes** — one-click overlap fix, timing normalization, line merge/split, spell-check
 - **Batch OCR** — extract text from PGS/VobSub image tracks via Tesseract
@@ -85,6 +92,7 @@ If Sublarr saves you time, please consider supporting continued development:
 
 ### 🎨 UI
 - *arr-style dark theme with teal accent — feels at home next to Sonarr, Radarr, Prowlarr
+- Fully redesigned Settings UI — grouped cards, advanced toggles, inline field descriptions, unsaved-changes guard
 - Customizable dashboard with draggable widgets
 - Global search (`Ctrl+K`) across all pages
 - Real-time updates via WebSocket (activity feed, job progress)
@@ -118,7 +126,7 @@ Open **http://localhost:5765** — that's it.
 ```yaml
 services:
   sublarr:
-    image: ghcr.io/abrechen2/sublarr:0.11.0-beta
+    image: ghcr.io/abrechen2/sublarr:0.12.0-beta
     container_name: sublarr
     ports:
       - "5765:5765"
@@ -141,7 +149,7 @@ The image runs as a non-root user with `cap_drop: ALL` and no new privileges. A 
 ```yaml
 services:
   sublarr:
-    image: ghcr.io/abrechen2/sublarr:0.11.0-beta
+    image: ghcr.io/abrechen2/sublarr:0.12.0-beta
     container_name: sublarr
     ports:
       - "5765:5765"
@@ -290,7 +298,7 @@ Set `SUBLARR_OLLAMA_URL` to your Ollama host. For Docker, use `http://host.docke
 | **Activity** | Real-time event feed |
 | **History** | Past operations with timestamps and results |
 | **Statistics** | Charts — provider success rates, language distribution, quality trends |
-| **Settings** | 19-tab settings panel covering all configuration |
+| **Settings** | Redesigned settings panel — grouped cards, advanced field toggles, inline descriptions |
 
 The subtitle editor (accessible from Library/Series Detail) includes:
 - **Preview** — formatted subtitle preview with cue navigation
