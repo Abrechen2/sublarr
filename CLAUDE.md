@@ -58,6 +58,6 @@ SemVer, konservative Beta-Strategie:
 # 1. VERSION anpassen (z.B. 0.9.3-beta → 0.9.4-beta)
 # 2. git commit -m "chore: bump version to 0.9.4-beta"
 # 3. docker build -t ghcr.io/abrechen2/sublarr:0.9.4-beta .
-# 4. docker save ... | ssh root@192.168.178.36 docker load
+# 4. docker save ... | ssh root@<CARDINAL_IP> docker load
 # 5. SSH → docker compose ... up -d
 ```

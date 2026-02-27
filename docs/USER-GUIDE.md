@@ -18,7 +18,7 @@ Create a `docker-compose.yml`:
 ```yaml
 services:
   sublarr:
-    image: ghcr.io/denniswittke/sublarr:0.9.0-beta
+    image: ghcr.io/abrechen2/sublarr:0.12.0-beta
     container_name: sublarr
     ports:
       - "5765:5765"

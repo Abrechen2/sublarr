@@ -19,9 +19,9 @@ updates:
       prefix-development: "chore"
       include: "scope"
     reviewers:
-      - "denniswittke"
+      - "Abrechen2"
     assignees:
-      - "denniswittke"
+      - "Abrechen2"
     # Group minor and patch updates together
     groups:
       python-minor-patch:
@@ -47,9 +47,9 @@ updates:
       prefix-development: "chore"
       include: "scope"
     reviewers:
-      - "denniswittke"
+      - "Abrechen2"
     assignees:
-      - "denniswittke"
+      - "Abrechen2"
     # Group minor and patch updates together
     groups:
       npm-minor-patch:
