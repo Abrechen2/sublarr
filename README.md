@@ -4,9 +4,9 @@
 
 <img src="logo.png" alt="Sublarr Logo" width="140" />
 
-### Subtitle Manager & Auto-Translator for Anime and Media
+### Subtitle Manager & Downloader for Anime and Media
 
-*arr-compatible · LLM-powered · Self-hosted · Open Source
+*arr-compatible · Self-hosted · Open Source · LLM translation (beta)
 
 [![Version](https://img.shields.io/badge/version-0.12.0--beta-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
@@ -31,9 +31,28 @@
 
 ---
 
-Sublarr is a self-hosted subtitle manager for anime and media libraries. It automatically searches subtitle providers, scores and downloads the best match (ASS-first), and translates subtitles into your target language using a local LLM — all without sending your data to third-party services.
+Sublarr is a self-hosted subtitle manager for anime and media libraries. It automatically searches subtitle providers, scores and downloads the best match (ASS-first), and gives you tools to edit, sync and convert subtitles — all on your LAN, no cloud required.
 
 It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up your language profiles, and let it handle everything automatically via webhooks.
+
+> **Looking for something stable and battle-tested?** [Bazarr](https://github.com/morpheus65535/bazarr) is the right choice. Sublarr exists because I wanted features Bazarr didn't have — not because Bazarr is lacking.
+
+### What's core vs. what's beta
+
+| Feature | Status |
+|---------|--------|
+| Subtitle search & download (11 providers) | Core — works well |
+| ASS-first scoring, deduplication, trust scoring | Core — works well |
+| Sonarr/Radarr webhook integration | Core — works well |
+| Subtitle editor, waveform sync, format conversion | Core — works well |
+| LLM translation via Ollama | **Beta within beta** — works for EN→DE anime, quality varies |
+| Fine-tuned anime model (anime-translator-v6) | **Experimental** — BLEU benchmark only, real-world YMMV |
+
+> **Note on LLM translation:** It's there, it works for my setup, but it's not the reason to choose Sublarr over alternatives. If local AI translation is your main goal, manage your expectations.
+
+### A note on scope
+
+This is a vibe-coded solo project with ADHD-driven feature scope — meaning there are more features than are fully polished. Some work great, some have rough edges. Constructive criticism and bug reports are genuinely welcome. If something doesn't work, [open an issue](https://github.com/Abrechen2/sublarr/issues) — I'd rather know than not.
 
 ---
 
@@ -58,7 +77,9 @@ If Sublarr saves you time, please consider supporting continued development:
 - **Parallel provider search** — all providers queried concurrently via `ThreadPoolExecutor`
 - **Circuit breakers** — per-provider CLOSED/OPEN/HALF_OPEN state prevents cascading failures
 
-### 🌐 LLM Translation
+### 🌐 LLM Translation *(beta)*
+> Translation is a beta feature. It works, but quality depends heavily on model, language pair, and content type. EN→DE anime is the best-tested path. For everything else: try it, but verify the results.
+
 - **Fully local** — translates via [Ollama](https://ollama.ai/); no external API required
 - **Context-aware batching** — cues grouped into context-window-aware chunks for coherent translations
 - **Translation memory** — SHA-256 + difflib similarity cache avoids retranslating identical/near-identical lines
