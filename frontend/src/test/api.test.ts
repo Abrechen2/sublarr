@@ -1,26 +1,30 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import axios from 'axios'
-import * as _api from '@/api/client'
 
-// Mock axios
-vi.mock('axios')
-const mockedAxios = axios as unknown as {
-  create: ReturnType<typeof vi.fn>
-  get: ReturnType<typeof vi.fn>
-  post: ReturnType<typeof vi.fn>
-}
+// Mock axios before importing client (client.ts sets up interceptors at module level)
+vi.mock('axios', () => ({
+  default: {
+    create: vi.fn(() => ({
+      interceptors: {
+        request: { use: vi.fn() },
+        response: { use: vi.fn() },
+      },
+      get: vi.fn(),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+    })),
+  },
+}))
+
+import * as _api from '@/api/client'
 
 describe('API Client', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('getHealth returns health status', () => {
-    const mockData = { status: 'healthy', services: {} }
-    mockedAxios.get = vi.fn().mockResolvedValue({ data: mockData })
-
-    // We can't directly test the exported functions without mocking axios.create
-    // This is a placeholder test structure
-    expect(true).toBe(true)
+  it('module loads without errors', () => {
+    // Verifies the client module initialises correctly when axios is mocked
+    expect(_api).toBeDefined()
   })
 })
