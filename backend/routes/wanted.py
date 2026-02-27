@@ -926,7 +926,7 @@ def batch_extract():
         400:
           description: item_ids missing or empty
     """
-    from db.wanted import get_wanted_item, get_wanted_items
+    from db.wanted import get_wanted_items
 
     data = request.get_json(force=True, silent=True) or {}
     item_ids = data.get("item_ids", [])
