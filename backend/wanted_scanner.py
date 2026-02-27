@@ -907,6 +907,17 @@ class WantedScanner:
                 self._last_search_at = datetime.now(UTC).isoformat()
                 return {"total": 0, "processed": 0, "found": 0, "failed": 0, "skipped": 0}
 
+            # Split: items with embedded subs go to extraction, not provider search
+            _embedded_types = ("embedded_ass", "embedded_srt")
+            embedded_items = [i for i in eligible if i.get("existing_sub") in _embedded_types]
+            search_items = [i for i in eligible if i.get("existing_sub") not in _embedded_types]
+
+            if embedded_items:
+                logger.info(
+                    "[search_all] %d items have embedded subs — extracting instead of searching providers",
+                    len(embedded_items),
+                )
+
             from wanted_search import process_wanted_item
 
             total = len(eligible)
@@ -914,6 +925,36 @@ class WantedScanner:
             found = 0
             failed = 0
             skipped = 0
+
+            # Extract embedded-sub items first (no provider calls needed)
+            auto_translate = getattr(settings, "wanted_auto_translate", False)
+            for item in embedded_items:
+                try:
+                    from routes.wanted import _extract_embedded_sub
+
+                    _extract_embedded_sub(
+                        item["id"], item["file_path"], auto_translate=auto_translate
+                    )
+                    found += 1
+                except Exception as exc:
+                    logger.warning(
+                        "[search_all] Extraction failed for item %d: %s", item["id"], exc
+                    )
+                    failed += 1
+                processed += 1
+                if socketio:
+                    socketio.emit(
+                        "wanted_search_progress",
+                        {
+                            "processed": processed,
+                            "total": total,
+                            "found": found,
+                            "failed": failed,
+                            "current_item": item.get("title", str(item["id"])),
+                        },
+                    )
+
+            eligible = search_items
 
             # Parallel processing with bounded ThreadPoolExecutor
             max_workers = min(4, total)
