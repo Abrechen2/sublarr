@@ -24,6 +24,17 @@ wanted_batch_state = {
 }
 wanted_batch_lock = threading.Lock()
 
+# Batch-extract state (in-memory for real-time tracking)
+_batch_extract_state = {
+    "running": False,
+    "total": 0,
+    "processed": 0,
+    "succeeded": 0,
+    "failed": 0,
+    "current_item": None,
+}
+_batch_extract_lock = threading.Lock()
+
 
 @bp.route("/wanted", methods=["GET"])
 def list_wanted():
@@ -829,6 +840,41 @@ def wanted_batch_action():
     return jsonify(result)
 
 
+def _run_batch_extract(item_ids, auto_translate, app):
+    """Background thread: extract embedded subs for each item, emit progress events."""
+    from db.wanted import get_wanted_item
+
+    with _batch_extract_lock:
+        _batch_extract_state.update({
+            "running": True, "total": len(item_ids),
+            "processed": 0, "succeeded": 0, "failed": 0, "current_item": None,
+        })
+
+    try:
+        with app.app_context():
+            for idx, item_id in enumerate(item_ids):
+                item = get_wanted_item(item_id)
+                with _batch_extract_lock:
+                    _batch_extract_state["current_item"] = (item or {}).get("title", f"Item {item_id}")
+                try:
+                    _extract_embedded_sub(item_id, (item or {}).get("file_path", ""), auto_translate)
+                    with _batch_extract_lock:
+                        _batch_extract_state["succeeded"] += 1
+                except Exception as exc:
+                    logger.warning("[batch-extract] item %d failed: %s", item_id, exc)
+                    with _batch_extract_lock:
+                        _batch_extract_state["failed"] += 1
+                with _batch_extract_lock:
+                    _batch_extract_state["processed"] = idx + 1
+                    snapshot = dict(_batch_extract_state)
+                socketio.emit("batch_extract_progress", snapshot)
+    finally:
+        with _batch_extract_lock:
+            _batch_extract_state["running"] = False
+            snapshot = dict(_batch_extract_state)
+        emit_event("batch_extract_complete", snapshot)
+
+
 @bp.route("/wanted/batch-extract", methods=["POST"])
 def batch_extract():
     """Extract embedded subtitles for multiple wanted items.
@@ -893,29 +939,36 @@ def batch_extract():
     if not item_ids:
         return jsonify({"error": "item_ids or series_id required"}), 400
 
-    results = []
-    succeeded = 0
-    failed = 0
+    with _batch_extract_lock:
+        if _batch_extract_state["running"]:
+            return jsonify({"error": "Batch extraction already running"}), 409
 
-    for item_id in item_ids:
-        item = get_wanted_item(item_id)
-        if not item:
-            results.append({"item_id": item_id, "status": "error", "error": "Item not found"})
-            failed += 1
-            continue
-        try:
-            result = _extract_embedded_sub(
-                item_id, item.get("file_path", ""), auto_translate=auto_translate
-            )
-            result["item_id"] = item_id
-            results.append(result)
-            succeeded += 1
-        except Exception as exc:
-            logger.warning("[batch-extract] item %d failed: %s", item_id, exc)
-            results.append({"item_id": item_id, "status": "error", "error": str(exc)})
-            failed += 1
+    app = current_app._get_current_object()
+    threading.Thread(
+        target=_run_batch_extract,
+        args=(item_ids, auto_translate, app),
+        daemon=True,
+    ).start()
+    return jsonify({"status": "started", "total_items": len(item_ids)}), 202
 
-    return jsonify({"succeeded": succeeded, "failed": failed, "results": results})
+
+@bp.route("/wanted/batch-extract/status", methods=["GET"])
+def batch_extract_status():
+    """Get current batch-extract progress.
+    ---
+    get:
+      tags:
+        - Wanted
+      summary: Batch extract status
+      description: Returns current state of the background batch-extract operation.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Current batch-extract state
+    """
+    with _batch_extract_lock:
+        return jsonify(dict(_batch_extract_state))
 
 
 @bp.route("/wanted/<int:item_id>/search-providers", methods=["GET"])

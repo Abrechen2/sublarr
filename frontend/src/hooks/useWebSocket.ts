@@ -16,6 +16,8 @@ interface UseWebSocketOptions {
   onWantedSearchCompleted?: (data: unknown) => void
   onWantedBatchProgress?: (data: unknown) => void
   onWantedBatchCompleted?: (data: unknown) => void
+  onBatchExtractProgress?: (data: unknown) => void
+  onBatchExtractCompleted?: (data: unknown) => void
   onRetranslationProgress?: (data: unknown) => void
   onRetranslationCompleted?: (data: unknown) => void
   onConfigUpdated?: (data: unknown) => void
@@ -59,6 +61,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       ['wanted_search_completed', 'onWantedSearchCompleted'],
       ['wanted_batch_progress', 'onWantedBatchProgress'],
       ['wanted_batch_completed', 'onWantedBatchCompleted'],
+      ['batch_extract_progress', 'onBatchExtractProgress'],
+      ['batch_extract_completed', 'onBatchExtractCompleted'],
       ['retranslation_progress', 'onRetranslationProgress'],
       ['retranslation_completed', 'onRetranslationCompleted'],
       ['config_updated', 'onConfigUpdated'],

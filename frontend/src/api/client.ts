@@ -155,12 +155,12 @@ export async function startWantedBatchSearch(itemIds?: number[], seriesId?: numb
   return data
 }
 
-/** Extract embedded subtitles for multiple wanted items or a whole series. */
+/** Start background batch-extract for multiple wanted items or a whole series (returns 202). */
 export async function batchExtractEmbedded(
   itemIds: number[],
   autoTranslate = false,
   seriesId?: number,
-): Promise<{ succeeded: number; failed: number; results: unknown[] }> {
+): Promise<{ status: string; total_items: number }> {
   const body: Record<string, unknown> = { auto_translate: autoTranslate }
   if (seriesId != null) {
     body.series_id = seriesId
@@ -168,6 +168,20 @@ export async function batchExtractEmbedded(
     body.item_ids = itemIds
   }
   const { data } = await api.post('/wanted/batch-extract', body)
+  return data
+}
+
+export interface BatchExtractStatus {
+  running: boolean
+  total: number
+  processed: number
+  succeeded: number
+  failed: number
+  current_item: string | null
+}
+
+export async function getBatchExtractStatus(): Promise<BatchExtractStatus> {
+  const { data } = await api.get('/wanted/batch-extract/status')
   return data
 }
 

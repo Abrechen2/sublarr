@@ -6,7 +6,7 @@ import {
   getWantedItems, getWantedSummary, refreshWanted,
   updateWantedItemStatus,
   searchWantedItem, processWantedItem, extractEmbeddedSub,
-  startWantedBatchSearch, getWantedBatchStatus,
+  startWantedBatchSearch, getWantedBatchStatus, getBatchExtractStatus,
   getProviders, testProvider, getProviderStats, clearProviderCache,
   searchAllWanted, getRetranslateStatus, retranslateSingle, retranslateBatch,
   getLanguageProfiles, createLanguageProfile, updateLanguageProfile,
@@ -232,6 +232,14 @@ export function useWantedBatchStatus() {
     queryKey: ['wanted-batch-status'],
     queryFn: getWantedBatchStatus,
     refetchInterval: 10000,
+  })
+}
+
+export function useWantedBatchExtractStatus() {
+  return useQuery({
+    queryKey: ['wanted-batch-extract-status'],
+    queryFn: getBatchExtractStatus,
+    refetchInterval: (query) => (query.state.data?.running ? 3000 : false),
   })
 }
 

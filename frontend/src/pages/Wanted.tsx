@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import {
   useWantedItems, useWantedSummary, useRefreshWanted, useUpdateWantedStatus,
   useSearchWantedItem, useProcessWantedItem, useStartWantedBatch, useWantedBatchStatus,
+  useWantedBatchExtractStatus,
   useRetranslateSingle, useAddToBlacklist, useExtractEmbeddedSub,
 } from '@/hooks/useApi'
 import { StatusBadge, SubtitleTypeBadge } from '@/components/shared/StatusBadge'
@@ -20,6 +21,8 @@ import { FilterBar } from '@/components/filters/FilterBar'
 import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
 import { BatchActionBar } from '@/components/batch/BatchActionBar'
 import { useSelectionStore } from '@/stores/selectionStore'
+import { useWebSocket } from '@/hooks/useWebSocket'
+import { useQueryClient } from '@tanstack/react-query'
 
 /** Derive subtitle file path from media path + language + format. */
 function deriveSubtitlePath(mediaPath: string, lang: string, format: string): string {
@@ -254,6 +257,19 @@ export function WantedPage() {
   const startBatch = useStartWantedBatch()
   const addBlacklist = useAddToBlacklist()
   const { data: batchStatus } = useWantedBatchStatus()
+  const { data: extractStatus, refetch: refetchExtractStatus } = useWantedBatchExtractStatus()
+  const queryClient = useQueryClient()
+
+  // Live updates for batch-extract progress via WebSocket
+  useWebSocket({
+    onBatchExtractProgress: () => {
+      refetchExtractStatus()
+    },
+    onBatchExtractCompleted: () => {
+      queryClient.invalidateQueries({ queryKey: ['wanted-batch-extract-status'] })
+      queryClient.invalidateQueries({ queryKey: ['wanted'] })
+    },
+  })
 
   const totalWanted = summary?.by_status?.wanted ?? 0
   const totalEpisodes = summary?.by_type?.episode ?? 0
@@ -377,6 +393,37 @@ export function WantedPage() {
 
   return (
     <div className="space-y-5">
+      {/* Batch Extract Progress Banner */}
+      {extractStatus?.running && (
+        <div
+          className="rounded-lg p-4"
+          style={{ backgroundColor: 'var(--accent-bg)', border: '1px solid var(--accent-dim)' }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--accent)' }}>
+              <Loader2 size={14} className="animate-spin" />
+              {t('wanted.extracting', { item: extractStatus.current_item || t('wanted.starting') })}
+            </div>
+            <span className="text-xs tabular-nums" style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
+              {extractStatus.processed}/{extractStatus.total}
+            </span>
+          </div>
+          <div className="w-full rounded-full h-2" style={{ backgroundColor: 'var(--border)' }}>
+            <div
+              className="h-2 rounded-full transition-all duration-300"
+              style={{
+                width: extractStatus.total > 0 ? `${(extractStatus.processed / extractStatus.total) * 100}%` : '0%',
+                backgroundColor: 'var(--accent)',
+              }}
+            />
+          </div>
+          <div className="flex gap-4 mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <span>{t('wanted.succeeded', 'Succeeded')}: {extractStatus.succeeded}</span>
+            <span>{t('wanted.failed')}: {extractStatus.failed}</span>
+          </div>
+        </div>
+      )}
+
       {/* Batch Progress Banner */}
       {batchStatus?.running && (
         <div
