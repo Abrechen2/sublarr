@@ -75,6 +75,39 @@ BACKEND_TEMPLATES = [
             "context_window": 8000,
         },
     },
+    # --- Community / Fine-tuned Models ---
+    {
+        "name": "anime_translator_v6",
+        "display_name": "Anime Translator V6",
+        "backend_type": "ollama",
+        "category": "community",
+        "description": (
+            "Gemma-3-12B fine-tuned on 74k anime subtitle pairs (EN→DE). "
+            "Matches qwen2.5:14b quality at 7 GB — no API key, runs fully local via Ollama."
+        ),
+        "config_defaults": {
+            "model": "anime-translator-v6",
+            "temperature": "0.3",
+        },
+        "hf_repo": "sublarr/anime-translator-v6-GGUF",
+        "hf_tag": "Q4_K_M",
+        "ollama_pull": "hf.co/sublarr/anime-translator-v6-GGUF:Q4_K_M",
+        "install_hint": (
+            "# Pull directly via Ollama (requires Ollama ≥ 0.3):\n"
+            "ollama pull hf.co/sublarr/anime-translator-v6-GGUF:Q4_K_M\n\n"
+            "# Or use the Install button above — Sublarr pulls it automatically."
+        ),
+        "tags": ["fine-tuned", "anime", "en→de", "local", "7GB", "beta"],
+        "languages": ["en→de"],
+        "size_gb": 7.0,
+        "benchmark": {
+            "bleu1": 0.281,
+            "bleu2": 0.111,
+            "length_ratio": 1.02,
+            "test_set": "JJK S01E01 vs Crunchyroll DE (30 pairs)",
+            "vs_baseline": "beats qwen2.5:14b (0.264) and hunyuan-mt-7b (0.141)",
+        },
+    },
 ]
 
 
@@ -1373,6 +1406,80 @@ def get_backend_templates():
                       type: object
     """
     return jsonify({"templates": BACKEND_TEMPLATES})
+
+
+@bp.route("/backends/ollama/pull", methods=["POST"])
+def ollama_pull_model():
+    """Pull an Ollama model by name.
+    ---
+    post:
+      tags:
+        - Translate
+      summary: Pull an Ollama model
+      description: >
+        Triggers `ollama pull` for the given model name. Useful for installing
+        community models (e.g. anime-translator-v6) directly from the UI.
+        The Ollama server must be reachable at the configured URL.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model]
+              properties:
+                model:
+                  type: string
+                  example: "anime-translator-v6"
+      responses:
+        200:
+          description: Pull completed
+        400:
+          description: Missing model name
+        502:
+          description: Ollama unreachable or pull failed
+    """
+    from translation import get_translation_manager
+
+    data = request.get_json() or {}
+    model = data.get("model", "").strip()
+    if not model:
+        return jsonify({"error": "model name required"}), 400
+
+    # Get configured Ollama URL from active backend or fall back to settings
+    try:
+        manager = get_translation_manager()
+        backend = manager.get_backend("ollama")
+        ollama_url = backend._url if backend else None
+    except Exception:
+        ollama_url = None
+
+    if not ollama_url:
+        try:
+            from config import get_settings
+            ollama_url = get_settings().ollama_url
+        except Exception:
+            ollama_url = "http://localhost:11434"
+
+    try:
+        resp = requests.post(
+            f"{ollama_url}/api/pull",
+            json={"name": model, "stream": False},
+            timeout=600,  # pulls can take several minutes
+        )
+        resp.raise_for_status()
+        return jsonify({"ok": True, "model": model, "status": resp.json().get("status", "done")})
+    except requests.Timeout:
+        return jsonify({"error": f"Pull timed out for '{model}' — try pulling manually via CLI"}), 502
+    except requests.ConnectionError:
+        return jsonify({"error": f"Cannot connect to Ollama at {ollama_url}"}), 502
+    except requests.HTTPError as e:
+        return jsonify({"error": f"Ollama pull failed: {e}"}), 502
+    except Exception as e:
+        logger.exception("ollama_pull_model failed")
+        return jsonify({"error": str(e)}), 500
 
 
 @bp.route("/backends/stats", methods=["GET"])
