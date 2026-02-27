@@ -10,7 +10,7 @@ WORKDIR /build
 COPY frontend/package*.json ./
 RUN npm install --legacy-peer-deps
 COPY frontend/ .
-RUN npm run build
+RUN npx vite build
 
 # Stage 2: Python Backend + Frontend Bundle
 FROM python:3.12-slim
