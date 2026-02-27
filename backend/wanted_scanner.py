@@ -932,10 +932,14 @@ class WantedScanner:
                 try:
                     from routes.wanted import _extract_embedded_sub
 
-                    _extract_embedded_sub(item["id"], item["file_path"], auto_translate=auto_translate)
+                    _extract_embedded_sub(
+                        item["id"], item["file_path"], auto_translate=auto_translate
+                    )
                     found += 1
                 except Exception as exc:
-                    logger.warning("[search_all] Extraction failed for item %d: %s", item["id"], exc)
+                    logger.warning(
+                        "[search_all] Extraction failed for item %d: %s", item["id"], exc
+                    )
                     failed += 1
                 processed += 1
                 if socketio:

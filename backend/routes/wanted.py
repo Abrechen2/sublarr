@@ -847,19 +847,29 @@ def _run_batch_extract(item_ids, auto_translate, app):
     from db.wanted import get_wanted_item
 
     with _batch_extract_lock:
-        _batch_extract_state.update({
-            "running": True, "total": len(item_ids),
-            "processed": 0, "succeeded": 0, "failed": 0, "current_item": None,
-        })
+        _batch_extract_state.update(
+            {
+                "running": True,
+                "total": len(item_ids),
+                "processed": 0,
+                "succeeded": 0,
+                "failed": 0,
+                "current_item": None,
+            }
+        )
 
     try:
         with app.app_context():
             for idx, item_id in enumerate(item_ids):
                 item = get_wanted_item(item_id)
                 with _batch_extract_lock:
-                    _batch_extract_state["current_item"] = (item or {}).get("title", f"Item {item_id}")
+                    _batch_extract_state["current_item"] = (item or {}).get(
+                        "title", f"Item {item_id}"
+                    )
                 try:
-                    _extract_embedded_sub(item_id, (item or {}).get("file_path", ""), auto_translate)
+                    _extract_embedded_sub(
+                        item_id, (item or {}).get("file_path", ""), auto_translate
+                    )
                     with _batch_extract_lock:
                         _batch_extract_state["succeeded"] += 1
                 except Exception as exc:
