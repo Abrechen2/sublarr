@@ -4,7 +4,20 @@
 
 ---
 
-## v0.11.x (Current - Bug Fix & Polish)
+## Ongoing — UI/UX
+
+> Not tied to any version. Implemented as soon as a good solution is found.
+
+The current UI is functional but not final. The goal is a clean, modern interface that feels native — not a dashboard. No specific framework or design system is locked in yet; the right solution will be implemented when it emerges.
+
+- Responsive layout improvements (mobile / tablet)
+- Consistent component library across all pages
+- Better empty states, loading skeletons, and error feedback
+- Keyboard navigation and accessibility (a11y)
+
+---
+
+## v0.11.0 ✅ (Complete)
 
 - Track Manifest - list, extract, and translate embedded subtitle/audio streams
 - Video Sync - ffsubsync / alass integration with live progress bar
@@ -12,11 +25,17 @@
 - Format Conversion - ASS, SRT, SSA, VTT via pysubs2
 - Batch OCR - Tesseract-based text extraction from PGS/VobSub image tracks
 - Quality Fixes Toolbar - overlap fix, timing normalize, merge/split lines, spell check
-- Bug fix patches for known edge cases
 
 ---
 
-## v0.12.0 (Subtitle Intelligence)
+## v0.12.0 ✅ (Complete — Current)
+
+- Settings UX Redesign - SettingsCard, AdvancedSettingsContext, InfoTooltip, per-field descriptions
+- arr-style UI Redesign - Sonarr/Radarr aesthetic, teal accent, neutral dark palette
+
+---
+
+## v0.13.0 (Subtitle Intelligence)
 
 Goals: Make Sublarr smarter about what to search for and what to accept.
 
@@ -28,7 +47,7 @@ Goals: Make Sublarr smarter about what to search for and what to accept.
 
 ---
 
-## v0.13.0 (Collaboration and Export)
+## v0.14.0 (Collaboration and Export)
 
 Goals: Make Sublarr useful as a subtitle processing pipeline, not just consumer.
 
@@ -39,7 +58,7 @@ Goals: Make Sublarr useful as a subtitle processing pipeline, not just consumer.
 
 ---
 
-## v0.14.0 (Performance and Scalability)
+## v0.15.0 (Performance and Scalability)
 
 Goals: Handle larger libraries without degradation.
 
@@ -51,7 +70,7 @@ Goals: Handle larger libraries without degradation.
 
 ---
 
-## v0.15.0 (Advanced Anime Support)
+## v0.16.0 (Advanced Anime Support)
 
 Goals: First-class support for complex anime subtitle scenarios.
 
@@ -83,7 +102,7 @@ Requirements for stable release:
 - Web Player Integration - embedded subtitle preview with video playback
 - AI-Assisted Glossary Building - auto-detect proper nouns and build glossary from translation history
 - Provider Plugin Marketplace - community-submitted provider plugins with sandboxed execution
-- Multi-User Support - role-based access control
+- Single-Account Login - optional password protection for the web UI (no multi-user/RBAC)
 - Subtitle Quality Score Export - export per-file quality metrics as NFO sidecar
 
 ---
