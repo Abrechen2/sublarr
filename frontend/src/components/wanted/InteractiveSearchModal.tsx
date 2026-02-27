@@ -330,7 +330,7 @@ export function InteractiveSearchModal({
                                 className="text-[10px] text-emerald-400 bg-emerald-400/10 px-1 rounded"
                                 title={result.uploader_name ? `Uploader: ${result.uploader_name}` : 'Vertrauenswürdiger Uploader'}
                               >
-                                +{Math.round(result.uploader_trust_bonus)} Trust
+                                +{Math.round(result.uploader_trust_bonus)} Trust
                               </span>
                             )}
                             {(result.machine_translated || (result.mt_confidence !== undefined && result.mt_confidence > 0)) && (

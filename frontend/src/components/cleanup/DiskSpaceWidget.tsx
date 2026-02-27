@@ -7,7 +7,7 @@
 import { useTranslation } from 'react-i18next'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line } from 'recharts'
 import type { DiskSpaceStats } from '@/lib/types'
-import { FORMAT_COLORS, getFormatColor, formatBytes } from '@/lib/diskUtils'
+import { getFormatColor, formatBytes } from '@/lib/diskUtils'
 
 interface DiskSpaceWidgetProps {
   stats: DiskSpaceStats

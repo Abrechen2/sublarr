@@ -729,7 +729,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, expandedEp, 
                       {ep.has_file && targetLanguages.length > 0 ? (
                         targetLanguages.map((lang) => {
                           const subFormat = ep.subtitles[lang] || ''
-                          const hasFile = hasSubtitleFile(subFormat)
+                          const _hasFile = hasSubtitleFile(subFormat)
                           return (
                             <span key={lang} className="inline-flex items-center gap-0.5">
                               <SubBadge lang={lang} format={subFormat} />
@@ -1118,7 +1118,7 @@ export function SeriesDetailPage() {
   const [interactiveEp, setInteractiveEp] = useState<{ id: number; title: string } | null>(null)
 
   const episodeSearch = useEpisodeSearch()
-  const episodeHistory = useEpisodeHistory(expandedEp?.mode === 'history' ? expandedEp.id : 0)
+  const _episodeHistory = useEpisodeHistory(expandedEp?.mode === 'history' ? expandedEp.id : 0)
   const processItem = useProcessWantedItem()
   const startSeriesSearch = useStartWantedBatch()
   const [seriesSearchStarted, setSeriesSearchStarted] = useState(false)

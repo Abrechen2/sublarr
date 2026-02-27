@@ -4,7 +4,7 @@ import {
   getBatchStatus, getConfig, updateConfig, getLibrary, getSeriesDetail,
   translateFile, startBatch, getLogs,
   getWantedItems, getWantedSummary, refreshWanted,
-  updateWantedItemStatus, deleteWantedItem,
+  updateWantedItemStatus,
   searchWantedItem, processWantedItem, extractEmbeddedSub,
   startWantedBatchSearch, getWantedBatchStatus,
   getProviders, testProvider, getProviderStats, clearProviderCache,
@@ -622,7 +622,7 @@ export function useUpdateGlossaryEntry() {
 export function useDeleteGlossaryEntry() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ entryId, seriesId }: { entryId: number; seriesId?: number | null }) =>
+    mutationFn: ({ entryId, seriesId: _seriesId }: { entryId: number; seriesId?: number | null }) =>
       deleteGlossaryEntry(entryId),
     onSuccess: (_, variables) => {
       if (variables.seriesId != null) {

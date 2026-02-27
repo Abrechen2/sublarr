@@ -272,7 +272,17 @@ def create_app(testing=False):
         # Initialize plugin system
         plugins_dir = getattr(settings, "plugins_dir", "")
         if plugins_dir:
-            os.makedirs(plugins_dir, exist_ok=True)
+            try:
+                os.makedirs(plugins_dir, exist_ok=True)
+            except PermissionError:
+                import tempfile
+
+                plugins_dir = tempfile.mkdtemp(prefix="sublarr_plugins_")
+                logger.warning(
+                    "Cannot create plugins_dir %s (permission denied), using temp: %s",
+                    getattr(settings, "plugins_dir", ""),
+                    plugins_dir,
+                )
             from providers.plugins import init_plugin_manager
 
             plugin_mgr = init_plugin_manager(plugins_dir)

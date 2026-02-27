@@ -63,7 +63,7 @@ export function MigrationTab() {
       setPreview(previewData)
       setStep('preview')
       toast('Analysis complete', 'success')
-    } catch (err) {
+    } catch (_err) {
       toast('Analysis failed', 'error')
     } finally {
       setIsLoading(false)
@@ -83,7 +83,7 @@ export function MigrationTab() {
       setImportResult(result)
       setStep('complete')
       toast('Migration completed successfully', 'success')
-    } catch (err) {
+    } catch (_err) {
       toast('Migration failed', 'error')
     } finally {
       setIsLoading(false)
