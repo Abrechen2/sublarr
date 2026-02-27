@@ -71,7 +71,7 @@ const NAV_GROUPS: NavGroup[] = [
   { title: 'Translation', icon: Languages,  items: ['Translation', 'Translation Backends', 'Prompt Presets', 'Languages'] },
   { title: 'Automation',  icon: Zap,        items: ['Automation', 'Wanted', 'Whisper'] },
   { title: 'Providers',   icon: Globe,      items: ['Providers', 'Scoring'] },
-  { title: 'System',      icon: Cog,        items: ['Events & Hooks', 'Backup', 'Subtitle Tools', 'Cleanup', 'Integrations', 'Notification Templates', 'Migration'] },
+  { title: 'System',      icon: Cog,        items: ['Events & Hooks', 'Notifications', 'Backup', 'Subtitle Tools', 'Cleanup', 'Integrations', 'Notification Templates', 'Migration'] },
 ]
 
 // Flat list derived from groups (preserves ordering for legacy code)
@@ -182,6 +182,94 @@ const FIELDS: FieldConfig[] = [
     advanced: true },
   { key: 'standalone_debounce_seconds', label: 'File Detection Debounce (seconds)', type: 'number', placeholder: '10', tab: 'Library Sources',
     description: 'Wartezeit nach letzter Dateiänderung bevor Scan ausgelöst wird.',
+    advanced: true },
+  // Library Sources — AniDB
+  { key: 'anidb_enabled', label: 'AniDB aktivieren', type: 'toggle', tab: 'Library Sources',
+    description: 'AniDB-ID-Auflösung für korrekte absolute Episodennummerierung (benötigt für Jimaku).' },
+  { key: 'anidb_custom_field_name', label: 'AniDB Sonarr-Feldname', type: 'text', placeholder: 'anidb_id', tab: 'Library Sources',
+    description: 'Name des Custom-Felds in Sonarr das die AniDB-ID enthält.',
+    advanced: true },
+  { key: 'anidb_cache_ttl_days', label: 'AniDB Cache TTL (Tage)', type: 'number', placeholder: '30', tab: 'Library Sources',
+    description: 'Wie lange TVDB→AniDB-Mappings gecacht werden.',
+    advanced: true },
+  { key: 'anidb_fallback_to_mapping', label: 'AniDB Mapping-Fallback', type: 'toggle', tab: 'Library Sources',
+    description: 'Cache-Tabelle als Fallback nutzen wenn AniDB API nicht erreichbar.',
+    advanced: true },
+  // General — System & Backup Retention
+  { key: 'log_format', label: 'Log-Format', type: 'text', placeholder: 'text', tab: 'General',
+    description: '"text" (Standard) oder "json" für Log-Aggregatoren wie Loki.',
+    advanced: true },
+  { key: 'ffmpeg_timeout', label: 'ffmpeg Timeout (s)', type: 'number', placeholder: '120', tab: 'General',
+    description: 'Sekunden bevor eine ffmpeg-Extraktion abgebrochen wird. Bei großen MKV-Dateien erhöhen.',
+    advanced: true },
+  { key: 'backup_retention_daily', label: 'Tägliche Backups behalten', type: 'number', placeholder: '7', tab: 'General',
+    description: 'Anzahl täglicher Backups die aufbewahrt werden.' },
+  { key: 'backup_retention_weekly', label: 'Wöchentliche Backups behalten', type: 'number', placeholder: '4', tab: 'General',
+    description: 'Anzahl wöchentlicher Backups die aufbewahrt werden.' },
+  { key: 'backup_retention_monthly', label: 'Monatliche Backups behalten', type: 'number', placeholder: '3', tab: 'General',
+    description: 'Anzahl monatlicher Backups die aufbewahrt werden.' },
+  // Translation — LLM Parameters
+  { key: 'batch_size', label: 'Batch-Größe', type: 'number', placeholder: '15', tab: 'Translation',
+    description: 'Zeilen pro LLM-Anfrage. Größere Batches sind schneller können aber Context-Limits überschreiten.',
+    advanced: true },
+  { key: 'temperature', label: 'Temperatur', type: 'number', placeholder: '0.3', tab: 'Translation',
+    description: 'LLM-Sampling-Temperatur (0.0–1.0). Niedriger = deterministischer.',
+    advanced: true },
+  { key: 'request_timeout', label: 'Request Timeout (s)', type: 'number', placeholder: '90', tab: 'Translation',
+    description: 'Sekunden bis ein LLM-Request aufgegeben wird. Bei langsamer Hardware erhöhen.',
+    advanced: true },
+  { key: 'max_retries', label: 'Max. Wiederholungen', type: 'number', placeholder: '3', tab: 'Translation',
+    description: 'Fehlgeschlagene LLM-Anfragen werden so oft wiederholt.',
+    advanced: true },
+  { key: 'backoff_base', label: 'Backoff Basis (s)', type: 'number', placeholder: '5', tab: 'Translation',
+    description: 'Basiswartezeit in Sekunden zwischen LLM-Wiederholungsversuchen (exponentiell).',
+    advanced: true },
+  // Wanted — Embedded Subs & Metadata
+  { key: 'use_embedded_subs', label: 'Eingebettete Untertitel prüfen', type: 'toggle', tab: 'Wanted',
+    description: 'Beim Scan MKV/MP4-Dateien auf eingebettete Sub-Streams prüfen.' },
+  { key: 'scan_metadata_engine', label: 'Metadaten-Engine', type: 'text', placeholder: 'auto', tab: 'Wanted',
+    description: '"auto" (versucht mediainfo, dann ffprobe), "ffprobe" oder "mediainfo".',
+    advanced: true },
+  { key: 'scan_metadata_max_workers', label: 'Metadaten-Worker', type: 'number', placeholder: '4', tab: 'Wanted',
+    description: 'Parallele Worker für Metadaten-Probing beim Scan.',
+    advanced: true },
+  // Wanted — Adaptive Backoff
+  { key: 'wanted_adaptive_backoff_enabled', label: 'Adaptiver Backoff', type: 'toggle', tab: 'Wanted',
+    description: 'Retry-Verzögerung exponentiell erhöhen für Einträge die wiederholt fehlschlagen.',
+    advanced: true },
+  { key: 'wanted_backoff_base_hours', label: 'Backoff Basis (h)', type: 'number', placeholder: '1.0', tab: 'Wanted',
+    description: 'Initiale Retry-Verzögerung in Stunden. Verdoppelt sich bei jedem Fehler.',
+    advanced: true },
+  { key: 'wanted_backoff_cap_hours', label: 'Backoff Maximum (h)', type: 'number', placeholder: '168', tab: 'Wanted',
+    description: 'Maximale Retry-Verzögerung. Standard: 168 (7 Tage).',
+    advanced: true },
+  { key: 'wanted_skip_srt_on_no_ass', label: 'SRT überspringen wenn kein ASS', type: 'toggle', tab: 'Wanted',
+    description: 'Wenn kein ASS in Schritten 1+2: SRT-Quellen überspringen und auf besseres Ergebnis warten.',
+    advanced: true },
+  // Automation — Circuit Breaker
+  { key: 'circuit_breaker_failure_threshold', label: 'Circuit-Breaker Schwellenwert', type: 'number', placeholder: '5', tab: 'Automation',
+    description: 'Aufeinanderfolgende Fehler bevor ein Provider temporär deaktiviert wird.',
+    advanced: true },
+  { key: 'circuit_breaker_cooldown_seconds', label: 'Circuit-Breaker Cooldown (s)', type: 'number', placeholder: '60', tab: 'Automation',
+    description: 'Sekunden im OPEN-Zustand bevor ein Probe-Request gesendet wird.',
+    advanced: true },
+  { key: 'provider_auto_disable_cooldown_minutes', label: 'Provider-Cooldown (min)', type: 'number', placeholder: '30', tab: 'Automation',
+    description: 'Minuten bevor ein auto-deaktivierter Provider erneut versucht wird.',
+    advanced: true },
+  // Notifications
+  { key: 'notification_urls_json', label: 'Benachrichtigungs-URLs', type: 'text',
+    placeholder: '["https://discord://token/channel"]', tab: 'Notifications',
+    description: 'Apprise-kompatible URLs als JSON-Array. Unterstützt Discord, Slack, ntfy, Gotify, Telegram u.v.m.' },
+  { key: 'notify_on_download', label: 'Bei Download', type: 'toggle', tab: 'Notifications',
+    description: 'Benachrichtigung wenn ein Untertitel erfolgreich heruntergeladen wurde.' },
+  { key: 'notify_on_upgrade', label: 'Bei Upgrade', type: 'toggle', tab: 'Notifications',
+    description: 'Benachrichtigung wenn ein Untertitel durch eine bessere Version ersetzt wird.' },
+  { key: 'notify_on_batch_complete', label: 'Bei Batch-Abschluss', type: 'toggle', tab: 'Notifications',
+    description: 'Benachrichtigung wenn ein Suchlauf oder Batch-Scan beendet ist.' },
+  { key: 'notify_on_error', label: 'Bei Fehler', type: 'toggle', tab: 'Notifications',
+    description: 'Benachrichtigung bei fehlgeschlagenen Downloads oder Übersetzungen.' },
+  { key: 'notify_manual_actions', label: 'Manuelle Aktionen', type: 'toggle', tab: 'Notifications',
+    description: 'Auch bei manuell ausgelösten Downloads und Übersetzungen benachrichtigen.',
     advanced: true },
 ]
 
@@ -731,6 +819,7 @@ function SettingsPageInner() {
   const isIntegrationsTab = activeTab === 'Integrations'
   const isApiKeysTab = activeTab === 'API Keys'
   const isMigrationTab = activeTab === 'Migration'
+  const isNotificationsTab = activeTab === 'Notifications'
   const isNotificationTemplatesTab = activeTab === 'Notification Templates'
 
   if (isLoading) {
@@ -886,17 +975,36 @@ function SettingsPageInner() {
             <IntegrationsTab />
           ) : isMigrationTab ? (
             <MigrationTab />
+          ) : isNotificationsTab ? (
+            <div className="space-y-5">
+              <SettingsCard title="Benachrichtigungs-URLs"
+                description="Apprise-kompatible Ziele — Discord, Slack, ntfy, Gotify, Telegram u.v.m.">
+                {['notification_urls_json']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Ereignisse"
+                description="Wann Benachrichtigungen gesendet werden">
+                {['notify_on_download','notify_on_upgrade','notify_on_batch_complete',
+                  'notify_on_error','notify_manual_actions']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+            </div>
           ) : isNotificationTemplatesTab ? (
             <NotificationTemplatesTab />
           ) : isTranslationTab ? (
             <div className="space-y-0">
-              {tabFields.map((field) => renderField(field))}
+              {FIELDS.filter(f => f.tab === 'Translation' && !['batch_size','temperature','request_timeout','max_retries','backoff_base'].includes(f.key)).map(renderField)}
               <ContextWindowSizeRow />
               <DefaultSyncEngineRow />
               <AutoSyncSection />
               <TranslationMemorySection />
               <TranslationQualitySection />
               <GlobalGlossaryPanel />
+              <SettingsCard title="LLM-Parameter"
+                description="Feinsteuerung der LLM-Anfragen — nur ändern wenn du weißt was du tust">
+                {['batch_size','temperature','request_timeout','max_retries','backoff_base']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
             </div>
           ) : activeTab === 'General' ? (
             <div className="space-y-5">
@@ -909,7 +1017,7 @@ function SettingsPageInner() {
                 {FIELDS.filter(f => f.tab === 'General' && f.key === 'api_key').map(renderField)}
               </SettingsCard>
               <SettingsCard title="Protokollierung" icon={FileText}>
-                {FIELDS.filter(f => f.tab === 'General' && f.key === 'log_level').map(renderField)}
+                {FIELDS.filter(f => f.tab === 'General' && ['log_level','log_format'].includes(f.key)).map(renderField)}
               </SettingsCard>
               <SettingsCard title="Pfadzuordnung" icon={Map}
                 description="Sonarr/Radarr Remote-Pfade auf lokale Pfade mappen">
@@ -972,7 +1080,12 @@ function SettingsPageInner() {
               </SettingsCard>
               <SettingsCard title="Datenbank" icon={Database}
                 description="Erweiterte Datenbankeinstellungen">
-                {FIELDS.filter(f => f.tab === 'General' && f.key === 'db_path').map(renderField)}
+                {FIELDS.filter(f => f.tab === 'General' && ['db_path','ffmpeg_timeout'].includes(f.key)).map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Backup-Aufbewahrung"
+                description="Wie viele automatische Backups pro Zyklus aufbewahrt werden">
+                {['backup_retention_daily','backup_retention_weekly','backup_retention_monthly']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
               </SettingsCard>
             </div>
           ) : (activeTab === 'Sonarr' || activeTab === 'Radarr') ? (
@@ -1025,17 +1138,34 @@ function SettingsPageInner() {
                 {['wanted_search_interval_hours','wanted_search_on_startup','wanted_search_max_items_per_run']
                   .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
               </SettingsCard>
+              <SettingsCard title="Circuit-Breaker"
+                description="Automatisches Deaktivieren von Providern bei anhaltenden Fehlern">
+                {['circuit_breaker_failure_threshold','circuit_breaker_cooldown_seconds','provider_auto_disable_cooldown_minutes']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
             </div>
           ) : activeTab === 'Wanted' ? (
             <div className="space-y-5">
               <SettingsCard title="Bibliotheks-Scan"
                 description="Wann und wie nach fehlenden Subs gesucht wird">
-                {['wanted_scan_interval_hours','wanted_scan_on_startup','wanted_anime_only','wanted_anime_movies_only']
+                {['wanted_scan_interval_hours','wanted_scan_on_startup','wanted_anime_only',
+                  'wanted_anime_movies_only','use_embedded_subs']
                   .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
               </SettingsCard>
               <SettingsCard title="Automatische Verarbeitung"
                 description="Was nach einem Scan automatisch passiert">
                 {['wanted_auto_extract','wanted_auto_translate','wanted_max_search_attempts']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Metadaten-Engine"
+                description="Welches Tool zum Auslesen von Mediendaten verwendet wird">
+                {['scan_metadata_engine','scan_metadata_max_workers']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Adaptiver Backoff"
+                description="Retry-Strategie für Einträge die wiederholt keine Untertitel finden">
+                {['wanted_adaptive_backoff_enabled','wanted_backoff_base_hours',
+                  'wanted_backoff_cap_hours','wanted_skip_srt_on_no_ass']
                   .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
               </SettingsCard>
             </div>

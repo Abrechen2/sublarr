@@ -1005,7 +1005,7 @@ export function BackupTab() {
         </h3>
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
           The built-in database backup scheduler runs daily and manages retention automatically.
-          Configure retention settings in General tab (backup_retention_daily, backup_retention_weekly, backup_retention_monthly).
+          Retention settings (daily / weekly / monthly) are in <strong>General → Backup-Aufbewahrung</strong>.
         </p>
       </div>
     </div>

@@ -114,6 +114,9 @@ export const HELP_TEXT: Record<string, string> = {
   backup_interval_hours: 'How often to create a database backup. 0 = disabled.',
   backup_keep_count: 'Number of backup files to retain before deleting the oldest.',
   backup_path: 'Directory where backup files are stored.',
+  backup_retention_daily: 'Number of daily backups to keep.',
+  backup_retention_weekly: 'Number of weekly backups to keep.',
+  backup_retention_monthly: 'Number of monthly backups to keep.',
 
   // Subtitle Tools
   hi_removal_aggressive: 'Also remove lines that are entirely in brackets, not just tagged text.',
@@ -130,9 +133,52 @@ export const HELP_TEXT: Record<string, string> = {
   ntfy_url: 'ntfy topic URL for push notifications.',
   apprise_urls: 'Comma-separated Apprise notification URLs.',
   notifications_enabled: 'Send notifications on subtitle downloads, failures, and upgrades.',
+
+  // Notifications
+  notification_urls_json: 'JSON array of Apprise-compatible notification URLs. Supports Discord, Slack, ntfy, Gotify, Telegram and 70+ more. Example: ["discord://token/channel","ntfy://topic"].',
   notify_on_download: 'Send a notification when a subtitle is successfully downloaded.',
   notify_on_error: 'Send a notification when a subtitle download or translation fails.',
   notify_on_upgrade: 'Send a notification when a subtitle is upgraded.',
+  notify_on_batch_complete: 'Send a notification when a batch search or scan run finishes.',
+  notify_manual_actions: 'Also send notifications for manually triggered downloads and translations.',
+
+  // General — Paths & System
+  path_mapping: 'Map remote *arr file paths to local paths. Format: "/remote=/local" — separate multiple pairs with semicolons. Example: "/data/media=/mnt/media;/anime=/share/anime".',
+  log_format: 'Log output format: "text" (human-readable, default) or "json" (structured, for log aggregators like Loki/Datadog).',
+  ffmpeg_timeout: 'Seconds before an ffmpeg subtitle-extraction command is killed. Increase for large MKV files with many tracks. Default: 120.',
+
+  // Translation — LLM Parameters
+  batch_size: 'Number of subtitle lines sent per LLM request. Larger batches are faster but may exceed context limits. Default: 15.',
+  temperature: 'LLM sampling temperature (0.0–1.0). Lower = more deterministic, higher = more creative. Default: 0.3.',
+  request_timeout: 'Seconds to wait for a single LLM response before giving up. Increase for slow hardware. Default: 90.',
+  max_retries: 'Retry a failed LLM translation request this many times before skipping. Default: 3.',
+  backoff_base: 'Base seconds to wait between retry attempts (exponential backoff). Default: 5.',
+
+  // Wanted — Embedded Subs & Metadata
+  use_embedded_subs: 'During scan, probe MKV/MP4 files for embedded subtitle streams. Items with embedded ASS/SRT are marked accordingly and can be auto-extracted.',
+  scan_metadata_engine: 'Tool used to probe media metadata: "auto" (tries mediainfo then ffprobe), "ffprobe", or "mediainfo". Default: "auto".',
+  scan_metadata_max_workers: 'Parallel workers for batch metadata probing during scans. Higher values speed up large libraries. Default: 4.',
+
+  // Wanted — Adaptive Backoff
+  wanted_adaptive_backoff_enabled: 'Exponentially increase the retry delay for items that repeatedly fail to find subtitles. Prevents hammering providers.',
+  wanted_backoff_base_hours: 'Initial retry delay in hours after a failed search. Doubles with each failure. Default: 1.',
+  wanted_backoff_cap_hours: 'Maximum retry delay in hours regardless of failure count. Default: 168 (7 days).',
+  wanted_skip_srt_on_no_ass: 'If no ASS subtitle is found in the first two search steps, skip SRT-only sources and wait for a better result.',
+
+  // Automation — Video Sync
+  auto_sync_after_download: 'Automatically run video sync on each downloaded subtitle to fix timing offsets.',
+  auto_sync_engine: 'Engine for automatic sync: "ffsubsync" (audio-based, accurate) or "alass" (fast, works without audio).',
+
+  // Automation — Circuit Breaker
+  circuit_breaker_failure_threshold: 'Number of consecutive provider failures before the circuit opens and the provider is temporarily disabled. Default: 5.',
+  circuit_breaker_cooldown_seconds: 'Seconds a provider stays in the open state before a probe request is sent. Default: 60.',
+  provider_auto_disable_cooldown_minutes: 'Minutes before an auto-disabled provider is re-enabled for retries. Default: 30.',
+
+  // Library Sources — AniDB
+  anidb_enabled: 'Enable AniDB ID resolution for accurate absolute episode numbering. Required for Jimaku searches on multi-season series.',
+  anidb_custom_field_name: 'Custom Sonarr series field that stores the AniDB ID. Default: "anidb_id".',
+  anidb_cache_ttl_days: 'Days to cache TVDB→AniDB mappings before refreshing. Default: 30.',
+  anidb_fallback_to_mapping: 'Use the cached mapping table as a fallback when the AniDB API is unreachable.',
 
   // Whisper
   whisper_enabled: 'Enable Whisper-based subtitle extraction from audio/video.',
