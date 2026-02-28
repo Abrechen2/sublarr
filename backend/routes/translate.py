@@ -716,6 +716,7 @@ def batch_start():
         409:
           description: Batch already running
     """
+    from config import get_settings
     from translator import scan_directory, translate_file
 
     data = request.get_json() or {}
