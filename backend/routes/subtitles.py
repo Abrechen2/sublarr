@@ -78,7 +78,6 @@ def scan_subtitle_sidecars(video_path: str) -> list[dict]:
     return result
 
 
-
 # ─── Trash helpers ─────────────────────────────────────────────────────────────
 
 
