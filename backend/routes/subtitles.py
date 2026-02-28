@@ -34,6 +34,7 @@ _SUBTITLE_EXTS = {"ass", "srt", "vtt", "ssa"}
 
 # ─── Filesystem helpers ────────────────────────────────────────────────────────
 
+
 def scan_subtitle_sidecars(video_path: str) -> list[dict]:
     """Scan filesystem for all subtitle sidecar files next to video_path.
 
@@ -87,6 +88,7 @@ def _is_safe_path(path: str, media_path: str) -> bool:
 
 
 # ─── Trash helpers ─────────────────────────────────────────────────────────────
+
 
 def _get_trash_root(media_path: str) -> str:
     return os.path.join(media_path, ".sublarr_trash")
@@ -142,15 +144,17 @@ def _auto_purge_old_trash(media_path: str, retention_days: int) -> int:
             try:
                 shutil.rmtree(entry.path)
                 purged += 1
-                logger.info("auto-purge: removed trash batch %s (age > %dd)", manifest["batch_id"], retention_days)
+                logger.info(
+                    "auto-purge: removed trash batch %s (age > %dd)",
+                    manifest["batch_id"],
+                    retention_days,
+                )
             except OSError as exc:
                 logger.warning("auto-purge: could not remove %s: %s", entry.path, exc)
     return purged
 
 
-def _trash_sidecar(
-    path: str, media_path: str, batch_dir: str
-) -> tuple[str, str | None]:
+def _trash_sidecar(path: str, media_path: str, batch_dir: str) -> tuple[str, str | None]:
     """Move a subtitle file into the trash batch directory.
 
     Returns (trashed_path_or_original, error_or_None).
@@ -197,6 +201,7 @@ def _trash_sidecar(
 
 
 # ─── Endpoints: sidecar discovery ──────────────────────────────────────────────
+
 
 @bp.route("/library/episodes/<int:ep_id>/subtitles", methods=["GET"])
 def list_episode_subtitles(ep_id: int):
@@ -274,6 +279,7 @@ def list_series_subtitles(series_id: int):
 
 
 # ─── Endpoints: soft-delete (trash) ────────────────────────────────────────────
+
 
 @bp.route("/library/subtitles", methods=["DELETE"])
 def delete_subtitles():
@@ -392,6 +398,7 @@ def batch_delete_series_subtitles(series_id: int):
 
 
 # ─── Endpoints: trash management ───────────────────────────────────────────────
+
 
 @bp.route("/library/trash", methods=["GET"])
 def list_trash():

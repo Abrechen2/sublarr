@@ -275,6 +275,7 @@ def batch_extract_series_tracks(series_id):
             _job_id = None
             try:
                 from db.jobs import create_job, update_job as _update_job  # noqa: I001
+
                 _job = create_job(
                     f"batch-extract: Serie {series_id} ({total_files} Dateien)",
                 )
@@ -287,40 +288,51 @@ def batch_extract_series_tracks(series_id):
                 raw_path = file_info.get("path")
                 if not raw_path:
                     skipped += 1
-                    emit_event("batch_extract_progress", {
-                        "series_id": series_id,
-                        "current": file_idx + 1,
-                        "total": total_files,
-                        "filename": "",
-                        "status": "skipped",
-                    })
+                    emit_event(
+                        "batch_extract_progress",
+                        {
+                            "series_id": series_id,
+                            "current": file_idx + 1,
+                            "total": total_files,
+                            "filename": "",
+                            "status": "skipped",
+                        },
+                    )
                     continue
                 video_path = map_path(raw_path)
                 fname = os.path.basename(video_path)
                 if not os.path.exists(video_path):
                     logger.debug("[batch-extract-tracks] file not found: %s", video_path)
                     skipped += 1
-                    emit_event("batch_extract_progress", {
-                        "series_id": series_id,
-                        "current": file_idx + 1,
-                        "total": total_files,
-                        "filename": fname,
-                        "status": "skipped",
-                    })
+                    emit_event(
+                        "batch_extract_progress",
+                        {
+                            "series_id": series_id,
+                            "current": file_idx + 1,
+                            "total": total_files,
+                            "filename": fname,
+                            "status": "skipped",
+                        },
+                    )
                     continue
 
                 try:
                     probe = get_media_streams(video_path)
                 except Exception as exc:
-                    logger.warning("[batch-extract-tracks] probe failed for %s: %s", video_path, exc)
+                    logger.warning(
+                        "[batch-extract-tracks] probe failed for %s: %s", video_path, exc
+                    )
                     failed += 1
-                    emit_event("batch_extract_progress", {
-                        "series_id": series_id,
-                        "current": file_idx + 1,
-                        "total": total_files,
-                        "filename": fname,
-                        "status": "failed",
-                    })
+                    emit_event(
+                        "batch_extract_progress",
+                        {
+                            "series_id": series_id,
+                            "current": file_idx + 1,
+                            "total": total_files,
+                            "filename": fname,
+                            "status": "failed",
+                        },
+                    )
                     continue
 
                 tracks = _build_track_list(probe.get("streams", []))
@@ -356,13 +368,16 @@ def batch_extract_series_tracks(series_id):
                         )
                         failed += 1
 
-                emit_event("batch_extract_progress", {
-                    "series_id": series_id,
-                    "current": file_idx + 1,
-                    "total": total_files,
-                    "filename": fname,
-                    "status": "ok" if file_extracted > 0 else "skipped",
-                })
+                emit_event(
+                    "batch_extract_progress",
+                    {
+                        "series_id": series_id,
+                        "current": file_idx + 1,
+                        "total": total_files,
+                        "filename": fname,
+                        "status": "ok" if file_extracted > 0 else "skipped",
+                    },
+                )
 
             logger.info(
                 "[batch-extract-tracks] series %d done — %d extracted, %d failed, %d skipped",
@@ -372,31 +387,39 @@ def batch_extract_series_tracks(series_id):
                 skipped,
             )
 
-            emit_event("batch_extract_completed", {
-                "series_id": series_id,
-                "total": total_files,
-                "succeeded": succeeded,
-                "failed": failed,
-                "skipped": skipped,
-            })
+            emit_event(
+                "batch_extract_completed",
+                {
+                    "series_id": series_id,
+                    "total": total_files,
+                    "succeeded": succeeded,
+                    "failed": failed,
+                    "skipped": skipped,
+                },
+            )
 
             # Finalize the activity job
             if _job_id:
                 try:
                     _final_status = "failed" if succeeded == 0 and failed > 0 else "completed"
-                    _update_job(_job_id, _final_status, result={
-                        "stats": {
-                            "succeeded": succeeded,
-                            "failed": failed,
-                            "skipped": skipped,
-                            "total": total_files,
-                        }
-                    })
+                    _update_job(
+                        _job_id,
+                        _final_status,
+                        result={
+                            "stats": {
+                                "succeeded": succeeded,
+                                "failed": failed,
+                                "skipped": skipped,
+                                "total": total_files,
+                            }
+                        },
+                    )
                 except Exception:
                     logger.debug("[batch-extract-tracks] could not finalize activity job")
 
             # Auto-cleanup: remove extra-language sidecars if configured
             from config import get_settings as _get_settings
+
             _settings = _get_settings()
             if getattr(_settings, "auto_cleanup_after_extract", False):
                 _keep_raw = getattr(_settings, "auto_cleanup_keep_languages", "").strip()
