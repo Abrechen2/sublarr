@@ -216,8 +216,8 @@ def auto_sync_bulk():
     if engine not in ("ffsubsync", "alass"):
         return jsonify({"error": f"Unknown engine: {engine!r}"}), 400
 
-    from sonarr_client import get_sonarr_client
     from config import map_path
+    from sonarr_client import get_sonarr_client
 
     client = get_sonarr_client()
     if client is None:
