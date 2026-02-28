@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from flask import Blueprint, jsonify, request, send_file
 
 from config import get_settings
+from security_utils import is_safe_path
 from services.ocr_extractor import (
     TESSERACT_AVAILABLE,
     batch_ocr_track,
@@ -102,6 +103,9 @@ def extract_ocr():
                     1,
                 )
                 break
+
+    if not is_safe_path(mapped_path, settings.media_path):
+        return jsonify({"error": "Access denied"}), 403
 
     if not os.path.exists(mapped_path):
         return jsonify({"error": "File not found"}), 404
@@ -203,6 +207,9 @@ def preview_ocr():
                     1,
                 )
                 break
+
+    if not is_safe_path(mapped_path, settings.media_path):
+        return jsonify({"error": "Access denied"}), 403
 
     if not os.path.exists(mapped_path):
         return jsonify({"error": "File not found"}), 404

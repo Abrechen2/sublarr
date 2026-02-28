@@ -11,6 +11,8 @@ import subprocess
 
 import requests
 
+from security_utils import safe_zip_extract, validate_git_url
+
 logger = logging.getLogger(__name__)
 
 
@@ -111,9 +113,9 @@ class PluginMarketplace:
 
         os.makedirs(plugins_dir, exist_ok=True)
 
-        # Clone or download plugin
+        # Validate URL before dispatching to install method
         if install_url.endswith(".git") or "github.com" in install_url:
-            # Git repository
+            validate_git_url(install_url)
             return self._install_from_git(install_url, plugin_name, plugins_dir, version)
         else:
             # ZIP download
@@ -142,6 +144,9 @@ class PluginMarketplace:
         # Remove existing plugin if present
         if os.path.exists(plugin_path):
             shutil.rmtree(plugin_path)
+
+        # Validate URL (second guard in case _install_from_git is called directly)
+        validate_git_url(repo_url)
 
         # Clone repository
         cmd = ["git", "clone", repo_url, plugin_path]
@@ -204,9 +209,9 @@ class PluginMarketplace:
 
             os.makedirs(plugin_path, exist_ok=True)
 
-            # Extract ZIP
+            # Extract ZIP — safe_zip_extract rejects ZIP Slip entries
             with zipfile.ZipFile(io.BytesIO(response.content)) as zip_file:
-                zip_file.extractall(plugin_path)
+                safe_zip_extract(zip_file, plugin_path)
 
             # Validate plugin
             validation_result = self._validate_plugin(plugin_path)

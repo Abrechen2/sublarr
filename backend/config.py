@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     )
     media_path: str = "/media"
     db_path: str = "/config/sublarr.db"
+    # Comma-separated allowed CORS/WebSocket origins (e.g. "https://app.example.com")
+    # Defaults to localhost dev origins; set "*" only in fully trusted environments.
+    cors_origins: str = "http://localhost:5173,http://localhost:5765"
 
     # Ollama
     ollama_url: str = "http://localhost:11434"
@@ -315,6 +318,11 @@ def map_path(path: str) -> str:
     Example: "/data/media=/mnt/media;/anime=/share/anime"
 
     On Windows, forward slashes in the mapped path are converted to backslashes.
+
+    SECURITY NOTE: This function performs string-based prefix replacement only.
+    Callers that serve or delete files MUST validate the mapped result with
+    ``security_utils.is_safe_path(mapped, media_path)`` before using it,
+    to guard against path traversal after mapping.
     """
     s = get_settings()
     mapping = s.path_mapping

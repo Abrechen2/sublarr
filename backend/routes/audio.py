@@ -6,6 +6,7 @@ import os
 from flask import Blueprint, jsonify, request
 
 from config import get_settings
+from security_utils import is_safe_path
 from services.audio_visualizer import (
     extract_audio_track,
     generate_waveform_json,
@@ -100,6 +101,9 @@ def get_waveform():
                 )
                 break
 
+    if not is_safe_path(mapped_path, settings.media_path):
+        return jsonify({"error": "Access denied"}), 403
+
     if not os.path.exists(mapped_path):
         return jsonify({"error": "File not found"}), 404
 
@@ -183,6 +187,9 @@ def extract_audio():
                     1,
                 )
                 break
+
+    if not is_safe_path(mapped_path, settings.media_path):
+        return jsonify({"error": "Access denied"}), 403
 
     if not os.path.exists(mapped_path):
         return jsonify({"error": "File not found"}), 404

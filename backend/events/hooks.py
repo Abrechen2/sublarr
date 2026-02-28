@@ -12,6 +12,8 @@ import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+from security_utils import sanitize_env_value
+
 logger = logging.getLogger(__name__)
 
 # Max length for env var values and captured output
@@ -68,10 +70,10 @@ class HookEngine:
         }
 
         # Add individual event_data keys as SUBLARR_ prefixed env vars
+        # sanitize_env_value strips newlines/null-bytes that could enable injection
         for key, value in event_data.items():
             env_key = f"SUBLARR_{key.upper()}"
-            env_val = str(value)[:_MAX_ENV_VALUE_LEN]
-            hook_env[env_key] = env_val
+            hook_env[env_key] = sanitize_env_value(str(value))
 
         start = time.monotonic()
 
