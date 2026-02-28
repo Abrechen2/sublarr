@@ -291,6 +291,16 @@ class WantedRepository(BaseRepository):
         self._commit()
         return True
 
+    def update_existing_sub(self, item_id: int, value: str) -> bool:
+        """Update the existing_sub field for a wanted item."""
+        item = self.session.get(WantedItem, item_id)
+        if not item:
+            return False
+        item.existing_sub = value
+        item.updated_at = self._now()
+        self._commit()
+        return True
+
     def get_wanted_summary(self) -> dict:
         """Get aggregated wanted counts by type, status, and existing_sub."""
         total_stmt = select(func.count()).select_from(WantedItem)

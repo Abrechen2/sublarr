@@ -101,6 +101,11 @@ def set_wanted_retry_after(item_id: int, retry_after: str) -> bool:
     return _get_repo().set_retry_after(item_id, retry_after)
 
 
+def update_existing_sub(item_id: int, value: str) -> bool:
+    """Update the existing_sub field for a wanted item."""
+    return _get_repo().update_existing_sub(item_id, value)
+
+
 def delete_wanted_items(file_paths: list):
     """Delete wanted items by file paths (batch)."""
     for fp in file_paths or []:

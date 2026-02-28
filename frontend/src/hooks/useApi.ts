@@ -6,7 +6,7 @@ import {
   getWantedItems, getWantedSummary, refreshWanted,
   updateWantedItemStatus,
   searchWantedItem, processWantedItem, extractEmbeddedSub,
-  startWantedBatchSearch, getWantedBatchStatus, getBatchExtractStatus,
+  startWantedBatchSearch, getWantedBatchStatus, getBatchExtractStatus, getBatchProbeStatus, startBatchProbe,
   getProviders, testProvider, getProviderStats, clearProviderCache,
   searchAllWanted, getRetranslateStatus, retranslateSingle, retranslateBatch,
   getLanguageProfiles, createLanguageProfile, updateLanguageProfile,
@@ -240,6 +240,24 @@ export function useWantedBatchExtractStatus() {
     queryKey: ['wanted-batch-extract-status'],
     queryFn: getBatchExtractStatus,
     refetchInterval: (query) => (query.state.data?.running ? 3000 : false),
+  })
+}
+
+export function useWantedBatchProbeStatus() {
+  return useQuery({
+    queryKey: ['wanted-batch-probe-status'],
+    queryFn: getBatchProbeStatus,
+    refetchInterval: (query) => (query.state.data?.running ? 2000 : false),
+  })
+}
+
+export function useStartBatchProbe() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (seriesId?: number) => startBatchProbe(seriesId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wanted-batch-probe-status'] })
+    },
   })
 }
 

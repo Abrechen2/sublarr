@@ -23,6 +23,8 @@ interface UseWebSocketOptions {
   onConfigUpdated?: (data: unknown) => void
   onSyncBatchProgress?: (data: SyncBatchProgress) => void
   onSyncBatchComplete?: (data: SyncBatchComplete) => void
+  onBatchProbeProgress?: (data: unknown) => void
+  onBatchProbeCompleted?: (data: unknown) => void
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
@@ -68,6 +70,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       ['config_updated', 'onConfigUpdated'],
       ['sync_batch_progress', 'onSyncBatchProgress'],
       ['sync_batch_complete', 'onSyncBatchComplete'],
+      ['batch_probe_progress', 'onBatchProbeProgress'],
+      ['batch_probe_completed', 'onBatchProbeCompleted'],
     ]
 
     // Store named handler references so only this hook's listeners are removed on cleanup

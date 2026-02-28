@@ -3,6 +3,8 @@
 import logging
 import os
 import threading
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from flask import Blueprint, current_app, jsonify, request
 
@@ -35,6 +37,18 @@ _batch_extract_state = {
     "current_item": None,
 }
 _batch_extract_lock = threading.Lock()
+
+# Batch-probe state (in-memory for real-time tracking)
+_batch_probe_state = {
+    "running": False,
+    "total": 0,
+    "processed": 0,
+    "found": 0,
+    "skipped": 0,
+    "failed": 0,
+    "current_item": None,
+}
+_batch_probe_lock = threading.Lock()
 
 
 @bp.route("/wanted", methods=["GET"])
@@ -983,6 +997,162 @@ def batch_extract_status():
     """
     with _batch_extract_lock:
         return jsonify(dict(_batch_extract_state))
+
+
+def _run_batch_probe(items, app):
+    """Background thread: ffprobe all items, detect embedded subs, update DB."""
+    from ass_utils import get_media_streams, has_target_language_audio, has_target_language_stream
+    from config import get_settings
+    from db.wanted import update_existing_sub
+
+    max_workers = getattr(get_settings(), "scan_metadata_max_workers", 4)
+
+    with _batch_probe_lock:
+        _batch_probe_state.update(
+            {
+                "running": True,
+                "total": len(items),
+                "processed": 0,
+                "found": 0,
+                "skipped": 0,
+                "failed": 0,
+                "current_item": None,
+            }
+        )
+
+    start_time = time.time()
+    try:
+        with app.app_context(), ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_item = {
+                executor.submit(get_media_streams, item["file_path"], True): item for item in items
+            }
+            for future in as_completed(future_to_item):
+                item = future_to_item[future]
+                item_id = item["id"]
+                target_lang = item.get("target_language") or None
+
+                with _batch_probe_lock:
+                    _batch_probe_state["current_item"] = item.get("title", f"Item {item_id}")
+
+                try:
+                    probe_data = future.result()
+                    if probe_data is None:
+                        raise ValueError("ffprobe returned no data")
+
+                    if has_target_language_audio(probe_data, target_lang):
+                        with _batch_probe_lock:
+                            _batch_probe_state["skipped"] += 1
+                    else:
+                        stream_type = has_target_language_stream(probe_data, target_lang)
+                        if stream_type:
+                            value = f"embedded_{stream_type}"
+                            update_existing_sub(item_id, value)
+                            logger.info("[batch-probe] item %d: detected %s", item_id, value)
+                            with _batch_probe_lock:
+                                _batch_probe_state["found"] += 1
+                        else:
+                            with _batch_probe_lock:
+                                _batch_probe_state["skipped"] += 1
+                except Exception as exc:
+                    logger.warning("[batch-probe] item %d failed: %s", item_id, exc)
+                    with _batch_probe_lock:
+                        _batch_probe_state["failed"] += 1
+
+                with _batch_probe_lock:
+                    _batch_probe_state["processed"] += 1
+                    snapshot = dict(_batch_probe_state)
+                socketio.emit("batch_probe_progress", snapshot)
+    finally:
+        duration_ms = int((time.time() - start_time) * 1000)
+        with _batch_probe_lock:
+            _batch_probe_state["running"] = False
+            snapshot = dict(_batch_probe_state)
+        emit_event("batch_probe_completed", {**snapshot, "duration_ms": duration_ms})
+
+
+@bp.route("/wanted/batch-probe", methods=["POST"])
+def batch_probe():
+    """Run ffprobe on all unresolved wanted items to detect embedded subtitles.
+    ---
+    post:
+      tags:
+        - Wanted
+      summary: Batch metadata pre-scan
+      description: >
+        Runs ffprobe in parallel on all wanted items with empty existing_sub,
+        detects embedded target-language subtitle streams, and updates
+        existing_sub to embedded_srt or embedded_ass. Returns 202 immediately;
+        progress is emitted via WebSocket batch_probe_progress events.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                series_id:
+                  type: integer
+                  nullable: true
+                  description: Optional Sonarr series ID to limit scope
+      responses:
+        202:
+          description: Probe started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  total_items:
+                    type: integer
+        200:
+          description: Nothing to probe (all items already have existing_sub)
+        409:
+          description: Probe already running
+    """
+    from db.wanted import get_wanted_items
+
+    with _batch_probe_lock:
+        if _batch_probe_state["running"]:
+            return jsonify({"error": "Batch probe already running"}), 409
+
+    data = request.get_json(force=True, silent=True) or {}
+    series_id = data.get("series_id")
+
+    page = get_wanted_items(page=1, per_page=5000, series_id=series_id)
+    items = [it for it in page.get("items", []) if not it.get("existing_sub")]
+
+    if not items:
+        return jsonify({"status": "nothing_to_probe", "total_items": 0})
+
+    app = current_app._get_current_object()
+    threading.Thread(
+        target=_run_batch_probe,
+        args=(items, app),
+        daemon=True,
+    ).start()
+    return jsonify({"status": "started", "total_items": len(items)}), 202
+
+
+@bp.route("/wanted/batch-probe/status", methods=["GET"])
+def batch_probe_status():
+    """Get current batch-probe progress.
+    ---
+    get:
+      tags:
+        - Wanted
+      summary: Batch probe status
+      description: Returns current state of the background batch metadata probe operation.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Current batch-probe state
+    """
+    with _batch_probe_lock:
+        return jsonify(dict(_batch_probe_state))
 
 
 @bp.route("/wanted/<int:item_id>/search-providers", methods=["GET"])
