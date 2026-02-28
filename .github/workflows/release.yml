@@ -152,7 +152,7 @@ jobs:
       always() &&
       needs.validate.result == 'success' &&
       needs.docker.result == 'success' &&
-      inputs.create_release != false
+      (github.event_name == 'push' || inputs.create_release != false)
     runs-on: ubuntu-latest
     permissions:
       contents: write
