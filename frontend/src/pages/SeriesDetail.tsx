@@ -1,27 +1,75 @@
 import { useState, useMemo, useCallback, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry, useStartWantedBatch, useUpdateSeriesSettings, useAnidbMappingStatus, useRefreshAnidbMapping } from '@/hooks/useApi'
 import {
   ArrowLeft, Loader2, ChevronDown, ChevronRight,
   Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search, Clock,
   Download, X, ChevronUp, BookOpen, Plus, Edit2, Trash2, Check,
   Eye, Pencil, Columns2, Timer, ShieldCheck, ScanSearch, RefreshCw, Database,
+  Layers, Sparkles, Trash,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { TrackPanel } from '@/components/tracks/TrackPanel'
-import { autoSyncFile, startWantedBatchSearch, batchExtractEmbedded } from '@/api/client'
+import { autoSyncFile, startWantedBatchSearch, batchExtractAllTracks, listSeriesSubtitles, deleteSubtitles } from '@/api/client'
+import { useWebSocket } from '@/hooks/useWebSocket'
+import { ProgressBar } from '@/components/shared/ProgressBar'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
 import { ComparisonSelector } from '@/components/comparison/ComparisonSelector'
 import { HealthBadge } from '@/components/health/HealthBadge'
-import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry } from '@/lib/types'
+import { SubtitleCleanupModal } from '@/components/shared/SubtitleCleanupModal'
+import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry, SidecarSubtitle } from '@/lib/types'
 
 const SubtitleComparison = lazy(() => import('@/components/comparison/SubtitleComparison').then(m => ({ default: m.SubtitleComparison })))
 const SyncControls = lazy(() => import('@/components/sync/SyncControls').then(m => ({ default: m.SyncControls })))
 const SyncModal = lazy(() => import('@/components/sync/SyncModal').then(m => ({ default: m.SyncModal })))
 const HealthCheckPanel = lazy(() => import('@/components/health/HealthCheckPanel').then(m => ({ default: m.HealthCheckPanel })))
+
+// ─── Language normalisation ─────────────────────────────────────────────────
+// MKV/ffprobe stores ISO 639-2 three-letter codes (ger, eng, jpn…). Target
+// languages in Sublarr use ISO 639-1 two-letter codes (de, en, ja…).
+// normLang() maps 3→2 so that badge de-duplication works across both systems.
+
+const ISO6392_TO_1: Record<string, string> = {
+  ger: 'de', deu: 'de',
+  eng: 'en',
+  dut: 'nl', nld: 'nl',
+  swe: 'sv',
+  dan: 'da',
+  nor: 'no', nob: 'no', nno: 'no',
+  fre: 'fr', fra: 'fr',
+  spa: 'es',
+  ita: 'it',
+  por: 'pt',
+  ron: 'ro', rum: 'ro',
+  pol: 'pl',
+  rus: 'ru',
+  ces: 'cs', cze: 'cs',
+  slk: 'sk', slo: 'sk',
+  hrv: 'hr',
+  srp: 'sr',
+  bul: 'bg',
+  ukr: 'uk',
+  jpn: 'ja',
+  chi: 'zh', zho: 'zh',
+  kor: 'ko',
+  tha: 'th',
+  vie: 'vi',
+  ind: 'id',
+  ara: 'ar',
+  tur: 'tr',
+  hun: 'hu',
+  fin: 'fi',
+  heb: 'he',
+}
+
+function normLang(code: string): string {
+  const lower = code.toLowerCase()
+  return ISO6392_TO_1[lower] ?? lower
+}
 
 /** Derive subtitle file path from media path + language + format. */
 function deriveSubtitlePath(mediaPath: string, lang: string, format: string): string {
@@ -30,32 +78,38 @@ function deriveSubtitlePath(mediaPath: string, lang: string, format: string): st
   return `${base}.${lang}.${format}`
 }
 
-function hasSubtitleFile(format: string): boolean {
-  return format === 'ass' || format === 'srt' || format === 'embedded_ass' || format === 'embedded_srt'
-}
-
 function SubBadge({ lang, format }: { lang: string; format: string }) {
-  const isExternal = format === 'ass' || format === 'srt'
+  // Three visual states:
+  //  teal   = optimal   (ass / embedded_ass)
+  //  amber  = upgradeable (srt / embedded_srt — present but not best format)
+  //  orange = missing   (no subtitle file at all)
+  const isOptimal = format === 'ass' || format === 'embedded_ass'
+  const isUpgradeable = format === 'srt' || format === 'embedded_srt'
   const isEmbedded = format === 'embedded_ass' || format === 'embedded_srt'
-  const hasFile = isExternal || isEmbedded
+  const hasFile = isOptimal || isUpgradeable
+
+  const bg = isOptimal ? 'var(--accent-bg)' : isUpgradeable ? 'var(--upgrade-bg)' : 'var(--warning-bg)'
+  const color = isOptimal ? 'var(--accent)' : isUpgradeable ? 'var(--upgrade)' : 'var(--warning)'
+  const border = isOptimal
+    ? '1px solid var(--accent-dim)'
+    : isUpgradeable
+      ? '1px solid rgba(167,139,250,0.4)'
+      : '1px solid rgba(245,158,11,0.3)'
+
   const label = isEmbedded ? format.replace('embedded_', '') + '⊕' : format
+  const title = hasFile
+    ? `${lang.toUpperCase()} (${format.toUpperCase()}${isEmbedded ? ' — eingebettet' : ''}${isUpgradeable ? ' — upgradeable zu ASS' : ''})`
+    : `${lang.toUpperCase()} fehlt`
+
   return (
     <span
       className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide"
-      style={{
-        backgroundColor: hasFile ? 'var(--accent-bg)' : 'var(--warning-bg)',
-        color: hasFile ? 'var(--accent)' : 'var(--warning)',
-        border: `1px solid ${hasFile ? 'var(--accent-dim)' : 'rgba(245,158,11,0.3)'}`,
-      }}
-      title={hasFile
-        ? `${lang.toUpperCase()} (${format.toUpperCase()}${isEmbedded ? ' — embedded in MKV' : ''})`
-        : `${lang.toUpperCase()} missing`}
+      style={{ backgroundColor: bg, color, border }}
+      title={title}
     >
       {lang.toUpperCase()}
       {hasFile && (
-        <span style={{ opacity: 0.6, fontSize: '9px' }}>
-          {label}
-        </span>
+        <span style={{ opacity: 0.6, fontSize: '9px' }}>{label}</span>
       )}
     </span>
   )
@@ -547,11 +601,12 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
 
 // ─── Season Group ──────────────────────────────────────────────────────────
 
-function SeasonGroup({ season, episodes, targetLanguages, seriesId, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync, onHealthCheck, healthScores, onOpenEditor, t }: {
+function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync, onHealthCheck, healthScores, onOpenEditor, sidecarMap, onDeleteSidecar, onOpenCleanupModal, t }: {
   season: number
   episodes: EpisodeInfo[]
   targetLanguages: string[]
   seriesId: number | null
+  isExtracting?: boolean
   expandedEp: { id: number; mode: 'search' | 'history' | 'glossary' | 'tracks' } | null
   onSearch: (ep: EpisodeInfo) => void
   onInteractiveSearch: (ep: EpisodeInfo) => void
@@ -572,6 +627,9 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, expandedEp, 
   onHealthCheck: (filePath: string) => void
   healthScores: Record<string, number | null>
   onOpenEditor: (filePath: string) => void
+  sidecarMap: Record<string, SidecarSubtitle[]>
+  onDeleteSidecar: (path: string) => Promise<void>
+  onOpenCleanupModal: () => void
   t: (key: string, opts?: Record<string, unknown>) => string
 }) {
   const [expanded, setExpanded] = useState(true)
@@ -725,46 +783,95 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, expandedEp, 
                     </div>
 
                     {/* Subtitles */}
-                    <div className="w-40 flex-shrink-0 flex gap-1 flex-wrap items-center">
-                      {ep.has_file && targetLanguages.length > 0 ? (
-                        targetLanguages.map((lang) => {
-                          const subFormat = ep.subtitles[lang] || ''
-                          const _hasFile = hasSubtitleFile(subFormat)
-                          return (
-                            <span key={lang} className="inline-flex items-center gap-0.5">
-                              <SubBadge lang={lang} format={subFormat} />
-                              {(subFormat === 'ass' || subFormat === 'srt') && (
-                                <>
-                                  <HealthBadge score={healthScores[deriveSubtitlePath(ep.file_path, lang, subFormat)] ?? null} size="sm" />
+                    <div className="flex-1 min-w-[200px] flex gap-1 flex-wrap items-center">
+                      {ep.has_file ? (
+                        <>
+                          {/* Target language badges: teal=ass, amber=srt, orange=missing */}
+                          {targetLanguages.length > 0 ? targetLanguages.map((lang) => {
+                            const subFormat = ep.subtitles[lang] || ''
+                            const epSidecars = sidecarMap[String(ep.id)] ?? []
+                            // Find matching sidecar on disk (handles ISO 639-2 ↔ 639-1 mismatch)
+                            const matchingSidecar = (subFormat === 'ass' || subFormat === 'srt')
+                              ? epSidecars.find(s => normLang(s.language) === normLang(lang) && s.format === subFormat)
+                              : null
+                            return (
+                              <span key={lang} className="inline-flex items-center gap-0.5">
+                                <SubBadge lang={lang} format={subFormat} />
+                                {matchingSidecar && (
                                   <button
-                                    onClick={() => onPreviewSub(deriveSubtitlePath(ep.file_path, lang, subFormat))}
-                                    className="p-0.5 rounded transition-colors"
-                                    style={{ color: 'var(--text-muted)' }}
-                                    title="Preview subtitle"
-                                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
+                                    onClick={(e) => { e.stopPropagation(); void onDeleteSidecar(matchingSidecar.path) }}
+                                    className="p-0.5 rounded hover:opacity-80"
+                                    style={{ color: 'var(--error)', lineHeight: 1 }}
+                                    title={`Löschen: ${matchingSidecar.path}`}
                                   >
-                                    <Eye size={12} />
+                                    <X size={9} />
                                   </button>
-                                  <button
-                                    onClick={() => onEditSub(deriveSubtitlePath(ep.file_path, lang, subFormat))}
-                                    className="p-0.5 rounded transition-colors"
-                                    style={{ color: 'var(--text-muted)' }}
-                                    title="Edit subtitle"
-                                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
-                                  >
-                                    <Pencil size={12} />
-                                  </button>
-                                </>
-                              )}
-                            </span>
-                          )
-                        })
+                                )}
+                                {(subFormat === 'ass' || subFormat === 'srt') && (
+                                  <>
+                                    <HealthBadge score={healthScores[deriveSubtitlePath(ep.file_path, lang, subFormat)] ?? null} size="sm" />
+                                    <button
+                                      onClick={() => onPreviewSub(deriveSubtitlePath(ep.file_path, lang, subFormat))}
+                                      className="p-0.5 rounded transition-colors"
+                                      style={{ color: 'var(--text-muted)' }}
+                                      title="Preview subtitle"
+                                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
+                                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
+                                    >
+                                      <Eye size={12} />
+                                    </button>
+                                    <button
+                                      onClick={() => onEditSub(deriveSubtitlePath(ep.file_path, lang, subFormat))}
+                                      className="p-0.5 rounded transition-colors"
+                                      style={{ color: 'var(--text-muted)' }}
+                                      title="Edit subtitle"
+                                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
+                                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
+                                    >
+                                      <Pencil size={12} />
+                                    </button>
+                                  </>
+                                )}
+                              </span>
+                            )
+                          }) : (
+                            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>&#x2014;</span>
+                          )}
+
+                          {/* Extra sidecar badges: non-target languages, deduped via normLang */}
+                          {(() => {
+                            const epSidecars = sidecarMap[String(ep.id)] ?? []
+                            const extraSidecars = epSidecars.filter(
+                              s => !targetLanguages.some(tl => normLang(tl) === normLang(s.language))
+                            )
+                            if (extraSidecars.length === 0) return null
+                            return extraSidecars.map((s) => (
+                              <span
+                                key={s.path}
+                                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase"
+                                style={{
+                                  backgroundColor: 'var(--bg-surface)',
+                                  color: 'var(--text-muted)',
+                                  border: '1px solid var(--border)',
+                                }}
+                                title={`${s.language.toUpperCase()} ${s.format.toUpperCase()} — extra sidecar`}
+                              >
+                                {s.language.toUpperCase()}
+                                <span style={{ opacity: 0.6, fontSize: '9px' }}>{s.format}</span>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); void onDeleteSidecar(s.path) }}
+                                  className="ml-0.5 rounded hover:opacity-80"
+                                  style={{ color: 'var(--error)', lineHeight: 1 }}
+                                  title={`Löschen: ${s.path}`}
+                                >
+                                  <X size={9} />
+                                </button>
+                              </span>
+                            ))
+                          })()}
+                        </>
                       ) : (
-                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                          {ep.has_file ? '\u2014' : 'No file'}
-                        </span>
+                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>No file</span>
                       )}
                     </div>
 
@@ -1061,11 +1168,27 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, expandedEp, 
                 Search
               </button>
               <button
-                onClick={() => { void batchExtractEmbedded([], false, seriesId ?? undefined); clearAll() }}
+                onClick={() => { if (seriesId != null && !isExtracting) { void batchExtractAllTracks(seriesId) } clearAll() }}
+                disabled={isExtracting}
+                className="px-3 py-1 rounded text-xs font-medium inline-flex items-center gap-1.5"
+                style={{
+                  backgroundColor: isExtracting ? 'var(--accent-bg)' : 'var(--bg-surface)',
+                  color: isExtracting ? 'var(--accent)' : 'var(--text-secondary)',
+                  border: `1px solid ${isExtracting ? 'var(--accent-dim)' : 'var(--border)'}`,
+                  opacity: isExtracting ? 0.8 : 1,
+                  cursor: isExtracting ? 'default' : 'pointer',
+                }}
+              >
+                {isExtracting
+                  ? <><Loader2 size={11} className="animate-spin" /> Extrahiere...</>
+                  : 'Extract'}
+              </button>
+              <button
+                onClick={() => { onOpenCleanupModal(); clearAll() }}
                 className="px-3 py-1 rounded text-xs font-medium"
                 style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
               >
-                Extract
+                Bereinigen
               </button>
               <button
                 onClick={clearAll}
@@ -1101,6 +1224,48 @@ export function SeriesDetailPage() {
   // Subtitle editor modal state
   const [editorFilePath, setEditorFilePath] = useState<string | null>(null)
   const [editorMode, setEditorMode] = useState<'preview' | 'edit'>('preview')
+
+  // Extraction progress (driven by WebSocket batch_extract_progress events)
+  const [extractProgress, setExtractProgress] = useState<{
+    current: number
+    total: number
+    filename: string
+  } | null>(null)
+  // Sidecar management
+  const [showCleanupModal, setShowCleanupModal] = useState(false)
+  const queryClient = useQueryClient()
+  const { data: sidecarData } = useQuery({
+    queryKey: ['series-subtitles', seriesId],
+    queryFn: () => seriesId != null ? listSeriesSubtitles(seriesId) : Promise.resolve({ subtitles: {} }),
+    enabled: seriesId != null,
+    staleTime: 30_000,
+    // Poll while extraction is running so sidecar badges appear as files are written
+    refetchInterval: extractProgress !== null ? 4_000 : false,
+  })
+  const sidecarMap: Record<string, SidecarSubtitle[]> = sidecarData?.subtitles ?? {}
+
+  // WebSocket: batch extraction progress
+  useWebSocket({
+    onBatchExtractProgress: (data) => {
+      const d = data as { series_id: number; current: number; total: number; filename: string }
+      if (d.series_id === seriesId) {
+        setExtractProgress({ current: d.current, total: d.total, filename: d.filename })
+      }
+    },
+    onBatchExtractCompleted: (data) => {
+      const d = data as { series_id: number; succeeded: number; failed: number; skipped: number }
+      if (d.series_id !== seriesId) return
+      setExtractProgress(null)
+      void queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })
+      void queryClient.invalidateQueries({ queryKey: ['series', seriesId] })
+      const msg = d.succeeded > 0
+        ? `${d.succeeded} Track(s) extrahiert${d.failed > 0 ? `, ${d.failed} fehlgeschlagen` : ''}`
+        : d.failed > 0
+          ? `Extraktion fehlgeschlagen (${d.failed} Fehler)`
+          : 'Extraktion abgeschlossen — alle bereits vorhanden'
+      toast(msg, d.failed > 0 ? 'warning' : 'success')
+    },
+  })
 
   // Comparison and sync state
   const [comparisonPaths, setComparisonPaths] = useState<string[] | null>(null)
@@ -1238,6 +1403,16 @@ export function SeriesDetailPage() {
   const handleHealthCheck = useCallback((filePath: string) => {
     setHealthCheckPath(filePath)
   }, [])
+
+  const handleDeleteSidecar = useCallback(async (path: string) => {
+    try {
+      await deleteSubtitles([path])
+      toast('Sidecar gelöscht')
+      await queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })
+    } catch {
+      toast('Löschen fehlgeschlagen', 'error')
+    }
+  }, [queryClient, seriesId])
 
   // Group episodes by season
   const seasonGroups = useMemo(() => {
@@ -1520,23 +1695,69 @@ export function SeriesDetailPage() {
                 </button>
               )}
 
+            </div>
+
+            {/* Series-level action toolbar */}
+            <div className="flex flex-wrap gap-2 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+              {/* Extract all embedded tracks */}
+              <button
+                onClick={() => { if (seriesId != null && !extractProgress) { void batchExtractAllTracks(seriesId) } }}
+                disabled={extractProgress !== null}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
+                style={{
+                  backgroundColor: extractProgress ? 'var(--accent-bg)' : 'rgba(255,255,255,0.06)',
+                  color: extractProgress ? 'var(--accent)' : 'var(--text-secondary)',
+                  border: `1px solid ${extractProgress ? 'var(--accent-dim)' : 'transparent'}`,
+                  cursor: extractProgress ? 'default' : 'pointer',
+                }}
+                onMouseEnter={(e) => { if (!extractProgress) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
+                onMouseLeave={(e) => { if (!extractProgress) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)' }}
+                title="Alle eingebetteten Subtitle-Tracks der Serie extrahieren"
+              >
+                {extractProgress
+                  ? <><Loader2 size={11} className="animate-spin" /> Extrahiere {extractProgress.current}/{extractProgress.total}…</>
+                  : <><Layers size={11} /> Tracks extrahieren</>
+                }
+              </button>
+
+              {/* Sidecar cleanup modal */}
+              <button
+                onClick={() => setShowCleanupModal(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
+                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)' }}
+                title="Sidecar-Untertitel bereinigen (nach Sprache/Format filtern)"
+              >
+                <Trash size={11} />
+                Bereinigen
+              </button>
+
+              {/* Search all missing */}
               {missingCount > 0 && (
                 <button
                   onClick={handleSearchAllEpisodes}
                   disabled={startSeriesSearch.isPending || seriesSearchStarted}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors font-medium"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
                   style={{
                     backgroundColor: seriesSearchStarted ? 'var(--success-bg)' : 'var(--accent-bg)',
                     color: seriesSearchStarted ? 'var(--success)' : 'var(--accent)',
                     opacity: startSeriesSearch.isPending ? 0.7 : 1,
                     cursor: startSeriesSearch.isPending || seriesSearchStarted ? 'default' : 'pointer',
+                    border: '1px solid transparent',
                   }}
+                  onMouseEnter={(e) => {
+                    if (!startSeriesSearch.isPending && !seriesSearchStarted)
+                      e.currentTarget.style.opacity = '0.85'
+                  }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = startSeriesSearch.isPending ? '0.7' : '1' }}
+                  title={`${missingCount} fehlende Untertitel bei Providern suchen`}
                 >
                   {startSeriesSearch.isPending
                     ? <Loader2 size={11} className="animate-spin" />
-                    : <Search size={11} />
+                    : seriesSearchStarted ? <Sparkles size={11} /> : <Search size={11} />
                   }
-                  {seriesSearchStarted ? 'Suche läuft...' : `Alle ${missingCount} suchen`}
+                  {seriesSearchStarted ? 'Suche läuft…' : `${missingCount} fehlende suchen`}
                 </button>
               )}
             </div>
@@ -1595,7 +1816,7 @@ export function SeriesDetailPage() {
             {t('series_detail.audio')}
           </div>
           <div
-            className="w-40 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider"
+            className="flex-1 min-w-[200px] text-[11px] font-semibold uppercase tracking-wider"
             style={{ color: 'var(--text-secondary)' }}
           >
             {t('series_detail.subtitles')}
@@ -1608,6 +1829,31 @@ export function SeriesDetailPage() {
           </div>
         </div>
 
+        {/* Extraction Progress Banner */}
+        {extractProgress && (
+          <div
+            className="px-4 py-3"
+            style={{ backgroundColor: 'var(--accent-bg)', borderBottom: '1px solid var(--accent-dim)' }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Loader2 size={13} className="animate-spin flex-shrink-0" style={{ color: 'var(--accent)' }} />
+              <span className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
+                Extrahiere Tracks — {extractProgress.current} / {extractProgress.total} Episoden
+              </span>
+              {extractProgress.filename && (
+                <span
+                  className="text-xs truncate"
+                  style={{ color: 'var(--text-muted)', maxWidth: '340px' }}
+                  title={extractProgress.filename}
+                >
+                  · {extractProgress.filename}
+                </span>
+              )}
+            </div>
+            <ProgressBar value={extractProgress.current} max={extractProgress.total} showLabel={false} />
+          </div>
+        )}
+
         {/* Season Groups */}
         {seasonGroups.map(([season, episodes]) => (
           <SeasonGroup
@@ -1616,6 +1862,7 @@ export function SeriesDetailPage() {
             episodes={episodes}
             targetLanguages={series.target_languages}
             seriesId={seriesId}
+            isExtracting={extractProgress !== null}
             expandedEp={expandedEp}
             onSearch={handleSearch}
             onInteractiveSearch={(ep) => setInteractiveEp({ id: ep.id, title: `${series.title} ${ep.title ? `– ${ep.title}` : ''}`.trim() })}
@@ -1636,6 +1883,9 @@ export function SeriesDetailPage() {
             onHealthCheck={handleHealthCheck}
             healthScores={healthScores}
             onOpenEditor={(path) => { setEditorFilePath(path); setEditorMode('edit') }}
+            sidecarMap={sidecarMap}
+            onDeleteSidecar={handleDeleteSidecar}
+            onOpenCleanupModal={() => setShowCleanupModal(true)}
             t={t}
           />
         ))}
@@ -1646,6 +1896,15 @@ export function SeriesDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Sidecar Cleanup Modal */}
+      {showCleanupModal && seriesId != null && (
+        <SubtitleCleanupModal
+          seriesId={seriesId}
+          targetLanguages={series?.target_languages ?? []}
+          onClose={() => setShowCleanupModal(false)}
+        />
+      )}
 
       {/* Subtitle Editor Modal */}
       {editorFilePath && (

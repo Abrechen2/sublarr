@@ -28,14 +28,25 @@ The current UI is functional but not final. The goal is a clean, modern interfac
 
 ---
 
-## v0.12.0 ✅ (Complete — Current)
+## v0.12.0 ✅ (Complete)
 
 - Settings UX Redesign - SettingsCard, AdvancedSettingsContext, InfoTooltip, per-field descriptions
 - arr-style UI Redesign - Sonarr/Radarr aesthetic, teal accent, neutral dark palette
 
 ---
 
-## v0.13.0 (Subtitle Intelligence)
+## v0.13.0 ✅ (Complete — Current)
+
+- Sidecar Subtitle Management - inline sidecar badges (language + format) per episode with × delete button
+- Series/Episode Subtitles API - parallel filesystem scan keyed by Sonarr episode ID
+- Delete & Batch-Delete API - path-traversal-safe sidecar deletion by path or language/format filter
+- Sidecar Cleanup Modal - language-grouped overview, file count + size preview, "Nur Target-Sprachen behalten"
+- Auto-Cleanup after Batch Extract - three new settings run cleanup automatically after track extraction
+- Dynamic UNTERTITEL column - grows with content instead of fixed 160 px
+
+---
+
+## v0.14.0 (Subtitle Intelligence)
 
 Goals: Make Sublarr smarter about what to search for and what to accept.
 
@@ -44,10 +55,39 @@ Goals: Make Sublarr smarter about what to search for and what to accept.
 - Duplicate Detection - skip downloads when SHA-256 matches existing sub in DB
 - Translation Quality Dashboard - per-series quality trend charts in Statistics page
 - Custom Post-Processing Scripts - user-supplied shell scripts run after download/translate
+- Video Hash Matching - OpenSubtitles file hash lookup for exact video-to-subtitle matches
+- Subtitle Upgrade Scheduler - periodic re-check for higher-quality subs (configurable lookback window)
+- Release Group Filtering - include/exclude subtitle results by release group, codec, or source tag
 
 ---
 
-## v0.14.0 (Collaboration and Export)
+## v0.15.0 (Provider Maturity)
+
+Goals: Close the gap to Bazarr in provider coverage, subtitle type handling, and community integration.
+
+- Additional Providers - Addic7ed, Gestdown (Subscene successor), Podnapisi, Supersubtitles
+- Hearing Impaired Support - HI detection, preference setting (prefer/exclude/only), HI-tag stripping from dialogue
+- Forced Subtitle Support - detect and download forced subs for foreign-audio scenes
+- Anti-Captcha Integration - Anti-Captcha.com / CapMonster support for captcha-protected providers
+- TRaSH-Compatible Scoring Presets - importable community-maintained scoring profiles
+
+---
+
+## v0.16.0 (Stream Removal — Safe Remux)
+
+Goals: Safely remove embedded subtitle streams from video files after extraction, with full rollback capability.
+
+- Remux Engine - mkvmerge (MKV) / ffmpeg (MP4) remux excluding selected subtitle streams, no re-encoding
+- Verification Pipeline - compare duration, video/audio stream count, and file size plausibility before swap
+- Atomic File Swap - write to temp file, rename original to `.bak`, rename temp to original name
+- Backup Retention - configurable `.bak` retention period (default 7 days), automatic cleanup scheduler
+- CoW/Reflink Detection - detect Btrfs/XFS and use `cp --reflink=auto` for zero-cost backups
+- *arr Pause Integration - pause Sonarr/Radarr folder monitoring via API during remux to prevent import loops
+- Track Panel UI - "Remove from container" action in Track Manifest after successful extraction, with confirmation dialog
+
+---
+
+## v0.17.0 (Collaboration and Export)
 
 Goals: Make Sublarr useful as a subtitle processing pipeline, not just consumer.
 
@@ -55,10 +95,11 @@ Goals: Make Sublarr useful as a subtitle processing pipeline, not just consumer.
 - Batch Export - ZIP export of all subtitles for a series
 - Subtitle Diff Viewer Improvements - inline accept/reject for individual changed cues
 - Jellyfin SSE Events - consume Jellyfin play-start events to auto-translate on-demand
+- CLI Mode - `sublarr search`, `sublarr translate`, `sublarr sync` commands for scripting and cron jobs
 
 ---
 
-## v0.15.0 (Performance and Scalability)
+## v0.18.0 (Performance and Scalability)
 
 Goals: Handle larger libraries without degradation.
 
@@ -70,7 +111,7 @@ Goals: Handle larger libraries without degradation.
 
 ---
 
-## v0.16.0 (Advanced Anime Support)
+## v0.19.0 (Advanced Anime Support)
 
 Goals: First-class support for complex anime subtitle scenarios.
 
@@ -89,7 +130,7 @@ Requirements for stable release:
 - All known data-loss bugs fixed
 - Full test coverage (>80%) across backend and E2E
 - Migration guide from any beta version
-- Stable API (no breaking changes from v0.12+)
+- Stable API (no breaking changes from v0.13+)
 - Docker image on GHCR with multi-arch (amd64 + arm64)
 - Unraid Community Applications template finalized
 - User Guide complete and reviewed

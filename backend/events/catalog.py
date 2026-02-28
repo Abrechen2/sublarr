@@ -26,6 +26,7 @@ wanted_scan_complete = sublarr_signals.signal("wanted_scan_complete")
 wanted_item_processed = sublarr_signals.signal("wanted_item_processed")
 upgrade_complete = sublarr_signals.signal("upgrade_complete")
 batch_complete = sublarr_signals.signal("batch_complete")
+batch_extract_progress = sublarr_signals.signal("batch_extract_progress")
 batch_extract_completed = sublarr_signals.signal("batch_extract_completed")
 batch_probe_completed = sublarr_signals.signal("batch_probe_completed")
 webhook_received = sublarr_signals.signal("webhook_received")
@@ -158,14 +159,28 @@ EVENT_CATALOG: dict[str, dict] = {
             "duration_ms",
         ],
     },
+    "batch_extract_progress": {
+        "signal": batch_extract_progress,
+        "label": "Batch Extract Progress",
+        "description": "Per-episode progress update during a batch embedded-subtitle extraction.",
+        "payload_keys": [
+            "series_id",
+            "current",
+            "total",
+            "filename",
+            "status",
+        ],
+    },
     "batch_extract_completed": {
         "signal": batch_extract_completed,
         "label": "Batch Extract Complete",
         "description": "A batch embedded-subtitle extraction operation completed.",
         "payload_keys": [
+            "series_id",
             "total",
             "succeeded",
             "failed",
+            "skipped",
         ],
     },
     "batch_probe_completed": {

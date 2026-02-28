@@ -1,10 +1,10 @@
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useJobs, useBatchStatus } from '@/hooks/useApi'
+import { useJobs, useBatchStatus, useWantedBatchStatus } from '@/hooks/useApi'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { truncatePath } from '@/lib/utils'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Search } from 'lucide-react'
 
 const QueueJobRow = memo(function QueueJobRow({ file_path, status }: { file_path: string; status: 'running' | 'queued' }) {
   return (
@@ -28,9 +28,10 @@ const QueueJobRow = memo(function QueueJobRow({ file_path, status }: { file_path
 
 export function QueuePage() {
   const { t } = useTranslation('activity')
-  const { data: activeJobs } = useJobs(1, 20, 'running')
-  const { data: queuedJobs } = useJobs(1, 20, 'queued')
+  const { data: activeJobs } = useJobs(1, 20, 'running', 3000)
+  const { data: queuedJobs } = useJobs(1, 20, 'queued', 3000)
   const { data: batch } = useBatchStatus()
+  const { data: wantedBatch } = useWantedBatchStatus()
 
   return (
     <div className="space-y-5">
@@ -79,6 +80,54 @@ export function QueuePage() {
               style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
             >
               {t('queue.current')}: {truncatePath(batch.current_file, 80)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Wanted Batch Search Status */}
+      {wantedBatch?.running && (
+        <div
+          className="rounded-lg p-4"
+          style={{
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            borderLeft: '3px solid var(--warning)',
+          }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <Search size={16} className="animate-pulse" style={{ color: 'var(--warning)' }} />
+            <h2 className="text-sm font-semibold">{t('queue.wanted_batch_searching')}</h2>
+          </div>
+          <ProgressBar value={wantedBatch.processed} max={wantedBatch.total} className="mb-3" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-sm">
+            <div>
+              <span style={{ color: 'var(--text-muted)' }}>{t('queue.total')}: </span>
+              <span style={{ fontFamily: 'var(--font-mono)' }}>{wantedBatch.total}</span>
+            </div>
+            <div>
+              <span style={{ color: 'var(--text-muted)' }}>{t('queue.processed')}: </span>
+              <span style={{ fontFamily: 'var(--font-mono)' }}>{wantedBatch.processed}</span>
+            </div>
+            <div>
+              <span style={{ color: 'var(--text-muted)' }}>{t('queue.succeeded')}: </span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>{wantedBatch.found}</span>
+            </div>
+            <div>
+              <span style={{ color: 'var(--text-muted)' }}>{t('queue.failed')}: </span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--error)' }}>{wantedBatch.failed}</span>
+            </div>
+            <div>
+              <span style={{ color: 'var(--text-muted)' }}>{t('queue.skipped')}: </span>
+              <span style={{ fontFamily: 'var(--font-mono)' }}>{wantedBatch.skipped}</span>
+            </div>
+          </div>
+          {wantedBatch.current_item && (
+            <div
+              className="mt-3 text-xs truncate"
+              style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
+            >
+              {t('queue.current')}: {truncatePath(wantedBatch.current_item, 80)}
             </div>
           )}
         </div>

@@ -183,6 +183,17 @@ const FIELDS: FieldConfig[] = [
   { key: 'standalone_debounce_seconds', label: 'File Detection Debounce (seconds)', type: 'number', placeholder: '10', tab: 'Library Sources',
     description: 'Wartezeit nach letzter Dateiänderung bevor Scan ausgelöst wird.',
     advanced: true },
+  // Automation — Sidecar Cleanup
+  { key: 'auto_cleanup_after_extract', label: 'Nach Extraktion bereinigen', type: 'toggle', tab: 'Automation',
+    description: 'Nach batch-extract automatisch nicht-benötigte Sprachen löschen. Benötigt keep_languages.' },
+  { key: 'auto_cleanup_keep_languages', label: 'Behalte Sprachen (Codes)', type: 'text', placeholder: 'de,en', tab: 'Automation',
+    description: 'Komma-getrennte ISO-639-1 Codes — Sidecars anderer Sprachen werden gelöscht. Leer = nichts löschen.' },
+  { key: 'auto_cleanup_keep_formats', label: 'Bevorzugtes Format', type: 'text', placeholder: 'any', tab: 'Automation',
+    description: '"ass": SRT löschen wenn ASS für dieselbe Sprache vorhanden. "srt" oder "any": beide behalten.',
+    advanced: true },
+  // Automation — Subtitle Trash
+  { key: 'subtitle_trash_retention_days', label: 'Papierkorb-Aufbewahrung (Tage)', type: 'number', placeholder: '7', tab: 'Automation',
+    description: 'Gelöschte Sidecar-Dateien werden N Tage im Papierkorb behalten und können wiederhergestellt werden. 0 = dauerhaft behalten.' },
 ]
 
 // ─── Path Mapping Editor ────────────────────────────────────────────────────

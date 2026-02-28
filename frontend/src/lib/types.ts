@@ -597,6 +597,16 @@ export interface ProviderModifiers {
   [provider_name: string]: number
 }
 
+// ─── Subtitle Sidecar Management ─────────────────────────────────────────────
+
+export interface SidecarSubtitle {
+  path: string
+  language: string      // e.g. "de", "en", "ja"
+  format: string        // "ass" | "srt" | "vtt" | "ssa"
+  size_bytes: number
+  modified_at: number   // Unix timestamp (seconds)
+}
+
 // ─── Track Manifest (Phase 29) ───────────────────────────────────────────────
 
 export interface Track {
