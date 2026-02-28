@@ -601,12 +601,13 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
 
 // ─── Season Group ──────────────────────────────────────────────────────────
 
-function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync, onHealthCheck, healthScores, onOpenEditor, sidecarMap, onDeleteSidecar, onOpenCleanupModal, t }: {
+function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, isExtracting, onExtract, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync, onHealthCheck, healthScores, onOpenEditor, sidecarMap, onDeleteSidecar, onOpenCleanupModal, t }: {
   season: number
   episodes: EpisodeInfo[]
   targetLanguages: string[]
   seriesId: number | null
   isExtracting?: boolean
+  onExtract?: () => void
   expandedEp: { id: number; mode: 'search' | 'history' | 'glossary' | 'tracks' } | null
   onSearch: (ep: EpisodeInfo) => void
   onInteractiveSearch: (ep: EpisodeInfo) => void
@@ -1168,7 +1169,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting
                 Search
               </button>
               <button
-                onClick={() => { if (seriesId != null && !isExtracting) { void batchExtractAllTracks(seriesId) } clearAll() }}
+                onClick={() => { onExtract?.(); clearAll() }}
                 disabled={isExtracting}
                 className="px-3 py-1 rounded text-xs font-medium inline-flex items-center gap-1.5"
                 style={{
@@ -1403,6 +1404,12 @@ export function SeriesDetailPage() {
   const handleHealthCheck = useCallback((filePath: string) => {
     setHealthCheckPath(filePath)
   }, [])
+
+  const handleExtract = useCallback(() => {
+    if (seriesId == null || extractProgress !== null) return
+    setExtractProgress({ current: 0, total: 0, filename: '' })
+    void batchExtractAllTracks(seriesId)
+  }, [seriesId, extractProgress])
 
   const handleDeleteSidecar = useCallback(async (path: string) => {
     try {
@@ -1701,7 +1708,7 @@ export function SeriesDetailPage() {
             <div className="flex flex-wrap gap-2 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
               {/* Extract all embedded tracks */}
               <button
-                onClick={() => { if (seriesId != null && !extractProgress) { void batchExtractAllTracks(seriesId) } }}
+                onClick={() => handleExtract()}
                 disabled={extractProgress !== null}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
                 style={{
@@ -1838,7 +1845,9 @@ export function SeriesDetailPage() {
             <div className="flex items-center gap-2 mb-2">
               <Loader2 size={13} className="animate-spin flex-shrink-0" style={{ color: 'var(--accent)' }} />
               <span className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
-                Extrahiere Tracks — {extractProgress.current} / {extractProgress.total} Episoden
+                {extractProgress.total === 0
+                  ? 'Extraktion wird gestartet…'
+                  : `Extrahiere Tracks — ${extractProgress.current} / ${extractProgress.total} Episoden`}
               </span>
               {extractProgress.filename && (
                 <span
@@ -1850,7 +1859,7 @@ export function SeriesDetailPage() {
                 </span>
               )}
             </div>
-            <ProgressBar value={extractProgress.current} max={extractProgress.total} showLabel={false} />
+            <ProgressBar value={extractProgress.total === 0 ? 0 : extractProgress.current} max={extractProgress.total === 0 ? 100 : extractProgress.total} showLabel={false} />
           </div>
         )}
 
@@ -1863,6 +1872,7 @@ export function SeriesDetailPage() {
             targetLanguages={series.target_languages}
             seriesId={seriesId}
             isExtracting={extractProgress !== null}
+            onExtract={handleExtract}
             expandedEp={expandedEp}
             onSearch={handleSearch}
             onInteractiveSearch={(ep) => setInteractiveEp({ id: ep.id, title: `${series.title} ${ep.title ? `– ${ep.title}` : ''}`.trim() })}
