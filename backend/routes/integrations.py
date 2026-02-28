@@ -14,6 +14,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from flask import Blueprint, Response, jsonify, request
+from security_utils import is_safe_path
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,13 @@ def bazarr_mapping_report():
 
     if not db_path:
         return jsonify({"error": "db_path is required"}), 400
+
+    from config import get_settings
+
+    _s = get_settings()
+    _config_dir = getattr(_s, "config_dir", "/config")
+    if not is_safe_path(db_path, _config_dir) and not is_safe_path(db_path, _s.media_path):
+        return jsonify({"error": "db_path must be under /config or the configured media_path"}), 403
 
     if not os.path.isfile(db_path):
         return jsonify({"error": f"File not found: {db_path}"}), 400

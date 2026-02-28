@@ -75,6 +75,9 @@ def get_video_stream():
                 )
                 break
 
+    if not is_safe_path(mapped_path, settings.media_path):
+        return jsonify({"error": "Access denied"}), 403
+
     if not os.path.exists(mapped_path):
         return jsonify({"error": "File not found"}), 404
 
@@ -217,6 +220,9 @@ def create_screenshot():
                 )
                 break
 
+    if not is_safe_path(mapped_path, settings.media_path):
+        return jsonify({"error": "Access denied"}), 403
+
     if not os.path.exists(mapped_path):
         return jsonify({"error": "File not found"}), 404
 
@@ -291,6 +297,9 @@ def get_subtitle_webvtt():
                     1,
                 )
                 break
+
+    if not is_safe_path(mapped_path, settings.media_path):
+        return jsonify({"error": "Access denied"}), 403
 
     if not os.path.exists(mapped_path):
         return jsonify({"error": "File not found"}), 404

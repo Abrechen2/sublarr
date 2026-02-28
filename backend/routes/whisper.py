@@ -88,6 +88,8 @@ def transcribe():
     """
     import os
 
+    from config import get_settings, map_path
+    from security_utils import is_safe_path
     from whisper import get_whisper_manager
 
     data = request.get_json() or {}
@@ -96,13 +98,14 @@ def transcribe():
     if not file_path:
         return jsonify({"error": "file_path is required"}), 400
 
+    file_path = map_path(file_path)
+    settings = get_settings()
+
+    if not is_safe_path(file_path, settings.media_path):
+        return jsonify({"error": "Access denied"}), 403
+
     if not os.path.exists(file_path):
         return jsonify({"error": f"File not found: {file_path}"}), 404
-
-    # Determine language
-    from config import get_settings
-
-    settings = get_settings()
     language = data.get("language", settings.source_language or "ja")
 
     job_id = uuid.uuid4().hex

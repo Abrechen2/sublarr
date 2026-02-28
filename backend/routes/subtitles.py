@@ -25,6 +25,7 @@ from datetime import UTC, datetime
 from flask import Blueprint, jsonify, request
 
 from config import get_settings, map_path
+from security_utils import is_safe_path
 
 bp = Blueprint("subtitles", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -76,15 +77,6 @@ def scan_subtitle_sidecars(video_path: str) -> list[dict]:
         logger.warning("scan_subtitle_sidecars failed for %s: %s", video_path, exc)
     return result
 
-
-def _is_safe_path(path: str, media_path: str) -> bool:
-    """Return True only if path is inside media_path (prevents path traversal)."""
-    try:
-        real_path = os.path.realpath(path)
-        real_media = os.path.realpath(media_path)
-        return real_path.startswith(real_media + os.sep) or real_path == real_media
-    except Exception:
-        return False
 
 
 # ─── Trash helpers ─────────────────────────────────────────────────────────────
@@ -159,7 +151,7 @@ def _trash_sidecar(path: str, media_path: str, batch_dir: str) -> tuple[str, str
 
     Returns (trashed_path_or_original, error_or_None).
     """
-    if not _is_safe_path(path, media_path):
+    if not is_safe_path(path, media_path):
         return path, "Path outside media directory"
     ext = os.path.splitext(path)[1].lstrip(".").lower()
     if ext not in _SUBTITLE_EXTS:

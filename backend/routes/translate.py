@@ -12,6 +12,7 @@ from flask import Blueprint, current_app, jsonify, request
 
 from events import emit_event
 from extensions import socketio
+from security_utils import is_safe_path
 
 bp = Blueprint("translate", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -316,9 +317,7 @@ def translate_async():
         return jsonify({"error": f"File not found: {file_path}"}), 404
 
     # Security: ensure file_path is under the configured media_path
-    _media_path = os.path.abspath(get_settings().media_path)
-    _abs_path = os.path.abspath(file_path)
-    if not _abs_path.startswith(_media_path + os.sep):
+    if not is_safe_path(file_path, get_settings().media_path):
         return jsonify({"error": "file_path must be under the configured media_path"}), 403
 
     arr_context = _build_arr_context(data)
@@ -426,9 +425,7 @@ def translate_sync():
         return jsonify({"error": f"File not found: {file_path}"}), 404
 
     # Security: ensure file_path is under the configured media_path
-    _media_path = os.path.abspath(get_settings().media_path)
-    _abs_path = os.path.abspath(file_path)
-    if not _abs_path.startswith(_media_path + os.sep):
+    if not is_safe_path(file_path, get_settings().media_path):
         return jsonify({"error": "file_path must be under the configured media_path"}), 403
 
     arr_context = _build_arr_context(data)
@@ -632,9 +629,7 @@ def retry_job(job_id):
         return jsonify({"error": f"File not found: {file_path}"}), 404
 
     # Security: ensure file_path is under the configured media_path
-    _media_path = os.path.abspath(get_settings().media_path)
-    _abs_path = os.path.abspath(file_path)
-    if not _abs_path.startswith(_media_path + os.sep):
+    if not is_safe_path(file_path, get_settings().media_path):
         return jsonify({"error": "file_path must be under the configured media_path"}), 403
 
     new_job = create_job(file_path, force=True, arr_context=job.get("arr_context"))
@@ -738,6 +733,9 @@ def batch_start():
         valid, err = _validate_callback_url(callback_url)
         if not valid:
             return jsonify({"error": f"Invalid callback_url: {err}"}), 400
+
+    if not is_safe_path(directory, get_settings().media_path):
+        return jsonify({"error": "directory must be under the configured media_path"}), 403
 
     if not os.path.isdir(directory):
         return jsonify({"error": f"Directory not found: {directory}"}), 404
@@ -1036,9 +1034,7 @@ def retranslate_single(job_id):
         return jsonify({"error": f"File not found: {file_path}"}), 404
 
     # Security: ensure file_path is under the configured media_path
-    _media_path = os.path.abspath(get_settings().media_path)
-    _abs_path = os.path.abspath(file_path)
-    if not _abs_path.startswith(_media_path + os.sep):
+    if not is_safe_path(file_path, get_settings().media_path):
         return jsonify({"error": "file_path must be under the configured media_path"}), 403
 
     # Delete existing translated subtitle

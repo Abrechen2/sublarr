@@ -6,6 +6,7 @@ import os
 from flask import Blueprint, jsonify, request
 
 from config import get_settings
+from security_utils import is_safe_path
 from services.spell_checker import (
     check_subtitle_file,
     get_available_dictionaries,
@@ -103,6 +104,9 @@ def check_spelling():
                             1,
                         )
                         break
+
+            if not is_safe_path(mapped_path, settings.media_path):
+                return jsonify({"error": "Access denied"}), 403
 
             if not os.path.exists(mapped_path):
                 return jsonify({"error": "File not found"}), 404

@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 
 from flask import Blueprint, jsonify, request
+from security_utils import is_safe_path
 
 bp = Blueprint("tools", __name__, url_prefix="/api/v1/tools")
 logger = logging.getLogger(__name__)
@@ -35,15 +36,10 @@ def _validate_file_path(file_path: str) -> tuple:
     file_path = map_path(file_path)
 
     s = get_settings()
-    media_path = os.path.abspath(s.media_path)
-    abs_path = os.path.abspath(file_path)
-
-    # Security: ensure file is under media_path.
-    # Normalize the prefix: strip any trailing separator then add exactly one,
-    # so drive roots like "E:\" don't produce a double-separator "E:\\" prefix.
-    media_prefix = media_path.rstrip(os.sep) + os.sep
-    if not abs_path.startswith(media_prefix) and abs_path != media_path:
+    if not is_safe_path(file_path, s.media_path):
         return ("file_path must be under the configured media_path", 403)
+
+    abs_path = os.path.realpath(file_path)
 
     if not os.path.exists(abs_path):
         return (f"File not found: {file_path}", 404)
