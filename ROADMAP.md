@@ -55,10 +55,25 @@ Goals: Make Sublarr smarter about what to search for and what to accept.
 - Duplicate Detection - skip downloads when SHA-256 matches existing sub in DB
 - Translation Quality Dashboard - per-series quality trend charts in Statistics page
 - Custom Post-Processing Scripts - user-supplied shell scripts run after download/translate
+- Video Hash Matching - OpenSubtitles file hash lookup for exact video-to-subtitle matches
+- Subtitle Upgrade Scheduler - periodic re-check for higher-quality subs (configurable lookback window)
+- Release Group Filtering - include/exclude subtitle results by release group, codec, or source tag
 
 ---
 
-## v0.15.0 (Stream Removal — Safe Remux)
+## v0.15.0 (Provider Maturity)
+
+Goals: Close the gap to Bazarr in provider coverage, subtitle type handling, and community integration.
+
+- Additional Providers - Addic7ed, Gestdown (Subscene successor), Podnapisi, Supersubtitles
+- Hearing Impaired Support - HI detection, preference setting (prefer/exclude/only), HI-tag stripping from dialogue
+- Forced Subtitle Support - detect and download forced subs for foreign-audio scenes
+- Anti-Captcha Integration - Anti-Captcha.com / CapMonster support for captcha-protected providers
+- TRaSH-Compatible Scoring Presets - importable community-maintained scoring profiles
+
+---
+
+## v0.16.0 (Stream Removal — Safe Remux)
 
 Goals: Safely remove embedded subtitle streams from video files after extraction, with full rollback capability.
 
@@ -72,7 +87,7 @@ Goals: Safely remove embedded subtitle streams from video files after extraction
 
 ---
 
-## v0.16.0 (Collaboration and Export)
+## v0.17.0 (Collaboration and Export)
 
 Goals: Make Sublarr useful as a subtitle processing pipeline, not just consumer.
 
@@ -80,10 +95,11 @@ Goals: Make Sublarr useful as a subtitle processing pipeline, not just consumer.
 - Batch Export - ZIP export of all subtitles for a series
 - Subtitle Diff Viewer Improvements - inline accept/reject for individual changed cues
 - Jellyfin SSE Events - consume Jellyfin play-start events to auto-translate on-demand
+- CLI Mode - `sublarr search`, `sublarr translate`, `sublarr sync` commands for scripting and cron jobs
 
 ---
 
-## v0.17.0 (Performance and Scalability)
+## v0.18.0 (Performance and Scalability)
 
 Goals: Handle larger libraries without degradation.
 
@@ -95,7 +111,7 @@ Goals: Handle larger libraries without degradation.
 
 ---
 
-## v0.18.0 (Advanced Anime Support)
+## v0.19.0 (Advanced Anime Support)
 
 Goals: First-class support for complex anime subtitle scenarios.
 

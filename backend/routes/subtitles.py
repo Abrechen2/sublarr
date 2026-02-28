@@ -20,7 +20,7 @@ import os
 import shutil
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from flask import Blueprint, jsonify, request
 
@@ -100,7 +100,7 @@ def _write_manifest(batch_dir: str, batch_id: str, files: list[dict]) -> None:
     """Write a manifest.json recording original paths for a trash batch."""
     manifest = {
         "batch_id": batch_id,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "files": files,  # [{"original": "...", "trashed": "..."}]
     }
     manifest_path = os.path.join(batch_dir, "manifest.json")
@@ -125,7 +125,7 @@ def _auto_purge_old_trash(media_path: str, retention_days: int) -> int:
     if not os.path.isdir(trash_root):
         return 0
 
-    cutoff = datetime.now(timezone.utc).timestamp() - retention_days * 86400
+    cutoff = datetime.now(UTC).timestamp() - retention_days * 86400
     purged = 0
     for entry in os.scandir(trash_root):
         if not entry.is_dir():
@@ -184,8 +184,8 @@ def _trash_sidecar(
 
     # Remove subtitle_downloads DB entry (best-effort)
     try:
-        from extensions import db as sa_db
-        from sqlalchemy import text as _text
+        from extensions import db as sa_db  # noqa: I001
+        from sqlalchemy import text as _text  # noqa: I001
 
         with sa_db.engine.connect() as conn:
             conn.execute(_text("DELETE FROM subtitle_downloads WHERE file_path = :p"), {"p": path})

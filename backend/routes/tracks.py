@@ -196,11 +196,8 @@ def _cleanup_series_sidecars(episode_files: dict, keep_langs: set, keep_format: 
     Returns:
         Number of files deleted.
     """
-    from routes.subtitles import scan_subtitle_sidecars
-    from config import get_settings
+    from routes.subtitles import scan_subtitle_sidecars  # noqa: I001
 
-    settings = get_settings()
-    media_path = getattr(settings, "media_path", "/media")
     deleted = 0
 
     for file_info in episode_files.values():
@@ -277,7 +274,7 @@ def batch_extract_series_tracks(series_id):
             # Create an activity job so the extraction is visible on the Activity page
             _job_id = None
             try:
-                from db.jobs import create_job, update_job as _update_job
+                from db.jobs import create_job, update_job as _update_job  # noqa: I001
                 _job = create_job(
                     f"batch-extract: Serie {series_id} ({total_files} Dateien)",
                 )
