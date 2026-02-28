@@ -120,6 +120,7 @@ def create_app(testing=False):
         Configured Flask application instance.
     """
     app = Flask(__name__, static_folder="static", static_url_path="")
+    app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB — prevent request body DoS
 
     # Load config
     from config import get_settings, reload_settings
