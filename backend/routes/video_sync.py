@@ -105,9 +105,10 @@ def start_sync():
 
     _s = get_settings()
     _media_path = os.path.abspath(_s.media_path)
-    if not os.path.abspath(subtitle_path).startswith(_media_path + os.sep):
+    _media_prefix = _media_path.rstrip(os.sep) + os.sep
+    if not os.path.abspath(subtitle_path).startswith(_media_prefix):
         return jsonify({"error": "file_path must be under the configured media_path"}), 403
-    if video_path and not os.path.abspath(video_path).startswith(_media_path + os.sep):
+    if video_path and not os.path.abspath(video_path).startswith(_media_prefix):
         return jsonify({"error": "video_path must be under the configured media_path"}), 403
 
     if engine == "ffsubsync":
@@ -163,6 +164,94 @@ def start_sync():
     )
 
     return jsonify({"job_id": job_id}), 202
+
+
+@bp.route("/auto-sync", methods=["POST"])
+def auto_sync():
+    """Quick one-click auto-sync using ffsubsync (fire-and-forget, no job polling needed).
+
+    Body:
+        file_path (str): subtitle file to sync — required
+        video_path (str): video file for reference — required
+        engine (str): "ffsubsync" (default) | "alass"
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    subtitle_path = data.get("file_path", "").strip()
+    video_path = data.get("video_path", "").strip()
+    engine = data.get("engine", "ffsubsync")
+
+    if not subtitle_path:
+        return jsonify({"error": "file_path is required"}), 400
+    if not video_path:
+        return jsonify({"error": "video_path is required"}), 400
+    if not os.path.exists(subtitle_path):
+        return jsonify({"error": f"Subtitle file not found: {subtitle_path}"}), 404
+    if not os.path.exists(video_path):
+        return jsonify({"error": f"Video file not found: {video_path}"}), 404
+
+    from config import get_settings
+    _s = get_settings()
+    _media_path = os.path.abspath(_s.media_path)
+    _media_prefix = _media_path.rstrip(os.sep) + os.sep
+    if not os.path.abspath(subtitle_path).startswith(_media_prefix):
+        return jsonify({"error": "file_path must be under the configured media_path"}), 403
+    if not os.path.abspath(video_path).startswith(_media_prefix):
+        return jsonify({"error": "video_path must be under the configured media_path"}), 403
+
+    job_id = str(uuid.uuid4())
+    _update_job(job_id, "queued")
+    _executor.submit(_run_sync, job_id, engine, subtitle_path, video_path, None, None)
+
+    return jsonify({"job_id": job_id, "status": "started"}), 202
+
+
+@bp.route("/auto-sync/bulk", methods=["POST"])
+def auto_sync_bulk():
+    """Bulk auto-sync: queue ffsubsync jobs for all episodes in a series or the full library."""
+    data = request.get_json(force=True, silent=True) or {}
+    scope = data.get("scope", "series")
+    series_id = data.get("series_id")
+    engine = data.get("engine", "ffsubsync")
+
+    if engine not in ("ffsubsync", "alass"):
+        return jsonify({"error": f"Unknown engine: {engine!r}"}), 400
+
+    from sonarr_client import get_sonarr_client
+    from config import map_path
+
+    client = get_sonarr_client()
+    if client is None:
+        return jsonify({"error": "Sonarr not configured"}), 503
+
+    if scope == "series" and series_id is not None:
+        episode_files = client.get_episode_files_by_series(int(series_id))
+    elif scope == "library":
+        episode_files = {}
+        for sid in (client.get_series() or []):
+            episode_files.update(client.get_episode_files_by_series(sid.get("id", 0)) or {})
+    else:
+        return jsonify({"error": "scope must be 'series' (with series_id) or 'library'"}), 400
+
+    queued = 0
+    for file_info in (episode_files or {}).values():
+        raw_path = file_info.get("path")
+        if not raw_path:
+            continue
+        video_path = map_path(raw_path)
+        if not os.path.exists(video_path):
+            continue
+        # Find first subtitle sidecar
+        from routes.subtitles import scan_subtitle_sidecars
+        sidecars = scan_subtitle_sidecars(video_path)
+        if not sidecars:
+            continue
+        subtitle_path = sidecars[0]["path"]
+        job_id = str(uuid.uuid4())
+        _update_job(job_id, "queued")
+        _executor.submit(_run_sync, job_id, engine, subtitle_path, video_path, None, None)
+        queued += 1
+
+    return jsonify({"queued": queued, "engine": engine}), 202
 
 
 @bp.route("/video-sync/<job_id>", methods=["GET"])

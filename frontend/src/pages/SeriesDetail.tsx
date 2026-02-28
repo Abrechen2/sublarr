@@ -623,7 +623,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
   onEditSub: (filePath: string) => void
   onCompare: (ep: EpisodeInfo) => void
   onSync: (filePath: string) => void
-  onAutoSync: (filePath: string) => void
+  onAutoSync: (subtitlePath: string, videoPath: string) => void
   onVideoSync: (ep: EpisodeInfo, subtitlePath: string) => void
   onHealthCheck: (filePath: string) => void
   healthScores: Record<string, number | null>
@@ -877,7 +877,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                     </div>
 
                     {/* Actions */}
-                    <div className="w-40 flex-shrink-0 flex gap-1 justify-end">
+                    <div className="w-56 flex-shrink-0 flex gap-0.5 justify-end">
                       {isExpanded && (
                         <button
                           onClick={onClose}
@@ -952,7 +952,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                         const syncPath = deriveSubtitlePath(ep.file_path, firstLang[0], firstLang[1])
                         return (
                           <button
-                            onClick={() => onAutoSync(syncPath)}
+                            onClick={() => onAutoSync(syncPath, ep.file_path)}
                             className="p-1.5 rounded transition-colors"
                             style={{ color: 'var(--text-muted)' }}
                             title="Auto-sync timing (alass/ffsubsync)"
@@ -1389,12 +1389,12 @@ export function SeriesDetailPage() {
     setSyncFilePath(filePath)
   }, [])
 
-  const handleAutoSync = useCallback((filePath: string) => {
+  const handleAutoSync = useCallback((subtitlePath: string, videoPath: string) => {
     toast('Auto-syncing…', 'info')
-    void autoSyncFile(filePath).then(() => {
-      toast('Auto-sync complete')
+    void autoSyncFile(subtitlePath, videoPath).then(() => {
+      toast('Auto-sync gestartet')
     }).catch((err: unknown) => {
-      const msg = err instanceof Error ? err.message : 'Auto-sync failed'
+      const msg = err instanceof Error ? err.message : 'Auto-sync fehlgeschlagen'
       toast(msg, 'error')
     })
   }, [])
@@ -1831,7 +1831,7 @@ export function SeriesDetailPage() {
             {t('series_detail.subtitles')}
           </div>
           <div
-            className="w-40 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider text-right"
+            className="w-56 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider text-right"
             style={{ color: 'var(--text-secondary)' }}
           >
             {t('series_detail.actions')}

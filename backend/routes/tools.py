@@ -38,8 +38,11 @@ def _validate_file_path(file_path: str) -> tuple:
     media_path = os.path.abspath(s.media_path)
     abs_path = os.path.abspath(file_path)
 
-    # Security: ensure file is under media_path
-    if not abs_path.startswith(media_path + os.sep) and abs_path != media_path:
+    # Security: ensure file is under media_path.
+    # Normalize the prefix: strip any trailing separator then add exactly one,
+    # so drive roots like "E:\" don't produce a double-separator "E:\\" prefix.
+    media_prefix = media_path.rstrip(os.sep) + os.sep
+    if not abs_path.startswith(media_prefix) and abs_path != media_path:
         return ("file_path must be under the configured media_path", 403)
 
     if not os.path.exists(abs_path):
