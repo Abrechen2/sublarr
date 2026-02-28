@@ -8,7 +8,7 @@ import {
   Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search, Clock,
   Download, X, ChevronUp, BookOpen, Plus, Edit2, Trash2, Check,
   Eye, Pencil, Columns2, Timer, ShieldCheck, ScanSearch, RefreshCw, Database,
-  Layers, Sparkles, Trash,
+  Layers, Sparkles, Trash, Clapperboard,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
@@ -877,11 +877,11 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                     </div>
 
                     {/* Actions */}
-                    <div className="w-56 flex-shrink-0 flex gap-0.5 justify-end">
+                    <div className="w-64 flex-shrink-0 flex gap-0.5 justify-end">
                       {isExpanded && (
                         <button
                           onClick={onClose}
-                          className="p-1.5 rounded transition-colors"
+                          className="p-1 rounded transition-colors"
                           style={{ color: 'var(--text-muted)' }}
                           title={t('series_detail.close')}
                           onMouseEnter={(e) => {
@@ -900,7 +900,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                         return subCount >= 2 ? (
                           <button
                             onClick={() => onCompare(ep)}
-                            className="p-1.5 rounded transition-colors"
+                            className="p-1 rounded transition-colors"
                             style={{ color: 'var(--text-muted)' }}
                             title="Compare subtitles"
                             onMouseEnter={(e) => {
@@ -927,7 +927,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                         return (
                           <button
                             onClick={() => onSync(syncPath)}
-                            className="p-1.5 rounded transition-colors"
+                            className="p-1 rounded transition-colors"
                             style={{ color: 'var(--text-muted)' }}
                             title="Sync timing"
                             onMouseEnter={(e) => {
@@ -953,7 +953,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                         return (
                           <button
                             onClick={() => onAutoSync(syncPath, ep.file_path)}
-                            className="p-1.5 rounded transition-colors"
+                            className="p-1 rounded transition-colors"
                             style={{ color: 'var(--text-muted)' }}
                             title="Auto-sync timing (alass/ffsubsync)"
                             onMouseEnter={(e) => {
@@ -978,7 +978,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                         return (
                           <button
                             onClick={() => onVideoSync(ep, syncPath)}
-                            className="p-1.5 rounded transition-colors"
+                            className="p-1 rounded transition-colors"
                             style={{ color: 'var(--text-muted)' }}
                             title="Video-Sync (ffsubsync / alass)"
                             onMouseEnter={(e) => {
@@ -990,7 +990,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                               e.currentTarget.style.backgroundColor = ''
                             }}
                           >
-                            <ScanSearch size={14} />
+                            <Clapperboard size={14} />
                           </button>
                         )
                       })()}
@@ -1004,7 +1004,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                         return (
                           <button
                             onClick={() => onHealthCheck(healthPath)}
-                            className="p-1.5 rounded transition-colors"
+                            className="p-1 rounded transition-colors"
                             style={{ color: 'var(--text-muted)' }}
                             title="Health check"
                             onMouseEnter={(e) => {
@@ -1024,7 +1024,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                       {ep.has_file && (
                         <button
                           onClick={() => onTracks(ep)}
-                          className="p-1.5 rounded transition-colors"
+                          className="p-1 rounded transition-colors"
                           style={{ color: isExpanded && mode === 'tracks' ? 'var(--accent)' : 'var(--text-muted)' }}
                           title="Eingebettete Tracks anzeigen"
                           onMouseEnter={(e) => {
@@ -1042,7 +1042,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                       <button
                         onClick={() => onSearch(ep)}
                         disabled={!ep.has_file}
-                        className="p-1.5 rounded transition-colors"
+                        className="p-1 rounded transition-colors"
                         style={{
                           color: isExpanded && mode === 'search' ? 'var(--accent)' : 'var(--text-muted)',
                           opacity: ep.has_file ? 1 : 0.4,
@@ -1070,7 +1070,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                       <button
                         onClick={() => onInteractiveSearch(ep)}
                         disabled={!ep.has_file}
-                        className="p-1.5 rounded transition-colors"
+                        className="p-1 rounded transition-colors"
                         style={{
                           color: 'var(--text-muted)',
                           opacity: ep.has_file ? 1 : 0.4,
@@ -1092,7 +1092,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                       <button
                         onClick={() => onHistory(ep)}
                         disabled={!ep.has_file}
-                        className="p-1.5 rounded transition-colors"
+                        className="p-1 rounded transition-colors"
                         style={{
                           color: isExpanded && mode === 'history' ? 'var(--accent)' : 'var(--text-muted)',
                           opacity: ep.has_file ? 1 : 0.4,
@@ -1831,7 +1831,7 @@ export function SeriesDetailPage() {
             {t('series_detail.subtitles')}
           </div>
           <div
-            className="w-56 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider text-right"
+            className="w-64 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider text-right"
             style={{ color: 'var(--text-secondary)' }}
           >
             {t('series_detail.actions')}
