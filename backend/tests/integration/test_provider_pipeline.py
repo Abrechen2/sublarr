@@ -56,11 +56,12 @@ class TestCircuitBreaker:
         """OPEN → HALF_OPEN after cooldown elapses."""
         cb = CircuitBreaker("test", failure_threshold=1, cooldown_seconds=0)
 
-        cb.record_failure()  # → OPEN
-        assert cb.state == CircuitState.OPEN
+        cb.record_failure()  # → OPEN internally
+        # Inspect internal _state directly: reading .state triggers the lazy
+        # OPEN→HALF_OPEN transition, so use _state to verify the post-failure state.
+        assert cb._state == CircuitState.OPEN
 
-        # Cooldown is 0s, so immediate transition to HALF_OPEN
-        time.sleep(0.01)
+        # With cooldown_seconds=0, reading .state immediately yields HALF_OPEN
         assert cb.state == CircuitState.HALF_OPEN
         assert cb.allow_request() is True
 
@@ -84,7 +85,9 @@ class TestCircuitBreaker:
         assert cb.state == CircuitState.HALF_OPEN
 
         cb.record_failure()  # → OPEN again
-        assert cb.state == CircuitState.OPEN
+        # With cooldown_seconds=0, reading .state immediately triggers OPEN→HALF_OPEN.
+        # Use internal _state to assert the OPEN state before the lazy transition.
+        assert cb._state == CircuitState.OPEN
 
     def test_manual_reset(self):
         """reset() forces CLOSED from any state."""
@@ -196,7 +199,7 @@ class TestScoring:
 class TestProviderPipeline:
     """Test ProviderManager search flow with mocked providers."""
 
-    @patch("providers.get_settings")
+    @patch("config.get_settings")
     @patch("providers._PROVIDER_CLASSES", {})
     def test_no_providers_returns_empty(self, mock_gs):
         """Search with no providers configured returns empty list."""
@@ -221,9 +224,9 @@ class TestProviderPipeline:
         query = VideoQuery(series_title="Test", season=1, episode=1, languages=["en"])
 
         with (
-            patch("providers.get_cached_results", return_value=None),
-            patch("providers.cache_provider_results"),
-            patch("providers.is_blacklisted", return_value=False),
+            patch("db.providers.get_cached_results", return_value=None),
+            patch("db.providers.cache_provider_results"),
+            patch("db.blacklist.is_blacklisted", return_value=False),
         ):
             results = manager.search(query)
 

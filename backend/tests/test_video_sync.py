@@ -91,12 +91,14 @@ def test_start_sync_queues_job(client, tmp_path):
     """Valid request queues a background job and returns 202 with job_id."""
     sub = tmp_path / "ep.de.srt"
     sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n")
+    # video_path must be under SUBLARR_MEDIA_PATH (set to temp dir in tests)
+    video = tmp_path / "ep.mkv"
     with patch("routes.video_sync._executor") as mock_exec:
         resp = client.post(
             "/api/v1/tools/video-sync",
             json={
                 "file_path": str(sub),
-                "video_path": "/media/ep.mkv",
+                "video_path": str(video),
                 "engine": "ffsubsync",
             },
         )
@@ -140,12 +142,13 @@ def test_sync_status_reflects_queued_state(client, tmp_path):
     """Status endpoint returns 'queued' right after job creation."""
     sub = tmp_path / "ep.de.srt"
     sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n")
+    video = tmp_path / "ep.mkv"
     with patch("routes.video_sync._executor"):
         resp = client.post(
             "/api/v1/tools/video-sync",
             json={
                 "file_path": str(sub),
-                "video_path": "/media/ep.mkv",
+                "video_path": str(video),
                 "engine": "ffsubsync",
             },
         )
@@ -167,7 +170,11 @@ def test_sync_unavailable_error_when_ffsubsync_missing(tmp_path):
 
     sub = tmp_path / "ep.srt"
     sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n")
-    with patch("services.video_sync.FFSUBSYNC_AVAILABLE", False):
+    # Availability is checked dynamically via shutil.which / _check_module
+    with (
+        patch("services.video_sync.shutil.which", return_value=None),
+        patch("services.video_sync._check_module", return_value=False),
+    ):
         try:
             sync_with_ffsubsync(str(sub), "/video.mkv")
             assert False, "Expected SyncUnavailableError"
@@ -181,7 +188,8 @@ def test_sync_unavailable_error_when_alass_missing(tmp_path):
 
     sub = tmp_path / "ep.srt"
     sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n")
-    with patch("services.video_sync.ALASS_AVAILABLE", False):
+    # Availability is checked dynamically via shutil.which
+    with patch("services.video_sync.shutil.which", return_value=None):
         try:
             sync_with_alass(str(sub), "/ref.srt")
             assert False, "Expected SyncUnavailableError"

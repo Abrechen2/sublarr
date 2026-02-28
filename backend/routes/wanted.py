@@ -963,7 +963,7 @@ def batch_extract():
     # Allow caller to pass series_id to extract all wanted items for that series
     if not item_ids and series_id:
         page = get_wanted_items(page=1, per_page=500, series_id=int(series_id))
-        item_ids = [it["id"] for it in page.get("items", [])]
+        item_ids = [it["id"] for it in page.get("data", [])]
 
     if not item_ids:
         return jsonify({"error": "item_ids or series_id required"}), 400
@@ -1202,8 +1202,13 @@ def batch_probe():
             return jsonify({"error": "Batch probe already running"}), 409
         _batch_probe_state["running"] = True
 
-    page = get_wanted_items(page=1, per_page=5000, series_id=series_id)
-    items = [it for it in page.get("data", []) if not it.get("existing_sub")]
+    try:
+        page = get_wanted_items(page=1, per_page=5000, series_id=series_id)
+        items = [it for it in page.get("data", []) if not it.get("existing_sub")]
+    except Exception:
+        with _batch_probe_lock:
+            _batch_probe_state["running"] = False
+        raise
 
     if not items:
         with _batch_probe_lock:

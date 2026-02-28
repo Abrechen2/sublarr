@@ -5,6 +5,9 @@ import shutil
 import tempfile
 from pathlib import Path
 
+# Resolve once — avoids 8.3 short-name vs long-name mismatch on Windows
+_TEMP_DIR = os.path.realpath(tempfile.gettempdir())
+
 import pytest
 
 from app import create_app
@@ -24,6 +27,8 @@ def temp_db():
     os.environ["SUBLARR_API_KEY"] = ""  # Disable auth for tests
     os.environ["SUBLARR_LOG_LEVEL"] = "ERROR"  # Reduce log noise in tests
     os.environ["SUBLARR_PLUGINS_DIR"] = tempfile.mkdtemp()  # CI: /config not writable
+    # Allow video-sync path-security check to pass for tmp_path fixtures
+    os.environ["SUBLARR_MEDIA_PATH"] = _TEMP_DIR
 
     # Reload settings and initialize database
     reload_settings()
@@ -46,6 +51,8 @@ def temp_db():
         del os.environ["SUBLARR_LOG_LEVEL"]
     if "SUBLARR_PLUGINS_DIR" in os.environ:
         del os.environ["SUBLARR_PLUGINS_DIR"]
+    if "SUBLARR_MEDIA_PATH" in os.environ:
+        del os.environ["SUBLARR_MEDIA_PATH"]
     reload_settings()  # clear singleton cached DB path
 
 

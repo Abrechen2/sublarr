@@ -750,6 +750,9 @@ class ProviderManager:
             except Exception:
                 pass
 
+        if not self._providers:
+            return all_results
+
         with ThreadPoolExecutor(max_workers=len(self._providers)) as executor:
             futures = {}
             for name, provider in self._providers.items():

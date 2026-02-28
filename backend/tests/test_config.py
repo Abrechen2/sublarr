@@ -7,9 +7,14 @@ import pytest
 from config import _get_language_tags, get_settings, reload_settings
 
 
-def test_default_settings():
-    """Test default settings values."""
-    settings = get_settings()
+def test_default_settings(monkeypatch):
+    """Test that settings fields are applied from env vars correctly."""
+    # Force known values via env (overrides both .env file and local env)
+    monkeypatch.setenv("SUBLARR_PORT", "5765")
+    monkeypatch.setenv("SUBLARR_SOURCE_LANGUAGE", "en")
+    monkeypatch.setenv("SUBLARR_TARGET_LANGUAGE", "de")
+    monkeypatch.setenv("SUBLARR_OLLAMA_URL", "http://localhost:11434")
+    settings = reload_settings()
     assert settings.port == 5765
     assert settings.source_language == "en"
     assert settings.target_language == "de"

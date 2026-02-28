@@ -111,6 +111,12 @@ SONARR_WEBHOOK_PAYLOAD = {
     "eventType": "Download",
     "series": SAMPLE_SERIES,
     "episodes": [SAMPLE_EPISODE],
+    "episodeFile": {
+        "id": 1,
+        "path": "/media/anime/Attack on Titan/Season 01/Attack.on.Titan.S01E01.1080p.BluRay.x264.mkv",
+        "quality": "BluRay-1080p",
+        "size": 1073741824,
+    },
 }
 
 RADARR_WEBHOOK_PAYLOAD = {

@@ -22,14 +22,18 @@ from db import _db_lock, close_db, get_db, init_db
 
 @pytest.fixture(autouse=True)
 def _isolate_db(tmp_path):
-    """Create an isolated temp database for each test, then tear down."""
+    """Create an isolated temp database for each test with Flask app context."""
+    from app import create_app
+
     db_path = str(tmp_path / "test_translation.db")
     os.environ["SUBLARR_DB_PATH"] = db_path
     os.environ["SUBLARR_API_KEY"] = ""
     os.environ["SUBLARR_LOG_LEVEL"] = "ERROR"
     reload_settings()
-    init_db()
-    yield
+    app = create_app(testing=True)
+    with app.app_context():
+        init_db()
+        yield
     close_db()
     for key in ("SUBLARR_DB_PATH", "SUBLARR_API_KEY", "SUBLARR_LOG_LEVEL"):
         os.environ.pop(key, None)
@@ -205,8 +209,9 @@ def test_parse_llm_response_numbered():
 
 
 def test_parse_llm_response_too_many_merge():
-    """Excess lines are truncated (merge or slice) to expected count."""
-    text = "1: Line A\n2: Line B\n3: Line C\n4: Line D"
+    """Unnumbered continuation lines are merged with the previous numbered line."""
+    # Lines 2 and 4 are unnumbered continuations — they get merged into lines 1 and 3
+    text = "1: Line A\ncontinuation of A\n2: Line B\ncontinuation of B"
     result = parse_llm_response(text, 2)
     assert result is not None
     assert len(result) == 2

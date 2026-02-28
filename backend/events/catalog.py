@@ -35,6 +35,7 @@ whisper_failed = sublarr_signals.signal("whisper_failed")
 hook_executed = sublarr_signals.signal("hook_executed")
 standalone_scan_complete = sublarr_signals.signal("standalone_scan_complete")
 standalone_file_detected = sublarr_signals.signal("standalone_file_detected")
+wanted_item_searched = sublarr_signals.signal("wanted_item_searched")
 
 # ---- Catalog dict (machine-readable metadata) ----------------------------------
 
@@ -256,6 +257,18 @@ EVENT_CATALOG: dict[str, dict] = {
             "path",
             "type",
             "wanted",
+        ],
+    },
+    "wanted_item_searched": {
+        "signal": wanted_item_searched,
+        "label": "Wanted Item Searched",
+        "description": "A single wanted item had its providers searched.",
+        "payload_keys": [
+            "wanted_id",
+            "title",
+            "status",
+            "found",
+            "error",
         ],
     },
 }
