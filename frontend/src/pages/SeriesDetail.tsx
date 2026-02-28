@@ -8,6 +8,7 @@ import {
   Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search, Clock,
   Download, X, ChevronUp, BookOpen, Plus, Edit2, Trash2, Check,
   Eye, Pencil, Columns2, Timer, ShieldCheck, ScanSearch, RefreshCw, Database,
+  Layers, Sparkles, Trash,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
@@ -1691,23 +1692,69 @@ export function SeriesDetailPage() {
                 </button>
               )}
 
+            </div>
+
+            {/* Series-level action toolbar */}
+            <div className="flex flex-wrap gap-2 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+              {/* Extract all embedded tracks */}
+              <button
+                onClick={() => { if (seriesId != null && !extractProgress) { void batchExtractAllTracks(seriesId) } }}
+                disabled={extractProgress !== null}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
+                style={{
+                  backgroundColor: extractProgress ? 'var(--accent-bg)' : 'rgba(255,255,255,0.06)',
+                  color: extractProgress ? 'var(--accent)' : 'var(--text-secondary)',
+                  border: `1px solid ${extractProgress ? 'var(--accent-dim)' : 'transparent'}`,
+                  cursor: extractProgress ? 'default' : 'pointer',
+                }}
+                onMouseEnter={(e) => { if (!extractProgress) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
+                onMouseLeave={(e) => { if (!extractProgress) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)' }}
+                title="Alle eingebetteten Subtitle-Tracks der Serie extrahieren"
+              >
+                {extractProgress
+                  ? <><Loader2 size={11} className="animate-spin" /> Extrahiere {extractProgress.current}/{extractProgress.total}…</>
+                  : <><Layers size={11} /> Tracks extrahieren</>
+                }
+              </button>
+
+              {/* Sidecar cleanup modal */}
+              <button
+                onClick={() => setShowCleanupModal(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
+                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)' }}
+                title="Sidecar-Untertitel bereinigen (nach Sprache/Format filtern)"
+              >
+                <Trash size={11} />
+                Bereinigen
+              </button>
+
+              {/* Search all missing */}
               {missingCount > 0 && (
                 <button
                   onClick={handleSearchAllEpisodes}
                   disabled={startSeriesSearch.isPending || seriesSearchStarted}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors font-medium"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
                   style={{
                     backgroundColor: seriesSearchStarted ? 'var(--success-bg)' : 'var(--accent-bg)',
                     color: seriesSearchStarted ? 'var(--success)' : 'var(--accent)',
                     opacity: startSeriesSearch.isPending ? 0.7 : 1,
                     cursor: startSeriesSearch.isPending || seriesSearchStarted ? 'default' : 'pointer',
+                    border: '1px solid transparent',
                   }}
+                  onMouseEnter={(e) => {
+                    if (!startSeriesSearch.isPending && !seriesSearchStarted)
+                      e.currentTarget.style.opacity = '0.85'
+                  }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = startSeriesSearch.isPending ? '0.7' : '1' }}
+                  title={`${missingCount} fehlende Untertitel bei Providern suchen`}
                 >
                   {startSeriesSearch.isPending
                     ? <Loader2 size={11} className="animate-spin" />
-                    : <Search size={11} />
+                    : seriesSearchStarted ? <Sparkles size={11} /> : <Search size={11} />
                   }
-                  {seriesSearchStarted ? 'Suche läuft...' : `Alle ${missingCount} suchen`}
+                  {seriesSearchStarted ? 'Suche läuft…' : `${missingCount} fehlende suchen`}
                 </button>
               )}
             </div>
