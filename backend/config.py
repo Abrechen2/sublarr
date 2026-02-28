@@ -188,6 +188,14 @@ class Settings(BaseSettings):
     tvdb_pin: str = ""  # TVDB PIN (optional)
     metadata_cache_ttl_days: int = 30
 
+    # Sidecar Auto-Cleanup
+    auto_cleanup_after_extract: bool = False  # Delete extra-language sidecars after batch-extract
+    auto_cleanup_keep_languages: str = ""     # Comma-separated ISO-639-1 codes to keep (empty = nothing deleted)
+    auto_cleanup_keep_formats: str = "any"    # "ass" | "srt" | "any" — delete SRT when ASS exists for same lang
+
+    # Subtitle Trash / Soft-Delete
+    subtitle_trash_retention_days: int = 7   # Days to keep trashed files before auto-purge (0 = keep forever)
+
     # AniDB Integration
     anidb_enabled: bool = True  # Enable AniDB ID resolution
     anidb_cache_ttl_days: int = 30  # Cache TTL for TVDB → AniDB mappings

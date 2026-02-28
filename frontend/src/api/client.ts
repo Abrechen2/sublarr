@@ -171,6 +171,12 @@ export async function batchExtractEmbedded(
   return data
 }
 
+/** Extract ALL embedded subtitle tracks from every episode in a series, regardless of language. */
+export async function batchExtractAllTracks(seriesId: number): Promise<{ status: string }> {
+  const { data } = await api.post(`/library/series/${seriesId}/batch-extract-tracks`, {})
+  return data
+}
+
 export interface BatchExtractStatus {
   running: boolean
   total: number
@@ -1501,6 +1507,31 @@ export async function extractTrack(epId: number, index: number, language?: strin
 
 export async function trackAsSource(epId: number, index: number): Promise<import('@/lib/types').TrackAsSourceResult> {
   const { data } = await api.post(`/library/episodes/${epId}/tracks/${index}/use-as-source`)
+  return data
+}
+
+// ─── Subtitle Sidecar Management ─────────────────────────────────────────────
+
+export async function listEpisodeSubtitles(epId: number): Promise<{ subtitles: import('@/lib/types').SidecarSubtitle[]; video_path: string }> {
+  const { data } = await api.get(`/library/episodes/${epId}/subtitles`)
+  return data
+}
+
+export async function listSeriesSubtitles(seriesId: number): Promise<{ subtitles: Record<string, import('@/lib/types').SidecarSubtitle[]> }> {
+  const { data } = await api.get(`/library/series/${seriesId}/subtitles`)
+  return data
+}
+
+export async function deleteSubtitles(paths: string[]): Promise<{ deleted: string[]; failed: { path: string; error: string }[] }> {
+  const { data } = await api.delete('/library/subtitles', { data: { paths } })
+  return data
+}
+
+export async function batchDeleteSeriesSubtitles(
+  seriesId: number,
+  filter: { languages?: string[]; formats?: string[] }
+): Promise<{ deleted: number; failed: number }> {
+  const { data } = await api.post(`/library/series/${seriesId}/subtitles/batch-delete`, filter)
   return data
 }
 

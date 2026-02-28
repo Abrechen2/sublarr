@@ -5,6 +5,23 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0-beta] — 2026-02-28
+
+### Added
+- **Sidecar Subtitle Management** — inline sidecar badges (language + format) for all extracted subtitle files per episode in SeriesDetail; non-target-language sidecars displayed with × delete button
+- **Series Subtitles API** — `GET /api/v1/library/series/<id>/subtitles` scans all episode files in parallel and returns sidecar metadata keyed by Sonarr episode ID
+- **Episode Subtitles API** — `GET /api/v1/library/episodes/<id>/subtitles` for single-episode sidecar scan
+- **Delete Subtitles API** — `DELETE /api/v1/library/subtitles` removes one or more sidecar files by path with path-traversal guard (only files inside `SUBLARR_MEDIA_PATH` deletable)
+- **Batch Delete API** — `POST /api/v1/library/series/<id>/subtitles/batch-delete` deletes sidecars by language/format filter across all episodes of a series
+- **Sidecar Cleanup Modal** — "Bereinigen" button in episode toolbar opens modal listing all sidecar languages with file count, total size, and checkboxes; "Nur Target-Sprachen behalten" quick action
+- **Auto-Cleanup after Batch Extract** — three new settings: `auto_cleanup_after_extract` (toggle), `auto_cleanup_keep_languages` (comma-separated ISO codes), `auto_cleanup_keep_formats` (ass/srt/any); cleanup runs automatically after `batch-extract-tracks`
+- **Settings UI** — three new auto-cleanup fields in the Automation tab
+
+### Changed
+- **SeriesDetail UNTERTITEL column** — changed from fixed `w-40` (160 px) to `flex-1 min-w-[200px]` so badges spread across available space without excessive line-wrapping
+
+---
+
 ## [0.12.3-beta] — 2026-02-28
 
 ### Security
