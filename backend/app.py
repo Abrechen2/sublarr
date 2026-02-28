@@ -130,8 +130,10 @@ def create_app(testing=False):
 
     logger = logging.getLogger(__name__)
 
-    # Initialize SocketIO with the app
-    socketio.init_app(app, cors_allowed_origins="*", async_mode="threading")
+    # Initialize SocketIO with the app — restrict origins to configured allowlist
+    _cors_origins_raw = getattr(settings, "cors_origins", "http://localhost:5173,http://localhost:5765")
+    _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+    socketio.init_app(app, cors_allowed_origins=_cors_origins, async_mode="threading")
 
     # Register structured error handlers (SublarrError -> JSON, generic 500)
     from error_handler import register_error_handlers

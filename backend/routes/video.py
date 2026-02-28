@@ -6,6 +6,7 @@ import os
 from flask import Blueprint, jsonify, request, send_file
 
 from config import get_settings
+from security_utils import is_safe_path
 from services.video_player import (
     convert_subtitle_to_webvtt,
     generate_hls_playlist,
@@ -145,6 +146,9 @@ def get_video_segment():
         settings = get_settings()
         cache_dir = os.path.join(getattr(settings, "config_dir", "/config"), "cache", "video")
         segment_path = os.path.join(cache_dir, segment)
+
+        if not is_safe_path(segment_path, cache_dir):
+            return jsonify({"error": "Invalid segment path"}), 400
 
         if os.path.exists(segment_path):
             return send_file(segment_path, mimetype="video/mp2t")

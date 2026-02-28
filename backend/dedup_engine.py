@@ -15,6 +15,8 @@ import os
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from security_utils import is_safe_path
+
 logger = logging.getLogger(__name__)
 
 # Subtitle file extensions to scan
@@ -212,7 +214,10 @@ def delete_duplicates(file_paths: list[str], keep_path: str) -> dict:
     Returns:
         Dict with deleted count, bytes_freed, and any errors.
     """
+    from config import get_settings
     from db.repositories.cleanup import CleanupRepository
+
+    media_path = get_settings().media_path
 
     # Safety guard: keep_path must NOT be in deletion list
     if keep_path in file_paths:
@@ -237,6 +242,16 @@ def delete_duplicates(file_paths: list[str], keep_path: str) -> dict:
 
     for fp in file_paths:
         try:
+            if os.path.islink(fp):
+                errors.append(f"Skipping symlink (not deleted for safety): {fp}")
+                logger.warning("Skipping symlink during dedup deletion: %s", fp)
+                continue
+
+            if not is_safe_path(fp, media_path):
+                errors.append(f"Skipping path outside media_path: {fp}")
+                logger.warning("Dedup deletion refused for path outside media_path: %s", fp)
+                continue
+
             if not os.path.isfile(fp):
                 errors.append(f"File not found: {fp}")
                 continue
