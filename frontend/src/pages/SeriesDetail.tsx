@@ -1239,6 +1239,8 @@ export function SeriesDetailPage() {
     queryFn: () => seriesId != null ? listSeriesSubtitles(seriesId) : Promise.resolve({ subtitles: {} }),
     enabled: seriesId != null,
     staleTime: 30_000,
+    // Poll while extraction is running so sidecar badges appear as files are written
+    refetchInterval: extractProgress !== null ? 4_000 : false,
   })
   const sidecarMap: Record<string, SidecarSubtitle[]> = sidecarData?.subtitles ?? {}
 
@@ -1255,6 +1257,7 @@ export function SeriesDetailPage() {
       if (d.series_id !== seriesId) return
       setExtractProgress(null)
       void queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })
+      void queryClient.invalidateQueries({ queryKey: ['series', seriesId] })
       const msg = d.succeeded > 0
         ? `${d.succeeded} Track(s) extrahiert${d.failed > 0 ? `, ${d.failed} fehlgeschlagen` : ''}`
         : d.failed > 0
