@@ -19,8 +19,10 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const [socket, setSocket] = useState<Socket | null>(null)
 
   useEffect(() => {
+    const apikey = localStorage.getItem('sublarr_api_key') ?? undefined
     socketRef.current = io(window.location.origin, {
       transports: ['websocket', 'polling'],
+      auth: apikey ? { apikey } : undefined,
     })
     setSocket(socketRef.current)
 
