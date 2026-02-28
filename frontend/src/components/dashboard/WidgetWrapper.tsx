@@ -14,6 +14,7 @@ import type { WidgetDefinition } from './widgetRegistry'
 interface WidgetWrapperProps {
   definition: WidgetDefinition
   children: React.ReactNode
+  isEditMode?: boolean
   onRemove?: () => void
   noPadding?: boolean
 }
@@ -21,6 +22,7 @@ interface WidgetWrapperProps {
 export function WidgetWrapper({
   definition,
   children,
+  isEditMode,
   onRemove,
   noPadding,
 }: WidgetWrapperProps) {
@@ -49,7 +51,7 @@ export function WidgetWrapper({
             {t(definition.titleKey)}
           </span>
         </div>
-        {onRemove && (
+        {isEditMode && onRemove && (
           <button
             onClick={(e) => {
               e.stopPropagation()

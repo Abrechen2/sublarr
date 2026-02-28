@@ -882,11 +882,11 @@ export async function advancedSync(
 
 export async function autoSyncFile(
   filePath: string,
-  mediaPath?: string,
+  videoPath?: string,
   engine?: string,
 ): Promise<import('@/lib/types').AutoSyncResult> {
   const body: Record<string, unknown> = { file_path: filePath }
-  if (mediaPath) body.media_path = mediaPath
+  if (videoPath) body.video_path = videoPath
   if (engine) body.engine = engine
   const { data } = await api.post('/tools/auto-sync', body)
   return data

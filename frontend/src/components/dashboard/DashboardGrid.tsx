@@ -8,13 +8,13 @@
  * - Pitfall 4: mounted guard prevents layout flash before hydration
  * - Pitfall 5: onLayoutChange used for all-layouts persistence (not per-pixel)
  */
-import { Suspense, useMemo, useCallback } from 'react'
+import { Suspense, useMemo, useCallback, useState } from 'react'
 import { ResponsiveGridLayout, useContainerWidth } from 'react-grid-layout'
 import type { Layout, LayoutItem, ResponsiveLayouts } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 import { useTranslation } from 'react-i18next'
-import { Settings2 } from 'lucide-react'
+import { Settings2, PenLine, Check } from 'lucide-react'
 import { useDashboardStore } from '@/stores/dashboardStore'
 import { WIDGET_REGISTRY, getDefaultLayouts } from './widgetRegistry'
 import { WidgetWrapper } from './WidgetWrapper'
@@ -38,6 +38,7 @@ interface DashboardGridProps {
 
 export function DashboardGrid({ onOpenSettings }: DashboardGridProps) {
   const { t } = useTranslation('dashboard')
+  const [isEditMode, setIsEditMode] = useState(false)
   const { width, mounted, containerRef } = useContainerWidth({
     initialWidth: 1280,
   })
@@ -128,6 +129,20 @@ export function DashboardGrid({ onOpenSettings }: DashboardGridProps) {
 
   return (
     <div ref={containerRef}>
+      <div className="flex justify-end mb-2 px-1">
+        <button
+          onClick={() => setIsEditMode((v) => !v)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150 hover:opacity-90"
+          style={
+            isEditMode
+              ? { backgroundColor: 'var(--accent)', color: 'var(--bg-primary)' }
+              : { backgroundColor: 'var(--bg-surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }
+          }
+        >
+          {isEditMode ? <Check size={12} /> : <PenLine size={12} />}
+          {isEditMode ? t('widgets.done_editing') : t('widgets.edit_layout')}
+        </button>
+      </div>
       <ResponsiveGridLayout
         width={width}
         layouts={mergedLayouts}
@@ -145,6 +160,7 @@ export function DashboardGrid({ onOpenSettings }: DashboardGridProps) {
             <div key={widget.id}>
               <WidgetWrapper
                 definition={widget}
+                isEditMode={isEditMode}
                 onRemove={() => toggleWidget(widget.id)}
                 noPadding={NO_PADDING_WIDGETS.has(widget.id)}
               >

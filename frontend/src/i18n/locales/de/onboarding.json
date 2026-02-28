@@ -15,11 +15,11 @@
   },
   "step_info": "Schritt {{step}} von {{total}}",
   "mode_step": {
-    "description": "Waehle, wie du Sublarr verwenden moechtest.",
+    "description": "Wähle, wie du Sublarr verwenden möchtest.",
     "arr_title": "Sonarr / Radarr Modus",
-    "arr_description": "Verwende Sonarr und/oder Radarr fuer automatische Medienerkennung",
+    "arr_description": "Verwende Sonarr und/oder Radarr für automatische Medienerkennung",
     "standalone_title": "Standalone-Modus",
-    "standalone_description": "Zeige direkt auf Medienordner, kein Sonarr/Radarr noetig"
+    "standalone_description": "Zeige direkt auf Medienordner, kein Sonarr/Radarr nötig"
   },
   "arr_step": {
     "description": "Verbinde deine *arr-Instanzen, um fehlende Untertitel zu erkennen.",
@@ -30,26 +30,26 @@
   },
   "standalone_step": {
     "description": "Zeige Sublarr direkt auf deine Medienordner.",
-    "tmdb_api_key": "TMDB API Key (fuer Metadaten erforderlich)",
+    "tmdb_api_key": "TMDB API Key (für Metadaten erforderlich)",
     "tvdb_api_key": "TVDB API Key (optional)",
     "media_folders": "Medienordner",
-    "media_folders_help": "Fuege Ordner mit deinen Mediendateien hinzu. Sublarr wird sie nach Serien und Filmen durchsuchen."
+    "media_folders_help": "Füge Ordner mit deinen Mediendateien hinzu. Sublarr wird sie nach Serien und Filmen durchsuchen."
   },
   "pathmapping_step": {
-    "description": "Ordne entfernte Pfade lokalen Pfaden zu (wenn *arr auf einem anderen Host laeuft).",
+    "description": "Ordne entfernte Pfade lokalen Pfaden zu (wenn *arr auf einem anderen Host läuft).",
     "label": "Pfad-Zuordnung",
     "placeholder": "/data/media=/mnt/media;/anime=/share/anime",
-    "help": "Format: entfernter_Prefix=lokaler_Prefix (Semikolon-getrennt fuer mehrere). Leer lassen, wenn Sublarr auf demselben Host wie Sonarr/Radarr laeuft."
+    "help": "Format: entfernter_Prefix=lokaler_Prefix (Semikolon-getrennt für mehrere). Leer lassen, wenn Sublarr auf demselben Host wie Sonarr/Radarr läuft."
   },
   "providers_step": {
-    "description": "Konfiguriere API-Schluessel der Untertitel-Provider fuer die Suche.",
-    "info": "AnimeTosho funktioniert ohne API-Schluessel. Fuege andere fuer breitere Abdeckung hinzu.",
+    "description": "Konfiguriere API-Schlüssel der Untertitel-Provider für die Suche.",
+    "info": "AnimeTosho funktioniert ohne API-Schlüssel. Füge andere für breitere Abdeckung hinzu.",
     "opensubtitles_api_key": "OpenSubtitles API Key",
     "jimaku_api_key": "Jimaku API Key",
     "subdl_api_key": "SubDL API Key"
   },
   "ollama_step": {
-    "description": "Richte das LLM-Uebersetzungs-Backend ein.",
+    "description": "Richte das LLM-Übersetzungs-Backend ein.",
     "url": "Ollama URL",
     "model": "Ollama Modell",
     "source_language": "Quellsprache",
@@ -62,28 +62,28 @@
     "test_failed": "Verbindungstest fehlgeschlagen"
   },
   "mediaservers_step": {
-    "description": "Konfiguriere Medienserver fuer automatische Bibliotheksaktualisierung nach Untertitel-Downloads.",
-    "info": "Fuege Medienserver fuer automatische Bibliotheksaktualisierung nach Untertitel-Downloads hinzu. Du kannst dies ueberspringen und spaeter in den Einstellungen konfigurieren.",
+    "description": "Konfiguriere Medienserver für automatische Bibliotheksaktualisierung nach Untertitel-Downloads.",
+    "info": "Füge Medienserver für automatische Bibliotheksaktualisierung nach Untertitel-Downloads hinzu. Du kannst dies überspringen und später in den Einstellungen konfigurieren.",
     "server_name": "Servername",
     "connection_successful": "Verbindung erfolgreich",
     "test_failed": "Test fehlgeschlagen"
   },
   "scan_step": {
-    "description": "Fuehre deinen ersten Scan aus, um fehlende Untertitel zu finden.",
+    "description": "Führe deinen ersten Scan aus, um fehlende Untertitel zu finden.",
     "info": "Starte einen Scan, um Episoden und Filme mit fehlenden Untertiteln zu finden.",
     "start_scan": "Ersten Scan starten",
-    "scan_started": "Scan gestartet! Pruefe die Gesucht-Seite fuer Ergebnisse.",
+    "scan_started": "Scan gestartet! Prüfe die Gesucht-Seite für Ergebnisse.",
     "standalone_scan_started": "Standalone-Scan gestartet!",
     "wanted_scan_started": "Gesucht-Scan gestartet!",
     "scan_failed": "Scan fehlgeschlagen"
   },
   "navigation": {
-    "back": "Zurueck",
+    "back": "Zurück",
     "next": "Weiter",
-    "skip_setup": "Einrichtung ueberspringen",
-    "skip": "Ueberspringen",
+    "skip_setup": "Einrichtung überspringen",
+    "skip": "Überspringen",
     "save_next": "Speichern & Weiter",
-    "finish": "Einrichtung abschliessen"
+    "finish": "Einrichtung abschließen"
   },
   "errors": {
     "save_failed": "Einstellungen konnten nicht gespeichert werden"

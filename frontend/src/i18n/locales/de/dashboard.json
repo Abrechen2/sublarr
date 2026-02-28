@@ -5,7 +5,7 @@
     "online": "Online",
     "offline": "Offline",
     "wanted": "Gesucht",
-    "translated_today": "Heute uebersetzt",
+    "translated_today": "Heute übersetzt",
     "queue": "Warteschlange"
   },
   "quick_actions": {
@@ -30,9 +30,9 @@
   },
   "total_stats": {
     "title": "Gesamtstatistik",
-    "translated": "Uebersetzt",
+    "translated": "Übersetzt",
     "failed": "Fehlgeschlagen",
-    "skipped": "Uebersprungen"
+    "skipped": "Übersprungen"
   },
   "by_format": {
     "title": "Nach Format",
@@ -43,7 +43,7 @@
     "uptime": "Laufzeit",
     "batch_running": "Batch aktiv",
     "yes": "Ja",
-    "quality_warnings": "Qualitaetswarnungen"
+    "quality_warnings": "Qualitätswarnungen"
   },
   "toast": {
     "scan_started": "Bibliothek-Scan gestartet",
@@ -52,31 +52,33 @@
     "search_failed": "Suche fehlgeschlagen"
   },
   "recent_activity": {
-    "title": "Letzte Aktivitaet",
+    "title": "Letzte Aktivität",
     "view_all": "Alle anzeigen",
-    "no_activity": "Keine aktuelle Aktivitaet"
+    "no_activity": "Keine aktuelle Aktivität"
   },
   "widgets": {
-    "stat_cards": "Status-Uebersicht",
+    "stat_cards": "Status-Übersicht",
     "quick_actions": "Schnellaktionen",
     "service_status": "Dienst-Verbindungen",
     "provider_health": "Untertitel-Provider",
-    "quality": "Untertitel-Qualitaet",
-    "quality_no_data": "Noch keine Qualitaetsdaten. Fuehre eine Pruefung in der Seriendetailansicht durch.",
-    "quality_files_checked": "Dateien geprueft",
+    "quality": "Untertitel-Qualität",
+    "quality_no_data": "Noch keine Qualitätsdaten. Führe eine Prüfung in der Seriendetailansicht durch.",
+    "quality_files_checked": "Dateien geprüft",
     "quality_issues_found": "Probleme gefunden",
-    "translation_stats": "Uebersetzungs-Statistiken",
+    "translation_stats": "Übersetzungs-Statistiken",
     "wanted_summary": "Gesuchte-Zusammenfassung",
-    "recent_activity": "Letzte Aktivitaet",
+    "recent_activity": "Letzte Aktivität",
     "customize": "Anpassen",
     "settings_title": "Dashboard-Widgets",
     "settings_description": "Widgets ein- oder ausschalten. Widgets zum Anordnen ziehen.",
-    "reset_layout": "Auf Standard zuruecksetzen",
-    "no_widgets": "Keine Widgets sichtbar. Verwende Anpassen, um Widgets hinzuzufuegen.",
+    "reset_layout": "Auf Standard zurücksetzen",
+    "no_widgets": "Keine Widgets sichtbar. Verwende Anpassen, um Widgets hinzuzufügen.",
     "disk_space": "Speicherplatz",
     "disk_space_no_data": "Keine Bereinigungsdaten",
     "disk_space_files": "Dateien",
     "disk_space_duplicates": "Duplikate",
-    "disk_space_savings": "Einsparung moeglich"
+    "disk_space_savings": "Einsparung möglich",
+    "edit_layout": "Layout bearbeiten",
+    "done_editing": "Fertig"
   }
 }

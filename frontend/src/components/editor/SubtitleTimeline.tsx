@@ -51,7 +51,10 @@ export default function SubtitleTimeline({
 }: SubtitleTimelineProps) {
   if (totalDuration === 0 || cues.length === 0) {
     return (
-      <div className={`relative h-8 rounded overflow-hidden bg-elevated flex items-center justify-center text-xs text-muted ${className}`}>
+      <div
+        className={`relative h-8 rounded overflow-hidden flex items-center justify-center text-xs ${className}`}
+        style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-muted)' }}
+      >
         No cues
       </div>
     )
@@ -69,7 +72,7 @@ export default function SubtitleTimeline({
   return (
     <div className={className}>
       {/* Cue bar */}
-      <div className="relative h-8 rounded overflow-hidden bg-elevated">
+      <div className="relative h-8 rounded overflow-hidden" style={{ backgroundColor: 'var(--bg-elevated)' }}>
         {cues.map((cue, index) => {
           const left = (cue.start / totalDuration) * 100
           const width = Math.max(((cue.end - cue.start) / totalDuration) * 100, 0.3)
@@ -102,7 +105,8 @@ export default function SubtitleTimeline({
         {labels.map(({ time, left }, i) => (
           <span
             key={i}
-            className="absolute text-[10px] text-muted -translate-x-1/2"
+            className="absolute text-[10px] -translate-x-1/2"
+            style={{ color: 'var(--text-muted)' }}
             style={{ left: `${left}%` }}
           >
             {formatTime(time)}

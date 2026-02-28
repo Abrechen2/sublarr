@@ -77,6 +77,8 @@
     "disk_space_no_data": "No cleanup data",
     "disk_space_files": "Files",
     "disk_space_duplicates": "Duplicates",
-    "disk_space_savings": "savings available"
+    "disk_space_savings": "savings available",
+    "edit_layout": "Edit Layout",
+    "done_editing": "Done"
   }
 }

@@ -276,8 +276,16 @@ def batch_extract_series_tracks(series_id):
             try:
                 from db.jobs import create_job, update_job as _update_job  # noqa: I001
 
+                _series_title = f"Serie {series_id}"
+                try:
+                    _series_info = client.get_series_by_id(series_id)
+                    if isinstance(_series_info, dict) and _series_info.get("title"):
+                        _series_title = _series_info["title"]
+                except Exception:
+                    pass
+
                 _job = create_job(
-                    f"batch-extract: Serie {series_id} ({total_files} Dateien)",
+                    f"batch-extract: {_series_title} ({total_files} Dateien)",
                 )
                 _job_id = _job["id"]
                 _update_job(_job_id, "running")

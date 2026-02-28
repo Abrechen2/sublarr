@@ -33,16 +33,14 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
 
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-
-    // Uncomment for WebKit (Safari) testing
-    // {
-    //   name: 'webkit',
-    //   use: { ...devices['Desktop Safari'] },
-    // },
+    // Firefox and WebKit are opt-in: install with `npx playwright install firefox webkit`
+    // then set PLAYWRIGHT_BROWSERS=firefox,webkit to enable them in CI.
+    ...(process.env.PLAYWRIGHT_BROWSERS?.includes('firefox')
+      ? [{ name: 'firefox', use: { ...devices['Desktop Firefox'] } }]
+      : []),
+    ...(process.env.PLAYWRIGHT_BROWSERS?.includes('webkit')
+      ? [{ name: 'webkit', use: { ...devices['Desktop Safari'] } }]
+      : []),
   ],
 
   /* Run your local dev server before starting the tests */

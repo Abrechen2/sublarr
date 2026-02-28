@@ -3,12 +3,12 @@
   "search_placeholder": "Suchen...",
   "auto_scroll_on": "Auto-Scrollen AN",
   "auto_scroll_off": "Auto-Scrollen AUS",
-  "no_logs": "Keine Protokolleintraege",
-  "no_logs_for_level": "Keine Protokolleintraege fuer Stufe {{level}}",
+  "no_logs": "Keine Protokolleinträge",
+  "no_logs_for_level": "Keine Protokolleinträge für Stufe {{level}}",
   "rotation_config": "Rotationskonfiguration",
-  "max_size_mb": "Max. Groesse (MB)",
+  "max_size_mb": "Max. Größe (MB)",
   "backup_count": "Anzahl Backups",
-  "changes_on_restart": "Aenderungen werden beim naechsten Neustart wirksam.",
+  "changes_on_restart": "Änderungen werden beim nächsten Neustart wirksam.",
   "toast": {
     "rotation_saved": "Rotationskonfiguration gespeichert",
     "rotation_failed": "Rotationskonfiguration konnte nicht gespeichert werden"

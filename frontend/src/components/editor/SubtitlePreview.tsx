@@ -88,7 +88,7 @@ export default function SubtitlePreview({
     return (
       <div className={`flex items-center justify-center p-12 ${className}`}>
         <Loader2 className="w-6 h-6 animate-spin text-teal-400 mr-2" />
-        <span className="text-muted">{t('loading', 'Loading subtitle...')}</span>
+        <span style={{ color: 'var(--text-muted)' }}>{t('loading', 'Loading subtitle...')}</span>
       </div>
     )
   }
@@ -109,7 +109,10 @@ export default function SubtitlePreview({
         {httpStatus !== 403 && httpStatus !== 404 && (
           <button
             onClick={() => refetchContent()}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded bg-elevated hover:bg-hover text-foreground transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded transition-colors"
+            style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-primary)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-elevated)' }}
           >
             <RefreshCw className="w-3.5 h-3.5" />
             {t('retry', 'Retry')}
@@ -124,15 +127,18 @@ export default function SubtitlePreview({
   return (
     <div className={`flex flex-col ${className}`}>
       {/* Metadata bar */}
-      <div className="flex items-center gap-3 px-3 py-2 bg-elevated border-b border-border text-sm">
+      <div
+        className="flex items-center gap-3 px-3 py-2 text-sm"
+        style={{ backgroundColor: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }}
+      >
         {/* Format badge */}
         <span className="px-2 py-0.5 rounded text-xs font-mono font-semibold bg-teal-500/20 text-teal-400 uppercase">
           {contentData.format}
         </span>
 
-        <span className="text-muted">{contentData.encoding}</span>
-        <span className="text-muted">{contentData.total_lines.toLocaleString()} {t('lines', 'lines')}</span>
-        <span className="text-muted">{formatBytes(contentData.size_bytes)}</span>
+        <span style={{ color: 'var(--text-muted)' }}>{contentData.encoding}</span>
+        <span style={{ color: 'var(--text-muted)' }}>{contentData.total_lines.toLocaleString()} {t('lines', 'lines')}</span>
+        <span style={{ color: 'var(--text-muted)' }}>{formatBytes(contentData.size_bytes)}</span>
 
         {/* Quality score summary badge */}
         {parseData?.has_quality_scores && (() => {
@@ -176,7 +182,10 @@ export default function SubtitlePreview({
         {onClose && (
           <button
             onClick={onClose}
-            className="p-1 rounded hover:bg-hover text-muted hover:text-foreground transition-colors"
+            className="p-1 rounded transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ''; e.currentTarget.style.color = 'var(--text-muted)' }}
             title={t('close', 'Close')}
           >
             <X className="w-4 h-4" />
@@ -186,7 +195,7 @@ export default function SubtitlePreview({
 
       {/* Timeline */}
       {parseData && parseData.cues.length > 0 && (
-        <div className="px-3 py-2 bg-elevated border-b border-border">
+        <div className="px-3 py-2" style={{ backgroundColor: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }}>
           <SubtitleTimeline
             cues={parseData.cues}
             totalDuration={parseData.total_duration}

@@ -8,7 +8,7 @@ import {
   Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search, Clock,
   Download, X, ChevronUp, BookOpen, Plus, Edit2, Trash2, Check,
   Eye, Pencil, Columns2, Timer, ShieldCheck, ScanSearch, RefreshCw, Database,
-  Layers, Sparkles, Trash,
+  Layers, Sparkles, Trash, Clapperboard,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
@@ -601,12 +601,13 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
 
 // ─── Season Group ──────────────────────────────────────────────────────────
 
-function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync, onHealthCheck, healthScores, onOpenEditor, sidecarMap, onDeleteSidecar, onOpenCleanupModal, t }: {
+function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, isExtracting, onExtract, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync, onHealthCheck, healthScores, onOpenEditor, sidecarMap, onDeleteSidecar, onOpenCleanupModal, t }: {
   season: number
   episodes: EpisodeInfo[]
   targetLanguages: string[]
   seriesId: number | null
   isExtracting?: boolean
+  onExtract?: () => void
   expandedEp: { id: number; mode: 'search' | 'history' | 'glossary' | 'tracks' } | null
   onSearch: (ep: EpisodeInfo) => void
   onInteractiveSearch: (ep: EpisodeInfo) => void
@@ -622,7 +623,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting
   onEditSub: (filePath: string) => void
   onCompare: (ep: EpisodeInfo) => void
   onSync: (filePath: string) => void
-  onAutoSync: (filePath: string) => void
+  onAutoSync: (subtitlePath: string, videoPath: string) => void
   onVideoSync: (ep: EpisodeInfo, subtitlePath: string) => void
   onHealthCheck: (filePath: string) => void
   healthScores: Record<string, number | null>
@@ -708,7 +709,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting
               return (
                 <div key={ep.id}>
                   <div
-                    className="flex items-center px-4 py-2 transition-colors"
+                    className="flex items-start px-4 py-2 transition-colors"
                     style={{
                       borderBottom: isExpanded ? 'none' : '1px solid var(--border)',
                       backgroundColor: isExpanded ? 'var(--bg-surface-hover)' : '',
@@ -876,11 +877,11 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting
                     </div>
 
                     {/* Actions */}
-                    <div className="w-40 flex-shrink-0 flex gap-1 justify-end">
+                    <div className="w-64 flex-shrink-0 flex gap-0.5 justify-end">
                       {isExpanded && (
                         <button
                           onClick={onClose}
-                          className="p-1.5 rounded transition-colors"
+                          className="p-1 rounded transition-colors"
                           style={{ color: 'var(--text-muted)' }}
                           title={t('series_detail.close')}
                           onMouseEnter={(e) => {
@@ -899,7 +900,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting
                         return subCount >= 2 ? (
                           <button
                             onClick={() => onCompare(ep)}
-                            className="p-1.5 rounded transition-colors"
+                            className="p-1 rounded transition-colors"
                             style={{ color: 'var(--text-muted)' }}
                             title="Compare subtitles"
                             onMouseEnter={(e) => {
@@ -926,7 +927,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting
                         return (
                           <button
                             onClick={() => onSync(syncPath)}
-                            className="p-1.5 rounded transition-colors"
+                            className="p-1 rounded transition-colors"
                             style={{ color: 'var(--text-muted)' }}
                             title="Sync timing"
                             onMouseEnter={(e) => {
@@ -951,8 +952,8 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting
                         const syncPath = deriveSubtitlePath(ep.file_path, firstLang[0], firstLang[1])
                         return (
                           <button
-                            onClick={() => onAutoSync(syncPath)}
-                            className="p-1.5 rounded transition-colors"
+                            onClick={() => onAutoSync(syncPath, ep.file_path)}
+                            className="p-1 rounded transition-colors"
                             style={{ color: 'var(--text-muted)' }}
                             title="Auto-sync timing (alass/ffsubsync)"
                             onMouseEnter={(e) => {
@@ -977,7 +978,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting
                         return (
                           <button
                             onClick={() => onVideoSync(ep, syncPath)}
-                            className="p-1.5 rounded transition-colors"
+                            className="p-1 rounded transition-colors"
                             style={{ color: 'var(--text-muted)' }}
                             title="Video-Sync (ffsubsync / alass)"
                             onMouseEnter={(e) => {
@@ -989,7 +990,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting
                               e.currentTarget.style.backgroundColor = ''
                             }}
                           >
-                            <ScanSearch size={14} />
+                            <Clapperboard size={14} />
                           </button>
                         )
                       })()}
@@ -1003,7 +1004,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting
                         return (
                           <button
                             onClick={() => onHealthCheck(healthPath)}
-                            className="p-1.5 rounded transition-colors"
+                            className="p-1 rounded transition-colors"
                             style={{ color: 'var(--text-muted)' }}
                             title="Health check"
                             onMouseEnter={(e) => {
@@ -1023,7 +1024,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting
                       {ep.has_file && (
                         <button
                           onClick={() => onTracks(ep)}
-                          className="p-1.5 rounded transition-colors"
+                          className="p-1 rounded transition-colors"
                           style={{ color: isExpanded && mode === 'tracks' ? 'var(--accent)' : 'var(--text-muted)' }}
                           title="Eingebettete Tracks anzeigen"
                           onMouseEnter={(e) => {
@@ -1041,7 +1042,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting
                       <button
                         onClick={() => onSearch(ep)}
                         disabled={!ep.has_file}
-                        className="p-1.5 rounded transition-colors"
+                        className="p-1 rounded transition-colors"
                         style={{
                           color: isExpanded && mode === 'search' ? 'var(--accent)' : 'var(--text-muted)',
                           opacity: ep.has_file ? 1 : 0.4,
@@ -1069,7 +1070,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting
                       <button
                         onClick={() => onInteractiveSearch(ep)}
                         disabled={!ep.has_file}
-                        className="p-1.5 rounded transition-colors"
+                        className="p-1 rounded transition-colors"
                         style={{
                           color: 'var(--text-muted)',
                           opacity: ep.has_file ? 1 : 0.4,
@@ -1091,7 +1092,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting
                       <button
                         onClick={() => onHistory(ep)}
                         disabled={!ep.has_file}
-                        className="p-1.5 rounded transition-colors"
+                        className="p-1 rounded transition-colors"
                         style={{
                           color: isExpanded && mode === 'history' ? 'var(--accent)' : 'var(--text-muted)',
                           opacity: ep.has_file ? 1 : 0.4,
@@ -1168,7 +1169,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting
                 Search
               </button>
               <button
-                onClick={() => { if (seriesId != null && !isExtracting) { void batchExtractAllTracks(seriesId) } clearAll() }}
+                onClick={() => { onExtract?.(); clearAll() }}
                 disabled={isExtracting}
                 className="px-3 py-1 rounded text-xs font-medium inline-flex items-center gap-1.5"
                 style={{
@@ -1238,18 +1239,20 @@ export function SeriesDetailPage() {
     queryKey: ['series-subtitles', seriesId],
     queryFn: () => seriesId != null ? listSeriesSubtitles(seriesId) : Promise.resolve({ subtitles: {} }),
     enabled: seriesId != null,
-    staleTime: 30_000,
-    // Poll while extraction is running so sidecar badges appear as files are written
-    refetchInterval: extractProgress !== null ? 4_000 : false,
+    staleTime: extractProgress !== null ? 0 : 30_000,
+    // Fallback poll while extraction is running (covers edge cases like reconnects)
+    refetchInterval: extractProgress !== null ? 2_000 : false,
   })
   const sidecarMap: Record<string, SidecarSubtitle[]> = sidecarData?.subtitles ?? {}
 
   // WebSocket: batch extraction progress
   useWebSocket({
     onBatchExtractProgress: (data) => {
-      const d = data as { series_id: number; current: number; total: number; filename: string }
-      if (d.series_id === seriesId) {
-        setExtractProgress({ current: d.current, total: d.total, filename: d.filename })
+      const d = data as { series_id: number; current: number; total: number; filename: string; status: string }
+      if (d.series_id !== seriesId) return
+      setExtractProgress({ current: d.current, total: d.total, filename: d.filename })
+      if (d.status === 'ok') {
+        void queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })
       }
     },
     onBatchExtractCompleted: (data) => {
@@ -1386,12 +1389,12 @@ export function SeriesDetailPage() {
     setSyncFilePath(filePath)
   }, [])
 
-  const handleAutoSync = useCallback((filePath: string) => {
+  const handleAutoSync = useCallback((subtitlePath: string, videoPath: string) => {
     toast('Auto-syncing…', 'info')
-    void autoSyncFile(filePath).then(() => {
-      toast('Auto-sync complete')
+    void autoSyncFile(subtitlePath, videoPath).then(() => {
+      toast('Auto-sync gestartet')
     }).catch((err: unknown) => {
-      const msg = err instanceof Error ? err.message : 'Auto-sync failed'
+      const msg = err instanceof Error ? err.message : 'Auto-sync fehlgeschlagen'
       toast(msg, 'error')
     })
   }, [])
@@ -1403,6 +1406,12 @@ export function SeriesDetailPage() {
   const handleHealthCheck = useCallback((filePath: string) => {
     setHealthCheckPath(filePath)
   }, [])
+
+  const handleExtract = useCallback(() => {
+    if (seriesId == null || extractProgress !== null) return
+    setExtractProgress({ current: 0, total: 0, filename: '' })
+    void batchExtractAllTracks(seriesId)
+  }, [seriesId, extractProgress])
 
   const handleDeleteSidecar = useCallback(async (path: string) => {
     try {
@@ -1701,7 +1710,7 @@ export function SeriesDetailPage() {
             <div className="flex flex-wrap gap-2 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
               {/* Extract all embedded tracks */}
               <button
-                onClick={() => { if (seriesId != null && !extractProgress) { void batchExtractAllTracks(seriesId) } }}
+                onClick={() => handleExtract()}
                 disabled={extractProgress !== null}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
                 style={{
@@ -1822,7 +1831,7 @@ export function SeriesDetailPage() {
             {t('series_detail.subtitles')}
           </div>
           <div
-            className="w-40 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider text-right"
+            className="w-64 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider text-right"
             style={{ color: 'var(--text-secondary)' }}
           >
             {t('series_detail.actions')}
@@ -1838,7 +1847,9 @@ export function SeriesDetailPage() {
             <div className="flex items-center gap-2 mb-2">
               <Loader2 size={13} className="animate-spin flex-shrink-0" style={{ color: 'var(--accent)' }} />
               <span className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
-                Extrahiere Tracks — {extractProgress.current} / {extractProgress.total} Episoden
+                {extractProgress.total === 0
+                  ? 'Extraktion wird gestartet…'
+                  : `Extrahiere Tracks — ${extractProgress.current} / ${extractProgress.total} Episoden`}
               </span>
               {extractProgress.filename && (
                 <span
@@ -1850,7 +1861,7 @@ export function SeriesDetailPage() {
                 </span>
               )}
             </div>
-            <ProgressBar value={extractProgress.current} max={extractProgress.total} showLabel={false} />
+            <ProgressBar value={extractProgress.total === 0 ? 0 : extractProgress.current} max={extractProgress.total === 0 ? 100 : extractProgress.total} showLabel={false} />
           </div>
         )}
 
@@ -1863,6 +1874,7 @@ export function SeriesDetailPage() {
             targetLanguages={series.target_languages}
             seriesId={seriesId}
             isExtracting={extractProgress !== null}
+            onExtract={handleExtract}
             expandedEp={expandedEp}
             onSearch={handleSearch}
             onInteractiveSearch={(ep) => setInteractiveEp({ id: ep.id, title: `${series.title} ${ep.title ? `– ${ep.title}` : ''}`.trim() })}
