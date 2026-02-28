@@ -1,0 +1,10 @@
+{
+  "loading": "Loading subtitle...",
+  "loadError": "Failed to load subtitle file",
+  "error403": "File not accessible: path is outside the configured media directory",
+  "error404": "Subtitle file not found",
+  "retry": "Retry",
+  "lines": "lines",
+  "edit": "Edit",
+  "close": "Close"
+}

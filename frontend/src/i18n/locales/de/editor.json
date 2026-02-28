@@ -1,0 +1,10 @@
+{
+  "loading": "Untertitel wird geladen...",
+  "loadError": "Untertiteldatei konnte nicht geladen werden",
+  "error403": "Datei nicht zugänglich: Pfad liegt außerhalb des konfigurierten Medienverzeichnisses",
+  "error404": "Untertiteldatei nicht gefunden",
+  "retry": "Erneut versuchen",
+  "lines": "Zeilen",
+  "edit": "Bearbeiten",
+  "close": "Schließen"
+}

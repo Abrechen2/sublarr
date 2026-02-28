@@ -322,6 +322,7 @@ export default function SubtitleEditorModal({
                 filePath={filePath}
                 onEdit={() => setMode('edit')}
                 onClose={handleClose}
+                className="h-full"
               />
             )}
 
