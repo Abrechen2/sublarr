@@ -61,9 +61,7 @@ def validate_git_url(url: str) -> None:
     if parsed.scheme != "https":
         raise ValueError(f"Git URL must use HTTPS, got: {parsed.scheme!r}")
     domain = parsed.netloc.lower().split(":")[0]
-    if not any(
-        domain == d or domain.endswith("." + d) for d in _ALLOWED_GIT_DOMAINS
-    ):
+    if not any(domain == d or domain.endswith("." + d) for d in _ALLOWED_GIT_DOMAINS):
         raise ValueError(f"Git URL domain not in allowlist: {domain!r}")
 
 
