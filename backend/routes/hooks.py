@@ -152,6 +152,13 @@ def create_hook():
     if not script_path:
         return jsonify({"error": "script_path is required"}), 400
 
+    from config import get_settings
+    from security_utils import is_safe_path
+
+    _hooks_dir = getattr(get_settings(), "config_dir", "/config") + "/hooks"
+    if not is_safe_path(script_path, _hooks_dir):
+        return jsonify({"error": "script_path must be under /config/hooks/"}), 400
+
     hook = create_hook_config(name, event_name, script_path, timeout_seconds)
     return jsonify(hook), 201
 
@@ -240,6 +247,14 @@ def update_hook(hook_id):
     data = request.get_json(silent=True) or {}
     allowed_keys = {"name", "event_name", "script_path", "timeout_seconds", "enabled"}
     updates = {k: v for k, v in data.items() if k in allowed_keys}
+
+    if "script_path" in updates:
+        from config import get_settings
+        from security_utils import is_safe_path
+
+        _hooks_dir = getattr(get_settings(), "config_dir", "/config") + "/hooks"
+        if not is_safe_path(updates["script_path"], _hooks_dir):
+            return jsonify({"error": "script_path must be under /config/hooks/"}), 400
 
     if "enabled" in updates:
         updates["enabled"] = 1 if updates["enabled"] else 0
