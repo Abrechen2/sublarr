@@ -274,6 +274,18 @@ def batch_extract_series_tracks(series_id):
             episode_files_list = list(episode_files.values())
             total_files = len(episode_files_list)
 
+            # Create an activity job so the extraction is visible on the Activity page
+            _job_id = None
+            try:
+                from db.jobs import create_job, update_job as _update_job
+                _job = create_job(
+                    f"batch-extract: Serie {series_id} ({total_files} Dateien)",
+                )
+                _job_id = _job["id"]
+                _update_job(_job_id, "running")
+            except Exception:
+                logger.debug("[batch-extract-tracks] could not create activity job")
+
             for file_idx, file_info in enumerate(episode_files_list):
                 raw_path = file_info.get("path")
                 if not raw_path:
@@ -370,6 +382,21 @@ def batch_extract_series_tracks(series_id):
                 "failed": failed,
                 "skipped": skipped,
             })
+
+            # Finalize the activity job
+            if _job_id:
+                try:
+                    _final_status = "failed" if succeeded == 0 and failed > 0 else "completed"
+                    _update_job(_job_id, _final_status, result={
+                        "stats": {
+                            "succeeded": succeeded,
+                            "failed": failed,
+                            "skipped": skipped,
+                            "total": total_files,
+                        }
+                    })
+                except Exception:
+                    logger.debug("[batch-extract-tracks] could not finalize activity job")
 
             # Auto-cleanup: remove extra-language sidecars if configured
             from config import get_settings as _get_settings
