@@ -35,6 +35,7 @@
   "queue": {
     "title": "Warteschlange",
     "batch_processing": "Stapelverarbeitung",
+    "wanted_batch_searching": "Wanted-Suche laeuft",
     "total": "Gesamt",
     "processed": "Verarbeitet",
     "succeeded": "Erfolgreich",

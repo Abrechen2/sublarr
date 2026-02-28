@@ -92,11 +92,11 @@ export function useStats() {
 
 // ─── Jobs ────────────────────────────────────────────────────────────────────
 
-export function useJobs(page = 1, perPage = 50, status?: string) {
+export function useJobs(page = 1, perPage = 50, status?: string, refetchMs = 15000) {
   return useQuery({
     queryKey: ['jobs', page, perPage, status],
     queryFn: () => getJobs(page, perPage, status),
-    refetchInterval: 15000,
+    refetchInterval: refetchMs,
   })
 }
 

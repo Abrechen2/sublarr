@@ -35,6 +35,7 @@
   "queue": {
     "title": "Queue",
     "batch_processing": "Batch Processing",
+    "wanted_batch_searching": "Wanted Batch Search Running",
     "total": "Total",
     "processed": "Processed",
     "succeeded": "Succeeded",
