@@ -6,7 +6,7 @@ import { useWebSocket } from '@/hooks/useWebSocket'
 import { Pause, Search, ArrowDown, Download, ChevronDown, ChevronUp, Save, Loader2 } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 
-const ROW_HEIGHT = 22
+const ROW_HEIGHT = 30
 const OVERSCAN = 10
 
 const LOG_LEVELS = ['ALL', 'DEBUG', 'INFO', 'WARNING', 'ERROR'] as const
@@ -205,7 +205,7 @@ export function LogsPage() {
                 <div
                   key={virtualRow.key}
                   data-index={virtualRow.index}
-                  className="py-0.5 transition-opacity duration-100 hover:opacity-80 absolute left-0 w-full"
+                  className="transition-opacity duration-100 hover:opacity-80 absolute left-0 w-full flex items-center"
                   style={{
                     color: getLevelColor(entry),
                     transform: `translateY(${virtualRow.start}px)`,

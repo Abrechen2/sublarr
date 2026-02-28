@@ -708,7 +708,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId, isExtracting
               return (
                 <div key={ep.id}>
                   <div
-                    className="flex items-center px-4 py-2 transition-colors"
+                    className="flex items-start px-4 py-2 transition-colors"
                     style={{
                       borderBottom: isExpanded ? 'none' : '1px solid var(--border)',
                       backgroundColor: isExpanded ? 'var(--bg-surface-hover)' : '',

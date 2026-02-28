@@ -10,8 +10,8 @@
   "export_json": "Als JSON exportieren",
   "export_csv": "Als CSV exportieren",
   "charts": {
-    "translations": "Uebersetzungen im Zeitverlauf",
-    "translated": "Uebersetzt",
+    "translations": "Übersetzungen im Zeitverlauf",
+    "translated": "Übersetzt",
     "failed": "Fehlgeschlagen",
     "providers": "Provider-Nutzung",
     "searches": "Suchen",
@@ -21,7 +21,7 @@
     "count": "Anzahl",
     "avg_score": "Durchschn. Score"
   },
-  "no_data": "Noch keine Statistikdaten. Starte Untertitel-Uebersetzungen, um hier Diagramme zu sehen.",
+  "no_data": "Noch keine Statistikdaten. Starte Untertitel-Übersetzungen, um hier Diagramme zu sehen.",
   "exported": "Statistiken als {{format}} exportiert",
   "export_failed": "Export fehlgeschlagen"
 }

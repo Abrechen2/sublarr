@@ -180,7 +180,23 @@ def create_app(testing=False):
             sa_db.create_all()
             logger.info("Fresh DB: ran create_all()")
         else:
-            logger.debug("Existing DB detected: skipping create_all(), relying on migrations")
+            # Run pending Alembic migrations automatically so new columns are always present
+            try:
+                from alembic import command as _alembic_cmd
+                from alembic.config import Config as _AlembicConfig
+
+                _alembic_cfg = _AlembicConfig()
+                _alembic_cfg.set_main_option(
+                    "script_location",
+                    os.path.join(os.path.dirname(__file__), "db", "migrations"),
+                )
+                _alembic_cfg.set_main_option(
+                    "sqlalchemy.url", str(sa_db.engine.url)
+                )
+                _alembic_cmd.upgrade(_alembic_cfg, "head")
+                logger.info("Alembic migrations applied (upgrade head)")
+            except Exception as _e:
+                logger.warning("Alembic auto-upgrade failed (non-fatal): %s", _e)
         # Enable SQLite WAL mode if using SQLite (match existing behavior)
         if not settings.database_url or settings.database_url.startswith("sqlite"):
             from sqlalchemy import text
@@ -191,9 +207,14 @@ def create_app(testing=False):
                 conn.commit()
 
         # Initialize FTS5 search tables (virtual tables for global search)
-        from db.search import init_search_tables
+        from db.search import init_search_tables, rebuild_search_index
 
         init_search_tables()
+        try:
+            rebuild_search_index()
+            logger.info("FTS5 search index rebuilt on startup")
+        except Exception as _e:
+            logger.warning("FTS5 search index rebuild failed (non-fatal): %s", _e)
 
         # Initialize cache and queue backends
         from cache import create_cache_backend

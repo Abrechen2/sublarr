@@ -162,6 +162,11 @@ h2 {
   }
 }
 
+@keyframes fadePage {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -194,9 +199,9 @@ h2 {
   50% { opacity: 0.85; }
 }
 
-/* Utility: page entrance */
+/* Utility: page entrance — opacity-only to avoid breaking position:fixed descendants */
 .page-enter {
-  animation: fadeSlideUp 0.25s ease-out both;
+  animation: fadePage 0.25s ease-out both;
 }
 
 /* Utility: element entrance */

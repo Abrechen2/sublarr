@@ -1,10 +1,10 @@
 {
-  "title": "Aktivitaet",
+  "title": "Aktivität",
   "filter": {
     "all": "Alle",
     "completed": "Abgeschlossen",
     "failed": "Fehlgeschlagen",
-    "running": "Laeuft",
+    "running": "Läuft",
     "queued": "Wartend"
   },
   "table": {
@@ -16,7 +16,7 @@
     "actions": "Aktionen"
   },
   "expanded": {
-    "full_path": "Vollstaendiger Pfad",
+    "full_path": "Vollständiger Pfad",
     "output": "Ausgabe",
     "format": "Format",
     "force": "Erzwingen",
@@ -35,16 +35,16 @@
   "queue": {
     "title": "Warteschlange",
     "batch_processing": "Stapelverarbeitung",
-    "wanted_batch_searching": "Wanted-Suche laeuft",
-    "batch_probe_running": "Batch-Probe laeuft",
+    "wanted_batch_searching": "Wanted-Suche läuft",
+    "batch_probe_running": "Batch-Probe läuft",
     "total": "Gesamt",
     "processed": "Verarbeitet",
     "succeeded": "Erfolgreich",
     "failed": "Fehlgeschlagen",
-    "skipped": "Uebersprungen",
+    "skipped": "Übersprungen",
     "found": "Gefunden",
     "extracted": "Extrahiert",
-    "scanner_running": "Wanted-Scanner laeuft",
+    "scanner_running": "Wanted-Scanner läuft",
     "progress": "Fortschritt",
     "added": "Neu",
     "updated": "Aktualisiert",
@@ -53,7 +53,7 @@
     "running_count": "Aktiv ({{count}})",
     "queued": "Wartend",
     "queued_count": "Wartend ({{count}})",
-    "no_active": "Keine aktiven Uebersetzungen",
+    "no_active": "Keine aktiven Übersetzungen",
     "no_queued": "Keine wartenden Aufgaben"
   },
   "history": {
@@ -74,7 +74,7 @@
       "actions": "Aktionen"
     },
     "no_history": "Noch kein Download-Verlauf",
-    "add_to_blacklist": "Zur Sperrliste hinzufuegen",
+    "add_to_blacklist": "Zur Sperrliste hinzufügen",
     "blacklisted_from_history": "Aus dem Verlauf gesperrt"
   },
   "blacklist": {
@@ -82,17 +82,17 @@
     "subtitle": "{{count}} gesperrte Untertitel werden aus den Suchergebnissen ausgeschlossen",
     "blocked_subtitles": "Gesperrte Untertitel",
     "clear_all": "Alle leeren",
-    "clear_confirm": "Alle Eintraege leeren?",
+    "clear_confirm": "Alle Einträge leeren?",
     "table": {
       "provider": "Provider",
       "subtitle_id": "Untertitel-ID",
       "lang": "Sprache",
       "title_path": "Titel / Pfad",
       "reason": "Grund",
-      "added": "Hinzugefuegt",
+      "added": "Hinzugefügt",
       "actions": "Aktionen"
     },
-    "no_items": "Keine gesperrten Untertitel. Verwende den Sperren-Button bei Suchergebnissen oder im Verlauf, um unerwuenschte Untertitel zu blockieren.",
+    "no_items": "Keine gesperrten Untertitel. Verwende den Sperren-Button bei Suchergebnissen oder im Verlauf, um unerwünschte Untertitel zu blockieren.",
     "remove_from_blacklist": "Von Sperrliste entfernen"
   }
 }

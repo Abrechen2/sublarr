@@ -3,7 +3,7 @@
     "dashboard": "Dashboard",
     "library": "Bibliothek",
     "wanted": "Gesucht",
-    "activity": "Aktivitaet",
+    "activity": "Aktivität",
     "queue": "Warteschlange",
     "history": "Verlauf",
     "blacklist": "Sperrliste",
@@ -14,7 +14,7 @@
   },
   "nav_groups": {
     "content": "Inhalte",
-    "activity": "Aktivitaet",
+    "activity": "Aktivität",
     "system": "System"
   },
   "status": {
@@ -24,24 +24,24 @@
     "offline": "Offline",
     "enabled": "Aktiviert",
     "disabled": "Deaktiviert",
-    "running": "Laeuft",
+    "running": "Läuft",
     "completed": "Abgeschlossen",
     "failed": "Fehlgeschlagen",
     "queued": "Wartend",
     "wanted": "Gesucht",
-    "searching": "Suche laeuft",
+    "searching": "Suche läuft",
     "found": "Gefunden",
     "ignored": "Ignoriert",
     "not_configured": "Nicht konfiguriert",
-    "skipped": "Uebersprungen",
+    "skipped": "Übersprungen",
     "forced": "Erzwungen"
   },
   "actions": {
     "save": "Speichern",
     "cancel": "Abbrechen",
-    "delete": "Loeschen",
+    "delete": "Löschen",
     "edit": "Bearbeiten",
-    "add": "Hinzufuegen",
+    "add": "Hinzufügen",
     "test": "Testen",
     "download": "Herunterladen",
     "upload": "Hochladen",
@@ -49,8 +49,8 @@
     "search": "Suchen",
     "export": "Exportieren",
     "import": "Importieren",
-    "confirm": "Bestaetigen",
-    "back": "Zurueck"
+    "confirm": "Bestätigen",
+    "back": "Zurück"
   },
   "theme": {
     "dark": "Dunkel",
@@ -69,7 +69,7 @@
   "pagination": {
     "showing": "Zeige",
     "of": "von",
-    "items": "Eintraege"
+    "items": "Einträge"
   },
   "time": {
     "just_now": "Gerade eben",
@@ -79,17 +79,17 @@
   },
   "confirm": {
     "title": "Bist du sicher?",
-    "message": "Diese Aktion kann nicht rueckgaengig gemacht werden.",
+    "message": "Diese Aktion kann nicht rückgängig gemacht werden.",
     "yes": "Ja",
     "no": "Nein"
   },
   "tasks": {
     "title": "Aufgaben",
     "run_now": "Jetzt starten",
-    "running": "Laeuft",
+    "running": "Läuft",
     "idle": "Bereit",
     "last_run": "Letzter Lauf",
-    "next_run": "Naechster Lauf",
+    "next_run": "Nächster Lauf",
     "interval": "Intervall",
     "status": "Status",
     "no_tasks": "Keine Hintergrundaufgaben konfiguriert",
@@ -99,20 +99,20 @@
     "every_minutes": "Alle {{count}} Min.",
     "every_hour": "Jede Stunde",
     "every_hours": "Alle {{count}} Stunden",
-    "every_day": "Taeglich",
+    "every_day": "Täglich",
     "triggered": "{{name}} gestartet",
     "trigger_failed": "{{name}} konnte nicht gestartet werden"
   },
   "filters": {
-    "addFilter": "Filter hinzufuegen",
-    "clearAll": "Alle loeschen",
+    "addFilter": "Filter hinzufügen",
+    "clearAll": "Alle löschen",
     "presets": "Voreinstellungen",
     "saveCurrentFilters": "Aktuelle Filter speichern",
     "presetName": "Name der Voreinstellung...",
     "noPresets": "Keine Voreinstellungen gespeichert"
   },
   "batch": {
-    "itemsSelected": "{{count}} ausgewaehlt",
+    "itemsSelected": "{{count}} ausgewählt",
     "ignore": "Ignorieren",
     "unignore": "Aktivieren",
     "blacklist": "Sperrliste",
@@ -122,14 +122,14 @@
   "search": {
     "placeholder": "Serien, Episoden, Untertitel suchen...",
     "shortcut": "Strg+K",
-    "noResults": "Keine Ergebnisse fuer \"{{query}}\"",
+    "noResults": "Keine Ergebnisse für \"{{query}}\"",
     "minChars": "Mindestens 2 Zeichen eingeben...",
     "series": "Serien",
     "episodes": "Episoden",
     "subtitles": "Untertitel"
   },
   "shortcuts": {
-    "title": "Tastenkuerzel",
+    "title": "Tastenkürzel",
     "navigation": "Navigation",
     "global": "Global",
     "page_actions": "Seitenaktionen",
@@ -137,19 +137,19 @@
     "go_library": "Zur Bibliothek",
     "go_wanted": "Zu Gesucht",
     "go_settings": "Zu Einstellungen",
-    "go_activity": "Zur Aktivitaet",
+    "go_activity": "Zur Aktivität",
     "go_history": "Zum Verlauf",
     "search": "Globale Suche",
-    "help": "Kuerzel anzeigen",
-    "no_page_actions": "Keine Kuerzel fuer diese Seite"
+    "help": "Kürzel anzeigen",
+    "no_page_actions": "Keine Kürzel für diese Seite"
   },
   "quick_actions": {
     "scan_library": "Bibliothek scannen",
     "search_wanted": "Gesuchte durchsuchen",
     "refresh_scan": "Scan aktualisieren",
     "search_all": "Alle durchsuchen",
-    "select_all": "Alle auswaehlen",
-    "health_check": "Qualitaetspruefung",
-    "no_actions": "Keine Aktionen fuer diese Seite"
+    "select_all": "Alle auswählen",
+    "health_check": "Qualitätsprüfung",
+    "no_actions": "Keine Aktionen für diese Seite"
   }
 }

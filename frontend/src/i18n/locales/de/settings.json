@@ -3,8 +3,8 @@
   "tabs": {
     "general": "Allgemein",
     "api_keys": "API Keys",
-    "translation": "Uebersetzung",
-    "translation_backends": "Uebersetzungs-Backends",
+    "translation": "Übersetzung",
+    "translation_backends": "Übersetzungs-Backends",
     "languages": "Sprachen",
     "automation": "Automatisierung",
     "wanted": "Gesucht",
@@ -36,20 +36,20 @@
     "target_language_code": "Zielsprache (Code)",
     "source_language_name": "Quellsprache (Name)",
     "target_language_name": "Zielsprache (Name)",
-    "hi_removal": "Untertitel fuer Hoergeschaedigte entfernen"
+    "hi_removal": "Untertitel für Hörgeschädigte entfernen"
   },
   "automation": {
     "upgrade_enabled": "Upgrade aktiviert",
-    "prefer_ass": "ASS gegenueber SRT bevorzugen",
+    "prefer_ass": "ASS gegenüber SRT bevorzugen",
     "min_score_delta": "Mindest-Score-Differenz",
     "upgrade_window": "Upgrade-Fenster (Tage)",
-    "webhook_delay": "Webhook-Verzoegerung (Minuten)",
+    "webhook_delay": "Webhook-Verzögerung (Minuten)",
     "auto_scan": "Auto-Scan nach Download",
     "auto_search": "Auto-Suche bei Providern",
-    "auto_translate": "Gefundene Untertitel automatisch uebersetzen",
+    "auto_translate": "Gefundene Untertitel automatisch übersetzen",
     "search_interval": "Suchintervall (Stunden, 0=deaktiviert)",
     "search_on_startup": "Suche beim Start",
-    "max_items_per_run": "Max. Eintraege pro Suchlauf"
+    "max_items_per_run": "Max. Einträge pro Suchlauf"
   },
   "wanted_tab": {
     "scan_interval": "Scan-Intervall (Stunden, 0=deaktiviert)",
@@ -92,7 +92,7 @@
       "bodyTemplate": "Text-Vorlage",
       "eventType": "Event-Typ",
       "serviceName": "Dienstname",
-      "variables": "Verfuegbare Variablen"
+      "variables": "Verfügbare Variablen"
     },
     "quietHours": {
       "title": "Ruhezeiten",
@@ -105,13 +105,13 @@
     "history": {
       "title": "Benachrichtigungs-Verlauf",
       "resend": "Erneut senden",
-      "clear": "Verlauf loeschen",
+      "clear": "Verlauf löschen",
       "status": "Status"
     },
     "filters": {
       "title": "Event-Filter",
-      "include": "Nur einschliessen (wenn gesetzt, nur diese Events)",
-      "exclude": "Events ausschliessen",
+      "include": "Nur einschließen (wenn gesetzt, nur diese Events)",
+      "exclude": "Events ausschließen",
       "content": "Inhaltsfilter"
     }
   },
@@ -132,9 +132,9 @@
     "save": "Speichern",
     "test": "Testen",
     "test_connection": "Verbindung testen",
-    "reset_defaults": "Standardwerte zuruecksetzen",
-    "add_mapping": "Zuordnung hinzufuegen",
-    "add_instance": "Instanz hinzufuegen",
+    "reset_defaults": "Standardwerte zurücksetzen",
+    "add_mapping": "Zuordnung hinzufügen",
+    "add_instance": "Instanz hinzufügen",
     "enabled": "Aktiviert",
     "disabled": "Deaktiviert"
   },
@@ -159,9 +159,9 @@
     "not_initialized": "Nicht initialisiert",
     "enabled": "Aktiviert",
     "test_provider": "Provider testen",
-    "move_up": "Nach oben (hoehere Prioritaet)",
-    "move_down": "Nach unten (niedrigere Prioritaet)",
-    "cache_entries": "Cache-Eintraege",
+    "move_up": "Nach oben (höhere Priorität)",
+    "move_down": "Nach unten (niedrigere Priorität)",
+    "cache_entries": "Cache-Einträge",
     "clear_cache": "Cache leeren",
     "re_enable": "Wieder aktivieren",
     "auto_disabled": "Automatisch deaktiviert"
@@ -170,7 +170,7 @@
     "title": "Konfigurationsverwaltung",
     "export": "Konfiguration exportieren",
     "import": "Konfiguration importieren",
-    "import_warning": "Dies ueberschreibt die aktuellen Einstellungen. API Keys muessen erneut eingegeben werden.",
+    "import_warning": "Dies überschreibt die aktuellen Einstellungen. API Keys müssen erneut eingegeben werden.",
     "export_success": "Konfiguration erfolgreich exportiert",
     "import_success": "Konfiguration erfolgreich importiert"
   },
@@ -182,29 +182,29 @@
       "scanStarted": "Duplikat-Scan gestartet",
       "scanFailed": "Scan konnte nicht gestartet werden",
       "progress": "Fortschritt",
-      "noResults": "Keine Duplikate gefunden. Fuehren Sie einen Scan durch.",
+      "noResults": "Keine Duplikate gefunden. Führen Sie einen Scan durch.",
       "groupsFound": "Duplikatgruppen",
-      "filesToDelete": "Dateien zum Loeschen",
+      "filesToDelete": "Dateien zum Löschen",
       "files": "Dateien",
       "keepLabel": "Behalten",
-      "deleteLabel": "Loeschen",
-      "deleteAll": "Alle Ausgewaehlten loeschen",
-      "deleting": "Wird geloescht..."
+      "deleteLabel": "Löschen",
+      "deleteAll": "Alle Ausgewählten löschen",
+      "deleting": "Wird gelöscht..."
     },
     "orphaned": {
       "title": "Verwaiste Untertitel",
       "scanButton": "Nach Verwaisten suchen",
-      "scanStarted": "Scan fuer verwaiste Dateien gestartet",
+      "scanStarted": "Scan für verwaiste Dateien gestartet",
       "scanFailed": "Scan fehlgeschlagen",
       "noResults": "Keine verwaisten Untertitel gefunden.",
-      "deleteSelected": "Ausgewaehlte loeschen"
+      "deleteSelected": "Ausgewählte löschen"
     },
     "rules": {
       "title": "Bereinigungsregeln",
       "create": "Regel erstellen",
       "created": "Regel erstellt",
-      "deleted": "Regel geloescht",
-      "running": "Regelausfuehrung gestartet",
+      "deleted": "Regel gelöscht",
+      "running": "Regelausführung gestartet",
       "configured": "Regeln konfiguriert",
       "noRules": "Keine Bereinigungsregeln konfiguriert. Erstellen Sie eine zur Automatisierung.",
       "namePlaceholder": "Regelname",
@@ -213,8 +213,8 @@
       "enable": "Aktivieren",
       "save": "Speichern",
       "cancel": "Abbrechen",
-      "delete": "Loeschen",
-      "runNow": "Jetzt ausfuehren",
+      "delete": "Löschen",
+      "runNow": "Jetzt ausführen",
       "schedule": "Zeitplan",
       "types": {
         "dedup": "Deduplizierung",
@@ -227,19 +227,19 @@
       "date": "Datum",
       "action": "Aktion",
       "processed": "Verarbeitet",
-      "deleted": "Geloescht",
+      "deleted": "Gelöscht",
       "freed": "Freigegeben",
       "empty": "Noch kein Bereinigungsverlauf",
-      "prev": "Zurueck",
+      "prev": "Zurück",
       "next": "Weiter"
     },
     "diskSpace": {
       "title": "Speicherplatzanalyse",
-      "noData": "Fuehren Sie einen Scan durch, um die Speicherplatzanalyse zu sehen",
+      "noData": "Führen Sie einen Scan durch, um die Speicherplatzanalyse zu sehen",
       "totalFiles": "Dateien gesamt",
-      "totalSize": "Gesamtgroesse",
+      "totalSize": "Gesamtgröße",
       "duplicates": "Duplikate",
-      "savings": "Moegliche Einsparung",
+      "savings": "Mögliche Einsparung",
       "byFormat": "Nach Format",
       "storageBreakdown": "Speicheraufteilung",
       "uniqueData": "Einzigartig",
@@ -252,8 +252,8 @@
       "title": "Bereinigungs-Vorschau",
       "files": "Dateien",
       "willBeFreed": "werden freigegeben",
-      "confirm": "Loeschen bestaetigen",
-      "confirming": "Wird geloescht...",
+      "confirm": "Löschen bestätigen",
+      "confirming": "Wird gelöscht...",
       "cancel": "Abbrechen"
     }
   },
@@ -265,17 +265,17 @@
       "dbPathHelp": "Pfad zur Bazarr SQLite-Datenbankdatei (bazarr.db)",
       "generateReport": "Zuordnungsbericht erstellen",
       "reportTitle": "Zuordnungsbericht",
-      "compatibility": "Kompatibilitaet",
+      "compatibility": "Kompatibilität",
       "summary": "Migrations-Zusammenfassung",
       "tables": "Datenbanktabellen",
       "proceedToImport": "Weiter zum Import"
     },
     "compat": {
-      "title": "Kompatibilitaetspruefung",
+      "title": "Kompatibilitätsprüfung",
       "target": "Ziel-Player",
       "videoPath": "Video-Dateipfad",
       "subtitlePaths": "Untertitel-Dateipfade (einer pro Zeile)",
-      "runCheck": "Pruefung starten",
+      "runCheck": "Prüfung starten",
       "compatible": "kompatibel",
       "incompatible": "inkompatibel"
     },
@@ -292,12 +292,12 @@
     "export": {
       "title": "Konfiguration exportieren",
       "format": "Exportformat",
-      "includeSecrets": "Geheimnisse einschliessen (API-Schluessel, Passwoerter)",
-      "secretsWarning": "Warnung: Die exportierte Datei enthaelt sensible Zugangsdaten",
+      "includeSecrets": "Geheimnisse einschließen (API-Schlüssel, Passwörter)",
+      "secretsWarning": "Warnung: Die exportierte Datei enthält sensible Zugangsdaten",
       "export": "Exportieren",
       "exportAll": "Alle exportieren (ZIP)",
-      "recommended": "Generisches JSON ist das empfohlene primaere Exportformat",
-      "bazarrNote": "Bazarr-kompatibles Format (keine Garantie fuer exakte Uebereinstimmung)"
+      "recommended": "Generisches JSON ist das empfohlene primäre Exportformat",
+      "bazarrNote": "Bazarr-kompatibles Format (keine Garantie für exakte Übereinstimmung)"
     }
   }
 }
