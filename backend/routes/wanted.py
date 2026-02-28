@@ -1010,7 +1010,6 @@ def _run_batch_probe(items, app):
     with _batch_probe_lock:
         _batch_probe_state.update(
             {
-                "running": True,
                 "total": len(items),
                 "processed": 0,
                 "found": 0,
@@ -1024,7 +1023,7 @@ def _run_batch_probe(items, app):
     try:
         with app.app_context(), ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_item = {
-                executor.submit(get_media_streams, item["file_path"], True): item for item in items
+                executor.submit(get_media_streams, item["file_path"], False): item for item in items
             }
             for future in as_completed(future_to_item):
                 item = future_to_item[future]
@@ -1114,17 +1113,21 @@ def batch_probe():
     """
     from db.wanted import get_wanted_items
 
-    with _batch_probe_lock:
-        if _batch_probe_state["running"]:
-            return jsonify({"error": "Batch probe already running"}), 409
-
     data = request.get_json(force=True, silent=True) or {}
     series_id = data.get("series_id")
 
+    # Claim the slot before slow DB work to avoid race condition
+    with _batch_probe_lock:
+        if _batch_probe_state["running"]:
+            return jsonify({"error": "Batch probe already running"}), 409
+        _batch_probe_state["running"] = True
+
     page = get_wanted_items(page=1, per_page=5000, series_id=series_id)
-    items = [it for it in page.get("items", []) if not it.get("existing_sub")]
+    items = [it for it in page.get("data", []) if not it.get("existing_sub")]
 
     if not items:
+        with _batch_probe_lock:
+            _batch_probe_state["running"] = False
         return jsonify({"status": "nothing_to_probe", "total_items": 0})
 
     app = current_app._get_current_object()
