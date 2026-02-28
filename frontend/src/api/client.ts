@@ -177,6 +177,7 @@ export interface BatchExtractStatus {
   processed: number
   succeeded: number
   failed: number
+  skipped: number
   current_item: string | null
 }
 
@@ -200,6 +201,29 @@ export async function getWantedBatchStatus(): Promise<WantedBatchStatus> {
 
 export async function searchAllWanted(): Promise<{ status: string }> {
   const { data } = await api.post('/wanted/search-all')
+  return data
+}
+
+export interface BatchProbeStatus {
+  running: boolean
+  total: number
+  processed: number
+  extracted: number
+  found: number
+  skipped: number
+  failed: number
+  current_item: string | null
+}
+
+export async function getBatchProbeStatus(): Promise<BatchProbeStatus> {
+  const { data } = await api.get('/wanted/batch-probe/status')
+  return data
+}
+
+export async function startBatchProbe(seriesId?: number): Promise<{ status: string; total_items: number }> {
+  const body: Record<string, unknown> = {}
+  if (seriesId != null) body.series_id = seriesId
+  const { data } = await api.post('/wanted/batch-probe', body)
   return data
 }
 

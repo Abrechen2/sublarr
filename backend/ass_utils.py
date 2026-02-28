@@ -509,6 +509,17 @@ def _run_engine(file_path, engine):
     return run_ffprobe(file_path, use_cache=False)
 
 
+def get_subtitle_stream_output_path(media_path: str, stream_info: dict) -> str:
+    """Build sidecar output path: {basename}.{lang}.{format} next to media file.
+
+    Uses 'und' (undetermined) if language tag is missing.
+    """
+    lang = (stream_info.get("language") or "und").lower()
+    fmt = stream_info.get("format", "ass")
+    base = os.path.splitext(media_path)[0]
+    return f"{base}.{lang}.{fmt}"
+
+
 def extract_subtitle_stream(mkv_path, stream_info, output_path):
     """Extract a subtitle stream (ASS or SRT) from an MKV file.
 

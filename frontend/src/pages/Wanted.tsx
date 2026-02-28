@@ -1,9 +1,9 @@
-import { useState, useMemo, useCallback, useEffect, Fragment } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef, Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   useWantedItems, useWantedSummary, useRefreshWanted, useUpdateWantedStatus,
   useSearchWantedItem, useProcessWantedItem, useStartWantedBatch, useWantedBatchStatus,
-  useWantedBatchExtractStatus,
+  useWantedBatchExtractStatus, useWantedBatchProbeStatus, useStartBatchProbe,
   useRetranslateSingle, useAddToBlacklist, useExtractEmbeddedSub,
 } from '@/hooks/useApi'
 import { StatusBadge, SubtitleTypeBadge } from '@/components/shared/StatusBadge'
@@ -258,9 +258,11 @@ export function WantedPage() {
   const addBlacklist = useAddToBlacklist()
   const { data: batchStatus } = useWantedBatchStatus()
   const { data: extractStatus, refetch: refetchExtractStatus } = useWantedBatchExtractStatus()
+  const { data: probeStatus } = useWantedBatchProbeStatus()
+  const startProbe = useStartBatchProbe()
   const queryClient = useQueryClient()
 
-  // Live updates for batch-extract progress via WebSocket
+  // Live updates via WebSocket
   useWebSocket({
     onBatchExtractProgress: () => {
       refetchExtractStatus()
@@ -269,7 +271,31 @@ export function WantedPage() {
       queryClient.invalidateQueries({ queryKey: ['wanted-batch-extract-status'] })
       queryClient.invalidateQueries({ queryKey: ['wanted'] })
     },
+    onBatchProbeProgress: () => {
+      queryClient.invalidateQueries({ queryKey: ['wanted-batch-probe-status'] })
+    },
+    onBatchProbeCompleted: () => {
+      queryClient.invalidateQueries({ queryKey: ['wanted-batch-probe-status'] })
+      queryClient.invalidateQueries({ queryKey: ['wanted'] })
+    },
   })
+
+  // Fallback: invalidate wanted list when polling detects running → false transition
+  const prevExtractRunning = useRef<boolean | undefined>(undefined)
+  useEffect(() => {
+    if (prevExtractRunning.current === true && extractStatus?.running === false) {
+      queryClient.invalidateQueries({ queryKey: ['wanted'] })
+    }
+    prevExtractRunning.current = extractStatus?.running
+  }, [extractStatus?.running, queryClient])
+
+  const prevProbeRunning = useRef<boolean | undefined>(undefined)
+  useEffect(() => {
+    if (prevProbeRunning.current === true && probeStatus?.running === false) {
+      queryClient.invalidateQueries({ queryKey: ['wanted'] })
+    }
+    prevProbeRunning.current = probeStatus?.running
+  }, [probeStatus?.running, queryClient])
 
   const totalWanted = summary?.by_status?.wanted ?? 0
   const totalEpisodes = summary?.by_type?.episode ?? 0
@@ -393,6 +419,42 @@ export function WantedPage() {
 
   return (
     <div className="space-y-5">
+      {/* Batch Probe Progress Banner */}
+      {probeStatus?.running && (
+        <div
+          className="rounded-lg p-4"
+          style={{ backgroundColor: 'var(--accent-bg)', border: '1px solid var(--accent-dim)' }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--accent)' }}>
+              <Loader2 size={14} className="animate-spin" />
+              <ScanSearch size={14} />
+              {probeStatus.current_item
+                ? `Scanning: ${probeStatus.current_item}`
+                : t('wanted.starting', 'Starting...')}
+            </div>
+            <span className="text-xs tabular-nums" style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
+              {probeStatus.processed}/{probeStatus.total}
+            </span>
+          </div>
+          <div className="w-full rounded-full h-2" style={{ backgroundColor: 'var(--border)' }}>
+            <div
+              className="h-2 rounded-full transition-all duration-300"
+              style={{
+                width: probeStatus.total > 0 ? `${(probeStatus.processed / probeStatus.total) * 100}%` : '0%',
+                backgroundColor: 'var(--accent)',
+              }}
+            />
+          </div>
+          <div className="flex gap-4 mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <span>Ziel: {probeStatus.found}</span>
+            <span>Quelle: {probeStatus.extracted}</span>
+            <span>{t('wanted.skipped', 'Skipped')}: {probeStatus.skipped}</span>
+            <span>{t('wanted.failed', 'Failed')}: {probeStatus.failed}</span>
+          </div>
+        </div>
+      )}
+
       {/* Batch Extract Progress Banner */}
       {extractStatus?.running && (
         <div
@@ -420,6 +482,9 @@ export function WantedPage() {
           <div className="flex gap-4 mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
             <span>{t('wanted.succeeded', 'Succeeded')}: {extractStatus.succeeded}</span>
             <span>{t('wanted.failed')}: {extractStatus.failed}</span>
+            {(extractStatus.skipped ?? 0) > 0 && (
+              <span>{t('wanted.skipped', 'Skipped')}: {extractStatus.skipped}</span>
+            )}
           </div>
         </div>
       )}
@@ -465,6 +530,20 @@ export function WantedPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => startProbe.mutate(undefined)}
+            disabled={startProbe.isPending || probeStatus?.running || batchStatus?.running}
+            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium hover:opacity-90"
+            title="Scan for embedded subtitles in all unresolved items"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <ScanSearch size={14} />
+            {probeStatus?.running ? 'Scanning...' : 'Scan Embedded'}
+          </button>
           <button
             onClick={handleBatchSearch}
             disabled={startBatch.isPending || batchStatus?.running}

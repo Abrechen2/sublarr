@@ -3,6 +3,8 @@
 import logging
 import os
 import threading
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from flask import Blueprint, current_app, jsonify, request
 
@@ -31,9 +33,23 @@ _batch_extract_state = {
     "processed": 0,
     "succeeded": 0,
     "failed": 0,
+    "skipped": 0,
     "current_item": None,
 }
 _batch_extract_lock = threading.Lock()
+
+# Batch-probe state (in-memory for real-time tracking)
+_batch_probe_state = {
+    "running": False,
+    "total": 0,
+    "processed": 0,
+    "found": 0,
+    "extracted": 0,
+    "skipped": 0,
+    "failed": 0,
+    "current_item": None,
+}
+_batch_probe_lock = threading.Lock()
 
 
 @bp.route("/wanted", methods=["GET"])
@@ -854,6 +870,7 @@ def _run_batch_extract(item_ids, auto_translate, app):
                 "processed": 0,
                 "succeeded": 0,
                 "failed": 0,
+                "skipped": 0,
                 "current_item": None,
             }
         )
@@ -884,7 +901,7 @@ def _run_batch_extract(item_ids, auto_translate, app):
         with _batch_extract_lock:
             _batch_extract_state["running"] = False
             snapshot = dict(_batch_extract_state)
-        emit_event("batch_extract_complete", snapshot)
+        emit_event("batch_extract_completed", snapshot)
 
 
 @bp.route("/wanted/batch-extract", methods=["POST"])
@@ -981,6 +998,244 @@ def batch_extract_status():
     """
     with _batch_extract_lock:
         return jsonify(dict(_batch_extract_state))
+
+
+def _run_batch_probe(items, app):
+    """Background thread: ffprobe all items, extract all embedded sub streams, update DB."""
+    from ass_utils import (
+        extract_subtitle_stream,
+        get_media_streams,
+        get_subtitle_stream_output_path,
+        has_target_language_audio,
+    )
+    from config import get_settings
+    from db.wanted import update_existing_sub
+    from translator import get_output_path_for_lang
+
+    max_workers = getattr(get_settings(), "scan_metadata_max_workers", 4)
+
+    with _batch_probe_lock:
+        _batch_probe_state.update(
+            {
+                "total": len(items),
+                "processed": 0,
+                "found": 0,
+                "extracted": 0,
+                "skipped": 0,
+                "failed": 0,
+                "current_item": None,
+            }
+        )
+
+    start_time = time.time()
+    try:
+        with app.app_context(), ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_item = {
+                executor.submit(get_media_streams, item["file_path"], False): item for item in items
+            }
+            for future in as_completed(future_to_item):
+                item = future_to_item[future]
+                item_id = item["id"]
+                file_path = item["file_path"]
+                target_lang = item.get("target_language") or None
+
+                with _batch_probe_lock:
+                    _batch_probe_state["current_item"] = item.get("title", f"Item {item_id}")
+
+                try:
+                    probe_data = future.result()
+                    if probe_data is None:
+                        raise ValueError("ffprobe returned no data")
+
+                    if has_target_language_audio(probe_data, target_lang):
+                        with _batch_probe_lock:
+                            _batch_probe_state["skipped"] += 1
+                    else:
+                        # Collect all text-based subtitle streams (language-agnostic)
+                        sub_streams = []
+                        sub_index = 0
+                        for stream in probe_data.get("streams", []):
+                            if stream.get("codec_type") != "subtitle":
+                                continue
+                            codec = stream.get("codec_name", "").lower()
+                            if codec in ("ass", "ssa"):
+                                fmt = "ass"
+                            elif codec in (
+                                "subrip",
+                                "srt",
+                                "mov_text",
+                                "webvtt",
+                                "text",
+                                "microdvd",
+                            ):
+                                fmt = "srt"
+                            else:
+                                sub_index += 1
+                                continue  # skip PGS, VobSub, etc.
+                            lang = (stream.get("tags", {}).get("language", "und") or "und").lower()
+                            sub_streams.append(
+                                {"sub_index": sub_index, "format": fmt, "language": lang}
+                            )
+                            sub_index += 1
+
+                        if not sub_streams:
+                            with _batch_probe_lock:
+                                _batch_probe_state["skipped"] += 1
+                        else:
+                            any_extracted = False
+                            for stream_info in sub_streams:
+                                out = get_subtitle_stream_output_path(file_path, stream_info)
+                                if os.path.exists(out):
+                                    any_extracted = True
+                                    continue  # already on disk
+                                try:
+                                    extract_subtitle_stream(file_path, stream_info, out)
+                                    logger.info(
+                                        "[batch-probe] item %d: extracted %s → %s",
+                                        item_id,
+                                        stream_info["language"],
+                                        out,
+                                    )
+                                    any_extracted = True
+                                except Exception as sub_exc:
+                                    logger.warning(
+                                        "[batch-probe] item %d stream %d: %s",
+                                        item_id,
+                                        stream_info["sub_index"],
+                                        sub_exc,
+                                    )
+
+                            if any_extracted:
+                                # Check if target-lang file landed on disk
+                                target_ass = get_output_path_for_lang(file_path, "ass", target_lang)
+                                target_srt = get_output_path_for_lang(file_path, "srt", target_lang)
+                                if os.path.exists(target_ass):
+                                    update_existing_sub(item_id, "ass")
+                                    logger.info(
+                                        "[batch-probe] item %d: target-lang ASS found", item_id
+                                    )
+                                    with _batch_probe_lock:
+                                        _batch_probe_state["found"] += 1
+                                elif os.path.exists(target_srt):
+                                    update_existing_sub(item_id, "srt")
+                                    logger.info(
+                                        "[batch-probe] item %d: target-lang SRT found", item_id
+                                    )
+                                    with _batch_probe_lock:
+                                        _batch_probe_state["found"] += 1
+                                else:
+                                    # Source-lang subs extracted, need translation
+                                    with _batch_probe_lock:
+                                        _batch_probe_state["extracted"] += 1
+                            else:
+                                # All extractions failed
+                                with _batch_probe_lock:
+                                    _batch_probe_state["skipped"] += 1
+
+                except Exception as exc:
+                    logger.warning("[batch-probe] item %d failed: %s", item_id, exc)
+                    with _batch_probe_lock:
+                        _batch_probe_state["failed"] += 1
+
+                with _batch_probe_lock:
+                    _batch_probe_state["processed"] += 1
+                    snapshot = dict(_batch_probe_state)
+                socketio.emit("batch_probe_progress", snapshot)
+    finally:
+        duration_ms = int((time.time() - start_time) * 1000)
+        with _batch_probe_lock:
+            _batch_probe_state["running"] = False
+            snapshot = dict(_batch_probe_state)
+        emit_event("batch_probe_completed", {**snapshot, "duration_ms": duration_ms})
+
+
+@bp.route("/wanted/batch-probe", methods=["POST"])
+def batch_probe():
+    """Run ffprobe on all unresolved wanted items to detect embedded subtitles.
+    ---
+    post:
+      tags:
+        - Wanted
+      summary: Batch metadata pre-scan
+      description: >
+        Runs ffprobe in parallel on all wanted items with empty existing_sub,
+        detects embedded target-language subtitle streams, and updates
+        existing_sub to embedded_srt or embedded_ass. Returns 202 immediately;
+        progress is emitted via WebSocket batch_probe_progress events.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                series_id:
+                  type: integer
+                  nullable: true
+                  description: Optional Sonarr series ID to limit scope
+      responses:
+        202:
+          description: Probe started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  total_items:
+                    type: integer
+        200:
+          description: Nothing to probe (all items already have existing_sub)
+        409:
+          description: Probe already running
+    """
+    from db.wanted import get_wanted_items
+
+    data = request.get_json(force=True, silent=True) or {}
+    series_id = data.get("series_id")
+
+    # Claim the slot before slow DB work to avoid race condition
+    with _batch_probe_lock:
+        if _batch_probe_state["running"]:
+            return jsonify({"error": "Batch probe already running"}), 409
+        _batch_probe_state["running"] = True
+
+    page = get_wanted_items(page=1, per_page=5000, series_id=series_id)
+    items = [it for it in page.get("data", []) if not it.get("existing_sub")]
+
+    if not items:
+        with _batch_probe_lock:
+            _batch_probe_state["running"] = False
+        return jsonify({"status": "nothing_to_probe", "total_items": 0})
+
+    app = current_app._get_current_object()
+    threading.Thread(
+        target=_run_batch_probe,
+        args=(items, app),
+        daemon=True,
+    ).start()
+    return jsonify({"status": "started", "total_items": len(items)}), 202
+
+
+@bp.route("/wanted/batch-probe/status", methods=["GET"])
+def batch_probe_status():
+    """Get current batch-probe progress.
+    ---
+    get:
+      tags:
+        - Wanted
+      summary: Batch probe status
+      description: Returns current state of the background batch metadata probe operation.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Current batch-probe state
+    """
+    with _batch_probe_lock:
+        return jsonify(dict(_batch_probe_state))
 
 
 @bp.route("/wanted/<int:item_id>/search-providers", methods=["GET"])
