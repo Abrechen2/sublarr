@@ -17,8 +17,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Auto-Cleanup after Batch Extract** — three new settings: `auto_cleanup_after_extract` (toggle), `auto_cleanup_keep_languages` (comma-separated ISO codes), `auto_cleanup_keep_formats` (ass/srt/any); cleanup runs automatically after `batch-extract-tracks`
 - **Settings UI** — three new auto-cleanup fields in the Automation tab
 
+### Added (cont.)
+- **Batch Extraction Progress** — live per-episode progress bar in SeriesDetail while `batch-extract-tracks` runs; progress banner shows filename + `X / N Episoden`; Extract button shows spinner and is disabled during extraction
+- **Series-Level Action Toolbar** — always-visible row in SeriesDetail hero header: "Tracks extrahieren" (with live X/N counter), "Bereinigen" (opens cleanup modal), "N fehlende suchen" (moved from language row)
+- **Activity Page visibility** — `batch-extract-tracks` now creates a DB job (`running` → `completed`/`failed`) so extraction is visible on the Activity page with succeeded/failed/skipped stats
+- **Queue Page — Wanted Batch Search** — `useWantedBatchStatus()` was wired but never rendered; now shown as orange card with progressbar and item counts
+- **Queue Page — faster polling** — job list now refetches every 3 s on the Queue page (was 15 s) so short-lived translation jobs are reliably visible
+
 ### Changed
 - **SeriesDetail UNTERTITEL column** — changed from fixed `w-40` (160 px) to `flex-1 min-w-[200px]` so badges spread across available space without excessive line-wrapping
+- **Subtitle badge semantics** — three-state badges: teal = ASS/optimal, violet = SRT/upgradeable, orange = missing. ISO 639-2 three-letter codes (ger, eng, jpn) normalized to ISO 639-1 (de, en, ja) to prevent duplicate badges from MKV filenames
+- **Sidecar query live refresh** — `['series-subtitles']` query polls every 4 s while extraction is running; on completion both `['series-subtitles']` and `['series']` are invalidated so episode rows reflect new state without reload
+
+### Fixed
+- **Duplicate badges** — MKV-embedded `ger` track and target language `de` no longer rendered as two separate badges; `normLang()` normalizes both sides before comparison
+- **Activity page** — extraction job now appears within 15 s (first poll cycle) instead of never
 
 ---
 
