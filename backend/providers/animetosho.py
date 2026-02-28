@@ -35,13 +35,21 @@ _FORMAT_MAP = {
 }
 
 
+_MAX_DECOMPRESSED_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
 def _decompress_xz(data: bytes) -> bytes:
-    """Decompress XZ/LZMA compressed data."""
+    """Decompress XZ/LZMA compressed data, rejecting bombs larger than 10 MB."""
     try:
-        return lzma.decompress(data)
+        result = lzma.decompress(data)
     except lzma.LZMAError as e:
         logger.warning("AnimeTosho: XZ decompression failed: %s", e)
         raise
+    if len(result) > _MAX_DECOMPRESSED_SIZE:
+        raise ValueError(
+            f"AnimeTosho: decompressed data exceeds {_MAX_DECOMPRESSED_SIZE // (1024 * 1024)} MB limit"
+        )
+    return result
 
 
 def _extract_episode_number(text: str) -> int | None:
