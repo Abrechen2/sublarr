@@ -124,7 +124,7 @@ class TestFileSystemGuards:
     @patch("wanted_search.get_provider_manager")
     @patch("wanted_search.update_wanted_status")
     def test_disk_space_check_in_save(
-        self, mock_update_status, mock_get_manager, mock_get_item, mock_wanted_item, temp_file
+        self, mock_update_status, mock_get_manager, mock_get_item, app_ctx, mock_wanted_item, temp_file
     ):
         """Test that save_subtitle checks disk space."""
         from providers import ProviderManager
@@ -163,13 +163,14 @@ class TestTranslationPipelineResilience:
     @patch("wanted_search.get_wanted_item")
     @patch("wanted_search.get_provider_manager")
     @patch("wanted_search.update_wanted_status")
-    @patch("wanted_search._translate_external_ass")
+    @patch("translator._translate_external_ass")
     def test_translation_failure_cleans_up_temp_file(
         self,
         mock_translate,
         mock_update_status,
         mock_get_manager,
         mock_get_item,
+        app_ctx,
         mock_wanted_item,
         temp_file,
     ):
@@ -202,8 +203,6 @@ class TestTranslationPipelineResilience:
         # Temp file should be cleaned up (or at least attempted)
         # Note: In real code, cleanup happens in finally block
         assert "status" in result
-        import os
-
         assert not os.path.exists(temp_source_path), (
             "Temp file should have been cleaned up after failure"
         )

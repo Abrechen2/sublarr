@@ -134,7 +134,7 @@ class TestCaseB:
         mock_result.provider_name = "animetosho"
         mock_result.score = 200
 
-        with patch("translator.get_provider_manager") as mock_pm:
+        with patch("providers.get_provider_manager") as mock_pm:
             manager = MagicMock()
             manager.search_and_download_best.return_value = mock_result
             mock_pm.return_value = manager
@@ -151,9 +151,10 @@ class TestCaseB:
 
     @patch("translator.get_settings")
     @patch("translator.get_media_streams")
-    @patch("translator.translate_all")
+    @patch("translator.select_best_subtitle_stream", return_value=None)
+    @patch("translator._translate_with_manager")
     def test_b2_translate_existing_srt(
-        self, mock_translate, mock_probe, mock_gs, mkv_path, mock_settings
+        self, mock_translate, mock_select, mock_probe, mock_gs, mkv_path, mock_settings
     ):
         """B2: No ASS upgrade found — translate the existing SRT."""
         mock_gs.return_value = mock_settings
@@ -164,13 +165,16 @@ class TestCaseB:
         Path(srt_path).write_text(MINIMAL_SRT, encoding="utf-8")
 
         # Provider returns nothing
-        with patch("translator.get_provider_manager") as mock_pm:
+        with patch("providers.get_provider_manager") as mock_pm:
             manager = MagicMock()
             manager.search_and_download_best.return_value = None
             mock_pm.return_value = manager
 
-            # Mock translate_all to return translated lines
-            mock_translate.return_value = ["Hallo Welt", "Wie geht es dir"]
+            # _translate_with_manager returns (lines, TranslationResult)
+            mock_translate.return_value = (
+                ["Hallo Welt", "Wie geht es dir"],
+                MagicMock(success=True, backend_name="mock"),
+            )
 
             from translator import translate_file
 
@@ -187,11 +191,12 @@ class TestCaseB:
 class TestCaseC:
     """No target subtitle — full pipeline."""
 
+    @patch("translator._get_quality_config", return_value=(False, 0, 0))
     @patch("translator.get_settings")
     @patch("translator.get_media_streams")
     @patch("translator.select_best_subtitle_stream")
     @patch("translator.extract_subtitle_stream")
-    @patch("translator.translate_all")
+    @patch("translator._translate_with_manager")
     def test_c1_embedded_ass_extraction(
         self,
         mock_translate,
@@ -199,6 +204,7 @@ class TestCaseC:
         mock_select,
         mock_probe,
         mock_gs,
+        _mock_qcfg,
         mkv_path,
         mock_settings,
         work_dir,
@@ -223,13 +229,20 @@ class TestCaseC:
             "language": "eng",
         }
 
-        # extract_subtitle_stream returns a temp ASS file
+        # extract_subtitle_stream writes to its 3rd argument (output_path)
         extracted_path = os.path.join(work_dir, "extracted.ass")
         Path(extracted_path).write_text(MINIMAL_ASS, encoding="utf-8")
-        mock_extract.return_value = extracted_path
 
-        # Translation returns German lines
-        mock_translate.return_value = ["Hallo Welt", "Wie geht es dir"]
+        def _do_extract(mkv, stream, out_path):
+            shutil.copy(extracted_path, out_path)
+
+        mock_extract.side_effect = _do_extract
+
+        # _translate_with_manager returns (lines, TranslationResult)
+        mock_translate.return_value = (
+            ["Hallo Welt", "Wie geht es dir"],
+            MagicMock(success=True, backend_name="mock"),
+        )
 
         from translator import translate_file
 
@@ -244,7 +257,8 @@ class TestCaseC:
         with (
             patch("translator.get_settings", return_value=mock_settings),
             patch("translator.get_media_streams", return_value=None),
-            patch("translator.get_provider_manager") as mock_pm,
+            patch("translator.select_best_subtitle_stream", return_value=None),
+            patch("providers.get_provider_manager") as mock_pm,
         ):
             manager = MagicMock()
             manager.search_and_download_best.return_value = None
@@ -277,7 +291,7 @@ class TestErrorHandling:
 
     @patch("translator.get_settings")
     @patch("translator.get_media_streams")
-    @patch("translator.translate_all", side_effect=Exception("Ollama timeout"))
+    @patch("translator._translate_with_manager", side_effect=Exception("Ollama timeout"))
     @patch("translator.select_best_subtitle_stream")
     @patch("translator.extract_subtitle_stream")
     def test_ollama_failure_returns_error(
@@ -307,7 +321,11 @@ class TestErrorHandling:
 
         extracted_path = os.path.join(work_dir, "extracted.ass")
         Path(extracted_path).write_text(MINIMAL_ASS, encoding="utf-8")
-        mock_extract.return_value = extracted_path
+
+        def _do_extract(mkv, stream, out_path):
+            shutil.copy(extracted_path, out_path)
+
+        mock_extract.side_effect = _do_extract
 
         from translator import translate_file
 
