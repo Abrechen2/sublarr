@@ -44,6 +44,7 @@ _batch_probe_state = {
     "total": 0,
     "processed": 0,
     "found": 0,
+    "extracted": 0,
     "skipped": 0,
     "failed": 0,
     "current_item": None,
@@ -1000,10 +1001,16 @@ def batch_extract_status():
 
 
 def _run_batch_probe(items, app):
-    """Background thread: ffprobe all items, detect embedded subs, update DB."""
-    from ass_utils import get_media_streams, has_target_language_audio, has_target_language_stream
+    """Background thread: ffprobe all items, extract all embedded sub streams, update DB."""
+    from ass_utils import (
+        extract_subtitle_stream,
+        get_media_streams,
+        get_subtitle_stream_output_path,
+        has_target_language_audio,
+    )
     from config import get_settings
     from db.wanted import update_existing_sub
+    from translator import get_output_path_for_lang
 
     max_workers = getattr(get_settings(), "scan_metadata_max_workers", 4)
 
@@ -1013,6 +1020,7 @@ def _run_batch_probe(items, app):
                 "total": len(items),
                 "processed": 0,
                 "found": 0,
+                "extracted": 0,
                 "skipped": 0,
                 "failed": 0,
                 "current_item": None,
@@ -1028,6 +1036,7 @@ def _run_batch_probe(items, app):
             for future in as_completed(future_to_item):
                 item = future_to_item[future]
                 item_id = item["id"]
+                file_path = item["file_path"]
                 target_lang = item.get("target_language") or None
 
                 with _batch_probe_lock:
@@ -1042,16 +1051,87 @@ def _run_batch_probe(items, app):
                         with _batch_probe_lock:
                             _batch_probe_state["skipped"] += 1
                     else:
-                        stream_type = has_target_language_stream(probe_data, target_lang)
-                        if stream_type:
-                            value = f"embedded_{stream_type}"
-                            update_existing_sub(item_id, value)
-                            logger.info("[batch-probe] item %d: detected %s", item_id, value)
-                            with _batch_probe_lock:
-                                _batch_probe_state["found"] += 1
-                        else:
+                        # Collect all text-based subtitle streams (language-agnostic)
+                        sub_streams = []
+                        sub_index = 0
+                        for stream in probe_data.get("streams", []):
+                            if stream.get("codec_type") != "subtitle":
+                                continue
+                            codec = stream.get("codec_name", "").lower()
+                            if codec in ("ass", "ssa"):
+                                fmt = "ass"
+                            elif codec in (
+                                "subrip",
+                                "srt",
+                                "mov_text",
+                                "webvtt",
+                                "text",
+                                "microdvd",
+                            ):
+                                fmt = "srt"
+                            else:
+                                sub_index += 1
+                                continue  # skip PGS, VobSub, etc.
+                            lang = (stream.get("tags", {}).get("language", "und") or "und").lower()
+                            sub_streams.append(
+                                {"sub_index": sub_index, "format": fmt, "language": lang}
+                            )
+                            sub_index += 1
+
+                        if not sub_streams:
                             with _batch_probe_lock:
                                 _batch_probe_state["skipped"] += 1
+                        else:
+                            any_extracted = False
+                            for stream_info in sub_streams:
+                                out = get_subtitle_stream_output_path(file_path, stream_info)
+                                if os.path.exists(out):
+                                    any_extracted = True
+                                    continue  # already on disk
+                                try:
+                                    extract_subtitle_stream(file_path, stream_info, out)
+                                    logger.info(
+                                        "[batch-probe] item %d: extracted %s → %s",
+                                        item_id,
+                                        stream_info["language"],
+                                        out,
+                                    )
+                                    any_extracted = True
+                                except Exception as sub_exc:
+                                    logger.warning(
+                                        "[batch-probe] item %d stream %d: %s",
+                                        item_id,
+                                        stream_info["sub_index"],
+                                        sub_exc,
+                                    )
+
+                            if any_extracted:
+                                # Check if target-lang file landed on disk
+                                target_ass = get_output_path_for_lang(file_path, "ass", target_lang)
+                                target_srt = get_output_path_for_lang(file_path, "srt", target_lang)
+                                if os.path.exists(target_ass):
+                                    update_existing_sub(item_id, "ass")
+                                    logger.info(
+                                        "[batch-probe] item %d: target-lang ASS found", item_id
+                                    )
+                                    with _batch_probe_lock:
+                                        _batch_probe_state["found"] += 1
+                                elif os.path.exists(target_srt):
+                                    update_existing_sub(item_id, "srt")
+                                    logger.info(
+                                        "[batch-probe] item %d: target-lang SRT found", item_id
+                                    )
+                                    with _batch_probe_lock:
+                                        _batch_probe_state["found"] += 1
+                                else:
+                                    # Source-lang subs extracted, need translation
+                                    with _batch_probe_lock:
+                                        _batch_probe_state["extracted"] += 1
+                            else:
+                                # All extractions failed
+                                with _batch_probe_lock:
+                                    _batch_probe_state["skipped"] += 1
+
                 except Exception as exc:
                     logger.warning("[batch-probe] item %d failed: %s", item_id, exc)
                     with _batch_probe_lock:

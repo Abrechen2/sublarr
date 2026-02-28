@@ -447,7 +447,8 @@ export function WantedPage() {
             />
           </div>
           <div className="flex gap-4 mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            <span>{t('wanted.found', 'Found')}: {probeStatus.found}</span>
+            <span>Ziel: {probeStatus.found}</span>
+            <span>Quelle: {probeStatus.extracted}</span>
             <span>{t('wanted.skipped', 'Skipped')}: {probeStatus.skipped}</span>
             <span>{t('wanted.failed', 'Failed')}: {probeStatus.failed}</span>
           </div>

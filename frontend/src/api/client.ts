@@ -208,6 +208,7 @@ export interface BatchProbeStatus {
   running: boolean
   total: number
   processed: number
+  extracted: number
   found: number
   skipped: number
   failed: number

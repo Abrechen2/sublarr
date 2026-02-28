@@ -174,6 +174,7 @@ EVENT_CATALOG: dict[str, dict] = {
         "payload_keys": [
             "total",
             "found",
+            "extracted",
             "skipped",
             "failed",
             "duration_ms",
