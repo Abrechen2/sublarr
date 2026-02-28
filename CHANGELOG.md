@@ -5,6 +5,15 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.1-beta] — 2026-02-28
+
+### Added
+- **Queue — Batch Probe Karte** — zeigt Fortschritt der `batch-probe`-Operation (Gesamt, Gefunden, Extrahiert, Fehlgeschlagen, aktueller Pfad) mit Teal-Akzent und Progressbar; erscheint sobald `probe.running = true`
+- **Queue — Wanted Scanner Karte** — neuer `GET /api/v1/wanted/scanner/status` Endpoint; zeigt Scan-Fortschritt (Phase-Badge, Fortschritt, Neu, Aktualisiert) mit Grün-Akzent; adaptives Polling (3 s aktiv / 30 s idle)
+- Die Queue-Seite zeigt jetzt alle 4 Hintergrundoperationen: Batch-Übersetzung, Wanted-Suche, Batch-Probe, Wanted-Scanner
+
+---
+
 ## [0.13.0-beta] — 2026-02-28
 
 ### Added

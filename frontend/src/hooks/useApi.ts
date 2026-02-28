@@ -62,6 +62,7 @@ import {
   getTranslationMemoryStats, clearTranslationMemoryCache,
   getBackendTemplates,
   updateSeriesSettings, getAnidbMappingStatus, refreshAnidbMapping,
+  getScannerStatus,
 } from '@/api/client'
 import type {
   LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig, FilterScope, BatchAction,
@@ -248,6 +249,15 @@ export function useWantedBatchProbeStatus() {
     queryKey: ['wanted-batch-probe-status'],
     queryFn: getBatchProbeStatus,
     refetchInterval: (query) => (query.state.data?.running ? 2000 : false),
+  })
+}
+
+export function useScannerStatus() {
+  return useQuery({
+    queryKey: ['scanner-status'],
+    queryFn: getScannerStatus,
+    refetchInterval: (query) =>
+      query.state.data?.is_scanning || query.state.data?.is_searching ? 3000 : 30000,
   })
 }
 
