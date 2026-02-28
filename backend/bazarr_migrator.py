@@ -7,9 +7,18 @@ into Sublarr.
 
 import json
 import logging
+import re
 import sqlite3
 
 logger = logging.getLogger(__name__)
+
+_VALID_TABLE_NAME = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+
+def _validate_table_name(name: str) -> None:
+    """Raise ValueError if name is not a valid SQL identifier."""
+    if not _VALID_TABLE_NAME.match(name):
+        raise ValueError(f"Invalid table name: {name!r}")
 
 
 # ---------------------------------------------------------------------------
@@ -282,10 +291,13 @@ def _read_blacklist(conn: sqlite3.Connection, warnings: list) -> list:
 def _read_settings_table(conn: sqlite3.Connection, table_name: str, warnings: list) -> dict:
     """Read a Bazarr settings table (Sonarr or Radarr)."""
     try:
+        _validate_table_name(table_name)
         cursor = conn.execute(f"SELECT * FROM {table_name} LIMIT 1")
         row = cursor.fetchone()
         if row:
             return dict(row)
+    except ValueError as exc:
+        warnings.append(str(exc))
     except sqlite3.OperationalError as exc:
         warnings.append(f"{table_name} not found: {exc}")
     return {}
@@ -298,8 +310,11 @@ def _get_table_info(conn: sqlite3.Connection, table_name: str) -> list:
         List of column name strings, or empty list if table does not exist.
     """
     try:
+        _validate_table_name(table_name)
         cursor = conn.execute(f"PRAGMA table_info({table_name})")
         return [row[1] for row in cursor]
+    except ValueError:
+        return []
     except sqlite3.OperationalError:
         return []
 
@@ -465,6 +480,12 @@ def generate_mapping_report(db_path: str) -> dict:
         # Per-table details
         for table_name in report["tables_found"]:
             detail = {"row_count": 0, "columns": [], "sample_row": None}
+
+            try:
+                _validate_table_name(table_name)
+            except ValueError:
+                report["warnings"].append(f"Skipped table with invalid name: {table_name!r}")
+                continue
 
             columns = _get_table_info(conn, table_name)
             detail["columns"] = columns

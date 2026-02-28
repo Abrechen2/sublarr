@@ -27,22 +27,6 @@ guessit>=3.8.0
 psycopg2-binary==2.9.10  # Optional: PostgreSQL support
 redis==7.1.0  # Optional: Redis caching/queue
 rq==2.6.1  # Optional: Redis-based job queue
-pytest==8.3.4
-pytest-cov==6.0.0
-pytest-mock==3.14.0
-ruff>=0.8.0
-mypy>=1.11.0
-pre-commit>=3.8.0
-vulture>=2.10
-bandit[toml]>=1.7.5
-radon>=6.0.1
-pip-tools>=7.4.0
-pip-audit>=2.7.0
-liccheck>=0.9.0
-pytest-benchmark>=4.0.0
-locust>=2.24.0
-fakeredis==2.26.2  # Testing: Redis mock
-
 # Optional — video sync engines (graceful degradation if not installed)
 # ffsubsync>=0.4.26
 # alass is a standalone binary — see https://github.com/kaegi/alass/releases

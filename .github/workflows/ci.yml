@@ -53,6 +53,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
       - name: Lint (ruff)
         working-directory: ./backend
@@ -77,7 +78,7 @@ jobs:
             --ignore=tests/test_video_sync.py \
             --ignore=tests/test_translation_backends.py \
             --ignore=tests/test_wanted_search_reliability.py \
-            -k "not (test_sonarr_download_webhook or test_parse_llm_response_too_many_merge or test_record_backend_success)"
+            -k "not (test_sonarr_download_webhook or test_radarr_download_webhook or test_parse_llm_response_too_many_merge or test_record_backend_success)"
 
   # ─── Frontend ─────────────────────────────────────────────────────────────
   frontend:

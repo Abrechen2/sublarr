@@ -175,6 +175,7 @@ def webhook_sonarr():
           description: Missing file path in payload
     """
     from config import get_settings, map_path
+    from security_utils import is_safe_path
 
     # Auth: if API key is configured, require it on webhook endpoints too
     _s = get_settings()
@@ -201,6 +202,9 @@ def webhook_sonarr():
         return jsonify({"error": "No file path in webhook payload"}), 400
 
     file_path = map_path(file_path)
+    if not is_safe_path(file_path, _s.media_path):
+        return jsonify({"error": "file_path outside configured media_path"}), 400
+
     title = f"{series.get('title', 'Unknown')} — {file_path}"
     series_id = series.get("id")
 
@@ -289,6 +293,7 @@ def webhook_radarr():
           description: Missing file path in payload
     """
     from config import get_settings, map_path
+    from security_utils import is_safe_path
 
     # Auth: if API key is configured, require it on webhook endpoints too
     _s = get_settings()
@@ -313,6 +318,8 @@ def webhook_radarr():
 
         if file_path:
             file_path = map_path(file_path)
+            if not is_safe_path(file_path, _s.media_path):
+                return jsonify({"error": "file_path outside configured media_path"}), 400
             logger.info("Radarr webhook MovieFileDelete: %s - %s", title, file_path)
 
             # Delete wanted items for this file path
@@ -345,6 +352,9 @@ def webhook_radarr():
         return jsonify({"error": "No file path in webhook payload"}), 400
 
     file_path = map_path(file_path)
+    if not is_safe_path(file_path, _s.media_path):
+        return jsonify({"error": "file_path outside configured media_path"}), 400
+
     title = movie.get("title", "Unknown")
     movie_id = movie.get("id")
 

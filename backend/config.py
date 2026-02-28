@@ -309,7 +309,16 @@ class Settings(BaseSettings):
 
     def get_safe_config(self) -> dict:
         """Get config dict without sensitive values (API keys, passwords, tokens)."""
+        import json as _json
+
         _SENSITIVE_PARTS = {"password", "pin", "secret", "token", "api_key"}
+        _JSON_BLOB_FIELDS = {
+            "sonarr_instances_json",
+            "radarr_instances_json",
+            "media_servers_json",
+        }
+        _CREDENTIAL_SUBKEYS = {"api_key", "apiKey", "password", "token", "secret", "pin"}
+
         data = self.model_dump()
         for key in list(data.keys()):
             if (
@@ -321,6 +330,20 @@ class Settings(BaseSettings):
                     data[key] = "***configured***"
                 else:
                     data[key] = ""
+            elif key == "notification_urls_json" and data[key]:
+                data[key] = "***configured***"
+            elif key in _JSON_BLOB_FIELDS and data[key]:
+                try:
+                    parsed = _json.loads(data[key])
+                    if isinstance(parsed, list):
+                        for item in parsed:
+                            if isinstance(item, dict):
+                                for sub in _CREDENTIAL_SUBKEYS:
+                                    if sub in item and item[sub]:
+                                        item[sub] = "***configured***"
+                    data[key] = _json.dumps(parsed)
+                except Exception:
+                    data[key] = "***configured***"
         return data
 
 

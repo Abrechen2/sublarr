@@ -5,6 +5,7 @@ configures the application, initializes extensions, registers blueprints,
 and starts background schedulers.
 """
 
+import hmac
 import logging
 import os
 
@@ -119,6 +120,7 @@ def create_app(testing=False):
         Configured Flask application instance.
     """
     app = Flask(__name__, static_folder="static", static_url_path="")
+    app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB — prevent request body DoS
 
     # Load config
     from config import get_settings, reload_settings
@@ -381,7 +383,15 @@ def create_app(testing=False):
 
         # Register SocketIO events
         @socketio.on("connect")
-        def handle_connect():
+        def handle_connect(auth):
+            from config import get_settings as _gs
+
+            _api_key = getattr(_gs(), "api_key", None)
+            if _api_key:
+                provided = (auth or {}).get("apikey", "")
+                if not hmac.compare_digest(provided, _api_key):
+                    logger.warning("WebSocket connection rejected: invalid API key")
+                    return False
             logger.debug("WebSocket client connected")
 
         @socketio.on("disconnect")

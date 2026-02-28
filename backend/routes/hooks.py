@@ -152,6 +152,13 @@ def create_hook():
     if not script_path:
         return jsonify({"error": "script_path is required"}), 400
 
+    from config import get_settings
+    from security_utils import is_safe_path
+
+    _hooks_dir = getattr(get_settings(), "config_dir", "/config") + "/hooks"
+    if not is_safe_path(script_path, _hooks_dir):
+        return jsonify({"error": "script_path must be under /config/hooks/"}), 400
+
     hook = create_hook_config(name, event_name, script_path, timeout_seconds)
     return jsonify(hook), 201
 
@@ -240,6 +247,14 @@ def update_hook(hook_id):
     data = request.get_json(silent=True) or {}
     allowed_keys = {"name", "event_name", "script_path", "timeout_seconds", "enabled"}
     updates = {k: v for k, v in data.items() if k in allowed_keys}
+
+    if "script_path" in updates:
+        from config import get_settings
+        from security_utils import is_safe_path
+
+        _hooks_dir = getattr(get_settings(), "config_dir", "/config") + "/hooks"
+        if not is_safe_path(updates["script_path"], _hooks_dir):
+            return jsonify({"error": "script_path must be under /config/hooks/"}), 400
 
     if "enabled" in updates:
         updates["enabled"] = 1 if updates["enabled"] else 0
@@ -333,6 +348,13 @@ def test_hook(hook_id):
 # ---- Webhook Config CRUD -----------------------------------------------------
 
 
+def _mask_webhook_secret(webhook: dict) -> dict:
+    """Return a copy of a webhook config dict with the secret masked."""
+    if webhook and webhook.get("secret"):
+        return {**webhook, "secret": "***configured***"}
+    return webhook
+
+
 @bp.route("/webhooks", methods=["GET"])
 def list_webhooks():
     """List all webhook configs, optionally filtered by event_name.
@@ -362,7 +384,7 @@ def list_webhooks():
 
     event_name = request.args.get("event_name")
     configs = get_webhook_configs(event_name=event_name)
-    return jsonify(configs)
+    return jsonify([_mask_webhook_secret(w) for w in configs])
 
 
 @bp.route("/webhooks", methods=["POST"])
@@ -434,7 +456,7 @@ def create_webhook():
         return jsonify({"error": "url is required and must start with http:// or https://"}), 400
 
     webhook = create_webhook_config(name, event_name, url, secret, retry_count, timeout_seconds)
-    return jsonify(webhook), 201
+    return jsonify(_mask_webhook_secret(webhook)), 201
 
 
 @bp.route("/webhooks/<int:webhook_id>", methods=["GET"])
@@ -467,7 +489,7 @@ def get_webhook(webhook_id):
     webhook = get_webhook_config(webhook_id)
     if webhook is None:
         return jsonify({"error": "Webhook not found"}), 404
-    return jsonify(webhook)
+    return jsonify(_mask_webhook_secret(webhook))
 
 
 @bp.route("/webhooks/<int:webhook_id>", methods=["PUT"])
@@ -541,7 +563,7 @@ def update_webhook(webhook_id):
         update_webhook_config(webhook_id, **updates)
 
     updated = get_webhook_config(webhook_id)
-    return jsonify(updated)
+    return jsonify(_mask_webhook_secret(updated))
 
 
 @bp.route("/webhooks/<int:webhook_id>", methods=["DELETE"])
