@@ -8,9 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.13.1-beta] — 2026-02-28
 
 ### Added
-- **Queue — Batch Probe Karte** — zeigt Fortschritt der `batch-probe`-Operation (Gesamt, Gefunden, Extrahiert, Fehlgeschlagen, aktueller Pfad) mit Teal-Akzent und Progressbar; erscheint sobald `probe.running = true`
-- **Queue — Wanted Scanner Karte** — neuer `GET /api/v1/wanted/scanner/status` Endpoint; zeigt Scan-Fortschritt (Phase-Badge, Fortschritt, Neu, Aktualisiert) mit Grün-Akzent; adaptives Polling (3 s aktiv / 30 s idle)
-- Die Queue-Seite zeigt jetzt alle 4 Hintergrundoperationen: Batch-Übersetzung, Wanted-Suche, Batch-Probe, Wanted-Scanner
+- **Queue — Batch Probe card** — live progress card shown while `batch-probe` is running; displays total tracks scanned, found, extracted, and failed counts plus the currently processed file path; teal accent, animated `Layers` icon, and a progress bar; appears and disappears automatically based on `probe.running`
+- **Queue — Wanted Scanner card** — new `GET /api/v1/wanted/scanner/status` endpoint exposes live state of the background wanted scanner (`is_scanning`, `is_searching`, phase label, current/total progress, added/updated counters); Queue page renders a green card with an optional phase badge and progress bar; adaptive polling — 3 s while active, 30 s idle
+- **Queue — complete background visibility** — the Queue page now shows all four background operations in real time: Batch Translation, Wanted Batch Search, Batch Probe, and Wanted Scanner; each operation has a distinct colour accent (teal / amber / teal / green) and its own progress indicator
 
 ---
 
