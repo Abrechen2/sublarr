@@ -1243,6 +1243,24 @@ def batch_probe_status():
         return jsonify(dict(_batch_probe_state))
 
 
+@bp.route("/wanted/scanner/status", methods=["GET"])
+def scanner_status():
+    """Live status of the Wanted scanner (scanning + searching state, progress, timestamps)."""
+    from wanted_scanner import get_scanner  # noqa: I001
+
+    scanner = get_scanner()
+    return jsonify(
+        {
+            "is_scanning": scanner.is_scanning,
+            "is_searching": scanner.is_searching,
+            "progress": scanner.scan_progress,
+            "last_scan_at": scanner.last_scan_at,
+            "last_search_at": scanner.last_search_at,
+            "last_summary": scanner.last_summary,
+        }
+    )
+
+
 @bp.route("/wanted/<int:item_id>/search-providers", methods=["GET"])
 def search_providers_interactive(item_id):
     """Return all provider results for interactive subtitle selection.

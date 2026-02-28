@@ -233,6 +233,20 @@ export async function startBatchProbe(seriesId?: number): Promise<{ status: stri
   return data
 }
 
+export interface ScannerStatus {
+  is_scanning: boolean
+  is_searching: boolean
+  progress: { current: number; total: number; phase: string; added: number; updated: number }
+  last_scan_at: string | null
+  last_search_at: string | null
+  last_summary: Record<string, unknown> | null
+}
+
+export async function getScannerStatus(): Promise<ScannerStatus> {
+  const { data } = await api.get('/wanted/scanner/status')
+  return data
+}
+
 // ─── Providers ───────────────────────────────────────────────────────────────
 
 export async function getProviders(): Promise<{ providers: ProviderInfo[] }> {
