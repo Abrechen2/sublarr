@@ -426,6 +426,14 @@ def import_config():
         "opensubtitles_password",
         "jimaku_api_key",
         "subdl_api_key",
+        "tmdb_api_key",
+        "tvdb_api_key",
+        "tvdb_pin",
+        "deepl_api_key",
+        "notification_urls_json",
+        "sonarr_instances_json",
+        "radarr_instances_json",
+        "media_servers_json",
     }
 
     # Fail-closed: if valid_keys cannot be determined, reject the import entirely

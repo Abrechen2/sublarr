@@ -333,6 +333,13 @@ def test_hook(hook_id):
 # ---- Webhook Config CRUD -----------------------------------------------------
 
 
+def _mask_webhook_secret(webhook: dict) -> dict:
+    """Return a copy of a webhook config dict with the secret masked."""
+    if webhook and webhook.get("secret"):
+        return {**webhook, "secret": "***configured***"}
+    return webhook
+
+
 @bp.route("/webhooks", methods=["GET"])
 def list_webhooks():
     """List all webhook configs, optionally filtered by event_name.
@@ -362,7 +369,7 @@ def list_webhooks():
 
     event_name = request.args.get("event_name")
     configs = get_webhook_configs(event_name=event_name)
-    return jsonify(configs)
+    return jsonify([_mask_webhook_secret(w) for w in configs])
 
 
 @bp.route("/webhooks", methods=["POST"])
@@ -434,7 +441,7 @@ def create_webhook():
         return jsonify({"error": "url is required and must start with http:// or https://"}), 400
 
     webhook = create_webhook_config(name, event_name, url, secret, retry_count, timeout_seconds)
-    return jsonify(webhook), 201
+    return jsonify(_mask_webhook_secret(webhook)), 201
 
 
 @bp.route("/webhooks/<int:webhook_id>", methods=["GET"])
@@ -467,7 +474,7 @@ def get_webhook(webhook_id):
     webhook = get_webhook_config(webhook_id)
     if webhook is None:
         return jsonify({"error": "Webhook not found"}), 404
-    return jsonify(webhook)
+    return jsonify(_mask_webhook_secret(webhook))
 
 
 @bp.route("/webhooks/<int:webhook_id>", methods=["PUT"])
@@ -541,7 +548,7 @@ def update_webhook(webhook_id):
         update_webhook_config(webhook_id, **updates)
 
     updated = get_webhook_config(webhook_id)
-    return jsonify(updated)
+    return jsonify(_mask_webhook_secret(updated))
 
 
 @bp.route("/webhooks/<int:webhook_id>", methods=["DELETE"])
