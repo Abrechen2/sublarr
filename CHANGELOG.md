@@ -8,39 +8,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.13.1-beta] — 2026-02-28
 
 ### Added
-- **Queue — Batch Probe card** — live progress card shown while `batch-probe` is running; displays total tracks scanned, found, extracted, and failed counts plus the currently processed file path; teal accent, animated `Layers` icon, and a progress bar; appears and disappears automatically based on `probe.running`
-- **Queue — Wanted Scanner card** — new `GET /api/v1/wanted/scanner/status` endpoint exposes live state of the background wanted scanner (`is_scanning`, `is_searching`, phase label, current/total progress, added/updated counters); Queue page renders a green card with an optional phase badge and progress bar; adaptive polling — 3 s while active, 30 s idle
-- **Queue — complete background visibility** — the Queue page now shows all four background operations in real time: Batch Translation, Wanted Batch Search, Batch Probe, and Wanted Scanner; each operation has a distinct colour accent (teal / amber / teal / green) and its own progress indicator
 
----
+**Sidecar subtitle management**
+- **Sidecar discovery APIs** — `GET /api/v1/library/series/<id>/subtitles` scans all episode files in parallel (ThreadPoolExecutor) and returns sidecar metadata keyed by Sonarr episode ID; `GET /api/v1/library/episodes/<id>/subtitles` for single-episode scan; response includes path, language, format, size, and mtime for each sidecar file
+- **Sidecar delete API** — `DELETE /api/v1/library/subtitles` moves one or more sidecar files to a `.sublarr_trash/` folder (manifest.json per entry) instead of permanently deleting; only files inside `SUBLARR_MEDIA_PATH` are accepted — path-traversal attempts return 403
+- **Trash management APIs** — `GET /api/v1/library/trash` lists recoverable files; `POST /api/v1/library/trash/<id>/restore` moves the file back; `DELETE /api/v1/library/trash/<id>` permanently removes it; auto-purge of entries older than `subtitle_trash_retention_days` (default: 7 days) runs on every delete call
+- **Batch delete API** — `POST /api/v1/library/series/<id>/subtitles/batch-delete` removes sidecars across all episodes of a series filtered by language and/or format; all deletions go through the trash system
+- **Inline sidecar badges** — SeriesDetail episode rows now show a badge for every sidecar file found on disk (language + format label); non-target-language sidecars are displayed in a dimmed style with a × delete button; clicking × soft-deletes the file and immediately refreshes the row
+- **Subtitle Cleanup Modal** — series-level "Clean up" button opens a modal grouped by language showing file count and total size per language; "Keep target languages only" quick action pre-selects all non-target languages for deletion; preview shows file count and MB to be moved to trash before confirming
 
-## [0.13.0-beta] — 2026-02-28
+**Batch extraction improvements**
+- **Live extraction progress** — `batch-extract-tracks` emits a `batch_extract_progress` WebSocket event after each episode; SeriesDetail shows a progress banner (file name + `X / N episodes`) with a progress bar and animated spinner while extraction is running; Extract button is disabled during the operation
+- **Activity page visibility** — `batch-extract-tracks` now creates a DB job record (`running` → `completed`/`failed`) so every extraction run appears on the Activity page with succeeded, failed, and skipped episode counts; the job is visible within one poll cycle (~3 s) of starting
 
-### Added
-- **Sidecar Subtitle Management** — inline sidecar badges (language + format) for all extracted subtitle files per episode in SeriesDetail; non-target-language sidecars displayed with × delete button
-- **Series Subtitles API** — `GET /api/v1/library/series/<id>/subtitles` scans all episode files in parallel and returns sidecar metadata keyed by Sonarr episode ID
-- **Episode Subtitles API** — `GET /api/v1/library/episodes/<id>/subtitles` for single-episode sidecar scan
-- **Delete Subtitles API** — `DELETE /api/v1/library/subtitles` removes one or more sidecar files by path with path-traversal guard (only files inside `SUBLARR_MEDIA_PATH` deletable)
-- **Batch Delete API** — `POST /api/v1/library/series/<id>/subtitles/batch-delete` deletes sidecars by language/format filter across all episodes of a series
-- **Sidecar Cleanup Modal** — "Bereinigen" button in episode toolbar opens modal listing all sidecar languages with file count, total size, and checkboxes; "Nur Target-Sprachen behalten" quick action
-- **Auto-Cleanup after Batch Extract** — three new settings: `auto_cleanup_after_extract` (toggle), `auto_cleanup_keep_languages` (comma-separated ISO codes), `auto_cleanup_keep_formats` (ass/srt/any); cleanup runs automatically after `batch-extract-tracks`
-- **Settings UI** — three new auto-cleanup fields in the Automation tab
+**Series action toolbar**
+- **Always-visible series toolbar** — new action row pinned to the SeriesDetail hero header containing three buttons: "Extract Tracks" (triggers `batch-extract-tracks` for the whole series, shows live X/N counter), "Clean up" (opens Subtitle Cleanup Modal), and "Search N missing" (moved here from the language row); all three actions are available without selecting individual episodes
 
-### Added (cont.)
-- **Batch Extraction Progress** — live per-episode progress bar in SeriesDetail while `batch-extract-tracks` runs; progress banner shows filename + `X / N Episoden`; Extract button shows spinner and is disabled during extraction
-- **Series-Level Action Toolbar** — always-visible row in SeriesDetail hero header: "Tracks extrahieren" (with live X/N counter), "Bereinigen" (opens cleanup modal), "N fehlende suchen" (moved from language row)
-- **Activity Page visibility** — `batch-extract-tracks` now creates a DB job (`running` → `completed`/`failed`) so extraction is visible on the Activity page with succeeded/failed/skipped stats
-- **Queue Page — Wanted Batch Search** — `useWantedBatchStatus()` was wired but never rendered; now shown as orange card with progressbar and item counts
-- **Queue Page — faster polling** — job list now refetches every 3 s on the Queue page (was 15 s) so short-lived translation jobs are reliably visible
+**Auto-cleanup after extraction**
+- **Auto-cleanup settings** — three new config fields: `auto_cleanup_after_extract` (boolean toggle), `auto_cleanup_keep_languages` (comma-separated ISO 639-1 codes, e.g. `de,en`), `auto_cleanup_keep_formats` (`ass` / `srt` / `any`); when enabled, sidecars not matching the keep rules are moved to trash automatically at the end of each `batch-extract-tracks` run
+- **Settings UI** — three new fields added to the Automation tab; `subtitle_trash_retention_days` field also added to control automatic trash purge interval
+
+**Queue page — full background visibility**
+- **Wanted Batch Search card** — `useWantedBatchStatus()` was previously wired but never rendered; now shown as an amber card with a progress bar and found/failed/skipped item counts while a batch search is running
+- **Batch Probe card** — live progress card appears while `batch-probe` is running; shows total tracks scanned, found, extracted, and failed counts plus the currently processed file path; teal accent with animated `Layers` icon
+- **Wanted Scanner card** — new `GET /api/v1/wanted/scanner/status` endpoint exposes the full live state of the background wanted scanner (`is_scanning`, `is_searching`, phase label, current/total progress, added/updated counters); rendered as a green card with an optional phase badge and progress bar; adaptive polling — 3 s while active, 30 s idle
+- The Queue page now shows all four background operations simultaneously: Batch Translation, Wanted Batch Search, Batch Probe, and Wanted Scanner — each with a distinct colour accent and its own progress indicator
 
 ### Changed
-- **SeriesDetail UNTERTITEL column** — changed from fixed `w-40` (160 px) to `flex-1 min-w-[200px]` so badges spread across available space without excessive line-wrapping
-- **Subtitle badge semantics** — three-state badges: teal = ASS/optimal, violet = SRT/upgradeable, orange = missing. ISO 639-2 three-letter codes (ger, eng, jpn) normalized to ISO 639-1 (de, en, ja) to prevent duplicate badges from MKV filenames
-- **Sidecar query live refresh** — `['series-subtitles']` query polls every 4 s while extraction is running; on completion both `['series-subtitles']` and `['series']` are invalidated so episode rows reflect new state without reload
+- **Subtitle badge semantics** — three visual states: teal = ASS/embedded-ASS (optimal), violet = SRT/upgradeable, orange = missing; non-target-language sidecar files shown in a separate dimmed group with × delete button
+- **Language code normalisation** — `normLang()` maps ISO 639-2 three-letter codes (`ger`, `eng`, `jpn`, `fre`, …) to ISO 639-1 two-letter codes (`de`, `en`, `ja`, `fr`, …) so MKV track tags and sidecar filenames no longer generate duplicate badges for the same language
+- **SeriesDetail subtitle column** — changed from a fixed `w-40` (160 px) width to `flex-1 min-w-[200px]` so badge rows expand to fill available space and avoid excessive wrapping on wide screens
+- **Sidecar query live refresh** — `['series-subtitles']` TanStack Query polls every 4 s while extraction is running; on completion both `['series-subtitles']` and `['series']` are invalidated so episode rows update without a manual reload
+- **Queue page polling** — job list refetch interval reduced from 15 s to 3 s so short-lived translation jobs are reliably visible while the Queue page is open
 
 ### Fixed
-- **Duplicate badges** — MKV-embedded `ger` track and target language `de` no longer rendered as two separate badges; `normLang()` normalizes both sides before comparison
-- **Activity page** — extraction job now appears within 15 s (first poll cycle) instead of never
+- **Batch-extract series_id 400** — `batch_extract` read `page.get("items", [])` but `get_wanted_items()` returns `{"data": [...]}`, causing every series-level extraction triggered from SeriesDetail to return 400 "item_ids or series_id required"; fixed to `page.get("data", [])`
+- **Batch-probe deadlock** — a database error inside `get_wanted_items()` during a probe run left `probe.running = True` permanently until process restart; the call is now wrapped in try/except so the flag is always cleared on failure
+- **wanted_item_searched event dropped** — the `wanted_item_searched` signal was emitted in `routes/wanted.py` but never registered in `events/catalog.py`, causing the event to be silently discarded by the unknown-name guard in `emit_event()`; catalog entry and signal registration added
+- **Duplicate language badges** — `ger` MKV track tag and target language `de` previously rendered as two separate badges; `normLang()` now normalises both sides before comparison so they collapse to a single badge
+
+### Tests
+- Full test suite brought to green (167 passed, 0 failed) across 10 previously failing test files; fixes include app-context push in async fixtures, corrected patch paths for lazily imported modules, Windows-compatible path normalisation in conftest, and adjusted timing thresholds in performance benchmarks
 
 ---
 
