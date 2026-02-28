@@ -31,6 +31,7 @@ _batch_extract_state = {
     "processed": 0,
     "succeeded": 0,
     "failed": 0,
+    "skipped": 0,
     "current_item": None,
 }
 _batch_extract_lock = threading.Lock()
@@ -854,6 +855,7 @@ def _run_batch_extract(item_ids, auto_translate, app):
                 "processed": 0,
                 "succeeded": 0,
                 "failed": 0,
+                "skipped": 0,
                 "current_item": None,
             }
         )
@@ -884,7 +886,7 @@ def _run_batch_extract(item_ids, auto_translate, app):
         with _batch_extract_lock:
             _batch_extract_state["running"] = False
             snapshot = dict(_batch_extract_state)
-        emit_event("batch_extract_complete", snapshot)
+        emit_event("batch_extract_completed", snapshot)
 
 
 @bp.route("/wanted/batch-extract", methods=["POST"])

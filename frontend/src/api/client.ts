@@ -177,6 +177,7 @@ export interface BatchExtractStatus {
   processed: number
   succeeded: number
   failed: number
+  skipped: number
   current_item: string | null
 }
 

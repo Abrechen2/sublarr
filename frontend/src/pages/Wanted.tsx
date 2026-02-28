@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, Fragment } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef, Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   useWantedItems, useWantedSummary, useRefreshWanted, useUpdateWantedStatus,
@@ -271,6 +271,15 @@ export function WantedPage() {
     },
   })
 
+  // Fallback: invalidate wanted list when polling detects running → false transition
+  const prevExtractRunning = useRef<boolean | undefined>(undefined)
+  useEffect(() => {
+    if (prevExtractRunning.current === true && extractStatus?.running === false) {
+      queryClient.invalidateQueries({ queryKey: ['wanted'] })
+    }
+    prevExtractRunning.current = extractStatus?.running
+  }, [extractStatus?.running, queryClient])
+
   const totalWanted = summary?.by_status?.wanted ?? 0
   const totalEpisodes = summary?.by_type?.episode ?? 0
   const totalMovies = summary?.by_type?.movie ?? 0
@@ -420,6 +429,9 @@ export function WantedPage() {
           <div className="flex gap-4 mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
             <span>{t('wanted.succeeded', 'Succeeded')}: {extractStatus.succeeded}</span>
             <span>{t('wanted.failed')}: {extractStatus.failed}</span>
+            {(extractStatus.skipped ?? 0) > 0 && (
+              <span>{t('wanted.skipped', 'Skipped')}: {extractStatus.skipped}</span>
+            )}
           </div>
         </div>
       )}
