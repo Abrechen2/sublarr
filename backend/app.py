@@ -190,9 +190,7 @@ def create_app(testing=False):
                     "script_location",
                     os.path.join(os.path.dirname(__file__), "db", "migrations"),
                 )
-                _alembic_cfg.set_main_option(
-                    "sqlalchemy.url", str(sa_db.engine.url)
-                )
+                _alembic_cfg.set_main_option("sqlalchemy.url", str(sa_db.engine.url))
                 _alembic_cmd.upgrade(_alembic_cfg, "head")
                 logger.info("Alembic migrations applied (upgrade head)")
             except Exception as _e:

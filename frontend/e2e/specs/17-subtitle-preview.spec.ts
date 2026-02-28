@@ -261,12 +261,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
 
     const viewport = page.viewportSize()!;
 
-    // The inner modal panel (92vw × 88vh rounded-lg)
-    const panel = page.locator('.\\[92vw\\], [style*="92vw"]')
-      .or(page.locator('button').filter({ hasText: /^Edit$/ }).locator('../../../../../..'))
-      .first();
-
-    // Find via mode tabs parent instead — more reliable
+    // Find via mode tabs parent — more reliable than CSS class heuristics
     const editTab = page.locator('button').filter({ hasText: /^Edit$/ }).first();
     const panelEl = await editTab.evaluateHandle(el => {
       let node: Element | null = el;

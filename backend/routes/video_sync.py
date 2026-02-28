@@ -190,6 +190,7 @@ def auto_sync():
         return jsonify({"error": f"Video file not found: {video_path}"}), 404
 
     from config import get_settings
+
     _s = get_settings()
     _media_path = os.path.abspath(_s.media_path)
     _media_prefix = _media_path.rstrip(os.sep) + os.sep
@@ -227,7 +228,7 @@ def auto_sync_bulk():
         episode_files = client.get_episode_files_by_series(int(series_id))
     elif scope == "library":
         episode_files = {}
-        for sid in (client.get_series() or []):
+        for sid in client.get_series() or []:
             episode_files.update(client.get_episode_files_by_series(sid.get("id", 0)) or {})
     else:
         return jsonify({"error": "scope must be 'series' (with series_id) or 'library'"}), 400
@@ -242,6 +243,7 @@ def auto_sync_bulk():
             continue
         # Find first subtitle sidecar
         from routes.subtitles import scan_subtitle_sidecars
+
         sidecars = scan_subtitle_sidecars(video_path)
         if not sidecars:
             continue
