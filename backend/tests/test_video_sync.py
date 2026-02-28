@@ -171,8 +171,10 @@ def test_sync_unavailable_error_when_ffsubsync_missing(tmp_path):
     sub = tmp_path / "ep.srt"
     sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n")
     # Availability is checked dynamically via shutil.which / _check_module
-    with patch("services.video_sync.shutil.which", return_value=None), \
-            patch("services.video_sync._check_module", return_value=False):
+    with (
+        patch("services.video_sync.shutil.which", return_value=None),
+        patch("services.video_sync._check_module", return_value=False),
+    ):
         try:
             sync_with_ffsubsync(str(sub), "/video.mkv")
             assert False, "Expected SyncUnavailableError"

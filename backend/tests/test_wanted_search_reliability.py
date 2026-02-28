@@ -124,7 +124,13 @@ class TestFileSystemGuards:
     @patch("wanted_search.get_provider_manager")
     @patch("wanted_search.update_wanted_status")
     def test_disk_space_check_in_save(
-        self, mock_update_status, mock_get_manager, mock_get_item, app_ctx, mock_wanted_item, temp_file
+        self,
+        mock_update_status,
+        mock_get_manager,
+        mock_get_item,
+        app_ctx,
+        mock_wanted_item,
+        temp_file,
     ):
         """Test that save_subtitle checks disk space."""
         from providers import ProviderManager
