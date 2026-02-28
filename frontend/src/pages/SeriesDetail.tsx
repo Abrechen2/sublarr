@@ -1239,18 +1239,20 @@ export function SeriesDetailPage() {
     queryKey: ['series-subtitles', seriesId],
     queryFn: () => seriesId != null ? listSeriesSubtitles(seriesId) : Promise.resolve({ subtitles: {} }),
     enabled: seriesId != null,
-    staleTime: 30_000,
-    // Poll while extraction is running so sidecar badges appear as files are written
-    refetchInterval: extractProgress !== null ? 4_000 : false,
+    staleTime: extractProgress !== null ? 0 : 30_000,
+    // Fallback poll while extraction is running (covers edge cases like reconnects)
+    refetchInterval: extractProgress !== null ? 2_000 : false,
   })
   const sidecarMap: Record<string, SidecarSubtitle[]> = sidecarData?.subtitles ?? {}
 
   // WebSocket: batch extraction progress
   useWebSocket({
     onBatchExtractProgress: (data) => {
-      const d = data as { series_id: number; current: number; total: number; filename: string }
-      if (d.series_id === seriesId) {
-        setExtractProgress({ current: d.current, total: d.total, filename: d.filename })
+      const d = data as { series_id: number; current: number; total: number; filename: string; status: string }
+      if (d.series_id !== seriesId) return
+      setExtractProgress({ current: d.current, total: d.total, filename: d.filename })
+      if (d.status === 'ok') {
+        void queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })
       }
     },
     onBatchExtractCompleted: (data) => {
