@@ -40,8 +40,9 @@ export function HealthDashboardWidget({ className }: HealthDashboardWidgetProps)
 
   // Compute summary from latest data point
   const latest = trends[trends.length - 1]
-  const totalIssues = trends.reduce((sum, t) => sum + t.issues_count, 0)
-  const totalChecked = trends.reduce((sum, t) => sum + t.files_checked, 0)
+  const totalIssues = trends.reduce((sum, t) => sum + (t.issues_count ?? 0), 0)
+  const totalChecked = trends.reduce((sum, t) => sum + (t.files_checked ?? 0), 0)
+  const latestScore = Math.round(latest.avg_score ?? 0)
 
   return (
     <div className={className ?? ''}>
@@ -52,9 +53,9 @@ export function HealthDashboardWidget({ className }: HealthDashboardWidgetProps)
             className="text-2xl font-bold tabular-nums"
             style={{ fontFamily: 'var(--font-mono)' }}
           >
-            {Math.round(latest.avg_score)}
+            {latestScore}
           </span>
-          <HealthBadge score={Math.round(latest.avg_score)} size="sm" />
+          <HealthBadge score={latestScore} size="sm" />
         </div>
         <div className="text-xs space-y-0.5" style={{ color: 'var(--text-secondary)' }}>
           <div>

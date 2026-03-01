@@ -1,6 +1,9 @@
-import { Pencil, Download, Database, Clock } from 'lucide-react'
+import { Pencil, Download, Database, Clock, Trash2, Power } from 'lucide-react'
 import type { ProviderInfo } from '@/lib/types'
-import { getStatusColor, getStatusLabel, getStatusBg, getSuccessRateColor } from './providerUtils'
+import {
+  getStatusColor, getStatusLabel, getStatusBg,
+  getSuccessRateColor, getStatusBorderColor,
+} from './providerUtils'
 
 interface ProviderTileProps {
   provider: ProviderInfo
@@ -8,93 +11,132 @@ interface ProviderTileProps {
   priority: number
   testResult?: { healthy: boolean; message: string } | 'testing'
   onOpenEdit: () => void
+  onToggle: () => void
+  onRemove: () => void
 }
 
-export function ProviderTile({ provider, cacheCount, priority, onOpenEdit }: ProviderTileProps) {
+export function ProviderTile({
+  provider, cacheCount, priority,
+  onOpenEdit, onToggle, onRemove,
+}: ProviderTileProps) {
   const statusColor = getStatusColor(provider)
   const statusLabel = getStatusLabel(provider)
   const statusBg = getStatusBg(provider)
+  const borderColor = getStatusBorderColor(provider)
   const hasStats = provider.stats && provider.stats.total_searches > 0
 
   return (
-    <button
-      onClick={onOpenEdit}
-      className="relative text-left rounded p-3 transition-all duration-150 group"
+    <div
+      className="relative rounded overflow-hidden group cursor-pointer"
       style={{
         backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border)',
-        opacity: provider.enabled ? 1 : 0.65,
+        borderLeft: `4px solid ${borderColor}`,
+        minHeight: '7rem',
+        transition: 'background-color 150ms, opacity 150ms',
+        opacity: provider.enabled ? 1 : 0.5,
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'var(--accent-dim)'
-        e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'var(--border)'
-        e.currentTarget.style.backgroundColor = 'var(--bg-surface)'
-      }}
+      onClick={onOpenEdit}
+      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface)' }}
     >
-      {/* Edit icon — top right */}
-      <Pencil
-        size={12}
-        className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ color: 'var(--accent)' }}
-      />
+      <div className="p-3">
+        {/* Provider name + rank */}
+        <div className="flex items-center justify-between mb-1.5 pr-16">
+          <span
+            className="text-[13px] font-semibold capitalize truncate"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            {provider.name.replace(/_/g, ' ')}
+          </span>
+          <span className="text-[10px] shrink-0 ml-1" style={{ color: 'var(--text-muted)' }}>
+            #{priority}
+          </span>
+        </div>
 
-      {/* Provider name + rank */}
-      <div className="flex items-center justify-between pr-4 mb-1.5">
+        {/* Status badge */}
         <span
-          className="text-[13px] font-semibold capitalize truncate"
-          style={{ color: 'var(--text-primary)' }}
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium mb-2"
+          style={{ backgroundColor: statusBg, color: statusColor }}
         >
-          {provider.name.replace(/_/g, ' ')}
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: statusColor }} />
+          {statusLabel}
         </span>
-        <span className="text-[10px] shrink-0 ml-1" style={{ color: 'var(--text-muted)' }}>
-          #{priority}
-        </span>
+
+        {/* Stats row */}
+        {provider.enabled && (
+          <div className="flex items-center gap-2.5 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            <span className="flex items-center gap-1">
+              <Download size={10} />
+              {provider.downloads}
+            </span>
+            <span className="flex items-center gap-1">
+              <Database size={10} />
+              {cacheCount}
+            </span>
+            {hasStats && provider.stats.avg_response_time_ms > 0 && (
+              <span className="flex items-center gap-1">
+                <Clock size={10} />
+                {Math.round(provider.stats.avg_response_time_ms)}ms
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Success rate bar */}
+        {provider.enabled && hasStats && (
+          <div className="mt-2 h-0.5 rounded-full" style={{ backgroundColor: 'var(--bg-primary)' }}>
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${provider.stats.success_rate * 100}%`,
+                backgroundColor: getSuccessRateColor(provider.stats.success_rate),
+              }}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Status badge */}
-      <span
-        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium mb-2"
-        style={{ backgroundColor: statusBg, color: statusColor }}
+      {/* Hover action buttons — top right */}
+      <div
+        className="absolute top-1.5 right-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+        onClick={(e) => e.stopPropagation()}
       >
-        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: statusColor }} />
-        {statusLabel}
-      </span>
-
-      {/* Stats row */}
-      {provider.enabled && (
-        <div className="flex items-center gap-2.5 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-          <span className="flex items-center gap-1">
-            <Download size={10} />
-            {provider.downloads}
-          </span>
-          <span className="flex items-center gap-1">
-            <Database size={10} />
-            {cacheCount}
-          </span>
-          {hasStats && provider.stats.avg_response_time_ms > 0 && (
-            <span className="flex items-center gap-1">
-              <Clock size={10} />
-              {Math.round(provider.stats.avg_response_time_ms)}ms
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Success rate bar */}
-      {provider.enabled && hasStats && (
-        <div className="mt-2 h-0.5 rounded-full" style={{ backgroundColor: 'var(--bg-primary)' }}>
-          <div
-            className="h-full rounded-full transition-all"
-            style={{
-              width: `${provider.stats.success_rate * 100}%`,
-              backgroundColor: getSuccessRateColor(provider.stats.success_rate),
-            }}
-          />
-        </div>
-      )}
-    </button>
+        <button
+          onClick={onToggle}
+          className="p-1.5 rounded transition-colors"
+          title={provider.enabled ? 'Deaktivieren' : 'Aktivieren'}
+          style={{ backgroundColor: 'var(--bg-elevated)', color: provider.enabled ? 'var(--accent)' : 'var(--text-muted)' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = provider.enabled ? 'var(--warning)' : 'var(--success)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = provider.enabled ? 'var(--accent)' : 'var(--text-muted)'
+          }}
+        >
+          <Power size={11} />
+        </button>
+        <button
+          onClick={onOpenEdit}
+          className="p-1.5 rounded transition-colors"
+          title="Bearbeiten"
+          style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-muted)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
+        >
+          <Pencil size={11} />
+        </button>
+        <button
+          onClick={onRemove}
+          className="p-1.5 rounded transition-colors"
+          title="Entfernen"
+          style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-muted)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--error)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
+        >
+          <Trash2 size={11} />
+        </button>
+      </div>
+    </div>
   )
 }

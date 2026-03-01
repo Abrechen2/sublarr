@@ -63,6 +63,7 @@ import {
   getBackendTemplates,
   updateSeriesSettings, getAnidbMappingStatus, refreshAnidbMapping,
   getScannerStatus,
+  getSupportedLanguages,
 } from '@/api/client'
 import type {
   LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig, FilterScope, BatchAction,
@@ -70,6 +71,16 @@ import type {
   CleanupRule,
 } from '@/lib/types'
 import type { DownloadSpecificPayload } from '@/api/client'
+
+// ─── Languages ───────────────────────────────────────────────────────────────
+
+export function useSupportedLanguages() {
+  return useQuery({
+    queryKey: ['languages'],
+    queryFn: getSupportedLanguages,
+    staleTime: Infinity,
+  })
+}
 
 // ─── Health ──────────────────────────────────────────────────────────────────
 
@@ -131,7 +142,7 @@ export function useUpdateConfig() {
       if (keys.some(k => k.startsWith('sonarr_') || k.startsWith('radarr_'))) {
         queryClient.invalidateQueries({ queryKey: ['library'] })
       }
-      if (keys.some(k => k.startsWith('provider_') || k.startsWith('scoring_'))) {
+      if (keys.some(k => k.startsWith('provider') || k.startsWith('scoring_'))) {
         queryClient.invalidateQueries({ queryKey: ['providers'] })
         queryClient.invalidateQueries({ queryKey: ['provider-stats'] })
       }

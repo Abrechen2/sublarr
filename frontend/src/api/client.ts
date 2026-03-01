@@ -1549,4 +1549,9 @@ export async function batchDeleteSeriesSubtitles(
   return data
 }
 
+export async function getSupportedLanguages(): Promise<{ code: string; name: string }[]> {
+  const { data } = await api.get('/languages')
+  return data
+}
+
 export default api

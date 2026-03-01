@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { X, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Download, Database } from 'lucide-react'
 import { SettingRow } from '@/components/shared/SettingRow'
 import type { ProviderInfo } from '@/lib/types'
@@ -23,6 +23,8 @@ interface ProviderEditModalProps {
   onMoveDown: () => void
   onClearCache: () => void
   onReEnable: () => void
+  onRemove?: () => void
+  isNew?: boolean
   onClose: () => void
 }
 
@@ -30,8 +32,10 @@ export function ProviderEditModal({
   provider, cacheCount, priority, isFirst, isLast, totalProviders,
   fieldValues, testResult,
   onFieldChange, onTest, onToggle, onMoveUp, onMoveDown,
-  onClearCache, onReEnable, onClose,
+  onClearCache, onReEnable, onRemove, isNew, onClose,
 }: ProviderEditModalProps) {
+  const [confirmRemove, setConfirmRemove] = useState(false)
+
   // Escape key closes modal
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -66,7 +70,7 @@ export function ProviderEditModal({
         >
           <div>
             <p className="text-[11px] font-medium mb-0.5" style={{ color: 'var(--text-muted)' }}>
-              Provider bearbeiten
+              {isNew ? 'Schritt 2 von 2 · ' : ''}Provider bearbeiten
             </p>
             <p className="text-sm font-semibold capitalize" style={{ color: 'var(--text-primary)' }}>
               {provider.name.replace(/_/g, ' ')}
@@ -289,9 +293,42 @@ export function ProviderEditModal({
           className="flex items-center justify-between px-4 py-3 shrink-0"
           style={{ borderTop: '1px solid var(--border)', backgroundColor: 'var(--bg-elevated)' }}
         >
-          {/* Left: Cache clear (conditional) */}
-          <div>
-            {cacheCount > 0 && (
+          {/* Left: Remove (with inline confirm) or Cache clear */}
+          <div className="flex items-center gap-2">
+            {onRemove && !confirmRemove && (
+              <button
+                onClick={() => setConfirmRemove(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium transition-all hover:opacity-80"
+                style={{
+                  border: '1px solid color-mix(in srgb, var(--error) 40%, var(--border))',
+                  color: 'var(--error)',
+                  backgroundColor: 'var(--bg-primary)',
+                }}
+              >
+                <Trash2 size={12} />
+                Entfernen
+              </button>
+            )}
+            {onRemove && confirmRemove && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Wirklich?</span>
+                <button
+                  onClick={onRemove}
+                  className="px-2.5 py-1.5 rounded text-xs font-medium"
+                  style={{ backgroundColor: 'var(--error)', color: 'white' }}
+                >
+                  Ja
+                </button>
+                <button
+                  onClick={() => setConfirmRemove(false)}
+                  className="px-2.5 py-1.5 rounded text-xs font-medium"
+                  style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+                >
+                  Nein
+                </button>
+              </div>
+            )}
+            {!confirmRemove && cacheCount > 0 && (
               <button
                 onClick={onClearCache}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium transition-all hover:opacity-80"
@@ -302,7 +339,7 @@ export function ProviderEditModal({
                 }}
               >
                 <Trash2 size={12} />
-                Cache leeren ({cacheCount})
+                Cache ({cacheCount})
               </button>
             )}
           </div>

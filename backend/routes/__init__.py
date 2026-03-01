@@ -16,6 +16,7 @@ def register_blueprints(app):
     from routes.filter_presets import bp as filter_presets_bp
     from routes.hooks import bp as hooks_bp
     from routes.integrations import bp as integrations_bp
+    from routes.languages import bp as languages_bp
     from routes.library import bp as library_bp
     from routes.marketplace import bp as marketplace_bp
     from routes.mediaservers import bp as mediaservers_bp
@@ -60,6 +61,7 @@ def register_blueprints(app):
         notifications_mgmt_bp,
         cleanup_bp,
         integrations_bp,
+        languages_bp,
         audio_bp,
         spell_bp,
         ocr_bp,
