@@ -64,6 +64,7 @@ import {
   updateSeriesSettings, getAnidbMappingStatus, refreshAnidbMapping,
   getScannerStatus,
   getSupportedLanguages,
+  cleanupSidecars,
 } from '@/api/client'
 import type {
   LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig, FilterScope, BatchAction,
@@ -278,6 +279,18 @@ export function useStartBatchProbe() {
     mutationFn: (seriesId?: number) => startBatchProbe(seriesId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wanted-batch-probe-status'] })
+    },
+  })
+}
+
+export function useCleanupSidecars() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (vars?: { itemIds?: number[]; dryRun?: boolean }) =>
+      cleanupSidecars(vars?.itemIds, vars?.dryRun),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wanted'] })
+      queryClient.invalidateQueries({ queryKey: ['wanted-summary'] })
     },
   })
 }

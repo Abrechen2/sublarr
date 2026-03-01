@@ -145,7 +145,7 @@ export interface WantedItem {
   existing_sub: string
   missing_languages: string[]
   target_language: string
-  status: 'wanted' | 'searching' | 'found' | 'failed' | 'ignored'
+  status: 'wanted' | 'searching' | 'found' | 'failed' | 'ignored' | 'extracted'
   last_search_at: string
   search_count: number
   error: string

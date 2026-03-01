@@ -192,6 +192,23 @@ export async function getBatchExtractStatus(): Promise<BatchExtractStatus> {
   return data
 }
 
+export interface CleanupSidecarsResult {
+  deleted: string[]
+  kept: string[]
+  errors: string[]
+  dry_run: boolean
+}
+
+export async function cleanupSidecars(
+  itemIds?: number[],
+  dryRun = false,
+): Promise<CleanupSidecarsResult> {
+  const body: Record<string, unknown> = { dry_run: dryRun }
+  if (itemIds?.length) body.item_ids = itemIds
+  const { data } = await api.post('/wanted/cleanup', body)
+  return data
+}
+
 /** Start batch search across multiple series at once. */
 export async function startSeriesBatchSearch(
   seriesIds: number[],

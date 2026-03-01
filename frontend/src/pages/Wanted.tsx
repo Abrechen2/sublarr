@@ -5,6 +5,7 @@ import {
   useSearchWantedItem, useProcessWantedItem, useStartWantedBatch, useWantedBatchStatus,
   useWantedBatchExtractStatus, useWantedBatchProbeStatus, useStartBatchProbe,
   useRetranslateSingle, useAddToBlacklist, useExtractEmbeddedSub,
+  useCleanupSidecars,
 } from '@/hooks/useApi'
 import { StatusBadge, SubtitleTypeBadge } from '@/components/shared/StatusBadge'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
@@ -40,7 +41,7 @@ function deriveSubtitlePath(mediaPath: string, lang: string, format: string): st
   return `${base}.${lang}.${format}`
 }
 
-const STATUS_FILTERS = ['all', 'wanted', 'failed', 'ignored'] as const
+const STATUS_FILTERS = ['all', 'wanted', 'extracted', 'failed', 'ignored'] as const
 const TYPE_FILTERS = ['all', 'episode', 'movie'] as const
 const SUBTITLE_TYPE_FILTERS = ['all', 'full', 'forced'] as const
 
@@ -270,6 +271,8 @@ export function WantedPage() {
   const { data: extractStatus, refetch: refetchExtractStatus } = useWantedBatchExtractStatus()
   const { data: probeStatus } = useWantedBatchProbeStatus()
   const startProbe = useStartBatchProbe()
+  const cleanupSidecars = useCleanupSidecars()
+  const [showCleanupConfirm, setShowCleanupConfirm] = useState(false)
   const queryClient = useQueryClient()
 
   // Live updates via WebSocket
@@ -431,6 +434,22 @@ export function WantedPage() {
     startBatch.mutate(undefined)
   }
 
+  const handleCleanup = () => {
+    cleanupSidecars.mutate(undefined, {
+      onSuccess: (result) => {
+        toast(t('wanted.cleanup_result', { count: result.deleted.length }), 'success')
+        if (result.errors.length) {
+          toast(`${result.errors.length} error(s) during cleanup`, 'warning')
+        }
+        setShowCleanupConfirm(false)
+      },
+      onError: (e: Error) => {
+        toast(`Cleanup failed: ${e.message}`, 'error')
+        setShowCleanupConfirm(false)
+      },
+    })
+  }
+
   return (
     <div className="space-y-5">
       {/* Batch Probe Progress Banner */}
@@ -557,6 +576,20 @@ export function WantedPage() {
           >
             <ScanSearch size={14} />
             {probeStatus?.running ? t('wanted.scanning') : t('wanted.scan_embedded')}
+          </button>
+          <button
+            onClick={() => setShowCleanupConfirm(true)}
+            disabled={cleanupSidecars.isPending}
+            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium hover:opacity-90"
+            title={t('wanted.cleanup')}
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <Download size={14} />
+            {t('wanted.cleanup')}
           </button>
           <button
             onClick={handleBatchSearch}
@@ -1150,6 +1183,44 @@ export function WantedPage() {
         onClose={() => setInteractiveItem(null)}
         onDownloaded={() => setInteractiveItem(null)}
       />
+
+      {/* Cleanup Sidecars Confirmation Dialog */}
+      {showCleanupConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={() => setShowCleanupConfirm(false)}
+        >
+          <div
+            className="rounded-lg p-6 max-w-md w-full mx-4 space-y-4"
+            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-base font-semibold">{t('wanted.cleanup')}</h2>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              {t('wanted.cleanup_confirm')}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowCleanupConfirm(false)}
+                className="px-4 py-2 rounded-md text-sm font-medium"
+                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+              >
+                {t('actions.cancel', { ns: 'common' })}
+              </button>
+              <button
+                onClick={handleCleanup}
+                disabled={cleanupSidecars.isPending}
+                className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90"
+                style={{ backgroundColor: 'var(--error)' }}
+              >
+                {cleanupSidecars.isPending ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                {t('wanted.cleanup')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

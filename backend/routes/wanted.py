@@ -334,8 +334,8 @@ def update_wanted_item_status(item_id):
     data = request.get_json() or {}
     new_status = data.get("status")
 
-    if new_status not in ("wanted", "ignored", "failed"):
-        return jsonify({"error": "Invalid status. Use: wanted, ignored, failed"}), 400
+    if new_status not in ("wanted", "ignored", "failed", "extracted"):
+        return jsonify({"error": "Invalid status. Use: wanted, ignored, failed, extracted"}), 400
 
     item = get_wanted_item(item_id)
     if not item:
@@ -1424,7 +1424,7 @@ def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = F
     """
     from ass_utils import extract_subtitle_stream, get_media_streams, select_best_subtitle_stream
     from config import get_settings
-    from db.wanted import delete_wanted_item, get_wanted_item
+    from db.wanted import get_wanted_item, update_existing_sub, update_wanted_status
     from translator import get_output_path_for_lang
 
     settings = get_settings()
@@ -1453,19 +1453,20 @@ def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = F
     output_path = get_output_path_for_lang(file_path, stream_info["format"], target_language)
     extract_subtitle_stream(file_path, stream_info, output_path)
 
-    # Remove from wanted if we got a final ASS subtitle
-    if stream_info["format"] == "ass":
-        delete_wanted_item(item_id)
-        emit_event(
-            "wanted_item_processed",
-            {
-                "wanted_id": item_id,
-                "status": "found",
-                "output_path": output_path,
-                "source": "embedded",
-            },
-        )
-    elif auto_translate and stream_info["format"] == "srt":
+    # Mark item as extracted — keep visible in Wanted for user-initiated cleanup/translate
+    update_existing_sub(item_id, stream_info["format"])
+    update_wanted_status(item_id, "extracted")
+    emit_event(
+        "wanted_item_processed",
+        {
+            "wanted_id": item_id,
+            "status": "extracted",
+            "output_path": output_path,
+            "source": "embedded",
+        },
+    )
+
+    if auto_translate and stream_info["format"] == "srt":
         # Trigger translation of the extracted SRT in a background thread
         try:
             from translator import Translator
@@ -1545,7 +1546,7 @@ def extract_embedded_sub(item_id):
     """
     from ass_utils import extract_subtitle_stream, get_media_streams, select_best_subtitle_stream
     from config import get_settings
-    from db.wanted import delete_wanted_item, get_wanted_item
+    from db.wanted import get_wanted_item, update_existing_sub, update_wanted_status
     from translator import get_output_path_for_lang
 
     settings = get_settings()
@@ -1600,18 +1601,18 @@ def extract_embedded_sub(item_id):
         # Extract
         extract_subtitle_stream(file_path, stream_info, output_path)
 
-        # Update wanted item if ASS was extracted
-        if stream_info["format"] == "ass":
-            delete_wanted_item(item_id)
-            emit_event(
-                "wanted_item_processed",
-                {
-                    "wanted_id": item_id,
-                    "status": "found",
-                    "output_path": output_path,
-                    "source": "embedded",
-                },
-            )
+        # Mark item as extracted — keep visible in Wanted for user-initiated cleanup/translate
+        update_existing_sub(item_id, stream_info["format"])
+        update_wanted_status(item_id, "extracted")
+        emit_event(
+            "wanted_item_processed",
+            {
+                "wanted_id": item_id,
+                "status": "extracted",
+                "output_path": output_path,
+                "source": "embedded",
+            },
+        )
 
         return jsonify(
             {
@@ -1624,3 +1625,138 @@ def extract_embedded_sub(item_id):
 
     except Exception:
         raise  # Handled by global error handler
+
+
+# Language code aliases used for sidecar matching
+_LANG_ALIASES: dict[str, list[str]] = {
+    "de": ["de", "deu", "ger"],
+    "en": ["en", "eng"],
+    "fr": ["fr", "fra", "fre"],
+    "es": ["es", "spa"],
+    "ja": ["ja", "jpn"],
+    "zh": ["zh", "zho", "chi"],
+    "ko": ["ko", "kor"],
+    "pt": ["pt", "por"],
+    "it": ["it", "ita"],
+    "ru": ["ru", "rus"],
+    "nl": ["nl", "nld", "dut"],
+    "pl": ["pl", "pol"],
+}
+
+
+def _sidecar_lang_codes(lang: str) -> set[str]:
+    """Return all recognised filename codes for *lang* (e.g. 'de' → {'de','deu','ger'})."""
+    aliases = _LANG_ALIASES.get(lang.lower(), [lang.lower()])
+    return {c.lower() for c in aliases}
+
+
+@bp.route("/wanted/cleanup", methods=["POST"])
+def cleanup_sidecars():
+    """Delete non-target-language subtitle sidecars next to extracted media files.
+    ---
+    post:
+      tags:
+        - Wanted
+      summary: Cleanup non-target sidecar subtitles
+      description: >
+        For each wanted item (optionally filtered by item_ids) finds all .ass/.srt
+        sidecar files next to the media file and deletes those that do not match the
+        target language.  Use dry_run=true to preview without deleting.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                item_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: Restrict to these wanted item IDs (omit for all extracted items)
+                dry_run:
+                  type: boolean
+                  description: If true, report what would be deleted without actually deleting
+      responses:
+        200:
+          description: Cleanup result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: array
+                    items:
+                      type: string
+                  kept:
+                    type: array
+                    items:
+                      type: string
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                  dry_run:
+                    type: boolean
+    """
+    import glob as _glob
+
+    from config import get_settings
+    from db.wanted import get_wanted_item, get_wanted_items
+    from security_utils import is_safe_path
+
+    data = request.get_json(force=True, silent=True) or {}
+    dry_run = bool(data.get("dry_run", False))
+    item_ids: list[int] | None = data.get("item_ids")
+
+    settings = get_settings()
+    media_path = getattr(settings, "media_path", None) or "/"
+
+    deleted: list[str] = []
+    kept: list[str] = []
+    errors: list[str] = []
+
+    # Resolve items to process
+    if item_ids:
+        items = [get_wanted_item(iid) for iid in item_ids]
+        items = [it for it in items if it]
+    else:
+        result = get_wanted_items(status="extracted", per_page=10000)
+        items = result.get("data", [])
+
+    for item in items:
+        file_path = item.get("file_path", "")
+        if not file_path or not os.path.exists(file_path):
+            continue
+
+        target_lang = item.get("target_language", "")
+        keep_codes = _sidecar_lang_codes(target_lang) if target_lang else set()
+
+        # Determine base name (strip video extension)
+        base = os.path.splitext(file_path)[0]
+
+        for fmt in ("ass", "srt"):
+            pattern = f"{base}.*.{fmt}"
+            for sidecar in _glob.glob(pattern):
+                # Security: ensure sidecar is within allowed media path
+                if not is_safe_path(media_path, sidecar):
+                    errors.append(f"Skipped (path traversal): {sidecar}")
+                    continue
+
+                # Extract language code from sidecar filename: base.<lang>.<fmt>
+                remainder = sidecar[len(base) + 1 : -len(fmt) - 1]  # e.g. "de" or "deu"
+                lang_part = remainder.split(".")[0].lower()
+
+                if lang_part in keep_codes:
+                    kept.append(sidecar)
+                else:
+                    if not dry_run:
+                        try:
+                            os.remove(sidecar)
+                            deleted.append(sidecar)
+                        except OSError as exc:
+                            errors.append(f"{sidecar}: {exc}")
+                    else:
+                        deleted.append(sidecar)  # report as "would delete"
+
+    return jsonify({"deleted": deleted, "kept": kept, "errors": errors, "dry_run": dry_run})
