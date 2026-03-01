@@ -5,6 +5,18 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.2-beta] — 2026-03-01
+
+### Added
+- **Wanted — Extracted status** — extracting an embedded subtitle no longer removes the item from Wanted; instead it stays visible with a new teal `Extracted` badge so the user can see what was extracted and trigger translation or cleanup as a follow-up step
+- **Wanted — Sidecar Cleanup** — new `POST /api/v1/wanted/cleanup` endpoint and matching UI button (with confirmation dialog) that deletes non-target-language `.ass`/`.srt` sidecar files next to media files of extracted items; supports `dry_run` mode and optional `item_ids` filter; path-traversal protected via `is_safe_path()`
+- **Wanted — Extracted filter tab** — new filter tab in the status row allows filtering the Wanted list to show only items with status `extracted`
+
+### Changed
+- **Wanted — Extract behavior** — `PUT /wanted/<id>/status` now accepts `extracted` as a valid status value in addition to `wanted`, `ignored`, `failed`
+
+---
+
 ## [0.14.1-beta] — 2026-03-01
 
 ### Added
