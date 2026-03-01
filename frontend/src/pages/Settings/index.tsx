@@ -72,7 +72,7 @@ const NAV_GROUPS: NavGroup[] = [
   { title: 'Translation', icon: Languages,  items: ['Translation', 'Translation Backends', 'Prompt Presets', 'Languages'] },
   { title: 'Automation',  icon: Zap,        items: ['Automation', 'Wanted', 'Whisper'] },
   { title: 'Providers',   icon: Globe,      items: ['Providers', 'Scoring'] },
-  { title: 'System',      icon: Cog,        items: ['Events & Hooks', 'Backup', 'Subtitle Tools', 'Cleanup', 'Integrations', 'Notification Templates', 'Migration'] },
+  { title: 'System',      icon: Cog,        items: ['Events & Hooks', 'Backup', 'Subtitle Tools', 'Cleanup', 'Integrations', 'Notification Templates'] },
 ]
 
 // Flat list derived from groups (preserves ordering for legacy code)
@@ -831,7 +831,7 @@ function SettingsPageInner() {
                 </div>
                 {/* Tab items */}
                 <div className="flex flex-row md:flex-col gap-0.5">
-                  {group.items.map((tab) => {
+                  {[...group.items, ...(group.title === 'System' && showAdvanced ? ['Migration'] : [])].map((tab) => {
                     const isActive = activeTab === tab
                     return (
                       <button
@@ -906,7 +906,7 @@ function SettingsPageInner() {
             <CleanupTab />
           ) : isIntegrationsTab ? (
             <IntegrationsTab />
-          ) : isMigrationTab ? (
+          ) : isMigrationTab && showAdvanced ? (
             <MigrationTab />
           ) : isNotificationTemplatesTab ? (
             <NotificationTemplatesTab />

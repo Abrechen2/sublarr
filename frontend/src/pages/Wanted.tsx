@@ -542,7 +542,7 @@ export function WantedPage() {
             }}
           >
             <ScanSearch size={14} />
-            {probeStatus?.running ? 'Scanning...' : 'Scan Embedded'}
+            {probeStatus?.running ? t('wanted.scanning') : t('wanted.scan_embedded')}
           </button>
           <button
             onClick={handleBatchSearch}
@@ -685,7 +685,7 @@ export function WantedPage() {
               border: `1px solid ${upgradeFilter ? 'var(--success)' : 'var(--border)'}`,
             }}
           >
-            Upgrades Only ({upgradeable})
+            {t('wanted.upgrades_only', { count: upgradeable })}
           </button>
         )}
       </div>

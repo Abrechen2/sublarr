@@ -1,5 +1,6 @@
 import { X, Plus, Filter } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { FilterScope, FilterGroup, FilterOperator } from '@/lib/types'
 import { FilterPresetMenu } from './FilterPresetMenu'
 
@@ -29,6 +30,7 @@ interface FilterBarProps {
 export type { FilterDef, ActiveFilter }
 
 export function FilterBar({ scope, filters, activeFilters, onFiltersChange, onPresetLoad, className }: FilterBarProps) {
+  const { t } = useTranslation('common')
   const [addingFilter, setAddingFilter] = useState(false)
   const [pendingKey, setPendingKey] = useState('')
   const [pendingValue, setPendingValue] = useState('')
@@ -76,7 +78,7 @@ export function FilterBar({ scope, filters, activeFilters, onFiltersChange, onPr
           className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs border border-dashed border-border text-muted-foreground hover:border-teal-500 hover:text-teal-400 transition-colors"
         >
           <Plus className="h-3 w-3" />
-          Add filter
+          {t('filters.addFilter')}
         </button>
         {addingFilter && (
           <div className="absolute top-7 left-0 z-20 bg-background border border-border rounded-lg shadow-lg p-3 min-w-48">
@@ -125,7 +127,7 @@ export function FilterBar({ scope, filters, activeFilters, onFiltersChange, onPr
           onClick={clearAll}
           className="text-xs text-muted-foreground hover:text-foreground"
         >
-          Clear all
+          {t('filters.clearAll')}
         </button>
       )}
 

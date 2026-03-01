@@ -61,6 +61,7 @@
     "movie": "Movie",
     "never": "Never",
     "search_providers": "Search providers",
+    "scan_embedded": "Scan Embedded",
     "extract_embedded": "Extract embedded subtitle",
     "download_translate": "Download + translate",
     "re_translate": "Re-translate",
@@ -81,6 +82,20 @@
       "current_score": "Score",
       "search_count": "Search count"
     }
+  },
+  "episode_actions": {
+    "preview_subtitle": "Preview Subtitle",
+    "edit_subtitle": "Edit Subtitle",
+    "compare_subtitles": "Compare Subtitles",
+    "sync_timing": "Sync Timing",
+    "auto_sync": "Auto-Sync (alass/ffsubsync)",
+    "video_sync": "Video Sync",
+    "health_check": "Health Check",
+    "embedded_tracks": "Embedded Tracks",
+    "search_subtitle": "Search Subtitle",
+    "interactive_search": "Interactive Search",
+    "history": "History",
+    "back_to_library": "Back to Library"
   },
   "series_detail": {
     "back_to_library": "Back to Library",

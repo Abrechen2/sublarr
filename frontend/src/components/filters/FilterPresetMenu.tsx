@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Bookmark, ChevronDown, Save, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useFilterPresets, useCreateFilterPreset, useDeleteFilterPreset } from '@/hooks/useApi'
 import type { FilterScope, FilterGroup } from '@/lib/types'
 
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function FilterPresetMenu({ scope, activeFilters, onPresetLoad }: Props) {
+  const { t } = useTranslation('common')
   const [open, setOpen] = useState(false)
   const [saveName, setSaveName] = useState('')
   const [saving, setSaving] = useState(false)
@@ -37,17 +39,17 @@ export function FilterPresetMenu({ scope, activeFilters, onPresetLoad }: Props) 
       <button
         onClick={() => setOpen((v) => !v)}
         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-        title="Filter presets"
+        title={t('filters.presets')}
       >
         <Bookmark className="h-3.5 w-3.5" />
-        Presets
+        {t('filters.presets')}
         <ChevronDown className="h-3 w-3" />
       </button>
 
       {open && (
         <div className="absolute right-0 top-6 z-20 bg-background border border-border rounded-lg shadow-lg p-3 min-w-52">
           {presets.length === 0 && !saving && (
-            <p className="text-xs text-muted-foreground mb-2">No saved presets</p>
+            <p className="text-xs text-muted-foreground mb-2">{t('filters.noPresets')}</p>
           )}
           {presets.map((p) => (
             <div key={p.id} className="flex items-center gap-1 group mb-1">
@@ -72,7 +74,7 @@ export function FilterPresetMenu({ scope, activeFilters, onPresetLoad }: Props) 
               <div className="flex gap-1">
                 <input
                   type="text"
-                  placeholder="Preset name..."
+                  placeholder={t('filters.presetName')}
                   value={saveName}
                   onChange={(e) => setSaveName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') void handleSave() }}
@@ -90,7 +92,7 @@ export function FilterPresetMenu({ scope, activeFilters, onPresetLoad }: Props) 
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
               >
                 <Save className="h-3 w-3" />
-                Save current filters
+                {t('filters.saveCurrentFilters')}
               </button>
             )}
           </div>

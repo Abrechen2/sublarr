@@ -279,7 +279,7 @@ export function Sidebar() {
               className="ml-auto tabular-nums"
               style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)' }}
             >
-              v{health?.version || '0.1.0'}
+              v{health?.version ?? '…'}
             </span>
           </div>
         </div>

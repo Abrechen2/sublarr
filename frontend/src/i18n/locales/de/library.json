@@ -61,6 +61,7 @@
     "movie": "Film",
     "never": "Nie",
     "search_providers": "Provider durchsuchen",
+    "scan_embedded": "Eingebettet scannen",
     "extract_embedded": "Eingebetteten Untertitel extrahieren",
     "download_translate": "Herunterladen + übersetzen",
     "re_translate": "Erneut übersetzen",
@@ -81,6 +82,20 @@
       "current_score": "Score",
       "search_count": "Anzahl Suchen"
     }
+  },
+  "episode_actions": {
+    "preview_subtitle": "Untertitel-Vorschau",
+    "edit_subtitle": "Untertitel bearbeiten",
+    "compare_subtitles": "Untertitel vergleichen",
+    "sync_timing": "Timing synchronisieren",
+    "auto_sync": "Auto-Sync (alass/ffsubsync)",
+    "video_sync": "Video-Sync",
+    "health_check": "Qualitätsprüfung",
+    "embedded_tracks": "Eingebettete Tracks",
+    "search_subtitle": "Untertitel suchen",
+    "interactive_search": "Interaktive Suche",
+    "history": "Verlauf",
+    "back_to_library": "Zurück zur Bibliothek"
   },
   "series_detail": {
     "back_to_library": "Zurück zur Bibliothek",
