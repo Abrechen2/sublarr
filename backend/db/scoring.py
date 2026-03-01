@@ -1,9 +1,9 @@
 """Scoring weights and provider modifier operations -- delegating to SQLAlchemy repository."""
 
 from db.repositories.scoring import (
-    ScoringRepository,
     _DEFAULT_EPISODE_WEIGHTS,
     _DEFAULT_MOVIE_WEIGHTS,
+    ScoringRepository,
 )
 
 __all__ = [

@@ -111,13 +111,16 @@ def _setup_logging(settings) -> None:
 
 
 def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
-    """Add columns that exist in Alembic migrations but are missing from pre-Alembic databases.
+    """Add columns missing from pre-Alembic databases.
 
     create_all() is a no-op on existing tables, so DBs created before Alembic
     was introduced may be missing columns added via later migrations.
     """
+    import logging as _logging
+
     from sqlalchemy import text
 
+    _log = _logging.getLogger(__name__)
     insp = inspect_fn(engine)
     patches = []
 
@@ -136,7 +139,7 @@ def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
             conn.execute(text(stmt))
         conn.commit()
 
-    logger.info("Pre-Alembic DB: patched %d missing column(s)", len(patches))
+    _log.info("Pre-Alembic DB: patched %d missing column(s)", len(patches))
 
 
 def create_app(testing=False):
@@ -487,7 +490,8 @@ def _register_app_routes(app):
 
 
 def _start_schedulers(settings, app=None):
-    """Start background schedulers (wanted scanner, database backup, standalone watcher, cleanup)."""
+    """Start background schedulers (wanted scanner, database backup, standalone watcher, cleanup).
+    """  # noqa: D200
     from wanted_scanner import get_scanner
 
     scanner = get_scanner()
