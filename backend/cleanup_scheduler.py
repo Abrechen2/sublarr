@@ -19,6 +19,11 @@ _scheduler = None
 _scheduler_lock = threading.Lock()
 
 
+def get_cleanup_scheduler():
+    """Return the current CleanupScheduler singleton, or None if not started."""
+    return _scheduler
+
+
 def start_cleanup_scheduler(app, socketio):
     """Start the cleanup scheduler if not already running.
 
@@ -54,6 +59,28 @@ class CleanupScheduler:
         self._socketio = socketio
         self._timer = None
         self._running = False
+        self._executing = False
+        self._last_run_at = None
+        self._interval_hours = DEFAULT_INTERVAL_HOURS
+
+    @property
+    def is_executing(self) -> bool:
+        return self._executing
+
+    @property
+    def last_run_at(self):
+        return self._last_run_at
+
+    @property
+    def next_run_at(self):
+        if not self._last_run_at or not self._interval_hours:
+            return None
+        try:
+            from datetime import datetime, timedelta
+            last_dt = datetime.fromisoformat(self._last_run_at)
+            return (last_dt + timedelta(hours=self._interval_hours)).isoformat()
+        except Exception:
+            return None
 
     def start(self):
         """Start the scheduler."""
@@ -63,6 +90,7 @@ class CleanupScheduler:
             return
 
         self._running = True
+        self._interval_hours = interval
         self._schedule_next(interval)
         logger.info("Cleanup scheduler started (every %dh)", interval)
 
@@ -113,6 +141,7 @@ class CleanupScheduler:
 
         # Re-read interval (may have been updated via UI)
         new_interval = self._get_interval_hours()
+        self._interval_hours = new_interval
         if new_interval > 0:
             self._schedule_next(new_interval)
         else:
@@ -149,80 +178,87 @@ class CleanupScheduler:
 
     def _execute_cleanup(self):
         """Run all enabled cleanup rules in order."""
+        from datetime import datetime
+
         from config import get_settings
         from db.repositories.cleanup import CleanupRepository
         from dedup_engine import scan_for_duplicates, scan_orphaned_subtitles
 
-        # Always run zombie-job expiry regardless of user-configured cleanup rules
-        self._expire_zombie_jobs()
+        self._executing = True
+        try:
+            # Always run zombie-job expiry regardless of user-configured cleanup rules
+            self._expire_zombie_jobs()
 
-        repo = CleanupRepository()
-        rules = repo.get_rules()
-        settings = get_settings()
-        media_path = settings.media_path
+            repo = CleanupRepository()
+            rules = repo.get_rules()
+            settings = get_settings()
+            media_path = settings.media_path
 
-        enabled_rules = [r for r in rules if r.get("enabled")]
+            enabled_rules = [r for r in rules if r.get("enabled")]
 
-        if not enabled_rules:
-            logger.info("No enabled cleanup rules to execute")
-            return
+            if not enabled_rules:
+                logger.info("No enabled cleanup rules to execute")
+                return
 
-        logger.info("Executing %d enabled cleanup rules", len(enabled_rules))
+            logger.info("Executing %d enabled cleanup rules", len(enabled_rules))
 
-        for rule in enabled_rules:
-            try:
-                rule_type = rule["rule_type"]
-                rule_id = rule["id"]
+            for rule in enabled_rules:
+                try:
+                    rule_type = rule["rule_type"]
+                    rule_id = rule["id"]
 
-                if rule_type == "dedup":
-                    result = scan_for_duplicates(media_path, socketio=self._socketio)
-                    repo.update_rule_last_run(rule_id)
-                    repo.log_cleanup(
-                        action_type="scheduled_dedup",
-                        files_processed=result.get("total_scanned", 0),
-                        rule_id=rule_id,
-                    )
-                    logger.info(
-                        "Scheduled dedup scan: %d files, %d duplicates",
-                        result.get("total_scanned", 0),
-                        result.get("duplicates_found", 0),
-                    )
+                    if rule_type == "dedup":
+                        result = scan_for_duplicates(media_path, socketio=self._socketio)
+                        repo.update_rule_last_run(rule_id)
+                        repo.log_cleanup(
+                            action_type="scheduled_dedup",
+                            files_processed=result.get("total_scanned", 0),
+                            rule_id=rule_id,
+                        )
+                        logger.info(
+                            "Scheduled dedup scan: %d files, %d duplicates",
+                            result.get("total_scanned", 0),
+                            result.get("duplicates_found", 0),
+                        )
 
-                elif rule_type == "orphaned":
-                    result = scan_orphaned_subtitles(media_path)
-                    repo.update_rule_last_run(rule_id)
-                    repo.log_cleanup(
-                        action_type="scheduled_orphan_scan",
-                        files_processed=len(result),
-                        rule_id=rule_id,
-                    )
-                    logger.info("Scheduled orphan scan: %d orphaned files found", len(result))
+                    elif rule_type == "orphaned":
+                        result = scan_orphaned_subtitles(media_path)
+                        repo.update_rule_last_run(rule_id)
+                        repo.log_cleanup(
+                            action_type="scheduled_orphan_scan",
+                            files_processed=len(result),
+                            rule_id=rule_id,
+                        )
+                        logger.info("Scheduled orphan scan: %d orphaned files found", len(result))
 
-                elif rule_type == "old_backups":
-                    # Scan only, do not auto-delete backups
-                    import os
+                    elif rule_type == "old_backups":
+                        # Scan only, do not auto-delete backups
+                        import os
 
-                    bak_count = 0
-                    bak_size = 0
-                    for root, _dirs, files in os.walk(media_path):
-                        for filename in files:
-                            if ".bak" in filename:
-                                with contextlib.suppress(OSError):
-                                    bak_size += os.path.getsize(os.path.join(root, filename))
-                                bak_count += 1
+                        bak_count = 0
+                        bak_size = 0
+                        for root, _dirs, files in os.walk(media_path):
+                            for filename in files:
+                                if ".bak" in filename:
+                                    with contextlib.suppress(OSError):
+                                        bak_size += os.path.getsize(os.path.join(root, filename))
+                                    bak_count += 1
 
-                    repo.update_rule_last_run(rule_id)
-                    repo.log_cleanup(
-                        action_type="scheduled_backup_scan",
-                        files_processed=bak_count,
-                        rule_id=rule_id,
-                    )
-                    logger.info(
-                        "Scheduled backup scan: %d .bak files (%d bytes)", bak_count, bak_size
-                    )
+                        repo.update_rule_last_run(rule_id)
+                        repo.log_cleanup(
+                            action_type="scheduled_backup_scan",
+                            files_processed=bak_count,
+                            rule_id=rule_id,
+                        )
+                        logger.info(
+                            "Scheduled backup scan: %d .bak files (%d bytes)", bak_count, bak_size
+                        )
 
-                else:
-                    logger.warning("Unknown rule type: %s", rule_type)
+                    else:
+                        logger.warning("Unknown rule type: %s", rule_type)
 
-            except Exception as e:
-                logger.error("Failed to execute rule %d (%s): %s", rule["id"], rule["name"], e)
+                except Exception as e:
+                    logger.error("Failed to execute rule %d (%s): %s", rule["id"], rule["name"], e)
+        finally:
+            self._executing = False
+            self._last_run_at = datetime.now(UTC).isoformat()

@@ -101,7 +101,10 @@
     "every_hours": "Every {{count}} hours",
     "every_day": "Every day",
     "triggered": "{{name}} triggered",
-    "trigger_failed": "Failed to trigger {{name}}"
+    "trigger_failed": "Failed to trigger {{name}}",
+    "cancel": "Cancel",
+    "cancelled": "{{name}} cancelled",
+    "cancel_failed": "Failed to cancel {{name}}"
   },
   "filters": {
     "addFilter": "Add filter",

@@ -101,7 +101,10 @@
     "every_hours": "Alle {{count}} Stunden",
     "every_day": "Täglich",
     "triggered": "{{name}} gestartet",
-    "trigger_failed": "{{name}} konnte nicht gestartet werden"
+    "trigger_failed": "{{name}} konnte nicht gestartet werden",
+    "cancel": "Abbrechen",
+    "cancelled": "{{name}} abgebrochen",
+    "cancel_failed": "{{name}} konnte nicht abgebrochen werden"
   },
   "filters": {
     "addFilter": "Filter hinzufügen",

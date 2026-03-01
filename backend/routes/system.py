@@ -1857,10 +1857,208 @@ def list_tasks():
             "next_run": None,
             "interval_hours": 24 if backup_enabled else None,
             "enabled": backup_enabled,
+            "cancellable": False,
+        }
+    )
+
+    # Batch Extraction
+    try:
+        from routes.wanted import _batch_extract_lock, _batch_extract_state
+
+        with _batch_extract_lock:
+            ext = dict(_batch_extract_state)
+        tasks.append(
+            {
+                "name": "batch_extraction",
+                "display_name": "Batch Extraction",
+                "running": ext["running"],
+                "last_run": None,
+                "next_run": None,
+                "interval_hours": None,
+                "enabled": True,
+                "cancellable": False,
+                "progress": (
+                    {"processed": ext["processed"], "total": ext["total"]}
+                    if ext["running"]
+                    else None
+                ),
+            }
+        )
+    except Exception as exc:
+        logger.warning("Failed to read batch extraction state: %s", exc)
+
+    # Cleanup scheduler
+    try:
+        from cleanup_scheduler import get_cleanup_scheduler
+
+        cs = get_cleanup_scheduler()
+        cleanup_interval = getattr(s, "cleanup_schedule_interval_hours", 168)
+        cleanup_enabled = cs is not None and cs._running
+        tasks.append(
+            {
+                "name": "cleanup",
+                "display_name": "Cleanup",
+                "running": cs.is_executing if cs else False,
+                "last_run": cs.last_run_at if cs else None,
+                "next_run": cs.next_run_at if cs else None,
+                "interval_hours": cleanup_interval if cleanup_enabled else None,
+                "enabled": cleanup_enabled,
+                "cancellable": False,
+            }
+        )
+    except Exception as exc:
+        logger.warning("Failed to read cleanup scheduler state: %s", exc)
+
+    # AniDB Sync
+    try:
+        from anidb_sync import DEFAULT_INTERVAL_HOURS as ANIDB_INTERVAL
+        from anidb_sync import sync_state as anidb_sync_state
+
+        tasks.append(
+            {
+                "name": "anidb_sync",
+                "display_name": "AniDB Sync",
+                "running": anidb_sync_state["running"],
+                "last_run": anidb_sync_state["last_run"],
+                "next_run": None,
+                "interval_hours": ANIDB_INTERVAL,
+                "enabled": True,
+                "cancellable": False,
+            }
+        )
+    except Exception as exc:
+        logger.warning("Failed to read AniDB sync state: %s", exc)
+
+    # Bulk Auto-Sync (Video timing)
+    tasks.append(
+        {
+            "name": "bulk_auto_sync",
+            "display_name": "Bulk Auto-Sync",
+            "running": False,
+            "last_run": None,
+            "next_run": None,
+            "interval_hours": None,
+            "enabled": True,
+            "cancellable": False,
+        }
+    )
+
+    # Cleanup Old Jobs
+    tasks.append(
+        {
+            "name": "cleanup_jobs",
+            "display_name": "Cleanup Old Jobs",
+            "running": False,
+            "last_run": None,
+            "next_run": None,
+            "interval_hours": None,
+            "enabled": True,
+            "cancellable": False,
         }
     )
 
     return jsonify({"tasks": tasks})
+
+
+@bp.route("/tasks/<name>/cancel", methods=["POST"])
+def cancel_task(name):
+    """Cancel a running background task by name.
+    ---
+    post:
+      tags:
+        - System
+      summary: Cancel running task
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Task cancelled
+        400:
+          description: Task not cancellable
+        404:
+          description: Unknown task
+        409:
+          description: Task not currently running
+    """
+    from wanted_scanner import get_scanner
+
+    scanner = get_scanner()
+    if name == "wanted_search":
+        if not scanner.is_searching:
+            return jsonify({"error": "Task not running"}), 409
+        scanner.cancel_search()
+        return jsonify({"status": "cancelled", "task": name})
+    if name == "wanted_scan":
+        return jsonify({"error": "Scan cannot be cancelled mid-run"}), 400
+    return jsonify({"error": f"Unknown task or not cancellable: {name}"}), 404
+
+
+@bp.route("/tasks/cleanup/trigger", methods=["POST"])
+def trigger_cleanup():
+    """Manually trigger the cleanup task.
+    ---
+    post:
+      tags:
+        - System
+      summary: Trigger cleanup
+      responses:
+        200:
+          description: Cleanup started
+        409:
+          description: Cleanup already running
+        503:
+          description: Cleanup scheduler not initialized
+    """
+    import threading
+
+    from cleanup_scheduler import get_cleanup_scheduler
+
+    cs = get_cleanup_scheduler()
+    if not cs:
+        return jsonify({"error": "Cleanup scheduler not initialized"}), 503
+    if cs.is_executing:
+        return jsonify({"error": "Cleanup already running"}), 409
+    app = current_app._get_current_object()
+
+    def _run():
+        with app.app_context():
+            cs._execute_cleanup()
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"status": "started"})
+
+
+@bp.route("/tasks/cleanup-jobs", methods=["POST"])
+def trigger_cleanup_jobs():
+    """Delete completed/failed translation jobs older than N days.
+    ---
+    post:
+      tags:
+        - System
+      summary: Cleanup old jobs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                days:
+                  type: integer
+                  default: 7
+      responses:
+        200:
+          description: Cleanup complete
+    """
+    from db.jobs import delete_old_jobs
+
+    data = request.get_json(silent=True) or {}
+    days = max(1, int(data.get("days", 7)))
+    deleted = delete_old_jobs(days)
+    return jsonify({"deleted": deleted, "older_than_days": days})
 
 
 @bp.route("/openapi.json", methods=["GET"])

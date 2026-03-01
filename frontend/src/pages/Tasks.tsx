@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
-import { Play, Loader2, Clock, CheckCircle, XCircle, Timer } from 'lucide-react'
-import { useTasks, useTriggerTask } from '@/hooks/useApi'
+import { Play, Loader2, Clock, CheckCircle, XCircle, Timer, Square } from 'lucide-react'
+import { useTasks, useTriggerTask, useCancelTask } from '@/hooks/useApi'
 import { toast } from '@/components/shared/Toast'
 import type { SchedulerTask } from '@/lib/types'
 
@@ -32,15 +32,30 @@ function formatInterval(hours: number | null, t: (key: string, opts?: Record<str
 function TaskCard({ task }: { task: SchedulerTask }) {
   const { t } = useTranslation('common')
   const triggerTask = useTriggerTask()
+  const cancelTask = useCancelTask()
 
   const handleRunNow = () => {
     triggerTask.mutate(task.name, {
       onSuccess: () => toast(t('tasks.triggered', { name: task.display_name }), 'success'),
-      onError: () => toast(t('tasks.trigger_failed', { name: task.display_name }), 'error'),
+      onError: (err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        toast(t('tasks.trigger_failed', { name: task.display_name }) + (msg ? `: ${msg}` : ''), 'error')
+      },
+    })
+  }
+
+  const handleCancel = () => {
+    cancelTask.mutate(task.name, {
+      onSuccess: () => toast(t('tasks.cancelled', { name: task.display_name }), 'info'),
+      onError: () => toast(t('tasks.cancel_failed', { name: task.display_name }), 'error'),
     })
   }
 
   const isTriggering = triggerTask.isPending && triggerTask.variables === task.name
+  const isCancelling = cancelTask.isPending && cancelTask.variables === task.name
+  const progressPct = task.progress?.total
+    ? Math.round((task.progress.processed / task.progress.total) * 100)
+    : 0
 
   return (
     <div
@@ -81,25 +96,64 @@ function TaskCard({ task }: { task: SchedulerTask }) {
           </div>
         </div>
 
-        {/* Run Now button */}
-        <button
-          onClick={handleRunNow}
-          disabled={task.running || isTriggering}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{
-            backgroundColor: 'var(--accent-bg)',
-            color: 'var(--accent)',
-            border: '1px solid var(--accent-dim)',
-          }}
-        >
-          {isTriggering ? (
-            <Loader2 size={13} className="animate-spin" />
-          ) : (
-            <Play size={13} />
+        {/* Action buttons */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Cancel button — only when running and cancellable */}
+          {task.running && task.cancellable && (
+            <button
+              onClick={handleCancel}
+              disabled={isCancelling}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: 'color-mix(in srgb, var(--error) 12%, transparent)',
+                color: 'var(--error)',
+                border: '1px solid color-mix(in srgb, var(--error) 30%, transparent)',
+              }}
+            >
+              {isCancelling ? <Loader2 size={13} className="animate-spin" /> : <Square size={13} />}
+              {t('tasks.cancel')}
+            </button>
           )}
-          {t('tasks.run_now')}
-        </button>
+
+          {/* Run Now button */}
+          <button
+            onClick={handleRunNow}
+            disabled={task.running || isTriggering}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: 'var(--accent-bg)',
+              color: 'var(--accent)',
+              border: '1px solid var(--accent-dim)',
+            }}
+          >
+            {isTriggering ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <Play size={13} />
+            )}
+            {t('tasks.run_now')}
+          </button>
+        </div>
       </div>
+
+      {/* Progress bar — only when running with progress data */}
+      {task.running && task.progress && task.progress.total > 0 && (
+        <div className="mb-4 space-y-1">
+          <div className="flex justify-between text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            <span>{task.progress.processed} / {task.progress.total}</span>
+            <span>{progressPct}%</span>
+          </div>
+          <div
+            className="h-1.5 rounded-full overflow-hidden"
+            style={{ backgroundColor: 'var(--bg-surface-hover)' }}
+          >
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${progressPct}%`, backgroundColor: 'var(--accent)' }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Details grid */}
       <div className="grid grid-cols-2 gap-3">
