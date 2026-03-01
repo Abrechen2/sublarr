@@ -18,7 +18,7 @@ Create a `docker-compose.yml`:
 ```yaml
 services:
   sublarr:
-    image: ghcr.io/abrechen2/sublarr:0.12.0-beta
+    image: ghcr.io/abrechen2/sublarr:0.13.2-beta
     container_name: sublarr
     ports:
       - "5765:5765"
@@ -325,6 +325,36 @@ Configure in language profiles under "Forced Preference."
 2. Upload a backup ZIP file
 3. Review the import summary
 4. Confirm restoration
+
+### Tasks Page
+
+The Tasks page (`/tasks` in the UI) gives you visibility into all background scheduler jobs.
+
+**What it shows:**
+- All scheduled tasks with name, description, interval, last run time, and next scheduled run
+- Current status: enabled/disabled, currently running indicator
+- Per-task progress bars for long-running operations
+
+**Manual controls:**
+- **Cancel** — stop a currently running task
+- **Trigger** — run a task immediately outside its schedule
+
+Available tasks include the wanted scanner, wanted search, upgrade scanner, cache cleanup, and backup scheduler.
+
+### Sidecar Auto-Cleanup
+
+After batch-extracting embedded subtitles, Sublarr can automatically clean up extra-language sidecar files to keep your media directory tidy.
+
+Configure in **Settings → Library → Auto-Cleanup**:
+- Enable `auto_cleanup_after_extract`
+- Set languages to keep (`auto_cleanup_keep_languages`, e.g. `en,de`)
+- Set format preference (`auto_cleanup_keep_formats`: `ass`, `srt`, or `any`)
+
+### Subtitle Trash
+
+Instead of permanently deleting subtitles, Sublarr moves them to a `.trash` subdirectory. Trashed files:
+- Can be reviewed and restored from **Settings → Library → Trash**
+- Are automatically purged after `SUBLARR_SUBTITLE_TRASH_RETENTION_DAYS` days (default: 7)
 
 ### Event Hooks
 

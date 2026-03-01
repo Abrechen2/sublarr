@@ -7,6 +7,7 @@ Sublarr exposes a RESTful API for all operations. All endpoints are prefixed wit
 - [Authentication](#authentication)
 - [Response Format](#response-format)
 - [Health & Status](#health--status)
+- [Tasks](#tasks)
 - [Translation](#translation)
 - [Configuration](#configuration)
 - [Library](#library)
@@ -142,6 +143,65 @@ Get overall system statistics.
   ]
 }
 ```
+
+## Tasks
+
+### GET /tasks
+
+List all background scheduler tasks with their current status, timing, and configuration.
+
+**Response**
+```json
+{
+  "tasks": [
+    {
+      "name": "wanted_scanner",
+      "display_name": "Wanted Scanner",
+      "description": "Scans Sonarr/Radarr for missing subtitles",
+      "enabled": true,
+      "running": false,
+      "interval_hours": 6,
+      "last_run": "2024-01-15T08:00:00Z",
+      "next_run": "2024-01-15T14:00:00Z",
+      "last_result": "ok",
+      "progress": null
+    }
+  ]
+}
+```
+
+**Task names**: `wanted_scanner`, `wanted_search`, `upgrade_scanner`, `cache_cleanup`, `backup_scheduler`, `trash_purge`
+
+### POST /tasks/:name/cancel
+
+Cancel a currently running task.
+
+**Path Parameters**
+- `name` (string): Task name (e.g. `wanted_scanner`)
+
+**Response**
+```json
+{
+  "success": true,
+  "message": "Task cancellation requested"
+}
+```
+
+**Error (404)** if task not found or not running.
+
+### POST /tasks/cleanup/trigger
+
+Trigger the cache cleanup task immediately.
+
+**Response**
+```json
+{
+  "success": true,
+  "message": "Cleanup triggered"
+}
+```
+
+---
 
 ## Translation
 

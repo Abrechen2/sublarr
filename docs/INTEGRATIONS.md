@@ -194,6 +194,48 @@ gotify://hostname/token            # Gotify
 
 ---
 
+## Event Hooks
+
+Sublarr supports two kinds of custom automation triggers: shell hooks and outgoing webhooks.
+
+### Shell Hooks
+
+Place shell scripts in `/config/hooks/`. Scripts are executed when configured events fire.
+
+Configure in **Settings → Events & Hooks → Shell Hooks**:
+- Select the event (e.g. `subtitle_downloaded`)
+- Point to your script: `/config/hooks/notify.sh`
+- Event data is passed as environment variables (e.g. `SUBLARR_FILE_PATH`, `SUBLARR_PROVIDER`, `SUBLARR_LANGUAGE`)
+
+### Outgoing Webhooks
+
+Send HTTP POST requests to external systems on events.
+
+Configure in **Settings → Events & Hooks → Outgoing Webhooks**:
+- URL: your endpoint (e.g. `http://n8n:5678/webhook/sublarr`)
+- Events: select one or more
+- Payload: JSON body with event data
+
+**Available events:**
+- `subtitle_downloaded` — subtitle successfully downloaded
+- `translation_complete` — translation job finished
+- `provider_failed` — provider returned an error
+- `wanted_item_added` — new item added to wanted list
+- `config_updated` — settings changed
+- `batch_complete` — batch search or translate finished
+- `upgrade_performed` — subtitle upgraded to better version
+
+### API
+
+```
+GET    /api/v1/hooks           List configured hooks
+POST   /api/v1/hooks           Create a hook
+PUT    /api/v1/hooks/:id       Update a hook
+DELETE /api/v1/hooks/:id       Delete a hook
+```
+
+---
+
 ## Standalone Mode (No Sonarr/Radarr)
 
 If you do not use Sonarr or Radarr, Sublarr can watch a folder directly.

@@ -85,6 +85,60 @@ Records every subtitle upgrade performed.
 | `reason` | TEXT | Upgrade reason (e.g. `SRT->ASS format upgrade`) |
 | `created_at` | DATETIME | Timestamp |
 
+### `provider_cache`
+
+Caches subtitle search results to avoid redundant provider requests.
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Auto-increment primary key |
+| `cache_key` | TEXT | SHA-256 of query parameters (unique) |
+| `provider` | TEXT | Provider name |
+| `results_json` | TEXT | JSON array of search results |
+| `created_at` | DATETIME | Cache timestamp |
+| `expires_at` | DATETIME | Expiry timestamp (based on `SUBLARR_PROVIDER_CACHE_TTL_MINUTES`) |
+
+### `subtitle_downloads`
+
+Per-provider download counters used for success-rate statistics.
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Auto-increment primary key |
+| `provider` | TEXT | Provider name |
+| `language` | TEXT | Subtitle language code |
+| `format` | TEXT | `ass` or `srt` |
+| `score` | INTEGER | Subtitle score at download time |
+| `created_at` | DATETIME | Download timestamp |
+
+### `download_history`
+
+Full audit log of every subtitle download.
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Auto-increment primary key |
+| `file_path` | TEXT | Video file path |
+| `subtitle_path` | TEXT | Downloaded subtitle path |
+| `provider` | TEXT | Provider that supplied the subtitle |
+| `language` | TEXT | Subtitle language |
+| `format` | TEXT | `ass` or `srt` |
+| `score` | INTEGER | Final subtitle score |
+| `translated` | BOOLEAN | Whether subtitle was translated |
+| `created_at` | DATETIME | Timestamp |
+
+### `glossary_entries`
+
+User-defined term pairs injected into translation prompts.
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | INTEGER | Auto-increment primary key |
+| `source_term` | TEXT | Original term |
+| `target_term` | TEXT | Translated equivalent |
+| `language_pair` | TEXT | e.g. `ja-de` or `en-de` |
+| `created_at` | DATETIME | Creation timestamp |
+
 ---
 
 ## Language Profiles

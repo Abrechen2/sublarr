@@ -28,7 +28,7 @@ External Services
 ### Core Components
 
 **Flask Application (app.py)**
-- Blueprint-based routing under `/api/v1/`
+- 30 Blueprint modules registered under `/api/v1/` via `routes/__init__.py`
 - Flask-SocketIO for real-time WebSocket updates
 - Gunicorn WSGI server (2 workers, 4 threads, 300s timeout)
 - Optional API key authentication via `auth.py`
@@ -48,6 +48,8 @@ External Services
 
 #### Database Tables
 
+30+ tables — full schema in [docs/DATABASE-SCHEMA.md](DATABASE-SCHEMA.md). Key tables:
+
 | Table | Purpose |
 |-------|---------|
 | `jobs` | Translation job tracking, status, statistics, error messages |
@@ -61,8 +63,13 @@ External Services
 | `wanted_items` | Missing subtitles queue (episode/movie, language, status) |
 | `blacklist_entries` | Rejected subtitle downloads (provider, hash, reason) |
 | `download_history` | Subtitle download audit log |
+| `upgrade_history` | Records every subtitle upgrade performed |
 | `glossary_entries` | User-defined translation glossary (term pairs) |
 | `prompt_presets` | Saved Ollama prompt templates |
+| `filter_presets` | Saved search filter configurations |
+| `ffprobe_cache` | Cached ffprobe/mediainfo metadata (invalidated by mtime) |
+| `anidb_absolute_mappings` | TVDB→AniDB absolute episode number mappings |
+| `series_settings` | Per-series config overrides (glossary, forced sub preference) |
 
 ### Provider System (providers/)
 
@@ -73,14 +80,8 @@ External Services
 - Priority-based search with configurable provider order
 
 **Provider Registry**
-```python
-PROVIDER_REGISTRY = {
-    "animetosho": AnimeToshoProvider,
-    "jimaku": JimakuProvider,
-    "opensubtitles": OpenSubtitlesProvider,
-    "subdl": SubDLProvider,
-}
-```
+
+11 built-in providers: `animetosho`, `jimaku`, `opensubtitles`, `subdl`, `gestdown`, `podnapisi`, `kitsunekko`, `napisy24`, `titrari`, `legendasdivx`, `whisper_subgen`. Additional providers loadable as plugins from `/config/plugins/`.
 
 **Search Flow**
 1. User/System requests subtitles for a video file
@@ -255,11 +256,11 @@ All endpoints prefixed with `/api/v1/`
 ## Frontend Architecture
 
 ### Technology Stack
-- React 18 (functional components, hooks)
+- React 19 (functional components, hooks)
 - TypeScript (strict mode)
-- Tailwind CSS (utility-first styling)
+- Tailwind CSS v4 (utility-first styling)
 - React Router v6 (client-side routing)
-- TanStack Query (React Query) (server state management)
+- TanStack Query (server state management)
 - Socket.IO Client (real-time updates)
 - Vite (development server, HMR, bundler)
 
@@ -282,16 +283,22 @@ frontend/src/
 │       ├── ProgressBar.tsx # Visual progress component
 │       ├── Toast.tsx       # Notification system
 │       └── ErrorBoundary.tsx # React error handling
-└── pages/
-    ├── Dashboard.tsx       # Stats overview, recent activity
-    ├── Activity.tsx        # Live job monitoring, WebSocket updates
-    ├── Library.tsx         # Series/movie list, subtitle status
-    ├── Wanted.tsx          # Missing subtitles queue
-    ├── History.tsx         # Download/translation history
-    ├── Blacklist.tsx       # Rejected subtitles
-    ├── Settings.tsx        # Config editor, provider management
-    ├── Logs.tsx            # Paginated log viewer
-    └── NotFound.tsx        # 404 page
+├── pages/
+│   ├── Dashboard.tsx       # Stats overview, recent activity
+│   ├── Activity.tsx        # Live job monitoring, WebSocket updates
+│   ├── Library.tsx         # Series/movie list, subtitle status
+│   ├── SeriesDetail.tsx    # Per-series subtitle management
+│   ├── Wanted.tsx          # Missing subtitles queue
+│   ├── Queue.tsx           # Active job queue view
+│   ├── Tasks.tsx           # Background scheduler task status + controls
+│   ├── Statistics.tsx      # Download/translation statistics charts
+│   ├── History.tsx         # Download/translation history
+│   ├── Blacklist.tsx       # Rejected subtitles
+│   ├── Plugins.tsx         # Plugin management
+│   ├── Settings/           # Settings pages (tabbed by category)
+│   ├── Logs.tsx            # Paginated log viewer
+│   ├── Onboarding.tsx      # First-run setup wizard
+│   └── NotFound.tsx        # 404 page
 ```
 
 ### State Management
@@ -318,11 +325,16 @@ frontend/src/
 **Routes**
 - `/` - Dashboard
 - `/activity` - Active jobs
+- `/queue` - Job queue
+- `/tasks` - Background scheduler tasks
 - `/library` - Series/movie list
+- `/library/:id` - Series detail view
 - `/wanted` - Missing subtitles
+- `/statistics` - Statistics
 - `/history` - Download history
 - `/blacklist` - Rejected subtitles
-- `/settings` - Configuration
+- `/plugins` - Plugin management
+- `/settings` - Configuration (tabbed)
 - `/logs` - System logs
 - `*` - 404 Not Found
 
@@ -544,7 +556,7 @@ Frontend updates UI, shows summary
 
 **Local Development**
 1. Backend: `npm run dev:backend` (Flask dev server on port 5765)
-2. Frontend: `cd frontend && npm run dev` (Vite HMR on port 3000)
+2. Frontend: `cd frontend && npm run dev` (Vite HMR on port 5173)
 3. Frontend proxies API calls to backend (port 5765)
 
 **Production Build**

@@ -1,18 +1,54 @@
-# Migration Guide: v1.0.0-beta to v0.9.0-beta
+# Migration Guide
 
-## Version Renumbering
+## Current Version: 0.13.2-beta
 
-Sublarr has adopted standard pre-release versioning. The initial v1.0.0-beta was premature -- v1.0.0 is now reserved for the final stable release after community testing. The version sequence is:
+This guide covers upgrades from any previous version of Sublarr. For the full change history, see [CHANGELOG.md](../CHANGELOG.md).
+
+---
+
+## Upgrading to 0.13.x
+
+### v0.13.2-beta — Security Hardening
+
+No breaking changes. New security features active by default:
+- WebSocket authentication now enforced (`SUBLARR_API_KEY` if set)
+- Secret masking in logs (API keys, passwords no longer visible in debug output)
+- DoS limits on log/batch endpoints
+- Path traversal protection improvements
+
+### v0.13.1-beta — Sidecar Management
+
+New settings (all optional, off by default):
+- `SUBLARR_AUTO_CLEANUP_AFTER_EXTRACT` — auto-delete extra-language sidecars after batch extract
+- `SUBLARR_AUTO_CLEANUP_KEEP_LANGUAGES` — languages to preserve during cleanup
+- `SUBLARR_AUTO_CLEANUP_KEEP_FORMATS` — format preference for cleanup
+- `SUBLARR_SUBTITLE_TRASH_RETENTION_DAYS` — soft-delete retention period
+
+Database: new `upgrade_history` and `filter_presets` tables added automatically on startup.
+
+### v0.13.0-beta — Tasks Page & Queue Visibility
+
+New endpoints:
+- `GET /api/v1/tasks` — background task list
+- `POST /api/v1/tasks/<name>/cancel` — cancel running task
+
+Frontend: new Tasks page (`/tasks`), Queue page (`/queue`), Statistics page (`/statistics`).
+
+---
+
+## Upgrading from v0.9.x → v0.13.x (Historical)
+
+## Original Version Renumbering Note
+
+Sublarr adopted standard pre-release versioning early on. The initial v1.0.0-beta was premature — v1.0.0 is reserved for the final stable release. The sequence was:
 
 ```
-v1.0.0-beta (old) -> v0.9.0-beta (this release) -> v1.0.0 (stable)
+v1.0.0-beta (old) -> v0.9.0-beta -> ... -> v0.13.2-beta (current) -> v1.0.0 (stable)
 ```
 
-This is not a downgrade. The software has significantly more features and stability than the original v1.0.0-beta. The version number change reflects proper Semantic Versioning where 1.0.0 signifies production-ready software.
+## What Changed in v0.9.0
 
-## What's New
-
-v0.9.0-beta is a massive feature release adding plugin extensibility, multi-backend translation (DeepL, LibreTranslate, OpenAI-compatible, Google), Whisper speech-to-text, standalone mode without Sonarr/Radarr, Plex/Kodi support, forced subtitle management, event hooks, UI internationalization (EN/DE), dark/light theming, backup/restore, statistics, OpenAPI documentation, and significant performance improvements. See [CHANGELOG.md](../CHANGELOG.md) for the complete list.
+v0.9.0-beta added: plugin extensibility, multi-backend translation (DeepL, LibreTranslate, OpenAI-compatible, Google), Whisper speech-to-text, standalone mode without Sonarr/Radarr, Plex/Kodi support, forced subtitle management, event hooks, UI internationalization (EN/DE), dark/light theming, backup/restore, statistics, OpenAPI documentation, and performance improvements.
 
 ## Upgrade Steps
 
@@ -20,7 +56,7 @@ v0.9.0-beta is a massive feature release adding plugin extensibility, multi-back
 
 1. **Pull the new image:**
    ```bash
-   docker pull ghcr.io/abrechen2/sublarr:0.12.0-beta
+   docker pull ghcr.io/abrechen2/sublarr:0.13.2-beta
    ```
 
 2. **Stop the existing container:**
@@ -37,7 +73,7 @@ v0.9.0-beta is a massive feature release adding plugin extensibility, multi-back
    ```yaml
    services:
      sublarr:
-       image: ghcr.io/abrechen2/sublarr:0.12.0-beta
+       image: ghcr.io/abrechen2/sublarr:0.13.2-beta
        # ... rest of config unchanged
    ```
 
@@ -52,7 +88,7 @@ v0.9.0-beta is a massive feature release adding plugin extensibility, multi-back
 
 1. Go to Docker tab in Unraid
 2. Click the Sublarr container icon and select "Edit"
-3. Update the Repository field to `ghcr.io/abrechen2/sublarr:0.12.0-beta`
+3. Update the Repository field to `ghcr.io/abrechen2/sublarr:0.13.2-beta`
 4. Click Apply
 5. The container will re-pull and restart automatically
 
@@ -94,7 +130,7 @@ No breaking API changes. All v1.0.0-beta endpoints continue to work at the same 
 
 #### Architecture Changes
 
-The backend was refactored from a monolithic `server.py` into 15 Flask Blueprints using the Application Factory pattern. **This does not affect the public API** -- all endpoints remain at the same paths.
+The backend was refactored from a monolithic `server.py` into 30 Flask Blueprint modules using the Application Factory pattern. **This does not affect the public API** — all endpoints remain at the same paths.
 
 If you referenced internal Python modules (e.g., in custom scripts), update imports:
 - `from server import app` becomes `from app import create_app`
