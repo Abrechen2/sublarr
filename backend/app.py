@@ -490,8 +490,7 @@ def _register_app_routes(app):
 
 
 def _start_schedulers(settings, app=None):
-    """Start background schedulers (wanted scanner, database backup, standalone watcher, cleanup).
-    """  # noqa: D200
+    """Start background schedulers (wanted scanner, database backup, standalone watcher, cleanup)."""  # noqa: D200
     from wanted_scanner import get_scanner
 
     scanner = get_scanner()
