@@ -151,7 +151,7 @@ async function openSubtitleModal(page: Page): Promise<boolean> {
   const opened = await clickPreviewButton(page);
   if (!opened) {
     // Take diagnostic screenshot
-    await page.screenshot({ path: 'e2e-subtitle-diag-no-preview-btn.png' });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-diag-no-preview-btn.png' });
   }
   return opened;
 }
@@ -169,7 +169,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
     await page.goto(BASE, { timeout: 20000 });
     await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
 
-    await page.screenshot({ path: 'e2e-subtitle-01-root.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-01-root.png', fullPage: false });
 
     const body = await page.locator('body').innerText();
     // The React SPA should render navigation and dashboard content
@@ -182,7 +182,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
     await gotoLibrary(page);
     await page.waitForTimeout(1000);
 
-    await page.screenshot({ path: 'e2e-subtitle-02-library.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-02-library.png', fullPage: false });
 
     const body = await page.locator('body').innerText();
     // Library page should show series entries
@@ -193,7 +193,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
     const navigated = await navigateToSeries(page);
 
     await page.waitForTimeout(1000);
-    await page.screenshot({ path: 'e2e-subtitle-03-series-detail.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-03-series-detail.png', fullPage: false });
 
     if (!navigated) {
       // Library navigation may fail if no data; log but soft-skip
@@ -212,7 +212,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
     await expandSeason3(page);
     await page.waitForTimeout(800);
 
-    await page.screenshot({ path: 'e2e-subtitle-04-season3.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-04-season3.png', fullPage: false });
 
     const body = await page.locator('body').innerText();
     // Season 3 has episodes with subtitle data
@@ -226,7 +226,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
     await expandSeason3(page);
     await page.waitForTimeout(500);
 
-    await page.screenshot({ path: 'e2e-subtitle-05-preview-btn-visible.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-05-preview-btn-visible.png', fullPage: false });
 
     const previewBtn = page.locator('button[title="Preview subtitle"]').first();
     const visible = await previewBtn.isVisible({ timeout: 5000 }).catch(() => false);
@@ -237,7 +237,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
   test('06 - Subtitle preview modal opens when clicking Eye button', async ({ page }) => {
     const opened = await openSubtitleModal(page);
 
-    await page.screenshot({ path: 'e2e-subtitle-06-modal-opened.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-06-modal-opened.png', fullPage: false });
 
     if (!opened) {
       console.warn('Could not open subtitle modal — no preview button found');
@@ -275,7 +275,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
 
     const box = await (panelEl as { boundingBox: () => Promise<{ x: number; y: number; width: number; height: number } | null> }).boundingBox().catch(() => null);
 
-    await page.screenshot({ path: 'e2e-subtitle-07-viewport-center.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-07-viewport-center.png', fullPage: false });
 
     if (!box) {
       // Can't get bounding box — take full screenshot for manual inspection
@@ -305,7 +305,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
     // Production LXC can be slow — allow 6s for the content API call
     await page.waitForTimeout(4000);
 
-    await page.screenshot({ path: 'e2e-subtitle-08-metadata-bar.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-08-metadata-bar.png', fullPage: false });
 
     // Format badge — span with "uppercase" Tailwind class containing "ass" or "srt"
     const formatBadge = page.locator('span.uppercase, span[class*="uppercase"]')
@@ -322,7 +322,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
     const errorEl = page.locator('p.text-red-400').first();
     const hasError = await errorEl.isVisible({ timeout: 1000 }).catch(() => false);
 
-    await page.screenshot({ path: 'e2e-subtitle-08b-metadata-final.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-08b-metadata-final.png', fullPage: false });
 
     if (hasError) {
       const errText = await errorEl.innerText().catch(() => '(unreadable)');
@@ -339,7 +339,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
 
     await page.waitForTimeout(3000); // Allow CodeMirror to fully render
 
-    await page.screenshot({ path: 'e2e-subtitle-09-codemirror.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-09-codemirror.png', fullPage: false });
 
     // CodeMirror renders inside .cm-editor
     const cmEditor = page.locator('.cm-editor').first();
@@ -379,7 +379,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
 
     await page.waitForTimeout(3000);
 
-    await page.screenshot({ path: 'e2e-subtitle-10-timeline.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-10-timeline.png', fullPage: false });
 
     // SubtitleTimeline renders as a relative h-8 div with colored child segments
     // It has children that are absolutely positioned cue bars
@@ -393,7 +393,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
     const errEl = page.locator('p.text-red-400').first();
     const hasError = await errEl.isVisible({ timeout: 1000 }).catch(() => false);
 
-    await page.screenshot({ path: 'e2e-subtitle-10b-timeline-check.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-10b-timeline-check.png', fullPage: false });
 
     if (hasError) {
       // File not found / 403 is a valid graceful error state (data issue, not code bug)
@@ -420,7 +420,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
     await editTab.click();
     await page.waitForTimeout(1500);
 
-    await page.screenshot({ path: 'e2e-subtitle-11-edit-mode.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-11-edit-mode.png', fullPage: false });
 
     // Quality fix toolbar buttons
     const overlapBtn = page.locator('button').filter({ hasText: /berlappungen|Überlappungen/ }).first();
@@ -436,7 +436,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
     if (!opened) return;
 
     await page.waitForTimeout(1500);
-    await page.screenshot({ path: 'e2e-subtitle-12-autosync.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-12-autosync.png', fullPage: false });
 
     const btn = page.locator('button').filter({ hasText: /Auto.Sync|Auto-Sync/i }).first();
     const visible = await btn.isVisible({ timeout: 5000 }).catch(() => false);
@@ -457,7 +457,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
     await diffTab.click();
     await page.waitForTimeout(1500);
 
-    await page.screenshot({ path: 'e2e-subtitle-13-diff-tab.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-13-diff-tab.png', fullPage: false });
 
     // Should show something (no crash, no blank screen)
     const body = await page.locator('body').innerText();
@@ -481,7 +481,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
     }
 
     await page.waitForTimeout(600);
-    await page.screenshot({ path: 'e2e-subtitle-14-closed.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-14-closed.png', fullPage: false });
 
     // Edit tab (part of modal) should be gone
     const editTab = page.locator('button').filter({ hasText: /^Edit$/ }).first();
@@ -502,7 +502,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(700);
 
-    await page.screenshot({ path: 'e2e-subtitle-15-esc-close.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-15-esc-close.png', fullPage: false });
 
     if (wasOpen) {
       const stillOpen = await previewTab.isVisible({ timeout: 1000 }).catch(() => false);
@@ -519,7 +519,7 @@ test.describe('Subtitle Preview — UI & Functional', () => {
 
     await page.waitForTimeout(3000); // Full load including CodeMirror
 
-    await page.screenshot({ path: 'e2e-subtitle-16-js-errors.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/e2e-subtitle-16-js-errors.png', fullPage: false });
 
     const critical = jsErrors.filter(e =>
       !e.includes('ResizeObserver') &&
