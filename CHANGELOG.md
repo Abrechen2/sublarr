@@ -18,8 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Settings — source/target language** — fields now use the new `LanguageSelect` dropdown instead of plain text inputs
-- **Provider reactive health checks** — status is fetched on-demand only (no background polling); `ProviderManager.update_providers()` does selective enable/disable without full reinit
-- **Provider UI grid** — header now shows `N aktiv / M konfiguriert` counts; `+` tile only visible when hidden providers exist
+- **Provider reactive health checks** — status is fetched on-demand only (no background polling); `ProviderManager.update_providers()` does selective enable/disable without full reinit; `providers_hidden` key excluded from provider reinit trigger
+- **Provider UI grid** — complete tile-grid redesign: ProviderTile shows status badge, success rate, language count, and credential type; AddProviderModal replaces flat list with searchable cards; ProviderEditModal uses structured config_fields; header shows `N aktiv / M konfiguriert` counts; `+` tile only visible when hidden providers exist
+- **CI** — `actions/checkout`, `actions/setup-node`, `actions/setup-python` bumped to v6
 
 ---
 

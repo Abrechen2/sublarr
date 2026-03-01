@@ -35,7 +35,7 @@ The current UI is functional but not final. The goal is a clean, modern interfac
 
 ---
 
-## v0.13.0 ✅ (Complete — Current)
+## v0.13.0 ✅ (Complete)
 
 - Sidecar Subtitle Management - inline sidecar badges (language + format) per episode with × delete button
 - Series/Episode Subtitles API - parallel filesystem scan keyed by Sonarr episode ID
@@ -46,7 +46,18 @@ The current UI is functional but not final. The goal is a clean, modern interfac
 
 ---
 
-## v0.14.0 (Download Security & Sanitization)
+## v0.14.0 ✅ (Complete — Current)
+
+- Provider UI Redesign — Bazarr-style tile grid; Deaktivieren grays tile in place (50% opacity), Entfernen removes to `+` pool; `providers_hidden` config key; reactive health checks on demand only
+- Provider — Subscene — 55-language community subtitle database, no account required
+- Provider — Addic7ed — 36 languages, TV-series specialist with episode-exact matching, optional login
+- Provider — TVSubtitles — 35 languages, TV-series only, no auth
+- Provider — Turkcealtyazi — Turkish subtitles, login required
+- Language Expansion — `_LANGUAGE_TAGS` 25 → ~70 languages; `GET /api/v1/languages` endpoint; searchable `LanguageSelect` dropdown for source/target language settings
+
+---
+
+## v0.15.0 (Download Security & Sanitization)
 
 Goals: Harden the subtitle download pipeline against malicious files from untrusted sources. Background: crafted subtitle files can exploit parser bugs in media players (VLC, Kodi, Jellyfin, Plex) — Sublarr as an automatic downloader must sanitize before files reach the media library.
 
@@ -61,7 +72,7 @@ Goals: Harden the subtitle download pipeline against malicious files from untrus
 
 ---
 
-## v0.15.0 (Subtitle Intelligence)
+## v0.16.0 (Subtitle Intelligence)
 
 Goals: Make Sublarr smarter about what to search for and what to accept.
 
@@ -76,11 +87,11 @@ Goals: Make Sublarr smarter about what to search for and what to accept.
 
 ---
 
-## v0.16.0 (Provider Maturity)
+## v0.17.0 (Provider Maturity)
 
-Goals: Close the gap to Bazarr in provider coverage, subtitle type handling, and community integration.
+Goals: Close remaining gap to Bazarr in provider coverage, subtitle type handling, and community integration.
 
-- Additional Providers - Addic7ed, Gestdown (Subscene successor), Podnapisi, Supersubtitles
+- Additional Providers - Supersubtitles and further community providers
 - Hearing Impaired Support - HI detection, preference setting (prefer/exclude/only), HI-tag stripping from dialogue
 - Forced Subtitle Support - detect and download forced subs for foreign-audio scenes
 - Anti-Captcha Integration - Anti-Captcha.com / CapMonster support for captcha-protected providers
@@ -88,7 +99,7 @@ Goals: Close the gap to Bazarr in provider coverage, subtitle type handling, and
 
 ---
 
-## v0.17.0 (Stream Removal — Safe Remux)
+## v0.18.0 (Stream Removal — Safe Remux)
 
 Goals: Safely remove embedded subtitle streams from video files after extraction, with full rollback capability.
 
@@ -102,7 +113,7 @@ Goals: Safely remove embedded subtitle streams from video files after extraction
 
 ---
 
-## v0.18.0 (Collaboration and Export)
+## v0.19.0 (Collaboration and Export)
 
 Goals: Make Sublarr useful as a subtitle processing pipeline, not just consumer.
 
@@ -114,7 +125,7 @@ Goals: Make Sublarr useful as a subtitle processing pipeline, not just consumer.
 
 ---
 
-## v0.19.0 (Performance and Scalability)
+## v0.20.0 (Performance and Scalability)
 
 Goals: Handle larger libraries without degradation.
 
@@ -126,7 +137,7 @@ Goals: Handle larger libraries without degradation.
 
 ---
 
-## v0.20.0 (Advanced Anime Support)
+## v0.21.0 (Advanced Anime Support)
 
 Goals: First-class support for complex anime subtitle scenarios.
 
