@@ -1,12 +1,13 @@
 import { useState, useMemo, useCallback, memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLibrary, useLanguageProfiles, useAssignProfile } from '@/hooks/useApi'
-import { Tv, Film, Loader2, Settings, ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, X } from 'lucide-react'
+import { Tv, Film, Loader2, Settings, ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, X, LayoutGrid, List } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { SeriesInfo, MovieInfo, LanguageProfile, SyncBatchProgress, SyncBatchComplete } from '@/lib/types'
 import { autoSyncBulk, startSeriesBatchSearch } from '@/api/client'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { toast } from '@/components/shared/Toast'
+import { LibraryGridCard } from '@/components/library/LibraryGridCard'
 
 type Tab = 'series' | 'movies'
 type SortKey = 'title' | 'missing' | 'episodes'
@@ -541,7 +542,17 @@ export function LibraryPage() {
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [showBulkSync, setShowBulkSync] = useState(false)
   const [selectedSeries, setSelectedSeries] = useState<Set<number>>(new Set())
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>(() =>
+    (localStorage.getItem('library_view_mode') as 'table' | 'grid') ?? 'table'
+  )
+  const [statusFilter, setStatusFilter] = useState<'all' | 'missing' | 'complete'>('all')
+  const [profileFilter, setProfileFilter] = useState<string>('all')
   const navigate = useNavigate()
+
+  const handleViewMode = (mode: 'table' | 'grid') => {
+    setViewMode(mode)
+    localStorage.setItem('library_view_mode', mode)
+  }
 
   const toggleSeries = useCallback((id: number) => {
     setSelectedSeries(prev => {
@@ -583,6 +594,19 @@ export function LibraryPage() {
       items = items.filter((item) => item.title.toLowerCase().includes(q))
     }
 
+    // Status filter (series only)
+    if (activeTab === 'series' && statusFilter !== 'all') {
+      items = items.filter((item) => {
+        const missing = (item as SeriesInfo).missing_count ?? 0
+        return statusFilter === 'missing' ? missing > 0 : missing === 0
+      })
+    }
+
+    // Profile filter (series only)
+    if (activeTab === 'series' && profileFilter !== 'all') {
+      items = items.filter((item) => (item as SeriesInfo).profile_name === profileFilter)
+    }
+
     // Sort
     items.sort((a, b) => {
       let cmp = 0
@@ -603,7 +627,7 @@ export function LibraryPage() {
     })
 
     return items
-  }, [library, activeTab, searchQuery, sortKey, sortDir])
+  }, [library, activeTab, searchQuery, sortKey, sortDir, statusFilter, profileFilter])
 
   if (isLoading) {
     return (
@@ -722,6 +746,73 @@ export function LibraryPage() {
             </button>
           </div>
 
+          {/* Status filter (series only) */}
+          {activeTab === 'series' && (
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setPage(1) }}
+              className="px-2 py-1.5 rounded-md text-xs"
+              style={{
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <option value="all">{t('filter_status_all')}</option>
+              <option value="missing">{t('filter_status_missing')}</option>
+              <option value="complete">{t('filter_status_complete')}</option>
+            </select>
+          )}
+
+          {/* Profile filter (series only) */}
+          {activeTab === 'series' && profiles && profiles.length > 0 && (
+            <select
+              value={profileFilter}
+              onChange={(e) => { setProfileFilter(e.target.value); setPage(1) }}
+              className="px-2 py-1.5 rounded-md text-xs"
+              style={{
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <option value="all">{t('filter_profile_all')}</option>
+              {profiles.map((p) => (
+                <option key={p.id} value={p.name}>{p.name}</option>
+              ))}
+            </select>
+          )}
+
+          {/* View toggle */}
+          <div
+            className="flex rounded-md overflow-hidden"
+            style={{ border: '1px solid var(--border)' }}
+          >
+            <button
+              onClick={() => handleViewMode('table')}
+              className="px-2.5 py-1.5 transition-colors"
+              style={{
+                backgroundColor: viewMode === 'table' ? 'var(--accent-bg)' : 'var(--bg-surface)',
+                color: viewMode === 'table' ? 'var(--accent)' : 'var(--text-muted)',
+              }}
+              title={t('view_table')}
+            >
+              <List size={14} />
+            </button>
+            <button
+              onClick={() => handleViewMode('grid')}
+              className="px-2.5 py-1.5 transition-colors"
+              style={{
+                backgroundColor: viewMode === 'grid' ? 'var(--accent-bg)' : 'var(--bg-surface)',
+                color: viewMode === 'grid' ? 'var(--accent)' : 'var(--text-muted)',
+                borderLeft: '1px solid var(--border)',
+              }}
+              title={t('view_grid')}
+            >
+              <LayoutGrid size={14} />
+            </button>
+          </div>
+
           {/* Bulk Sync toggle */}
           <button
             onClick={() => setShowBulkSync((v) => !v)}
@@ -796,21 +887,33 @@ export function LibraryPage() {
               </button>
             </div>
           )}
-          <LibraryTable
-            items={paginatedItems}
-            type={activeTab}
-            profiles={profiles || []}
-            onRowClick={handleRowClick}
-            onProfileChange={handleProfileChange}
-            sortKey={sortKey}
-            sortDir={sortDir}
-            onSort={handleSort}
-            t={t}
-            selectedSeries={selectedSeries}
-            onToggleSeries={toggleSeries}
-            onSelectAll={() => setSelectedSeries(new Set(paginatedItems.map(s => s.id)))}
-            onClearSelection={clearSelection}
-          />
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+              {paginatedItems.map((item) => (
+                <LibraryGridCard
+                  key={item.id}
+                  item={item}
+                  onClick={() => handleRowClick(item.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <LibraryTable
+              items={paginatedItems}
+              type={activeTab}
+              profiles={profiles || []}
+              onRowClick={handleRowClick}
+              onProfileChange={handleProfileChange}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={handleSort}
+              t={t}
+              selectedSeries={selectedSeries}
+              onToggleSeries={toggleSeries}
+              onSelectAll={() => setSelectedSeries(new Set(paginatedItems.map(s => s.id)))}
+              onClearSelection={clearSelection}
+            />
+          )}
           {totalPages > 1 && (
             <Pagination
               page={currentPage}

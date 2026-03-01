@@ -13,6 +13,12 @@
     "missing_file": "Fehlend",
     "default_profile": "Standard"
   },
+  "view_table": "Tabelle",
+  "view_grid": "Kacheln",
+  "filter_status_all": "Alle",
+  "filter_status_missing": "Fehlende",
+  "filter_status_complete": "Vollständig",
+  "filter_profile_all": "Alle Profile",
   "pagination": {
     "show": "Zeige {{start}} bis {{end}} von {{total}} Einträgen"
   },

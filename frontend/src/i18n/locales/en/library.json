@@ -13,6 +13,12 @@
     "missing_file": "Missing",
     "default_profile": "Default"
   },
+  "view_table": "Table",
+  "view_grid": "Grid",
+  "filter_status_all": "All",
+  "filter_status_missing": "Has Missing",
+  "filter_status_complete": "Complete",
+  "filter_profile_all": "All Profiles",
   "pagination": {
     "show": "Show {{start}} to {{end}} of {{total}} entries"
   },
