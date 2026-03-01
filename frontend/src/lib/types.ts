@@ -149,6 +149,7 @@ export interface WantedItem {
   last_search_at: string
   search_count: number
   error: string
+  retry_after: string | null
   added_at: string
   updated_at: string
   upgrade_candidate: number

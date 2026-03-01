@@ -25,6 +25,15 @@ import { useWebSocket } from '@/hooks/useWebSocket'
 import { useQueryClient } from '@tanstack/react-query'
 
 /** Derive subtitle file path from media path + language + format. */
+function formatRetryTime(isoString: string): string {
+  const ms = new Date(isoString).getTime() - Date.now()
+  if (ms <= 0) return 'soon'
+  const mins = Math.round(ms / 60000)
+  if (mins < 60) return `${mins}m`
+  const hrs = Math.round(ms / 3600000)
+  return `${hrs}h`
+}
+
 function deriveSubtitlePath(mediaPath: string, lang: string, format: string): string {
   const lastDot = mediaPath.lastIndexOf('.')
   const base = lastDot > 0 ? mediaPath.substring(0, lastDot) : mediaPath
@@ -876,9 +885,25 @@ export function WantedPage() {
                         </span>
                       </td>
                       <td className="px-3 py-2.5">
-                        <div className="flex items-center gap-1.5">
-                          <StatusBadge status={item.status} />
-                          <SubtitleTypeBadge subtitleType={item.subtitle_type} />
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <StatusBadge status={item.status} />
+                            <SubtitleTypeBadge subtitleType={item.subtitle_type} />
+                          </div>
+                          {item.status === 'failed' && item.error && (
+                            <span
+                              className="text-xs truncate max-w-[14rem] cursor-help"
+                              style={{ color: 'var(--error)' }}
+                              title={item.error}
+                            >
+                              ⚠ {item.error}
+                            </span>
+                          )}
+                          {item.status === 'failed' && item.retry_after && (
+                            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                              {t('wanted.retry_at')}: {formatRetryTime(item.retry_after)}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-3 py-2.5 hidden sm:table-cell">

@@ -67,6 +67,7 @@
     "re_translate": "Re-translate",
     "un_ignore_action": "Un-ignore",
     "ignore_action": "Ignore",
+    "retry_at": "Retry at",
     "no_match_filters": "No items match the current filters",
     "no_wanted_items": "No wanted items \u2014 run a scan to detect missing subtitles",
     "page_of": "Page {{page}} of {{totalPages}} ({{total}} total)",

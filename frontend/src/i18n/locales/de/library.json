@@ -67,6 +67,7 @@
     "re_translate": "Erneut übersetzen",
     "un_ignore_action": "Nicht mehr ignorieren",
     "ignore_action": "Ignorieren",
+    "retry_at": "Retry um",
     "no_match_filters": "Keine Einträge entsprechen den aktuellen Filtern",
     "no_wanted_items": "Keine gesuchten Einträge \u2014 starte einen Scan um fehlende Untertitel zu erkennen",
     "page_of": "Seite {{page}} von {{totalPages}} ({{total}} gesamt)",
