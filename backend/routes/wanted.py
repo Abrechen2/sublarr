@@ -965,10 +965,17 @@ def batch_extract():
         page = get_wanted_items(page=1, per_page=500, series_id=int(series_id))
         item_ids = [it["id"] for it in page.get("data", [])]
 
-    # Allow empty body to extract all wanted items with missing subtitles
+    # Allow empty body to extract all wanted items with missing or embedded subtitles.
+    # Include items without any sub AND items probed as embedded_ass/embedded_srt.
+    # Exclude items that already have a sidecar (existing_sub = 'ass' or 'srt').
     if not item_ids and not series_id:
         page = get_wanted_items(page=1, per_page=2000)
-        item_ids = [it["id"] for it in page.get("data", []) if not it.get("existing_sub")]
+        item_ids = [
+            it["id"]
+            for it in page.get("data", [])
+            if it.get("existing_sub") in ("embedded_ass", "embedded_srt")
+            or not it.get("existing_sub")
+        ]
 
     if not item_ids:
         return jsonify({"error": "No eligible items found", "status": "nothing_to_do"}), 200

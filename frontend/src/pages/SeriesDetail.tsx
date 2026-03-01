@@ -1206,7 +1206,11 @@ export function SeriesDetailPage() {
   const handleExtract = useCallback(() => {
     if (seriesId == null || extractProgress !== null) return
     setExtractProgress({ current: 0, total: 0, filename: '' })
-    void batchExtractAllTracks(seriesId)
+    batchExtractAllTracks(seriesId).catch((err: unknown) => {
+      setExtractProgress(null)
+      const msg = err instanceof Error ? err.message : 'Extraktion fehlgeschlagen'
+      toast(msg, 'error')
+    })
   }, [seriesId, extractProgress])
 
   const handleDeleteSidecar = useCallback(async (path: string) => {

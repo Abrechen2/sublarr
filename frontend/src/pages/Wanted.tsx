@@ -262,6 +262,7 @@ export function WantedPage() {
   const searchItem = useSearchWantedItem()
   const processItem = useProcessWantedItem()
   const extractItem = useExtractEmbeddedSub()
+  const [extractingItemId, setExtractingItemId] = useState<number | null>(null)
   const retranslateItem = useRetranslateSingle()
   const startBatch = useStartWantedBatch()
   const addBlacklist = useAddToBlacklist()
@@ -409,6 +410,7 @@ export function WantedPage() {
   }
 
   const handleExtract = (itemId: number, targetLanguage?: string) => {
+    setExtractingItemId(itemId)
     extractItem.mutate(
       { itemId, options: { target_language: targetLanguage } },
       {
@@ -417,6 +419,9 @@ export function WantedPage() {
         },
         onError: (error: Error) => {
           toast(`Extraction failed: ${error.message}`, 'error')
+        },
+        onSettled: () => {
+          setExtractingItemId(null)
         },
       }
     )
@@ -982,14 +987,14 @@ export function WantedPage() {
                           {(item.existing_sub === 'embedded_ass' || item.existing_sub === 'embedded_srt') && (
                             <button
                               onClick={() => handleExtract(item.id, item.target_language)}
-                              disabled={extractItem.isPending}
+                              disabled={extractingItemId === item.id}
                               className="p-1 rounded transition-colors duration-150"
                               title={t('wanted.extract_embedded')}
                               style={{ color: 'var(--text-muted)' }}
                               onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
                               onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
                             >
-                              {extractItem.isPending ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                              {extractingItemId === item.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                             </button>
                           )}
                           <button
