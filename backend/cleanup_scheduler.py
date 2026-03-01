@@ -77,6 +77,7 @@ class CleanupScheduler:
             return None
         try:
             from datetime import datetime, timedelta
+
             last_dt = datetime.fromisoformat(self._last_run_at)
             return (last_dt + timedelta(hours=self._interval_hours)).isoformat()
         except Exception:
