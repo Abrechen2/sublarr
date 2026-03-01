@@ -5,10 +5,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry, useStartWantedBatch, useUpdateSeriesSettings, useAnidbMappingStatus, useRefreshAnidbMapping } from '@/hooks/useApi'
 import {
   ArrowLeft, Loader2, ChevronDown, ChevronRight,
-  Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search, Clock,
-  Download, X, ChevronUp, BookOpen, Plus, Edit2, Trash2, Check,
-  Eye, Pencil, Columns2, Timer, ShieldCheck, ScanSearch, RefreshCw, Database,
-  Layers, Sparkles, Trash, Clapperboard,
+  Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search,
+  Download, X, BookOpen, Plus, Edit2, Trash2, Check,
+  Eye, Pencil, Database,
+  Layers, Sparkles, Trash,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
@@ -22,6 +22,7 @@ import { ComparisonSelector } from '@/components/comparison/ComparisonSelector'
 import { HealthBadge } from '@/components/health/HealthBadge'
 import { SubtitleCleanupModal } from '@/components/shared/SubtitleCleanupModal'
 import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry, SidecarSubtitle } from '@/lib/types'
+import { EpisodeActionMenu } from '@/components/episodes/EpisodeActionMenu'
 
 const SubtitleComparison = lazy(() => import('@/components/comparison/SubtitleComparison').then(m => ({ default: m.SubtitleComparison })))
 const SyncControls = lazy(() => import('@/components/sync/SyncControls').then(m => ({ default: m.SyncControls })))
@@ -878,245 +879,40 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
 
                     {/* Actions */}
                     <div className="w-64 flex-shrink-0 flex gap-0.5 justify-end">
-                      {isExpanded && (
-                        <button
-                          onClick={onClose}
-                          className="p-1 rounded transition-colors"
-                          style={{ color: 'var(--text-muted)' }}
-                          title={t('series_detail.close')}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.color = 'var(--error)'
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.color = 'var(--text-muted)'
-                          }}
-                        >
-                          <X size={14} />
-                        </button>
-                      )}
-                      {/* Compare button: only show when 2+ subtitle files */}
                       {(() => {
-                        const subCount = ep.has_file ? Object.values(ep.subtitles).filter(f => f === 'ass' || f === 'srt').length : 0
-                        return subCount >= 2 ? (
-                          <button
-                            onClick={() => onCompare(ep)}
-                            className="p-1 rounded transition-colors"
-                            style={{ color: 'var(--text-muted)' }}
-                            title="Compare subtitles"
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.color = 'var(--accent)'
-                              e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.color = 'var(--text-muted)'
-                              e.currentTarget.style.backgroundColor = ''
-                            }}
-                          >
-                            <Columns2 size={14} />
-                          </button>
-                        ) : null
-                      })()}
-                      {/* Sync button: only show when at least 1 subtitle file */}
-                      {(() => {
-                        const hasAnySub = ep.has_file && Object.values(ep.subtitles).some(f => f === 'ass' || f === 'srt')
-                        if (!hasAnySub) return null
-                        // Pick the first available subtitle for sync
-                        const firstLang = Object.entries(ep.subtitles).find(([, f]) => f === 'ass' || f === 'srt')
-                        if (!firstLang) return null
-                        const syncPath = deriveSubtitlePath(ep.file_path, firstLang[0], firstLang[1])
+                        const firstLang = ep.has_file
+                          ? Object.entries(ep.subtitles).find(([, f]) => f === 'ass' || f === 'srt')
+                          : null
+                        const firstSubPath = firstLang
+                          ? deriveSubtitlePath(ep.file_path, firstLang[0], firstLang[1])
+                          : null
+                        const hasMultipleSubs = ep.has_file
+                          ? Object.values(ep.subtitles).filter(f => f === 'ass' || f === 'srt').length >= 2
+                          : false
                         return (
-                          <button
-                            onClick={() => onSync(syncPath)}
-                            className="p-1 rounded transition-colors"
-                            style={{ color: 'var(--text-muted)' }}
-                            title="Sync timing"
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.color = 'var(--accent)'
-                              e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.color = 'var(--text-muted)'
-                              e.currentTarget.style.backgroundColor = ''
-                            }}
-                          >
-                            <Timer size={14} />
-                          </button>
+                          <EpisodeActionMenu
+                            ep={ep}
+                            isExpanded={isExpanded}
+                            mode={mode}
+                            searchLoading={searchLoading}
+                            historyLoading={historyLoading}
+                            firstSubPath={firstSubPath}
+                            hasMultipleSubs={hasMultipleSubs}
+                            onSearch={() => onSearch(ep)}
+                            onEditSub={onEditSub}
+                            onPreviewSub={onPreviewSub}
+                            onCompare={() => onCompare(ep)}
+                            onSync={onSync}
+                            onAutoSync={onAutoSync}
+                            onVideoSync={(subtitlePath) => onVideoSync(ep, subtitlePath)}
+                            onHealthCheck={onHealthCheck}
+                            onTracks={() => onTracks(ep)}
+                            onInteractiveSearch={() => onInteractiveSearch(ep)}
+                            onHistory={() => onHistory(ep)}
+                            onClose={onClose}
+                          />
                         )
                       })()}
-                      {/* Auto-sync button: call alass/ffsubsync directly */}
-                      {(() => {
-                        const hasAnySub = ep.has_file && Object.values(ep.subtitles).some(f => f === 'ass' || f === 'srt')
-                        if (!hasAnySub) return null
-                        const firstLang = Object.entries(ep.subtitles).find(([, f]) => f === 'ass' || f === 'srt')
-                        if (!firstLang) return null
-                        const syncPath = deriveSubtitlePath(ep.file_path, firstLang[0], firstLang[1])
-                        return (
-                          <button
-                            onClick={() => onAutoSync(syncPath, ep.file_path)}
-                            className="p-1 rounded transition-colors"
-                            style={{ color: 'var(--text-muted)' }}
-                            title="Auto-sync timing (alass/ffsubsync)"
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.color = 'var(--success)'
-                              e.currentTarget.style.backgroundColor = 'var(--success-bg)'
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.color = 'var(--text-muted)'
-                              e.currentTarget.style.backgroundColor = ''
-                            }}
-                          >
-                            <RefreshCw size={14} />
-                          </button>
-                        )
-                      })()}
-                      {/* Video sync button: open SyncModal (ffsubsync/alass with engine/track selector) */}
-                      {(() => {
-                        if (!ep.has_file) return null
-                        const firstLang = Object.entries(ep.subtitles).find(([, f]) => f === 'ass' || f === 'srt')
-                        if (!firstLang) return null
-                        const syncPath = deriveSubtitlePath(ep.file_path, firstLang[0], firstLang[1])
-                        return (
-                          <button
-                            onClick={() => onVideoSync(ep, syncPath)}
-                            className="p-1 rounded transition-colors"
-                            style={{ color: 'var(--text-muted)' }}
-                            title="Video-Sync (ffsubsync / alass)"
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.color = 'var(--accent)'
-                              e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.color = 'var(--text-muted)'
-                              e.currentTarget.style.backgroundColor = ''
-                            }}
-                          >
-                            <Clapperboard size={14} />
-                          </button>
-                        )
-                      })()}
-                      {/* Health button: only show when at least 1 subtitle file */}
-                      {(() => {
-                        const hasAnySub = ep.has_file && Object.values(ep.subtitles).some(f => f === 'ass' || f === 'srt')
-                        if (!hasAnySub) return null
-                        const firstLang = Object.entries(ep.subtitles).find(([, f]) => f === 'ass' || f === 'srt')
-                        if (!firstLang) return null
-                        const healthPath = deriveSubtitlePath(ep.file_path, firstLang[0], firstLang[1])
-                        return (
-                          <button
-                            onClick={() => onHealthCheck(healthPath)}
-                            className="p-1 rounded transition-colors"
-                            style={{ color: 'var(--text-muted)' }}
-                            title="Health check"
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.color = 'var(--accent)'
-                              e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.color = 'var(--text-muted)'
-                              e.currentTarget.style.backgroundColor = ''
-                            }}
-                          >
-                            <ShieldCheck size={14} />
-                          </button>
-                        )
-                      })()}
-                      {/* Tracks button: show all embedded tracks */}
-                      {ep.has_file && (
-                        <button
-                          onClick={() => onTracks(ep)}
-                          className="p-1 rounded transition-colors"
-                          style={{ color: isExpanded && mode === 'tracks' ? 'var(--accent)' : 'var(--text-muted)' }}
-                          title="Eingebettete Tracks anzeigen"
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.color = 'var(--accent)'
-                            e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.color = isExpanded && mode === 'tracks' ? 'var(--accent)' : 'var(--text-muted)'
-                            e.currentTarget.style.backgroundColor = ''
-                          }}
-                        >
-                          <Database size={14} />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => onSearch(ep)}
-                        disabled={!ep.has_file}
-                        className="p-1 rounded transition-colors"
-                        style={{
-                          color: isExpanded && mode === 'search' ? 'var(--accent)' : 'var(--text-muted)',
-                          opacity: ep.has_file ? 1 : 0.4,
-                        }}
-                        title={t('series_detail.search_subtitles')}
-                        onMouseEnter={(e) => {
-                          if (ep.has_file) {
-                            e.currentTarget.style.color = 'var(--accent)'
-                            e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.color = isExpanded && mode === 'search' ? 'var(--accent)' : 'var(--text-muted)'
-                          e.currentTarget.style.backgroundColor = ''
-                        }}
-                      >
-                        {searchLoading && isExpanded && mode === 'search' ? (
-                          <Loader2 size={14} className="animate-spin" />
-                        ) : isExpanded && mode === 'search' ? (
-                          <ChevronUp size={14} />
-                        ) : (
-                          <Search size={14} />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => onInteractiveSearch(ep)}
-                        disabled={!ep.has_file}
-                        className="p-1 rounded transition-colors"
-                        style={{
-                          color: 'var(--text-muted)',
-                          opacity: ep.has_file ? 1 : 0.4,
-                        }}
-                        title="Interaktive Suche"
-                        onMouseEnter={(e) => {
-                          if (ep.has_file) {
-                            e.currentTarget.style.color = 'var(--accent)'
-                            e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.color = 'var(--text-muted)'
-                          e.currentTarget.style.backgroundColor = ''
-                        }}
-                      >
-                        <ScanSearch size={14} />
-                      </button>
-                      <button
-                        onClick={() => onHistory(ep)}
-                        disabled={!ep.has_file}
-                        className="p-1 rounded transition-colors"
-                        style={{
-                          color: isExpanded && mode === 'history' ? 'var(--accent)' : 'var(--text-muted)',
-                          opacity: ep.has_file ? 1 : 0.4,
-                        }}
-                        title={t('series_detail.history')}
-                        onMouseEnter={(e) => {
-                          if (ep.has_file) {
-                            e.currentTarget.style.color = 'var(--accent)'
-                            e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.color = isExpanded && mode === 'history' ? 'var(--accent)' : 'var(--text-muted)'
-                          e.currentTarget.style.backgroundColor = ''
-                        }}
-                      >
-                        {historyLoading && isExpanded && mode === 'history' ? (
-                          <Loader2 size={14} className="animate-spin" />
-                        ) : isExpanded && mode === 'history' ? (
-                          <ChevronUp size={14} />
-                        ) : (
-                          <Clock size={14} />
-                        )}
-                      </button>
                     </div>
                   </div>
 
