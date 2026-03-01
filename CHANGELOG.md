@@ -5,6 +5,15 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.1-beta] — 2026-03-01
+
+### Fixed
+- **App — SPA 404 on page reload** — `static_url_path=""` caused Flask's built-in static file route to intercept `/wanted`, `/library` etc. and return 404 before the `serve_spa()` catch-all; fixed by setting `static_folder=None` so only the custom handler runs
+- **App — PostgreSQL startup warnings** — `rowid` in `wanted_items` dedup query replaced with `id` (primary key); `MIN(title)` aggregate added to search index rebuild query to satisfy PostgreSQL GROUP BY rules; `_patch_pre_alembic_columns()` detects and adds the `source` column to `subtitle_downloads` for databases created before Alembic was introduced
+- **Scoring — `_DEFAULT_EPISODE_WEIGHTS` import** — re-exported from `db.scoring` so `routes/hooks.py` can import them without reaching into the repository layer
+
+---
+
 ## [0.15.0-beta] — 2026-03-01
 
 ### Added
