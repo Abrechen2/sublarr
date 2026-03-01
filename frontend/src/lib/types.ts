@@ -680,6 +680,8 @@ export interface SchedulerTask {
   next_run: string | null
   interval_hours: number | null
   enabled: boolean
+  cancellable?: boolean
+  progress?: { processed: number; total: number } | null
 }
 
 export interface TasksResponse {

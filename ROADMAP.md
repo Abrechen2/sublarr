@@ -46,7 +46,22 @@ The current UI is functional but not final. The goal is a clean, modern interfac
 
 ---
 
-## v0.14.0 (Subtitle Intelligence)
+## v0.14.0 (Download Security & Sanitization)
+
+Goals: Harden the subtitle download pipeline against malicious files from untrusted sources. Background: crafted subtitle files can exploit parser bugs in media players (VLC, Kodi, Jellyfin, Plex) — Sublarr as an automatic downloader must sanitize before files reach the media library.
+
+- ZIP Slip Prevention — wire existing `safe_zip_extract()` into all providers (animetosho, jimaku, subdl, kitsunekko, legendasdivx, napisy24, podnapisi, titrari); replace per-provider inline extraction
+- Download Size Limits — 5 MB per subtitle file, 20 MB per archive; reject oversized downloads before disk write
+- ZIP Bomb Protection — limit total extracted size to 50 MB; abort extraction when compression ratio exceeds 100:1
+- ASS Sanitizer — parse with pysubs2, strip Lua scripts, external includes, and dangerous override tags; re-serialize clean file before saving
+- SRT/VTT Sanitizer — strip all HTML except `<i>`, `<b>`, `<u>`; remove embedded scripts, event handlers, and data URIs
+- Central `sanitize_subtitle()` Gate — single function called after every provider download, before file is written to disk
+- Content-Type Validation — verify downloaded bytes match expected subtitle format; reject binary, executable, or unrecognized content
+- Provider Archive Consolidation — replace 8 independent extraction implementations with shared `extract_archive()` utility using `safe_zip_extract()` and `safe_rar_extract()`
+
+---
+
+## v0.15.0 (Subtitle Intelligence)
 
 Goals: Make Sublarr smarter about what to search for and what to accept.
 
@@ -61,7 +76,7 @@ Goals: Make Sublarr smarter about what to search for and what to accept.
 
 ---
 
-## v0.15.0 (Provider Maturity)
+## v0.16.0 (Provider Maturity)
 
 Goals: Close the gap to Bazarr in provider coverage, subtitle type handling, and community integration.
 
@@ -73,7 +88,7 @@ Goals: Close the gap to Bazarr in provider coverage, subtitle type handling, and
 
 ---
 
-## v0.16.0 (Stream Removal — Safe Remux)
+## v0.17.0 (Stream Removal — Safe Remux)
 
 Goals: Safely remove embedded subtitle streams from video files after extraction, with full rollback capability.
 
@@ -87,7 +102,7 @@ Goals: Safely remove embedded subtitle streams from video files after extraction
 
 ---
 
-## v0.17.0 (Collaboration and Export)
+## v0.18.0 (Collaboration and Export)
 
 Goals: Make Sublarr useful as a subtitle processing pipeline, not just consumer.
 
@@ -99,7 +114,7 @@ Goals: Make Sublarr useful as a subtitle processing pipeline, not just consumer.
 
 ---
 
-## v0.18.0 (Performance and Scalability)
+## v0.19.0 (Performance and Scalability)
 
 Goals: Handle larger libraries without degradation.
 
@@ -111,7 +126,7 @@ Goals: Handle larger libraries without degradation.
 
 ---
 
-## v0.19.0 (Advanced Anime Support)
+## v0.20.0 (Advanced Anime Support)
 
 Goals: First-class support for complex anime subtitle scenarios.
 

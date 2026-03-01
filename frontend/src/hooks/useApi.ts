@@ -1140,7 +1140,10 @@ export function useTasks() {
   return useQuery({
     queryKey: ['tasks'],
     queryFn: getTasks,
-    refetchInterval: 30000,
+    refetchInterval: (query) => {
+      const tasks = query.state.data?.tasks ?? []
+      return tasks.some((t: { running: boolean }) => t.running) ? 3000 : 30000
+    },
   })
 }
 
@@ -1148,16 +1151,16 @@ export function useTriggerTask() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (taskName: string) => {
+      const { default: api } = await import('@/api/client')
       // Map task names to their trigger endpoints
       const triggerMap: Record<string, () => Promise<unknown>> = {
-        wanted_scan: async () => {
-          const { default: api } = await import('@/api/client')
-          return api.post('/wanted/refresh').then(r => r.data)
-        },
-        wanted_search: async () => {
-          const { default: api } = await import('@/api/client')
-          return api.post('/wanted/search-all').then(r => r.data)
-        },
+        wanted_scan:      () => api.post('/wanted/refresh').then(r => r.data),
+        wanted_search:    () => api.post('/wanted/search-all').then(r => r.data),
+        batch_extraction: () => api.post('/wanted/batch-extract', {}).then(r => r.data),
+        cleanup:          () => api.post('/tasks/cleanup/trigger').then(r => r.data),
+        anidb_sync:       () => api.post('/anidb-mapping/refresh').then(r => r.data),
+        bulk_auto_sync:   () => api.post('/tools/auto-sync/bulk', {}).then(r => r.data),
+        cleanup_jobs:     () => api.post('/tasks/cleanup-jobs').then(r => r.data),
       }
       const trigger = triggerMap[taskName]
       if (!trigger) throw new Error(`Unknown task: ${taskName}`)
@@ -1167,6 +1170,19 @@ export function useTriggerTask() {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
       queryClient.invalidateQueries({ queryKey: ['wanted'] })
       queryClient.invalidateQueries({ queryKey: ['wanted-summary'] })
+    },
+  })
+}
+
+export function useCancelTask() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (taskName: string) => {
+      const { default: api } = await import('@/api/client')
+      return api.post(`/tasks/${taskName}/cancel`).then(r => r.data)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
     },
   })
 }

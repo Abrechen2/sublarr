@@ -965,8 +965,13 @@ def batch_extract():
         page = get_wanted_items(page=1, per_page=500, series_id=int(series_id))
         item_ids = [it["id"] for it in page.get("data", [])]
 
+    # Allow empty body to extract all wanted items with missing subtitles
+    if not item_ids and not series_id:
+        page = get_wanted_items(page=1, per_page=2000)
+        item_ids = [it["id"] for it in page.get("data", []) if not it.get("existing_sub")]
+
     if not item_ids:
-        return jsonify({"error": "item_ids or series_id required"}), 400
+        return jsonify({"error": "No eligible items found", "status": "nothing_to_do"}), 200
 
     with _batch_extract_lock:
         if _batch_extract_state["running"]:
