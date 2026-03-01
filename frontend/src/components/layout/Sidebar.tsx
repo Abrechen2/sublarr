@@ -19,7 +19,7 @@ import {
   Star,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useHealth } from '@/hooks/useApi'
+import { useHealth, useUpdateInfo } from '@/hooks/useApi'
 import { ThemeToggle } from '@/components/shared/ThemeToggle'
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher'
 import { ScanProgressIndicator } from '@/components/shared/ScanProgressIndicator'
@@ -66,6 +66,7 @@ const navGroups: NavGroup[] = [
 
 export function Sidebar() {
   const { data: health } = useHealth()
+  const { data: updateInfo } = useUpdateInfo()
   const { t } = useTranslation('common')
   const [mobileOpen, setMobileOpen] = useState(false)
   const isHealthy = health?.status === 'healthy'
@@ -282,6 +283,18 @@ export function Sidebar() {
               v{health?.version ?? '…'}
             </span>
           </div>
+          {updateInfo?.available && updateInfo.url && (
+            <a
+              href={updateInfo.url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 mt-0.5"
+              style={{ color: 'var(--accent)', fontSize: '10px', fontFamily: 'var(--font-mono)' }}
+            >
+              <span>↑</span>
+              <span>{updateInfo.latest} verfügbar</span>
+            </a>
+          )}
         </div>
       </aside>
     </>

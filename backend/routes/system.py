@@ -17,6 +17,31 @@ from sqlalchemy import text
 from version import __version__
 
 bp = Blueprint("system", __name__, url_prefix="/api/v1")
+
+# ─── Update check (GitHub releases) ──────────────────────────────────────────
+
+_GITHUB_REPO = "Abrechen2/sublarr"
+_UPDATE_CACHE_TTL = 6 * 60 * 60  # 6 hours
+_update_cache: dict = {"result": None, "checked_at": None}
+
+
+def _is_newer_version(tag: str, current: str) -> bool:
+    """Return True if tag represents a newer stable version than current.
+
+    Strips 'v' prefix and pre-release suffixes (e.g. -beta) before comparing
+    (major, minor, patch) integer tuples. No external dependencies.
+    """
+
+    def _parse(v: str) -> tuple[int, ...]:
+        v = v.lstrip("v").split("-")[0]
+        try:
+            return tuple(int(x) for x in v.split(".")[:3])
+        except ValueError:
+            return (0, 0, 0)
+
+    return _parse(tag) > _parse(current)
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -157,6 +182,81 @@ def health():
             "services": service_status,
         }
     ), status_code
+
+
+@bp.route("/update", methods=["GET"])
+def check_update():
+    """Check GitHub for a newer stable release.
+
+    Result is cached for 6 hours. Never raises — returns available=false on
+    any error so the UI degrades gracefully.
+    ---
+    get:
+      tags:
+        - System
+      summary: Check for updates
+      description: Checks GitHub releases for a newer stable version. Cached for 6 hours.
+      responses:
+        200:
+          description: Update check result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available:
+                    type: boolean
+                  latest:
+                    type: string
+                    nullable: true
+                  current:
+                    type: string
+                  url:
+                    type: string
+                    nullable: true
+    """
+    global _update_cache
+
+    now = time.time()
+    cached = _update_cache
+    if (
+        cached["result"] is not None
+        and cached["checked_at"] is not None
+        and now - cached["checked_at"] < _UPDATE_CACHE_TTL
+    ):
+        return jsonify(cached["result"])
+
+    fallback = {"available": False, "latest": None, "current": __version__, "url": None}
+    try:
+        import requests as _req
+
+        resp = _req.get(
+            f"https://api.github.com/repos/{_GITHUB_REPO}/releases/latest",
+            timeout=5,
+            headers={"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"},
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            tag = data.get("tag_name", "")
+            url = data.get("html_url", "")
+            # Skip pre-releases (the /releases/latest endpoint already excludes them,
+            # but guard explicitly in case that changes)
+            if tag and not data.get("prerelease", False):
+                result: dict = {
+                    "available": _is_newer_version(tag, __version__),
+                    "latest": tag,
+                    "current": __version__,
+                    "url": url,
+                }
+            else:
+                result = fallback
+        else:
+            result = fallback
+    except Exception:
+        result = fallback
+
+    _update_cache = {"result": result, "checked_at": now}
+    return jsonify(result)
 
 
 @bp.route("/health/detailed", methods=["GET"])

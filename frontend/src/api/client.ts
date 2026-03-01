@@ -1,6 +1,6 @@
 import axios from 'axios'
 import type {
-  HealthStatus, Stats, PaginatedJobs, Job, BatchState,
+  HealthStatus, UpdateInfo, Stats, PaginatedJobs, Job, BatchState,
   LibraryInfo, SeriesDetail, AppConfig, PaginatedWanted, WantedSummary,
   WantedSearchResponse, WantedBatchStatus, ProviderInfo, ProviderStats,
   RetranslateStatus, LanguageProfile, EpisodeHistoryEntry,
@@ -40,6 +40,11 @@ api.interceptors.request.use((config) => {
 
 export async function getHealth(): Promise<HealthStatus> {
   const { data } = await api.get('/health')
+  return data
+}
+
+export async function getUpdateInfo(): Promise<UpdateInfo> {
+  const { data } = await api.get('/update')
   return data
 }
 

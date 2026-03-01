@@ -26,6 +26,13 @@ export interface HealthStatus {
   services: Record<string, string>
 }
 
+export interface UpdateInfo {
+  available: boolean
+  latest: string | null
+  current: string
+  url: string | null
+}
+
 export interface Stats {
   total_translated: number
   total_failed: number
