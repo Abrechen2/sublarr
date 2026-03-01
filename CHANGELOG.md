@@ -5,20 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.14.0-beta] — 2026-03-01
+## [0.14.1-beta] — 2026-03-01
 
 ### Added
 - **Library — Grid/Thumbnail view** — toggle button (table ↔ grid) next to series/movies tabs; grid renders poster images from Sonarr/Radarr with missing-count badge; preference persisted to `localStorage`; fallback film-slate SVG when no poster available
 - **Library — Status and profile filters** — dropdown to filter items by status (all / has missing / complete) and by profile name; filtering applied client-side via `useMemo` with no additional API calls
 - **Wanted — Error and retry display** — failed wanted items now show the failure reason as a truncated `⚠ message` tooltip in the status column; upcoming retry time shown as `Retry: Xm/Xh` below the badge when `retry_after` is set
 - **Settings — Search field** — text input at the top of the settings sidebar filters tabs by name in real-time; Migration tab is excluded from search results regardless of the Advanced toggle
-- **Provider UI — Deaktivieren vs. Entfernen** — Power button grays out a provider tile in-grid (50% opacity, "Deaktiviert" badge) while Trash button removes it to the `+` pool entirely; new `providers_hidden` config key separates "off but visible" from "removed from grid"
-- **Provider — Subscene** — 55-language community subtitle database, no account required; HTML scraping with BeautifulSoup4, rate limit 10/60 s
-- **Provider — Addic7ed** — 36 languages, TV-series specialist with episode-exact matching; optional login credentials increase daily download limit; BeautifulSoup4, rate limit 10/60 s
-- **Provider — TVSubtitles** — 35 languages, TV-series only, no auth; BeautifulSoup4, rate limit 15/60 s
-- **Provider — Turkcealtyazi** — Turkish subtitle community site, login required; BeautifulSoup4, rate limit 10/60 s
-- **Language expansion** — `_LANGUAGE_TAGS` expanded from 25 to ~70 ISO 639-1 codes; `SUPPORTED_LANGUAGES` constant with 63 ordered entries served via `GET /api/v1/languages` (cached 1 h)
-- **LanguageSelect component** — searchable dropdown for source/target language settings that updates both the language code and `_name` fields simultaneously
+- **SeriesDetail — EpisodeActionMenu** — replaces 8 unlabelled icon-only action buttons with two primary labelled buttons (Search, Edit) and a `⋯ More` dropdown grouped by category (Preview/Compare, Timing, Analyse, History); extracted into standalone `EpisodeActionMenu` component
 
 ### Fixed
 - **Sidebar — Version display** — version fallback changed from the hardcoded `v0.1.0` to `v…` while the health endpoint is loading; version now always reflects `backend/VERSION` correctly
@@ -30,6 +24,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Statistics — empty state message** — placeholder text updated to mention subtitle searches in addition to translations so users understand both workflows populate the chart
 - **Statistics — download tracking** — `record_subtitle_download()` in `db/providers.py` now also writes to the `daily_stats` table via `record_stat()`; provider downloads were previously invisible on the Statistics page (only translation jobs were tracked)
+
+---
+
+## [0.14.0-beta] — 2026-03-01
+
+### Added
+- **Provider UI — Deaktivieren vs. Entfernen** — Power button grays out a provider tile in-grid (50% opacity, "Deaktiviert" badge) while Trash button removes it to the `+` pool entirely; new `providers_hidden` config key separates "off but visible" from "removed from grid"
+- **Provider — Subscene** — 55-language community subtitle database, no account required; HTML scraping with BeautifulSoup4, rate limit 10/60 s
+- **Provider — Addic7ed** — 36 languages, TV-series specialist with episode-exact matching; optional login credentials increase daily download limit; BeautifulSoup4, rate limit 10/60 s
+- **Provider — TVSubtitles** — 35 languages, TV-series only, no auth; BeautifulSoup4, rate limit 15/60 s
+- **Provider — Turkcealtyazi** — Turkish subtitle community site, login required; BeautifulSoup4, rate limit 10/60 s
+- **Language expansion** — `_LANGUAGE_TAGS` expanded from 25 to ~70 ISO 639-1 codes; `SUPPORTED_LANGUAGES` constant with 63 ordered entries served via `GET /api/v1/languages` (cached 1 h)
+- **LanguageSelect component** — searchable dropdown for source/target language settings that updates both the language code and `_name` fields simultaneously
+
+### Changed
 - **Settings — source/target language** — fields now use the new `LanguageSelect` dropdown instead of plain text inputs
 - **Provider reactive health checks** — status is fetched on-demand only (no background polling); `ProviderManager.update_providers()` does selective enable/disable without full reinit; `providers_hidden` key excluded from provider reinit trigger
 - **Provider UI grid** — complete tile-grid redesign: ProviderTile shows status badge, success rate, language count, and credential type; AddProviderModal replaces flat list with searchable cards; ProviderEditModal uses structured config_fields; header shows `N aktiv / M konfiguriert` counts; `+` tile only visible when hidden providers exist
