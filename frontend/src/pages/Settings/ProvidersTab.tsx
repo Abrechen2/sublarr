@@ -42,8 +42,18 @@ export function ProvidersTab({
         .filter((p): p is ProviderInfo => p !== undefined)
     : providers
 
-  const activeProviders = orderedProviders.filter((p) => p.enabled)
-  const availableProviders = orderedProviders.filter((p) => !p.enabled)
+  // providers_hidden: comma-separated names that are truly removed from the grid
+  const hiddenNamesRaw = values['providers_hidden'] ?? ''
+  const hiddenNames = new Set(
+    hiddenNamesRaw ? hiddenNamesRaw.split(',').map((s) => s.trim()).filter(Boolean) : []
+  )
+
+  // Grid shows all non-hidden providers (both enabled AND disabled)
+  const shownProviders = orderedProviders.filter((p) => !hiddenNames.has(p.name))
+  // + modal shows only hidden/removed providers
+  const hiddenProviders = orderedProviders.filter((p) => hiddenNames.has(p.name))
+
+  const activeCount = shownProviders.filter((p) => p.enabled).length
 
   const handleTest = (name: string) => {
     setTestResults((prev) => ({ ...prev, [name]: 'testing' }))
@@ -69,11 +79,38 @@ export function ProvidersTab({
     onSave({ providers_enabled: newValue })
   }
 
-  const handleRemove = (name: string) => {
-    handleToggle(name, true)
+  // Entfernen: adds to providers_hidden AND disables in providers_enabled
+  const handleHide = (name: string) => {
+    const newHiddenSet = new Set(hiddenNames)
+    newHiddenSet.add(name)
+    const newHiddenValue = Array.from(newHiddenSet).join(',')
+
+    const enabledSet = new Set(providers.filter((p) => p.enabled).map((p) => p.name))
+    enabledSet.delete(name)
+    const allNames = providers.map((p) => p.name)
+    const newEnabledValue = enabledSet.size === allNames.length ? '' : Array.from(enabledSet).join(',')
+
+    onSave({ providers_hidden: newHiddenValue, providers_enabled: newEnabledValue })
     setEditingProvider(null)
     setIsNewProvider(false)
     toast(`Provider ${name.replace(/_/g, ' ')} entfernt`)
+  }
+
+  // Hinzufügen: removes from providers_hidden AND enables in providers_enabled
+  const handleAddProvider = (name: string) => {
+    const newHiddenSet = new Set(hiddenNames)
+    newHiddenSet.delete(name)
+    const newHiddenValue = Array.from(newHiddenSet).join(',')
+
+    const enabledSet = new Set(providers.filter((p) => p.enabled).map((p) => p.name))
+    enabledSet.add(name)
+    const allNames = providers.map((p) => p.name)
+    const newEnabledValue = enabledSet.size === allNames.length ? '' : Array.from(enabledSet).join(',')
+
+    onSave({ providers_hidden: newHiddenValue, providers_enabled: newEnabledValue })
+    setEditingProvider(name)
+    setIsNewProvider(true)
+    setShowAddModal(false)
   }
 
   const handleMove = (index: number, direction: 'up' | 'down') => {
@@ -120,10 +157,10 @@ export function ProvidersTab({
   }
 
   const editingProviderData = editingProvider
-    ? orderedProviders.find((p) => p.name === editingProvider) ?? null
+    ? shownProviders.find((p) => p.name === editingProvider) ?? null
     : null
   const editingProviderIdx = editingProviderData
-    ? orderedProviders.indexOf(editingProviderData)
+    ? shownProviders.indexOf(editingProviderData)
     : -1
 
   return (
@@ -131,7 +168,7 @@ export function ProvidersTab({
       {/* Header */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-          {activeProviders.length} aktiv / {orderedProviders.length} verfügbar
+          {activeCount} aktiv / {shownProviders.length} konfiguriert
         </span>
         <button
           onClick={() => handleClearCache()}
@@ -149,7 +186,7 @@ export function ProvidersTab({
 
       {/* Tile Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        {activeProviders.map((provider, idx) => (
+        {shownProviders.map((provider, idx) => (
           <ProviderTile
             key={provider.name}
             provider={provider}
@@ -158,22 +195,22 @@ export function ProvidersTab({
             testResult={testResults[provider.name]}
             onOpenEdit={() => setEditingProvider(provider.name)}
             onToggle={() => handleToggle(provider.name, provider.enabled)}
-            onRemove={() => handleRemove(provider.name)}
+            onRemove={() => handleHide(provider.name)}
           />
         ))}
 
         {/* Empty state */}
-        {activeProviders.length === 0 && (
+        {shownProviders.length === 0 && (
           <div
             className="col-span-full py-10 text-center text-sm"
             style={{ color: 'var(--text-muted)' }}
           >
-            Noch kein Provider aktiv — klicke auf + um einen hinzuzufügen.
+            Noch kein Provider konfiguriert — klicke auf + um einen hinzuzufügen.
           </div>
         )}
 
-        {/* "+" tile — always visible when available providers exist */}
-        {availableProviders.length > 0 && (
+        {/* "+" tile — shows when there are hidden providers to re-add */}
+        {hiddenProviders.length > 0 && (
           <button
             onClick={() => setShowAddModal(true)}
             className="flex flex-col items-center justify-center gap-1 rounded transition-all duration-150"
@@ -204,8 +241,8 @@ export function ProvidersTab({
           cacheCount={statsData?.cache[editingProviderData.name]?.total ?? 0}
           priority={editingProviderIdx + 1}
           isFirst={editingProviderIdx === 0}
-          isLast={editingProviderIdx === orderedProviders.length - 1}
-          totalProviders={orderedProviders.length}
+          isLast={editingProviderIdx === shownProviders.length - 1}
+          totalProviders={shownProviders.length}
           fieldValues={Object.fromEntries(
             editingProviderData.config_fields.map((f) => [f.key, values[f.key] ?? ''])
           )}
@@ -218,21 +255,16 @@ export function ProvidersTab({
           onMoveDown={() => handleMove(editingProviderIdx, 'down')}
           onClearCache={() => handleClearCache(editingProviderData.name)}
           onReEnable={() => handleReEnable(editingProviderData.name)}
-          onRemove={() => handleRemove(editingProviderData.name)}
+          onRemove={() => handleHide(editingProviderData.name)}
           onClose={handleCloseEdit}
         />
       )}
 
-      {/* Add Modal */}
+      {/* Add Modal — shows removed/hidden providers */}
       {showAddModal && (
         <AddProviderModal
-          availableProviders={availableProviders}
-          onSelect={(name) => {
-            handleToggle(name, false)
-            setEditingProvider(name)
-            setIsNewProvider(true)
-            setShowAddModal(false)
-          }}
+          availableProviders={hiddenProviders}
+          onSelect={handleAddProvider}
           onClose={() => setShowAddModal(false)}
         />
       )}

@@ -80,7 +80,7 @@ export function AddProviderModal({ availableProviders, onSelect, onClose }: AddP
         <div className="py-1 max-h-96 overflow-y-auto">
           {availableProviders.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-              Alle Provider sind bereits aktiv.
+              Alle Provider sind bereits in der Liste.
             </p>
           ) : (
             availableProviders.map((provider) => (

@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     # Subtitle Providers
     provider_priorities: str = "animetosho,jimaku,opensubtitles,subdl"
     providers_enabled: str = ""  # Empty = all registered providers enabled
+    providers_hidden: str = ""  # Comma-separated provider names hidden from the UI grid (truly removed)
     provider_search_timeout: int = 30  # Global timeout fallback (seconds)
     provider_cache_ttl_minutes: int = 5  # Cache TTL for provider search results
     provider_auto_prioritize: bool = True  # Auto-prioritize providers based on success rate

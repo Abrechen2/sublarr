@@ -33,7 +33,8 @@ export function ProviderTile({
         border: '1px solid var(--border)',
         borderLeft: `4px solid ${borderColor}`,
         minHeight: '7rem',
-        transition: 'background-color 150ms',
+        transition: 'background-color 150ms, opacity 150ms',
+        opacity: provider.enabled ? 1 : 0.5,
       }}
       onClick={onOpenEdit}
       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
