@@ -5,6 +5,16 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0-beta] — 2026-03-01
+
+### Added
+- **Sidebar — Update available badge** — a pulsing badge appears in the sidebar when a newer GitHub release is available; the version is fetched from the GitHub Releases API once on load and cached; clicking opens the release page directly
+
+### Fixed
+- **Wanted — Search and download** — provider search and download were broken due to missing Flask app context in background threads and stale cache; fixed by passing the app instance explicitly and resetting the provider cache on each call
+
+---
+
 ## [0.14.2-beta] — 2026-03-01
 
 ### Added
