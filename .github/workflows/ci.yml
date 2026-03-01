@@ -21,7 +21,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -41,7 +41,7 @@ jobs:
     if: needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_call'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v5
         with:
@@ -87,7 +87,7 @@ jobs:
     if: needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_call'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v4
         with:
@@ -118,7 +118,7 @@ jobs:
     if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_call'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v5
         with:
