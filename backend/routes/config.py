@@ -184,6 +184,7 @@ def update_config():
     from mediaserver import invalidate_media_server_manager as _inv_media
     from notifier import invalidate_notifier as _inv_notifier
     from providers import invalidate_manager as _inv_providers
+    from providers import update_manager_providers as _upd_providers
     from radarr_client import invalidate_client as _inv_radarr
     from sonarr_client import invalidate_client as _inv_sonarr
 
@@ -191,21 +192,19 @@ def update_config():
         _inv_sonarr()
     if any(k.startswith("radarr_") for k in saved_keys):
         _inv_radarr()
-    if any(
-        k.startswith("provider")
-        or k.startswith("scoring_")
-        or k
-        in {
-            "opensubtitles_api_key",
-            "jimaku_api_key",
-            "subdl_api_key",
-            "min_score",
-            "source_language",
-            "target_language",
-        }
-        for k in saved_keys
-    ):
-        _inv_providers()
+
+    _credential_keys = {"opensubtitles_api_key", "jimaku_api_key", "subdl_api_key",
+                        "min_score", "source_language", "target_language"}
+    _provider_keys = {k for k in saved_keys
+                      if k.startswith("provider") or k.startswith("scoring_")
+                      or k in _credential_keys}
+    if _provider_keys:
+        if _provider_keys == {"providers_enabled"}:
+            # Only the enabled-set changed: selectively add/remove, keep others intact
+            _upd_providers(all_overrides.get("providers_enabled", ""))
+        else:
+            # Credentials or other provider config changed: full reinit
+            _inv_providers()
     if any(
         k.startswith("jellyfin_")
         or k.startswith("emby_")

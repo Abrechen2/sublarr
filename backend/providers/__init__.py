@@ -107,6 +107,21 @@ def invalidate_manager():
     _manager = None
 
 
+def update_manager_providers(new_enabled_str: str) -> None:
+    """Selectively update enabled providers without reinitializing the whole manager.
+
+    Call this instead of invalidate_manager() when only providers_enabled changed.
+    If the manager hasn't been initialized yet, this is a no-op (it will pick up
+    the correct config on first access).
+    """
+    global _manager
+    if _manager is None:
+        return
+    with _provider_manager_lock:
+        if _manager is not None:
+            _manager.update_providers(new_enabled_str)
+
+
 class ProviderManager:
     """Manages multiple subtitle providers with priority ordering and scoring."""
 
@@ -1194,10 +1209,15 @@ class ProviderManager:
 
             provider = self._providers.get(name)
             if provider:
-                try:
-                    healthy, msg = provider.health_check()
-                except Exception as e:
-                    healthy, msg = False, str(e)
+                # Derive health from cached DB stats — no live HTTP requests.
+                # Matches Bazarr's reactive approach: healthy until proven otherwise.
+                consecutive_failures = perf_stats.get("consecutive_failures", 0) or 0
+                if auto_disabled:
+                    healthy, msg = False, "Auto-disabled"
+                elif consecutive_failures >= 3:
+                    healthy, msg = False, f"{consecutive_failures} consecutive failures"
+                else:
+                    healthy, msg = True, "OK"
                 statuses.append(
                     {
                         "name": name,
@@ -1258,3 +1278,53 @@ class ProviderManager:
             except Exception as e:
                 logger.warning("Error terminating provider %s: %s", name, e)
         self._providers.clear()
+
+    def update_providers(self, new_enabled_str: str) -> None:
+        """Selectively add/remove providers without reinitializing unaffected ones.
+
+        Use instead of invalidate_manager() when only providers_enabled changes.
+        Providers that remain enabled keep their existing instances — no health
+        checks re-run, no unnecessary network traffic.
+        """
+        from config import get_settings as _get_settings
+
+        self.settings = _get_settings()
+
+        if new_enabled_str:
+            new_enabled_set = {p.strip() for p in new_enabled_str.split(",") if p.strip()}
+        else:
+            new_enabled_set = set(_PROVIDER_CLASSES.keys())
+
+        current_names = set(self._providers.keys())
+
+        # Remove providers no longer in the enabled set
+        for name in current_names - new_enabled_set:
+            provider = self._providers.pop(name, None)
+            self._circuit_breakers.pop(name, None)
+            if provider:
+                try:
+                    provider.terminate()
+                except Exception:
+                    pass
+            logger.info("Provider %s disabled (removed from pool)", name)
+
+        # Add providers newly added to the enabled set
+        for name in new_enabled_set - current_names:
+            if name not in _PROVIDER_CLASSES:
+                continue
+            try:
+                config = self._get_provider_config(name)
+                provider = _PROVIDER_CLASSES[name](**config)
+                provider.initialize()
+                if hasattr(provider, "session") and provider.session is None:
+                    logger.warning("Provider %s: session is None (likely missing credentials)", name)
+                else:
+                    self._providers[name] = provider
+                    self._circuit_breakers[name] = CircuitBreaker(
+                        name=name,
+                        failure_threshold=self.settings.circuit_breaker_failure_threshold,
+                        cooldown_seconds=self.settings.circuit_breaker_cooldown_seconds,
+                    )
+                    logger.info("Provider %s enabled (added to pool)", name)
+            except Exception as e:
+                logger.error("Failed to initialize provider %s: %s", name, e)
