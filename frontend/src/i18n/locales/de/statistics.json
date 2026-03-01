@@ -21,7 +21,7 @@
     "count": "Anzahl",
     "avg_score": "Durchschn. Score"
   },
-  "no_data": "Noch keine Statistikdaten. Starte Untertitel-Übersetzungen, um hier Diagramme zu sehen.",
+  "no_data": "Noch keine Daten für den gewählten Zeitraum. Starte Untertitel-Suchen oder Übersetzungen.",
   "exported": "Statistiken als {{format}} exportiert",
   "export_failed": "Export fehlgeschlagen"
 }

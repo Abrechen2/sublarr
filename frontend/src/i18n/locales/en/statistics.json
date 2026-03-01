@@ -21,7 +21,7 @@
     "count": "Count",
     "avg_score": "Avg. Score"
   },
-  "no_data": "No statistics data yet. Start translating subtitles to see charts here.",
+  "no_data": "No data for the selected period. Run subtitle searches or translations to populate statistics.",
   "exported": "Statistics exported as {{format}}",
   "export_failed": "Export failed"
 }

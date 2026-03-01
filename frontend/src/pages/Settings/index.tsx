@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react'
 import { AdvancedSettingsProvider, useAdvancedSettings } from '@/contexts/AdvancedSettingsContext'
 import { useTranslation } from 'react-i18next'
 import {
@@ -7,7 +7,7 @@ import {
 } from '@/hooks/useApi'
 import {
   Save, Loader2, TestTube, Trash2, Plus, Upload, FileDown, X, Check,
-  Settings2, Download, Server, Languages, Zap, Globe, Cog,
+  Settings2, Download, Server, Languages, Zap, Globe, Cog, Search,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { getHealth } from '@/api/client'
@@ -576,6 +576,7 @@ function SettingsPageInner() {
   const [activeTab, setActiveTab] = useState('General')
   const [values, setValues] = useState<Record<string, string>>({})
   const { showAdvanced, toggleAdvanced } = useAdvancedSettings()
+  const [settingsSearch, setSettingsSearch] = useState('')
 
   // Derived dirty state - true when any FIELDS value differs from last-loaded config
   const isDirty = config != null && FIELDS.some(({ key }) => {
@@ -603,6 +604,15 @@ function SettingsPageInner() {
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
   }, [isDirty])
+
+  const filteredNavGroups = useMemo(() => {
+    if (!settingsSearch.trim()) return NAV_GROUPS
+    const q = settingsSearch.toLowerCase()
+    return NAV_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.filter((item) => item.toLowerCase().includes(q)),
+    })).filter((group) => group.items.length > 0)
+  }, [settingsSearch])
 
   const handleSave = () => {
     const changed: Record<string, unknown> = {}
@@ -817,7 +827,27 @@ function SettingsPageInner() {
       <div className="flex flex-col md:flex-row gap-5">
         {/* Grouped Navigation Sidebar */}
         <nav className="w-full md:w-48 shrink-0 flex flex-row md:flex-col gap-0 overflow-x-auto md:overflow-x-visible">
-          {NAV_GROUPS.map((group) => {
+          {/* Settings search */}
+          <div className="relative mb-2 hidden md:block">
+            <Search
+              size={12}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: 'var(--text-muted)' }}
+            />
+            <input
+              type="text"
+              value={settingsSearch}
+              onChange={(e) => setSettingsSearch(e.target.value)}
+              placeholder="Search settings..."
+              className="w-full pl-7 pr-3 py-1.5 rounded-md text-xs focus:outline-none"
+              style={{
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+              }}
+            />
+          </div>
+          {filteredNavGroups.map((group) => {
             const Icon = group.icon
             return (
               <div key={group.title} className="mb-1">
@@ -831,7 +861,7 @@ function SettingsPageInner() {
                 </div>
                 {/* Tab items */}
                 <div className="flex flex-row md:flex-col gap-0.5">
-                  {[...group.items, ...(group.title === 'System' && showAdvanced ? ['Migration'] : [])].map((tab) => {
+                  {[...group.items, ...(group.title === 'System' && showAdvanced && !settingsSearch.trim() ? ['Migration'] : [])].map((tab) => {
                     const isActive = activeTab === tab
                     return (
                       <button

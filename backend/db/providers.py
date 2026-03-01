@@ -1,6 +1,10 @@
 """Provider cache and statistics database operations -- delegating to SQLAlchemy repository."""
 
+import logging
+
 from db.repositories.providers import ProviderRepository
+
+logger = logging.getLogger(__name__)
 
 _repo = None
 
@@ -81,9 +85,16 @@ def record_subtitle_download(
     Args:
         source: Source type -- "provider" (default) or "whisper".
     """
-    return _get_repo().record_subtitle_download(
+    result = _get_repo().record_subtitle_download(
         provider_name, subtitle_id, language, fmt, file_path, score, source=source
     )
+    # Also record in daily_stats so the Statistics page shows provider downloads
+    try:
+        from db.jobs import record_stat
+        record_stat(success=True, fmt=fmt, source=provider_name)
+    except Exception:
+        logger.debug("Could not record download in daily_stats", exc_info=True)
+    return result
 
 
 # ---- Provider Statistics ----
