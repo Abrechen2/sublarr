@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import {
-  getHealth, getStats, getJobs,
+  getHealth, getUpdateInfo, getStats, getJobs,
   getBatchStatus, getConfig, updateConfig, getLibrary, getSeriesDetail,
   translateFile, startBatch, getLogs,
   getWantedItems, getWantedSummary, refreshWanted,
@@ -90,6 +90,17 @@ export function useHealth() {
     queryKey: ['health'],
     queryFn: getHealth,
     refetchInterval: 30000,
+  })
+}
+
+export function useUpdateInfo() {
+  const sixHours = 6 * 60 * 60 * 1000
+  return useQuery({
+    queryKey: ['update-info'],
+    queryFn: getUpdateInfo,
+    staleTime: sixHours,
+    refetchInterval: sixHours,
+    retry: 1,
   })
 }
 
