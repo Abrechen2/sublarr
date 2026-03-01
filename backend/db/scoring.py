@@ -1,6 +1,24 @@
 """Scoring weights and provider modifier operations -- delegating to SQLAlchemy repository."""
 
-from db.repositories.scoring import ScoringRepository
+from db.repositories.scoring import (
+    _DEFAULT_EPISODE_WEIGHTS,
+    _DEFAULT_MOVIE_WEIGHTS,
+    ScoringRepository,
+)
+
+__all__ = [
+    "_DEFAULT_EPISODE_WEIGHTS",
+    "_DEFAULT_MOVIE_WEIGHTS",
+    "get_scoring_weights",
+    "set_scoring_weights",
+    "get_all_scoring_weights",
+    "reset_scoring_weights",
+    "get_effective_weights",
+    "get_provider_modifier",
+    "get_all_provider_modifiers",
+    "set_provider_modifier",
+    "delete_provider_modifier",
+]
 
 _repo = None
 

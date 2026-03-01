@@ -46,7 +46,7 @@ The current UI is functional but not final. The goal is a clean, modern interfac
 
 ---
 
-## v0.14.0 ✅ (Complete — Current)
+## v0.14.0 ✅ (Complete)
 
 - Provider UI Redesign — Bazarr-style tile grid; Deaktivieren grays tile in place (50% opacity), Entfernen removes to `+` pool; `providers_hidden` config key; reactive health checks on demand only
 - Provider — Subscene — 55-language community subtitle database, no account required
@@ -57,7 +57,21 @@ The current UI is functional but not final. The goal is a clean, modern interfac
 
 ---
 
-## v0.15.0 (Download Security & Sanitization)
+## v0.15.0 ✅ (Complete — Current)
+
+- Sidebar — Update available badge — pulsing badge appears when a newer GitHub release exists; fetched from GitHub Releases API once on load and cached; clicking opens the release page
+- Library — Grid/Thumbnail view — toggle button (table ↔ grid); poster images from Sonarr/Radarr with missing-count badge; preference persisted in localStorage; fallback film-slate SVG
+- Library — Status and profile filters — filter by status (all / has missing / complete) and by profile name; client-side filtering via useMemo
+- Wanted — Extracted status + Sidecar Cleanup — extracting an embedded subtitle now sets status `extracted` instead of removing the item; new cleanup endpoint deletes non-target-language sidecars; teal badge + filter tab in UI
+- Wanted — Error and retry display — failed items show failure reason as tooltip; upcoming retry time shown below badge
+- Settings — Search field — real-time filter for settings tabs
+- SeriesDetail — EpisodeActionMenu — replaces icon-only buttons with labelled primary + `⋯ More` dropdown grouped by category
+- Fix: Wanted search and download — broken by missing Flask app context in background threads and stale provider cache
+- Fix: PostgreSQL startup — `rowid` → `id` in dedup query; `MIN(title)` aggregate in search index; pre-Alembic column patch for `source`; SPA 404 on page reload
+
+---
+
+## v0.16.0 (Download Security & Sanitization)
 
 Goals: Harden the subtitle download pipeline against malicious files from untrusted sources. Background: crafted subtitle files can exploit parser bugs in media players (VLC, Kodi, Jellyfin, Plex) — Sublarr as an automatic downloader must sanitize before files reach the media library.
 
@@ -72,7 +86,7 @@ Goals: Harden the subtitle download pipeline against malicious files from untrus
 
 ---
 
-## v0.16.0 (Subtitle Intelligence)
+## v0.17.0 (Subtitle Intelligence)
 
 Goals: Make Sublarr smarter about what to search for and what to accept.
 
@@ -87,7 +101,7 @@ Goals: Make Sublarr smarter about what to search for and what to accept.
 
 ---
 
-## v0.17.0 (Provider Maturity)
+## v0.18.0 (Provider Maturity)
 
 Goals: Close remaining gap to Bazarr in provider coverage, subtitle type handling, and community integration.
 
@@ -99,7 +113,7 @@ Goals: Close remaining gap to Bazarr in provider coverage, subtitle type handlin
 
 ---
 
-## v0.18.0 (Stream Removal — Safe Remux)
+## v0.19.0 (Stream Removal — Safe Remux)
 
 Goals: Safely remove embedded subtitle streams from video files after extraction, with full rollback capability.
 
@@ -113,7 +127,7 @@ Goals: Safely remove embedded subtitle streams from video files after extraction
 
 ---
 
-## v0.19.0 (Collaboration and Export)
+## v0.20.0 (Collaboration and Export)
 
 Goals: Make Sublarr useful as a subtitle processing pipeline, not just consumer.
 
@@ -125,7 +139,7 @@ Goals: Make Sublarr useful as a subtitle processing pipeline, not just consumer.
 
 ---
 
-## v0.20.0 (Performance and Scalability)
+## v0.21.0 (Performance and Scalability)
 
 Goals: Handle larger libraries without degradation.
 
@@ -137,7 +151,7 @@ Goals: Handle larger libraries without degradation.
 
 ---
 
-## v0.21.0 (Advanced Anime Support)
+## v0.22.0 (Advanced Anime Support)
 
 Goals: First-class support for complex anime subtitle scenarios.
 

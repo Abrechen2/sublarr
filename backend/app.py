@@ -110,6 +110,38 @@ def _setup_logging(settings) -> None:
     root.addHandler(ws_handler)
 
 
+def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
+    """Add columns missing from pre-Alembic databases.
+
+    create_all() is a no-op on existing tables, so DBs created before Alembic
+    was introduced may be missing columns added via later migrations.
+    """
+    import logging as _logging
+
+    from sqlalchemy import text
+
+    _log = _logging.getLogger(__name__)
+    insp = inspect_fn(engine)
+    patches = []
+
+    if insp.has_table("subtitle_downloads"):
+        existing = {c["name"] for c in insp.get_columns("subtitle_downloads")}
+        if "source" not in existing:
+            patches.append(
+                "ALTER TABLE subtitle_downloads ADD COLUMN source TEXT DEFAULT 'provider'"
+            )
+
+    if not patches:
+        return
+
+    with engine.connect() as conn:
+        for stmt in patches:
+            conn.execute(text(stmt))
+        conn.commit()
+
+    _log.info("Pre-Alembic DB: patched %d missing column(s)", len(patches))
+
+
 def create_app(testing=False):
     """Create and configure the Flask application.
 
@@ -119,7 +151,11 @@ def create_app(testing=False):
     Returns:
         Configured Flask application instance.
     """
-    app = Flask(__name__, static_folder="static", static_url_path="")
+    # static_folder=None disables Flask's built-in /<path:filename> route which
+    # would intercept SPA routes (e.g. /wanted) and return 404 before our
+    # catch-all serve_spa() can serve index.html. Static files are served by
+    # serve_spa() itself via send_from_directory("static", ...).
+    app = Flask(__name__, static_folder=None)
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB — prevent request body DoS
 
     # Load config
@@ -181,6 +217,9 @@ def create_app(testing=False):
         if not _inspect(sa_db.engine).has_table("alembic_version"):
             sa_db.create_all()
             logger.info("Fresh DB: ran create_all()")
+            # Pre-Alembic DB: patch any columns that were added via Alembic migrations
+            # but are missing because create_all() is a no-op on existing tables.
+            _patch_pre_alembic_columns(sa_db.engine, _inspect)
         else:
             # Run pending Alembic migrations automatically so new columns are always present
             try:
@@ -240,8 +279,8 @@ def create_app(testing=False):
             with sa_db.engine.connect() as _conn:
                 _dedup_result = _conn.execute(
                     _text(
-                        "DELETE FROM wanted_items WHERE rowid NOT IN ("
-                        "  SELECT MIN(rowid) FROM wanted_items"
+                        "DELETE FROM wanted_items WHERE id NOT IN ("
+                        "  SELECT MIN(id) FROM wanted_items"
                         "  GROUP BY file_path,"
                         "    COALESCE(target_language, ''),"
                         "    COALESCE(subtitle_type, 'full')"
@@ -451,7 +490,7 @@ def _register_app_routes(app):
 
 
 def _start_schedulers(settings, app=None):
-    """Start background schedulers (wanted scanner, database backup, standalone watcher, cleanup)."""
+    """Start background schedulers (wanted scanner, database backup, standalone watcher, cleanup)."""  # noqa: D200
     from wanted_scanner import get_scanner
 
     scanner = get_scanner()
