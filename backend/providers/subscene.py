@@ -193,11 +193,13 @@ class SubsceneProvider(SubtitleProvider):
                 name_span = spans[1].get_text(strip=True) if len(spans) > 1 else ""
                 if not href:
                     continue
-                entries.append({
-                    "url": f"{_BASE_URL}{href}",
-                    "lang": lang_span,
-                    "name": name_span,
-                })
+                entries.append(
+                    {
+                        "url": f"{_BASE_URL}{href}",
+                        "lang": lang_span,
+                        "name": name_span,
+                    }
+                )
             return entries
         except Exception as e:
             logger.debug("Subscene: listing error for %s: %s", page_url, e)
@@ -215,7 +217,9 @@ class SubsceneProvider(SubtitleProvider):
                 return None
             soup = BeautifulSoup(resp.text, "html.parser")
             # Download link: <a id="downloadButton" href="/subtitle/download/...">
-            a = soup.find("a", id="downloadButton") or soup.select_one("a[href*='/subtitle/download']")
+            a = soup.find("a", id="downloadButton") or soup.select_one(
+                "a[href*='/subtitle/download']"
+            )
             if a:
                 href = a.get("href", "")
                 return f"{_BASE_URL}{href}" if href.startswith("/") else href

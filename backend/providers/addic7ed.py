@@ -96,8 +96,13 @@ class Addic7edProvider(SubtitleProvider):
     name = "addic7ed"
     languages = set(_LANG_NAMES.keys())
     config_fields = [
-        {"key": "addic7ed_username", "label": "Username", "type": "text", "required": False,
-         "description": "Optionaler Addic7ed-Account (erhöht das Tageslimit)"},
+        {
+            "key": "addic7ed_username",
+            "label": "Username",
+            "type": "text",
+            "required": False,
+            "description": "Optionaler Addic7ed-Account (erhöht das Tageslimit)",
+        },
         {"key": "addic7ed_password", "label": "Password", "type": "password", "required": False},
     ]
     rate_limit = (10, 60)
@@ -118,10 +123,12 @@ class Addic7edProvider(SubtitleProvider):
             timeout=self.timeout,
             user_agent=_BROWSER_UA,
         )
-        self.session.headers.update({
-            "Accept-Language": "en-US,en;q=0.9",
-            "Referer": _BASE_URL,
-        })
+        self.session.headers.update(
+            {
+                "Accept-Language": "en-US,en;q=0.9",
+                "Referer": _BASE_URL,
+            }
+        )
 
         if self.username and self.password:
             self._login()
@@ -204,18 +211,26 @@ class Addic7edProvider(SubtitleProvider):
                     continue
                 lang_cell = cells[0].get_text(strip=True)
                 release_cell = cells[1].get_text(strip=True) if len(cells) > 1 else ""
-                dl_link = row.find("a", href=lambda h: h and "/updated/" in h or "/original/" in h if h else False)
+                dl_link = row.find(
+                    "a", href=lambda h: h and "/updated/" in h or "/original/" in h if h else False
+                )
                 if not dl_link:
-                    dl_link = row.find("a", string=lambda t: t and "download" in t.lower() if t else False)
+                    dl_link = row.find(
+                        "a", string=lambda t: t and "download" in t.lower() if t else False
+                    )
                 if not dl_link:
                     continue
                 href = dl_link.get("href", "")
-                download_url = href if href.startswith("http") else f"{_BASE_URL}/{href.lstrip('/')}"
-                entries.append({
-                    "language": lang_cell,
-                    "release": release_cell,
-                    "url": download_url,
-                })
+                download_url = (
+                    href if href.startswith("http") else f"{_BASE_URL}/{href.lstrip('/')}"
+                )
+                entries.append(
+                    {
+                        "language": lang_cell,
+                        "release": release_cell,
+                        "url": download_url,
+                    }
+                )
             return entries
         except Exception as e:
             logger.debug("Addic7ed: episode subtitle fetch error: %s", e)
@@ -234,7 +249,12 @@ class Addic7edProvider(SubtitleProvider):
         if not search_title:
             return []
 
-        logger.debug("Addic7ed: searching '%s' S%02dE%02d", search_title, query.season or 0, query.episode or 0)
+        logger.debug(
+            "Addic7ed: searching '%s' S%02dE%02d",
+            search_title,
+            query.season or 0,
+            query.episode or 0,
+        )
 
         shows = self._search_shows(search_title)
         if not shows:
@@ -242,9 +262,7 @@ class Addic7edProvider(SubtitleProvider):
             return []
 
         # Pick best match
-        best_show = next(
-            (s for s in shows if search_title.lower() in s["name"].lower()), shows[0]
-        )
+        best_show = next((s for s in shows if search_title.lower() in s["name"].lower()), shows[0])
 
         all_entries = self._get_episode_subtitles(
             best_show["url"], query.season or 1, query.episode or 1
@@ -265,7 +283,9 @@ class Addic7edProvider(SubtitleProvider):
                         subtitle_id=subtitle_id,
                         language=lang_code,
                         format=SubtitleFormat.SRT,
-                        filename=f"{entry['release']}.srt" if entry["release"] else f"{subtitle_id}.srt",
+                        filename=f"{entry['release']}.srt"
+                        if entry["release"]
+                        else f"{subtitle_id}.srt",
                         download_url=entry["url"],
                         release_info=entry["release"],
                         matches={"series", "season", "episode"},

@@ -193,13 +193,21 @@ def update_config():
     if any(k.startswith("radarr_") for k in saved_keys):
         _inv_radarr()
 
-    _credential_keys = {"opensubtitles_api_key", "jimaku_api_key", "subdl_api_key",
-                        "min_score", "source_language", "target_language"}
+    _credential_keys = {
+        "opensubtitles_api_key",
+        "jimaku_api_key",
+        "subdl_api_key",
+        "min_score",
+        "source_language",
+        "target_language",
+    }
     # providers_hidden is UI-only; exclude it from backend provider invalidation
-    _provider_keys = {k for k in saved_keys
-                      if (k.startswith("provider") or k.startswith("scoring_")
-                          or k in _credential_keys)
-                      and k != "providers_hidden"}
+    _provider_keys = {
+        k
+        for k in saved_keys
+        if (k.startswith("provider") or k.startswith("scoring_") or k in _credential_keys)
+        and k != "providers_hidden"
+    }
     if _provider_keys:
         if _provider_keys == {"providers_enabled"}:
             # Only the enabled-set changed: selectively add/remove, keep others intact

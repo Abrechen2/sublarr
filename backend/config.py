@@ -50,7 +50,9 @@ class Settings(BaseSettings):
     # Subtitle Providers
     provider_priorities: str = "animetosho,jimaku,opensubtitles,subdl"
     providers_enabled: str = ""  # Empty = all registered providers enabled
-    providers_hidden: str = ""  # Comma-separated provider names hidden from the UI grid (truly removed)
+    providers_hidden: str = (
+        ""  # Comma-separated provider names hidden from the UI grid (truly removed)
+    )
 
     # Addic7ed (TV subtitles — optional credentials increase download limit)
     addic7ed_username: str = ""

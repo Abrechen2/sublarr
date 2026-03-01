@@ -52,9 +52,19 @@ class TurkcealtyaziProvider(SubtitleProvider):
     name = "turkcealtyazi"
     languages = {"tr"}
     config_fields = [
-        {"key": "turkcealtyazi_username", "label": "Username", "type": "text", "required": True,
-         "description": "Benutzername auf turkcealtyazi.org"},
-        {"key": "turkcealtyazi_password", "label": "Password", "type": "password", "required": True},
+        {
+            "key": "turkcealtyazi_username",
+            "label": "Username",
+            "type": "text",
+            "required": True,
+            "description": "Benutzername auf turkcealtyazi.org",
+        },
+        {
+            "key": "turkcealtyazi_password",
+            "label": "Password",
+            "type": "password",
+            "required": True,
+        },
     ]
     rate_limit = (10, 60)
     timeout = 20
@@ -78,10 +88,12 @@ class TurkcealtyaziProvider(SubtitleProvider):
             timeout=self.timeout,
             user_agent=_BROWSER_UA,
         )
-        self.session.headers.update({
-            "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.8",
-            "Referer": _BASE_URL,
-        })
+        self.session.headers.update(
+            {
+                "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.8",
+                "Referer": _BASE_URL,
+            }
+        )
         self._login()
 
     def terminate(self):
@@ -124,7 +136,9 @@ class TurkcealtyaziProvider(SubtitleProvider):
                 self._logged_in = True
                 logger.debug("Turkcealtyazi: logged in as %s", self.username)
             else:
-                logger.warning("Turkcealtyazi: login failed for %s (HTTP %d)", self.username, resp.status_code)
+                logger.warning(
+                    "Turkcealtyazi: login failed for %s (HTTP %d)", self.username, resp.status_code
+                )
         except Exception as e:
             logger.warning("Turkcealtyazi: login error: %s", e)
 

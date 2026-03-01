@@ -1333,7 +1333,9 @@ class ProviderManager:
                 provider = _PROVIDER_CLASSES[name](**config)
                 provider.initialize()
                 if hasattr(provider, "session") and provider.session is None:
-                    logger.warning("Provider %s: session is None (likely missing credentials)", name)
+                    logger.warning(
+                        "Provider %s: session is None (likely missing credentials)", name
+                    )
                 else:
                     self._providers[name] = provider
                     self._circuit_breakers[name] = CircuitBreaker(

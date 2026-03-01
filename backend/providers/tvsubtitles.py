@@ -151,7 +151,9 @@ class TVSubtitlesProvider(SubtitleProvider):
             logger.debug("TVSubtitles: show search error: %s", e)
         return None
 
-    def _get_episode_subtitles(self, show_id: str, season: int, episode: int, lang_name: str) -> list[dict]:
+    def _get_episode_subtitles(
+        self, show_id: str, season: int, episode: int, lang_name: str
+    ) -> list[dict]:
         """Fetch subtitle entries for a specific episode and language."""
         try:
             # Try episode page: /episode-{show_id}-{season}x{episode}.html
@@ -173,10 +175,12 @@ class TVSubtitlesProvider(SubtitleProvider):
                     continue
                 href = dl_link.get("href", "")
                 release = cells[1].get_text(strip=True) if len(cells) > 1 else ""
-                entries.append({
-                    "url": f"{_BASE_URL}{href}" if href.startswith("/") else href,
-                    "release": release,
-                })
+                entries.append(
+                    {
+                        "url": f"{_BASE_URL}{href}" if href.startswith("/") else href,
+                        "release": release,
+                    }
+                )
             return entries
         except Exception as e:
             logger.debug("TVSubtitles: episode fetch error: %s", e)
@@ -197,7 +201,12 @@ class TVSubtitlesProvider(SubtitleProvider):
         if not search_title:
             return []
 
-        logger.debug("TVSubtitles: searching '%s' S%02dE%02d", search_title, query.season or 0, query.episode or 0)
+        logger.debug(
+            "TVSubtitles: searching '%s' S%02dE%02d",
+            search_title,
+            query.season or 0,
+            query.episode or 0,
+        )
 
         show = self._find_show(search_title)
         if not show:
@@ -222,7 +231,9 @@ class TVSubtitlesProvider(SubtitleProvider):
                         subtitle_id=subtitle_id,
                         language=lang_code,
                         format=SubtitleFormat.SRT,
-                        filename=f"{entry['release']}.srt" if entry["release"] else f"{subtitle_id}.srt",
+                        filename=f"{entry['release']}.srt"
+                        if entry["release"]
+                        else f"{subtitle_id}.srt",
                         download_url=entry["url"],
                         release_info=entry["release"],
                         matches={"series", "season", "episode"},
