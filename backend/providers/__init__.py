@@ -1201,7 +1201,7 @@ class ProviderManager:
                 statuses.append(
                     {
                         "name": name,
-                        "enabled": True,
+                        "enabled": name in enabled_set,
                         "initialized": True,
                         "healthy": healthy,
                         "message": msg,

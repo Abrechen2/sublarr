@@ -131,7 +131,7 @@ export function useUpdateConfig() {
       if (keys.some(k => k.startsWith('sonarr_') || k.startsWith('radarr_'))) {
         queryClient.invalidateQueries({ queryKey: ['library'] })
       }
-      if (keys.some(k => k.startsWith('provider_') || k.startsWith('scoring_'))) {
+      if (keys.some(k => k.startsWith('provider') || k.startsWith('scoring_'))) {
         queryClient.invalidateQueries({ queryKey: ['providers'] })
         queryClient.invalidateQueries({ queryKey: ['provider-stats'] })
       }

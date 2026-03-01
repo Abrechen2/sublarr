@@ -25,6 +25,7 @@ export function ProvidersTab({
   const [testResults, setTestResults] = useState<Record<string, { healthy: boolean; message: string } | 'testing'>>({})
   const [localPriority, setLocalPriority] = useState<string[] | null>(null)
   const [editingProvider, setEditingProvider] = useState<string | null>(null)
+  const [isNewProvider, setIsNewProvider] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
 
   const providers = providersData?.providers ?? []
@@ -40,6 +41,9 @@ export function ProvidersTab({
         .map((name) => providers.find((p) => p.name === name))
         .filter((p): p is ProviderInfo => p !== undefined)
     : providers
+
+  const activeProviders = orderedProviders.filter((p) => p.enabled)
+  const availableProviders = orderedProviders.filter((p) => !p.enabled)
 
   const handleTest = (name: string) => {
     setTestResults((prev) => ({ ...prev, [name]: 'testing' }))
@@ -63,6 +67,13 @@ export function ProvidersTab({
     const allNames = providers.map((p) => p.name)
     const newValue = enabledSet.size === allNames.length ? '' : Array.from(enabledSet).join(',')
     onSave({ providers_enabled: newValue })
+  }
+
+  const handleRemove = (name: string) => {
+    handleToggle(name, true)
+    setEditingProvider(null)
+    setIsNewProvider(false)
+    toast(`Provider ${name.replace(/_/g, ' ')} entfernt`)
   }
 
   const handleMove = (index: number, direction: 'up' | 'down') => {
@@ -95,6 +106,11 @@ export function ProvidersTab({
     })()
   }
 
+  const handleCloseEdit = () => {
+    setEditingProvider(null)
+    setIsNewProvider(false)
+  }
+
   if (providersLoading) {
     return (
       <div className="flex items-center justify-center h-32">
@@ -110,14 +126,12 @@ export function ProvidersTab({
     ? orderedProviders.indexOf(editingProviderData)
     : -1
 
-  const disabledProviders = orderedProviders.filter((p) => !p.enabled)
-
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-          {orderedProviders.length} Provider konfiguriert
+          {activeProviders.length} aktiv / {orderedProviders.length} verfügbar
         </span>
         <button
           onClick={() => handleClearCache()}
@@ -135,7 +149,7 @@ export function ProvidersTab({
 
       {/* Tile Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        {orderedProviders.map((provider, idx) => (
+        {activeProviders.map((provider, idx) => (
           <ProviderTile
             key={provider.name}
             provider={provider}
@@ -143,17 +157,30 @@ export function ProvidersTab({
             priority={idx + 1}
             testResult={testResults[provider.name]}
             onOpenEdit={() => setEditingProvider(provider.name)}
+            onToggle={() => handleToggle(provider.name, provider.enabled)}
+            onRemove={() => handleRemove(provider.name)}
           />
         ))}
 
-        {/* "+" Tile — only if disabled providers exist */}
-        {disabledProviders.length > 0 && (
+        {/* Empty state */}
+        {activeProviders.length === 0 && (
+          <div
+            className="col-span-full py-10 text-center text-sm"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Noch kein Provider aktiv — klicke auf + um einen hinzuzufügen.
+          </div>
+        )}
+
+        {/* "+" tile — always visible when available providers exist */}
+        {availableProviders.length > 0 && (
           <button
             onClick={() => setShowAddModal(true)}
-            className="h-24 flex flex-col items-center justify-center gap-1 rounded transition-all duration-150"
+            className="flex flex-col items-center justify-center gap-1 rounded transition-all duration-150"
             style={{
               border: '2px dashed var(--border)',
               color: 'var(--text-muted)',
+              minHeight: '7rem',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = 'var(--accent-dim)'
@@ -165,7 +192,7 @@ export function ProvidersTab({
             }}
           >
             <Plus size={22} />
-            <span className="text-[11px] font-medium">Provider aktivieren</span>
+            <span className="text-[11px] font-medium">Provider hinzufügen</span>
           </button>
         )}
       </div>
@@ -183,6 +210,7 @@ export function ProvidersTab({
             editingProviderData.config_fields.map((f) => [f.key, values[f.key] ?? ''])
           )}
           testResult={testResults[editingProviderData.name]}
+          isNew={isNewProvider}
           onFieldChange={onFieldChange}
           onTest={() => handleTest(editingProviderData.name)}
           onToggle={() => handleToggle(editingProviderData.name, editingProviderData.enabled)}
@@ -190,17 +218,19 @@ export function ProvidersTab({
           onMoveDown={() => handleMove(editingProviderIdx, 'down')}
           onClearCache={() => handleClearCache(editingProviderData.name)}
           onReEnable={() => handleReEnable(editingProviderData.name)}
-          onClose={() => setEditingProvider(null)}
+          onRemove={() => handleRemove(editingProviderData.name)}
+          onClose={handleCloseEdit}
         />
       )}
 
       {/* Add Modal */}
       {showAddModal && (
         <AddProviderModal
-          disabledProviders={disabledProviders}
+          availableProviders={availableProviders}
           onSelect={(name) => {
             handleToggle(name, false)
             setEditingProvider(name)
+            setIsNewProvider(true)
             setShowAddModal(false)
           }}
           onClose={() => setShowAddModal(false)}

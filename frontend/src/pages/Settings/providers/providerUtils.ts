@@ -8,10 +8,17 @@ export function getStatusColor(provider: ProviderInfo): string {
 }
 
 export function getStatusLabel(provider: ProviderInfo): string {
-  if (!provider.enabled) return 'Disabled'
-  if (provider.stats?.auto_disabled) return 'Auto-disabled'
-  if (!provider.initialized) return 'Not initialized'
+  if (!provider.enabled) return 'Deaktiviert'
+  if (provider.stats?.auto_disabled) return 'Automatisch deaktiviert'
+  if (!provider.initialized) return 'Nicht konfiguriert'
   return provider.healthy ? 'Healthy' : 'Error'
+}
+
+export function getStatusBorderColor(provider: ProviderInfo): string {
+  if (!provider.enabled) return 'var(--border)'
+  if (provider.stats?.auto_disabled) return 'var(--warning)'
+  if (!provider.initialized) return 'var(--warning)'
+  return provider.healthy ? 'var(--success)' : 'var(--error)'
 }
 
 export function getStatusBg(provider: ProviderInfo): string {
@@ -27,6 +34,68 @@ export function getSuccessRateColor(rate: number): string {
   if (rate > 0.8) return 'var(--success)'
   if (rate > 0.5) return 'var(--warning)'
   return 'var(--error)'
+}
+
+export type CredentialType = 'free' | 'api_key' | 'login'
+
+interface ProviderMeta {
+  description: string
+  credentialType: CredentialType
+}
+
+const PROVIDER_META: Record<string, ProviderMeta> = {
+  opensubtitles: {
+    description: 'Größte Untertitel-Datenbank — REST API v1',
+    credentialType: 'api_key',
+  },
+  opensubtitles_com: {
+    description: 'Größte Untertitel-Datenbank — REST API v1',
+    credentialType: 'api_key',
+  },
+  opensubtitlesvip: {
+    description: 'OpenSubtitles VIP-Zugang mit erhöhtem Tageslimit',
+    credentialType: 'login',
+  },
+  podnapisi: {
+    description: 'Slawische & europäische Sprachen, kein Konto nötig',
+    credentialType: 'free',
+  },
+  subscene: {
+    description: 'Große Community-Sammlung mit vielen Sprachen',
+    credentialType: 'free',
+  },
+  subdl: {
+    description: 'Schnelle Downloads, gute Anime-Abdeckung',
+    credentialType: 'api_key',
+  },
+  zimuku: {
+    description: 'Chinesische Untertitel spezialisiert',
+    credentialType: 'free',
+  },
+  jimaku: {
+    description: 'Japanische & Anime-Untertitel aus aktuellen Streams',
+    credentialType: 'api_key',
+  },
+  assrt: {
+    description: 'Chinesische Untertitel mit Qualitätsbewertung',
+    credentialType: 'free',
+  },
+  gestdown: {
+    description: 'Spanischsprachige Untertitel-Plattform',
+    credentialType: 'free',
+  },
+  whisperai: {
+    description: 'Lokale KI-Transkription via Whisper-Modell',
+    credentialType: 'free',
+  },
+}
+
+export function getCredentialBadge(providerName: string): CredentialType {
+  return PROVIDER_META[providerName]?.credentialType ?? 'free'
+}
+
+export function getProviderDescription(providerName: string): string {
+  return PROVIDER_META[providerName]?.description ?? 'Untertitel-Provider'
 }
 
 export function getFieldDescription(key: string, label: string): string {

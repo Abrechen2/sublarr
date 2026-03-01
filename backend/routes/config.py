@@ -192,7 +192,7 @@ def update_config():
     if any(k.startswith("radarr_") for k in saved_keys):
         _inv_radarr()
     if any(
-        k.startswith("provider_")
+        k.startswith("provider")
         or k.startswith("scoring_")
         or k
         in {
