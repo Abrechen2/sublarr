@@ -172,8 +172,10 @@ class TestTVSubtitlesProvider:
         p = TVSubtitlesProvider()
         p.session = MagicMock()
         q = VideoQuery(title="Inception", languages=["en"])
-        with patch("providers.tvsubtitles._HAS_BS4", True), \
-             patch.object(type(q), "is_movie", new_callable=lambda: property(lambda self: True)):
+        with (
+            patch("providers.tvsubtitles._HAS_BS4", True),
+            patch.object(type(q), "is_movie", new_callable=lambda: property(lambda self: True)),
+        ):
             result = p.search(q)
         assert result == []
 
@@ -288,30 +290,32 @@ class TestAddic7edProvider:
         assert p.session is None
 
     def test_search_returns_empty_without_session(self):
-        from providers.base import VideoQuery
         from providers.addic7ed import Addic7edProvider
+        from providers.base import VideoQuery
 
         p = Addic7edProvider()
         q = VideoQuery(title="Test", languages=["en"])
         assert p.search(q) == []
 
     def test_search_skips_movies(self):
-        from providers.base import VideoQuery
         from providers.addic7ed import Addic7edProvider
+        from providers.base import VideoQuery
 
         p = Addic7edProvider()
         p.session = MagicMock()
         q = VideoQuery(title="Inception", languages=["en"])
-        with patch("providers.addic7ed._HAS_BS4", True), \
-             patch.object(type(q), "is_movie", new_callable=lambda: property(lambda self: True)):
+        with (
+            patch("providers.addic7ed._HAS_BS4", True),
+            patch.object(type(q), "is_movie", new_callable=lambda: property(lambda self: True)),
+        ):
             result = p.search(q)
         assert result == []
 
     def test_download_raises_without_session(self):
         import pytest
 
-        from providers.base import SubtitleResult
         from providers.addic7ed import Addic7edProvider
+        from providers.base import SubtitleResult
 
         p = Addic7edProvider()
         r = SubtitleResult(
@@ -334,8 +338,8 @@ class TestAddic7edProvider:
             assert "beautifulsoup4" in msg.lower()
 
     def test_no_bs4_search_returns_empty(self):
-        from providers.base import VideoQuery
         from providers.addic7ed import Addic7edProvider
+        from providers.base import VideoQuery
 
         p = Addic7edProvider()
         p.session = MagicMock()
