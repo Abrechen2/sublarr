@@ -229,6 +229,22 @@ class ProviderManager:
             from providers import legendasdivx  # noqa: F401
         except ImportError as e:
             logger.debug("LegendasDivx provider not available: %s", e)
+        try:
+            from providers import subscene  # noqa: F401
+        except ImportError as e:
+            logger.debug("Subscene provider not available: %s", e)
+        try:
+            from providers import addic7ed  # noqa: F401
+        except ImportError as e:
+            logger.debug("Addic7ed provider not available: %s", e)
+        try:
+            from providers import tvsubtitles  # noqa: F401
+        except ImportError as e:
+            logger.debug("TVSubtitles provider not available: %s", e)
+        try:
+            from providers import turkcealtyazi  # noqa: F401
+        except ImportError as e:
+            logger.debug("Turkcealtyazi provider not available: %s", e)
 
         # Load plugin providers (from plugins directory)
         self._load_plugins()

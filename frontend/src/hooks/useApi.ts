@@ -63,6 +63,7 @@ import {
   getBackendTemplates,
   updateSeriesSettings, getAnidbMappingStatus, refreshAnidbMapping,
   getScannerStatus,
+  getSupportedLanguages,
 } from '@/api/client'
 import type {
   LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig, FilterScope, BatchAction,
@@ -70,6 +71,16 @@ import type {
   CleanupRule,
 } from '@/lib/types'
 import type { DownloadSpecificPayload } from '@/api/client'
+
+// ─── Languages ───────────────────────────────────────────────────────────────
+
+export function useSupportedLanguages() {
+  return useQuery({
+    queryKey: ['languages'],
+    queryFn: getSupportedLanguages,
+    staleTime: Infinity,
+  })
+}
 
 // ─── Health ──────────────────────────────────────────────────────────────────
 

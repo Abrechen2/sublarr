@@ -14,6 +14,7 @@ import { getHealth } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 import { Toggle } from '@/components/shared/Toggle'
 import { SettingRow } from '@/components/shared/SettingRow'
+import { LanguageSelect } from '@/components/shared/LanguageSelect'
 import { HELP_TEXT } from './settingsHelpText'
 import { SettingsCard } from '@/components/shared/SettingsCard'
 import type { ConnectionStatus } from '@/components/shared/ConnectionBadge'
@@ -80,7 +81,7 @@ const TABS = NAV_GROUPS.flatMap((g) => g.items)
 export interface FieldConfig {
   key: string
   label: string
-  type: 'text' | 'number' | 'password' | 'toggle'
+  type: 'text' | 'number' | 'password' | 'toggle' | 'language-select'
   placeholder?: string
   tab: string
   description?: string
@@ -101,14 +102,16 @@ const FIELDS: FieldConfig[] = [
     description: 'SQLite-Datenbankdatei. Nur ändern wenn die DB verschoben wurde.',
     advanced: true },
   // Translation
-  { key: 'source_language', label: 'Source Language Code', type: 'text', placeholder: 'en', tab: 'Translation',
-    description: 'ISO 639-1 Sprachcode der Quellsprache, z.B. "en".' },
-  { key: 'target_language', label: 'Target Language Code', type: 'text', placeholder: 'de', tab: 'Translation',
-    description: 'ISO 639-1 Sprachcode der Zielsprache, z.B. "de".' },
-  { key: 'source_language_name', label: 'Source Language Name', type: 'text', placeholder: 'English', tab: 'Translation',
-    description: 'Vollständiger Name der Quellsprache für LLM-Prompts.' },
-  { key: 'target_language_name', label: 'Target Language Name', type: 'text', placeholder: 'German', tab: 'Translation',
-    description: 'Vollständiger Name der Zielsprache für LLM-Prompts.' },
+  { key: 'source_language', label: 'Source Language', type: 'language-select', tab: 'Translation',
+    description: 'Quellsprache der Untertitel (z.B. Englisch). Setzt auch den Sprachnamen für LLM-Prompts.' },
+  { key: 'target_language', label: 'Target Language', type: 'language-select', tab: 'Translation',
+    description: 'Zielsprache für Übersetzungen und Provider-Suche (z.B. Deutsch).' },
+  { key: 'source_language_name', label: 'Source Language Name (Override)', type: 'text', placeholder: 'English', tab: 'Translation',
+    description: 'Vollständiger Name der Quellsprache für LLM-Prompts. Wird automatisch beim Sprachwechsel gesetzt.',
+    advanced: true },
+  { key: 'target_language_name', label: 'Target Language Name (Override)', type: 'text', placeholder: 'German', tab: 'Translation',
+    description: 'Vollständiger Name der Zielsprache für LLM-Prompts. Wird automatisch beim Sprachwechsel gesetzt.',
+    advanced: true },
   { key: 'hi_removal_enabled', label: 'Remove Hearing Impaired Tags', type: 'toggle', tab: 'Translation',
     description: 'Entfernt [Geräuschbeschreibungen] und (Sprechertags) aus Untertiteln.' },
   // Automation — Upgrade
@@ -652,6 +655,14 @@ function SettingsPageInner() {
           checked={values[field.key] === 'true'}
           onChange={(v) => setValues((prev) => ({ ...prev, [field.key]: String(v) }))}
           disabled={field.key === 'wanted_auto_translate' && values['wanted_auto_extract'] !== 'true'}
+        />
+      ) : field.type === 'language-select' ? (
+        <LanguageSelect
+          value={values[field.key] ?? ''}
+          onChange={(code, name) => {
+            const nameKey = field.key + '_name'
+            setValues((prev) => ({ ...prev, [field.key]: code, [nameKey]: name }))
+          }}
         />
       ) : (
         <input

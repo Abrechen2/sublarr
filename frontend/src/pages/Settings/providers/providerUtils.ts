@@ -112,6 +112,22 @@ const PROVIDER_META: Record<string, ProviderMeta> = {
     description: 'Lokale KI-Transkription via Whisper-Modell',
     credentialType: 'free',
   },
+  subscene: {
+    description: 'Große Community-Sammlung — 60+ Sprachen, kein Konto nötig',
+    credentialType: 'free',
+  },
+  addic7ed: {
+    description: 'TV-Serien-Spezialist mit episodengenauen Untertiteln — optionaler Account',
+    credentialType: 'login',
+  },
+  tvsubtitles: {
+    description: 'Klassischer Multi-Sprachen-Aggregator für TV-Serien',
+    credentialType: 'free',
+  },
+  turkcealtyazi: {
+    description: 'Größter türkischer Untertitel-Provider — Account erforderlich',
+    credentialType: 'login',
+  },
 }
 
 export function getCredentialBadge(providerName: string): CredentialType {
