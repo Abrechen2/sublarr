@@ -91,6 +91,7 @@ def record_subtitle_download(
     # Also record in daily_stats so the Statistics page shows provider downloads
     try:
         from db.jobs import record_stat
+
         record_stat(success=True, fmt=fmt, source=provider_name)
     except Exception:
         logger.debug("Could not record download in daily_stats", exc_info=True)
