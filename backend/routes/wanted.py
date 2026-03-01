@@ -426,13 +426,16 @@ def search_wanted(item_id):
     if not item:
         return jsonify({"error": "Item not found"}), 404
 
+    app = current_app._get_current_object()
+
     def _run():
-        try:
-            result = search_wanted_item(item_id)
-            emit_event("wanted_item_searched", result)
-        except Exception as e:
-            logger.exception("Wanted search failed for item_id=%s", item_id)
-            emit_event("wanted_item_searched", {"wanted_id": item_id, "error": str(e)})
+        with app.app_context():
+            try:
+                result = search_wanted_item(item_id)
+                emit_event("wanted_item_searched", result)
+            except Exception as e:
+                logger.exception("Wanted search failed for item_id=%s", item_id)
+                emit_event("wanted_item_searched", {"wanted_id": item_id, "error": str(e)})
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
@@ -480,21 +483,24 @@ def process_wanted(item_id):
     if not item:
         return jsonify({"error": "Item not found"}), 404
 
+    app = current_app._get_current_object()
+
     def _run():
-        try:
-            result = process_wanted_item(item_id)
-            emit_event("wanted_item_processed", result)
-            if result.get("upgraded"):
-                emit_event(
-                    "upgrade_complete",
-                    {
-                        "file_path": result.get("output_path"),
-                        "provider": result.get("provider"),
-                    },
-                )
-        except Exception as e:
-            logger.exception("Wanted process failed for item_id=%s", item_id)
-            emit_event("wanted_item_processed", {"wanted_id": item_id, "error": str(e)})
+        with app.app_context():
+            try:
+                result = process_wanted_item(item_id)
+                emit_event("wanted_item_processed", result)
+                if result.get("upgraded"):
+                    emit_event(
+                        "upgrade_complete",
+                        {
+                            "file_path": result.get("output_path"),
+                            "provider": result.get("provider"),
+                        },
+                    )
+            except Exception as e:
+                logger.exception("Wanted process failed for item_id=%s", item_id)
+                emit_event("wanted_item_processed", {"wanted_id": item_id, "error": str(e)})
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
@@ -720,7 +726,7 @@ def wanted_search_all():
         return jsonify({"error": "Search already running"}), 409
 
     def _run_search():
-        scanner.search_all(socketio=socketio)
+        scanner._run_search_with_context(socketio=socketio)
 
     thread = threading.Thread(target=_run_search, daemon=True)
     thread.start()

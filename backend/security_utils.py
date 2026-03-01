@@ -25,7 +25,11 @@ def is_safe_path(file_path: str, base_dir: str) -> bool:
     """
     real_path = os.path.realpath(file_path)
     real_base = os.path.realpath(base_dir)
-    return real_path.startswith(real_base + os.sep) or real_path == real_base
+    # Normalize real_base to always end with sep so startswith works correctly
+    # for root paths like "E:\" that already end with the separator.
+    if not real_base.endswith(os.sep):
+        real_base = real_base + os.sep
+    return real_path.startswith(real_base) or real_path + os.sep == real_base
 
 
 def safe_zip_extract(zip_file: zipfile.ZipFile, dest_dir: str) -> None:

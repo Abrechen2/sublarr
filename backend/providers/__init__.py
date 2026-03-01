@@ -585,6 +585,7 @@ class ProviderManager:
                 hearing_impaired=r_data.get("hearing_impaired", False),
                 forced=r_data.get("forced", False),
                 score=r_data.get("score", 0),
+                provider_data=r_data.get("provider_data", {}),
             )
             results.append(result)
         return results
@@ -933,6 +934,7 @@ class ProviderManager:
                     "hearing_impaired": r.hearing_impaired,
                     "forced": r.forced,
                     "score": r.score,
+                    "provider_data": r.provider_data,
                 }
                 for r in all_results
             ]
@@ -1130,11 +1132,11 @@ class ProviderManager:
         # Validate output path is within allowed media directory (path traversal guard)
         try:
             from config import get_settings as _get_settings
+            from security_utils import is_safe_path as _is_safe_path
 
             _settings = _get_settings()
-            _media_path = os.path.abspath(getattr(_settings, "media_path", "/media"))
-            _abs_output = os.path.abspath(output_path)
-            if not _abs_output.startswith(_media_path + os.sep):
+            _media_path = getattr(_settings, "media_path", "/media")
+            if not _is_safe_path(output_path, _media_path):
                 raise ValueError(
                     f"save_subtitle: output_path {output_path!r} is outside media_path"
                 )
