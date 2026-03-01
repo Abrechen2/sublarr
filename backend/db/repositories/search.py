@@ -86,7 +86,7 @@ class SearchRepository(BaseRepository):
             conn.execute(
                 text("""
                 INSERT INTO search_series(id, title)
-                SELECT sonarr_series_id, title
+                SELECT sonarr_series_id, MIN(title)
                 FROM wanted_items
                 WHERE sonarr_series_id IS NOT NULL AND title IS NOT NULL
                 GROUP BY sonarr_series_id
