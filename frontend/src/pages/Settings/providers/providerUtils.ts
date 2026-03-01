@@ -84,6 +84,30 @@ const PROVIDER_META: Record<string, ProviderMeta> = {
     description: 'Spanischsprachige Untertitel-Plattform',
     credentialType: 'free',
   },
+  animetosho: {
+    description: 'Anime-Fansub-Releases, kein Konto erforderlich',
+    credentialType: 'free',
+  },
+  kitsunekko: {
+    description: 'Japanische Originalsprache (ASS), kein Konto nötig',
+    credentialType: 'free',
+  },
+  napisy24: {
+    description: 'Polnische Untertitel, kein Konto erforderlich',
+    credentialType: 'free',
+  },
+  titrari: {
+    description: 'Rumänische Untertitel, kein Konto erforderlich',
+    credentialType: 'free',
+  },
+  legendasdivx: {
+    description: 'Portugiesische Untertitel — Konto auf legendasdivx.pt erforderlich',
+    credentialType: 'login',
+  },
+  whisper_subgen: {
+    description: 'Lokale KI-Transkription via selbst-gehostetes Subgen',
+    credentialType: 'api_key',
+  },
   whisperai: {
     description: 'Lokale KI-Transkription via Whisper-Modell',
     credentialType: 'free',
