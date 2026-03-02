@@ -472,9 +472,14 @@ class SonarrClient:
                         "episodeFileCount", series.get("episodeFileCount", 0)
                     ),
                     "path": series.get("path"),
-                    "poster": series.get("images", [{}])[0].get("remoteUrl", "")
-                    if series.get("images")
-                    else "",
+                    "poster": next(
+                        (
+                            img.get("remoteUrl", "")
+                            for img in series.get("images", [])
+                            if img.get("coverType") == "poster"
+                        ),
+                        "",
+                    ),
                     "status": series.get("status"),
                 }
             )

@@ -106,8 +106,7 @@ export default function SubtitleTimeline({
           <span
             key={i}
             className="absolute text-[10px] -translate-x-1/2"
-            style={{ color: 'var(--text-muted)' }}
-            style={{ left: `${left}%` }}
+            style={{ color: 'var(--text-muted)', left: `${left}%` }}
           >
             {formatTime(time)}
           </span>

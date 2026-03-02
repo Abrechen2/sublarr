@@ -7,6 +7,7 @@
  */
 
 import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Loader2, X, Eye, Pencil, GitCompare, RefreshCw, Activity } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSubtitleContent } from '@/hooks/useApi'
@@ -181,7 +182,7 @@ export default function SubtitleEditorModal({
     ...(videoPath ? [{ key: 'waveform' as const, label: 'Waveform', icon: Activity }] : []),
   ]
 
-  return (
+  return createPortal(
     <div
       ref={overlayRef}
       className="fixed inset-0 z-50 flex items-center justify-center"
@@ -385,6 +386,7 @@ export default function SubtitleEditorModal({
           </Suspense>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
