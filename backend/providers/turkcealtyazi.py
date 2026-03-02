@@ -34,6 +34,12 @@ logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://turkcealtyazi.org"
 _LOGIN_URL = f"{_BASE_URL}/giris"
+_FORMAT_MAP = {
+    "srt": SubtitleFormat.SRT,
+    "ass": SubtitleFormat.ASS,
+    "ssa": SubtitleFormat.SSA,
+    "vtt": SubtitleFormat.VTT,
+}
 _SEARCH_URL = f"{_BASE_URL}/ara"
 _BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -235,6 +241,9 @@ class TurkcealtyaziProvider(SubtitleProvider):
                         if name.lower().endswith((".srt", ".ass", ".ssa", ".vtt")):
                             content = zf.read(name)
                             result.filename = name
+                            ext = name.lower().rsplit(".", 1)[-1] if "." in name else ""
+                            if ext in _FORMAT_MAP:
+                                result.format = _FORMAT_MAP[ext]
                             break
             except Exception as e:
                 logger.warning("Turkcealtyazi: ZIP extraction failed: %s", e)
