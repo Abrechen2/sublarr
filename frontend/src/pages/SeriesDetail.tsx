@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, lazy, Suspense } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -1728,7 +1729,7 @@ export function SeriesDetailPage() {
       )}
 
       {/* Comparison Selector Modal */}
-      {compareSelectorEp && series && (
+      {compareSelectorEp && series && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
@@ -1753,11 +1754,12 @@ export function SeriesDetailPage() {
               onClose={() => setCompareSelectorEp(null)}
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Comparison View Modal */}
-      {comparisonPaths && (
+      {comparisonPaths && createPortal(
         <div
           className="fixed inset-0 z-50 flex flex-col"
           style={{ backgroundColor: 'var(--bg-primary)' }}
@@ -1774,11 +1776,12 @@ export function SeriesDetailPage() {
               onClose={() => setComparisonPaths(null)}
             />
           </Suspense>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Sync Controls Modal */}
-      {syncFilePath && (
+      {syncFilePath && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
@@ -1804,7 +1807,8 @@ export function SeriesDetailPage() {
               />
             </Suspense>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Video Sync Modal (ffsubsync / alass) */}
@@ -1833,7 +1837,7 @@ export function SeriesDetailPage() {
       />
 
       {/* Health Check Panel Modal */}
-      {healthCheckPath && (
+      {healthCheckPath && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
@@ -1866,7 +1870,8 @@ export function SeriesDetailPage() {
               />
             </Suspense>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
