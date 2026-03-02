@@ -370,7 +370,11 @@ class RadarrClient:
                     "has_file": movie.get("hasFile", False),
                     "path": movie.get("path"),
                     "poster": next(
-                        (img.get("remoteUrl", "") for img in movie.get("images", []) if img.get("coverType") == "poster"),
+                        (
+                            img.get("remoteUrl", "")
+                            for img in movie.get("images", [])
+                            if img.get("coverType") == "poster"
+                        ),
                         "",
                     ),
                     "status": movie.get("status"),

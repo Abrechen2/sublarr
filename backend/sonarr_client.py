@@ -473,7 +473,11 @@ class SonarrClient:
                     ),
                     "path": series.get("path"),
                     "poster": next(
-                        (img.get("remoteUrl", "") for img in series.get("images", []) if img.get("coverType") == "poster"),
+                        (
+                            img.get("remoteUrl", "")
+                            for img in series.get("images", [])
+                            if img.get("coverType") == "poster"
+                        ),
                         "",
                     ),
                     "status": series.get("status"),
