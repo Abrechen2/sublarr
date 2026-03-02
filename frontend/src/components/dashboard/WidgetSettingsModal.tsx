@@ -21,23 +21,19 @@ export function WidgetSettingsModal({ open, onClose }: WidgetSettingsModalProps)
   if (!open) return null
 
   return (
-    <>
-      {/* Backdrop */}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
       <div
-        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div
-          className="w-full max-w-md rounded-lg overflow-hidden shadow-2xl"
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border)',
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
+        className="w-full max-w-md rounded-lg overflow-hidden shadow-2xl"
+        style={{
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
           {/* Header */}
           <div
             className="flex items-center justify-between px-5 py-4"
@@ -137,7 +133,6 @@ export function WidgetSettingsModal({ open, onClose }: WidgetSettingsModalProps)
             </button>
           </div>
         </div>
-      </div>
-    </>
+    </div>
   )
 }

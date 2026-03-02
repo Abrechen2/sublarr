@@ -369,9 +369,10 @@ class RadarrClient:
                     "year": movie.get("year"),
                     "has_file": movie.get("hasFile", False),
                     "path": movie.get("path"),
-                    "poster": movie.get("images", [{}])[0].get("remoteUrl", "")
-                    if movie.get("images")
-                    else "",
+                    "poster": next(
+                        (img.get("remoteUrl", "") for img in movie.get("images", []) if img.get("coverType") == "poster"),
+                        "",
+                    ),
                     "status": movie.get("status"),
                 }
             )
