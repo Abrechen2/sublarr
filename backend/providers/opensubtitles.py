@@ -252,6 +252,12 @@ class OpenSubtitlesProvider(SubtitleProvider):
             logger.warning("OpenSubtitles: insufficient search criteria - params: %s", params)
             return []
 
+        # API-level format filter: reduces response noise when a specific format is requested.
+        # OpenSubtitles /subtitles accepts ?format=ass|srt|sub|... — only known formats are passed.
+        if query.preferred_format in _FORMAT_MAP:
+            params["format"] = query.preferred_format
+            logger.debug("OpenSubtitles: applying API format filter: %s", query.preferred_format)
+
         logger.debug("OpenSubtitles: API request params: %s", params)
         try:
             resp = self.session.get(f"{API_BASE}/subtitles", params=params)

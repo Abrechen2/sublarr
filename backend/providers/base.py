@@ -88,6 +88,11 @@ class VideoQuery:
     # Forced/signs subtitle search
     forced_only: bool = False  # When True, providers filter for forced/signs subtitles
 
+    # Format preference hint — set by ProviderManager when format_filter is active.
+    # Providers that support API-level format filtering (e.g. OpenSubtitles) use this
+    # to reduce noise before results are filtered client-side.
+    preferred_format: str = ""  # "ass", "srt", etc. — empty = no preference
+
     @property
     def is_episode(self) -> bool:
         return self.season is not None and self.episode is not None

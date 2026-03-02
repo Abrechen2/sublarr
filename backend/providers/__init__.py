@@ -718,6 +718,12 @@ class ProviderManager:
         Returns:
             List of SubtitleResult sorted by score (highest first)
         """
+        # Propagate format preference to providers so they can apply API-level filters
+        # (e.g. OpenSubtitles /subtitles?format=ass). This reduces response noise before
+        # client-side filtering. Only set if not already specified by the caller.
+        if format_filter and not query.preferred_format:
+            query.preferred_format = format_filter.value
+
         # Check cache first (two-tier: fast app cache, then persistent DB cache)
         cache_key = self._make_cache_key(query, format_filter)
         cache_ttl_minutes = getattr(self.settings, "provider_cache_ttl_minutes", 5)

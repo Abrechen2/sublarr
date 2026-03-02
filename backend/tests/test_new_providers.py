@@ -1,4 +1,4 @@
-"""Unit tests for the 4 new subtitle providers."""
+"""Unit tests for subtitle providers including OpenSubtitles format filter."""
 
 from unittest.mock import MagicMock, patch
 
@@ -494,3 +494,98 @@ class TestTurkcealtyaziProvider:
         with patch("providers.turkcealtyazi._HAS_BS4", False):
             result = p.search(q)
         assert result == []
+
+
+class TestOpenSubtitlesFormatFilter:
+    """Tests for OpenSubtitles API-level format filter (Option C)."""
+
+    def test_preferred_format_added_to_params_when_set(self):
+        """When preferred_format='ass', the API request includes format=ass."""
+        from providers.base import VideoQuery
+        from providers.opensubtitles import OpenSubtitlesProvider
+
+        provider = OpenSubtitlesProvider(api_key="test-key")
+        provider.session = MagicMock()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"data": []}
+        provider.session.get.return_value = mock_response
+
+        query = VideoQuery(
+            title="Test Movie",
+            languages=["de"],
+            preferred_format="ass",
+        )
+        provider.search(query)
+
+        call_kwargs = provider.session.get.call_args
+        params = call_kwargs[1]["params"] if "params" in call_kwargs[1] else call_kwargs[0][1]
+        assert params.get("format") == "ass"
+
+    def test_no_format_param_when_preferred_format_empty(self):
+        """When preferred_format is empty, no format param is sent to the API."""
+        from providers.base import VideoQuery
+        from providers.opensubtitles import OpenSubtitlesProvider
+
+        provider = OpenSubtitlesProvider(api_key="test-key")
+        provider.session = MagicMock()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"data": []}
+        provider.session.get.return_value = mock_response
+
+        query = VideoQuery(title="Test Movie", languages=["de"])
+        provider.search(query)
+
+        call_kwargs = provider.session.get.call_args
+        params = call_kwargs[1]["params"] if "params" in call_kwargs[1] else call_kwargs[0][1]
+        assert "format" not in params
+
+    def test_no_format_param_for_unknown_format(self):
+        """Unknown format strings are not forwarded to avoid invalid API params."""
+        from providers.base import VideoQuery
+        from providers.opensubtitles import OpenSubtitlesProvider
+
+        provider = OpenSubtitlesProvider(api_key="test-key")
+        provider.session = MagicMock()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"data": []}
+        provider.session.get.return_value = mock_response
+
+        query = VideoQuery(title="Test Movie", languages=["de"], preferred_format="unknown")
+        provider.search(query)
+
+        call_kwargs = provider.session.get.call_args
+        params = call_kwargs[1]["params"] if "params" in call_kwargs[1] else call_kwargs[0][1]
+        assert "format" not in params
+
+    def test_srt_format_also_forwarded(self):
+        """SRT format preference is also forwarded to the API."""
+        from providers.base import VideoQuery
+        from providers.opensubtitles import OpenSubtitlesProvider
+
+        provider = OpenSubtitlesProvider(api_key="test-key")
+        provider.session = MagicMock()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"data": []}
+        provider.session.get.return_value = mock_response
+
+        query = VideoQuery(title="Test Movie", languages=["de"], preferred_format="srt")
+        provider.search(query)
+
+        call_kwargs = provider.session.get.call_args
+        params = call_kwargs[1]["params"] if "params" in call_kwargs[1] else call_kwargs[0][1]
+        assert params.get("format") == "srt"
+
+    def test_video_query_preferred_format_default_empty(self):
+        """VideoQuery.preferred_format defaults to empty string (backward compatible)."""
+        from providers.base import VideoQuery
+
+        q = VideoQuery(title="Test")
+        assert q.preferred_format == ""
