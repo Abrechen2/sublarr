@@ -494,3 +494,103 @@ class TestTurkcealtyaziProvider:
         with patch("providers.turkcealtyazi._HAS_BS4", False):
             result = p.search(q)
         assert result == []
+
+
+class TestOpenSubtitlesDownloadFormatDetection:
+    """Tests for format detection via /download endpoint file_name (the real fix).
+
+    The /subtitles search API does not populate the 'format' attribute,
+    leaving all results as UNKNOWN. The /download endpoint returns a
+    file_name with the actual extension (e.g. 'Movie.de.ass'), which is
+    the only reliable source of format info before saving the file.
+    """
+
+    def _make_provider(self):
+        from providers.opensubtitles import OpenSubtitlesProvider
+        p = OpenSubtitlesProvider(api_key="test-key")
+        p.session = MagicMock()
+        return p
+
+    def _make_result(self, fmt="unknown"):
+        from providers.base import SubtitleFormat, SubtitleResult
+        return SubtitleResult(
+            provider_name="opensubtitles",
+            subtitle_id="123",
+            language="de",
+            format=SubtitleFormat(fmt),
+            provider_data={"file_id": 7391597},
+        )
+
+    def _mock_download(self, provider, file_name, content=b"1\n00:00:01,000 --> 00:00:02,000\nHello\n"):
+        dl_resp = MagicMock()
+        dl_resp.status_code = 200
+        dl_resp.content = content
+        provider.session.post.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {"link": "https://example.com/file", "file_name": file_name},
+        )
+        provider.session.get.return_value = dl_resp
+
+    def test_format_set_to_srt_from_download_filename(self):
+        """UNKNOWN result → download returns .srt filename → format becomes SRT."""
+        from providers.base import SubtitleFormat
+        p = self._make_provider()
+        result = self._make_result("unknown")
+        self._mock_download(p, "[Crunchyroll] My Dress-Up Darling S01E12.Deutsch.srt")
+
+        p.download(result)
+
+        assert result.format == SubtitleFormat.SRT
+
+    def test_format_set_to_ass_from_download_filename(self):
+        """UNKNOWN result → download returns .ass filename → format becomes ASS."""
+        from providers.base import SubtitleFormat
+        p = self._make_provider()
+        result = self._make_result("unknown")
+        ass_content = b"[Script Info]\nScriptType: v4.00+\n"
+        self._mock_download(p, "Anime.S01E01.de.ass", ass_content)
+
+        p.download(result)
+
+        assert result.format == SubtitleFormat.ASS
+
+    def test_format_unchanged_when_no_filename_in_download_response(self):
+        """No file_name in download response → format stays UNKNOWN."""
+        from providers.base import SubtitleFormat
+        p = self._make_provider()
+        result = self._make_result("unknown")
+        dl_resp = MagicMock()
+        dl_resp.status_code = 200
+        dl_resp.content = b"content"
+        p.session.post.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {"link": "https://example.com/file"},  # no file_name
+        )
+        p.session.get.return_value = dl_resp
+
+        p.download(result)
+
+        assert result.format == SubtitleFormat.UNKNOWN
+
+    def test_format_unchanged_for_unknown_extension(self):
+        """Unrecognised extension in download filename → format stays UNKNOWN."""
+        from providers.base import SubtitleFormat
+        p = self._make_provider()
+        result = self._make_result("unknown")
+        self._mock_download(p, "Subtitle.de.ger")  # .ger not in _FORMAT_MAP
+
+        p.download(result)
+
+        assert result.format == SubtitleFormat.UNKNOWN
+
+    def test_existing_known_format_not_overridden(self):
+        """If format was already known (ASS), download filename can still update it."""
+        from providers.base import SubtitleFormat
+        p = self._make_provider()
+        result = self._make_result("ass")  # already set by search
+        self._mock_download(p, "Subtitle.de.srt")  # download says SRT
+
+        p.download(result)
+
+        # Download file_name wins — it's the ground truth
+        assert result.format == SubtitleFormat.SRT
