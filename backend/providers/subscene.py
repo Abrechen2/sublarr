@@ -9,9 +9,9 @@ Rate:     10 req / 60 s (conservative — site blocks aggressive scrapers)
 License:  GPL-3.0
 """
 
-import io
 import logging
-import zipfile
+
+from archive_utils import extract_subtitles_from_zip
 
 try:
     from bs4 import BeautifulSoup
@@ -299,22 +299,18 @@ class SubsceneProvider(SubtitleProvider):
         # Extract from ZIP if needed
         if content[:2] == b"PK":
             try:
-                with zipfile.ZipFile(io.BytesIO(content)) as zf:
-                    names = zf.namelist()
-                    # Pick first subtitle file
-                    for name in names:
-                        if name.lower().endswith((".srt", ".ass", ".ssa", ".vtt", ".sub")):
-                            content = zf.read(name)
-                            result.filename = name
-                            ext = name.rsplit(".", 1)[-1].lower()
-                            result.format = {
-                                "ass": SubtitleFormat.ASS,
-                                "ssa": SubtitleFormat.SSA,
-                                "vtt": SubtitleFormat.VTT,
-                            }.get(ext, SubtitleFormat.SRT)
-                            break
-            except Exception as e:
-                logger.warning("Subscene: ZIP extraction failed: %s", e)
+                entries = extract_subtitles_from_zip(content)
+                if entries:
+                    name, content = entries[0]
+                    result.filename = name
+                    ext = name.rsplit(".", 1)[-1].lower()
+                    result.format = {
+                        "ass": SubtitleFormat.ASS,
+                        "ssa": SubtitleFormat.SSA,
+                        "vtt": SubtitleFormat.VTT,
+                    }.get(ext, SubtitleFormat.SRT)
+            except ValueError as e:
+                raise RuntimeError(f"Subscene: archive security check failed: {e}") from e
 
         result.content = content
         logger.info("Subscene: downloaded %s (%d bytes)", result.filename, len(content))

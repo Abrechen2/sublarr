@@ -7,11 +7,10 @@ Architecture adapted from Bazarr's subliminal_patch jimaku provider (GPL-3.0).
 API: https://jimaku.cc/api/docs
 """
 
-import io
 import logging
 import os
-import zipfile
 
+from archive_utils import extract_subtitles_from_zip, extract_subtitles_from_rar
 from providers import register_provider
 from providers.base import (
     ProviderAuthError,
@@ -38,47 +37,6 @@ _FORMAT_MAP = {
     ".vtt": SubtitleFormat.VTT,
 }
 
-
-def _extract_from_zip(archive_content: bytes, query: VideoQuery) -> list[tuple[str, bytes]]:
-    """Extract subtitle files from a ZIP archive.
-
-    Returns list of (filename, content) tuples, filtered to best matches.
-    """
-    results = []
-    try:
-        with zipfile.ZipFile(io.BytesIO(archive_content)) as zf:
-            for name in zf.namelist():
-                ext = os.path.splitext(name)[1].lower()
-                if ext not in _SUBTITLE_EXTENSIONS:
-                    continue
-                # Skip directories
-                if name.endswith("/"):
-                    continue
-                content = zf.read(name)
-                results.append((os.path.basename(name), content))
-    except zipfile.BadZipFile:
-        logger.warning("Jimaku: bad ZIP archive")
-    return results
-
-
-def _extract_from_rar(archive_content: bytes, query: VideoQuery) -> list[tuple[str, bytes]]:
-    """Extract subtitle files from a RAR archive."""
-    results = []
-    try:
-        import rarfile
-
-        with rarfile.RarFile(io.BytesIO(archive_content)) as rf:
-            for name in rf.namelist():
-                ext = os.path.splitext(name)[1].lower()
-                if ext not in _SUBTITLE_EXTENSIONS:
-                    continue
-                content = rf.read(name)
-                results.append((os.path.basename(name), content))
-    except ImportError:
-        logger.warning("Jimaku: rarfile not installed, cannot extract RAR archives")
-    except Exception as e:
-        logger.warning("Jimaku: RAR extraction failed: %s", e)
-    return results
 
 
 def _score_subtitle_file(filename: str, query: VideoQuery) -> int:
@@ -454,9 +412,12 @@ class JimakuProvider(SubtitleProvider):
             )
 
             if ext == ".zip":
-                extracted = _extract_from_zip(content, query)
+                extracted = extract_subtitles_from_zip(content)
             elif ext == ".rar":
-                extracted = _extract_from_rar(content, query)
+                try:
+                    extracted = extract_subtitles_from_rar(content)
+                except ImportError:
+                    raise RuntimeError("rarfile not installed, cannot extract RAR archives")
             else:
                 raise RuntimeError(f"Unsupported archive format: {ext}")
 

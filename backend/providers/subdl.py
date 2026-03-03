@@ -8,12 +8,11 @@ Rate limit: 2000 downloads/day
 License: GPL-3.0
 """
 
-import io
 import logging
 import os
 import re
-import zipfile
 
+from archive_utils import extract_subtitles_from_zip
 from providers import register_provider
 from providers.base import (
     ProviderAuthError,
@@ -45,26 +44,6 @@ _RELEASE_GROUP_RE = re.compile(r"^\[([^\]]+)\]|[-.]([A-Za-z0-9]+)$")
 # Episode number extraction from release name
 _EPISODE_RE = re.compile(r"(?:S\d{1,2}E|E|EP|Episode[.\s_]?)(\d{1,3})\b", re.IGNORECASE)
 
-
-def _extract_from_zip(archive_content: bytes) -> list[tuple[str, bytes]]:
-    """Extract subtitle files from a ZIP archive.
-
-    Returns list of (filename, content) tuples.
-    """
-    results = []
-    try:
-        with zipfile.ZipFile(io.BytesIO(archive_content)) as zf:
-            for name in zf.namelist():
-                ext = os.path.splitext(name)[1].lower()
-                if ext not in _SUBTITLE_EXTENSIONS:
-                    continue
-                if name.endswith("/"):
-                    continue
-                content = zf.read(name)
-                results.append((os.path.basename(name), content))
-    except zipfile.BadZipFile:
-        logger.warning("SubDL: bad ZIP archive")
-    return results
 
 
 def _pick_best_subtitle(
@@ -398,7 +377,7 @@ class SubDLProvider(SubtitleProvider):
         archive_content = resp.content
 
         # Extract subtitle files from ZIP
-        extracted = _extract_from_zip(archive_content)
+        extracted = extract_subtitles_from_zip(archive_content)
         if not extracted:
             raise RuntimeError("No subtitle files found in SubDL ZIP archive")
 

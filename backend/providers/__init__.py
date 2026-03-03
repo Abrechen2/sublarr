@@ -1145,6 +1145,17 @@ class ProviderManager:
         except Exception:
             pass  # Config not available — skip path validation (e.g. tests)
 
+        # Sanitize subtitle content before writing to disk
+        try:
+            from subtitle_sanitizer import sanitize_subtitle
+
+            result.content = sanitize_subtitle(result.content, result.format)
+        except ValueError as e:
+            raise RuntimeError(f"Subtitle failed security check: {e}") from e
+        except Exception as e:
+            logger.warning("Subtitle sanitization failed (skipping): %s", e)
+            # Non-fatal: log and continue on unexpected errors to preserve availability
+
         # Create directory with error handling
         try:
             dir_path = os.path.dirname(output_path)

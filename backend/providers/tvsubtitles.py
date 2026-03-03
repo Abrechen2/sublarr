@@ -9,9 +9,9 @@ Rate:     15 req / 60 s
 License:  GPL-3.0
 """
 
-import io
 import logging
-import zipfile
+
+from archive_utils import extract_subtitles_from_zip
 
 try:
     from bs4 import BeautifulSoup
@@ -267,17 +267,15 @@ class TVSubtitlesProvider(SubtitleProvider):
         # Extract from ZIP if needed
         if content[:2] == b"PK":
             try:
-                with zipfile.ZipFile(io.BytesIO(content)) as zf:
-                    for name in zf.namelist():
-                        if name.lower().endswith((".srt", ".ass", ".ssa", ".vtt")):
-                            content = zf.read(name)
-                            result.filename = name
-                            ext = name.lower().rsplit(".", 1)[-1] if "." in name else ""
-                            if ext in _FORMAT_MAP:
-                                result.format = _FORMAT_MAP[ext]
-                            break
-            except Exception as e:
-                logger.warning("TVSubtitles: ZIP extraction failed: %s", e)
+                entries = extract_subtitles_from_zip(content)
+                if entries:
+                    name, content = entries[0]
+                    result.filename = name
+                    ext = name.lower().rsplit(".", 1)[-1] if "." in name else ""
+                    if ext in _FORMAT_MAP:
+                        result.format = _FORMAT_MAP[ext]
+            except ValueError as e:
+                raise RuntimeError(f"TVSubtitles: archive security check failed: {e}") from e
 
         result.content = content
         logger.info("TVSubtitles: downloaded %s (%d bytes)", result.filename, len(content))
