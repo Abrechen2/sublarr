@@ -32,6 +32,12 @@ from providers.http_session import create_session
 logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://www.tvsubtitles.net"
+_FORMAT_MAP = {
+    "srt": SubtitleFormat.SRT,
+    "ass": SubtitleFormat.ASS,
+    "ssa": SubtitleFormat.SSA,
+    "vtt": SubtitleFormat.VTT,
+}
 _BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -266,6 +272,9 @@ class TVSubtitlesProvider(SubtitleProvider):
                         if name.lower().endswith((".srt", ".ass", ".ssa", ".vtt")):
                             content = zf.read(name)
                             result.filename = name
+                            ext = name.lower().rsplit(".", 1)[-1] if "." in name else ""
+                            if ext in _FORMAT_MAP:
+                                result.format = _FORMAT_MAP[ext]
                             break
             except Exception as e:
                 logger.warning("TVSubtitles: ZIP extraction failed: %s", e)
