@@ -504,6 +504,7 @@ def process_wanted_item(item_id: int) -> dict:
     current_score = item.get("current_score", 0)
     subtitle_type = item.get("subtitle_type", "full")
     manager = get_provider_manager()
+    auto_translate = getattr(settings, "wanted_auto_translate", True)
 
     # Forced subtitle handling: download-only, no translation
     if subtitle_type == "forced":
@@ -602,123 +603,127 @@ def process_wanted_item(item_id: int) -> dict:
         logger.warning("Wanted %d: Direct target ASS search failed: %s", item_id, e, exc_info=True)
 
     # Step 2: Try to find source language ASS for translation (Priority 2)
-    source_query = build_query_from_wanted(item)
-    source_query.languages = [settings.source_language]
-
-    try:
-        result = manager.search_and_download_best(source_query, format_filter=SubtitleFormat.ASS)
-        if result and result.content:
-            _ass_had_results = True
-            # Download source ASS and translate it
-            from translator import _translate_external_ass, get_output_path_for_lang
-
-            base = os.path.splitext(file_path)[0]
-            tmp_source_path = f"{base}.{settings.source_language}.ass"
-            try:
-                # Use the returned path — save_subtitle may adjust the extension
-                # (e.g. if the downloaded file turns out to be SRT, not ASS)
-                actual_source_path = manager.save_subtitle(result, tmp_source_path)
-                record_subtitle_download(
-                    result.provider_name,
-                    result.subtitle_id,
-                    settings.source_language,
-                    result.format.value if result.format.value != "unknown" else "ass",
-                    file_path,
-                    result.score,
-                )
-            except (OSError, RuntimeError) as save_error:
-                logger.error(
-                    "Wanted %d: Failed to save source ASS from %s: %s",
-                    item_id,
-                    result.provider_name,
-                    save_error,
-                )
-                raise  # skip to next step
-
-            # Build arr_context for glossary lookup
-            arr_context = {}
-            if item.get("sonarr_series_id"):
-                arr_context["sonarr_series_id"] = item["sonarr_series_id"]
-            if item.get("sonarr_episode_id"):
-                arr_context["sonarr_episode_id"] = item["sonarr_episode_id"]
-            if item.get("radarr_movie_id"):
-                arr_context["radarr_movie_id"] = item["radarr_movie_id"]
-
-            job = create_job(
-                file_path, force=False, arr_context=arr_context if arr_context else None
+    if auto_translate:
+        source_query = build_query_from_wanted(item)
+        source_query.languages = [settings.source_language]
+        try:
+            result = manager.search_and_download_best(
+                source_query, format_filter=SubtitleFormat.ASS
             )
-            update_job(job["id"], "running")
-            try:
-                translate_result = _translate_external_ass(
-                    file_path,
-                    actual_source_path,
-                    target_language=item_lang,
-                    target_language_name=settings.target_language_name,
-                    arr_context=arr_context if arr_context else None,
+            if result and result.content:
+                _ass_had_results = True
+                # Download source ASS and translate it
+                from translator import _translate_external_ass, get_output_path_for_lang
+
+                base = os.path.splitext(file_path)[0]
+                tmp_source_path = f"{base}.{settings.source_language}.ass"
+                try:
+                    # Use the returned path — save_subtitle may adjust the extension
+                    # (e.g. if the downloaded file turns out to be SRT, not ASS)
+                    actual_source_path = manager.save_subtitle(result, tmp_source_path)
+                    record_subtitle_download(
+                        result.provider_name,
+                        result.subtitle_id,
+                        settings.source_language,
+                        result.format.value if result.format.value != "unknown" else "ass",
+                        file_path,
+                        result.score,
+                    )
+                except (OSError, RuntimeError) as save_error:
+                    logger.error(
+                        "Wanted %d: Failed to save source ASS from %s: %s",
+                        item_id,
+                        result.provider_name,
+                        save_error,
+                    )
+                    raise  # skip to next step
+
+                # Build arr_context for glossary lookup
+                arr_context = {}
+                if item.get("sonarr_series_id"):
+                    arr_context["sonarr_series_id"] = item["sonarr_series_id"]
+                if item.get("sonarr_episode_id"):
+                    arr_context["sonarr_episode_id"] = item["sonarr_episode_id"]
+                if item.get("radarr_movie_id"):
+                    arr_context["radarr_movie_id"] = item["radarr_movie_id"]
+
+                job = create_job(
+                    file_path, force=False, arr_context=arr_context if arr_context else None
                 )
-            except Exception as trans_error:
-                logger.error(
-                    "Wanted %d: Translation failed for source ASS: %s",
-                    item_id,
-                    trans_error,
-                    exc_info=True,
-                )
-                update_job(job["id"], "failed", error=str(trans_error))
-                record_stat(success=False)
+                update_job(job["id"], "running")
+                try:
+                    translate_result = _translate_external_ass(
+                        file_path,
+                        actual_source_path,
+                        target_language=item_lang,
+                        target_language_name=settings.target_language_name,
+                        arr_context=arr_context if arr_context else None,
+                    )
+                except Exception as trans_error:
+                    logger.error(
+                        "Wanted %d: Translation failed for source ASS: %s",
+                        item_id,
+                        trans_error,
+                        exc_info=True,
+                    )
+                    update_job(job["id"], "failed", error=str(trans_error))
+                    record_stat(success=False)
+                    try:
+                        if os.path.exists(actual_source_path):
+                            os.remove(actual_source_path)
+                    except Exception:
+                        pass
+                    raise  # skip to next step
+
+                # Clean up temporary source file
                 try:
                     if os.path.exists(actual_source_path):
                         os.remove(actual_source_path)
                 except Exception:
                     pass
-                raise  # skip to next step
 
-            # Clean up temporary source file
-            try:
-                if os.path.exists(actual_source_path):
-                    os.remove(actual_source_path)
-            except Exception:
-                pass
-
-            if translate_result and translate_result.get("success"):
-                update_job(
-                    job["id"],
-                    "completed",
-                    result=translate_result,
-                    error=translate_result.get("error"),
-                )
-                s = translate_result.get("stats", {})
-                record_stat(
-                    success=True,
-                    skipped=s.get("skipped", False),
-                    fmt=s.get("format", ""),
-                    source=s.get("source", ""),
-                )
-                logger.info(
-                    "Wanted %d: Translated source ASS from provider %s",
-                    item_id,
-                    result.provider_name,
-                )
-                update_wanted_status(item_id, "found")
-                return {
-                    "wanted_id": item_id,
-                    "status": "found",
-                    "output_path": translate_result.get("output_path"),
-                    "provider": f"{result.provider_name} (translated)",
-                }
-            else:
-                update_job(
-                    job["id"],
-                    "failed",
-                    result=translate_result,
-                    error=translate_result.get("error")
-                    if translate_result
-                    else "Translation failed",
-                )
-                record_stat(success=False)
-    except Exception as e:
-        logger.warning(
-            "Wanted %d: Source ASS search/translation failed: %s", item_id, e, exc_info=True
-        )
+                if translate_result and translate_result.get("success"):
+                    update_job(
+                        job["id"],
+                        "completed",
+                        result=translate_result,
+                        error=translate_result.get("error"),
+                    )
+                    s = translate_result.get("stats", {})
+                    record_stat(
+                        success=True,
+                        skipped=s.get("skipped", False),
+                        fmt=s.get("format", ""),
+                        source=s.get("source", ""),
+                    )
+                    logger.info(
+                        "Wanted %d: Translated source ASS from provider %s",
+                        item_id,
+                        result.provider_name,
+                    )
+                    update_wanted_status(item_id, "found")
+                    return {
+                        "wanted_id": item_id,
+                        "status": "found",
+                        "output_path": translate_result.get("output_path"),
+                        "provider": f"{result.provider_name} (translated)",
+                    }
+                else:
+                    update_job(
+                        job["id"],
+                        "failed",
+                        result=translate_result,
+                        error=translate_result.get("error")
+                        if translate_result
+                        else "Translation failed",
+                    )
+                    record_stat(success=False)
+        except Exception as e:
+            logger.warning(
+                "Wanted %d: Source ASS search/translation failed: %s", item_id, e, exc_info=True
+            )
+    else:
+        logger.debug("Wanted %d: auto_translate disabled, skipping source ASS translation", item_id)
 
     # Early exit: skip SRT steps if no ASS was found in Steps 1+2 (providers likely have nothing)
     _skip_srt = getattr(settings, "wanted_skip_srt_on_no_ass", True) and not _ass_had_results
@@ -769,7 +774,7 @@ def process_wanted_item(item_id: int) -> dict:
             )
 
     # Step 4: Try to find source language SRT for translation (Priority 4)
-    if not _skip_srt:
+    if not _skip_srt and auto_translate:
         try:
             result = manager.search_and_download_best(
                 source_query, format_filter=SubtitleFormat.SRT
@@ -885,6 +890,16 @@ def process_wanted_item(item_id: int) -> dict:
             )
 
     # Step 5: Fall back to translate_file() which handles embedded subtitles (B1/C1-C4)
+    if not auto_translate:
+        logger.debug(
+            "Wanted %d: auto_translate disabled, no subtitle found without translation", item_id
+        )
+        update_wanted_status(item_id, "wanted")
+        return {
+            "wanted_id": item_id,
+            "status": "not_found",
+            "reason": "No subtitle found; translation disabled",
+        }
     try:
         from translator import translate_file
 
