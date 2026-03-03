@@ -9,13 +9,12 @@ from RAR/ZIP archives.
 License: GPL-3.0
 """
 
-import io
 import logging
 import os
 import re
-import zipfile
 from urllib.parse import urljoin
 
+from archive_utils import extract_subtitles_from_zip, extract_subtitles_from_rar
 from providers import register_provider
 from providers.base import (
     ProviderError,
@@ -45,13 +44,6 @@ except ImportError:
     _HAS_GUESSIT = False
     logger.debug("Titrari: guessit not installed, using regex fallback for release parsing")
 
-try:
-    import rarfile
-
-    _HAS_RARFILE = True
-except ImportError:
-    _HAS_RARFILE = False
-    logger.debug("Titrari: rarfile not installed, RAR archives will not be extractable")
 
 BASE_URL = "https://www.titrari.ro"
 SEARCH_URL = f"{BASE_URL}/index.php"
@@ -122,41 +114,6 @@ def _detect_format_from_filename(filename: str) -> SubtitleFormat:
     ext = os.path.splitext(filename)[1].lower()
     return _FORMAT_MAP.get(ext, SubtitleFormat.SRT)
 
-
-def _extract_subtitle_from_archive(content: bytes) -> tuple[str, bytes] | None:
-    """Extract the first subtitle file from a ZIP or RAR archive.
-
-    Returns (filename, content) or None if no subtitle found.
-    """
-    # ZIP detection
-    if content[:4] == b"PK\x03\x04":
-        try:
-            with zipfile.ZipFile(io.BytesIO(content)) as zf:
-                for name in zf.namelist():
-                    ext = os.path.splitext(name)[1].lower()
-                    if ext in _SUBTITLE_EXTENSIONS:
-                        return (os.path.basename(name), zf.read(name))
-        except zipfile.BadZipFile:
-            logger.warning("Titrari: bad ZIP archive")
-        return None
-
-    # RAR detection
-    if content[:4] == b"Rar!":
-        if not _HAS_RARFILE:
-            logger.warning("Titrari: RAR archive detected but rarfile not installed")
-            return None
-        try:
-            with rarfile.RarFile(io.BytesIO(content)) as rf:
-                for name in rf.namelist():
-                    ext = os.path.splitext(name)[1].lower()
-                    if ext in _SUBTITLE_EXTENSIONS:
-                        return (os.path.basename(name), rf.read(name))
-        except Exception as e:
-            logger.warning("Titrari: RAR extraction failed: %s", e)
-        return None
-
-    # Not an archive — return None (caller will treat content as raw subtitle)
-    return None
 
 
 @register_provider
@@ -428,7 +385,16 @@ class TitrariProvider(SubtitleProvider):
         content = resp.content
 
         # Try to extract from archive
-        extracted = _extract_subtitle_from_archive(content)
+        extracted = None
+        if content[:4] == b"PK\x03\x04":
+            entries = extract_subtitles_from_zip(content)
+            extracted = entries[0] if entries else None
+        elif content[:4] == b"Rar!":
+            try:
+                entries = extract_subtitles_from_rar(content)
+                extracted = entries[0] if entries else None
+            except ImportError:
+                logger.warning("Titrari: rarfile not installed, cannot extract RAR archive")
         if extracted:
             filename, content = extracted
             result.filename = filename

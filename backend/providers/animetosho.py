@@ -7,13 +7,12 @@ Architecture adapted from Bazarr's subliminal_patch animetosho provider (GPL-3.0
 API: https://feed.animetosho.org/
 """
 
-import io
 import logging
 import lzma
 import os
 import re
-import zipfile
 
+from archive_utils import _MAX_EXTRACTED_BYTES, extract_subtitles_from_zip
 from providers import register_provider
 from providers.base import (
     SubtitleFormat,
@@ -35,7 +34,7 @@ _FORMAT_MAP = {
 }
 
 
-_MAX_DECOMPRESSED_SIZE = 10 * 1024 * 1024  # 10 MB
+_MAX_DECOMPRESSED_SIZE = _MAX_EXTRACTED_BYTES  # aligned with archive extraction limit
 
 
 def _decompress_xz(data: bytes) -> bytes:
@@ -386,17 +385,12 @@ class AnimeToshoProvider(SubtitleProvider):
 
         # Handle ZIP if the downloaded file is actually a ZIP
         if content[:4] == b"PK\x03\x04":
-            try:
-                with zipfile.ZipFile(io.BytesIO(content)) as zf:
-                    for name in zf.namelist():
-                        ext = os.path.splitext(name)[1].lower()
-                        if ext in _SUBTITLE_EXTENSIONS:
-                            content = zf.read(name)
-                            result.filename = os.path.basename(name)
-                            result.format = _FORMAT_MAP.get(ext, SubtitleFormat.UNKNOWN)
-                            break
-            except zipfile.BadZipFile:
-                pass  # Not a ZIP, use content as-is
+            entries = extract_subtitles_from_zip(content)
+            if entries:
+                name, content = entries[0]
+                result.filename = os.path.basename(name)
+                ext = os.path.splitext(name)[1].lower()
+                result.format = _FORMAT_MAP.get(ext, SubtitleFormat.UNKNOWN)
 
         result.content = content
         logger.info("AnimeTosho: downloaded %s (%d bytes)", result.filename, len(content))

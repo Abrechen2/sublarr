@@ -10,11 +10,10 @@ Rate limit: Conservative 30 req/60s
 License: GPL-3.0
 """
 
-import io
 import logging
 import os
-import zipfile
 
+from archive_utils import extract_subtitles_from_zip
 from providers import register_provider
 from providers.base import (
     ProviderRateLimitError,
@@ -105,24 +104,6 @@ def _parse_xml(content: bytes):
 
         return ET.fromstring(content)
 
-
-def _extract_from_zip(archive_content: bytes) -> tuple[str, bytes] | None:
-    """Extract the first subtitle file from a ZIP archive.
-
-    Returns (filename, content) or None if no subtitle file found.
-    """
-    try:
-        with zipfile.ZipFile(io.BytesIO(archive_content)) as zf:
-            for name in zf.namelist():
-                if name.endswith("/"):
-                    continue
-                ext = os.path.splitext(name)[1].lower()
-                if ext in _SUBTITLE_EXTENSIONS:
-                    content = zf.read(name)
-                    return os.path.basename(name), content
-    except zipfile.BadZipFile:
-        logger.warning("Podnapisi: bad ZIP archive")
-    return None
 
 
 @register_provider
@@ -446,7 +427,8 @@ class PodnapisiProvider(SubtitleProvider):
 
         # Podnapisi returns ZIP archives -- extract the first subtitle file
         if content[:4] == b"PK\x03\x04":
-            extracted = _extract_from_zip(content)
+            entries = extract_subtitles_from_zip(content)
+            extracted = entries[0] if entries else None
             if extracted:
                 filename, sub_content = extracted
                 result.filename = filename
