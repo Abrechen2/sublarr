@@ -322,9 +322,14 @@ class TestAutoTranslateGuard:
         mock_manager.save_subtitle.return_value = temp_file.replace(".mkv", ".de.ass")
         mock_get_manager.return_value = mock_manager
 
-        with patch("translator.get_output_path_for_lang", return_value=temp_file.replace(".mkv", ".de.ass")), \
-             patch("wanted_search.record_subtitle_download"), \
-             patch("translator.translate_file") as mock_translate_file:
+        with (
+            patch(
+                "translator.get_output_path_for_lang",
+                return_value=temp_file.replace(".mkv", ".de.ass"),
+            ),
+            patch("wanted_search.record_subtitle_download"),
+            patch("translator.translate_file") as mock_translate_file,
+        ):
             result = process_wanted_item(1)
 
         mock_translate_file.assert_not_called()
