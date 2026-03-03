@@ -1,5 +1,5 @@
 {
-  "title": "Activity",
+  "title": "Translations",
   "filter": {
     "all": "All",
     "completed": "Completed",
@@ -8,24 +8,27 @@
     "queued": "Queued"
   },
   "table": {
-    "file": "File",
+    "content": "Content",
     "status": "Status",
+    "lang": "Language",
     "format": "Format",
     "time": "Time",
     "error": "Error",
     "actions": "Actions"
   },
   "expanded": {
-    "full_path": "Full Path",
-    "output": "Output",
+    "full_path": "Input File",
+    "output": "Output File",
     "format": "Format",
-    "force": "Force",
+    "force": "Forced",
     "force_yes": "Yes",
     "force_no": "No",
     "created": "Created",
     "completed": "Completed",
     "error": "Error",
-    "stats": "Stats"
+    "stats": "Stats",
+    "source": "Source",
+    "lines": "lines"
   },
   "no_jobs": "No jobs found",
   "retry_started": "Retry started",
@@ -57,7 +60,7 @@
     "no_queued": "No queued jobs"
   },
   "history": {
-    "title": "History",
+    "title": "Downloads",
     "subtitle": "Subtitle download history across all providers",
     "total_downloads": "Total Downloads",
     "last_24h": "Last 24h",
@@ -65,7 +68,7 @@
     "top_provider": "Top Provider",
     "all_providers": "All Providers",
     "table": {
-      "file": "File",
+      "content": "Content",
       "provider": "Provider",
       "lang": "Lang",
       "format": "Format",

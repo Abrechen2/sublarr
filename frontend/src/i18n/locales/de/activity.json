@@ -1,5 +1,5 @@
 {
-  "title": "Aktivität",
+  "title": "Übersetzungen",
   "filter": {
     "all": "Alle",
     "completed": "Abgeschlossen",
@@ -8,24 +8,27 @@
     "queued": "Wartend"
   },
   "table": {
-    "file": "Datei",
+    "content": "Inhalt",
     "status": "Status",
+    "lang": "Sprache",
     "format": "Format",
     "time": "Zeit",
     "error": "Fehler",
     "actions": "Aktionen"
   },
   "expanded": {
-    "full_path": "Vollständiger Pfad",
-    "output": "Ausgabe",
+    "full_path": "Eingabedatei",
+    "output": "Ausgabedatei",
     "format": "Format",
-    "force": "Erzwingen",
+    "force": "Erzwungen",
     "force_yes": "Ja",
     "force_no": "Nein",
     "created": "Erstellt",
     "completed": "Abgeschlossen",
     "error": "Fehler",
-    "stats": "Statistiken"
+    "stats": "Statistiken",
+    "source": "Quelle",
+    "lines": "Zeilen"
   },
   "no_jobs": "Keine Aufgaben gefunden",
   "retry_started": "Wiederholung gestartet",
@@ -57,7 +60,7 @@
     "no_queued": "Keine wartenden Aufgaben"
   },
   "history": {
-    "title": "Verlauf",
+    "title": "Downloads",
     "subtitle": "Untertitel-Download-Verlauf aller Provider",
     "total_downloads": "Downloads gesamt",
     "last_24h": "Letzte 24 Std.",
@@ -65,7 +68,7 @@
     "top_provider": "Top Provider",
     "all_providers": "Alle Provider",
     "table": {
-      "file": "Datei",
+      "content": "Inhalt",
       "provider": "Provider",
       "lang": "Sprache",
       "format": "Format",

@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useHistory, useHistoryStats, useAddToBlacklist } from '@/hooks/useApi'
-import { formatRelativeTime, truncatePath } from '@/lib/utils'
+import { formatRelativeTime, parseMediaTitle } from '@/lib/utils'
 import {
   Clock, Download, ChevronLeft, ChevronRight, Ban, Eye, GitCompare,
   CheckSquare, Square, MinusSquare,
@@ -79,9 +79,24 @@ const HistoryTableRow = memo(function HistoryTableRow({
         </button>
       </td>
       <td className="px-4 py-2.5" title={entry.file_path}>
-        <span className="truncate max-w-xs text-sm block" style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
-          {truncatePath(entry.file_path)}
-        </span>
+        {(() => {
+          const media = parseMediaTitle(entry.file_path)
+          return (
+            <div className="min-w-0">
+              <div className="font-medium text-sm truncate max-w-xs" style={{ color: 'var(--text-primary)' }}>
+                {media.title}
+              </div>
+              {media.episodeCode && (
+                <div
+                  className="text-[11px] truncate max-w-xs mt-0.5"
+                  style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
+                >
+                  {media.episodeCode}{media.episodeTitle ? ` · ${media.episodeTitle}` : ''}
+                </div>
+              )}
+            </div>
+          )
+        })()}
       </td>
       <td className="px-3 py-2.5">
         <span className="text-xs font-medium capitalize" style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
@@ -389,7 +404,7 @@ export function HistoryPage() {
                     )}
                   </button>
                 </th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.file')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.content')}</th>
                 <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.provider')}</th>
                 <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.lang')}</th>
                 <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.format')}</th>

@@ -194,15 +194,19 @@ def _run_job(job_data):
 
 
 def _build_arr_context(data):
-    """Build arr_context from request data if Sonarr IDs are present."""
+    """Build arr_context including language direction and optional Sonarr IDs."""
+    from config import get_settings
+    settings = get_settings()
+    context = {
+        "source_language": getattr(settings, "source_language", "en"),
+        "target_language": getattr(settings, "target_language", "de"),
+    }
     series_id = data.get("sonarr_series_id")
     episode_id = data.get("sonarr_episode_id")
     if series_id and episode_id:
-        return {
-            "sonarr_series_id": series_id,
-            "sonarr_episode_id": episode_id,
-        }
-    return None
+        context["sonarr_series_id"] = series_id
+        context["sonarr_episode_id"] = episode_id
+    return context
 
 
 def _validate_callback_url(url):
