@@ -1031,6 +1031,8 @@ export function SeriesDetailPage() {
   } | null>(null)
   // Sidecar management
   const [showCleanupModal, setShowCleanupModal] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [deleteAlsoBlacklist, setDeleteAlsoBlacklist] = useState(false)
   const queryClient = useQueryClient()
   const { data: sidecarData } = useQuery({
     queryKey: ['series-subtitles', seriesId],
@@ -1214,15 +1216,28 @@ export function SeriesDetailPage() {
     })
   }, [seriesId, extractProgress])
 
-  const handleDeleteSidecar = useCallback(async (path: string) => {
+  const handleDeleteSidecar = useCallback((path: string) => {
+    setDeleteAlsoBlacklist(false)
+    setDeleteConfirm(path)
+  }, [])
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteConfirm) return
+    const path = deleteConfirm
+    setDeleteConfirm(null)
     try {
-      await deleteSubtitles([path])
-      toast('Sidecar gelöscht')
+      await deleteSubtitles([path], deleteAlsoBlacklist)
+      if (deleteAlsoBlacklist) {
+        toast('Untertitel gelöscht und gesperrt', 'success')
+        queryClient.invalidateQueries({ queryKey: ['blacklist'] })
+      } else {
+        toast('Sidecar gelöscht')
+      }
       await queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })
     } catch {
       toast('Löschen fehlgeschlagen', 'error')
     }
-  }, [queryClient, seriesId])
+  }, [deleteConfirm, deleteAlsoBlacklist, queryClient, seriesId])
 
   // Group episodes by season
   const seasonGroups = useMemo(() => {
@@ -1717,6 +1732,72 @@ export function SeriesDetailPage() {
           targetLanguages={series?.target_languages ?? []}
           onClose={() => setShowCleanupModal(false)}
         />
+      )}
+
+      {/* Delete Sidecar Confirmation Dialog */}
+      {deleteConfirm && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setDeleteConfirm(null) }}
+        >
+          <div
+            className="w-full max-w-sm mx-4 rounded-xl p-5 space-y-4"
+            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Trash2 size={16} style={{ color: 'var(--error)' }} />
+                <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                  Untertitel löschen
+                </h3>
+              </div>
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="p-1 rounded"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div
+              className="text-xs px-2 py-1.5 rounded truncate"
+              style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
+              title={deleteConfirm}
+            >
+              {deleteConfirm.split('/').pop() ?? deleteConfirm}
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer text-sm select-none" style={{ color: 'var(--text-secondary)' }}>
+              <input
+                type="checkbox"
+                checked={deleteAlsoBlacklist}
+                onChange={(e) => setDeleteAlsoBlacklist(e.target.checked)}
+                className="rounded"
+              />
+              Auch zur Sperrliste hinzufügen
+            </label>
+
+            <div className="flex gap-2 justify-end pt-1">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="px-3 py-1.5 rounded-md text-sm transition-colors"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                style={{ backgroundColor: 'var(--error)', color: 'white' }}
+              >
+                Löschen
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Subtitle Editor Modal */}

@@ -1558,8 +1558,8 @@ export async function listSeriesSubtitles(seriesId: number): Promise<{ subtitles
   return data
 }
 
-export async function deleteSubtitles(paths: string[]): Promise<{ deleted: string[]; failed: { path: string; error: string }[] }> {
-  const { data } = await api.delete('/library/subtitles', { data: { paths } })
+export async function deleteSubtitles(paths: string[], blacklist = false): Promise<{ deleted: string[]; failed: { path: string; error: string }[] }> {
+  const { data } = await api.delete('/library/subtitles', { data: { paths, blacklist } })
   return data
 }
 
