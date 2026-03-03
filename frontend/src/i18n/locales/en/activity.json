@@ -78,7 +78,13 @@
     },
     "no_history": "No download history yet",
     "add_to_blacklist": "Add to blacklist",
-    "blacklisted_from_history": "Blacklisted from history"
+    "blacklisted_from_history": "Blacklisted from history",
+    "blacklist_confirm_title": "Add to Blacklist",
+    "blacklist_confirm_from": "Block subtitle from",
+    "blacklist_confirm_action": "Blacklist",
+    "blacklist_also_delete": "Also delete the file",
+    "blacklisted_success": "Added to blacklist",
+    "deleted_and_blacklisted": "Subtitle deleted and blacklisted"
   },
   "blacklist": {
     "title": "Blacklist",

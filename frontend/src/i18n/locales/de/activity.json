@@ -78,7 +78,13 @@
     },
     "no_history": "Noch kein Download-Verlauf",
     "add_to_blacklist": "Zur Sperrliste hinzufügen",
-    "blacklisted_from_history": "Aus dem Verlauf gesperrt"
+    "blacklisted_from_history": "Aus dem Verlauf gesperrt",
+    "blacklist_confirm_title": "Zur Sperrliste hinzufügen",
+    "blacklist_confirm_from": "Untertitel sperren von",
+    "blacklist_confirm_action": "Sperren",
+    "blacklist_also_delete": "Datei ebenfalls löschen",
+    "blacklisted_success": "Zur Sperrliste hinzugefügt",
+    "deleted_and_blacklisted": "Untertitel gelöscht und gesperrt"
   },
   "blacklist": {
     "title": "Sperrliste",

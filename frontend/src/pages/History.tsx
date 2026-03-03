@@ -1,10 +1,13 @@
 import { useState, useMemo, useCallback, memo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useQueryClient } from '@tanstack/react-query'
 import { useHistory, useHistoryStats, useAddToBlacklist } from '@/hooks/useApi'
+import { deleteSubtitles } from '@/api/client'
 import { formatRelativeTime, parseMediaTitle } from '@/lib/utils'
+import { toast } from '@/components/shared/Toast'
 import {
   Clock, Download, ChevronLeft, ChevronRight, Ban, Eye, GitCompare,
-  CheckSquare, Square, MinusSquare,
+  CheckSquare, Square, MinusSquare, X,
 } from 'lucide-react'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { FilterBar } from '@/components/filters/FilterBar'
@@ -229,12 +232,16 @@ function SummaryCard({ icon: Icon, label, value, color }: {
 
 export function HistoryPage() {
   const { t } = useTranslation('activity')
+  const { t: tc } = useTranslation('common')
   const [page, setPage] = useState(1)
   const [providerFilter, setProviderFilter] = useState<string | undefined>()
   const [languageFilter, setLanguageFilter] = useState<string | undefined>()
   const [editorFilePath, setEditorFilePath] = useState<string | null>(null)
   const [editorMode, setEditorMode] = useState<'preview' | 'edit' | 'diff'>('preview')
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([])
+  const [blacklistConfirm, setBlacklistConfirm] = useState<HistoryEntry | null>(null)
+  const [blacklistAlsoDelete, setBlacklistAlsoDelete] = useState(false)
+  const queryClient = useQueryClient()
 
   // Zustand selection store: subscribe only to this scope to avoid re-renders from other pages
   const scopeSelections = useSelectionStore((s) => s.selections[SCOPE])
@@ -295,14 +302,36 @@ export function HistoryPage() {
   }, [])
 
   const onBlacklistEntry = useCallback((entry: HistoryEntry) => {
-    addBlacklist.mutate({
-      provider_name: entry.provider_name,
-      subtitle_id: entry.subtitle_id ?? '',
-      language: entry.language,
-      file_path: entry.file_path,
-      reason: t('history.blacklisted_from_history'),
-    })
-  }, [addBlacklist, t])
+    setBlacklistAlsoDelete(false)
+    setBlacklistConfirm(entry)
+  }, [])
+
+  const handleBlacklistConfirm = useCallback(async () => {
+    if (!blacklistConfirm) return
+    const entry = blacklistConfirm
+    setBlacklistConfirm(null)
+    try {
+      await addBlacklist.mutateAsync({
+        provider_name: entry.provider_name,
+        subtitle_id: entry.subtitle_id ?? '',
+        language: entry.language,
+        file_path: entry.file_path,
+        reason: t('history.blacklisted_from_history'),
+      })
+      if (blacklistAlsoDelete && entry.format) {
+        const lastDot = entry.file_path.lastIndexOf('.')
+        const base = lastDot > 0 ? entry.file_path.substring(0, lastDot) : entry.file_path
+        const subtitlePath = `${base}.${entry.language}.${entry.format}`
+        await deleteSubtitles([subtitlePath])
+        queryClient.invalidateQueries({ queryKey: ['history'] })
+        toast(t('history.deleted_and_blacklisted'), 'success')
+      } else {
+        toast(t('history.blacklisted_success'), 'success')
+      }
+    } catch {
+      toast(t('history.blacklisted_from_history'), 'error')
+    }
+  }, [blacklistConfirm, blacklistAlsoDelete, addBlacklist, t, queryClient])
 
   const handleFiltersChange = useCallback((filters: ActiveFilter[]) => {
     setActiveFilters(filters)
@@ -503,6 +532,82 @@ export function HistoryPage() {
           initialMode={editorMode}
           onClose={() => setEditorFilePath(null)}
         />
+      )}
+
+      {/* Blacklist Confirmation Dialog */}
+      {blacklistConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setBlacklistConfirm(null) }}
+        >
+          <div
+            className="w-full max-w-sm mx-4 rounded-xl p-5 space-y-4"
+            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Ban size={16} style={{ color: 'var(--error)' }} />
+                <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                  {t('history.blacklist_confirm_title')}
+                </h3>
+              </div>
+              <button
+                onClick={() => setBlacklistConfirm(null)}
+                className="p-1 rounded"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                {t('history.blacklist_confirm_from')}
+              </div>
+              <div
+                className="text-xs px-2 py-1.5 rounded font-medium truncate"
+                style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}
+              >
+                {(() => {
+                  const media = parseMediaTitle(blacklistConfirm.file_path)
+                  return `${media.title}${media.episodeCode ? ` · ${media.episodeCode}` : ''}`
+                })()}
+              </div>
+              <div className="text-xs capitalize" style={{ color: 'var(--text-muted)' }}>
+                {blacklistConfirm.provider_name}
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer text-sm select-none" style={{ color: 'var(--text-secondary)' }}>
+              <input
+                type="checkbox"
+                checked={blacklistAlsoDelete}
+                onChange={(e) => setBlacklistAlsoDelete(e.target.checked)}
+                className="rounded"
+              />
+              {t('history.blacklist_also_delete')}
+            </label>
+
+            <div className="flex gap-2 justify-end pt-1">
+              <button
+                onClick={() => setBlacklistConfirm(null)}
+                className="px-3 py-1.5 rounded-md text-sm transition-colors"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)' }}
+              >
+                {tc('actions.cancel')}
+              </button>
+              <button
+                onClick={handleBlacklistConfirm}
+                disabled={addBlacklist.isPending}
+                className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                style={{ backgroundColor: 'var(--error)', color: 'white', opacity: addBlacklist.isPending ? 0.7 : 1 }}
+              >
+                {t('history.blacklist_confirm_action')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
