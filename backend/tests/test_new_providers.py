@@ -507,12 +507,14 @@ class TestOpenSubtitlesDownloadFormatDetection:
 
     def _make_provider(self):
         from providers.opensubtitles import OpenSubtitlesProvider
+
         p = OpenSubtitlesProvider(api_key="test-key")
         p.session = MagicMock()
         return p
 
     def _make_result(self, fmt="unknown"):
         from providers.base import SubtitleFormat, SubtitleResult
+
         return SubtitleResult(
             provider_name="opensubtitles",
             subtitle_id="123",
@@ -521,7 +523,9 @@ class TestOpenSubtitlesDownloadFormatDetection:
             provider_data={"file_id": 7391597},
         )
 
-    def _mock_download(self, provider, file_name, content=b"1\n00:00:01,000 --> 00:00:02,000\nHello\n"):
+    def _mock_download(
+        self, provider, file_name, content=b"1\n00:00:01,000 --> 00:00:02,000\nHello\n"
+    ):
         dl_resp = MagicMock()
         dl_resp.status_code = 200
         dl_resp.content = content
@@ -534,6 +538,7 @@ class TestOpenSubtitlesDownloadFormatDetection:
     def test_format_set_to_srt_from_download_filename(self):
         """UNKNOWN result → download returns .srt filename → format becomes SRT."""
         from providers.base import SubtitleFormat
+
         p = self._make_provider()
         result = self._make_result("unknown")
         self._mock_download(p, "[Crunchyroll] My Dress-Up Darling S01E12.Deutsch.srt")
@@ -545,6 +550,7 @@ class TestOpenSubtitlesDownloadFormatDetection:
     def test_format_set_to_ass_from_download_filename(self):
         """UNKNOWN result → download returns .ass filename → format becomes ASS."""
         from providers.base import SubtitleFormat
+
         p = self._make_provider()
         result = self._make_result("unknown")
         ass_content = b"[Script Info]\nScriptType: v4.00+\n"
@@ -557,6 +563,7 @@ class TestOpenSubtitlesDownloadFormatDetection:
     def test_format_unchanged_when_no_filename_in_download_response(self):
         """No file_name in download response → format stays UNKNOWN."""
         from providers.base import SubtitleFormat
+
         p = self._make_provider()
         result = self._make_result("unknown")
         dl_resp = MagicMock()
@@ -575,6 +582,7 @@ class TestOpenSubtitlesDownloadFormatDetection:
     def test_format_unchanged_for_unknown_extension(self):
         """Unrecognised extension in download filename → format stays UNKNOWN."""
         from providers.base import SubtitleFormat
+
         p = self._make_provider()
         result = self._make_result("unknown")
         self._mock_download(p, "Subtitle.de.ger")  # .ger not in _FORMAT_MAP
@@ -586,6 +594,7 @@ class TestOpenSubtitlesDownloadFormatDetection:
     def test_existing_known_format_not_overridden(self):
         """If format was already known (ASS), download filename can still update it."""
         from providers.base import SubtitleFormat
+
         p = self._make_provider()
         result = self._make_result("ass")  # already set by search
         self._mock_download(p, "Subtitle.de.srt")  # download says SRT
