@@ -5,6 +5,20 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.2-beta] — 2026-03-03
+
+### Added
+- **Activity — Parsed media titles** — file column now shows parsed series/episode name and episode number instead of raw filename; full path still accessible in the expanded row; `parseMediaTitle()` utility added to `lib/utils.ts`
+- **History — Blacklist confirmation dialog** — ban icon on history entries now opens a confirmation modal showing provider and title instead of blacklisting immediately; optional "Also delete subtitle file" checkbox deletes the sidecar file and invalidates the history cache in one atomic flow
+- **SeriesDetail — Delete confirmation dialog** — deleting a subtitle sidecar now opens a confirmation modal with an "Also add to blacklist?" checkbox; when checked, the provider record is looked up from `subtitle_downloads` and added to the blacklist before the file is moved to trash
+- **Activity — Expanded row layout** — expanded detail row redesigned with cleaner label/value grid, stats section, and better visual hierarchy
+
+### Fixed
+- **Wanted — `wanted_auto_translate=False` not respected** — `process_wanted_item()` always started a translation job regardless of the `wanted_auto_translate` setting; now the flag is checked and translation is skipped when disabled
+- **Backend — `DELETE /library/subtitles`** — accepts optional `blacklist: bool` body parameter; when `true`, looks up the provider record in `subtitle_downloads` (LIKE-match on video base path + language) and calls `add_blacklist_entry()` before trashing the sidecar
+
+---
+
 ## [0.15.1-beta] — 2026-03-01
 
 ### Fixed
