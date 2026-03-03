@@ -212,3 +212,126 @@ class TestTranslationPipelineResilience:
         assert not os.path.exists(temp_source_path), (
             "Temp file should have been cleaned up after failure"
         )
+
+
+class TestAutoTranslateGuard:
+    """Test that wanted_auto_translate=False prevents any translation from running."""
+
+    def _make_settings(self, auto_translate: bool):
+        s = MagicMock()
+        s.wanted_auto_translate = auto_translate
+        s.wanted_max_search_attempts = 3
+        s.target_language = "de"
+        s.source_language = "en"
+        s.source_language_name = "English"
+        s.target_language_name = "German"
+        s.upgrade_prefer_ass = True
+        s.upgrade_min_score_delta = 50
+        s.upgrade_window_days = 7
+        s.wanted_skip_srt_on_no_ass = True
+        return s
+
+    @patch("wanted_search.get_settings")
+    @patch("wanted_search.get_wanted_item")
+    @patch("wanted_search.get_provider_manager")
+    @patch("wanted_search.update_wanted_status")
+    @patch("wanted_search.update_wanted_search")
+    @patch("wanted_search.build_query_from_wanted")
+    def test_no_translation_when_auto_translate_disabled(
+        self,
+        mock_build_query,
+        mock_update_search,
+        mock_update_status,
+        mock_get_manager,
+        mock_get_item,
+        mock_get_settings,
+        temp_file,
+    ):
+        """When wanted_auto_translate=False, translate_file must never be called."""
+        mock_wanted_item = {
+            "id": 1,
+            "item_type": "episode",
+            "file_path": temp_file,
+            "target_language": "de",
+            "sonarr_series_id": 1,
+            "sonarr_episode_id": 1,
+            "search_count": 0,
+            "subtitle_type": "full",
+            "current_score": 0,
+            "upgrade_candidate": False,
+        }
+        mock_get_item.return_value = mock_wanted_item
+        mock_get_settings.return_value = self._make_settings(auto_translate=False)
+
+        # No provider returns anything — all searches return None
+        mock_manager = MagicMock()
+        mock_manager.search_and_download_best.return_value = None
+        mock_get_manager.return_value = mock_manager
+        mock_build_query.return_value = MagicMock()
+
+        with patch("translator.translate_file") as mock_translate_file:
+            result = process_wanted_item(1)
+
+        mock_translate_file.assert_not_called()
+        assert result["status"] == "not_found"
+        # Item must stay "wanted" so it can be retried later
+        mock_update_status.assert_called_with(1, "wanted")
+
+    @patch("wanted_search.get_settings")
+    @patch("wanted_search.get_wanted_item")
+    @patch("wanted_search.get_provider_manager")
+    @patch("wanted_search.update_wanted_status")
+    @patch("wanted_search.update_wanted_search")
+    @patch("wanted_search.build_query_from_wanted")
+    def test_direct_download_still_works_when_auto_translate_disabled(
+        self,
+        mock_build_query,
+        mock_update_search,
+        mock_update_status,
+        mock_get_manager,
+        mock_get_item,
+        mock_get_settings,
+        temp_file,
+    ):
+        """Step 1 (direct target ASS) must still work even when auto_translate=False."""
+        mock_wanted_item = {
+            "id": 1,
+            "item_type": "episode",
+            "file_path": temp_file,
+            "target_language": "de",
+            "sonarr_series_id": 1,
+            "sonarr_episode_id": 1,
+            "search_count": 0,
+            "subtitle_type": "full",
+            "current_score": 0,
+            "upgrade_candidate": False,
+        }
+        mock_get_item.return_value = mock_wanted_item
+        mock_get_settings.return_value = self._make_settings(auto_translate=False)
+
+        # Provider returns a direct DE ASS match
+        mock_result = MagicMock(spec=SubtitleResult)
+        mock_result.content = b"test content"
+        mock_result.provider_name = "opensubtitles"
+        mock_result.format = SubtitleFormat.ASS
+        mock_result.score = 100
+        mock_result.subtitle_id = "abc"
+
+        mock_manager = MagicMock()
+        mock_manager.search_and_download_best.return_value = mock_result
+        mock_manager.save_subtitle.return_value = temp_file.replace(".mkv", ".de.ass")
+        mock_get_manager.return_value = mock_manager
+
+        with (
+            patch(
+                "translator.get_output_path_for_lang",
+                return_value=temp_file.replace(".mkv", ".de.ass"),
+            ),
+            patch("wanted_search.record_subtitle_download"),
+            patch("translator.translate_file") as mock_translate_file,
+        ):
+            result = process_wanted_item(1)
+
+        mock_translate_file.assert_not_called()
+        assert result["status"] == "found"
+        assert result["provider"] == "opensubtitles"
