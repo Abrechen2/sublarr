@@ -196,6 +196,7 @@ def _run_job(job_data):
 def _build_arr_context(data):
     """Build arr_context including language direction and optional Sonarr IDs."""
     from config import get_settings
+
     settings = get_settings()
     context = {
         "source_language": getattr(settings, "source_language", "en"),
