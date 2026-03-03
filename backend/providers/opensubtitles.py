@@ -399,6 +399,20 @@ class OpenSubtitlesProvider(SubtitleProvider):
         if not download_link:
             raise RuntimeError("No download link in response")
 
+        # The /download response returns the actual file_name with extension (e.g. "Movie.de.ass").
+        # The /subtitles search API omits the format field entirely for most entries, so this
+        # is the only reliable place to detect the real format before saving.
+        actual_filename = data.get("file_name", "")
+        if actual_filename:
+            ext = os.path.splitext(actual_filename)[1].lower().lstrip(".")
+            if ext in _FORMAT_MAP:
+                result.format = _FORMAT_MAP[ext]
+                logger.debug(
+                    "OpenSubtitles: format resolved from download filename: %s -> %s",
+                    actual_filename,
+                    result.format.value,
+                )
+
         # Download the actual file
         dl_resp = self.session.get(download_link)
         if dl_resp.status_code != 200:
