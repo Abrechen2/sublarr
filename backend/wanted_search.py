@@ -24,6 +24,7 @@ from db.wanted import (
     update_wanted_search,
     update_wanted_status,
 )
+from error_handler import DuplicateSubtitleError
 from providers import get_provider_manager
 from providers.base import SubtitleFormat, VideoQuery
 from translator import get_forced_output_path
@@ -591,6 +592,20 @@ def process_wanted_item(item_id: int) -> dict:
                     "provider": result.provider_name,
                     "upgraded": is_upgrade,
                 }
+            except DuplicateSubtitleError as dup_err:
+                logger.info(
+                    "Wanted %d: Duplicate subtitle skipped, already at %s",
+                    item_id,
+                    dup_err.existing_path,
+                )
+                update_wanted_status(item_id, "found")
+                return {
+                    "wanted_id": item_id,
+                    "status": "duplicate_skipped",
+                    "output_path": dup_err.existing_path,
+                    "provider": result.provider_name,
+                    "upgraded": False,
+                }
             except (OSError, RuntimeError) as save_error:
                 logger.error(
                     "Wanted %d: Failed to save subtitle from %s: %s",
@@ -629,6 +644,13 @@ def process_wanted_item(item_id: int) -> dict:
                         file_path,
                         result.score,
                     )
+                except DuplicateSubtitleError as dup_err:
+                    logger.info(
+                        "Wanted %d: Duplicate source ASS skipped, using existing %s",
+                        item_id,
+                        dup_err.existing_path,
+                    )
+                    actual_source_path = dup_err.existing_path
                 except (OSError, RuntimeError) as save_error:
                     logger.error(
                         "Wanted %d: Failed to save source ASS from %s: %s",
@@ -760,6 +782,19 @@ def process_wanted_item(item_id: int) -> dict:
                         "output_path": output_path,
                         "provider": result.provider_name,
                     }
+                except DuplicateSubtitleError as dup_err:
+                    logger.info(
+                        "Wanted %d: Duplicate target SRT skipped, already at %s",
+                        item_id,
+                        dup_err.existing_path,
+                    )
+                    update_wanted_status(item_id, "found")
+                    return {
+                        "wanted_id": item_id,
+                        "status": "duplicate_skipped",
+                        "output_path": dup_err.existing_path,
+                        "provider": result.provider_name,
+                    }
                 except (OSError, RuntimeError) as save_error:
                     logger.error(
                         "Wanted %d: Failed to save target SRT from %s: %s",
@@ -795,6 +830,13 @@ def process_wanted_item(item_id: int) -> dict:
                         file_path,
                         result.score,
                     )
+                except DuplicateSubtitleError as dup_err:
+                    logger.info(
+                        "Wanted %d: Duplicate source SRT skipped, using existing %s",
+                        item_id,
+                        dup_err.existing_path,
+                    )
+                    actual_source_path = dup_err.existing_path
                 except (OSError, RuntimeError) as save_error:
                     logger.error(
                         "Wanted %d: Failed to save source SRT from %s: %s",
@@ -1019,6 +1061,20 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                         "provider": result.provider_name,
                         "forced": True,
                     }
+                except DuplicateSubtitleError as dup_err:
+                    logger.info(
+                        "Wanted %d: Duplicate forced subtitle skipped, already at %s",
+                        item_id,
+                        dup_err.existing_path,
+                    )
+                    update_wanted_status(item_id, "found")
+                    return {
+                        "wanted_id": item_id,
+                        "status": "duplicate_skipped",
+                        "output_path": dup_err.existing_path,
+                        "provider": result.provider_name,
+                        "forced": True,
+                    }
                 except (OSError, RuntimeError) as save_error:
                     logger.error(
                         "Wanted %d: Failed to save forced subtitle from %s: %s",
@@ -1068,6 +1124,20 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                         "wanted_id": item_id,
                         "status": "found",
                         "output_path": output_path,
+                        "provider": result.provider_name,
+                        "forced": True,
+                    }
+                except DuplicateSubtitleError as dup_err:
+                    logger.info(
+                        "Wanted %d: Duplicate forced subtitle (source) skipped, already at %s",
+                        item_id,
+                        dup_err.existing_path,
+                    )
+                    update_wanted_status(item_id, "found")
+                    return {
+                        "wanted_id": item_id,
+                        "status": "duplicate_skipped",
+                        "output_path": dup_err.existing_path,
                         "provider": result.provider_name,
                         "forced": True,
                     }
@@ -1328,6 +1398,8 @@ def download_specific_for_item(
                 file_path,
                 target_result.score,
             )
+        except DuplicateSubtitleError as dup_err:
+            actual_source_path = dup_err.existing_path
         except (OSError, RuntimeError) as e:
             return {"success": False, "error": f"Failed to save subtitle: {e}"}
 
@@ -1424,6 +1496,16 @@ def download_specific_for_item(
             file_path,
             target_result.score,
         )
+    except DuplicateSubtitleError as dup_err:
+        update_wanted_status(item_id, "found")
+        _try_auto_sync(dup_err.existing_path, file_path, settings)
+        return {
+            "success": True,
+            "path": dup_err.existing_path,
+            "format": fmt_ext,
+            "translated": False,
+            "duplicate_skipped": True,
+        }
     except (OSError, RuntimeError) as e:
         return {"success": False, "error": f"Failed to save subtitle: {e}"}
 
