@@ -134,7 +134,6 @@ def _detect_format_from_filename(filename: str) -> SubtitleFormat:
     return _FORMAT_MAP.get(ext, SubtitleFormat.SRT)
 
 
-
 @register_provider
 class LegendasDivxProvider(SubtitleProvider):
     """LegendasDivx subtitle provider — Portuguese/Brazilian subtitles via HTML scraping with session auth."""

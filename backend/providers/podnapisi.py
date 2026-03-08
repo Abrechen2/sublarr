@@ -105,7 +105,6 @@ def _parse_xml(content: bytes):
         return ET.fromstring(content)
 
 
-
 @register_provider
 class PodnapisiProvider(SubtitleProvider):
     """Podnapisi subtitle provider (XML API).

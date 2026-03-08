@@ -115,7 +115,6 @@ def _detect_format_from_filename(filename: str) -> SubtitleFormat:
     return _FORMAT_MAP.get(ext, SubtitleFormat.SRT)
 
 
-
 @register_provider
 class TitrariProvider(SubtitleProvider):
     """Titrari subtitle provider — Romanian subtitles via HTML scraping."""

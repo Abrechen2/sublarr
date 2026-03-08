@@ -45,7 +45,6 @@ _RELEASE_GROUP_RE = re.compile(r"^\[([^\]]+)\]|[-.]([A-Za-z0-9]+)$")
 _EPISODE_RE = re.compile(r"(?:S\d{1,2}E|E|EP|Episode[.\s_]?)(\d{1,3})\b", re.IGNORECASE)
 
 
-
 def _pick_best_subtitle(
     files: list[tuple[str, bytes]], query: VideoQuery
 ) -> tuple[str, bytes] | None:

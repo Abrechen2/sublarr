@@ -38,7 +38,6 @@ _FORMAT_MAP = {
 }
 
 
-
 def _score_subtitle_file(filename: str, query: VideoQuery) -> int:
     """Score a subtitle file name for relevance to the query.
 
