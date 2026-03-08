@@ -10,11 +10,10 @@ License: GPL-3.0
 """
 
 import hashlib
-import io
 import logging
 import os
-import zipfile
 
+from archive_utils import extract_subtitles_from_zip
 from providers import register_provider
 from providers.base import (
     ProviderError,
@@ -273,31 +272,21 @@ class Napisy24Provider(SubtitleProvider):
 
         content = resp.content
 
-        # Handle ZIP archives: extract first .srt file
+        # Handle ZIP archives: prefer SRT then ASS/SSA
         if content[:4] == b"PK\x03\x04":
-            try:
-                with zipfile.ZipFile(io.BytesIO(content)) as zf:
-                    for name in zf.namelist():
-                        ext = os.path.splitext(name)[1].lower()
-                        if ext == ".srt":
-                            content = zf.read(name)
-                            result.filename = os.path.basename(name)
-                            result.format = SubtitleFormat.SRT
-                            break
-                    else:
-                        # No .srt found, try any subtitle file
-                        for name in zf.namelist():
-                            ext = os.path.splitext(name)[1].lower()
-                            if ext in {".ass", ".ssa", ".sub", ".txt"}:
-                                content = zf.read(name)
-                                result.filename = os.path.basename(name)
-                                if ext == ".ass":
-                                    result.format = SubtitleFormat.ASS
-                                elif ext == ".ssa":
-                                    result.format = SubtitleFormat.SSA
-                                break
-            except zipfile.BadZipFile:
-                logger.debug("Napisy24: content is not a valid ZIP, using as-is")
+            _PRIORITY = {".srt": 0, ".ass": 1, ".ssa": 2, ".vtt": 3}
+            entries = extract_subtitles_from_zip(content)
+            if entries:
+                entries.sort(key=lambda e: _PRIORITY.get(os.path.splitext(e[0])[1].lower(), 99))
+                best_name, content = entries[0]
+                result.filename = best_name
+                ext = os.path.splitext(best_name)[1].lower()
+                if ext == ".ass":
+                    result.format = SubtitleFormat.ASS
+                elif ext == ".ssa":
+                    result.format = SubtitleFormat.SSA
+                else:
+                    result.format = SubtitleFormat.SRT
 
         result.content = content
         logger.info("Napisy24: downloaded %s (%d bytes)", result.filename, len(content))

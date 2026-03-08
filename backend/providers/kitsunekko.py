@@ -9,13 +9,12 @@ No authentication required.
 License: GPL-3.0
 """
 
-import io
 import logging
 import os
 import re
-import zipfile
 from urllib.parse import quote, urljoin
 
+from archive_utils import extract_subtitles_from_zip
 from providers import register_provider
 from providers.base import (
     ProviderError,
@@ -297,29 +296,18 @@ class KitsunekkoProvider(SubtitleProvider):
 
         content = resp.content
 
-        # Handle ZIP archives: extract first subtitle file
+        # Handle ZIP archives: extract best subtitle file (prefer .ass > .srt > .ssa)
         if result.provider_data.get("is_zip") or content[:4] == b"PK\x03\x04":
-            try:
-                with zipfile.ZipFile(io.BytesIO(content)) as zf:
-                    # Prefer .ass files, then .srt, then .ssa
-                    subtitle_files = []
-                    for name in zf.namelist():
-                        file_ext = os.path.splitext(name)[1].lower()
-                        if file_ext in {".ass", ".srt", ".ssa"}:
-                            # Priority: .ass=0 (highest), .srt=1, .ssa=2
-                            priority = {".ass": 0, ".srt": 1, ".ssa": 2}.get(file_ext, 3)
-                            subtitle_files.append((priority, name, file_ext))
-
-                    if subtitle_files:
-                        subtitle_files.sort()
-                        _, best_name, best_ext = subtitle_files[0]
-                        content = zf.read(best_name)
-                        result.filename = os.path.basename(best_name)
-                        result.format = _FORMAT_MAP.get(best_ext, SubtitleFormat.UNKNOWN)
-                    else:
-                        logger.warning("Kitsunekko: ZIP contains no subtitle files")
-            except zipfile.BadZipFile:
-                logger.debug("Kitsunekko: content is not a valid ZIP, using as-is")
+            _PRIORITY = {".ass": 0, ".srt": 1, ".ssa": 2}
+            entries = extract_subtitles_from_zip(content)
+            if entries:
+                entries.sort(key=lambda e: _PRIORITY.get(os.path.splitext(e[0])[1].lower(), 3))
+                best_name, content = entries[0]
+                result.filename = best_name
+                best_ext = os.path.splitext(best_name)[1].lower()
+                result.format = _FORMAT_MAP.get(best_ext, SubtitleFormat.UNKNOWN)
+            else:
+                logger.warning("Kitsunekko: ZIP contains no subtitle files")
 
         result.content = content
         logger.info("Kitsunekko: downloaded %s (%d bytes)", result.filename, len(content))
