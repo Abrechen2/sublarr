@@ -64,7 +64,10 @@ class VideoQuery:
     series_title: str = ""
     season: int | None = None
     episode: int | None = None
+    episodes: list[int] = field(default_factory=list)  # all episodes for multi-episode files
     episode_title: str = ""
+    is_special: bool = False  # OVA, SP, bonus, etc.
+    is_ova: bool = False
 
     # Anime IDs (for specialized providers)
     anidb_id: int | None = None

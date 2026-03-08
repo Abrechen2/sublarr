@@ -161,10 +161,30 @@ def parse_media_file(file_path: str) -> dict:
     # Extract title with parent directory fallback
     title = _extract_title(guess, parent_dir)
 
-    # Extract episode info
-    episode = _normalize_episode(guess.get("episode"))
+    # Extract episode info — guessit may return list for multi-episode files (S01E01E02)
+    raw_episode = guess.get("episode")
+    episodes = _normalize_episodes(raw_episode)  # full list, e.g. [1, 2]
+    episode = episodes[0] if episodes else None  # primary episode (backwards-compat)
     season = guess.get("season")
     absolute_episode = guess.get("absolute_episode") or guess.get("episode_number")
+
+    # OVA / Special detection via guessit episode_details
+    episode_details = guess.get("episode_details", "")
+    if isinstance(episode_details, list):
+        episode_details = " ".join(episode_details)
+    episode_details_lower = str(episode_details).lower()
+    is_ova = "ova" in episode_details_lower or "ova" in filename.lower()
+    is_special = any(
+        kw in episode_details_lower
+        for kw in ("special", "sp", "extra", "bonus", "nced", "ncop", "pv", "cm")
+    ) or bool(
+        re.search(
+            r"(?:^|[\s.\-_\[])(?:SP\d*|Special|Extra|Bonus|ONA|NCED|NCOP|PV)(?:[\s.\-_\]\d]|$)",
+            filename,
+            re.IGNORECASE,
+        )
+        and "S00" not in filename.upper()
+    )
 
     # For anime with absolute numbering, episode might be the absolute episode
     if is_anime and episode is not None and season is None:
@@ -185,6 +205,7 @@ def parse_media_file(file_path: str) -> dict:
         "title": title,
         "season": season,
         "episode": episode,
+        "episodes": episodes,  # full list for multi-episode files
         "absolute_episode": absolute_episode,
         "year": guess.get("year"),
         "release_group": release_group,
@@ -192,6 +213,8 @@ def parse_media_file(file_path: str) -> dict:
         "resolution": guess.get("screen_size", ""),
         "video_codec": guess.get("video_codec", ""),
         "is_anime": is_anime,
+        "is_ova": is_ova,
+        "is_special": is_special,
         "confidence": confidence,
     }
 
@@ -254,13 +277,30 @@ def _extract_title(guess: dict, parent_dir: str) -> str:
     return title
 
 
-def _normalize_episode(episode_val) -> int | None:
-    """Normalize episode value from guessit (may be int, list, or None)."""
+def _normalize_episodes(episode_val) -> list[int]:
+    """Normalize episode value from guessit to a list of ints.
+
+    guessit returns an int for single episodes (S01E02) and a list for
+    multi-episode files (S01E01E02 → [1, 2]).
+
+    Returns:
+        List of episode numbers (empty list if None).
+    """
     if episode_val is None:
-        return None
+        return []
     if isinstance(episode_val, list):
-        return episode_val[0] if episode_val else None
-    return int(episode_val)
+        return [int(e) for e in episode_val if e is not None]
+    return [int(episode_val)]
+
+
+def _normalize_episode(episode_val) -> int | None:
+    """Normalize episode value from guessit to the primary episode int.
+
+    Kept for backwards compatibility. Use _normalize_episodes() for
+    multi-episode awareness.
+    """
+    episodes = _normalize_episodes(episode_val)
+    return episodes[0] if episodes else None
 
 
 def _calculate_confidence(
