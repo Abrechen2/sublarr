@@ -14,7 +14,7 @@ import os
 import re
 from urllib.parse import urljoin
 
-from archive_utils import extract_subtitles_from_zip, extract_subtitles_from_rar
+from archive_utils import extract_subtitles_from_rar, extract_subtitles_from_zip
 from providers import register_provider
 from providers.base import (
     ProviderError,

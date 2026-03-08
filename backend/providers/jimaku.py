@@ -10,7 +10,7 @@ API: https://jimaku.cc/api/docs
 import logging
 import os
 
-from archive_utils import extract_subtitles_from_zip, extract_subtitles_from_rar
+from archive_utils import extract_subtitles_from_rar, extract_subtitles_from_zip
 from providers import register_provider
 from providers.base import (
     ProviderAuthError,
