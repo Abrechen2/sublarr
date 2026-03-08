@@ -71,9 +71,7 @@ The current UI is functional but not final. The goal is a clean, modern interfac
 
 ---
 
-## v0.16.0 (Download Security & Sanitization)
-
-Goals: Harden the subtitle download pipeline against malicious files from untrusted sources. Background: crafted subtitle files can exploit parser bugs in media players (VLC, Kodi, Jellyfin, Plex) — Sublarr as an automatic downloader must sanitize before files reach the media library.
+## v0.16.0 ✅ (Complete)
 
 - ZIP Slip Prevention — wire existing `safe_zip_extract()` into all providers (animetosho, jimaku, subdl, kitsunekko, legendasdivx, napisy24, podnapisi, titrari); replace per-provider inline extraction
 - Download Size Limits — 5 MB per subtitle file, 20 MB per archive; reject oversized downloads before disk write
@@ -86,18 +84,18 @@ Goals: Harden the subtitle download pipeline against malicious files from untrus
 
 ---
 
-## v0.17.0 (Subtitle Intelligence)
+## v0.17.0 (Subtitle Intelligence — In Progress)
 
 Goals: Make Sublarr smarter about what to search for and what to accept.
 
-- Smart Episode Matching - detect multi-episode files, specials, OVAs via guessit
-- Provider Result Re-ranking - re-ranking based on download history
-- Duplicate Detection - skip downloads when SHA-256 matches existing sub in DB
-- Translation Quality Dashboard - per-series quality trend charts in Statistics page
-- Custom Post-Processing Scripts - user-supplied shell scripts run after download/translate
-- Video Hash Matching - OpenSubtitles file hash lookup for exact video-to-subtitle matches
-- Subtitle Upgrade Scheduler - periodic re-check for higher-quality subs (configurable lookback window)
-- Release Group Filtering - include/exclude subtitle results by release group, codec, or source tag
+- ✅ Duplicate Detection — skip downloads when SHA-256 matches existing sub in same directory; stale hash entries auto-cleaned; `SUBLARR_DEDUP_ON_DOWNLOAD` toggle; hash registered on every successful write
+- ✅ Smart Episode Matching — multi-episode files (`S01E01E02`) parsed to full episode list; OVA/Special/SP detection via guessit + filename regex; `release_group`, `source`, `resolution`, `absolute_episode` propagated to `VideoQuery`
+- ✅ Video Hash Pre-Compute — `file_hash` computed once in `build_query_from_wanted()` and shared across all providers (no redundant file reads per provider)
+- Release Group Filtering — include/exclude subtitle results by release group, codec, or source tag
+- Provider Result Re-ranking — re-ranking based on download history
+- Subtitle Upgrade Scheduler — periodic re-check for higher-quality subs (configurable lookback window)
+- Translation Quality Dashboard — per-series quality trend charts in Statistics page
+- Custom Post-Processing Scripts — user-supplied shell scripts run after download/translate
 
 ---
 
