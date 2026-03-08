@@ -121,6 +121,21 @@ class CleanupRepository(BaseRepository):
 
         return groups
 
+    def find_by_content_hash(self, content_hash: str) -> list[dict]:
+        """Find all subtitle hash records matching the given SHA-256 hash.
+
+        Args:
+            content_hash: SHA-256 hex digest to look up.
+
+        Returns:
+            List of dicts with file_path, format, language for each match.
+        """
+        stmt = select(SubtitleHash).where(SubtitleHash.content_hash == content_hash)
+        rows = self.session.execute(stmt).scalars().all()
+        return [
+            {"file_path": r.file_path, "format": r.format, "language": r.language} for r in rows
+        ]
+
     def delete_hashes_by_paths(self, file_paths: list[str]) -> int:
         """Delete hash records for the given file paths.
 

@@ -82,6 +82,26 @@ class OllamaModelError(TranslationError):
         )
 
 
+class DuplicateSubtitleError(SublarrError):
+    """Subtitle content already exists on disk (duplicate detected by SHA-256 hash)."""
+
+    code = "PROV_002"
+    http_status = 409
+
+    def __init__(self, content_hash: str, existing_path: str, attempted_path: str) -> None:
+        super().__init__(
+            f"Duplicate subtitle: content already exists at {existing_path!r}",
+            context={
+                "content_hash": content_hash,
+                "existing_path": existing_path,
+                "attempted_path": attempted_path,
+            },
+        )
+        self.content_hash = content_hash
+        self.existing_path = existing_path
+        self.attempted_path = attempted_path
+
+
 class DatabaseError(SublarrError):
     """Database operation errors."""
 

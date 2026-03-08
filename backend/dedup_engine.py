@@ -81,6 +81,23 @@ def compute_subtitle_hash(file_path: str) -> dict:
     }
 
 
+def compute_content_hash_from_bytes(content: bytes) -> str:
+    """Compute SHA-256 content hash from in-memory subtitle bytes.
+
+    Applies the same normalization as compute_subtitle_hash() (strip whitespace,
+    normalize line endings) so hashes are comparable between the two functions.
+
+    Args:
+        content: Raw subtitle file bytes.
+
+    Returns:
+        SHA-256 hex digest string.
+    """
+    text = content.decode("utf-8", errors="replace")
+    normalized = text.strip().replace("\r\n", "\n")
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
 def scan_for_duplicates(media_path: str, socketio=None) -> dict:
     """Scan a media path recursively for duplicate subtitles.
 

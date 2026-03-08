@@ -1156,6 +1156,48 @@ class ProviderManager:
             logger.warning("Subtitle sanitization failed (skipping): %s", e)
             # Non-fatal: log and continue on unexpected errors to preserve availability
 
+        # Duplicate detection: skip write if identical content already exists on disk
+        try:
+            from config import get_settings as _get_settings_dedup
+            from db.repositories.cleanup import CleanupRepository
+            from dedup_engine import compute_content_hash_from_bytes
+            from error_handler import DuplicateSubtitleError
+
+            _dedup_settings = _get_settings_dedup()
+            if getattr(_dedup_settings, "dedup_on_download", True):
+                content_hash = compute_content_hash_from_bytes(result.content)
+                _output_dir = os.path.dirname(os.path.abspath(output_path))
+
+                repo = CleanupRepository()
+                matches = repo.find_by_content_hash(content_hash)
+                stale_paths = []
+                duplicate_path = None
+
+                for match in matches:
+                    match_path = match["file_path"]
+                    if not os.path.isfile(match_path):
+                        stale_paths.append(match_path)
+                        continue
+                    if os.path.dirname(os.path.abspath(match_path)) == _output_dir:
+                        duplicate_path = match_path
+                        break
+
+                if stale_paths:
+                    repo.delete_hashes_by_paths(stale_paths)
+                    logger.debug("Cleaned %d stale hash entries", len(stale_paths))
+
+                if duplicate_path:
+                    logger.info(
+                        "Duplicate subtitle skipped: hash %s already at %s",
+                        content_hash[:12],
+                        duplicate_path,
+                    )
+                    raise DuplicateSubtitleError(content_hash, duplicate_path, output_path)
+        except DuplicateSubtitleError:
+            raise
+        except Exception as e:
+            logger.debug("Dedup check skipped: %s", e)
+
         # Create directory with error handling
         try:
             dir_path = os.path.dirname(output_path)
@@ -1172,6 +1214,23 @@ class ProviderManager:
         except OSError as e:
             logger.error("Failed to write subtitle to %s: %s", output_path, e)
             raise RuntimeError(f"Cannot write subtitle file: {e}") from e
+
+        # Register hash in dedup DB after successful write
+        try:
+            from db.repositories.cleanup import CleanupRepository as CleanupRepo
+            from dedup_engine import compute_content_hash_from_bytes as _chfb
+
+            _hash = _chfb(result.content)
+            _ext = result.format.value if result.format.value != "unknown" else "srt"
+            CleanupRepo().upsert_hash(
+                file_path=output_path,
+                content_hash=_hash,
+                file_size=len(result.content),
+                format=_ext,
+                language=result.language,
+            )
+        except Exception as e:
+            logger.debug("Failed to register subtitle hash after write: %s", e)
 
         logger.info(
             "Saved subtitle: %s (%s, %s, score=%d)",
