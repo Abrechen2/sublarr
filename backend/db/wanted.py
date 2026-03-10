@@ -12,6 +12,23 @@ def _get_repo():
     return _repo
 
 
+def batch_upsert_context():
+    """Context manager that batches all upsert_wanted_item calls into one DB commit.
+
+    Thread-safe: uses thread-local batch mode so only the calling thread is
+    affected. Use in background scanners to reduce per-item commits to one
+    commit per batch (e.g. one commit per series instead of one per episode).
+
+    Usage::
+
+        with batch_upsert_context():
+            upsert_wanted_item(...)   # deferred
+            upsert_wanted_item(...)   # deferred
+        # single commit here
+    """
+    return _get_repo().batch()
+
+
 def upsert_wanted_item(
     item_type: str,
     file_path: str,

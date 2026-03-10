@@ -4,6 +4,7 @@ All repository classes inherit from BaseRepository to get access to
 the Flask-SQLAlchemy request-scoped session and common CRUD helpers.
 """
 
+import threading
 from contextlib import contextmanager
 from datetime import UTC, datetime
 
@@ -18,7 +19,17 @@ class BaseRepository:
     """
 
     def __init__(self):
-        self._batch_mode = False
+        # Thread-local storage so batch mode on a singleton repo does not
+        # affect concurrent threads (e.g. API requests during a scanner run).
+        self._local = threading.local()
+
+    @property
+    def _batch_mode(self) -> bool:
+        return getattr(self._local, "batch_mode", False)
+
+    @_batch_mode.setter
+    def _batch_mode(self, value: bool) -> None:
+        self._local.batch_mode = value
 
     @property
     def session(self):
@@ -33,6 +44,9 @@ class BaseRepository:
     @contextmanager
     def batch(self):
         """Context manager for batching multiple operations in a single transaction.
+
+        Thread-safe: each calling thread has its own batch mode flag, so a
+        background scanner can batch commits without affecting API request threads.
 
         Usage:
             with repo.batch():
