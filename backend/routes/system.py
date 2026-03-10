@@ -1765,6 +1765,71 @@ def vacuum_database():
     return jsonify(result)
 
 
+@bp.route("/cache/ffprobe/stats", methods=["GET"])
+def ffprobe_cache_stats():
+    """Return ffprobe cache statistics.
+    ---
+    get:
+      tags:
+        - System
+      summary: FFprobe cache stats
+      description: Returns the number of cached ffprobe entries and timestamps.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Cache statistics
+    """
+    from db.cache import get_ffprobe_cache_stats
+
+    return jsonify(get_ffprobe_cache_stats())
+
+
+@bp.route("/cache/ffprobe/cleanup", methods=["POST"])
+def ffprobe_cache_cleanup():
+    """Remove stale ffprobe cache entries for files that no longer exist.
+    ---
+    post:
+      tags:
+        - System
+      summary: Clean up stale ffprobe cache entries
+      description: Deletes cache entries whose video files no longer exist on disk. Supports dry_run.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dry_run:
+                  type: boolean
+                  default: false
+      responses:
+        200:
+          description: Cleanup result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  removed:
+                    type: integer
+                  dry_run:
+                    type: boolean
+                  paths:
+                    type: array
+                    items:
+                      type: string
+    """
+    from db.cache import cleanup_stale_ffprobe_cache
+
+    data = request.get_json() or {}
+    dry_run = bool(data.get("dry_run", False))
+    result = cleanup_stale_ffprobe_cache(dry_run=dry_run)
+    return jsonify(result)
+
+
 @bp.route("/logs", methods=["GET"])
 def get_logs():
     """Get recent log entries.
