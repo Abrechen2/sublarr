@@ -174,6 +174,8 @@ def test_remove_subtitle_stream_mkv_success(tmp_path):
 
     assert bak == video + ".bak"
     mock_remux.assert_called_once()
+    # stream_index=2 (global TID) must be passed to mkvmerge, not subtitle_track_index=0
+    assert mock_remux.call_args[0][1] == 2
 
 
 def test_remove_subtitle_stream_ffmpeg_success(tmp_path):

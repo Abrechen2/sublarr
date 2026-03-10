@@ -121,14 +121,14 @@ def _which(cmd: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _remux_mkvmerge(video_path: str, subtitle_track_index: int, output_path: str) -> None:
+def _remux_mkvmerge(video_path: str, stream_index: int, output_path: str) -> None:
     """Remove subtitle stream using mkvmerge.
 
-    `subtitle_track_index` is the 0-based index within subtitle tracks only
-    (as used by mkvmerge's --subtitle-tracks !N flag).
+    `stream_index` is the global track ID as reported by ffprobe/mkvmerge -i
+    (matches mkvmerge's --subtitle-tracks !N flag).
     """
 
-    # --subtitle-tracks !N removes subtitle track N (0-based within subtitle tracks)
+    # --subtitle-tracks !N excludes track with global TID N from the output
     cmd = [
         "mkvmerge",
         "-o",
@@ -297,7 +297,7 @@ def remove_subtitle_stream(
             video_path,
         )
         if backend == "mkvmerge" and _which("mkvmerge"):
-            _remux_mkvmerge(video_path, subtitle_track_index, tmp_path)
+            _remux_mkvmerge(video_path, stream_index, tmp_path)
         elif backend == "mkvmerge":
             logger.warning(
                 "mkvmerge not found — falling back to ffmpeg for MKV (install mkvtoolnix for better support)"
