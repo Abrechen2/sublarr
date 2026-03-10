@@ -2009,6 +2009,28 @@ def list_tasks():
     except Exception as exc:
         logger.warning("Failed to read cleanup scheduler state: %s", exc)
 
+    # Upgrade Scheduler
+    try:
+        from upgrade_scheduler import get_upgrade_scheduler
+
+        us = get_upgrade_scheduler()
+        upgrade_interval = getattr(s, "upgrade_scan_interval_hours", 0)
+        upgrade_enabled = us is not None and us._running
+        tasks.append(
+            {
+                "name": "upgrade_scan",
+                "display_name": "Subtitle Upgrade Scan",
+                "running": us.is_executing if us else False,
+                "last_run": us.last_run_at if us else None,
+                "next_run": us.next_run_at if us else None,
+                "interval_hours": upgrade_interval if upgrade_enabled else None,
+                "enabled": upgrade_enabled,
+                "cancellable": False,
+            }
+        )
+    except Exception as exc:
+        logger.warning("Failed to read upgrade scheduler state: %s", exc)
+
     # AniDB Sync
     try:
         from anidb_sync import DEFAULT_INTERVAL_HOURS as ANIDB_INTERVAL
@@ -2127,6 +2149,39 @@ def trigger_cleanup():
     def _run():
         with app.app_context():
             cs._execute_cleanup()
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"status": "started"})
+
+
+@bp.route("/tasks/upgrade-scan/trigger", methods=["POST"])
+def trigger_upgrade_scan():
+    """Manually trigger the subtitle upgrade scan.
+    ---
+    post:
+      tags:
+        - System
+      summary: Trigger upgrade scan
+      responses:
+        200:
+          description: Scan started
+        409:
+          description: Scan already running
+        503:
+          description: Upgrade scheduler not initialized
+    """
+    import threading
+
+    from upgrade_scheduler import get_upgrade_scheduler
+
+    us = get_upgrade_scheduler()
+    if not us:
+        return jsonify({"error": "Upgrade scheduler not initialized"}), 503
+    if us.is_executing:
+        return jsonify({"error": "Upgrade scan already running"}), 409
+
+    def _run():
+        us._execute_scan()
 
     threading.Thread(target=_run, daemon=True).start()
     return jsonify({"status": "started"})

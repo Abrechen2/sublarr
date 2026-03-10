@@ -169,6 +169,9 @@ class Settings(BaseSettings):
     wanted_search_on_startup: bool = False
     wanted_search_max_items_per_run: int = 50
 
+    # Upgrade Scheduler
+    upgrade_scan_interval_hours: int = 0  # 0 = disabled; user must opt in
+
     # Wanted Adaptive Backoff
     wanted_adaptive_backoff_enabled: bool = True
     wanted_backoff_base_hours: float = 1.0
