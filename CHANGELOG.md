@@ -5,6 +5,12 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.1-beta] — 2026-03-10
+
+### Fixed
+
+- **Dockerfile — mkvtoolnix missing** — added `mkvtoolnix` to the Docker image apt-get install step; without it `mkvmerge` was unavailable inside the container and all MKV stream removal jobs failed with "mkvmerge not found"
+
 ## [0.19.0-beta] — 2026-03-10
 
 ### Added
