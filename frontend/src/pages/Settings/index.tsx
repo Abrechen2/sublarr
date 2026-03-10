@@ -163,6 +163,17 @@ const FIELDS: FieldConfig[] = [
     description: 'Nach Download automatisch bei Subtitle-Providern suchen.' },
   { key: 'webhook_auto_translate', label: 'Auto-Translate Found Subs', type: 'toggle', tab: 'Automation',
     description: 'Gefundene Untertitel automatisch übersetzen.' },
+  // Automation — Remux / Stream Removal
+  { key: 'remux_trash_dir', label: 'Remux Trash Folder', type: 'text', placeholder: '.sublarr', tab: 'Automation',
+    description: 'Ordner für Backups gelöschter Streams. Relativ zum Medienpfad (z.B. .sublarr) oder absoluter Pfad. Backups landen in <trash>/<datum>/<datei>.<ts>.bak.' },
+  { key: 'remux_backup_retention_days', label: 'Remux Backup Retention (days, 0=forever)', type: 'number', placeholder: '7', tab: 'Automation',
+    description: 'Nach wie vielen Tagen werden Remux-Backups endgültig gelöscht. 0 = nie.' },
+  { key: 'remux_use_reflink', label: 'Use CoW Reflink for Backups', type: 'toggle', tab: 'Automation',
+    description: 'Auf Btrfs/XFS wird cp --reflink=auto für kostenlose Backups genutzt.',
+    advanced: true },
+  { key: 'remux_arr_pause_enabled', label: 'Pause *arr during Remux', type: 'toggle', tab: 'Automation',
+    description: 'Sonarr/Radarr-Ordner-Monitoring während des Remux pausieren.',
+    advanced: true },
   // Automation — Search Scheduler
   { key: 'wanted_search_interval_hours', label: 'Search Interval (hours, 0=disabled)', type: 'number', placeholder: '24', tab: 'Automation',
     description: 'Interval für automatische Provider-Suche. 0 = deaktiviert.',
@@ -1138,6 +1149,11 @@ function SettingsPageInner() {
               <SettingsCard title="Suchplanung"
                 description="Zeitgesteuerte Provider-Suche">
                 {['wanted_search_interval_hours','wanted_search_on_startup','wanted_search_max_items_per_run']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Stream Removal / Remux"
+                description="Einstellungen für das Entfernen von Subtitle-Streams aus Video-Containern">
+                {['remux_trash_dir','remux_backup_retention_days','remux_use_reflink','remux_arr_pause_enabled']
                   .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
               </SettingsCard>
             </div>

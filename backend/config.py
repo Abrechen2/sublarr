@@ -196,6 +196,12 @@ class Settings(BaseSettings):
     anti_captcha_provider: str = ""  # "" | "anticaptcha" | "capmonster"
     anti_captcha_api_key: str = ""
 
+    # Remux / Stream Removal
+    remux_trash_dir: str = ".sublarr"  # Relative (to media_path) or absolute path for backup trash
+    remux_backup_retention_days: int = 7  # 0 = keep forever
+    remux_use_reflink: bool = True  # CoW reflink on Btrfs/XFS for zero-cost backups
+    remux_arr_pause_enabled: bool = True  # Pause Sonarr/Radarr during remux
+
     # Circuit Breaker
     circuit_breaker_failure_threshold: int = 5  # Consecutive failures before opening
     circuit_breaker_cooldown_seconds: int = 60  # Seconds in OPEN before HALF_OPEN probe
