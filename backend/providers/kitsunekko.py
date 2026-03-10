@@ -23,6 +23,7 @@ from providers.base import (
     SubtitleResult,
     VideoQuery,
 )
+from providers.captcha_solver import CaptchaSolverError, build_solver_from_settings
 from providers.http_session import create_session
 
 logger = logging.getLogger(__name__)
@@ -186,8 +187,10 @@ class KitsunekkoProvider(SubtitleProvider):
                 logger.debug("Kitsunekko: directory not found for '%s'", series_title)
                 return []
             if resp.status_code == 403:
-                logger.warning("Kitsunekko: access denied (403) for '%s'", series_title)
-                return []
+                resp = self._try_solve_captcha_and_retry(url, series_title)
+                if resp is None or resp.status_code != 200:
+                    logger.warning("Kitsunekko: access denied (403) for '%s'", series_title)
+                    return []
             if resp.status_code != 200:
                 logger.warning("Kitsunekko: HTTP %d for '%s'", resp.status_code, series_title)
                 return []
@@ -196,6 +199,41 @@ class KitsunekkoProvider(SubtitleProvider):
             return []
 
         return self._parse_directory_listing(resp.text, dir_path, query)
+
+    def _try_solve_captcha_and_retry(self, url: str, series_title: str):
+        """Attempt to solve a Cloudflare/captcha 403 and retry the request.
+
+        Returns the retry Response on success, or None if no solver is configured
+        or if solving fails.
+        """
+        solver = build_solver_from_settings()
+        if solver is None:
+            return None
+        try:
+            logger.info(
+                "Kitsunekko: 403 encountered — attempting captcha solve for '%s'", series_title
+            )
+            # Kitsunekko uses a simple reCAPTCHA v2 widget; site key is hard-coded
+            # from the kitsunekko.net page source.
+            KITSUNEKKO_RECAPTCHA_SITE_KEY = "6LdkpH8UAAAAAN1MzDiCKeGwHyKRpLf3d2AEHoGP"
+            token = solver.solve_recaptcha_v2(
+                site_key=KITSUNEKKO_RECAPTCHA_SITE_KEY,
+                page_url="https://kitsunekko.net",
+            )
+            if not token:
+                logger.warning("Kitsunekko: captcha solve returned empty token")
+                return None
+            # Retry with the token injected as a cookie (kitsunekko checks cf_clearance-style)
+            retry_resp = self.session.get(
+                url,
+                timeout=self.timeout,
+                headers={"X-Captcha-Token": token},
+                cookies={"captcha_token": token},
+            )
+            return retry_resp
+        except CaptchaSolverError as exc:
+            logger.warning("Kitsunekko: captcha solving failed: %s", exc)
+            return None
 
     def _parse_directory_listing(
         self, html: str, dir_path: str, query: VideoQuery
