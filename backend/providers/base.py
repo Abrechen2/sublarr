@@ -291,6 +291,26 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
     if result.provider_name == "opensubtitles" and result.uploader_trust > 0:
         score += int(result.uploader_trust)
 
+    # HI preference modifier
+    from config import get_settings  # local import to avoid circular deps
+    settings = get_settings()
+    hi_pref = getattr(settings, "hi_preference", "include")
+    if hi_pref == "prefer" and result.hearing_impaired:
+        score += 30
+    elif hi_pref == "exclude" and result.hearing_impaired:
+        score -= 999
+    elif hi_pref == "only" and not result.hearing_impaired:
+        score -= 999
+
+    # Forced subtitle preference modifier
+    forced_pref = getattr(settings, "forced_preference", "include")
+    if forced_pref == "prefer" and result.forced:
+        score += 30
+    elif forced_pref == "exclude" and result.forced:
+        score -= 999
+    elif forced_pref == "only" and not result.forced:
+        score -= 999
+
     result.score = score
     return score
 
