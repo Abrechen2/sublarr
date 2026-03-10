@@ -124,19 +124,7 @@ Goals: Safely remove embedded subtitle streams from video files after extraction
 
 ---
 
-## v0.20.0 (Collaboration and Export)
-
-Goals: Make Sublarr useful as a subtitle processing pipeline, not just consumer.
-
-- Subtitle Export API - serve processed subtitles via authenticated endpoint for external players
-- Batch Export - ZIP export of all subtitles for a series
-- Subtitle Diff Viewer Improvements - inline accept/reject for individual changed cues
-- Jellyfin SSE Events - consume Jellyfin play-start events to auto-translate on-demand
-- CLI Mode - `sublarr search`, `sublarr translate`, `sublarr sync` commands for scripting and cron jobs
-
----
-
-## v0.21.0 (Performance and Scalability)
+## v0.20.0 (Performance and Scalability)
 
 Goals: Handle larger libraries without degradation.
 
@@ -145,6 +133,18 @@ Goals: Handle larger libraries without degradation.
 - Incremental Metadata Cache - cache ffprobe output persistently, only rescan changed files
 - Background Wanted Scanner - fully async scan without blocking API responses
 - Parallel Translation Workers - configurable worker count for concurrent translation jobs
+
+---
+
+## v0.21.0 (Collaboration and Export)
+
+Goals: Make Sublarr useful as a subtitle processing pipeline, not just consumer.
+
+- Subtitle Export API - serve processed subtitles via authenticated endpoint for external players
+- Batch Export - ZIP export of all subtitles for a series
+- Subtitle Diff Viewer Improvements - inline accept/reject for individual changed cues
+- Jellyfin SSE Events - consume Jellyfin play-start events to auto-translate on-demand
+- CLI Mode - `sublarr search`, `sublarr translate`, `sublarr sync` commands for scripting and cron jobs
 
 ---
 

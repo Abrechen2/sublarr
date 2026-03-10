@@ -291,24 +291,26 @@ def health_detailed():
           description: One or more subsystems degraded
     """
     from config import get_settings
-    from database_health import check_integrity, get_database_stats
-    from db import get_db
+    from database_health import get_health_report
     from ollama_client import check_ollama_health
 
     s = get_settings()
     subsystems: dict = {}
     overall_healthy = True
 
-    # Database
+    # Database (dialect-aware: SQLite integrity check or PostgreSQL pg_stat)
     try:
-        db = get_db()
-        db_ok, db_msg = check_integrity(db)
-        db_stats = get_database_stats(db, s.db_path)
+        db_report = get_health_report()
+        db_ok = db_report["status"] == "healthy"
+        db_details = db_report.get("details", {})
         subsystems["database"] = {
             "healthy": db_ok,
-            "message": db_msg,
-            "size_bytes": db_stats.get("size_bytes", 0),
-            "wal_mode": db_stats.get("wal_mode", False),
+            "backend": db_report["backend"],
+            "message": db_details.get("integrity", {}).get("message", "ok")
+            if db_report["backend"] == "sqlite"
+            else ("ok" if db_ok else "connection failed"),
+            "size_bytes": db_details.get("size_bytes", 0),
+            "wal_mode": db_details.get("wal_mode", False),
         }
         if not db_ok:
             overall_healthy = False
@@ -701,22 +703,22 @@ def database_health():
         503:
           description: Database integrity check failed
     """
-    from config import get_settings
-    from database_health import check_integrity, get_database_stats
-    from db import get_db
+    from database_health import get_health_report, get_pool_stats
 
-    db = get_db()
-    is_ok, message = check_integrity(db)
-    stats = get_database_stats(db, get_settings().db_path)
+    db_report = get_health_report()
+    is_ok = db_report["status"] == "healthy"
+    result = {
+        "healthy": is_ok,
+        "backend": db_report["backend"],
+        "message": db_report["status"],
+        "stats": db_report.get("details", {}),
+    }
+    pool = get_pool_stats()
+    if pool is not None:
+        result["pool"] = pool
 
     status_code = 200 if is_ok else 503
-    return jsonify(
-        {
-            "healthy": is_ok,
-            "message": message,
-            "stats": stats,
-        }
-    ), status_code
+    return jsonify(result), status_code
 
 
 @bp.route("/database/backup", methods=["POST"])
@@ -1748,8 +1750,15 @@ def vacuum_database():
                     type: integer
     """
     from config import get_settings
-    from database_health import vacuum
+    from database_health import _is_postgresql, vacuum
     from db import get_db
+
+    if _is_postgresql():
+        return jsonify(
+            {
+                "error": "VACUUM is not available for PostgreSQL. Use VACUUM ANALYZE directly on the database server."
+            }
+        ), 501
 
     db = get_db()
     result = vacuum(db, get_settings().db_path)

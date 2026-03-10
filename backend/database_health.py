@@ -107,8 +107,10 @@ def check_integrity(db) -> tuple[bool, str]:
     Raises:
         DatabaseIntegrityError: If the check reports corruption.
     """
+    from sqlalchemy import text as _text
+
     try:
-        rows = db.execute("PRAGMA integrity_check").fetchall()
+        rows = db.execute(_text("PRAGMA integrity_check")).fetchall()
         # SQLite returns a single row with "ok" when healthy
         result = rows[0][0] if rows else "unknown"
         is_ok = result == "ok"
@@ -149,9 +151,11 @@ def get_database_stats(db, db_path: str) -> dict:
         stats["wal_size_bytes"] = 0
 
     # PRAGMAs
+    from sqlalchemy import text as _text
+
     for pragma in ("journal_mode", "page_size", "page_count", "freelist_count"):
         try:
-            row = db.execute(f"PRAGMA {pragma}").fetchone()
+            row = db.execute(_text(f"PRAGMA {pragma}")).fetchone()
             stats[pragma] = row[0] if row else None
         except Exception:
             stats[pragma] = None
@@ -162,7 +166,7 @@ def get_database_stats(db, db_path: str) -> dict:
     tables: dict[str, int] = {}
     try:
         rows = db.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            _text("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
         ).fetchall()
         for (name,) in rows:
             try:
@@ -172,7 +176,7 @@ def get_database_stats(db, db_path: str) -> dict:
                 if not _re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", name):
                     logger.warning("Skipping stats for table with non-standard name: %r", name)
                     continue
-                count = db.execute(f"SELECT COUNT(*) FROM [{name}]").fetchone()[0]
+                count = db.execute(_text(f"SELECT COUNT(*) FROM [{name}]")).fetchone()[0]
                 tables[name] = count
             except Exception:
                 tables[name] = -1
@@ -193,7 +197,9 @@ def vacuum(db, db_path: str) -> dict:
     with contextlib.suppress(OSError):
         before = os.path.getsize(db_path)
 
-    db.execute("VACUUM")
+    from sqlalchemy import text as _text
+
+    db.execute(_text("VACUUM"))
 
     after = 0
     with contextlib.suppress(OSError):
