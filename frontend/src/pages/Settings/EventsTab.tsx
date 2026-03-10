@@ -5,14 +5,15 @@ import {
   useHookLogs, useClearHookLogs,
   useScoringWeights, useUpdateScoringWeights, useResetScoringWeights,
   useProviderModifiers, useUpdateProviderModifiers,
+  useScoringPresets, useImportScoringPreset,
   useProviders,
   useConfig, useUpdateConfig,
 } from '@/hooks/useApi'
-import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Plus, Edit2, X, Check, Eye, EyeOff, CheckCircle, XCircle, RotateCcw } from 'lucide-react'
+import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Plus, Edit2, X, Check, Eye, EyeOff, CheckCircle, XCircle, RotateCcw, Download } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import { Toggle } from '@/components/shared/Toggle'
 import { SettingSection } from '@/components/shared/SettingSection'
-import type { EventCatalogItem, HookConfig, WebhookConfig, HookLog, ScoringWeights } from '@/lib/types'
+import type { EventCatalogItem, HookConfig, WebhookConfig, HookLog, ScoringWeights, ScoringPreset } from '@/lib/types'
 
 // ─── Events & Hooks Tab ──────────────────────────────────────────────────────
 
@@ -402,15 +403,20 @@ export function ScoringTab() {
   const { data: scoringData } = useScoringWeights()
   const { data: providers } = useProviders()
   const { data: modifiers } = useProviderModifiers()
+  const { data: presets } = useScoringPresets()
   const updateWeights = useUpdateScoringWeights()
   const resetWeights = useResetScoringWeights()
   const updateModifiers = useUpdateProviderModifiers()
+  const importPreset = useImportScoringPreset()
 
   const [episodeWeights, setEpisodeWeights] = useState<Record<string, number>>({})
   const [movieWeights, setMovieWeights] = useState<Record<string, number>>({})
   const [providerMods, setProviderMods] = useState<Record<string, number>>({})
   const [weightsInit, setWeightsInit] = useState(false)
   const [modsInit, setModsInit] = useState(false)
+  const [selectedPreset, setSelectedPreset] = useState('')
+  const [customPresetJson, setCustomPresetJson] = useState('')
+  const [showCustomImport, setShowCustomImport] = useState(false)
 
   const weights: ScoringWeights | undefined = scoringData
   const providerList = providers?.providers || []
@@ -463,6 +469,32 @@ export function ScoringTab() {
     })
   }
 
+  const handleApplyPreset = (preset: ScoringPreset) => {
+    if (!confirm(`Apply preset "${preset.name}"? This will overwrite the current scoring weights.`)) return
+    importPreset.mutate(preset as unknown as Record<string, unknown>, {
+      onSuccess: () => {
+        setWeightsInit(false)
+        setModsInit(false)
+        setSelectedPreset('')
+        toast(`Preset "${preset.name}" applied`)
+      },
+      onError: () => toast('Failed to apply preset', 'error'),
+    })
+  }
+
+  const handleImportCustom = () => {
+    let parsed: ScoringPreset
+    try {
+      parsed = JSON.parse(customPresetJson)
+    } catch {
+      toast('Invalid JSON', 'error')
+      return
+    }
+    handleApplyPreset(parsed)
+    setCustomPresetJson('')
+    setShowCustomImport(false)
+  }
+
   const formatWeightKey = (key: string) => {
     if (key === 'format_bonus') return 'ASS Format Bonus'
     if (key === 'hearing_impaired') return 'Hearing Impaired'
@@ -505,6 +537,72 @@ export function ScoringTab() {
 
   return (
     <div className="space-y-4">
+      {/* Scoring Presets */}
+      <SettingSection
+        title="Load Preset"
+        description="Apply a bundled scoring profile or import a custom JSON preset."
+      >
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="flex-1 min-w-[160px]">
+            <select
+              value={selectedPreset}
+              onChange={(e) => setSelectedPreset(e.target.value)}
+              className="w-full px-3 py-2 rounded-md text-sm focus:outline-none"
+              style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontSize: '13px' }}
+            >
+              <option value="">Select preset…</option>
+              {(presets ?? []).map((p: { name: string; description: string }) => (
+                <option key={p.name} value={p.name}>{p.name} — {p.description}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            disabled={!selectedPreset || importPreset.isPending}
+            onClick={() => {
+              const preset = (presets ?? []).find((p: { name: string }) => p.name === selectedPreset)
+              if (preset) {
+                import('@/api/client').then(({ getScoringPreset }) =>
+                  getScoringPreset(preset.name).then(handleApplyPreset)
+                )
+              }
+            }}
+            className="flex items-center gap-1 px-3 py-2 rounded text-xs font-medium text-white disabled:opacity-50"
+            style={{ backgroundColor: 'var(--accent)' }}
+          >
+            {importPreset.isPending ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+            Apply
+          </button>
+          <button
+            onClick={() => setShowCustomImport((v) => !v)}
+            className="flex items-center gap-1 px-3 py-2 rounded text-xs font-medium"
+            style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+          >
+            {showCustomImport ? <X size={12} /> : <Plus size={12} />}
+            Custom JSON
+          </button>
+        </div>
+        {showCustomImport && (
+          <div className="flex flex-col gap-2 mt-2">
+            <textarea
+              value={customPresetJson}
+              onChange={(e) => setCustomPresetJson(e.target.value)}
+              placeholder='{"name":"My Preset","weights":{"episode":{...},"movie":{...}},"provider_modifiers":{}}'
+              rows={5}
+              className="w-full px-3 py-2 rounded-md text-xs font-mono focus:outline-none"
+              style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)', resize: 'vertical' }}
+            />
+            <button
+              onClick={handleImportCustom}
+              disabled={!customPresetJson.trim() || importPreset.isPending}
+              className="self-end flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50"
+              style={{ backgroundColor: 'var(--accent)' }}
+            >
+              <Download size={12} /> Import & Apply
+            </button>
+          </div>
+        )}
+      </SettingSection>
+
       {/* Scoring Weights */}
       <SettingSection
         title="Scoring Weights"

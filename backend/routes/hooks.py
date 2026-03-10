@@ -944,3 +944,108 @@ def delete_modifier(provider_name):
     delete_provider_modifier(provider_name)
     invalidate_scoring_cache()
     return "", 204
+
+
+# ---- Scoring preset endpoints ------------------------------------------------
+
+
+@bp.route("/scoring/presets", methods=["GET"])
+def list_presets():
+    """Return metadata for all bundled scoring presets.
+    ---
+    get:
+      tags:
+        - Events
+      summary: List scoring presets
+      description: Returns name, description, and type of all bundled scoring presets.
+      responses:
+        200:
+          description: List of preset metadata
+    """
+    from scoring_presets import load_bundled_presets
+
+    return jsonify(load_bundled_presets())
+
+
+@bp.route("/scoring/presets/<name>", methods=["GET"])
+def get_preset(name: str):
+    """Return a single bundled preset by name.
+    ---
+    get:
+      tags:
+        - Events
+      summary: Get scoring preset
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Full preset data
+        404:
+          description: Preset not found
+    """
+    from scoring_presets import get_bundled_preset
+
+    preset = get_bundled_preset(name)
+    if preset is None:
+        return jsonify({"error": f"Preset '{name}' not found"}), 404
+    return jsonify(preset)
+
+
+@bp.route("/scoring/presets/import", methods=["POST"])
+def import_preset():
+    """Import a scoring preset (bundled or custom JSON) and apply it.
+
+    Accepts a preset JSON body. Writes weights and provider modifiers to DB.
+    ---
+    post:
+      tags:
+        - Events
+      summary: Import scoring preset
+      description: Applies a preset's scoring weights and provider modifiers. Partial presets are supported.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                weights:
+                  type: object
+                provider_modifiers:
+                  type: object
+      responses:
+        200:
+          description: Preset applied
+        400:
+          description: Invalid preset data
+    """
+    from db.scoring import set_scoring_weights, set_provider_modifier
+    from providers.base import invalidate_scoring_cache
+    from scoring_presets import validate_preset
+
+    data = request.get_json(silent=True)
+    if not data or not validate_preset(data):
+        return jsonify({"error": "Invalid preset data"}), 400
+
+    applied: dict = {"weights": {}, "provider_modifiers": {}}
+
+    weights = data.get("weights", {})
+    for score_type, w in weights.items():
+        if w:
+            set_scoring_weights(score_type, w)
+            applied["weights"][score_type] = w
+
+    modifiers = data.get("provider_modifiers", {})
+    for provider_name, modifier in modifiers.items():
+        set_provider_modifier(provider_name, int(modifier))
+        applied["provider_modifiers"][provider_name] = modifier
+
+    invalidate_scoring_cache()
+
+    return jsonify({"status": "ok", "preset": data.get("name", "custom"), "applied": applied})

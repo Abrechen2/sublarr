@@ -30,6 +30,7 @@ import {
   getHookLogs, clearHookLogs,
   getScoringWeights, updateScoringWeights, resetScoringWeights,
   getProviderModifiers, updateProviderModifiers,
+  getScoringPresets, getScoringPreset, importScoringPreset,
   getStatistics, exportStatistics,
   createFullBackup, listFullBackups, restoreFullBackup,
   getLogRotation, updateLogRotation,
@@ -1044,6 +1045,21 @@ export function useUpdateProviderModifiers() {
   return useMutation({
     mutationFn: updateProviderModifiers,
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['providerModifiers'] }) },
+  })
+}
+
+export function useScoringPresets() {
+  return useQuery({ queryKey: ['scoringPresets'], queryFn: getScoringPresets })
+}
+
+export function useImportScoringPreset() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: importScoringPreset,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['scoringWeights'] })
+      void qc.invalidateQueries({ queryKey: ['providerModifiers'] })
+    },
   })
 }
 

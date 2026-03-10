@@ -605,6 +605,20 @@ export interface ProviderModifiers {
   [provider_name: string]: number
 }
 
+export interface ScoringPresetMeta {
+  name: string
+  description: string
+  type: 'episode' | 'movie' | 'both'
+}
+
+export interface ScoringPreset extends ScoringPresetMeta {
+  weights: {
+    episode?: Record<string, number>
+    movie?: Record<string, number>
+  }
+  provider_modifiers: Record<string, number>
+}
+
 // ─── Subtitle Sidecar Management ─────────────────────────────────────────────
 
 export interface SidecarSubtitle {

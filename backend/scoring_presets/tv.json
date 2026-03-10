@@ -1,0 +1,32 @@
+{
+  "name": "TV",
+  "description": "Tuned for live-action TV: strong episode/season match, hash important, moderate release group.",
+  "type": "both",
+  "weights": {
+    "episode": {
+      "hash": 359,
+      "series": 180,
+      "year": 90,
+      "season": 30,
+      "episode": 30,
+      "release_group": 14,
+      "source": 7,
+      "audio_codec": 3,
+      "resolution": 2,
+      "hearing_impaired": 1,
+      "format_bonus": 50
+    },
+    "movie": {
+      "hash": 119,
+      "title": 60,
+      "year": 30,
+      "release_group": 13,
+      "source": 7,
+      "audio_codec": 3,
+      "resolution": 2,
+      "hearing_impaired": 1,
+      "format_bonus": 50
+    }
+  },
+  "provider_modifiers": {}
+}
