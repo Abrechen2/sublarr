@@ -76,6 +76,7 @@ whether a setting is also exposed in the Settings UI (and therefore does
 | `SUBLARR_TEMPERATURE` | `0.3` | — | LLM temperature (lower = more consistent) |
 | `SUBLARR_MAX_RETRIES` | `3` | — | Max retries on LLM failure |
 | `SUBLARR_PROMPT_TEMPLATE` | *(empty)* | — | Custom prompt template. Empty = auto-generated |
+| `SUBLARR_TRANSLATION_MAX_WORKERS` | `4` | — | Parallel worker threads in the job queue thread pool. Increase for higher translation throughput; decrease on memory-constrained systems. Applies to `MemoryJobQueue` (in-process); with Redis+RQ, scale workers via `--scale rq-worker=N` instead |
 
 ---
 
@@ -181,6 +182,7 @@ are available there; the tuning knobs below remain env-only.
 | `SUBLARR_USE_EMBEDDED_SUBS` | `true` | — | Check embedded subtitle streams in MKV files |
 | `SUBLARR_SCAN_METADATA_ENGINE` | `auto` | — | Metadata scan engine: `ffprobe`, `mediainfo`, or `auto` |
 | `SUBLARR_SCAN_METADATA_MAX_WORKERS` | `4` | — | Parallel workers for batch metadata scans |
+| `SUBLARR_SCAN_YIELD_MS` | `0` | — | Sleep between series/movies (ms) during wanted scan to yield CPU to API threads. Default `0` (no yield). Try `5`–`10` on heavily loaded single-core systems |
 
 ---
 
@@ -300,9 +302,9 @@ Env-only — infrastructure-level backend selection. Most deployments use the SQ
 | `SUBLARR_DB_POOL_SIZE` | `5` | — | SQLAlchemy pool_size (ignored for SQLite) |
 | `SUBLARR_DB_POOL_MAX_OVERFLOW` | `10` | — | SQLAlchemy max_overflow (ignored for SQLite) |
 | `SUBLARR_DB_POOL_RECYCLE` | `3600` | — | Recycle connections after N seconds |
-| `SUBLARR_REDIS_URL` | *(empty)* | — | Redis URL (e.g. `redis://localhost:6379/0`). Empty = no Redis |
-| `SUBLARR_REDIS_CACHE_ENABLED` | `true` | — | Use Redis for provider search cache (when redis_url set) |
-| `SUBLARR_REDIS_QUEUE_ENABLED` | `true` | — | Use Redis+RQ for job queue (when redis_url set) |
+| `SUBLARR_REDIS_URL` | *(empty)* | — | Redis URL (e.g. `redis://localhost:6379/0`). Empty = no Redis; falls back to in-process `MemoryJobQueue` + in-memory provider cache automatically |
+| `SUBLARR_REDIS_CACHE_ENABLED` | `true` | — | Use Redis for provider search cache (when redis_url set). Disable to keep Redis only for the job queue |
+| `SUBLARR_REDIS_QUEUE_ENABLED` | `true` | — | Use Redis+RQ for job queue (when redis_url set). Requires a separate `rq worker` process — use `docker-compose.redis.yml` or run `python backend/worker.py`. Scale with `docker compose ... --scale rq-worker=N` |
 
 ---
 

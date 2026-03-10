@@ -44,9 +44,9 @@ External Services
 - Secrets never exposed in API responses
 
 **Database Layer (db/)**
-- SQLite with WAL (Write-Ahead Logging) mode
-- Connection pooling with thread-local storage
-- Schema migrations via version tracking
+- **SQLite** (default): WAL mode, thread-local `_db_lock`, zero-config
+- **PostgreSQL** (v0.20.0+): first-class support via `SUBLARR_DATABASE_URL`; connection pooling via SQLAlchemy pool; Alembic migrations run automatically on startup; dialect-aware health endpoint (`GET /database/health`)
+- Repository pattern (`db/repositories/`) wraps SQLAlchemy ORM; `BaseRepository.batch()` context manager batches multiple writes into a single commit (used by wanted scanner for per-series commits)
 
 #### Database Tables
 
@@ -569,16 +569,28 @@ Frontend updates UI, shows summary
 
 ## Scalability Considerations
 
-**Current Limitations**
-- Single SQLite database (not suitable for high concurrency)
-- In-process job queue (lost on restart)
-- Single-instance deployment
+**Supported since v0.20.0**
 
-**Future Improvements**
-- PostgreSQL for multi-instance deployments
-- Redis/Celery for distributed task queue
-- Horizontal scaling with load balancer
-- S3/object storage for subtitle files
+| Concern | Solution |
+|---------|---------|
+| High-concurrency DB writes | PostgreSQL via `SUBLARR_DATABASE_URL` |
+| Persistent background jobs | Redis + RQ via `SUBLARR_REDIS_URL` + `backend/worker.py` |
+| Parallel translation | `SUBLARR_TRANSLATION_MAX_WORKERS` (MemoryQueue) or `--scale rq-worker=N` (RQ) |
+| Scanner DB contention | Batch commits per series; optional `SUBLARR_SCAN_YIELD_MS` CPU yield |
+| Repeated ffprobe overhead | Incremental mtime-based cache (`ffprobe_cache` table) |
+
+**RQ Worker Architecture (when Redis enabled)**
+```
+Flask (gunicorn)  →  enqueue()  →  Redis  →  rq-worker (backend/worker.py)
+                                              └── AppContextWorker
+                                                  └── app.app_context() per job
+```
+Scale with: `docker compose -f docker-compose.redis.yml up -d --scale rq-worker=N`
+
+**Remaining Single-Instance Constraints**
+- One gunicorn worker (SocketIO session state) — do not increase `--workers`
+- Horizontal scaling with load balancer not yet supported
+- S3/object storage for subtitle files (future)
 - Prometheus metrics export (Grafana dashboards in `monitoring/grafana/`)
 
 ## Development Workflow

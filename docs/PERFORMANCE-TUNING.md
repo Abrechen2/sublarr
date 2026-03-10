@@ -83,7 +83,16 @@ Increasing this is safe — search results do not change that quickly.
 
 ## Wanted Scanner
 
-The wanted scanner is the most I/O-intensive operation. It runs ffprobe on every video file to detect embedded subtitles.
+The wanted scanner is the most I/O-intensive operation. Since v0.20.0, ffprobe results are cached with mtime-based invalidation — unchanged files are skipped entirely on subsequent scans.
+
+### Incremental Metadata Cache (v0.20.0+)
+
+ffprobe output is cached persistently. Only files whose modification time has changed are re-probed. Monitor the cache:
+
+```bash
+GET /api/v1/cache/ffprobe/stats     # total entries, oldest/newest
+POST /api/v1/cache/ffprobe/cleanup  # remove stale entries for deleted files
+```
 
 ### Reduce Worker Count
 
@@ -92,6 +101,14 @@ SUBLARR_SCAN_METADATA_MAX_WORKERS=2
 ```
 
 Default is 4. Reducing this lowers CPU and I/O pressure at the cost of slower scans.
+
+### Yield CPU Between Series (v0.20.0+)
+
+```
+SUBLARR_SCAN_YIELD_MS=5
+```
+
+Default `0` (no yield). On single-core or heavily loaded systems, a 5–10 ms sleep between series lets API request threads run between batch commits and reduces perceived latency during long scans.
 
 ### Increase Scan Interval
 
@@ -147,12 +164,25 @@ python3 backend/scripts/migrate_sqlite_to_postgres.py   --sqlite /config/sublarr
 
 ---
 
+## Translation Worker Pool (v0.20.0+)
+
+```
+SUBLARR_TRANSLATION_MAX_WORKERS=4
+```
+
+Controls the thread pool for the in-memory job queue. Increase when translating many files concurrently; decrease on memory-constrained systems. Monitor active jobs via `GET /api/v1/jobs`.
+
+With Redis+RQ, this setting has no effect — scale translation throughput by running more RQ workers instead:
+
+```bash
+docker compose -f docker-compose.redis.yml up -d --scale rq-worker=3
+```
+
+---
+
 ## Redis (Advanced)
 
-Redis enables distributed caching and job queues. Useful when:
-- Running multiple Sublarr instances
-- Offloading provider search cache from SQLite
-- Using RQ for background job processing
+Redis enables persistent job queues and distributed caching. Since v0.20.0 this is production-ready:
 
 ```
 SUBLARR_REDIS_URL=redis://redis:6379/0
@@ -160,7 +190,16 @@ SUBLARR_REDIS_CACHE_ENABLED=true
 SUBLARR_REDIS_QUEUE_ENABLED=true
 ```
 
-Without Redis, Sublarr uses in-memory caches and SQLite-backed job tracking, which is sufficient for single-instance deployments.
+Quick start: `docker compose -f docker-compose.redis.yml up -d`
+
+**Scaling workers for parallel translation:**
+```bash
+docker compose -f docker-compose.redis.yml up -d --scale rq-worker=3
+```
+
+Each `rq-worker` container processes jobs independently. Size to your Ollama backend's concurrency capacity.
+
+Without Redis, Sublarr falls back to the in-process `MemoryJobQueue` automatically — no action needed.
 
 ---
 

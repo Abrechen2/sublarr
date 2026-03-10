@@ -8,7 +8,7 @@
 
 *arr-compatible · Self-hosted · Open Source · LLM translation (beta)
 
-[![Version](https://img.shields.io/badge/version-0.19.2--beta-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
+[![Version](https://img.shields.io/badge/version-0.20.0--beta-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776ab.svg)](https://www.python.org/)
 [![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
@@ -148,7 +148,7 @@ Open **http://localhost:5765** — that's it.
 ```yaml
 services:
   sublarr:
-    image: ghcr.io/abrechen2/sublarr:0.19.2-beta
+    image: ghcr.io/abrechen2/sublarr:0.20.0-beta
     container_name: sublarr
     ports:
       - "5765:5765"
@@ -171,7 +171,7 @@ The image runs as a non-root user with `cap_drop: ALL` and no new privileges. A 
 ```yaml
 services:
   sublarr:
-    image: ghcr.io/abrechen2/sublarr:0.19.2-beta
+    image: ghcr.io/abrechen2/sublarr:0.20.0-beta
     container_name: sublarr
     ports:
       - "5765:5765"
