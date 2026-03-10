@@ -1,12 +1,14 @@
 """Tests for HI and Forced subtitle preference scoring modifiers."""
 
 import os
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 
 def _make_result(hearing_impaired=False, forced=False, provider="opensubtitles"):
-    from providers.base import SubtitleResult, SubtitleFormat
+    from providers.base import SubtitleFormat, SubtitleResult
+
     return SubtitleResult(
         provider_name=provider,
         subtitle_id="test-1",
@@ -20,6 +22,7 @@ def _make_result(hearing_impaired=False, forced=False, provider="opensubtitles")
 
 def _make_query(is_episode=True):
     from providers.base import VideoQuery
+
     return VideoQuery(
         series_title="Test Show",
         season=1,
@@ -33,6 +36,7 @@ def reset_settings(monkeypatch):
     """Ensure clean settings state for each test."""
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", "/tmp/test_media")
     from config import reload_settings
+
     reload_settings()
     yield
     reload_settings()
@@ -40,8 +44,9 @@ def reset_settings(monkeypatch):
 
 class TestHIPreferenceScoring:
     def _score(self, hi_preference, hearing_impaired):
-        from providers.base import compute_score, invalidate_scoring_cache
         from config import reload_settings
+        from providers.base import compute_score, invalidate_scoring_cache
+
         invalidate_scoring_cache()
         reload_settings({"hi_preference": hi_preference})
         result = _make_result(hearing_impaired=hearing_impaired)
@@ -99,8 +104,9 @@ class TestHIPreferenceScoring:
 
 class TestForcedPreferenceScoring:
     def _score(self, forced_preference, forced):
-        from providers.base import compute_score, invalidate_scoring_cache
         from config import reload_settings
+        from providers.base import compute_score, invalidate_scoring_cache
+
         invalidate_scoring_cache()
         reload_settings({"forced_preference": forced_preference})
         result = _make_result(forced=forced)
@@ -136,8 +142,9 @@ class TestForcedPreferenceScoring:
 class TestHIAndForcedCombined:
     def test_both_prefer_additive(self):
         """When both HI and forced are preferred and result matches both, bonuses stack."""
-        from providers.base import compute_score, invalidate_scoring_cache
         from config import reload_settings
+        from providers.base import compute_score, invalidate_scoring_cache
+
         invalidate_scoring_cache()
         reload_settings({"hi_preference": "prefer", "forced_preference": "prefer"})
         result_both = _make_result(hearing_impaired=True, forced=True)
@@ -147,8 +154,9 @@ class TestHIAndForcedCombined:
 
     def test_exclude_hi_independent_of_forced(self):
         """Excluding HI does not affect forced subtitle scoring."""
-        from providers.base import compute_score, invalidate_scoring_cache
         from config import reload_settings
+        from providers.base import compute_score, invalidate_scoring_cache
+
         invalidate_scoring_cache()
         reload_settings({"hi_preference": "exclude", "forced_preference": "include"})
         result_forced_only = _make_result(hearing_impaired=False, forced=True)
