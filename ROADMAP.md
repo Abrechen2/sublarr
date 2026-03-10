@@ -84,7 +84,7 @@ The current UI is functional but not final. The goal is a clean, modern interfac
 
 ---
 
-## v0.17.0 (Subtitle Intelligence — In Progress)
+## v0.17.0 ✅ (Subtitle Intelligence — Complete)
 
 Goals: Make Sublarr smarter about what to search for and what to accept.
 
@@ -93,9 +93,9 @@ Goals: Make Sublarr smarter about what to search for and what to accept.
 - ✅ Video Hash Pre-Compute — `file_hash` computed once in `build_query_from_wanted()` and shared across all providers (no redundant file reads per provider)
 - ✅ Release Group Filtering — include/exclude subtitle results by release group, codec, or source tag; score bonus for preferred groups; release metadata auto-extracted from filename via guessit
 - ✅ Provider Result Re-ranking — auto-adjust per-provider score modifiers from download history; formula: success_rate + avg_score vs. global avg + consecutive failure penalty; throttled hourly; preview endpoint + manual trigger
-- Subtitle Upgrade Scheduler — periodic re-check for higher-quality subs (configurable lookback window)
-- Translation Quality Dashboard — per-series quality trend charts in Statistics page
-- Custom Post-Processing Scripts — user-supplied shell scripts run after download/translate
+- ✅ Subtitle Upgrade Scheduler — periodic re-check for higher-quality subs; eligibility: score < 500 OR non-ASS format; configurable `upgrade_scan_interval_hours`; manual trigger via `/tasks/upgrade-scan/trigger`
+- ✅ Translation Quality Dashboard — daily quality trend chart (score normalized 0-100%) + per-series quality table (sortable, color-coded bars) wired to existing `QualityTrendChart` component
+- ✅ Custom Post-Processing Scripts — `subtitle_downloaded` event now emitted from `save_subtitle()`; hooks at Settings → Events & Hooks receive `SUBLARR_SUBTITLE_PATH`, `SUBLARR_PROVIDER_NAME`, `SUBLARR_SCORE` etc.; `translation_complete` and `upgrade_complete` were already wired
 
 ---
 
