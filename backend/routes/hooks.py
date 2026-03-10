@@ -1025,7 +1025,7 @@ def import_preset():
         400:
           description: Invalid preset data
     """
-    from db.scoring import set_scoring_weights, set_provider_modifier
+    from db.scoring import set_provider_modifier, set_scoring_weights
     from providers.base import invalidate_scoring_cache
     from scoring_presets import validate_preset
 

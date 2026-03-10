@@ -23,9 +23,18 @@ logger = logging.getLogger(__name__)
 _PRESETS_DIR = Path(__file__).parent
 
 _VALID_WEIGHT_KEYS = {
-    "hash", "series", "year", "season", "episode",
-    "release_group", "source", "audio_codec", "resolution",
-    "hearing_impaired", "title", "format_bonus",
+    "hash",
+    "series",
+    "year",
+    "season",
+    "episode",
+    "release_group",
+    "source",
+    "audio_codec",
+    "resolution",
+    "hearing_impaired",
+    "title",
+    "format_bonus",
 }
 
 
@@ -37,11 +46,13 @@ def load_bundled_presets() -> list[dict]:
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             if validate_preset(data):
-                presets.append({
-                    "name": data["name"],
-                    "description": data.get("description", ""),
-                    "type": data.get("type", "both"),
-                })
+                presets.append(
+                    {
+                        "name": data["name"],
+                        "description": data.get("description", ""),
+                        "type": data.get("type", "both"),
+                    }
+                )
         except Exception as exc:
             logger.warning("Failed to load preset %s: %s", path.name, exc)
     return presets

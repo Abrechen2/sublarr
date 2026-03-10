@@ -2,6 +2,7 @@
 
 import json
 import os
+
 import pytest
 
 
@@ -9,6 +10,7 @@ import pytest
 def set_media_path(tmp_path, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", str(tmp_path))
     from config import reload_settings
+
     reload_settings()
     yield
     reload_settings()
@@ -17,6 +19,7 @@ def set_media_path(tmp_path, monkeypatch):
 class TestPresetValidation:
     def test_valid_episode_preset(self):
         from scoring_presets import validate_preset
+
         preset = {
             "name": "Test",
             "description": "Test preset",
@@ -28,6 +31,7 @@ class TestPresetValidation:
 
     def test_valid_movie_preset(self):
         from scoring_presets import validate_preset
+
         preset = {
             "name": "Movies",
             "weights": {"movie": {"hash": 119, "title": 60}},
@@ -37,6 +41,7 @@ class TestPresetValidation:
 
     def test_valid_both_preset(self):
         from scoring_presets import validate_preset
+
         preset = {
             "name": "Both",
             "weights": {
@@ -49,10 +54,12 @@ class TestPresetValidation:
 
     def test_missing_name_invalid(self):
         from scoring_presets import validate_preset
+
         assert validate_preset({"weights": {}}) is False
 
     def test_invalid_weight_key(self):
         from scoring_presets import validate_preset
+
         preset = {
             "name": "Bad",
             "weights": {"episode": {"nonexistent_key": 999}},
@@ -62,6 +69,7 @@ class TestPresetValidation:
 
     def test_invalid_score_type(self):
         from scoring_presets import validate_preset
+
         preset = {
             "name": "Bad",
             "weights": {"special": {"hash": 359}},
@@ -71,10 +79,12 @@ class TestPresetValidation:
 
     def test_empty_weights_valid(self):
         from scoring_presets import validate_preset
+
         assert validate_preset({"name": "Empty", "weights": {}, "provider_modifiers": {}}) is True
 
     def test_not_dict_invalid(self):
         from scoring_presets import validate_preset
+
         assert validate_preset([]) is False
         assert validate_preset("string") is False
         assert validate_preset(None) is False
@@ -83,12 +93,14 @@ class TestPresetValidation:
 class TestBundledPresets:
     def test_load_bundled_presets_returns_list(self):
         from scoring_presets import load_bundled_presets
+
         presets = load_bundled_presets()
         assert isinstance(presets, list)
         assert len(presets) >= 3  # anime, movies, tv
 
     def test_bundled_preset_names(self):
         from scoring_presets import load_bundled_presets
+
         names = {p["name"] for p in load_bundled_presets()}
         assert "Anime" in names
         assert "Movies" in names
@@ -96,6 +108,7 @@ class TestBundledPresets:
 
     def test_get_bundled_preset_anime(self):
         from scoring_presets import get_bundled_preset
+
         preset = get_bundled_preset("Anime")
         assert preset is not None
         assert preset["name"] == "Anime"
@@ -103,6 +116,7 @@ class TestBundledPresets:
 
     def test_get_bundled_preset_not_found(self):
         from scoring_presets import get_bundled_preset
+
         assert get_bundled_preset("DoesNotExist") is None
 
 
