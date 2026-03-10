@@ -99,15 +99,14 @@ Goals: Make Sublarr smarter about what to search for and what to accept.
 
 ---
 
-## v0.18.0 (Provider Maturity)
+## v0.18.0 ✅ (Provider Maturity — Complete)
 
 Goals: Close remaining gap to Bazarr in provider coverage, subtitle type handling, and community integration.
 
-- Additional Providers - Supersubtitles and further community providers
-- Hearing Impaired Support - HI detection, preference setting (prefer/exclude/only), HI-tag stripping from dialogue
-- Forced Subtitle Support - detect and download forced subs for foreign-audio scenes
-- Anti-Captcha Integration - Anti-Captcha.com / CapMonster support for captcha-protected providers
-- TRaSH-Compatible Scoring Presets - importable community-maintained scoring profiles
+- ✅ Hearing Impaired Support — `hi_preference` setting (include / prefer / exclude / only); ±30/±999 score modifiers; `hi_removal_enabled` toggle for future tag stripping
+- ✅ Forced Subtitle Support — `forced_preference` setting (include / prefer / exclude / only); same scoring logic; bonuses stack with HI preference
+- ✅ TRaSH-Compatible Scoring Presets — bundled `anime`, `tv`, `movies` presets; REST endpoints to list/get/import; Settings UI with preset selector and custom JSON import
+- ✅ Anti-Captcha Integration — CaptchaSolver class (Anti-Captcha.com + CapMonster); Kitsunekko 403 bypass via reCAPTCHA v2; `anti_captcha_provider` + `anti_captcha_api_key` settings; Providers tab UI
 
 ---
 
