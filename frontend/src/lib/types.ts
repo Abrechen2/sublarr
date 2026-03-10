@@ -649,6 +649,15 @@ export interface TrackAsSourceResult {
 
 // ─── Statistics ──────────────────────────────────────────────────────────────
 
+export interface SeriesQuality {
+  title: string
+  avg_score: number
+  avg_score_pct: number
+  download_count: number
+  last_download: string | null
+  formats: string[]
+}
+
 export interface StatisticsData {
   daily: DailyStat[]
   providers: Record<string, ProviderHealthStats>
@@ -656,6 +665,8 @@ export interface StatisticsData {
   backend_stats: Array<{ backend_name: string; total_requests: number; successful_translations: number; failed_translations: number; total_characters: number }>
   upgrades: Array<{ type: string; count: number }>
   by_format: Record<string, number>
+  quality_trend: QualityTrend[]
+  series_quality: SeriesQuality[]
   range: string
 }
 
