@@ -30,6 +30,7 @@ LABEL org.opencontainers.image.version="${VERSION}"
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ffmpeg \
+        mkvtoolnix \
         curl \
         unrar-free \
         postgresql-client \
