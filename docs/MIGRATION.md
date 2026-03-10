@@ -1,8 +1,10 @@
 # Migration Guide
 
-## Current Version: 0.13.2-beta
+## Current Version: 0.19.2-beta
 
 This guide covers upgrades from any previous version of Sublarr. For the full change history, see [CHANGELOG.md](../CHANGELOG.md).
+
+For switching from SQLite to PostgreSQL see [POSTGRESQL.md](POSTGRESQL.md).
 
 ---
 
