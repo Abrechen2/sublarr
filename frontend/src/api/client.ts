@@ -1549,6 +1549,22 @@ export async function trackAsSource(epId: number, index: number): Promise<import
   return data
 }
 
+export async function removeTrackFromContainer(
+  epId: number,
+  index: number,
+  subtitleTrackIndex?: number,
+): Promise<{ job_id: string; status: string }> {
+  const body: Record<string, unknown> = {}
+  if (subtitleTrackIndex !== undefined) body.subtitle_track_index = subtitleTrackIndex
+  const { data } = await api.post(`/library/episodes/${epId}/tracks/${index}/remove-from-container`, body)
+  return data
+}
+
+export async function getRemuxJob(jobId: string): Promise<{ job_id: string; status: string; result: Record<string, string> | null; error: string | null }> {
+  const { data } = await api.get(`/remux/jobs/${jobId}`)
+  return data
+}
+
 // ─── Subtitle Sidecar Management ─────────────────────────────────────────────
 
 export async function listEpisodeSubtitles(epId: number): Promise<{ subtitles: import('@/lib/types').SidecarSubtitle[]; video_path: string }> {

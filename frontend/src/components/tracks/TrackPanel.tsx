@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { Loader2, Download, FileText, AlertTriangle } from 'lucide-react'
-import { listEpisodeTracks, extractTrack, convertSubtitle } from '@/api/client'
+import { useState, useEffect, useCallback } from 'react'
+import { Loader2, Download, FileText, AlertTriangle, Trash2 } from 'lucide-react'
+import { listEpisodeTracks, extractTrack, convertSubtitle, removeTrackFromContainer, getRemuxJob } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 import type { Track, EpisodeTracksResponse } from '@/lib/types'
 
@@ -20,6 +20,8 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
   const [extracting, setExtracting] = useState(false)
   const [usingAsSource, setUsingAsSource] = useState(false)
   const [converting, setConverting] = useState(false)
+  const [removing, setRemoving] = useState(false)
+  const [confirmRemove, setConfirmRemove] = useState(false)
   const isSubtitle = track.codec_type === 'subtitle'
   const isImageBased = track.codec === 'hdmv_pgs_subtitle' || track.codec === 'dvd_subtitle'
   const { bg, text } = codecColor(track.codec_type, track.codec)
@@ -45,6 +47,46 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
       toast('Extraktion fehlgeschlagen', 'error')
     } finally {
       setUsingAsSource(false)
+    }
+  }
+
+  const pollRemuxJob = useCallback(async (jobId: string) => {
+    const maxAttempts = 60
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((r) => setTimeout(r, 3000))
+      try {
+        const job = await getRemuxJob(jobId)
+        if (job.status === 'completed') {
+          toast('Stream aus Container entfernt — Backup erstellt')
+          setRemoving(false)
+          return
+        }
+        if (job.status === 'failed') {
+          toast(`Remux fehlgeschlagen: ${job.error ?? 'Unbekannter Fehler'}`, 'error')
+          setRemoving(false)
+          return
+        }
+      } catch {
+        // network hiccup — keep polling
+      }
+    }
+    toast('Remux-Job Timeout — prüfe Logs', 'error')
+    setRemoving(false)
+  }, [])
+
+  const handleRemoveFromContainer = async () => {
+    if (!confirmRemove) {
+      setConfirmRemove(true)
+      return
+    }
+    setConfirmRemove(false)
+    setRemoving(true)
+    try {
+      const { job_id } = await removeTrackFromContainer(episodeId, track.index)
+      void pollRemuxJob(job_id)
+    } catch {
+      toast('Remux konnte nicht gestartet werden', 'error')
+      setRemoving(false)
     }
   }
 
@@ -171,6 +213,27 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
                       ))}
                   </select>
                 )
+            )}
+            {isSubtitle && (
+              removing ? (
+                <Loader2 size={10} className="animate-spin ml-1" style={{ color: 'var(--text-muted)' }} />
+              ) : (
+                <button
+                  onClick={() => void handleRemoveFromContainer()}
+                  disabled={extracting || usingAsSource || converting}
+                  className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ml-1"
+                  style={{
+                    backgroundColor: confirmRemove ? 'rgba(239,68,68,0.15)' : 'var(--bg-surface)',
+                    color: confirmRemove ? '#ef4444' : 'var(--text-muted)',
+                    border: confirmRemove ? '1px solid rgba(239,68,68,0.4)' : '1px solid var(--border)',
+                  }}
+                  title={confirmRemove ? 'Klicke erneut zur Bestätigung' : 'Stream aus Container entfernen (erstellt .bak Backup)'}
+                  onBlur={() => setConfirmRemove(false)}
+                >
+                  <Trash2 size={10} />
+                  {confirmRemove ? 'Sicher?' : 'Entfernen'}
+                </button>
+              )
             )}
           </div>
         )}

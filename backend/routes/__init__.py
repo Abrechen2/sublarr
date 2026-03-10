@@ -25,6 +25,7 @@ def register_blueprints(app):
     from routes.plugins import bp as plugins_bp
     from routes.profiles import bp as profiles_bp
     from routes.providers import bp as providers_bp
+    from routes.remux import bp as remux_bp
     from routes.search import bp as search_bp
     from routes.spell import bp as spell_bp
     from routes.standalone import bp as standalone_bp
@@ -71,5 +72,6 @@ def register_blueprints(app):
         tracks_bp,
         video_sync_bp,
         subtitles_bp,
+        remux_bp,
     ]:
         app.register_blueprint(blueprint)

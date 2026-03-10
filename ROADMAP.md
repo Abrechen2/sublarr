@@ -110,17 +110,17 @@ Goals: Close remaining gap to Bazarr in provider coverage, subtitle type handlin
 
 ---
 
-## v0.19.0 (Stream Removal — Safe Remux)
+## v0.19.0 (Stream Removal — Safe Remux) 🚧 In Progress
 
 Goals: Safely remove embedded subtitle streams from video files after extraction, with full rollback capability.
 
-- Remux Engine - mkvmerge (MKV) / ffmpeg (MP4) remux excluding selected subtitle streams, no re-encoding
-- Verification Pipeline - compare duration, video/audio stream count, and file size plausibility before swap
-- Atomic File Swap - write to temp file, rename original to `.bak`, rename temp to original name
-- Backup Retention - configurable `.bak` retention period (default 7 days), automatic cleanup scheduler
-- CoW/Reflink Detection - detect Btrfs/XFS and use `cp --reflink=auto` for zero-cost backups
-- *arr Pause Integration - pause Sonarr/Radarr folder monitoring via API during remux to prevent import loops
-- Track Panel UI - "Remove from container" action in Track Manifest after successful extraction, with confirmation dialog
+- ✅ Remux Engine — mkvmerge (MKV) / ffmpeg (MP4) remux excluding selected subtitle streams; backend auto-detected by file extension; no re-encoding
+- ✅ Verification Pipeline — ffprobe comparison of duration (±2s), video/audio stream counts, subtitle count (must be exactly -1), file size (≥50% of original)
+- ✅ Atomic File Swap — write to temp file in same directory, original → `.bak`, temp → original via `os.replace()`
+- ✅ Backup Retention — `remux_backup_retention_days` setting (default 7); `POST /api/v1/remux/backups/cleanup` (dry_run supported); `GET /api/v1/remux/backups` to list
+- ✅ CoW/Reflink Detection — `cp --reflink=auto` attempted first; falls back to `shutil.copy2`; controlled by `remux_use_reflink` setting
+- ✅ *arr Pause Integration — `remux_arr_pause_enabled` setting; calls Sonarr `set_monitoring()` around remux window
+- ✅ Track Panel UI — "Entfernen" button with two-click confirmation; polling job status via `GET /remux/jobs/<id>`; async job system with Socket.IO progress
 
 ---
 
