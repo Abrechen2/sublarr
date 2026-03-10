@@ -30,7 +30,7 @@ import {
   getHookLogs, clearHookLogs,
   getScoringWeights, updateScoringWeights, resetScoringWeights,
   getProviderModifiers, updateProviderModifiers,
-  getScoringPresets, getScoringPreset, importScoringPreset,
+  getScoringPresets, importScoringPreset,
   getStatistics, exportStatistics,
   createFullBackup, listFullBackups, restoreFullBackup,
   getLogRotation, updateLogRotation,
