@@ -1,0 +1,21 @@
+{
+  "name": "Anime",
+  "description": "Optimised for anime: high series/episode match, strong ASS format preference, release group matters.",
+  "type": "episode",
+  "weights": {
+    "episode": {
+      "hash": 359,
+      "series": 180,
+      "year": 90,
+      "season": 30,
+      "episode": 30,
+      "release_group": 20,
+      "source": 5,
+      "audio_codec": 2,
+      "resolution": 2,
+      "hearing_impaired": 1,
+      "format_bonus": 80
+    }
+  },
+  "provider_modifiers": {}
+}

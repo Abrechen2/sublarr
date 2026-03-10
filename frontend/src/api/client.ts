@@ -760,6 +760,9 @@ export const resetScoringWeights = () => api.delete('/scoring/weights')
 export const getProviderModifiers = () => api.get('/scoring/modifiers').then(r => r.data)
 export const updateProviderModifiers = (data: Record<string, number>) => api.put('/scoring/modifiers', data).then(r => r.data)
 export const deleteProviderModifier = (name: string) => api.delete(`/scoring/modifiers/${name}`)
+export const getScoringPresets = () => api.get('/scoring/presets').then(r => r.data)
+export const getScoringPreset = (name: string) => api.get(`/scoring/presets/${encodeURIComponent(name)}`).then(r => r.data)
+export const importScoringPreset = (data: Record<string, unknown>) => api.post('/scoring/presets/import', data).then(r => r.data)
 
 // ─── Statistics ──────────────────────────────────────────────────────────────
 

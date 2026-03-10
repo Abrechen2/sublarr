@@ -1,0 +1,19 @@
+{
+  "name": "Movies",
+  "description": "Balanced for movies: hash match important, title/year weighted, format bonus moderate.",
+  "type": "movie",
+  "weights": {
+    "movie": {
+      "hash": 119,
+      "title": 60,
+      "year": 30,
+      "release_group": 15,
+      "source": 7,
+      "audio_codec": 3,
+      "resolution": 2,
+      "hearing_impaired": 1,
+      "format_bonus": 50
+    }
+  },
+  "provider_modifiers": {}
+}
