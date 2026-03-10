@@ -1103,6 +1103,13 @@ class ProviderManager:
                 if content is not None:  # Empty bytes for embedded is OK
                     # Record successful download
                     update_provider_stats(result.provider_name, success=True, score=result.score)
+                    # Trigger auto re-ranking (throttled to once/hour)
+                    try:
+                        from providers.reranker import apply_auto_reranking
+
+                        apply_auto_reranking()
+                    except Exception as _rr_err:
+                        logger.debug("Re-ranking trigger skipped: %s", _rr_err)
                     return result
                 else:
                     # Record failed download

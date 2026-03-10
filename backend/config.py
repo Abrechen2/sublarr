@@ -131,6 +131,13 @@ class Settings(BaseSettings):
     wanted_max_search_attempts: int = 3
     use_embedded_subs: bool = True  # Check embedded subtitle streams in MKV files
 
+    # Provider Re-ranking
+    provider_reranking_enabled: bool = False  # Auto-adjust score modifiers from download history
+    provider_reranking_min_downloads: int = (
+        20  # Min successful downloads before modifier is applied
+    )
+    provider_reranking_max_modifier: int = 50  # Absolute cap on computed modifier (±)
+
     # Release Group Filtering
     release_group_prefer: str = (
         ""  # Comma-separated preferred release groups (e.g. "SubsPlease,Erai-raws")

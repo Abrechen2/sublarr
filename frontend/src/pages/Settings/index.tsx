@@ -114,6 +114,15 @@ const FIELDS: FieldConfig[] = [
     advanced: true },
   { key: 'hi_removal_enabled', label: 'Remove Hearing Impaired Tags', type: 'toggle', tab: 'Translation',
     description: 'Entfernt [Geräuschbeschreibungen] und (Sprechertags) aus Untertiteln.' },
+  // Automation — Provider Re-ranking
+  { key: 'provider_reranking_enabled', label: 'Auto Re-ranking', type: 'toggle', tab: 'Automation',
+    description: 'Provider-Score-Modifier automatisch aus Download-History berechnen. Gute Provider bekommen Bonus, schlechte Penalty.' },
+  { key: 'provider_reranking_min_downloads', label: 'Min Downloads (for re-ranking)', type: 'number', placeholder: '20', tab: 'Automation',
+    description: 'Mindest-Anzahl erfolgreicher Downloads bevor ein Modifier berechnet wird.',
+    advanced: true },
+  { key: 'provider_reranking_max_modifier', label: 'Max Modifier (±pts)', type: 'number', placeholder: '50', tab: 'Automation',
+    description: 'Maximaler absoluter Score-Modifier der durch Re-ranking vergeben wird.',
+    advanced: true },
   // Automation — Upgrade
   { key: 'upgrade_enabled', label: 'Upgrade Enabled', type: 'toggle', tab: 'Automation',
     description: 'Automatisch bessere Untertitel suchen wenn Score-Schwellenwert nicht erreicht.' },
@@ -1073,6 +1082,11 @@ function SettingsPageInner() {
               <SettingsCard title="Webhook-Aktionen"
                 description="Was passiert automatisch nach Sonarr/Radarr Downloads">
                 {['webhook_auto_scan','webhook_auto_search','webhook_auto_translate']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Provider Re-ranking"
+                description="Score-Modifier automatisch aus Download-History berechnen">
+                {['provider_reranking_enabled','provider_reranking_min_downloads','provider_reranking_max_modifier']
                   .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
               </SettingsCard>
               <SettingsCard title="Upgrade-Einstellungen"
