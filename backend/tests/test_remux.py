@@ -167,12 +167,15 @@ def test_remove_subtitle_stream_mkv_success(tmp_path):
         patch("remux._verify"),
         patch("remux._make_backup", return_value=video + ".bak"),
         patch("remux._detect_backend", return_value="mkvmerge"),
+        patch("remux._which", return_value=True),
         patch("os.replace"),
     ):
         bak = remove_subtitle_stream(video, stream_index=2, subtitle_track_index=0)
 
     assert bak == video + ".bak"
     mock_remux.assert_called_once()
+    # stream_index=2 (global TID) must be passed to mkvmerge, not subtitle_track_index=0
+    assert mock_remux.call_args[0][1] == 2
 
 
 def test_remove_subtitle_stream_ffmpeg_success(tmp_path):
@@ -210,7 +213,28 @@ def test_remove_subtitle_stream_cleans_temp_on_error(tmp_path):
     assert len(tmp_files) == 0
 
 
-def test_remove_subtitle_stream_no_backend_raises(tmp_path):
+def test_remove_subtitle_stream_fallback_to_ffmpeg_when_mkvmerge_missing(tmp_path):
+    """When mkvmerge is not found, the engine falls back to ffmpeg for MKV files."""
+    video = str(tmp_path / "show.mkv")
+    with open(video, "wb") as f:
+        f.write(b"x" * 2000)
+
+    with (
+        patch("remux._detect_backend", return_value="mkvmerge"),
+        patch("remux._which", return_value=False),
+        patch("remux._remux_ffmpeg") as mock_ffmpeg,
+        patch("remux._verify"),
+        patch("remux._make_backup", return_value=video + ".bak"),
+        patch("os.replace"),
+    ):
+        bak = remove_subtitle_stream(video, stream_index=2, subtitle_track_index=0)
+
+    assert bak == video + ".bak"
+    mock_ffmpeg.assert_called_once()
+
+
+def test_remove_subtitle_stream_ffmpeg_not_found_raises(tmp_path):
+    """When both mkvmerge and ffmpeg are missing, raise RemuxError."""
     video = str(tmp_path / "show.mkv")
     with open(video, "wb") as f:
         f.write(b"x" * 1000)
@@ -218,7 +242,8 @@ def test_remove_subtitle_stream_no_backend_raises(tmp_path):
     with (
         patch("remux._detect_backend", return_value="mkvmerge"),
         patch("remux._which", return_value=False),
-        pytest.raises(RemuxError, match="mkvmerge not found"),
+        patch("remux._remux_ffmpeg", side_effect=RemuxError("ffmpeg not found")),
+        pytest.raises(RemuxError, match="ffmpeg not found"),
     ):
         remove_subtitle_stream(video, stream_index=0, subtitle_track_index=0)
 
