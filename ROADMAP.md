@@ -91,7 +91,7 @@ Goals: Make Sublarr smarter about what to search for and what to accept.
 - ✅ Duplicate Detection — skip downloads when SHA-256 matches existing sub in same directory; stale hash entries auto-cleaned; `SUBLARR_DEDUP_ON_DOWNLOAD` toggle; hash registered on every successful write
 - ✅ Smart Episode Matching — multi-episode files (`S01E01E02`) parsed to full episode list; OVA/Special/SP detection via guessit + filename regex; `release_group`, `source`, `resolution`, `absolute_episode` propagated to `VideoQuery`
 - ✅ Video Hash Pre-Compute — `file_hash` computed once in `build_query_from_wanted()` and shared across all providers (no redundant file reads per provider)
-- Release Group Filtering — include/exclude subtitle results by release group, codec, or source tag
+- ✅ Release Group Filtering — include/exclude subtitle results by release group, codec, or source tag; score bonus for preferred groups; release metadata auto-extracted from filename via guessit
 - Provider Result Re-ranking — re-ranking based on download history
 - Subtitle Upgrade Scheduler — periodic re-check for higher-quality subs (configurable lookback window)
 - Translation Quality Dashboard — per-series quality trend charts in Statistics page

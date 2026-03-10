@@ -368,6 +368,34 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
                     _abs_err,
                 )
 
+    # Enrich query with release metadata parsed from the video filename.
+    # parse_media_file uses guessit to extract release_group, source, resolution,
+    # and video_codec — these feed into provider scoring (release_group: +14 pts).
+    # Runs always (not just fallback) so Sonarr/Radarr metadata path also benefits.
+    if not query.release_group:
+        try:
+            from standalone.parser import parse_media_file
+
+            file_meta = parse_media_file(wanted_item["file_path"])
+            if file_meta.get("release_group"):
+                query.release_group = file_meta["release_group"]
+            if not query.source and file_meta.get("source"):
+                query.source = file_meta["source"]
+            if not query.resolution and file_meta.get("resolution"):
+                query.resolution = file_meta["resolution"]
+            if not query.video_codec and file_meta.get("video_codec"):
+                query.video_codec = file_meta["video_codec"]
+            if query.release_group:
+                logger.debug(
+                    "Wanted %d: release metadata — group=%r source=%r res=%r",
+                    wanted_item["id"],
+                    query.release_group,
+                    query.source,
+                    query.resolution,
+                )
+        except Exception as _rg_err:
+            logger.debug("Failed to parse release metadata from filename: %s", _rg_err)
+
     # Pre-compute video file hash for hash-based provider matching (e.g. OpenSubtitles, Napisy24).
     # Computed once here so all providers share the same cached value via query.file_hash.
     if not query.file_hash and query.file_path and os.path.isfile(query.file_path):

@@ -161,6 +161,14 @@ const FIELDS: FieldConfig[] = [
   { key: 'wanted_max_search_attempts', label: 'Max Search Attempts', type: 'number', placeholder: '3', tab: 'Wanted',
     description: 'Nach dieser Anzahl fehlgeschlagener Versuche wird ein Eintrag aufgegeben.',
     advanced: true },
+  // Release Group Filtering
+  { key: 'release_group_prefer', label: 'Preferred Release Groups', type: 'text', placeholder: 'SubsPlease,Erai-raws', tab: 'Wanted',
+    description: 'Komma-getrennte Release-Gruppen die bevorzugt werden (Score-Bonus). Leer = deaktiviert.' },
+  { key: 'release_group_exclude', label: 'Blocked Release Groups', type: 'text', placeholder: 'HorribleSubs,CoalGirls', tab: 'Wanted',
+    description: 'Komma-getrennte Release-Gruppen die aus Suchergebnissen ausgeschlossen werden.' },
+  { key: 'release_group_prefer_bonus', label: 'Prefer Bonus (score pts)', type: 'number', placeholder: '20', tab: 'Wanted',
+    description: 'Score-Bonus für Ergebnisse die einer bevorzugten Gruppe entsprechen.',
+    advanced: true },
   // Sonarr
   { key: 'sonarr_url', label: 'Sonarr URL', type: 'text', placeholder: 'http://localhost:8989', tab: 'Sonarr',
     description: 'URL der Sonarr-Instanz inkl. Port. Keine abschließenden Slashes.' },
@@ -1088,6 +1096,11 @@ function SettingsPageInner() {
               <SettingsCard title="Automatische Verarbeitung"
                 description="Was nach einem Scan automatisch passiert">
                 {['wanted_auto_extract','wanted_auto_translate','wanted_max_search_attempts']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Release Group Filter"
+                description="Provider-Suchergebnisse nach Release-Gruppe filtern und priorisieren">
+                {['release_group_prefer','release_group_exclude','release_group_prefer_bonus']
                   .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
               </SettingsCard>
             </div>
