@@ -916,18 +916,21 @@ class ProviderManager:
         from config import get_settings
 
         settings = get_settings()
-        _exclude = [g.strip().lower() for g in settings.release_group_exclude.split(",") if g.strip()]
+        _exclude = [
+            g.strip().lower() for g in settings.release_group_exclude.split(",") if g.strip()
+        ]
         _prefer = [g.strip().lower() for g in settings.release_group_prefer.split(",") if g.strip()]
 
         if _exclude:
             before = len(all_results)
             all_results = [
-                r for r in all_results
-                if not any(g in r.release_info.lower() for g in _exclude)
+                r for r in all_results if not any(g in r.release_info.lower() for g in _exclude)
             ]
             filtered = before - len(all_results)
             if filtered:
-                logger.debug("Release group filter: excluded %d result(s) matching %s", filtered, _exclude)
+                logger.debug(
+                    "Release group filter: excluded %d result(s) matching %s", filtered, _exclude
+                )
 
         if _prefer:
             bonus = settings.release_group_prefer_bonus

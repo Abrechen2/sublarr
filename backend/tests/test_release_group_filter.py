@@ -48,10 +48,7 @@ def _apply_filters(results, settings):
     _prefer = [g.strip().lower() for g in settings.release_group_prefer.split(",") if g.strip()]
 
     if _exclude:
-        results = [
-            r for r in results
-            if not any(g in r.release_info.lower() for g in _exclude)
-        ]
+        results = [r for r in results if not any(g in r.release_info.lower() for g in _exclude)]
 
     if _prefer:
         bonus = settings.release_group_prefer_bonus
