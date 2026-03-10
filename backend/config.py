@@ -131,6 +131,11 @@ class Settings(BaseSettings):
     wanted_max_search_attempts: int = 3
     use_embedded_subs: bool = True  # Check embedded subtitle streams in MKV files
 
+    # Release Group Filtering
+    release_group_prefer: str = ""  # Comma-separated preferred release groups (e.g. "SubsPlease,Erai-raws")
+    release_group_exclude: str = ""  # Comma-separated blocked release groups (e.g. "HorribleSubs")
+    release_group_prefer_bonus: int = 20  # Score bonus for preferred release group matches
+
     # Upgrade System
     upgrade_enabled: bool = True
     upgrade_min_score_delta: int = 50

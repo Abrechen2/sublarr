@@ -912,6 +912,30 @@ class ProviderManager:
 
         all_results = [r for r in all_results if not is_blacklisted(r.provider_name, r.subtitle_id)]
 
+        # Release group filtering: exclude blocked groups, boost preferred groups
+        from config import get_settings
+
+        settings = get_settings()
+        _exclude = [g.strip().lower() for g in settings.release_group_exclude.split(",") if g.strip()]
+        _prefer = [g.strip().lower() for g in settings.release_group_prefer.split(",") if g.strip()]
+
+        if _exclude:
+            before = len(all_results)
+            all_results = [
+                r for r in all_results
+                if not any(g in r.release_info.lower() for g in _exclude)
+            ]
+            filtered = before - len(all_results)
+            if filtered:
+                logger.debug("Release group filter: excluded %d result(s) matching %s", filtered, _exclude)
+
+        if _prefer:
+            bonus = settings.release_group_prefer_bonus
+            for r in all_results:
+                if any(g in r.release_info.lower() for g in _prefer):
+                    r.score += bonus
+                    r.matches.add("release_group_prefer")
+
         # Sort by format preference (ASS first), then by score descending
         all_results.sort(
             key=lambda r: (
