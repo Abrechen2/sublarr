@@ -14,13 +14,15 @@ Backend (Flask + Flask-SocketIO)
     +-- SQLite Database (WAL mode)
     +-- Provider System (AnimeTosho, Jimaku, OpenSubtitles, SubDL)
     +-- Translation Pipeline (Ollama LLM)
-    +-- Scheduler (Wanted Scanner, Upgrades)
+    +-- Remux Engine (mkvmerge / ffmpeg stream removal)
+    +-- Scheduler (Wanted Scanner, Upgrades, Backup Cleanup)
     |
     v
 External Services
     +-- Sonarr/Radarr (webhooks, API)
     +-- Jellyfin/Emby (library refresh)
     +-- Ollama (LLM translation)
+    +-- mkvmerge / ffmpeg (stream remux, video tools)
 ```
 
 ## Backend Architecture
@@ -185,6 +187,33 @@ The translation system uses a cascading priority system to minimize unnecessary 
 - WebSocket progress updates during batch search
 - Parallel processing with configurable concurrency
 - Dry-run mode for testing queries
+
+### Remux Engine (remux/)
+
+**Purpose:** Safely remove embedded subtitle streams from video containers without re-encoding.
+
+**Workflow**
+1. Probe container with ffprobe to confirm stream exists
+2. Select backend: mkvmerge for MKV/MK3D, ffmpeg for MP4/AVI and other containers
+3. Remux to a temp file in the same directory (same filesystem for atomic swap)
+4. Verify: duration ±2s, video/audio stream counts unchanged, subtitle count exactly -1, file size ≥50% of original
+5. Move original to trash directory: `<trash_dir>/trash/<YYYY-MM-DD>/<file>.<ts>.bak`
+6. Atomic replace: `os.replace(tmp, original)`
+
+**Backend selection**
+- mkvmerge (preferred for MKV) — uses `--subtitle-tracks !<global_TID>` flag; global Track ID matches ffprobe `stream_index`
+- ffmpeg fallback — used when mkvmerge is unavailable or for non-MKV containers; uses `-map 0 -map -0:<stream_index> -c copy`
+
+**Backup strategy**
+- Default trash path: `<media_root>/.sublarr/trash/<date>/` (relative to media root)
+- Absolute paths supported directly
+- CoW reflink attempted first on Btrfs/XFS (near-instant, zero-cost); falls back to `shutil.copy2`
+- Falls back to sibling `.bak` if trash dir cannot be created (permission error)
+
+**Async job system**
+- `POST /api/v1/library/episodes/<ep_id>/tracks/<index>/remove-from-container` → background job
+- Jobs tracked in-memory with `ThreadPoolExecutor`
+- Real-time status via Socket.IO `remux_job_update` events
 
 ### API Endpoints
 
@@ -465,14 +494,14 @@ Frontend updates UI, shows summary
 ### Multi-Stage Build
 
 **Stage 1: Frontend Build**
-- Base: `node:20-alpine`
+- Base: `node:22-alpine`
 - Copy `frontend/package*.json`, install dependencies
 - Copy `frontend/src`, build with Vite
 - Output: Optimized static files in `dist/`
 
 **Stage 2: Backend Runtime**
-- Base: `python:3.11-slim`
-- Install system dependencies: ffmpeg, unrar-free, mediainfo
+- Base: `python:3.12-slim`
+- Install system dependencies: ffmpeg, mkvtoolnix, curl, unrar-free, postgresql-client, tesseract-ocr, hunspell
 - Copy `backend/requirements.txt`, install Python packages
 - Copy backend source code
 - Copy frontend build output from Stage 1

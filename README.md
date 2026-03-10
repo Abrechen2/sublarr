@@ -8,7 +8,7 @@
 
 *arr-compatible · Self-hosted · Open Source · LLM translation (beta)
 
-[![Version](https://img.shields.io/badge/version-0.13.2--beta-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
+[![Version](https://img.shields.io/badge/version-0.19.2--beta-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776ab.svg)](https://www.python.org/)
 [![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
@@ -103,6 +103,7 @@ If Sublarr saves you time, please consider supporting continued development:
 - **Quality fixes** — one-click overlap fix, timing normalization, line merge/split, spell-check
 - **Batch OCR** — extract text from PGS/VobSub image tracks via Tesseract
 - **Whisper fallback** — generate subtitles from audio when no text subs exist
+- **Stream removal** — safely remove embedded subtitle streams from video containers without re-encoding; mkvmerge for MKV/MK3D, ffmpeg for MP4/AVI; ffprobe verification after each remux; original moved to trash folder with configurable retention; one-click undo/restore
 
 ### 🖥️ Wanted & Automation
 - **Wanted scanner** — detects all episodes/movies missing subtitles in your Jellyfin/Emby library
@@ -147,7 +148,7 @@ Open **http://localhost:5765** — that's it.
 ```yaml
 services:
   sublarr:
-    image: ghcr.io/abrechen2/sublarr:0.13.2-beta
+    image: ghcr.io/abrechen2/sublarr:0.19.2-beta
     container_name: sublarr
     ports:
       - "5765:5765"
@@ -170,7 +171,7 @@ The image runs as a non-root user with `cap_drop: ALL` and no new privileges. A 
 ```yaml
 services:
   sublarr:
-    image: ghcr.io/abrechen2/sublarr:0.13.2-beta
+    image: ghcr.io/abrechen2/sublarr:0.19.2-beta
     container_name: sublarr
     ports:
       - "5765:5765"

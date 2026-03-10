@@ -306,6 +306,21 @@ Env-only — infrastructure-level backend selection. Most deployments use the SQ
 
 ---
 
+## Stream Removal / Remux
+
+Configure in **Settings → Automation → Stream Removal**.
+
+| Variable | Default | UI | Description |
+|---|---|:---:|---|
+| `SUBLARR_REMUX_TRASH_DIR` | `.sublarr` | ✅ | Relative (to media root) or absolute path for the remux backup trash folder. Backups land in `<trash_dir>/trash/<YYYY-MM-DD>/<file>.<ts>.bak` |
+| `SUBLARR_REMUX_BACKUP_RETENTION_DAYS` | `7` | ✅ | Days to keep remux backups. `0` = keep forever |
+| `SUBLARR_REMUX_USE_REFLINK` | `true` | ✅ | Attempt CoW reflink for zero-cost backups on Btrfs/XFS before falling back to a regular copy |
+| `SUBLARR_REMUX_ARR_PAUSE_ENABLED` | `true` | ✅ | Pause Sonarr/Radarr folder monitoring during the remux operation |
+
+**Backend selection:** mkvmerge (MKV/MK3D) or ffmpeg (MP4, AVI, all others) — auto-detected by file extension. If mkvmerge is not available, falls back to ffmpeg with a warning (install `mkvtoolnix` for better MKV support). mkvtoolnix is included in the official Docker image.
+
+---
+
 ## Sidecar Auto-Cleanup
 
 Automatically delete extra-language sidecar files after batch-extract to keep the media directory tidy.

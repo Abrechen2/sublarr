@@ -18,7 +18,7 @@ Create a `docker-compose.yml`:
 ```yaml
 services:
   sublarr:
-    image: ghcr.io/abrechen2/sublarr:0.13.2-beta
+    image: ghcr.io/abrechen2/sublarr:0.19.2-beta
     container_name: sublarr
     ports:
       - "5765:5765"
@@ -340,6 +340,30 @@ The Tasks page (`/tasks` in the UI) gives you visibility into all background sch
 - **Trigger** — run a task immediately outside its schedule
 
 Available tasks include the wanted scanner, wanted search, upgrade scanner, cache cleanup, and backup scheduler.
+
+### Stream Removal (Remux)
+
+Remove an embedded subtitle stream from a video file directly from the UI — without re-encoding the video.
+
+**How to use:**
+1. Open a series in the **Library** and navigate to an episode
+2. In the **Tracks** panel, find the subtitle track you want to remove
+3. Click **Entfernen** — a confirmation button appears (red "Sicher?")
+4. Click again to confirm — a background job starts immediately
+5. Progress is shown in real time via WebSocket
+6. After completion, a **Rückgängig** button appears — click it to restore the original from the backup
+
+**What happens internally:**
+- The original video is backed up to `<media_root>/.sublarr/trash/<date>/<file>.<ts>.bak` before any changes
+- mkvmerge is used for MKV files (preferred), ffmpeg as fallback for all other containers
+- After remux, the result is verified (duration, stream counts, file size) before the swap
+- The backup is automatically cleaned up after the configured retention period (default: 7 days)
+
+**Configure in Settings → Automation → Stream Removal:**
+- **Trash folder** (`remux_trash_dir`): path for backup files (default `.sublarr`)
+- **Retention days** (`remux_backup_retention_days`): how long to keep backups (default 7, `0` = forever)
+
+> **Note:** mkvtoolnix (mkvmerge) is included in the official Docker image. Without it, the engine automatically falls back to ffmpeg for MKV files.
 
 ### Sidecar Auto-Cleanup
 
