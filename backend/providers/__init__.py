@@ -1273,6 +1273,24 @@ class ProviderManager:
             result.language,
             result.score,
         )
+
+        # Fire subtitle_downloaded event for post-processing hooks
+        try:
+            from events import emit_event
+
+            emit_event(
+                "subtitle_downloaded",
+                {
+                    "subtitle_path": output_path,
+                    "provider_name": result.provider_name or "",
+                    "language": result.language or "",
+                    "format": result.format.value if result.format else "",
+                    "score": result.score or 0,
+                },
+            )
+        except Exception as _ev_err:
+            logger.debug("subtitle_downloaded event skipped: %s", _ev_err)
+
         return output_path
 
     def get_provider_status(self) -> list[dict]:
