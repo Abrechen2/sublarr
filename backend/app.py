@@ -522,6 +522,15 @@ def _start_schedulers(settings, app=None):
         except Exception as e:
             logging.getLogger(__name__).warning("Cleanup scheduler start failed: %s", e)
 
+    # Start upgrade candidate scheduler
+    if app is not None:
+        try:
+            from upgrade_scheduler import start_upgrade_scheduler
+
+            start_upgrade_scheduler(app)
+        except Exception as e:
+            logging.getLogger(__name__).warning("Upgrade scheduler start failed: %s", e)
+
     # Start AniDB absolute episode sync scheduler (weekly)
     if app is not None:
         try:

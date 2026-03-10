@@ -134,6 +134,8 @@ const FIELDS: FieldConfig[] = [
   { key: 'upgrade_window_days', label: 'Upgrade Window (days)', type: 'number', placeholder: '7', tab: 'Automation',
     description: 'Upgrade-Versuche nur innerhalb dieses Zeitfensters nach dem Release.',
     advanced: true },
+  { key: 'upgrade_scan_interval_hours', label: 'Upgrade Scan Interval (hours, 0=disabled)', type: 'number', placeholder: '0', tab: 'Automation',
+    description: 'Wie oft der Upgrade-Scanner nach Kandidaten sucht. 0 = deaktiviert.' },
   // Automation — Webhook
   { key: 'webhook_delay_minutes', label: 'Webhook Delay (minutes)', type: 'number', placeholder: '5', tab: 'Automation',
     description: 'Wartezeit nach Sonarr/Radarr-Webhook bevor die Suche startet.',
@@ -1091,7 +1093,12 @@ function SettingsPageInner() {
               </SettingsCard>
               <SettingsCard title="Upgrade-Einstellungen"
                 description="Automatisches Upgrade auf bessere Untertitel">
-                {['upgrade_enabled','upgrade_prefer_ass','upgrade_min_score_delta','upgrade_window_days','webhook_delay_minutes']
+                {['upgrade_enabled','upgrade_prefer_ass','upgrade_min_score_delta','upgrade_window_days']
+                  .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
+              </SettingsCard>
+              <SettingsCard title="Upgrade-Scanner"
+                description="Periodischer Scan auf Upgrade-Kandidaten (niedrige Scores oder SRT-Subs)">
+                {['upgrade_scan_interval_hours']
                   .map(k => FIELDS.find(f => f.key === k)!).filter(Boolean).map(renderField)}
               </SettingsCard>
               <SettingsCard title="Suchplanung"
