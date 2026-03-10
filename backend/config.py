@@ -197,6 +197,7 @@ class Settings(BaseSettings):
     anti_captcha_api_key: str = ""
 
     # Remux / Stream Removal
+    remux_trash_dir: str = ".sublarr"  # Relative (to media_path) or absolute path for backup trash
     remux_backup_retention_days: int = 7  # 0 = keep forever
     remux_use_reflink: bool = True  # CoW reflink on Btrfs/XFS for zero-cost backups
     remux_arr_pause_enabled: bool = True  # Pause Sonarr/Radarr during remux

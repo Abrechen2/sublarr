@@ -101,6 +101,18 @@ def _media_paths() -> list[str]:
     return paths
 
 
+def _trash_paths() -> list[str]:
+    """Return the resolved trash directory paths (one per media root)."""
+    settings = get_settings()
+    trash_dir = getattr(settings, "remux_trash_dir", ".sublarr")
+    result = []
+    if os.path.isabs(trash_dir):
+        return [os.path.join(trash_dir, "trash")]
+    for media_path in _media_paths():
+        result.append(os.path.join(media_path, trash_dir, "trash"))
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Async job runner
 # ---------------------------------------------------------------------------
@@ -109,6 +121,7 @@ def _media_paths() -> list[str]:
 def _run_remux(job_id: str, video_path: str, stream_index: int, subtitle_track_index: int) -> None:
     settings = get_settings()
     use_reflink = getattr(settings, "remux_use_reflink", True)
+    trash_dir = getattr(settings, "remux_trash_dir", ".sublarr")
     _update_job(job_id, "running")
     _arr_pause(True)
     try:
@@ -117,6 +130,7 @@ def _run_remux(job_id: str, video_path: str, stream_index: int, subtitle_track_i
             stream_index=stream_index,
             subtitle_track_index=subtitle_track_index,
             use_reflink=use_reflink,
+            trash_dir=trash_dir,
         )
         _update_job(job_id, "completed", result={"backup_path": bak_path, "video_path": video_path})
         logger.info("Remux job %s completed — backup: %s", job_id, bak_path)
@@ -196,8 +210,8 @@ def get_remux_job(job_id: str):
 
 @bp.route("/remux/backups", methods=["GET"])
 def list_remux_backups():
-    """List all .bak backup files under watched media directories."""
-    backups = list_backups(_media_paths())
+    """List all .bak backup files in the configured trash directory."""
+    backups = list_backups(_trash_paths())
     return jsonify({"backups": backups, "count": len(backups)}), 200
 
 
@@ -217,7 +231,7 @@ def trigger_backup_cleanup():
 
         cutoff = time.time() - retention_days * 86400
         would_delete = []
-        for bak_path in _iter_bak_files(_media_paths()):
+        for bak_path in _iter_bak_files(_trash_paths()):
             try:
                 if os.path.getmtime(bak_path) < cutoff:
                     would_delete.append(bak_path)
@@ -227,5 +241,5 @@ def trigger_backup_cleanup():
             {"dry_run": True, "would_delete": would_delete, "count": len(would_delete)}
         ), 200
 
-    result = cleanup_old_backups(_media_paths(), retention_days)
+    result = cleanup_old_backups(_trash_paths(), retention_days)
     return jsonify(result), 200

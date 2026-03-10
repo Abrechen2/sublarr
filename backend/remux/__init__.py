@@ -44,15 +44,59 @@ def _try_reflink(src: str, dst: str) -> bool:
         return False
 
 
-def _make_backup(video_path: str, use_reflink: bool) -> str:
-    """Create <video_path>.bak and return the backup path."""
-    bak_path = video_path + ".bak"
-    if use_reflink and _try_reflink(video_path, bak_path):
-        logger.info("Remux: reflink backup created: %s", bak_path)
-    else:
+def _resolve_trash_dir(video_path: str, trash_dir_setting: str) -> str:
+    """Return the absolute path to the trash directory for this video.
+
+    If `trash_dir_setting` is absolute, use it directly.
+    Otherwise treat it as relative to the media root (first watched-folder root
+    that is a parent of `video_path`, or the video's own directory).
+    """
+    if os.path.isabs(trash_dir_setting):
+        return trash_dir_setting
+
+    # Find longest watched-folder prefix
+    try:
+        from config import get_settings
+
+        settings = get_settings()
+        media_root = getattr(settings, "media_path", "") or os.path.dirname(video_path)
+    except Exception:
+        media_root = os.path.dirname(video_path)
+
+    return os.path.join(media_root, trash_dir_setting)
+
+
+def _make_backup(video_path: str, use_reflink: bool, trash_dir: str = "") -> str:
+    """Move original to the trash directory and return the backup path.
+
+    Layout: <trash_dir>/trash/<YYYY-MM-DD>/<basename>.<timestamp>.bak
+
+    Falls back to a sibling .bak if the trash directory cannot be created.
+    """
+    import time as _time
+
+    basename = os.path.basename(video_path)
+    date_str = __import__("datetime").date.today().isoformat()
+    timestamp = int(_time.time())
+
+    resolved = _resolve_trash_dir(video_path, trash_dir or ".sublarr")
+    dest_dir = os.path.join(resolved, "trash", date_str)
+
+    try:
+        os.makedirs(dest_dir, exist_ok=True)
+        bak_path = os.path.join(dest_dir, f"{basename}.{timestamp}.bak")
+        if use_reflink and _try_reflink(video_path, bak_path):
+            logger.info("Remux: reflink backup in trash: %s", bak_path)
+        else:
+            shutil.copy2(video_path, bak_path)
+            logger.info("Remux: backup moved to trash: %s", bak_path)
+        return bak_path
+    except OSError as exc:
+        # Fallback: sibling .bak
+        logger.warning("Remux: could not use trash dir (%s), falling back to sibling .bak", exc)
+        bak_path = video_path + ".bak"
         shutil.copy2(video_path, bak_path)
-        logger.info("Remux: regular copy backup created: %s", bak_path)
-    return bak_path
+        return bak_path
 
 
 # ---------------------------------------------------------------------------
@@ -212,6 +256,7 @@ def remove_subtitle_stream(
     stream_index: int,
     subtitle_track_index: int,
     use_reflink: bool = True,
+    trash_dir: str = ".sublarr",
 ) -> str:
     """Remove a subtitle stream from a video container.
 
@@ -225,6 +270,9 @@ def remove_subtitle_stream(
         The 0-based index within the subtitle-only track list (for mkvmerge).
     use_reflink:
         Attempt CoW reflink for the backup copy (Btrfs/XFS).
+    trash_dir:
+        Relative or absolute path for the trash folder (default ".sublarr").
+        Backups land in <trash_dir>/trash/<date>/<file>.<timestamp>.bak.
 
     Returns
     -------
@@ -259,8 +307,8 @@ def remove_subtitle_stream(
 
         _verify(video_path, tmp_path)
 
-        # Atomic swap: original → .bak, temp → original
-        bak_path = _make_backup(video_path, use_reflink)
+        # Atomic swap: original → trash dir, temp → original
+        bak_path = _make_backup(video_path, use_reflink, trash_dir)
         os.replace(tmp_path, video_path)
         logger.info("Remux: complete — backup at %s", bak_path)
         return bak_path
