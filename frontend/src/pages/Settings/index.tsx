@@ -81,8 +81,9 @@ const TABS = NAV_GROUPS.flatMap((g) => g.items)
 export interface FieldConfig {
   key: string
   label: string
-  type: 'text' | 'number' | 'password' | 'toggle' | 'language-select'
+  type: 'text' | 'number' | 'password' | 'toggle' | 'language-select' | 'select'
   placeholder?: string
+  options?: { value: string; label: string }[]
   tab: string
   description?: string
   advanced?: boolean
@@ -114,6 +115,22 @@ const FIELDS: FieldConfig[] = [
     advanced: true },
   { key: 'hi_removal_enabled', label: 'Remove Hearing Impaired Tags', type: 'toggle', tab: 'Translation',
     description: 'Entfernt [Geräuschbeschreibungen] und (Sprechertags) aus Untertiteln.' },
+  { key: 'hi_preference', label: 'Hearing Impaired Preference', type: 'select', tab: 'Translation',
+    description: 'Wie Untertitel mit HI-Tags bei der Provider-Suche behandelt werden.',
+    options: [
+      { value: 'include', label: 'Include (no preference)' },
+      { value: 'prefer', label: 'Prefer HI (+30 score)' },
+      { value: 'exclude', label: 'Exclude HI (−999 penalty)' },
+      { value: 'only', label: 'Only HI (non-HI excluded)' },
+    ] },
+  { key: 'forced_preference', label: 'Forced Subtitle Preference', type: 'select', tab: 'Translation',
+    description: 'Wie Forced-Untertitel (für Fremdsprachen-Szenen) bei der Provider-Suche behandelt werden.',
+    options: [
+      { value: 'include', label: 'Include (no preference)' },
+      { value: 'prefer', label: 'Prefer forced (+30 score)' },
+      { value: 'exclude', label: 'Exclude forced (−999 penalty)' },
+      { value: 'only', label: 'Only forced (non-forced excluded)' },
+    ] },
   // Automation — Provider Re-ranking
   { key: 'provider_reranking_enabled', label: 'Auto Re-ranking', type: 'toggle', tab: 'Automation',
     description: 'Provider-Score-Modifier automatisch aus Download-History berechnen. Gute Provider bekommen Bonus, schlechte Penalty.' },
@@ -693,6 +710,23 @@ function SettingsPageInner() {
             setValues((prev) => ({ ...prev, [field.key]: code, [nameKey]: name }))
           }}
         />
+      ) : field.type === 'select' ? (
+        <select
+          value={values[field.key] ?? field.options?.[0]?.value ?? ''}
+          onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
+          className="px-3 py-2 rounded-md text-sm focus:outline-none"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-primary)',
+            fontSize: '13px',
+            minWidth: '200px',
+          }}
+        >
+          {(field.options ?? []).map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
       ) : (
         <input
           type={field.type}

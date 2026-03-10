@@ -153,6 +153,10 @@ class Settings(BaseSettings):
 
     # Hearing Impaired
     hi_removal_enabled: bool = False
+    hi_preference: str = "include"  # include | prefer | exclude | only
+
+    # Forced Subtitles
+    forced_preference: str = "include"  # include | prefer | exclude | only
 
     # Webhook Automation
     webhook_delay_minutes: int = 5  # Wait time after Sonarr/Radarr webhook
