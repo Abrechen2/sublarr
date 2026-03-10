@@ -1565,6 +1565,11 @@ export async function getRemuxJob(jobId: string): Promise<{ job_id: string; stat
   return data
 }
 
+export async function restoreRemuxBackup(backupPath: string, videoPath: string): Promise<{ restored: string; backup_removed: string }> {
+  const { data } = await api.post('/remux/backups/restore', { backup_path: backupPath, video_path: videoPath })
+  return data
+}
+
 // ─── Subtitle Sidecar Management ─────────────────────────────────────────────
 
 export async function listEpisodeSubtitles(epId: number): Promise<{ subtitles: import('@/lib/types').SidecarSubtitle[]; video_path: string }> {

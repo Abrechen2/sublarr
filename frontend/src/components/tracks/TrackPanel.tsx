@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Loader2, Download, FileText, AlertTriangle, Trash2 } from 'lucide-react'
-import { listEpisodeTracks, extractTrack, convertSubtitle, removeTrackFromContainer, getRemuxJob } from '@/api/client'
+import { listEpisodeTracks, extractTrack, convertSubtitle, removeTrackFromContainer, getRemuxJob, restoreRemuxBackup } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 import type { Track, EpisodeTracksResponse } from '@/lib/types'
 
@@ -22,6 +22,8 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
   const [converting, setConverting] = useState(false)
   const [removing, setRemoving] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
+  const [remuxBackup, setRemuxBackup] = useState<{ backupPath: string; videoPath: string } | null>(null)
+  const [restoring, setRestoring] = useState(false)
   const isSubtitle = track.codec_type === 'subtitle'
   const isImageBased = track.codec === 'hdmv_pgs_subtitle' || track.codec === 'dvd_subtitle'
   const { bg, text } = codecColor(track.codec_type, track.codec)
@@ -59,6 +61,9 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
         if (job.status === 'completed') {
           toast('Stream aus Container entfernt — Backup erstellt')
           setRemoving(false)
+          if (job.result?.backup_path && job.result?.video_path) {
+            setRemuxBackup({ backupPath: job.result.backup_path, videoPath: job.result.video_path })
+          }
           return
         }
         if (job.status === 'failed') {
@@ -217,6 +222,30 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
             {isSubtitle && (
               removing ? (
                 <Loader2 size={10} className="animate-spin ml-1" style={{ color: 'var(--text-muted)' }} />
+              ) : remuxBackup ? (
+                restoring ? (
+                  <Loader2 size={10} className="animate-spin ml-1" style={{ color: 'var(--text-muted)' }} />
+                ) : (
+                  <button
+                    onClick={() => {
+                      setRestoring(true)
+                      restoreRemuxBackup(remuxBackup.backupPath, remuxBackup.videoPath)
+                        .then(() => { toast('Stream wiederhergestellt'); setRemuxBackup(null) })
+                        .catch(() => toast('Wiederherstellung fehlgeschlagen', 'error'))
+                        .finally(() => setRestoring(false))
+                    }}
+                    className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ml-1"
+                    style={{
+                      backgroundColor: 'rgba(245,158,11,0.12)',
+                      color: 'var(--warning)',
+                      border: '1px solid rgba(245,158,11,0.3)',
+                    }}
+                    title="Stream aus Backup wiederherstellen (Remux rückgängig machen)"
+                  >
+                    <Trash2 size={10} />
+                    Rückgängig
+                  </button>
+                )
               ) : (
                 <button
                   onClick={() => void handleRemoveFromContainer()}

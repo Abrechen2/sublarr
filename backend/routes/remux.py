@@ -32,6 +32,7 @@ from ass_utils import get_media_streams
 from config import get_settings, map_path
 from remux import RemuxError, remove_subtitle_stream
 from remux.backup_cleanup import cleanup_old_backups, list_backups
+from security_utils import is_safe_path
 
 bp = Blueprint("remux", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -243,3 +244,44 @@ def trigger_backup_cleanup():
 
     result = cleanup_old_backups(_trash_paths(), retention_days)
     return jsonify(result), 200
+
+
+@bp.route("/remux/backups/restore", methods=["POST"])
+def restore_backup():
+    """Restore a backup file to its original video path.
+
+    Body: { "backup_path": "/path/to/trash/...", "video_path": "/path/to/original.mkv" }
+
+    The original video (the remuxed file) is deleted and the backup is moved back.
+    Both paths are validated against the configured media/trash directories.
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    backup_path = body.get("backup_path", "")
+    video_path = body.get("video_path", "")
+
+    if not backup_path or not video_path:
+        return jsonify({"error": "backup_path and video_path are required"}), 400
+
+    # Security: backup must be inside a known trash dir
+    trash_dirs = _trash_paths()
+    if not any(is_safe_path(td, backup_path) for td in trash_dirs):
+        return jsonify({"error": "backup_path is outside the configured trash directory"}), 403
+
+    # Security: restore target must be inside a known media path
+    media_dirs = _media_paths()
+    if not any(is_safe_path(md, video_path) for md in media_dirs):
+        return jsonify({"error": "video_path is outside the configured media directory"}), 403
+
+    if not os.path.exists(backup_path):
+        return jsonify({"error": "Backup file not found: " + backup_path}), 404
+    if not os.path.exists(video_path):
+        return jsonify({"error": "Video file not found (already deleted?): " + video_path}), 404
+
+    try:
+        # Replace the remuxed file with the backup (atomic on same filesystem)
+        os.replace(backup_path, video_path)
+        logger.info("Remux restore: %s → %s", backup_path, video_path)
+        return jsonify({"restored": video_path, "backup_removed": backup_path}), 200
+    except OSError as exc:
+        logger.error("Remux restore failed: %s", exc)
+        return jsonify({"error": f"Restore failed: {exc}"}), 500

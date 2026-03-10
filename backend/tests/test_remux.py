@@ -275,3 +275,40 @@ def test_cleanup_handles_missing_dir():
     result = cleanup_old_backups(["/nonexistent/path/xyz"], retention_days=7)
     assert result["deleted"] == []
     assert result["errors"] == []
+
+
+# ---------------------------------------------------------------------------
+# _make_backup — trash directory layout
+# ---------------------------------------------------------------------------
+
+
+def test_make_backup_creates_trash_dir(tmp_path):
+    from remux import _make_backup
+
+    video = str(tmp_path / "show.mkv")
+    trash_root = str(tmp_path / ".sublarr")
+    with open(video, "wb") as f:
+        f.write(b"x" * 500)
+
+    bak_path = _make_backup(video, use_reflink=False, trash_dir=trash_root)
+
+    assert os.path.exists(bak_path)
+    assert ".sublarr" in bak_path or "trash" in bak_path
+    assert bak_path.endswith(".bak")
+
+
+def test_make_backup_fallback_on_permission_error(tmp_path):
+    """When trash dir cannot be created, falls back to sibling .bak."""
+    from remux import _make_backup
+
+    video = str(tmp_path / "show.mkv")
+    with open(video, "wb") as f:
+        f.write(b"x" * 100)
+
+    # Simulate os.makedirs failing with a permission error
+    with patch("os.makedirs", side_effect=OSError("Permission denied")):
+        bak_path = _make_backup(video, use_reflink=False, trash_dir=".sublarr")
+
+    # Fallback: sibling .bak
+    assert bak_path == video + ".bak"
+    assert os.path.exists(bak_path)
