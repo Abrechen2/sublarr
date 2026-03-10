@@ -130,6 +130,7 @@ class Settings(BaseSettings):
     wanted_auto_translate: bool = False  # Auto-translate after auto-extract during wanted scan
     wanted_max_search_attempts: int = 3
     use_embedded_subs: bool = True  # Check embedded subtitle streams in MKV files
+    scan_yield_ms: int = 0  # Sleep between series/movies (ms) to yield CPU to API threads
 
     # Provider Re-ranking
     provider_reranking_enabled: bool = False  # Auto-adjust score modifiers from download history

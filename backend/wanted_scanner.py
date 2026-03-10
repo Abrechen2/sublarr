@@ -19,7 +19,7 @@ from datetime import UTC, datetime
 from ass_utils import get_media_streams, has_target_language_audio, has_target_language_stream
 from config import get_settings, map_path
 from db.profiles import get_movie_profile, get_series_profile
-from db.wanted import upsert_wanted_item
+from db.wanted import batch_upsert_context, upsert_wanted_item
 from translator import detect_existing_target_for_lang, get_output_path_for_lang
 from upgrade_scorer import score_existing_subtitle
 
@@ -484,19 +484,23 @@ class WantedScanner:
         if self._socketio:
             self._socketio.emit("wanted_scan_progress", dict(self._progress))
 
+        yield_ms = getattr(settings, "scan_yield_ms", 0)
         for idx, series in enumerate(series_list, 1):
             series_id = series.get("id")
             if not series_id:
                 continue
-            a, u, paths = self._scan_sonarr_series(
-                sonarr, series_id, settings, series, instance_name
-            )
+            with batch_upsert_context():
+                a, u, paths = self._scan_sonarr_series(
+                    sonarr, series_id, settings, series, instance_name
+                )
             total_added += a
             total_updated += u
             all_paths.update(paths)
             self._progress.update({"current": idx, "added": total_added, "updated": total_updated})
             if self._socketio:
                 self._socketio.emit("wanted_scan_progress", dict(self._progress))
+            if yield_ms > 0:
+                time.sleep(yield_ms / 1000.0)
 
         return total_added, total_updated, all_paths
 
@@ -747,14 +751,20 @@ class WantedScanner:
         if self._socketio:
             self._socketio.emit("wanted_scan_progress", dict(self._progress))
 
+        yield_ms = getattr(settings, "scan_yield_ms", 0)
         for idx, movie in enumerate(movies, 1):
-            added, updated, paths = self._scan_radarr_movie(radarr, movie, settings, instance_name)
+            with batch_upsert_context():
+                added, updated, paths = self._scan_radarr_movie(
+                    radarr, movie, settings, instance_name
+                )
             total_added += added
             total_updated += updated
             all_paths.update(paths)
             self._progress.update({"current": idx, "added": total_added, "updated": total_updated})
             if self._socketio:
                 self._socketio.emit("wanted_scan_progress", dict(self._progress))
+            if yield_ms > 0:
+                time.sleep(yield_ms / 1000.0)
 
         return total_added, total_updated, all_paths
 
