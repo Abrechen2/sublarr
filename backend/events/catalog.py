@@ -46,6 +46,7 @@ EVENT_CATALOG: dict[str, dict] = {
         "label": "Subtitle Downloaded",
         "description": "A subtitle file was successfully downloaded from a provider.",
         "payload_keys": [
+            "subtitle_path",
             "provider_name",
             "language",
             "format",
