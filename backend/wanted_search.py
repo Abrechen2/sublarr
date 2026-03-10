@@ -86,7 +86,15 @@ def _parse_filename_for_metadata(file_path: str) -> dict:
                 "title": parsed["title"] if parsed["type"] == "movie" else "",
                 "season": parsed.get("season"),
                 "episode": parsed.get("episode"),
+                "episodes": parsed.get("episodes", []),
+                "absolute_episode": parsed.get("absolute_episode"),
                 "year": parsed.get("year"),
+                "release_group": parsed.get("release_group", ""),
+                "source": parsed.get("source", ""),
+                "resolution": parsed.get("resolution", ""),
+                "is_anime": parsed.get("is_anime", False),
+                "is_special": parsed.get("is_special", False),
+                "is_ova": parsed.get("is_ova", False),
             }
     except ImportError:
         pass  # standalone.parser not available, fall through to regex
@@ -289,16 +297,34 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
             query.season = parsed["season"]
         if query.episode is None and parsed["episode"] is not None:
             query.episode = parsed["episode"]
+        if not query.episodes and parsed.get("episodes"):
+            query.episodes = parsed["episodes"]
+        if query.absolute_episode is None and parsed.get("absolute_episode") is not None:
+            query.absolute_episode = parsed["absolute_episode"]
         if query.year is None and parsed["year"] is not None:
             query.year = parsed["year"]
+        if not query.release_group and parsed.get("release_group"):
+            query.release_group = parsed["release_group"]
+        if not query.source and parsed.get("source"):
+            query.source = parsed["source"]
+        if not query.resolution and parsed.get("resolution"):
+            query.resolution = parsed["resolution"]
+        if parsed.get("is_special"):
+            query.is_special = True
+        if parsed.get("is_ova"):
+            query.is_ova = True
 
         logger.debug(
-            "Parsed from filename: series=%s, title=%s, S%02dE%02d, year=%s",
+            "Parsed from filename: series=%s, title=%s, S%02dE%02d, year=%s, "
+            "episodes=%s, special=%s, ova=%s",
             query.series_title or "N/A",
             query.title or "N/A",
             query.season or 0,
             query.episode or 0,
             query.year or "N/A",
+            query.episodes or [],
+            query.is_special,
+            query.is_ova,
         )
 
     # Resolve AniDB absolute episode if the series has absolute_order enabled.
@@ -345,28 +371,42 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
     # Enrich query with release metadata parsed from the video filename.
     # parse_media_file uses guessit to extract release_group, source, resolution,
     # and video_codec — these feed into provider scoring (release_group: +14 pts).
-    try:
-        from standalone.parser import parse_media_file
+    # Runs always (not just fallback) so Sonarr/Radarr metadata path also benefits.
+    if not query.release_group:
+        try:
+            from standalone.parser import parse_media_file
 
-        file_meta = parse_media_file(wanted_item["file_path"])
-        if file_meta.get("release_group"):
-            query.release_group = file_meta["release_group"]
-        if file_meta.get("source"):
-            query.source = file_meta["source"]
-        if file_meta.get("resolution"):
-            query.resolution = file_meta["resolution"]
-        if file_meta.get("video_codec"):
-            query.video_codec = file_meta["video_codec"]
-        if query.release_group:
-            logger.debug(
-                "Wanted %d: release metadata — group=%r source=%r res=%r",
-                wanted_item["id"],
-                query.release_group,
-                query.source,
-                query.resolution,
-            )
-    except Exception as _rg_err:
-        logger.debug("Failed to parse release metadata from filename: %s", _rg_err)
+            file_meta = parse_media_file(wanted_item["file_path"])
+            if file_meta.get("release_group"):
+                query.release_group = file_meta["release_group"]
+            if not query.source and file_meta.get("source"):
+                query.source = file_meta["source"]
+            if not query.resolution and file_meta.get("resolution"):
+                query.resolution = file_meta["resolution"]
+            if not query.video_codec and file_meta.get("video_codec"):
+                query.video_codec = file_meta["video_codec"]
+            if query.release_group:
+                logger.debug(
+                    "Wanted %d: release metadata — group=%r source=%r res=%r",
+                    wanted_item["id"],
+                    query.release_group,
+                    query.source,
+                    query.resolution,
+                )
+        except Exception as _rg_err:
+            logger.debug("Failed to parse release metadata from filename: %s", _rg_err)
+
+    # Pre-compute video file hash for hash-based provider matching (e.g. OpenSubtitles, Napisy24).
+    # Computed once here so all providers share the same cached value via query.file_hash.
+    if not query.file_hash and query.file_path and os.path.isfile(query.file_path):
+        try:
+            from providers.opensubtitles import _compute_opensubtitles_hash
+
+            query.file_hash = _compute_opensubtitles_hash(query.file_path)
+            if query.file_hash:
+                logger.debug("Pre-computed file hash for %s: %s", query.file_path, query.file_hash)
+        except Exception as _hash_err:
+            logger.debug("Hash pre-computation skipped: %s", _hash_err)
 
     # Set forced_only based on wanted item's subtitle_type
     if wanted_item.get("subtitle_type", "full") == "forced":
