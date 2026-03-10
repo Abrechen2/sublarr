@@ -1049,7 +1049,7 @@ def _run_batch_probe(items, app):
     try:
         with app.app_context(), ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_item = {
-                executor.submit(get_media_streams, item["file_path"], False): item for item in items
+                executor.submit(get_media_streams, item["file_path"], True): item for item in items
             }
             for future in as_completed(future_to_item):
                 item = future_to_item[future]

@@ -27,6 +27,16 @@ def clear_ffprobe_cache(file_path: str = None):
     return _get_repo().clear_ffprobe_cache(file_path)
 
 
+def cleanup_stale_ffprobe_cache(dry_run: bool = False) -> dict:
+    """Remove cache entries for files that no longer exist on disk."""
+    return _get_repo().cleanup_stale_ffprobe_cache(dry_run=dry_run)
+
+
+def get_ffprobe_cache_stats() -> dict:
+    """Return statistics about the ffprobe cache table."""
+    return _get_repo().get_ffprobe_cache_stats()
+
+
 def get_episode_history(file_path: str) -> list:
     """Get combined download + job history for a file path."""
     return _get_repo().get_episode_history(file_path)

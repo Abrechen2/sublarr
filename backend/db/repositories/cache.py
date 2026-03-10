@@ -92,6 +92,48 @@ class CacheRepository(BaseRepository):
             self.session.execute(delete(FfprobeCache))
         self._commit()
 
+    def cleanup_stale_ffprobe_cache(self, dry_run: bool = False) -> dict:
+        """Remove cache entries for files that no longer exist on disk.
+
+        Returns:
+            Dict with ``removed`` (int) and ``paths`` (list of removed paths).
+        """
+        import os
+
+        all_paths = self.session.execute(select(FfprobeCache.file_path)).scalars().all()
+        stale = [p for p in all_paths if not os.path.exists(p)]
+
+        if not dry_run and stale:
+            self.session.execute(delete(FfprobeCache).where(FfprobeCache.file_path.in_(stale)))
+            self._commit()
+            logger.info("Removed %d stale ffprobe cache entries", len(stale))
+
+        return {"removed": len(stale), "paths": stale, "dry_run": dry_run}
+
+    def get_ffprobe_cache_stats(self) -> dict:
+        """Return statistics about the ffprobe cache table."""
+        total = self.session.execute(select(func.count()).select_from(FfprobeCache)).scalar() or 0
+        oldest = self.session.execute(
+            select(FfprobeCache.cached_at).order_by(FfprobeCache.cached_at.asc()).limit(1)
+        ).scalar_one_or_none()
+        newest = self.session.execute(
+            select(FfprobeCache.cached_at).order_by(FfprobeCache.cached_at.desc()).limit(1)
+        ).scalar_one_or_none()
+        return {"total_entries": total, "oldest_entry": oldest, "newest_entry": newest}
+
+    def get_cache_stats(self) -> dict:
+        """Return combined cache statistics (provider cache + ffprobe cache)."""
+        from db.models.providers import ProviderCache
+
+        provider_total = (
+            self.session.execute(select(func.count()).select_from(ProviderCache)).scalar() or 0
+        )
+        ffprobe_stats = self.get_ffprobe_cache_stats()
+        return {
+            "provider_cache_entries": provider_total,
+            "ffprobe_cache": ffprobe_stats,
+        }
+
     # ---- Episode History (cross-table) ----------------------------------------
 
     def get_episode_history(self, file_path: str) -> list:
