@@ -117,6 +117,9 @@ class Settings(BaseSettings):
     scan_metadata_engine: str = "auto"  # "ffprobe" | "mediainfo" | "auto"
     scan_metadata_max_workers: int = 4  # Parallel workers for batch metadata scans
 
+    # Translation Workers
+    translation_max_workers: int = 4  # Parallel workers in the job queue thread pool
+
     # Wanted System
     wanted_scan_interval_hours: int = (
         0  # 0 = disabled; scan is event-driven (webhook / manual / file-watcher)

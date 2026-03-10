@@ -327,14 +327,7 @@ def translate_async():
 
     arr_context = _build_arr_context(data)
     job = create_job(file_path, force, arr_context)
-    _app = current_app._get_current_object()
-
-    def _run_with_ctx():
-        with _app.app_context():
-            _run_job(job)
-
-    thread = threading.Thread(target=_run_with_ctx, daemon=True)
-    thread.start()
+    current_app.job_queue.enqueue(_run_job, job, job_id=job["id"])
 
     return jsonify(
         {

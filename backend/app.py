@@ -262,7 +262,10 @@ def create_app(testing=False):
         app.cache_backend = create_cache_backend(
             settings.redis_url if settings.redis_cache_enabled else ""
         )
-        app.job_queue = create_job_queue(settings.redis_url if settings.redis_queue_enabled else "")
+        app.job_queue = create_job_queue(
+            settings.redis_url if settings.redis_queue_enabled else "",
+            max_workers=getattr(settings, "translation_max_workers", 4),
+        )
 
         # Initialize database (legacy -- no-op now that SQLAlchemy handles lifecycle)
         from db import init_db
