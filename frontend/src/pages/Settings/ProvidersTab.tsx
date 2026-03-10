@@ -234,6 +234,54 @@ export function ProvidersTab({
         )}
       </div>
 
+      {/* Anti-Captcha Section */}
+      <div
+        className="rounded-lg p-4 space-y-3"
+        style={{ border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}
+      >
+        <div>
+          <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Anti-Captcha</h3>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            Automatically solve captcha challenges from providers like Kitsunekko.
+            Supports Anti-Captcha.com and CapMonster.
+          </p>
+        </div>
+        <div className="grid grid-cols-[160px_1fr] items-center gap-3">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Backend</label>
+          <select
+            value={values['anti_captcha_provider'] ?? ''}
+            onChange={(e) => onFieldChange('anti_captcha_provider', e.target.value)}
+            className="px-2 py-1.5 rounded text-xs"
+            style={{
+              border: '1px solid var(--border)',
+              backgroundColor: 'var(--bg-primary)',
+              color: 'var(--text-primary)',
+            }}
+          >
+            <option value="">Disabled</option>
+            <option value="anticaptcha">Anti-Captcha.com</option>
+            <option value="capmonster">CapMonster</option>
+          </select>
+        </div>
+        {values['anti_captcha_provider'] && (
+          <div className="grid grid-cols-[160px_1fr] items-center gap-3">
+            <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>API Key</label>
+            <input
+              type="password"
+              value={values['anti_captcha_api_key'] ?? ''}
+              onChange={(e) => onFieldChange('anti_captcha_api_key', e.target.value)}
+              placeholder="Your API key"
+              className="px-2 py-1.5 rounded text-xs"
+              style={{
+                border: '1px solid var(--border)',
+                backgroundColor: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+              }}
+            />
+          </div>
+        )}
+      </div>
+
       {/* Edit Modal */}
       {editingProviderData && (
         <ProviderEditModal

@@ -188,6 +188,10 @@ class Settings(BaseSettings):
     notify_on_error: bool = True
     notify_manual_actions: bool = False
 
+    # Anti-Captcha
+    anti_captcha_provider: str = ""  # "" | "anticaptcha" | "capmonster"
+    anti_captcha_api_key: str = ""
+
     # Circuit Breaker
     circuit_breaker_failure_threshold: int = 5  # Consecutive failures before opening
     circuit_breaker_cooldown_seconds: int = 60  # Seconds in OPEN before HALF_OPEN probe
