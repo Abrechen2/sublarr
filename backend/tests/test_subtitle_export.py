@@ -10,13 +10,10 @@ Run with:
 
 import io
 import os
-import sys
 import zipfile
 from unittest.mock import patch
 
 import pytest
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 # ─── Fixtures ──────────────────────────────────────────────────────────────────
@@ -30,7 +27,6 @@ def media_dir(tmp_path, monkeypatch):
 
     reload_settings()
     yield tmp_path
-    reload_settings()
 
 
 @pytest.fixture
@@ -114,7 +110,7 @@ class TestSeriesZipExport:
             resp = client.get("/api/v1/series/1/subtitles/export")
 
         assert resp.status_code == 200
-        assert "application/zip" in resp.content_type
+        assert resp.content_type == "application/zip"
         assert "attachment" in resp.headers.get("Content-Disposition", "")
 
         with zipfile.ZipFile(io.BytesIO(resp.data)) as zf:
@@ -139,8 +135,8 @@ class TestSeriesZipExport:
         with zipfile.ZipFile(io.BytesIO(resp.data)) as zf:
             names = zf.namelist()
 
-        assert all("de" in name for name in names), f"Expected only 'de' files, got: {names}"
-        assert not any("en" in name for name in names), f"Unexpected 'en' file in: {names}"
+        assert all(".de." in name for name in names), f"Expected only 'de' files, got: {names}"
+        assert not any(".en." in name for name in names), f"Unexpected 'en' file in: {names}"
 
     def test_export_series_zip_not_found(self, sub_client):
         """_get_series_path returns None → 404."""
@@ -170,7 +166,7 @@ class TestSeriesZipExport:
 
         series_path = str(media_dir / "ShowName")
 
-        def fake_scan(series_path_arg):
+        def fake_scan(series_path_arg, warnings):
             return [{"path": str(big_file), "language": "de", "format": "ass"}]
 
         monkeypatch.setattr("routes.subtitles._scan_series_subtitles", fake_scan)
