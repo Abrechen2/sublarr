@@ -1,25 +1,50 @@
 import { cn } from '@/lib/utils'
 import { useTranslation } from 'react-i18next'
+import {
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Loader2,
+  AlertCircle,
+  Search,
+  MinusCircle,
+} from 'lucide-react'
 
 interface StatusBadgeProps {
   status: string
   className?: string
 }
 
-const statusStyles: Record<string, { bg: string; text: string; dot: string }> = {
-  healthy:          { bg: 'var(--success-bg)', text: 'var(--success)', dot: 'var(--success)' },
-  completed:        { bg: 'var(--success-bg)', text: 'var(--success)', dot: 'var(--success)' },
-  running:          { bg: 'var(--accent-bg)',  text: 'var(--accent)',  dot: 'var(--accent)' },
-  queued:           { bg: 'var(--warning-bg)', text: 'var(--warning)', dot: 'var(--warning)' },
-  failed:           { bg: 'var(--error-bg)',   text: 'var(--error)',   dot: 'var(--error)' },
-  unhealthy:        { bg: 'var(--error-bg)',   text: 'var(--error)',   dot: 'var(--error)' },
-  wanted:           { bg: 'var(--warning-bg)', text: 'var(--warning)', dot: 'var(--warning)' },
-  searching:        { bg: 'var(--accent-bg)',  text: 'var(--accent)',  dot: 'var(--accent)' },
-  found:            { bg: 'var(--success-bg)', text: 'var(--success)', dot: 'var(--success)' },
-  extracted:        { bg: 'rgba(20,184,166,0.12)',  text: 'rgb(20,184,166)',   dot: 'rgb(20,184,166)' },
-  ignored:          { bg: 'rgba(124,130,147,0.08)', text: 'var(--text-muted)', dot: 'var(--text-muted)' },
-  'not configured': { bg: 'rgba(124,130,147,0.08)', text: 'var(--text-secondary)', dot: 'var(--text-muted)' },
-  skipped:          { bg: 'rgba(124,130,147,0.08)', text: 'var(--text-secondary)', dot: 'var(--text-muted)' },
+const statusStyles: Record<string, { bg: string; text: string }> = {
+  healthy:          { bg: 'var(--success-bg)', text: 'var(--success)' },
+  completed:        { bg: 'var(--success-bg)', text: 'var(--success)' },
+  running:          { bg: 'var(--accent-bg)',  text: 'var(--accent)' },
+  queued:           { bg: 'var(--warning-bg)', text: 'var(--warning)' },
+  failed:           { bg: 'var(--error-bg)',   text: 'var(--error)' },
+  unhealthy:        { bg: 'var(--error-bg)',   text: 'var(--error)' },
+  wanted:           { bg: 'var(--warning-bg)', text: 'var(--warning)' },
+  searching:        { bg: 'var(--accent-bg)',  text: 'var(--accent)' },
+  found:            { bg: 'var(--success-bg)', text: 'var(--success)' },
+  extracted:        { bg: 'rgba(20,184,166,0.12)',  text: 'rgb(20,184,166)' },
+  ignored:          { bg: 'rgba(124,130,147,0.08)', text: 'var(--text-muted)' },
+  'not configured': { bg: 'rgba(124,130,147,0.08)', text: 'var(--text-secondary)' },
+  skipped:          { bg: 'rgba(124,130,147,0.08)', text: 'var(--text-secondary)' },
+}
+
+const statusIcons: Record<string, typeof CheckCircle2> = {
+  healthy:          CheckCircle2,
+  completed:        CheckCircle2,
+  found:            CheckCircle2,
+  extracted:        CheckCircle2,
+  running:          Loader2,
+  queued:           Clock,
+  failed:           XCircle,
+  unhealthy:        XCircle,
+  wanted:           AlertCircle,
+  searching:        Search,
+  ignored:          MinusCircle,
+  skipped:          MinusCircle,
+  'not configured': MinusCircle,
 }
 
 // Map API status strings to common:status translation keys
@@ -45,9 +70,11 @@ const statusTranslationKeys: Record<string, string> = {
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
   const { t } = useTranslation('common')
-  const style = statusStyles[status.toLowerCase()] || statusStyles['not configured']
-  const isRunning = status.toLowerCase() === 'running'
-  const translationKey = statusTranslationKeys[status.toLowerCase()]
+  const key = status.toLowerCase()
+  const style = statusStyles[key] || statusStyles['not configured']
+  const Icon = statusIcons[key] || MinusCircle
+  const isRunning = key === 'running'
+  const translationKey = statusTranslationKeys[key]
   const label = translationKey ? t(translationKey) : status
 
   return (
@@ -58,13 +85,11 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
       )}
       style={{ backgroundColor: style.bg, color: style.text }}
     >
-      <span
-        className="w-1.5 h-1.5 rounded-full shrink-0"
-        style={{
-          backgroundColor: style.dot,
-          color: style.dot,
-          animation: isRunning ? 'dotGlow 2s ease-in-out infinite' : undefined,
-        }}
+      <Icon
+        size={11}
+        strokeWidth={2.5}
+        className={isRunning ? 'animate-spin' : undefined}
+        aria-hidden="true"
       />
       {label}
     </span>
