@@ -5,6 +5,27 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.0-beta] — 2026-03-11
+
+### Added
+
+- **Marketplace — GitHub Plugin Discovery** — new Settings → Providers → Marketplace tab; discovers community plugins via `topic:sublarr-provider` GitHub topic search; caches results in `marketplace_cache` DB table with 1-hour TTL
+- **Marketplace — Official/Community Badges** — plugins from `official-registry.json` receive a verified "Official" badge; community plugins show a neutral "Community" label; `is_official` flag persisted in DB
+- **Marketplace — SHA256 Integrity Verification** — `install_plugin_from_zip()` verifies SHA256 hash before extraction; SHA256 is required (empty string rejected with HTTP 400); prevents install of corrupted or tampered plugins
+- **Marketplace — Capability Warnings** — `CapabilityWarningModal` warns users before installing non-official plugins that declare `filesystem` or `subprocess` capabilities; confirmation required before proceeding
+- **Marketplace — Installed Plugins DB** — `installed_plugins` table tracks name, version, capabilities, SHA256, plugin dir, and install timestamp; persists across restarts
+- **Marketplace — Hot-Reload** — `POST /marketplace/install` hot-reloads the plugin manager after successful installation via `manager.reload()` + `invalidate_manager()`
+- **Marketplace — Refresh** — `POST /marketplace/refresh` force-fetches latest plugin list from GitHub, bypassing the 1-hour cache TTL
+- **Marketplace — Update Detection** — UI compares installed version against registry version; highlights available updates with a yellow badge
+- **Config — `github_token`** — new optional `SUBLARR_GITHUB_TOKEN` setting; used for authenticated GitHub API requests to avoid rate limiting
+- **DB Migration `a2b3c4d5e6f7`** — adds `marketplace_cache` and `installed_plugins` tables via Alembic
+
+### Security
+
+- **SSRF Prevention** — `zip_url` validated to be HTTPS-only before download (`urlparse` scheme check)
+- **Path Traversal** — `is_safe_path()` applied to all install/uninstall plugin directory operations
+- **XSS Prevention** — `github_url` validated with `startsWith('https://')` before rendering as `<a href>`
+
 ## [0.21.1-beta] — 2026-03-11
 
 ### Added
