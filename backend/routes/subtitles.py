@@ -11,6 +11,7 @@ Endpoints:
   GET  /library/trash                                   — list all trash batches
   POST /library/trash/<batch_id>/restore                — restore a batch
   DELETE /library/trash/<batch_id>                      — permanently delete a batch
+  GET  /subtitles/download?path=                        — download a subtitle file by path
 """
 
 import glob as _glob
@@ -581,7 +582,8 @@ def download_subtitle():
         return jsonify({"error": "path parameter required"}), 400
 
     settings = get_settings()
-    if not is_safe_path(path, settings.media_path):
+    media_path = getattr(settings, "media_path", "/media")
+    if not is_safe_path(path, media_path):
         return jsonify({"error": "Access denied"}), 403
 
     ext = os.path.splitext(path)[1].lower()
