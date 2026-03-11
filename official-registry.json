@@ -1,0 +1,4 @@
+{
+  "_comment": "Curated list of official Sublarr provider plugins. Names must match the manifest.json 'name' field of the plugin repo.",
+  "official_plugins": []
+}
