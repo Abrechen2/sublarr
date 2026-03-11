@@ -22,7 +22,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 
 from config import get_settings, map_path
 from security_utils import is_safe_path
@@ -564,3 +564,31 @@ def purge_trash_batch(batch_id: str):
         return jsonify({"error": str(exc)}), 500
 
     return jsonify({"purged": file_count}), 200
+
+
+_SUBTITLE_DOWNLOAD_EXTS = {".ass", ".srt", ".vtt", ".ssa", ".sub"}
+
+
+@bp.route("/subtitles/download", methods=["GET"])
+def download_subtitle():
+    """Serve a single subtitle sidecar file as a browser download.
+
+    Query params:
+        path: absolute path to the subtitle file (must be within media_path)
+    """
+    path = request.args.get("path", "").strip()
+    if not path:
+        return jsonify({"error": "path parameter required"}), 400
+
+    settings = get_settings()
+    if not is_safe_path(path, settings.media_path):
+        return jsonify({"error": "Access denied"}), 403
+
+    ext = os.path.splitext(path)[1].lower()
+    if ext not in _SUBTITLE_DOWNLOAD_EXTS:
+        return jsonify({"error": "Access denied"}), 403
+
+    if not os.path.isfile(path):
+        return jsonify({"error": "File not found"}), 404
+
+    return send_file(path, as_attachment=True, download_name=os.path.basename(path))
