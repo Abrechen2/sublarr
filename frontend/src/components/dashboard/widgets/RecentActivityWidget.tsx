@@ -39,14 +39,7 @@ export default function RecentActivityWidget() {
           recentJobs.data.map((job) => (
             <div
               key={job.id}
-              className="px-4 py-2 flex items-center gap-3 transition-colors duration-150"
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor =
-                  'var(--bg-surface-hover)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent'
-              }}
+              className="hover-surface px-4 py-2 flex items-center gap-3 transition-colors duration-150"
             >
               {job.status === 'completed' ? (
                 <CheckCircle2

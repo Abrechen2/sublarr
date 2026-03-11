@@ -35,6 +35,37 @@ export function ProviderEditModal({
   onClearCache, onReEnable, onRemove, isNew, onClose,
 }: ProviderEditModalProps) {
   const [confirmRemove, setConfirmRemove] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const validateField = (fieldKey: string, value: string, label: string) => {
+    if (!value.trim()) {
+      setErrors(prev => ({ ...prev, [fieldKey]: `${label} is required` }))
+    } else {
+      setErrors(prev => {
+        const { [fieldKey]: _removed, ...rest } = prev
+        return rest
+      })
+    }
+  }
+
+  const handleTest = () => {
+    // Validate all required fields before running the test
+    const newErrors: Record<string, string> = {}
+    for (const field of provider.config_fields) {
+      if (field.required) {
+        const value = fieldValues[field.key] ?? ''
+        // '***configured***' means a value is already saved server-side — treat as valid
+        if (value !== '***configured***' && !value.trim()) {
+          newErrors[field.key] = `${field.label} is required`
+        }
+      }
+    }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      return
+    }
+    onTest()
+  }
 
   // Escape key closes modal
   useEffect(() => {
@@ -55,6 +86,9 @@ export function ProviderEditModal({
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="provider-edit-title"
         className="w-full max-w-lg flex flex-col rounded-lg overflow-hidden"
         style={{
           backgroundColor: 'var(--bg-surface)',
@@ -72,11 +106,12 @@ export function ProviderEditModal({
             <p className="text-[11px] font-medium mb-0.5" style={{ color: 'var(--text-muted)' }}>
               {isNew ? 'Schritt 2 von 2 · ' : ''}Provider bearbeiten
             </p>
-            <p className="text-sm font-semibold capitalize" style={{ color: 'var(--text-primary)' }}>
+            <h2 id="provider-edit-title" className="text-sm font-semibold capitalize" style={{ color: 'var(--text-primary)' }}>
               {provider.name.replace(/_/g, ' ')}
-            </p>
+            </h2>
           </div>
           <button
+            autoFocus
             onClick={onClose}
             className="p-1.5 rounded transition-colors"
             style={{ color: 'var(--text-muted)' }}
@@ -253,33 +288,54 @@ export function ProviderEditModal({
           {/* ── Zugangsdaten ── */}
           {provider.config_fields.length > 0 ? (
             <div className="pt-1" style={{ borderTop: '1px solid var(--border)' }}>
-              {provider.config_fields.map((field) => (
-                <SettingRow
-                  key={field.key}
-                  label={field.label}
-                  description={getFieldDescription(field.key, field.label)}
-                >
-                  <input
-                    type={field.type}
-                    value={fieldValues[field.key] === '***configured***' ? '' : (fieldValues[field.key] ?? '')}
-                    onChange={(e) => onFieldChange(field.key, e.target.value)}
-                    placeholder={
-                      fieldValues[field.key] === '***configured***'
-                        ? '(configured)'
-                        : field.required
-                          ? 'Required'
-                          : 'Optional'
-                    }
-                    className="w-full px-2.5 py-1.5 rounded text-xs transition-all focus:outline-none"
-                    style={{
-                      backgroundColor: 'var(--bg-primary)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-primary)',
-                      fontFamily: 'var(--font-mono)',
-                    }}
-                  />
-                </SettingRow>
-              ))}
+              {provider.config_fields.map((field) => {
+                const inputId = `provider-edit-${provider.name}-${field.key}`
+                const errorId = `${inputId}-error`
+                const hasError = !!errors[field.key]
+                return (
+                  <SettingRow
+                    key={field.key}
+                    label={field.label}
+                    description={getFieldDescription(field.key, field.label)}
+                    htmlFor={inputId}
+                  >
+                    <div className="w-full">
+                      <input
+                        id={inputId}
+                        type={field.type}
+                        value={fieldValues[field.key] === '***configured***' ? '' : (fieldValues[field.key] ?? '')}
+                        onChange={(e) => onFieldChange(field.key, e.target.value)}
+                        onBlur={(e) => {
+                          if (field.required && fieldValues[field.key] !== '***configured***') {
+                            validateField(field.key, e.target.value, field.label)
+                          }
+                        }}
+                        placeholder={
+                          fieldValues[field.key] === '***configured***'
+                            ? '(configured)'
+                            : field.required
+                              ? 'Required'
+                              : 'Optional'
+                        }
+                        aria-describedby={hasError ? errorId : undefined}
+                        aria-invalid={hasError}
+                        className="w-full px-2.5 py-1.5 rounded text-xs transition-all focus:outline-none"
+                        style={{
+                          backgroundColor: 'var(--bg-primary)',
+                          border: `1px solid ${hasError ? 'var(--error)' : 'var(--border)'}`,
+                          color: 'var(--text-primary)',
+                          fontFamily: 'var(--font-mono)',
+                        }}
+                      />
+                      {hasError && (
+                        <p id={errorId} role="alert" className="text-xs mt-1" style={{ color: 'var(--error)' }}>
+                          {errors[field.key]}
+                        </p>
+                      )}
+                    </div>
+                  </SettingRow>
+                )
+              })}
             </div>
           ) : (
             <div className="py-3 text-xs" style={{ color: 'var(--text-muted)', borderTop: '1px solid var(--border)' }}>
@@ -347,7 +403,7 @@ export function ProviderEditModal({
           {/* Right: Test + Close */}
           <div className="flex items-center gap-2">
             <button
-              onClick={onTest}
+              onClick={handleTest}
               disabled={!provider.enabled || testResult === 'testing'}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all hover:opacity-80"
               style={{

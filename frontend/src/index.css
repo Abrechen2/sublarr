@@ -231,6 +231,15 @@ h2 {
   border-radius: var(--radius-md);
 }
 
+/* Hover utilities for CSS custom property backgrounds */
+.bg-surface {
+  background-color: var(--bg-surface);
+}
+
+.hover-surface:hover {
+  background-color: var(--bg-surface-hover);
+}
+
 /* ---- Card (*arr-style flat) ---- */
 .card {
   background-color: var(--bg-surface);
@@ -294,5 +303,16 @@ a:hover {
 @media (min-width: 1024px) {
   body {
     font-size: 14px;
+  }
+}
+
+/* Respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

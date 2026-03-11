@@ -45,6 +45,9 @@ export function AddProviderModal({ availableProviders, onSelect, onClose }: AddP
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-provider-title"
         className="w-full max-w-sm rounded-lg overflow-hidden"
         style={{
           backgroundColor: 'var(--bg-surface)',
@@ -61,11 +64,12 @@ export function AddProviderModal({ availableProviders, onSelect, onClose }: AddP
             <p className="text-[11px] font-medium mb-0.5" style={{ color: 'var(--text-muted)' }}>
               Schritt 1 von 2
             </p>
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <h2 id="add-provider-title" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               Provider hinzufügen
-            </p>
+            </h2>
           </div>
           <button
+            autoFocus
             onClick={onClose}
             className="p-1.5 rounded transition-colors"
             style={{ color: 'var(--text-muted)' }}

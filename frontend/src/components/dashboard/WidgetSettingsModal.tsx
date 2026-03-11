@@ -27,6 +27,9 @@ export function WidgetSettingsModal({ open, onClose }: WidgetSettingsModalProps)
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="widget-settings-title"
         className="w-full max-w-md rounded-lg overflow-hidden shadow-2xl"
         style={{
           backgroundColor: 'var(--bg-surface)',
@@ -40,7 +43,7 @@ export function WidgetSettingsModal({ open, onClose }: WidgetSettingsModalProps)
           style={{ borderBottom: '1px solid var(--border)' }}
         >
           <div>
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <h2 id="widget-settings-title" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               {t('widgets.settings_title')}
             </h2>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
@@ -48,6 +51,7 @@ export function WidgetSettingsModal({ open, onClose }: WidgetSettingsModalProps)
             </p>
           </div>
           <button
+            autoFocus
             onClick={onClose}
             className="p-1 rounded hover:opacity-80 transition-opacity"
             style={{ color: 'var(--text-muted)' }}

@@ -821,7 +821,7 @@ export function WantedPage() {
           <table className="w-full min-w-[800px]">
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                <th className="text-left px-3 py-2.5 w-8">
+                <th scope="col" className="text-left px-3 py-2.5 w-8">
                   <button onClick={toggleSelectAll} className="p-0.5" style={{ color: 'var(--text-muted)' }}>
                     {allSelected ? (
                       <CheckSquare size={14} style={{ color: 'var(--accent)' }} />
@@ -832,14 +832,14 @@ export function WantedPage() {
                     )}
                   </button>
                 </th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.title_col')}</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.se_col')}</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.status_col')}</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.existing_col')}</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.searches_col')}</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.last_search_col')}</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.added_col')}</th>
-                <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.actions_col')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.title_col')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.se_col')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.status_col')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.existing_col')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.searches_col')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.last_search_col')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.added_col')}</th>
+                <th scope="col" className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.actions_col')}</th>
               </tr>
             </thead>
             <tbody>
@@ -858,12 +858,12 @@ export function WantedPage() {
                   </tr>
                 ))
               ) : filteredData?.length ? (
-                filteredData.map((item) => (
+                filteredData.map((item, i) => (
                   <Fragment key={item.id}>
                     <tr
                       data-testid="wanted-item"
                       className="transition-colors duration-100"
-                      style={{ borderBottom: '1px solid var(--border)' }}
+                      style={{ borderBottom: '1px solid var(--border)', animationDelay: `${Math.min(i * 30, 300)}ms` }}
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)')}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >

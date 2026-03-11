@@ -55,7 +55,13 @@ export function GlobalSearchModal({ open, onOpenChange }: Props) {
       overlayClassName="fixed inset-0 bg-black/50 backdrop-blur-sm"
       contentClassName="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]"
     >
-      <div className="w-full max-w-lg rounded-xl border border-border bg-background shadow-2xl overflow-hidden">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="global-search-title"
+        className="w-full max-w-lg rounded-xl border border-border bg-background shadow-2xl overflow-hidden"
+      >
+        <h2 id="global-search-title" className="sr-only">Global Search</h2>
         <div className="flex items-center gap-2 px-4 border-b border-border">
           <Search className="h-4 w-4 text-muted-foreground shrink-0" />
           <Command.Input

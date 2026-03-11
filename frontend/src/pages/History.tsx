@@ -422,7 +422,7 @@ export function HistoryPage() {
           <table className="w-full min-w-[600px]">
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                <th className="text-left px-3 py-2.5 w-8">
+                <th scope="col" className="text-left px-3 py-2.5 w-8">
                   <button onClick={toggleSelectAll} className="p-0.5" style={{ color: 'var(--text-muted)' }}>
                     {allSelected ? (
                       <CheckSquare size={14} style={{ color: 'var(--accent)' }} />
@@ -433,13 +433,13 @@ export function HistoryPage() {
                     )}
                   </button>
                 </th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.content')}</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.provider')}</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.lang')}</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.format')}</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>{t('history.table.score')}</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>{t('history.table.date')}</th>
-                <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.actions')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.content')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.provider')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.lang')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.format')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>{t('history.table.score')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>{t('history.table.date')}</th>
+                <th scope="col" className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('history.table.actions')}</th>
               </tr>
             </thead>
             <tbody>

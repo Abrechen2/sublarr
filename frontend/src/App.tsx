@@ -3,7 +3,13 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ToastContainer, toast } from '@/components/shared/Toast'
-import { PageSkeleton } from '@/components/shared/PageSkeleton'
+import {
+  PageSkeleton,
+  LibrarySkeleton,
+  TableSkeleton,
+  ListSkeleton,
+  FormSkeleton,
+} from '@/components/shared/PageSkeleton'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { WebSocketProvider } from '@/contexts/WebSocketContext'
 import { GlobalSearchModal } from '@/components/search/GlobalSearchModal'
@@ -43,25 +49,23 @@ function AnimatedRoutes() {
 
   return (
     <div key={location.pathname} className="page-enter">
-      <Suspense fallback={<PageSkeleton />}>
-        <Routes location={location}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/library" element={<LibraryPage />} />
-          <Route path="/library/series/:id" element={<SeriesDetailPage />} />
-          <Route path="/activity" element={<ActivityPage />} />
-          <Route path="/wanted" element={<WantedPage />} />
-          <Route path="/queue" element={<QueuePage />} />
-          <Route path="/history" element={<HistoryPage />} />
-          <Route path="/blacklist" element={<BlacklistPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/statistics" element={<StatisticsPage />} />
-          <Route path="/tasks" element={<TasksPage />} />
-          <Route path="/plugins" element={<PluginsPage />} />
-          <Route path="/logs" element={<LogsPage />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </Suspense>
+      <Routes location={location}>
+        <Route path="/" element={<Suspense fallback={<PageSkeleton />}><Dashboard /></Suspense>} />
+        <Route path="/library" element={<Suspense fallback={<LibrarySkeleton />}><LibraryPage /></Suspense>} />
+        <Route path="/library/series/:id" element={<Suspense fallback={<PageSkeleton />}><SeriesDetailPage /></Suspense>} />
+        <Route path="/activity" element={<Suspense fallback={<PageSkeleton />}><ActivityPage /></Suspense>} />
+        <Route path="/wanted" element={<Suspense fallback={<ListSkeleton />}><WantedPage /></Suspense>} />
+        <Route path="/queue" element={<Suspense fallback={<TableSkeleton />}><QueuePage /></Suspense>} />
+        <Route path="/history" element={<Suspense fallback={<TableSkeleton />}><HistoryPage /></Suspense>} />
+        <Route path="/blacklist" element={<Suspense fallback={<TableSkeleton />}><BlacklistPage /></Suspense>} />
+        <Route path="/settings" element={<Suspense fallback={<FormSkeleton />}><SettingsPage /></Suspense>} />
+        <Route path="/statistics" element={<Suspense fallback={<PageSkeleton />}><StatisticsPage /></Suspense>} />
+        <Route path="/tasks" element={<Suspense fallback={<PageSkeleton />}><TasksPage /></Suspense>} />
+        <Route path="/plugins" element={<Suspense fallback={<PageSkeleton />}><PluginsPage /></Suspense>} />
+        <Route path="/logs" element={<Suspense fallback={<PageSkeleton />}><LogsPage /></Suspense>} />
+        <Route path="/onboarding" element={<Suspense fallback={<PageSkeleton />}><Onboarding /></Suspense>} />
+        <Route path="*" element={<Suspense fallback={<PageSkeleton />}><NotFoundPage /></Suspense>} />
+      </Routes>
     </div>
   )
 }
@@ -133,11 +137,18 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <WebSocketProvider>
       <BrowserRouter>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:rounded"
+          style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+        >
+          Skip to main content
+        </a>
         <GlobalWebSocketListener />
         <GlobalShortcuts onToggleShortcutsModal={toggleShortcutsModal} />
         <div className="flex min-h-screen">
           <Sidebar />
-          <main className="flex-1 min-w-0 p-4 md:p-5 pt-16 md:pt-5 min-h-screen">
+          <main id="main-content" className="flex-1 min-w-0 p-4 md:p-5 pt-16 md:pt-5 min-h-screen">
             <AnimatedRoutes />
           </main>
         </div>

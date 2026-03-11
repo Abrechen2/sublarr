@@ -1,23 +1,25 @@
+import type React from 'react'
 import { Film } from 'lucide-react'
 import type { SeriesInfo, MovieInfo } from '@/lib/types'
 
 interface LibraryGridCardProps {
   item: SeriesInfo | MovieInfo
   onClick: () => void
+  style?: React.CSSProperties
 }
 
 function isSeries(item: SeriesInfo | MovieInfo): item is SeriesInfo {
   return 'missing_count' in item
 }
 
-export function LibraryGridCard({ item, onClick }: LibraryGridCardProps) {
+export function LibraryGridCard({ item, onClick, style }: LibraryGridCardProps) {
   const missingCount = isSeries(item) ? item.missing_count : 0
 
   return (
     <div
       onClick={onClick}
       className="cursor-pointer rounded-lg overflow-hidden group"
-      style={{ border: '1px solid var(--border)' }}
+      style={{ border: '1px solid var(--border)', ...style }}
     >
       {/* Image area — overlays scoped here so they don't cover the title bar */}
       <div className="relative">

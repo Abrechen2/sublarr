@@ -123,6 +123,9 @@ export function SyncModal({ episodeId, subtitlePath, videoPath, onClose, onCompl
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sync-modal-title"
         className="w-full max-w-md mx-4 rounded-lg overflow-hidden flex flex-col"
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
@@ -132,14 +135,15 @@ export function SyncModal({ episodeId, subtitlePath, videoPath, onClose, onCompl
           style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-elevated)' }}
         >
           <div>
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <h2 id="sync-modal-title" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               Untertitel synchronisieren
-            </p>
+            </h2>
             <p className="text-xs truncate max-w-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
               {fileName}
             </p>
           </div>
           <button
+            autoFocus
             onClick={onClose}
             className="p-1.5 rounded transition-colors"
             style={{ color: 'var(--text-muted)' }}
