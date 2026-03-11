@@ -66,13 +66,15 @@ import {
   getScannerStatus,
   getSupportedLanguages,
   cleanupSidecars,
+  getMarketplaceBrowse, refreshMarketplace, getInstalledPlugins,
+  installBrowsePlugin, uninstallBrowsePlugin,
 } from '@/api/client'
 import type {
   LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig, FilterScope, BatchAction,
   NotificationTemplate, QuietHoursConfig, NotificationFilter, BazarrMigrationPreview,
   CleanupRule,
 } from '@/lib/types'
-import type { DownloadSpecificPayload } from '@/api/client'
+import type { DownloadSpecificPayload, MarketplaceBrowsePlugin } from '@/api/client'
 
 // ─── Languages ───────────────────────────────────────────────────────────────
 
@@ -1872,5 +1874,52 @@ export function useRefreshAnidbMapping() {
   return useMutation({
     mutationFn: refreshAnidbMapping,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['anidb-mapping-status'] }),
+  })
+}
+
+// ── v0.22 Marketplace hooks ────────────────────────────────────────────────
+
+export function useMarketplaceBrowse() {
+  return useQuery({
+    queryKey: ['marketplace', 'browse'],
+    queryFn: getMarketplaceBrowse,
+    staleTime: 1000 * 60 * 60, // 1h matches backend cache TTL
+  })
+}
+
+export function useInstalledPlugins() {
+  return useQuery({
+    queryKey: ['marketplace', 'installed'],
+    queryFn: getInstalledPlugins,
+  })
+}
+
+export function useInstallBrowsePlugin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (plugin: MarketplaceBrowsePlugin) => installBrowsePlugin(plugin),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketplace', 'installed'] })
+    },
+  })
+}
+
+export function useUninstallBrowsePlugin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) => uninstallBrowsePlugin(name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketplace', 'installed'] })
+    },
+  })
+}
+
+export function useRefreshMarketplaceBrowse() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: refreshMarketplace,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketplace', 'browse'] })
+    },
   })
 }

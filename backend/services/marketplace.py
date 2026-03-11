@@ -4,16 +4,37 @@ Manages GitHub-based plugin registry, installation, updates, and validation.
 Inspired by Bazarr's provider ecosystem but with better architecture.
 """
 
+import hashlib
+import io
 import logging
 import os
 import shutil
 import subprocess
+import zipfile
+from urllib.parse import urlparse
 
 import requests
 
-from security_utils import safe_zip_extract, validate_git_url
+from security_utils import is_safe_path, safe_zip_extract, validate_git_url
 
 logger = logging.getLogger(__name__)
+
+
+def verify_zip_sha256(data: bytes, expected_sha256: str) -> bool:
+    """Verify the SHA256 checksum of downloaded ZIP data.
+
+    Args:
+        data: Raw bytes of the downloaded file.
+        expected_sha256: Expected hex digest. Empty/falsy value skips the check.
+
+    Returns:
+        True if the hash matches or if expected_sha256 is empty/falsy.
+        False on mismatch.
+    """
+    if not expected_sha256:
+        return True
+    actual = hashlib.sha256(data).hexdigest()
+    return actual.lower() == expected_sha256.lower()
 
 
 class PluginMarketplace:
@@ -140,6 +161,8 @@ class PluginMarketplace:
             Installation result dict
         """
         plugin_path = os.path.join(plugins_dir, plugin_name)
+        if not is_safe_path(plugin_path, plugins_dir):
+            raise RuntimeError("Invalid plugin name — path traversal detected")
 
         # Remove existing plugin if present
         if os.path.exists(plugin_path):
@@ -194,14 +217,16 @@ class PluginMarketplace:
         Returns:
             Installation result dict
         """
-        import io
-        import zipfile
-
         try:
+            if urlparse(zip_url).scheme != "https":
+                raise RuntimeError("Only HTTPS zip_url is allowed for plugin installation")
+
             response = requests.get(zip_url, timeout=60)
             response.raise_for_status()
 
             plugin_path = os.path.join(plugins_dir, plugin_name)
+            if not is_safe_path(plugin_path, plugins_dir):
+                raise RuntimeError("Invalid plugin name — path traversal detected")
 
             # Remove existing plugin if present
             if os.path.exists(plugin_path):
@@ -223,6 +248,53 @@ class PluginMarketplace:
             }
         except Exception as e:
             raise RuntimeError(f"ZIP installation failed: {e}")
+
+    def install_plugin_from_zip(
+        self,
+        plugin_name: str,
+        zip_url: str,
+        expected_sha256: str,
+        plugins_dir: str,
+    ) -> dict:
+        """Download zip, verify SHA256, extract to plugins_dir/<plugin_name>.
+
+        Args:
+            plugin_name: Name for the installed plugin directory.
+            zip_url: URL of the ZIP file to download.
+            expected_sha256: Expected SHA256 hex digest. Empty string skips verification.
+            plugins_dir: Parent directory under which the plugin will be extracted.
+
+        Returns:
+            Dict with {"status": "installed", "path": plugin_path}.
+
+        Raises:
+            RuntimeError: If the HTTP request fails or the SHA256 does not match.
+        """
+        if urlparse(zip_url).scheme != "https":
+            raise RuntimeError("Only HTTPS zip_url is allowed for plugin installation")
+
+        response = requests.get(zip_url, timeout=60)
+        response.raise_for_status()
+        data = response.content
+
+        if not verify_zip_sha256(data, expected_sha256):
+            raise RuntimeError(
+                f"SHA256 mismatch for {plugin_name}: download may be corrupted or tampered"
+            )
+
+        plugin_path = os.path.join(plugins_dir, plugin_name)
+        if not is_safe_path(plugin_path, plugins_dir):
+            raise RuntimeError("Invalid plugin name — path traversal detected")
+
+        if os.path.exists(plugin_path):
+            shutil.rmtree(plugin_path)
+
+        os.makedirs(plugin_path, exist_ok=True)
+
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            safe_zip_extract(zf, plugin_path)
+
+        return {"status": "installed", "path": plugin_path}
 
     def _validate_plugin(self, plugin_path: str) -> dict:
         """Validate installed plugin.
@@ -291,6 +363,8 @@ class PluginMarketplace:
             Uninstallation result
         """
         plugin_path = os.path.join(plugins_dir, plugin_name)
+        if not is_safe_path(plugin_path, plugins_dir):
+            raise RuntimeError("Invalid plugin name — path traversal detected")
 
         if not os.path.exists(plugin_path):
             raise RuntimeError(f"Plugin not found: {plugin_name}")

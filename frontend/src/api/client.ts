@@ -1614,4 +1614,60 @@ export function getSeriesSubtitleExportUrl(
   return `/api/v1/series/${seriesId}/subtitles/export${params}`
 }
 
+// ── v0.22 Marketplace types ────────────────────────────────────────────────
+export interface MarketplaceBrowsePlugin {
+  name: string
+  display_name: string
+  author: string
+  version: string
+  description: string
+  github_url: string
+  zip_url: string
+  sha256: string
+  capabilities: string[]
+  min_sublarr_version: string
+  is_official: boolean
+}
+
+export interface InstalledPlugin {
+  name: string
+  display_name: string
+  version: string
+  capabilities: string[]
+  enabled: boolean
+  installed_at: string
+}
+
+export async function getMarketplaceBrowse(): Promise<{ plugins: MarketplaceBrowsePlugin[] }> {
+  const { data } = await api.get('/marketplace/plugins')
+  return data
+}
+
+export async function refreshMarketplace(): Promise<{ plugins: MarketplaceBrowsePlugin[]; count: number }> {
+  const { data } = await api.post('/marketplace/refresh')
+  return data
+}
+
+export async function getInstalledPlugins(): Promise<{ installed: InstalledPlugin[] }> {
+  const { data } = await api.get('/marketplace/installed')
+  return data
+}
+
+export async function installBrowsePlugin(plugin: MarketplaceBrowsePlugin): Promise<{ status: string }> {
+  const { data } = await api.post('/marketplace/install', {
+    name: plugin.name,
+    display_name: plugin.display_name,
+    version: plugin.version,
+    zip_url: plugin.zip_url,
+    sha256: plugin.sha256,
+    capabilities: plugin.capabilities,
+  })
+  return data
+}
+
+export async function uninstallBrowsePlugin(name: string): Promise<{ status: string }> {
+  const { data } = await api.post('/marketplace/uninstall', { plugin_name: name })
+  return data
+}
+
 export default api

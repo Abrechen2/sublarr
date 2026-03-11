@@ -72,3 +72,11 @@ def test_safe_config():
     assert "api_key" in safe
     # API keys should be masked or empty
     assert safe.get("api_key") == "" or "***" in str(safe.get("api_key"))
+
+
+def test_github_token_defaults_empty():
+    """Test that github_token defaults to empty string."""
+    from config import Settings
+
+    s = Settings()
+    assert s.github_token == ""
