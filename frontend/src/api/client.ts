@@ -1600,4 +1600,18 @@ export async function getSupportedLanguages(): Promise<{ code: string; name: str
   return data
 }
 
+/** Returns a URL that triggers a browser download of a single subtitle file. */
+export function getSubtitleDownloadUrl(path: string): string {
+  return `/api/v1/subtitles/download?path=${encodeURIComponent(path)}`
+}
+
+/** Returns a URL that triggers a ZIP download of all subtitles for a series. */
+export function getSeriesSubtitleExportUrl(
+  seriesId: number,
+  lang?: string,
+): string {
+  const params = lang ? `?lang=${encodeURIComponent(lang)}` : ""
+  return `/api/v1/series/${seriesId}/subtitles/export${params}`
+}
+
 export default api
