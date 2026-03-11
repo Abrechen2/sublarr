@@ -190,7 +190,7 @@ function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sort
         <thead>
           <tr style={{ backgroundColor: 'var(--bg-elevated)' }}>
             {isSeries && (
-              <th className="w-10 pl-3">
+              <th scope="col" className="w-10 pl-3">
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -202,6 +202,8 @@ function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sort
               </th>
             )}
             <th
+              scope="col"
+              aria-sort={sortKey === 'title' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
               className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 cursor-pointer select-none"
               style={{ color: 'var(--text-secondary)' }}
               onClick={() => onSort('title')}
@@ -212,6 +214,8 @@ function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sort
             </th>
             {isSeries && (
               <th
+                scope="col"
+                aria-sort={sortKey === 'missing' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
                 className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 w-20 cursor-pointer select-none"
                 style={{ color: 'var(--text-secondary)' }}
                 onClick={() => onSort('missing')}
@@ -222,12 +226,15 @@ function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sort
               </th>
             )}
             <th
+              scope="col"
               className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 w-40"
               style={{ color: 'var(--text-secondary)' }}
             >
               {t('table.profile')}
             </th>
             <th
+              scope="col"
+              aria-sort={sortKey === 'episodes' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
               className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 w-44 cursor-pointer select-none"
               style={{ color: 'var(--text-secondary)' }}
               onClick={() => onSort('episodes')}
