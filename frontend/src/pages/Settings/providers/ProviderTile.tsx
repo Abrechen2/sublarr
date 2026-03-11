@@ -27,7 +27,7 @@ export function ProviderTile({
 
   return (
     <div
-      className="relative rounded overflow-hidden group cursor-pointer"
+      className="hover-surface relative rounded overflow-hidden group cursor-pointer"
       style={{
         backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border)',
@@ -37,8 +37,6 @@ export function ProviderTile({
         opacity: provider.enabled ? 1 : 0.5,
       }}
       onClick={onOpenEdit}
-      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
-      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface)' }}
     >
       <div className="p-3">
         {/* Provider name + rank */}

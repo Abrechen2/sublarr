@@ -231,6 +231,11 @@ h2 {
   border-radius: var(--radius-md);
 }
 
+/* Hover utilities for CSS custom property backgrounds */
+.hover-surface:hover {
+  background-color: var(--bg-surface-hover);
+}
+
 /* ---- Card (*arr-style flat) ---- */
 .card {
   background-color: var(--bg-surface);
