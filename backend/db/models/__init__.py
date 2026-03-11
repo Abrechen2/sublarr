@@ -39,6 +39,10 @@ from db.models.providers import (
     ScoringWeights,
     SubtitleDownload,
 )
+from db.models.plugins import (
+    InstalledPlugin,
+    MarketplaceCache,
+)
 from db.models.quality import SubtitleHealthResult
 from db.models.standalone import (
     AnidbMapping,
@@ -101,4 +105,7 @@ __all__ = [
     "NotificationTemplate",
     "NotificationHistory",
     "QuietHoursConfig",
+    # plugins / marketplace
+    "MarketplaceCache",
+    "InstalledPlugin",
 ]
