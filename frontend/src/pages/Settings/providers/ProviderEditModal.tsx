@@ -253,33 +253,38 @@ export function ProviderEditModal({
           {/* ── Zugangsdaten ── */}
           {provider.config_fields.length > 0 ? (
             <div className="pt-1" style={{ borderTop: '1px solid var(--border)' }}>
-              {provider.config_fields.map((field) => (
-                <SettingRow
-                  key={field.key}
-                  label={field.label}
-                  description={getFieldDescription(field.key, field.label)}
-                >
-                  <input
-                    type={field.type}
-                    value={fieldValues[field.key] === '***configured***' ? '' : (fieldValues[field.key] ?? '')}
-                    onChange={(e) => onFieldChange(field.key, e.target.value)}
-                    placeholder={
-                      fieldValues[field.key] === '***configured***'
-                        ? '(configured)'
-                        : field.required
-                          ? 'Required'
-                          : 'Optional'
-                    }
-                    className="w-full px-2.5 py-1.5 rounded text-xs transition-all focus:outline-none"
-                    style={{
-                      backgroundColor: 'var(--bg-primary)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-primary)',
-                      fontFamily: 'var(--font-mono)',
-                    }}
-                  />
-                </SettingRow>
-              ))}
+              {provider.config_fields.map((field) => {
+                const inputId = `provider-edit-${provider.name}-${field.key}`
+                return (
+                  <SettingRow
+                    key={field.key}
+                    label={field.label}
+                    description={getFieldDescription(field.key, field.label)}
+                    htmlFor={inputId}
+                  >
+                    <input
+                      id={inputId}
+                      type={field.type}
+                      value={fieldValues[field.key] === '***configured***' ? '' : (fieldValues[field.key] ?? '')}
+                      onChange={(e) => onFieldChange(field.key, e.target.value)}
+                      placeholder={
+                        fieldValues[field.key] === '***configured***'
+                          ? '(configured)'
+                          : field.required
+                            ? 'Required'
+                            : 'Optional'
+                      }
+                      className="w-full px-2.5 py-1.5 rounded text-xs transition-all focus:outline-none"
+                      style={{
+                        backgroundColor: 'var(--bg-primary)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-primary)',
+                        fontFamily: 'var(--font-mono)',
+                      }}
+                    />
+                  </SettingRow>
+                )
+              })}
             </div>
           ) : (
             <div className="py-3 text-xs" style={{ color: 'var(--text-muted)', borderTop: '1px solid var(--border)' }}>

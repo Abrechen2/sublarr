@@ -7,6 +7,7 @@ interface SettingRowProps {
   description?: string
   helpText?: string
   advanced?: boolean
+  htmlFor?: string
   children: ReactNode
   className?: string
 }
@@ -16,6 +17,7 @@ export function SettingRow({
   description,
   helpText,
   advanced,
+  htmlFor,
   children,
   className = '',
 }: SettingRowProps) {
@@ -30,9 +32,15 @@ export function SettingRow({
     >
       <div className="flex flex-col gap-0.5 pt-0.5">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
-            {label}
-          </span>
+          {htmlFor ? (
+            <label htmlFor={htmlFor} className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
+              {label}
+            </label>
+          ) : (
+            <span className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
+              {label}
+            </span>
+          )}
           {helpText && <InfoTooltip text={helpText} />}
           {advanced && (
             <span
