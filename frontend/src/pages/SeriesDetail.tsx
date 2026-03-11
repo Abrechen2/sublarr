@@ -15,7 +15,7 @@ import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { TrackPanel } from '@/components/tracks/TrackPanel'
-import { autoSyncFile, startWantedBatchSearch, batchExtractAllTracks, listSeriesSubtitles, deleteSubtitles } from '@/api/client'
+import { autoSyncFile, startWantedBatchSearch, batchExtractAllTracks, listSeriesSubtitles, deleteSubtitles, getSubtitleDownloadUrl, getSeriesSubtitleExportUrl } from '@/api/client'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
@@ -801,14 +801,37 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                               <span key={lang} className="inline-flex items-center gap-0.5">
                                 <SubBadge lang={lang} format={subFormat} />
                                 {matchingSidecar && (
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); void onDeleteSidecar(matchingSidecar.path) }}
-                                    className="p-0.5 rounded hover:opacity-80"
-                                    style={{ color: 'var(--error)', lineHeight: 1 }}
-                                    title={`Löschen: ${matchingSidecar.path}`}
-                                  >
-                                    <X size={9} />
-                                  </button>
+                                  <>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); void onDeleteSidecar(matchingSidecar.path) }}
+                                      className="p-0.5 rounded hover:opacity-80"
+                                      style={{ color: 'var(--error)', lineHeight: 1 }}
+                                      title={`Löschen: ${matchingSidecar.path}`}
+                                    >
+                                      <X size={9} />
+                                    </button>
+                                    <a
+                                      href={getSubtitleDownloadUrl(matchingSidecar.path)}
+                                      download
+                                      title={`Download ${matchingSidecar.language} ${matchingSidecar.format}`}
+                                      className="ml-1 text-neutral-400 hover:text-teal-400 transition-colors"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        className="h-3.5 w-3.5 inline"
+                                        viewBox="0 0 20 20"
+                                        fill="currentColor"
+                                        aria-hidden="true"
+                                      >
+                                        <path
+                                          fillRule="evenodd"
+                                          d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                                          clipRule="evenodd"
+                                        />
+                                      </svg>
+                                    </a>
+                                  </>
                                 )}
                                 {(subFormat === 'ass' || subFormat === 'srt') && (
                                   <>
@@ -869,6 +892,27 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                                 >
                                   <X size={9} />
                                 </button>
+                                <a
+                                  href={getSubtitleDownloadUrl(s.path)}
+                                  download
+                                  title={`Download ${s.language} ${s.format}`}
+                                  className="ml-1 text-neutral-400 hover:text-teal-400 transition-colors"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-3.5 w-3.5 inline"
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
+                                    aria-hidden="true"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                </a>
                               </span>
                             ))
                           })()}
@@ -1557,6 +1601,29 @@ export function SeriesDetailPage() {
                 <Trash size={11} />
                 Bereinigen
               </button>
+
+              {/* Export ZIP */}
+              <a
+                href={getSeriesSubtitleExportUrl(series.id)}
+                download
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded bg-neutral-700 hover:bg-neutral-600 text-neutral-200 transition-colors"
+                title="Download all subtitles for this series as ZIP"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Export ZIP
+              </a>
 
               {/* Search all missing */}
               {missingCount > 0 && (
