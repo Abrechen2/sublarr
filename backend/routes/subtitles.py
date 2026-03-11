@@ -15,11 +15,13 @@ Endpoints:
 """
 
 import glob as _glob
+import io
 import json
 import logging
 import os
 import shutil
 import uuid
+import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 
@@ -568,6 +570,80 @@ def purge_trash_batch(batch_id: str):
 
 
 _SUBTITLE_DOWNLOAD_EXTS = {".ass", ".srt", ".vtt", ".ssa", ".sub"}
+_ZIP_SIZE_LIMIT = 50 * 1024 * 1024  # 50 MB
+
+
+def _get_series_path(series_id: int) -> str | None:
+    """Resolve series filesystem path via Sonarr, applying path mapping."""
+    from sonarr_client import get_sonarr_client
+
+    try:
+        client = get_sonarr_client()
+        series = client.get_series_by_id(series_id)
+        if not series:
+            return None
+        raw_path = series.get("path", "")
+        return map_path(raw_path) if raw_path else None
+    except Exception:
+        return None
+
+
+def _scan_series_subtitles(series_path: str, warnings: list) -> list[dict]:
+    """Return subtitle file dicts within series_path."""
+    from export_manager import _scan_subtitle_files
+
+    return _scan_subtitle_files(series_path, warnings)
+
+
+@bp.route("/series/<int:series_id>/subtitles/export", methods=["GET"])
+def export_series_subtitles(series_id: int):
+    """Export all subtitle sidecar files for a series as a ZIP download.
+
+    Query params:
+        lang: optional language code filter (e.g. 'de' keeps only *.de.* files)
+    """
+    settings = get_settings()
+    lang_filter = request.args.get("lang", "").strip().lower()
+    media_path = getattr(settings, "media_path", "/media")
+
+    series_path = _get_series_path(series_id)
+    if not series_path:
+        return jsonify({"error": "Series not found"}), 404
+
+    if not is_safe_path(series_path, media_path):
+        return jsonify({"error": "Access denied"}), 403
+
+    warnings: list = []
+    subtitle_files = _scan_series_subtitles(series_path, warnings)
+
+    if lang_filter:
+        subtitle_files = [
+            s for s in subtitle_files
+            if f".{lang_filter}." in os.path.basename(s["path"]).lower()
+        ]
+
+    buf = io.BytesIO()
+    total_bytes = 0
+
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for sub in subtitle_files:
+            sub_path = sub["path"]
+            if not os.path.isfile(sub_path):
+                continue
+            total_bytes += os.path.getsize(sub_path)
+            if total_bytes > _ZIP_SIZE_LIMIT:
+                return jsonify({"error": "Export too large (50 MB limit)"}), 413
+            rel_path = os.path.relpath(sub_path, series_path)
+            zf.write(sub_path, rel_path)
+
+    buf.seek(0)
+    series_name = os.path.basename(series_path.rstrip("/\\")) or f"series-{series_id}"
+    return send_file(
+        buf,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=f"{series_name}-subtitles.zip",
+    )
 
 
 @bp.route("/subtitles/download", methods=["GET"])
