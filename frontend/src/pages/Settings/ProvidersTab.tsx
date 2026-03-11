@@ -8,6 +8,9 @@ import type { ProviderInfo } from '@/lib/types'
 import { ProviderTile } from './providers/ProviderTile'
 import { ProviderEditModal } from './providers/ProviderEditModal'
 import { AddProviderModal } from './providers/AddProviderModal'
+import { MarketplaceTab } from './providers/MarketplaceTab'
+
+type ProviderTabId = 'configured' | 'marketplace'
 
 export function ProvidersTab({
   values,
@@ -24,6 +27,7 @@ export function ProvidersTab({
   const clearCacheMut = useClearProviderCache()
   const [testResults, setTestResults] = useState<Record<string, { healthy: boolean; message: string } | 'testing'>>({})
   const [localPriority, setLocalPriority] = useState<string[] | null>(null)
+  const [activeTab, setActiveTab] = useState<ProviderTabId>('configured')
   const [editingProvider, setEditingProvider] = useState<string | null>(null)
   const [isNewProvider, setIsNewProvider] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -163,8 +167,36 @@ export function ProvidersTab({
     ? shownProviders.indexOf(editingProviderData)
     : -1
 
+  const TAB_LABELS: { id: ProviderTabId; label: string }[] = [
+    { id: 'configured', label: 'Configured' },
+    { id: 'marketplace', label: 'Marketplace' },
+  ]
+
   return (
     <div className="space-y-4">
+      {/* Tab bar */}
+      <div className="flex gap-1 border-b" style={{ borderColor: 'var(--border)' }}>
+        {TAB_LABELS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className="px-4 py-2 text-sm font-medium transition-colors"
+            style={{
+              color: activeTab === tab.id ? 'var(--accent)' : 'var(--text-secondary)',
+              borderBottom: activeTab === tab.id ? '2px solid var(--accent)' : '2px solid transparent',
+              marginBottom: '-1px',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Marketplace tab */}
+      {activeTab === 'marketplace' && <MarketplaceTab />}
+
+      {/* Configured tab */}
+      {activeTab === 'configured' && <>
       {/* Header */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
@@ -316,6 +348,7 @@ export function ProvidersTab({
           onClose={() => setShowAddModal(false)}
         />
       )}
+      </>}
     </div>
   )
 }
