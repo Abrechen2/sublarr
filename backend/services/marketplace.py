@@ -11,10 +11,11 @@ import os
 import shutil
 import subprocess
 import zipfile
+from urllib.parse import urlparse
 
 import requests
 
-from security_utils import safe_zip_extract, validate_git_url
+from security_utils import is_safe_path, safe_zip_extract, validate_git_url
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +161,8 @@ class PluginMarketplace:
             Installation result dict
         """
         plugin_path = os.path.join(plugins_dir, plugin_name)
+        if not is_safe_path(plugin_path, plugins_dir):
+            raise RuntimeError("Invalid plugin name — path traversal detected")
 
         # Remove existing plugin if present
         if os.path.exists(plugin_path):
@@ -215,10 +218,15 @@ class PluginMarketplace:
             Installation result dict
         """
         try:
+            if urlparse(zip_url).scheme != "https":
+                raise RuntimeError("Only HTTPS zip_url is allowed for plugin installation")
+
             response = requests.get(zip_url, timeout=60)
             response.raise_for_status()
 
             plugin_path = os.path.join(plugins_dir, plugin_name)
+            if not is_safe_path(plugin_path, plugins_dir):
+                raise RuntimeError("Invalid plugin name — path traversal detected")
 
             # Remove existing plugin if present
             if os.path.exists(plugin_path):
@@ -262,6 +270,9 @@ class PluginMarketplace:
         Raises:
             RuntimeError: If the HTTP request fails or the SHA256 does not match.
         """
+        if urlparse(zip_url).scheme != "https":
+            raise RuntimeError("Only HTTPS zip_url is allowed for plugin installation")
+
         response = requests.get(zip_url, timeout=60)
         response.raise_for_status()
         data = response.content
@@ -270,6 +281,8 @@ class PluginMarketplace:
             raise RuntimeError(f"SHA256 mismatch for {plugin_name}: download may be corrupted or tampered")
 
         plugin_path = os.path.join(plugins_dir, plugin_name)
+        if not is_safe_path(plugin_path, plugins_dir):
+            raise RuntimeError("Invalid plugin name — path traversal detected")
 
         if os.path.exists(plugin_path):
             shutil.rmtree(plugin_path)
@@ -348,6 +361,8 @@ class PluginMarketplace:
             Uninstallation result
         """
         plugin_path = os.path.join(plugins_dir, plugin_name)
+        if not is_safe_path(plugin_path, plugins_dir):
+            raise RuntimeError("Invalid plugin name — path traversal detected")
 
         if not os.path.exists(plugin_path):
             raise RuntimeError(f"Plugin not found: {plugin_name}")

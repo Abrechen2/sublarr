@@ -149,15 +149,17 @@ export function MarketplaceTab() {
                   <p className="text-xs text-gray-500 mt-0.5">by {plugin.author}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <a
-                    href={plugin.github_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1.5 text-gray-400 hover:text-white rounded"
-                    title="View on GitHub"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
+                  {plugin.github_url.startsWith('https://') && (
+                    <a
+                      href={plugin.github_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 text-gray-400 hover:text-white rounded"
+                      title="View on GitHub"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  )}
                   {installed ? (
                     <button
                       onClick={() => void handleUninstall(plugin.name, plugin.display_name)}

@@ -243,6 +243,9 @@ def install_marketplace_plugin():
     if not name or not zip_url:
         return jsonify({"error": "name (or plugin_name) and zip_url are required"}), 400
 
+    if not sha256:
+        return jsonify({"error": "sha256 is required for plugin installation"}), 400
+
     try:
         plugins_dir = getattr(get_settings(), "plugins_dir", "/config/plugins")
         marketplace = PluginMarketplace()
