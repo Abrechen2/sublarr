@@ -32,6 +32,10 @@ from db.models.notifications import (
     NotificationTemplate,
     QuietHoursConfig,
 )
+from db.models.plugins import (
+    InstalledPlugin,
+    MarketplaceCache,
+)
 from db.models.providers import (
     ProviderCache,
     ProviderScoreModifier,
@@ -101,4 +105,7 @@ __all__ = [
     "NotificationTemplate",
     "NotificationHistory",
     "QuietHoursConfig",
+    # plugins / marketplace
+    "MarketplaceCache",
+    "InstalledPlugin",
 ]
