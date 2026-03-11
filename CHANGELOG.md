@@ -5,6 +5,26 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.1-beta] — 2026-03-11
+
+### Added
+
+- **Accessibility — Toast `aria-live`** — `ToastContainer` now has `role="status"`, `aria-live="polite"`, and `aria-atomic="true"`; screen readers announce toast messages without interrupting focus
+- **Accessibility — Skip-to-Main Link** — visually-hidden skip link added as first focusable element in the render tree; activating it moves focus to `#main-content`; visible on keyboard focus
+- **Accessibility — Modal `role="dialog"`** — all 7 modals (`SubtitleEditorModal`, `WidgetSettingsModal`, `GlobalSearchModal`, `SubtitleCleanupModal`, `SyncModal`, `AddProviderModal`, `ProviderEditModal`) now have `role="dialog"`, `aria-modal="true"`, `aria-labelledby` pointing to the modal title, and `autoFocus` on the close button
+- **Accessibility — Semantic Tables** — all `<th>` elements in Library, History, Blacklist, and Wanted tables have `scope="col"`; Library sort headers update `aria-sort` dynamically (`ascending` / `descending` / `none`)
+- **Accessibility — Form Labels** — `AddProviderModal` and `ProviderEditModal` inputs have `aria-label` or `<label htmlFor>` associations; `SettingRow` renders a semantic `<label>` when `htmlFor` is provided
+- **Accessibility — Client-Side Validation** — `AddProviderModal` and `ProviderEditModal` validate required fields on blur and on submit attempt; inline `<p role="alert">` error messages with `aria-invalid` / `aria-describedby` on inputs
+- **StatusBadge — Lucide Icons** — each status now renders a lucide icon alongside the color dot for colorblind accessibility (`CheckCircle2`, `XCircle`, `Clock`, `Loader2`, `AlertCircle`, `Search`, `MinusCircle`); `Loader2` animates with `animate-spin`; color dot removed
+- **Page-Specific Skeletons** — `LibrarySkeleton`, `TableSkeleton`, `ListSkeleton`, `FormSkeleton` added to `PageSkeleton.tsx`; Library, History, Queue, Blacklist, Wanted, and Settings Suspense boundaries use their matching skeleton instead of the generic one
+- **`prefers-reduced-motion`** — CSS media query added to `index.css`; overrides all animation/transition durations to `0.01ms` for users who opt out of motion
+
+### Changed
+
+- **Library Grid — Tablet Breakpoint** — added `md:grid-cols-5` between `sm:grid-cols-4` and `lg:grid-cols-6`; smooths the column jump at 768px viewport
+- **Stagger Animation — 300ms Cap** — Library grid cards and Wanted list rows apply `animationDelay: Math.min(i * 30, 300)ms`; late items on large lists no longer appear broken
+- **CSS Hover — Remove JS State** — `RecentActivityWidget` and `ProviderTile` replaced `useState`/`onMouseEnter`/`onMouseLeave` background-color handlers with a `.hover-surface:hover` CSS utility class; eliminates unnecessary re-renders
+
 ## [0.20.0-beta] — 2026-03-10
 
 ### Added

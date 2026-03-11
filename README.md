@@ -8,7 +8,7 @@
 
 *arr-compatible · Self-hosted · Open Source · LLM translation (beta)
 
-[![Version](https://img.shields.io/badge/version-0.20.0--beta-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
+[![Version](https://img.shields.io/badge/version-0.21.1--beta-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776ab.svg)](https://www.python.org/)
 [![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
@@ -22,20 +22,16 @@
 
 ---
 
-> [!WARNING]
-> **This is BETA software.** Sublarr is under active development and may contain bugs, incomplete features, or breaking changes between versions.
->
-> **Use at your own risk.** The author assumes no responsibility for data loss, corrupted files, deleted subtitles, or any other damage caused by using this software. Always keep backups of your subtitle files and media library before enabling automation features.
->
-> Beta releases (`0.x.y-beta`) may change configuration formats, database schemas, or API contracts without notice. Read the [CHANGELOG](CHANGELOG.md) before upgrading.
-
----
-
 Sublarr is a self-hosted subtitle manager for anime and media libraries. It automatically searches subtitle providers, scores and downloads the best match (ASS-first), and gives you tools to edit, sync and convert subtitles — all on your LAN, no cloud required.
 
 It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up your language profiles, and let it handle everything automatically via webhooks.
 
-> **Looking for something stable and battle-tested?** [Bazarr](https://github.com/morpheus65535/bazarr) is the right choice. Sublarr exists because I wanted features Bazarr didn't have — not because Bazarr is lacking.
+> [!WARNING]
+> **Active beta.** Configuration formats, database schemas, and API contracts may change between versions. Read the [CHANGELOG](CHANGELOG.md) before upgrading. Always keep backups of your subtitle files before enabling automation. Solo-maintained project — bug reports and contributions welcome.
+
+---
+
+## ✨ Features
 
 ### What's core vs. what's beta
 
@@ -47,26 +43,6 @@ It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up
 | Subtitle editor, waveform sync, format conversion | Core — functional, rough edges possible |
 | LLM translation via Ollama | **Beta within beta** — EN→DE anime only, quality varies |
 | Fine-tuned anime model (anime-translator-v6) | **Experimental** — BLEU benchmark only, real-world YMMV |
-
-> **Note on LLM translation:** It's there, it works for my setup, but it's not the reason to choose Sublarr over alternatives. If local AI translation is your main goal, manage your expectations.
-
-### A note on scope
-
-Solo-maintained, AI-assisted project in active beta. Core features (search, scoring, wanted scanner) are well-tested; newer features (LLM translation, subtitle editor) are experimental. Contributions and bug reports welcome.
-
----
-
-## 💙 Support This Project
-
-If Sublarr saves you time, please consider supporting continued development:
-
-<a href="https://www.paypal.com/donate?hosted_button_id=GLXYTD3FV9Y78">
-  <img src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif" alt="Donate via PayPal" />
-</a>
-
----
-
-## ✨ Features
 
 ### 🔍 Subtitle Search & Download
 - **11 providers** — AnimeTosho, Jimaku, OpenSubtitles, SubDL + 7 plugin providers
@@ -148,7 +124,7 @@ Open **http://localhost:5765** — that's it.
 ```yaml
 services:
   sublarr:
-    image: ghcr.io/abrechen2/sublarr:0.20.0-beta
+    image: ghcr.io/abrechen2/sublarr:0.21.1-beta
     container_name: sublarr
     ports:
       - "5765:5765"
@@ -171,7 +147,7 @@ The image runs as a non-root user with `cap_drop: ALL` and no new privileges. A 
 ```yaml
 services:
   sublarr:
-    image: ghcr.io/abrechen2/sublarr:0.20.0-beta
+    image: ghcr.io/abrechen2/sublarr:0.21.1-beta
     container_name: sublarr
     ports:
       - "5765:5765"
