@@ -52,7 +52,7 @@ It follows the *arr-suite design philosophy: connect it to Sonarr/Radarr, set up
 
 ### A note on scope
 
-This is a vibe-coded solo project with ADHD-driven feature scope — meaning there are more features than are fully polished. Some work great, some have rough edges. Constructive criticism and bug reports are genuinely welcome. If something doesn't work, [open an issue](https://github.com/Abrechen2/sublarr/issues) — I'd rather know than not.
+Solo-maintained, AI-assisted project in active beta. Core features (search, scoring, wanted scanner) are well-tested; newer features (LLM translation, subtitle editor) are experimental. Contributions and bug reports welcome.
 
 ---
 
