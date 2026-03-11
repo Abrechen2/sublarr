@@ -86,6 +86,9 @@ export function ProviderEditModal({
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="provider-edit-title"
         className="w-full max-w-lg flex flex-col rounded-lg overflow-hidden"
         style={{
           backgroundColor: 'var(--bg-surface)',
@@ -103,11 +106,12 @@ export function ProviderEditModal({
             <p className="text-[11px] font-medium mb-0.5" style={{ color: 'var(--text-muted)' }}>
               {isNew ? 'Schritt 2 von 2 · ' : ''}Provider bearbeiten
             </p>
-            <p className="text-sm font-semibold capitalize" style={{ color: 'var(--text-primary)' }}>
+            <h2 id="provider-edit-title" className="text-sm font-semibold capitalize" style={{ color: 'var(--text-primary)' }}>
               {provider.name.replace(/_/g, ' ')}
-            </p>
+            </h2>
           </div>
           <button
+            autoFocus
             onClick={onClose}
             className="p-1.5 rounded transition-colors"
             style={{ color: 'var(--text-muted)' }}

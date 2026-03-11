@@ -232,6 +232,10 @@ h2 {
 }
 
 /* Hover utilities for CSS custom property backgrounds */
+.bg-surface {
+  background-color: var(--bg-surface);
+}
+
 .hover-surface:hover {
   background-color: var(--bg-surface-hover);
 }

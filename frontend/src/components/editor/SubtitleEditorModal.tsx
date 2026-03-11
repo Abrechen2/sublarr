@@ -190,6 +190,9 @@ export default function SubtitleEditorModal({
       onClick={handleOverlayClick}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Subtitle Editor"
         className="w-[92vw] h-[88vh] max-w-7xl rounded-lg overflow-hidden flex flex-col"
         style={{
           backgroundColor: 'var(--bg-surface)',
@@ -265,6 +268,7 @@ export default function SubtitleEditorModal({
               </span>
             )}
             <button
+              autoFocus
               onClick={handleClose}
               className="p-1 rounded transition-colors"
               style={{ color: 'var(--text-muted)' }}

@@ -99,15 +99,19 @@ export function SubtitleCleanupModal({ seriesId, targetLanguages, onClose }: Pro
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="subtitle-cleanup-title"
         className="w-full max-w-md rounded-lg flex flex-col"
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', maxHeight: '80vh' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
-          <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+          <h2 id="subtitle-cleanup-title" className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
             Sidecar bereinigen
-          </span>
+          </h2>
           <button
+            autoFocus
             onClick={onClose}
             className="p-1 rounded"
             style={{ color: 'var(--text-muted)' }}

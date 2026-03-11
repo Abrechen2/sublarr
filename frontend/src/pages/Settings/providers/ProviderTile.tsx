@@ -27,9 +27,8 @@ export function ProviderTile({
 
   return (
     <div
-      className="hover-surface relative rounded overflow-hidden group cursor-pointer"
+      className="bg-surface hover-surface relative rounded overflow-hidden group cursor-pointer"
       style={{
-        backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border)',
         borderLeft: `4px solid ${borderColor}`,
         minHeight: '7rem',
