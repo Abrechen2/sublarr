@@ -12,6 +12,7 @@ Endpoints:
   POST /library/trash/<batch_id>/restore                — restore a batch
   DELETE /library/trash/<batch_id>                      — permanently delete a batch
   GET  /subtitles/download?path=                        — download a subtitle file by path
+  GET  /series/<series_id>/subtitles/export             — export series subtitles as ZIP
 """
 
 import glob as _glob
@@ -584,7 +585,8 @@ def _get_series_path(series_id: int) -> str | None:
             return None
         raw_path = series.get("path", "")
         return map_path(raw_path) if raw_path else None
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to resolve series path for id=%s: %s", series_id, exc)
         return None
 
 
