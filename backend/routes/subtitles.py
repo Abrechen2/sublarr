@@ -620,8 +620,7 @@ def export_series_subtitles(series_id: int):
 
     if lang_filter:
         subtitle_files = [
-            s for s in subtitle_files
-            if f".{lang_filter}." in os.path.basename(s["path"]).lower()
+            s for s in subtitle_files if f".{lang_filter}." in os.path.basename(s["path"]).lower()
         ]
 
     buf = io.BytesIO()
