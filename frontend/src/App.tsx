@@ -133,11 +133,18 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <WebSocketProvider>
       <BrowserRouter>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:rounded"
+          style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+        >
+          Skip to main content
+        </a>
         <GlobalWebSocketListener />
         <GlobalShortcuts onToggleShortcutsModal={toggleShortcutsModal} />
         <div className="flex min-h-screen">
           <Sidebar />
-          <main className="flex-1 min-w-0 p-4 md:p-5 pt-16 md:pt-5 min-h-screen">
+          <main id="main-content" className="flex-1 min-w-0 p-4 md:p-5 pt-16 md:pt-5 min-h-screen">
             <AnimatedRoutes />
           </main>
         </div>
