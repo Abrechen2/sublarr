@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import { render } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { WidgetSettingsModal } from '@/components/dashboard/WidgetSettingsModal'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -13,23 +13,15 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('@/hooks/useApi', () => ({
-  useGlobalSearch: () => ({ data: undefined, isFetching: false }),
-  useProviders: () => ({ data: [] }),
-  useLibrary: () => ({ data: [] }),
-}))
-
-vi.mock('@/hooks/useWebSocket', () => ({
-  useWebSocket: () => ({}),
+vi.mock('@/stores/dashboardStore', () => ({
+  useDashboardStore: (selector: (s: { hiddenWidgets: string[]; toggleWidget: () => void; resetToDefault: () => void }) => unknown) =>
+    selector({ hiddenWidgets: [], toggleWidget: vi.fn(), resetToDefault: vi.fn() }),
 }))
 
 describe('Modal accessibility attributes', () => {
-  it('GlobalSearchModal has role=dialog and aria-modal when open', async () => {
-    const { GlobalSearchModal } = await import('@/components/search/GlobalSearchModal')
+  it('WidgetSettingsModal has role=dialog and aria-modal when open', () => {
     const { container } = render(
-      <MemoryRouter>
-        <GlobalSearchModal open={true} onOpenChange={() => {}} />
-      </MemoryRouter>
+      <WidgetSettingsModal open={true} onClose={() => {}} />
     )
     const dialog = container.querySelector('[role="dialog"]')
     expect(dialog).toBeInTheDocument()
