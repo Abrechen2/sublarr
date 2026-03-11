@@ -895,12 +895,13 @@ export function LibraryPage() {
             </div>
           )}
           {viewMode === 'grid' ? (
-            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
-              {paginatedItems.map((item) => (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+              {paginatedItems.map((item, i) => (
                 <LibraryGridCard
                   key={item.id}
                   item={item}
                   onClick={() => handleRowClick(item.id)}
+                  style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}
                 />
               ))}
             </div>
