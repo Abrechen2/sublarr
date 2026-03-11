@@ -139,14 +139,16 @@ def get_installed_plugins():
     rows = InstalledPlugin.query.order_by(InstalledPlugin.name).all()
     installed = []
     for row in rows:
-        installed.append({
-            "name": row.name,
-            "display_name": row.display_name,
-            "version": row.version,
-            "capabilities": json.loads(row.capabilities or "[]"),
-            "enabled": bool(row.enabled),
-            "installed_at": row.installed_at,
-        })
+        installed.append(
+            {
+                "name": row.name,
+                "display_name": row.display_name,
+                "version": row.version,
+                "capabilities": json.loads(row.capabilities or "[]"),
+                "enabled": bool(row.enabled),
+                "installed_at": row.installed_at,
+            }
+        )
     return jsonify({"installed": installed})
 
 
@@ -267,16 +269,18 @@ def install_marketplace_plugin():
             existing.capabilities = capabilities
             existing.installed_at = now
         else:
-            sa_db.session.add(InstalledPlugin(
-                name=name,
-                display_name=data.get("display_name", name),
-                version=data.get("version", "0.0.0"),
-                plugin_dir=result["path"],
-                sha256=sha256,
-                capabilities=capabilities,
-                enabled=1,
-                installed_at=now,
-            ))
+            sa_db.session.add(
+                InstalledPlugin(
+                    name=name,
+                    display_name=data.get("display_name", name),
+                    version=data.get("version", "0.0.0"),
+                    plugin_dir=result["path"],
+                    sha256=sha256,
+                    capabilities=capabilities,
+                    enabled=1,
+                    installed_at=now,
+                )
+            )
         sa_db.session.commit()
 
         # Hot-reload plugins

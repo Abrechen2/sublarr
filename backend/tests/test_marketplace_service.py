@@ -3,9 +3,9 @@
 import hashlib
 import io
 import zipfile
+from unittest.mock import MagicMock, patch
 
 import pytest
-from unittest.mock import patch, MagicMock
 
 
 def make_zip_bytes() -> bytes:

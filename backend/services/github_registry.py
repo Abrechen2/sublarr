@@ -107,9 +107,7 @@ class GitHubRegistry:
             existing = db.session.get(MarketplaceCache, manifest["name"])
             if existing is not None:
                 existing.display_name = manifest["display_name"]
-                existing.author = manifest.get(
-                    "author", repo.get("owner", {}).get("login", "")
-                )
+                existing.author = manifest.get("author", repo.get("owner", {}).get("login", ""))
                 existing.version = manifest["version"]
                 existing.description = manifest.get("description", repo.get("description", ""))
                 existing.github_url = repo.get("html_url", "")

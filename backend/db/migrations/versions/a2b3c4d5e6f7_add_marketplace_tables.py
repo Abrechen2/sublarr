@@ -30,7 +30,9 @@ def upgrade():
         sa.Column("capabilities", sa.Text(), nullable=False, server_default="[]"),
         sa.Column("min_sublarr_version", sa.String(length=50), nullable=False, server_default=""),
         sa.Column("is_official", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("last_fetched", sa.Text(), nullable=False, server_default=sa.text("current_timestamp")),
+        sa.Column(
+            "last_fetched", sa.Text(), nullable=False, server_default=sa.text("current_timestamp")
+        ),
         sa.PrimaryKeyConstraint("name"),
     )
 
@@ -43,7 +45,9 @@ def upgrade():
         sa.Column("sha256", sa.String(length=64), nullable=False, server_default=""),
         sa.Column("capabilities", sa.Text(), nullable=False, server_default="[]"),
         sa.Column("enabled", sa.Integer(), nullable=False, server_default="1"),
-        sa.Column("installed_at", sa.Text(), nullable=False, server_default=sa.text("current_timestamp")),
+        sa.Column(
+            "installed_at", sa.Text(), nullable=False, server_default=sa.text("current_timestamp")
+        ),
         sa.PrimaryKeyConstraint("name"),
     )
 

@@ -278,7 +278,9 @@ class PluginMarketplace:
         data = response.content
 
         if not verify_zip_sha256(data, expected_sha256):
-            raise RuntimeError(f"SHA256 mismatch for {plugin_name}: download may be corrupted or tampered")
+            raise RuntimeError(
+                f"SHA256 mismatch for {plugin_name}: download may be corrupted or tampered"
+            )
 
         plugin_path = os.path.join(plugins_dir, plugin_name)
         if not is_safe_path(plugin_path, plugins_dir):

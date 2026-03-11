@@ -94,12 +94,14 @@ def test_refresh_calls_github_registry(client):
     mock_instance = MagicMock()
     mock_instance.search.return_value = fake_plugins
 
-    with patch("routes.marketplace.GitHubRegistry", return_value=mock_instance, create=True):
+    with (
+        patch("routes.marketplace.GitHubRegistry", return_value=mock_instance, create=True),
+        patch("services.github_registry.GitHubRegistry") as mock_cls,
+    ):
         # Patch within the module namespace where it is imported at call time
-        with patch("services.github_registry.GitHubRegistry") as mock_cls:
-            mock_cls.return_value = mock_instance
-            # The route does a local import, so patch the source module
-            resp = client.post("/api/v1/marketplace/refresh")
+        mock_cls.return_value = mock_instance
+        # The route does a local import, so patch the source module
+        resp = client.post("/api/v1/marketplace/refresh")
 
     # Verify via a direct patch of the route's import path
     mock_registry = MagicMock()

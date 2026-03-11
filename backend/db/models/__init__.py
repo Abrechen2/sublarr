@@ -32,16 +32,16 @@ from db.models.notifications import (
     NotificationTemplate,
     QuietHoursConfig,
 )
+from db.models.plugins import (
+    InstalledPlugin,
+    MarketplaceCache,
+)
 from db.models.providers import (
     ProviderCache,
     ProviderScoreModifier,
     ProviderStats,
     ScoringWeights,
     SubtitleDownload,
-)
-from db.models.plugins import (
-    InstalledPlugin,
-    MarketplaceCache,
 )
 from db.models.quality import SubtitleHealthResult
 from db.models.standalone import (
