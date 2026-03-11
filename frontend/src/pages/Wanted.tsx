@@ -858,12 +858,12 @@ export function WantedPage() {
                   </tr>
                 ))
               ) : filteredData?.length ? (
-                filteredData.map((item) => (
+                filteredData.map((item, i) => (
                   <Fragment key={item.id}>
                     <tr
                       data-testid="wanted-item"
                       className="transition-colors duration-100"
-                      style={{ borderBottom: '1px solid var(--border)' }}
+                      style={{ borderBottom: '1px solid var(--border)', animationDelay: `${Math.min(i * 30, 300)}ms` }}
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)')}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >
