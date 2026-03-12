@@ -11,7 +11,7 @@ import { createPortal } from 'react-dom'
 import { Loader2, X, Eye, Pencil, GitCompare, RefreshCw, Activity } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSubtitleContent } from '@/hooks/useApi'
-import { autoSyncFile, overlapFix, timingNormalize, mergeLines, splitLines, spellCheck, removeCredits } from '@/api/client'
+import { autoSyncFile, overlapFix, timingNormalize, mergeLines, splitLines, spellCheck, removeCredits, detectOpeningEnding } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 
 // Lazy-loaded editor components -- CodeMirror stays in separate chunks
@@ -171,6 +171,7 @@ export default function SubtitleEditorModal({
     { key: 'split', label: 'Aufteilen', fn: () => splitLines(filePath!).then(r => `${r.split} Cues aufgeteilt`) },
     { key: 'spell', label: 'Rechtschreibung', fn: () => spellCheck(filePath!).then(r => `${r.total} Fehler gefunden`) },
     { key: 'credits', label: 'Credits entfernen', fn: () => removeCredits(filePath!).then(r => `${r.removed ?? 0} Credit-Zeilen entfernt`) },
+    { key: 'opEd', label: 'OP/ED erkennen', fn: () => detectOpeningEnding(filePath!).then(r => r.detected.length > 0 ? `${r.detected.length} OP/ED Bereiche erkannt` : 'Keine OP/ED erkannt') },
   ]
 
   // When modal is closed, render nothing

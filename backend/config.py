@@ -164,6 +164,7 @@ class Settings(BaseSettings):
     credit_threshold_sec: int = 90
     """Seconds from end of subtitle file to treat as credits region.
     Set via SUBLARR_CREDIT_THRESHOLD_SEC."""
+    op_window_sec: int = 300  # seconds from start/end of file to consider OP/ED window
 
     # Forced Subtitles
     forced_preference: str = "include"  # include | prefer | exclude | only

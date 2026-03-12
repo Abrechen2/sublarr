@@ -355,6 +355,20 @@ staff-credits-only lines from subtitle files. It uses four independent heuristic
 A `.bak` backup is created before any modification. Use the API's `dry_run: true`
 option to preview which lines would be removed before committing.
 
+### OP/ED Detection
+
+The **OP/ED erkennen** button in the Quality Tools toolbar identifies Opening (OP) and Ending (ED) cue regions in your subtitle file and shows their time boundaries.
+
+**How it works:**
+
+Two detection passes run automatically:
+
+1. **Style name** (ASS/SSA only) — Events with a style named `OP`, `ED`, `Opening`, `Ending`, `OP Theme`, `ED Theme`, `Opening Theme`, or `Ending Theme` are identified directly. This is the most reliable method for professionally typeset fansub releases.
+
+2. **Position + Duration** — Used as fallback when no matching style names are found. Looks for a cluster of 3+ consecutive events near the start of the file (Opening) or end of the file (Ending) with a duration matching typical OP length (60–120 s) or ED length (90–180 s).
+
+**Result:** Detected regions are shown with their time range, event count, and detection method. If nothing is detected, a "Keine OP/ED erkannt" message is shown. The file is never modified.
+
 ### Stream Removal (Remux)
 
 Remove an embedded subtitle stream from a video file directly from the UI — without re-encoding the video.
