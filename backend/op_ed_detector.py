@@ -22,7 +22,7 @@ _ED_STYLE = re.compile(r"^(ED|Ending|ED Theme|Ending Theme)$", re.IGNORECASE)
 
 _OP_MIN_MS = 60_000  # 60 s minimum OP duration
 _OP_MAX_MS = 120_000  # 120 s maximum OP duration
-_ED_MIN_MS = 10_000  # 10 s minimum ED duration (ED length varies widely)
+_ED_MIN_MS = 90_000  # 90 s minimum ED duration
 _ED_MAX_MS = 180_000  # 180 s maximum ED duration
 _MAX_GAP_MS = 3_000  # max gap between events in a cluster
 _MIN_EVENTS = 3  # minimum events to form a valid cluster

@@ -97,8 +97,9 @@ def test_pass1_per_type_gating_op_style_ed_duration():
     # File total: ~1700s so windows don't overlap
     op_events = [(5_000, 10_000, "Opening")] * 8
     dialogue = [(300_000, 301_000, "Default")] * 3
-    # ED cluster: starts at 1390s, ends at 1500s = 110s duration, within last 300s of 1700s file
-    ed_events = [(1_390_000 + i * 5_000, 1_392_000 + i * 5_000, "Default") for i in range(5)]
+    # ED cluster: starts at 1390s, ends ~1524s = 134s duration, within last 300s of ~1524s file
+    # Each event 26s long, 1s gap between events → contiguous cluster, span > 90s
+    ed_events = [(1_390_000 + i * 27_000, 1_416_000 + i * 27_000, "Default") for i in range(5)]
     all_events = op_events + dialogue + ed_events
     result = detect_op_ed_from_ass(_make_ass_events(all_events))
     types = {r["type"] for r in result}
@@ -153,6 +154,8 @@ def test_pass2_ed_cluster_in_last_window_detected():
     result = detect_op_ed_from_ass(_make_ass_events(dialogue + ed_events))
     types = {r["type"] for r in result}
     assert "ED" in types
+    ed = next(r for r in result if r["type"] == "ED")
+    assert ed["method"] == "duration"
 
 
 def test_pass2_cluster_too_short_not_op():
@@ -164,6 +167,18 @@ def test_pass2_cluster_too_short_not_op():
     dialogue = [(600_000 + i * 2_000, 602_000 + i * 2_000, "Default") for i in range(5)]
     result = detect_op_ed_from_ass(_make_ass_events(op_events + dialogue))
     assert not any(r["type"] == "OP" for r in result)
+
+
+def test_pass2_cluster_too_short_not_ed():
+    """Cluster shorter than 90s is NOT detected as ED."""
+    from op_ed_detector import detect_op_ed_from_ass
+
+    # Only 5 events with 10s each = 50s duration → below 90s minimum for ED
+    dialogue = [(300_000 + i * 2_000, 302_000 + i * 2_000, "Default") for i in range(5)]
+    # File total ~1700s so windows don't overlap
+    ed_events = [(1_390_000 + i * 10_000, 1_400_000 + i * 10_000, "Default") for i in range(5)]
+    result = detect_op_ed_from_ass(_make_ass_events(dialogue + ed_events))
+    assert not any(r["type"] == "ED" for r in result)
 
 
 def test_pass2_cluster_outside_window_not_detected():
