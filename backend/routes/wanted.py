@@ -1766,3 +1766,137 @@ def cleanup_sidecars():
                         deleted.append(sidecar)  # report as "would delete"
 
     return jsonify({"deleted": deleted, "kept": kept, "errors": errors, "dry_run": dry_run})
+
+
+# ---------------------------------------------------------------------------
+# Batch re-translation
+# ---------------------------------------------------------------------------
+
+
+def _retranslate_item(item_id: int):
+    """Queue re-translation for a single wanted item.
+
+    Looks up the wanted item by ID, verifies the media file exists, deletes any
+    existing translated subtitle sidecar files, and starts a background
+    translation job.
+
+    Returns the job_id string on success, or None if the item / file was not found.
+    """
+    import threading
+
+    from config import get_settings
+    from db import _db_lock
+    from db.jobs import create_job
+    from db.wanted import get_wanted_item
+    from events import emit_event
+    from security_utils import is_safe_path
+
+    with _db_lock:
+        item = get_wanted_item(item_id)
+    if not item:
+        return None
+
+    file_path = item.get("file_path") or item.get("path")
+    if not file_path or not os.path.exists(file_path):
+        return None
+
+    settings = get_settings()
+    if not is_safe_path(file_path, settings.media_path):
+        logger.warning("_retranslate_item: path traversal rejected for item %s", item_id)
+        return None
+
+    # Remove existing translated sidecar files so re-translation starts clean
+    base = os.path.splitext(file_path)[0]
+    for fmt in ("ass", "srt"):
+        for pattern in settings.get_target_patterns(fmt):
+            target = base + pattern
+            if os.path.exists(target):
+                try:
+                    os.remove(target)
+                    logger.info("batch-translate: removed existing sidecar %s", target)
+                except OSError as exc:
+                    logger.warning("batch-translate: could not remove %s: %s", target, exc)
+
+    with _db_lock:
+        new_job = create_job(file_path, force=True)
+
+    from flask import current_app as _current_app
+
+    _app = _current_app._get_current_object()
+
+    def _run():
+        from routes.translate import _run_job
+
+        with _app.app_context():
+            _run_job(new_job)
+            emit_event(
+                "translation_complete",
+                {
+                    "file_path": file_path,
+                    "job_id": new_job["id"],
+                },
+            )
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+
+    return new_job["id"]
+
+
+@bp.route("/wanted/batch-translate", methods=["POST"])
+def batch_translate():
+    """Queue multiple wanted items for re-translation.
+    ---
+    post:
+      tags:
+        - Wanted
+      summary: Batch re-translate wanted items
+      description: >
+        Accepts a list of wanted item IDs and queues each one for re-translation.
+        Items whose media file cannot be found are silently skipped.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [item_ids]
+              properties:
+                item_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: List of wanted item IDs to re-translate
+      responses:
+        202:
+          description: Jobs queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  queued:
+                    type: integer
+                  job_ids:
+                    type: array
+                    items:
+                      type: string
+        400:
+          description: item_ids missing or empty
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    item_ids = data.get("item_ids")
+    if not item_ids:
+        return jsonify({"error": "item_ids required and must be non-empty"}), 400
+    if not isinstance(item_ids, list):
+        return jsonify({"error": "item_ids must be a list"}), 400
+
+    job_ids = []
+    for item_id in item_ids:
+        job_id = _retranslate_item(item_id)
+        if job_id:
+            job_ids.append(job_id)
+
+    return jsonify({"queued": len(job_ids), "job_ids": job_ids}), 202

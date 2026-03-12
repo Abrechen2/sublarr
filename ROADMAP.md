@@ -1,6 +1,6 @@
 # Sublarr — Roadmap
 
-> Completed versions are marked ✅. The current release is **v0.22.0-beta**. Planned versions reflect intended direction and may shift.
+> Completed versions are marked ✅. The current release is **v0.23.0-beta**. Planned versions reflect intended direction and may shift.
 
 ---
 
@@ -125,7 +125,7 @@
 
 ---
 
-## v0.22.0 ✅ — Provider Ecosystem / Plugin Marketplace *(current)*
+## v0.22.0 ✅ — Provider Ecosystem / Plugin Marketplace
 
 - Marketplace — GitHub plugin discovery via `topic:sublarr-provider`; 1-hour cache TTL
 - Marketplace — Official/Community badges via `official-registry.json`
@@ -137,7 +137,7 @@
 
 ---
 
-## v0.23.0 — Batch Operations & Smart Filter *(next)*
+## v0.23.0 ✅ — Batch Operations & Smart Filter *(current)*
 
 Goals: Multi-select workflows across Library and Wanted; auto-extract-on-scan; saved filter presets.
 

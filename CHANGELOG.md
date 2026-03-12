@@ -5,6 +5,20 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.0-beta] — 2026-03-12
+
+### Added
+
+- **Batch Translate — `POST /wanted/batch-translate`** — re-translate multiple subtitle files in one request; accepts `item_ids` array; returns per-item success/failure map
+- **Batch Search Extended** — `POST /wanted/batch-search` now accepts `series_ids` array for multi-series search in a single call
+- **Library — Series Checkboxes** — multi-select series in Library view with floating batch toolbar (Search All Missing)
+- **SeriesDetail — Episode Checkboxes** — multi-select episodes with floating batch toolbar (Search / Extract)
+- **Filter Presets** — save, load, and delete named filter configurations on Library, Wanted, and History pages; persisted in `filter_presets` DB table via `GET|POST|DELETE /api/v1/filter-presets`
+- **Global Search (Ctrl+K)** — fuzzy search across series, episodes, and subtitles; keyboard-accessible command palette
+- **Auto-Extract on Scan** — `scan_auto_extract` + `scan_auto_translate` settings; scanner automatically extracts embedded subs on first detection
+
+---
+
 ## [0.22.0-beta] — 2026-03-11
 
 ### Added
