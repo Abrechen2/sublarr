@@ -5,9 +5,10 @@
  * Disappears when selection count drops to 0.
  */
 import { useState, useRef, useEffect } from 'react'
-import { X, EyeOff, Eye, Ban, Download } from 'lucide-react'
+import { X, EyeOff, Eye, Ban, Download, Layers, Languages } from 'lucide-react'
 import { useSelectionStore } from '@/stores/selectionStore'
-import { useBatchAction } from '@/hooks/useApi'
+import { useBatchAction, useBatchTranslate } from '@/hooks/useApi'
+import { batchExtractEmbedded } from '@/api/client'
 import type { BatchAction, FilterScope } from '@/lib/types'
 
 interface BatchActionDef {
@@ -29,13 +30,16 @@ const ACTION_DEFS: BatchActionDef[] = [
   { action: 'unignore',  label: 'Unignore',  icon: <Eye className="h-3.5 w-3.5" /> },
   { action: 'blacklist', label: 'Blacklist',  icon: <Ban className="h-3.5 w-3.5" />, variant: 'destructive' },
   { action: 'export',    label: 'Export',     icon: <Download className="h-3.5 w-3.5" /> },
+  { action: 'extract',   label: 'Extract',    icon: <Layers className="h-3.5 w-3.5" /> },
+  { action: 'translate', label: 'Translate',  icon: <Languages className="h-3.5 w-3.5" /> },
 ]
 
-export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blacklist', 'export'], onActionComplete }: Props) {
+export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blacklist', 'export', 'extract', 'translate'], onActionComplete }: Props) {
   const count = useSelectionStore((s) => s.getCount(scope))
   const getSelectedArray = useSelectionStore((s) => s.getSelectedArray)
   const clearSelection = useSelectionStore((s) => s.clearSelection)
   const batchMutation = useBatchAction()
+  const translateMutation = useBatchTranslate()
   const [lastResult, setLastResult] = useState<string | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -52,6 +56,20 @@ export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blackl
     const ids = getSelectedArray(scope)
     if (ids.length === 0) return
 
+    if (action === 'extract') {
+      await batchExtractEmbedded(ids)
+      clearSelection(scope)
+      onActionComplete?.(action, { queued: ids.length })
+      return
+    }
+    if (action === 'translate') {
+      const result = await translateMutation.mutateAsync(ids)
+      setLastResult(`${result.queued} queued for translation`)
+      timeoutRef.current = setTimeout(() => setLastResult(null), 3000)
+      clearSelection(scope)
+      onActionComplete?.(action, result)
+      return
+    }
     if (action === 'export') {
       // Export: trigger download of selected item IDs as JSON
       const result = await batchMutation.mutateAsync({ itemIds: ids, action })
