@@ -341,6 +341,20 @@ The Tasks page (`/tasks` in the UI) gives you visibility into all background sch
 
 Available tasks include the wanted scanner, wanted search, upgrade scanner, cache cleanup, and backup scheduler.
 
+### Credit Filtering
+
+The **Credits entfernen** button in the Quality Tools toolbar detects and removes
+staff-credits-only lines from subtitle files. It uses four independent heuristics:
+
+- **Role markers** — lines containing `(Translator)`, `(QC)`, `(Timer)`, `OP Theme`, etc.
+- **Credit prefixes** — lines starting with `Credits:`, `Staff:`, `Translation:`, etc.
+- **Duration heuristic** — short lines (no `?` or `!`) near the end of the file
+  (configurable via `SUBLARR_CREDIT_THRESHOLD_SEC`, default 90 s)
+- **Isolated names** — exactly two title-case words (e.g., `John Smith`)
+
+A `.bak` backup is created before any modification. Use the API's `dry_run: true`
+option to preview which lines would be removed before committing.
+
 ### Stream Removal (Remux)
 
 Remove an embedded subtitle stream from a video file directly from the UI — without re-encoding the video.

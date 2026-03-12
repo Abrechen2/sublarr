@@ -357,6 +357,16 @@ Configure in **Settings → Translation**.
 
 ---
 
+## Credit Filtering
+
+Configure in **Settings → Translation**.
+
+| Variable | Default | UI | Description |
+|---|---|:---:|---|
+| `SUBLARR_CREDIT_THRESHOLD_SEC` | `90` | ✅ | Seconds from the end of a subtitle file treated as the credits region by the duration heuristic in credit detection. |
+
+---
+
 ## Plugin System
 
 Env-only — plugin directory is infrastructure; hot-reload is a dev convenience.
