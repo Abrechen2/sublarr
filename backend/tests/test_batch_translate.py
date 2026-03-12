@@ -1,6 +1,7 @@
 """Tests for POST /api/v1/wanted/batch-translate."""
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 
 @pytest.fixture
