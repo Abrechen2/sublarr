@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry, useStartWantedBatch, useUpdateSeriesSettings, useAnidbMappingStatus, useRefreshAnidbMapping } from '@/hooks/useApi'
+import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry, useStartWantedBatch, useUpdateSeriesSettings, useAnidbMappingStatus, useRefreshAnidbMapping, useBatchTranslate } from '@/hooks/useApi'
 import {
   ArrowLeft, Loader2, ChevronDown, ChevronRight,
   Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search,
@@ -657,6 +657,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
 
   const selectAll = useCallback(() => setSelectedEpisodes(new Set(allSelectableIds)), [allSelectableIds])
   const clearAll = useCallback(() => setSelectedEpisodes(new Set()), [])
+  const batchTranslateMutation = useBatchTranslate()
 
   return (
     <div>
@@ -1024,6 +1025,14 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                 {isExtracting
                   ? <><Loader2 size={11} className="animate-spin" /> Extrahiere...</>
                   : 'Extract'}
+              </button>
+              <button
+                onClick={() => { void batchTranslateMutation.mutate([...selectedEpisodes]); clearAll() }}
+                disabled={batchTranslateMutation.isPending}
+                className="px-3 py-1 rounded text-xs font-medium"
+                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+              >
+                Translate
               </button>
               <button
                 onClick={() => { onOpenCleanupModal(); clearAll() }}
