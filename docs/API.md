@@ -15,6 +15,7 @@ Sublarr exposes a RESTful API for all operations. All endpoints are prefixed wit
 - [Providers](#providers)
 - [Language Profiles](#language-profiles)
 - [Webhooks](#webhooks)
+- [Tools](#tools)
 - [Notifications](#notifications)
 - [History & Blacklist](#history--blacklist)
 - [Glossary](#glossary)
@@ -1026,6 +1027,49 @@ Radarr webhook endpoint (OnDownload event).
   "message": "Webhook received"
 }
 ```
+
+## Tools
+
+### POST /api/v1/tools/remove-credits
+
+Remove staff credit lines from a subtitle file.
+
+**Request body:**
+```json
+{
+  "file_path": "/media/series/ep1.en.srt",
+  "dry_run": false
+}
+```
+
+**Response (200 — applied):**
+```json
+{
+  "status": "cleaned",
+  "original_lines": 420,
+  "cleaned_lines": 408,
+  "removed": 12,
+  "backed_up": "/media/series/ep1.en.bak.srt"
+}
+```
+
+**Response (200 — dry_run=true):**
+```json
+{
+  "status": "dry_run",
+  "original_lines": 420,
+  "would_remove": 12,
+  "preview": ["Credits: John Smith", "Translation: Jane Doe"]
+}
+```
+
+| Code | Meaning |
+|------|---------|
+| 200 | Success |
+| 400 | Missing `file_path`, unsupported format (not .srt/.ass/.ssa) |
+| 403 | `file_path` outside configured `media_path` |
+| 404 | File not found |
+| 500 | Processing error |
 
 ## Notifications
 

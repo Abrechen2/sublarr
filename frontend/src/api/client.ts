@@ -1519,6 +1519,25 @@ export async function spellCheck(filePath: string, language = 'de_DE'): Promise<
   return data as { errors: { word: string; start_ms: number; text: string }[]; total: number }
 }
 
+export async function removeCredits(
+  filePath: string,
+  dryRun = false
+): Promise<{
+  status: string
+  original_lines: number
+  cleaned_lines?: number
+  removed?: number
+  backed_up?: string
+  would_remove?: number
+  preview?: string[]
+}> {
+  const { data } = await api.post('/tools/remove-credits', {
+    file_path: filePath,
+    dry_run: dryRun,
+  })
+  return data
+}
+
 // ─── Phase 33: Format conversion ──────────────────────────────────────────────
 
 export async function convertSubtitle(params: {
