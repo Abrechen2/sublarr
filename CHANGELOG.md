@@ -5,6 +5,20 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.1-beta] — 2026-03-12
+
+### Added
+
+- **OP/ED Detector — `op_ed_detector.py`** — detects Opening and Ending cue regions in ASS/SSA/SRT files using two passes: Pass 1 matches ASS style names (`OP`, `ED`, `Opening`, `Ending`, `OP Theme`, `ED Theme`); Pass 2 uses position + duration heuristics (OP: 60–120 s in first window, ED: 90–180 s in last window) with per-type gating and overlapping-window guard
+- **`POST /api/v1/tools/detect-opening-ending`** — read-only endpoint returning detected OP/ED regions as `{type, start_ms, end_ms, event_count, method}`; returns `detected: []` when nothing found (not a 4xx); no file modification
+- **Config — `op_window_sec`** — new setting (`SUBLARR_OP_WINDOW_SEC`, default 300 s) controls how many seconds from the start and end of a file are considered the OP/ED detection window
+
+### Changed
+
+- **SubtitleEditorModal — Quality Tools** — added Detect OP/ED button after Remove Credits button
+
+---
+
 ## [0.24.0-beta] — 2026-03-12
 
 ### Added

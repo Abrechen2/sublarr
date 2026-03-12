@@ -364,6 +364,7 @@ Configure in **Settings → Translation**.
 | Variable | Default | UI | Description |
 |---|---|:---:|---|
 | `SUBLARR_CREDIT_THRESHOLD_SEC` | `90` | ✅ | Seconds from the end of a subtitle file treated as the credits region by the duration heuristic in credit detection. |
+| `SUBLARR_OP_WINDOW_SEC` | `300` | ✅ | Seconds from the start and end of a subtitle file that are considered the OP and ED detection windows. Reduce if short episodes produce false positives. |
 
 ---
 
