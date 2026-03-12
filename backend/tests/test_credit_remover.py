@@ -1,7 +1,6 @@
 """Tests for credit_remover — staff credit line detection and removal."""
 import pytest
 
-
 # ─── Heuristic 1: Role markers ────────────────────────────────────────────────
 
 def test_role_marker_translator_detected():

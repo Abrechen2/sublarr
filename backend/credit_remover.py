@@ -90,10 +90,7 @@ def _is_credit_line(text: str, total_end_ms: int, event_start_ms: int) -> bool:
                 return True
 
     # Heuristic 4: isolated capitalized names (outside credits region too)
-    if len(stripped) <= 40 and _ISOLATED_NAME.match(stripped):
-        return True
-
-    return False
+    return len(stripped) <= 40 and bool(_ISOLATED_NAME.match(stripped))
 
 
 def remove_credits_from_srt(content: str) -> tuple[str, int]:
