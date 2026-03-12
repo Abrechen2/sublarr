@@ -20,6 +20,7 @@ import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
 import { FilterBar } from '@/components/filters/FilterBar'
 import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
+import { FilterPresetMenu } from '@/components/filters/FilterPresetMenu'
 import { BatchActionBar } from '@/components/batch/BatchActionBar'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useWebSocket } from '@/hooks/useWebSocket'
@@ -792,24 +793,41 @@ export function WantedPage() {
         </div>
       </div>
 
-      {/* FilterBar */}
-      <FilterBar
-        scope={SCOPE}
-        filters={WANTED_FILTERS}
-        activeFilters={activeFilters}
-        onFiltersChange={handleFiltersChange}
-        onPresetLoad={(conditions) => {
-          if (conditions.logic === 'AND') {
-            const filters = conditions.conditions
-              .filter((c): c is FilterCondition => 'field' in c)
-              .map((c) => {
-                const def = WANTED_FILTERS.find(f => f.key === c.field)
-                return { key: c.field, op: c.op, value: String(c.value), label: def?.label ?? c.field }
-              })
-            handleFiltersChange(filters)
-          }
-        }}
-      />
+      {/* FilterBar + Preset Menu */}
+      <div className="flex items-center gap-2">
+        <FilterBar
+          scope={SCOPE}
+          filters={WANTED_FILTERS}
+          activeFilters={activeFilters}
+          onFiltersChange={handleFiltersChange}
+          onPresetLoad={(conditions) => {
+            if (conditions.logic === 'AND') {
+              const filters = conditions.conditions
+                .filter((c): c is FilterCondition => 'field' in c)
+                .map((c) => {
+                  const def = WANTED_FILTERS.find(f => f.key === c.field)
+                  return { key: c.field, op: c.op, value: String(c.value), label: def?.label ?? c.field }
+                })
+              handleFiltersChange(filters)
+            }
+          }}
+        />
+        <FilterPresetMenu
+          scope={SCOPE}
+          activeFilters={activeFilters}
+          onPresetLoad={(conditions) => {
+            if (conditions.logic === 'AND') {
+              const filters = conditions.conditions
+                .filter((c): c is FilterCondition => 'field' in c)
+                .map((c) => {
+                  const def = WANTED_FILTERS.find(f => f.key === c.field)
+                  return { key: c.field, op: c.op, value: String(c.value), label: def?.label ?? c.field }
+                })
+              handleFiltersChange(filters)
+            }
+          }}
+        />
+      </div>
 
       {/* Table */}
       <div
