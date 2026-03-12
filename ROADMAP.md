@@ -1,166 +1,180 @@
-# Sublarr - Roadmap
+# Sublarr — Roadmap
 
-> **Note:** This roadmap reflects intended direction. Items marked checkmark are complete; calendar are planned.
-
----
-
-## Ongoing — UI/UX
-
-> Not tied to any version. Implemented as soon as a good solution is found.
-
-The current UI is functional but not final. The goal is a clean, modern interface that feels native — not a dashboard. No specific framework or design system is locked in yet; the right solution will be implemented when it emerges.
-
-- Responsive layout improvements (mobile / tablet)
-- Consistent component library across all pages
-- Better empty states, loading skeletons, and error feedback
-- Keyboard navigation and accessibility (a11y)
+> Completed versions are marked ✅. The current release is **v0.22.0-beta**. Planned versions reflect intended direction and may shift.
 
 ---
 
-## v0.11.0 ✅ (Complete)
+## v0.11.0 ✅ — Subtitle Toolchain
 
-- Track Manifest - list, extract, and translate embedded subtitle/audio streams
-- Video Sync - ffsubsync / alass integration with live progress bar
-- Waveform Editor - wavesurfer.js audio visualization with per-cue region markers
-- Format Conversion - ASS, SRT, SSA, VTT via pysubs2
-- Batch OCR - Tesseract-based text extraction from PGS/VobSub image tracks
-- Quality Fixes Toolbar - overlap fix, timing normalize, merge/split lines, spell check
-
----
-
-## v0.12.0 ✅ (Complete)
-
-- Settings UX Redesign - SettingsCard, AdvancedSettingsContext, InfoTooltip, per-field descriptions
-- arr-style UI Redesign - Sonarr/Radarr aesthetic, teal accent, neutral dark palette
+- Track Manifest — list, extract, and translate embedded subtitle/audio streams
+- Video Sync — ffsubsync / alass integration with live progress bar
+- Waveform Editor — wavesurfer.js audio visualization with per-cue region markers
+- Format Conversion — ASS, SRT, SSA, VTT via pysubs2
+- Batch OCR — Tesseract-based text extraction from PGS/VobSub image tracks
+- Quality Fixes Toolbar — overlap fix, timing normalize, merge/split lines, spell check
 
 ---
 
-## v0.13.0 ✅ (Complete)
+## v0.12.0 ✅ — Settings & Visual Redesign
 
-- Sidecar Subtitle Management - inline sidecar badges (language + format) per episode with × delete button
-- Series/Episode Subtitles API - parallel filesystem scan keyed by Sonarr episode ID
-- Delete & Batch-Delete API - path-traversal-safe sidecar deletion by path or language/format filter
-- Sidecar Cleanup Modal - language-grouped overview, file count + size preview, "Nur Target-Sprachen behalten"
-- Auto-Cleanup after Batch Extract - three new settings run cleanup automatically after track extraction
-- Dynamic UNTERTITEL column - grows with content instead of fixed 160 px
+- Settings UX Redesign — SettingsCard, AdvancedSettingsContext, InfoTooltip, per-field descriptions
+- arr-style UI Redesign — Sonarr/Radarr aesthetic, teal accent, neutral dark palette
 
 ---
 
-## v0.14.0 ✅ (Complete)
+## v0.13.0 ✅ — Sidecar Management
 
-- Provider UI Redesign — Bazarr-style tile grid; Deaktivieren grays tile in place (50% opacity), Entfernen removes to `+` pool; `providers_hidden` config key; reactive health checks on demand only
+- Sidecar Subtitle Management — inline sidecar badges (language + format) per episode with × delete button
+- Series/Episode Subtitles API — parallel filesystem scan keyed by Sonarr episode ID
+- Delete & Batch-Delete API — path-traversal-safe sidecar deletion by path or language/format filter
+- Sidecar Cleanup Modal — language-grouped overview, file count + size preview, target-language filter
+- Auto-Cleanup after Batch Extract — three new settings run cleanup automatically after track extraction
+- Dynamic subtitle column — grows with content instead of fixed width
+
+---
+
+## v0.14.0 ✅ — Provider Expansion
+
+- Provider UI Redesign — Bazarr-style tile grid; disable grays tile in place, remove sends to pool
 - Provider — Subscene — 55-language community subtitle database, no account required
-- Provider — Addic7ed — 36 languages, TV-series specialist with episode-exact matching, optional login
+- Provider — Addic7ed — 36 languages, TV-series specialist with episode-exact matching
 - Provider — TVSubtitles — 35 languages, TV-series only, no auth
 - Provider — Turkcealtyazi — Turkish subtitles, login required
-- Language Expansion — `_LANGUAGE_TAGS` 25 → ~70 languages; `GET /api/v1/languages` endpoint; searchable `LanguageSelect` dropdown for source/target language settings
+- Language Expansion — `_LANGUAGE_TAGS` 25 → ~70 languages; searchable `LanguageSelect` dropdown
 
 ---
 
-## v0.15.0 ✅ (Complete — Current)
+## v0.15.0 ✅ — Library & Wanted UX
 
-- Sidebar — Update available badge — pulsing badge appears when a newer GitHub release exists; fetched from GitHub Releases API once on load and cached; clicking opens the release page
-- Library — Grid/Thumbnail view — toggle button (table ↔ grid); poster images from Sonarr/Radarr with missing-count badge; preference persisted in localStorage; fallback film-slate SVG
-- Library — Status and profile filters — filter by status (all / has missing / complete) and by profile name; client-side filtering via useMemo
-- Wanted — Extracted status + Sidecar Cleanup — extracting an embedded subtitle now sets status `extracted` instead of removing the item; new cleanup endpoint deletes non-target-language sidecars; teal badge + filter tab in UI
-- Wanted — Error and retry display — failed items show failure reason as tooltip; upcoming retry time shown below badge
+- Sidebar — Update available badge — pulsing badge when a newer GitHub release exists
+- Library — Grid/Thumbnail view — table ↔ grid toggle; poster images from Sonarr/Radarr
+- Library — Status and profile filters — client-side filtering by status and profile name
+- Wanted — Extracted status — embedded sub extraction sets `extracted` instead of removing item
+- Wanted — Sidecar Cleanup — endpoint deletes non-target-language sidecars; teal badge + filter tab
+- Wanted — Error and retry display — failure reason tooltip; upcoming retry time shown
 - Settings — Search field — real-time filter for settings tabs
-- SeriesDetail — EpisodeActionMenu — replaces icon-only buttons with labelled primary + `⋯ More` dropdown grouped by category
-- Fix: Wanted search and download — broken by missing Flask app context in background threads and stale provider cache
-- Fix: PostgreSQL startup — `rowid` → `id` in dedup query; `MIN(title)` aggregate in search index; pre-Alembic column patch for `source`; SPA 404 on page reload
+- SeriesDetail — EpisodeActionMenu — labelled primary + `⋯ More` dropdown grouped by category
 
 ---
 
-## v0.16.0 ✅ (Complete)
+## v0.16.0 ✅ — Security Hardening
 
-- ZIP Slip Prevention — wire existing `safe_zip_extract()` into all providers (animetosho, jimaku, subdl, kitsunekko, legendasdivx, napisy24, podnapisi, titrari); replace per-provider inline extraction
-- Download Size Limits — 5 MB per subtitle file, 20 MB per archive; reject oversized downloads before disk write
-- ZIP Bomb Protection — limit total extracted size to 50 MB; abort extraction when compression ratio exceeds 100:1
-- ASS Sanitizer — parse with pysubs2, strip Lua scripts, external includes, and dangerous override tags; re-serialize clean file before saving
-- SRT/VTT Sanitizer — strip all HTML except `<i>`, `<b>`, `<u>`; remove embedded scripts, event handlers, and data URIs
-- Central `sanitize_subtitle()` Gate — single function called after every provider download, before file is written to disk
-- Content-Type Validation — verify downloaded bytes match expected subtitle format; reject binary, executable, or unrecognized content
-- Provider Archive Consolidation — replace 8 independent extraction implementations with shared `extract_archive()` utility using `safe_zip_extract()` and `safe_rar_extract()`
-
----
-
-## v0.17.0 ✅ (Subtitle Intelligence — Complete)
-
-Goals: Make Sublarr smarter about what to search for and what to accept.
-
-- ✅ Duplicate Detection — skip downloads when SHA-256 matches existing sub in same directory; stale hash entries auto-cleaned; `SUBLARR_DEDUP_ON_DOWNLOAD` toggle; hash registered on every successful write
-- ✅ Smart Episode Matching — multi-episode files (`S01E01E02`) parsed to full episode list; OVA/Special/SP detection via guessit + filename regex; `release_group`, `source`, `resolution`, `absolute_episode` propagated to `VideoQuery`
-- ✅ Video Hash Pre-Compute — `file_hash` computed once in `build_query_from_wanted()` and shared across all providers (no redundant file reads per provider)
-- ✅ Release Group Filtering — include/exclude subtitle results by release group, codec, or source tag; score bonus for preferred groups; release metadata auto-extracted from filename via guessit
-- ✅ Provider Result Re-ranking — auto-adjust per-provider score modifiers from download history; formula: success_rate + avg_score vs. global avg + consecutive failure penalty; throttled hourly; preview endpoint + manual trigger
-- ✅ Subtitle Upgrade Scheduler — periodic re-check for higher-quality subs; eligibility: score < 500 OR non-ASS format; configurable `upgrade_scan_interval_hours`; manual trigger via `/tasks/upgrade-scan/trigger`
-- ✅ Translation Quality Dashboard — daily quality trend chart (score normalized 0-100%) + per-series quality table (sortable, color-coded bars) wired to existing `QualityTrendChart` component
-- ✅ Custom Post-Processing Scripts — `subtitle_downloaded` event now emitted from `save_subtitle()`; hooks at Settings → Events & Hooks receive `SUBLARR_SUBTITLE_PATH`, `SUBLARR_PROVIDER_NAME`, `SUBLARR_SCORE` etc.; `translation_complete` and `upgrade_complete` were already wired
+- ZIP Slip Prevention — `safe_zip_extract()` wired into all providers; shared `extract_archive()` utility
+- Download Size Limits — 5 MB per subtitle file, 20 MB per archive
+- ZIP Bomb Protection — 50 MB total extracted limit; abort when compression ratio exceeds 100:1
+- ASS Sanitizer — strip Lua scripts, external includes, dangerous override tags via pysubs2
+- SRT/VTT Sanitizer — strip all HTML except `<i>`, `<b>`, `<u>`; remove scripts, event handlers
+- Central `sanitize_subtitle()` Gate — called after every provider download, before disk write
+- Content-Type Validation — verify downloaded bytes match expected subtitle format
 
 ---
 
-## v0.18.0 ✅ (Provider Maturity — Complete)
+## v0.17.0 ✅ — Subtitle Intelligence
 
-Goals: Close remaining gap to Bazarr in provider coverage, subtitle type handling, and community integration.
-
-- ✅ Hearing Impaired Support — `hi_preference` setting (include / prefer / exclude / only); ±30/±999 score modifiers; `hi_removal_enabled` toggle for future tag stripping
-- ✅ Forced Subtitle Support — `forced_preference` setting (include / prefer / exclude / only); same scoring logic; bonuses stack with HI preference
-- ✅ TRaSH-Compatible Scoring Presets — bundled `anime`, `tv`, `movies` presets; REST endpoints to list/get/import; Settings UI with preset selector and custom JSON import
-- ✅ Anti-Captcha Integration — CaptchaSolver class (Anti-Captcha.com + CapMonster); Kitsunekko 403 bypass via reCAPTCHA v2; `anti_captcha_provider` + `anti_captcha_api_key` settings; Providers tab UI
-
----
-
-## v0.19.0 (Stream Removal — Safe Remux) 🚧 In Progress
-
-Goals: Safely remove embedded subtitle streams from video files after extraction, with full rollback capability.
-
-- ✅ Remux Engine — mkvmerge (MKV) / ffmpeg (MP4) remux excluding selected subtitle streams; backend auto-detected by file extension; no re-encoding
-- ✅ Verification Pipeline — ffprobe comparison of duration (±2s), video/audio stream counts, subtitle count (must be exactly -1), file size (≥50% of original)
-- ✅ Atomic File Swap — write to temp file in same directory, original → `.bak`, temp → original via `os.replace()`
-- ✅ Backup Retention — `remux_backup_retention_days` setting (default 7); `POST /api/v1/remux/backups/cleanup` (dry_run supported); `GET /api/v1/remux/backups` to list
-- ✅ CoW/Reflink Detection — `cp --reflink=auto` attempted first; falls back to `shutil.copy2`; controlled by `remux_use_reflink` setting
-- ✅ *arr Pause Integration — `remux_arr_pause_enabled` setting; calls Sonarr `set_monitoring()` around remux window
-- ✅ Track Panel UI — "Entfernen" button with two-click confirmation; polling job status via `GET /remux/jobs/<id>`; async job system with Socket.IO progress
+- Duplicate Detection — skip downloads when SHA-256 matches existing sub in same directory
+- Smart Episode Matching — multi-episode files, OVA/Special/SP detection via guessit
+- Video Hash Pre-Compute — `file_hash` shared across all providers per search run
+- Release Group Filtering — include/exclude results by release group, codec, or source tag
+- Provider Result Re-ranking — auto-adjust per-provider score modifiers from download history
+- Subtitle Upgrade Scheduler — periodic re-check for higher-quality subs; score < 500 or non-ASS
+- Translation Quality Dashboard — daily quality trend chart + per-series quality table
+- Custom Post-Processing Scripts — hooks receive subtitle path, provider, score on download
 
 ---
 
-## v0.20.0 (Performance and Scalability)
+## v0.18.0 ✅ — Provider Maturity
 
-Goals: Handle larger libraries without degradation.
-
-- PostgreSQL First-Class Support - full migration guide, connection pooling optimized for PG
-- Redis Job Queue - move translation jobs to RQ/Celery for multi-worker support
-- Incremental Metadata Cache - cache ffprobe output persistently, only rescan changed files
-- Background Wanted Scanner - fully async scan without blocking API responses
-- Parallel Translation Workers - configurable worker count for concurrent translation jobs
+- Hearing Impaired Support — `hi_preference` setting; ±30/±999 score modifiers
+- Forced Subtitle Support — `forced_preference` setting; same scoring logic
+- TRaSH-Compatible Scoring Presets — bundled `anime`, `tv`, `movies` presets; Settings UI
+- Anti-Captcha Integration — CaptchaSolver (Anti-Captcha.com + CapMonster); Kitsunekko bypass
 
 ---
 
-## v0.21.0 (Collaboration and Export)
+## v0.19.0 ✅ — Stream Removal / Safe Remux
 
-Goals: Make Sublarr useful as a subtitle processing pipeline, not just consumer.
-
-- Subtitle Export API - serve processed subtitles via authenticated endpoint for external players
-- Batch Export - ZIP export of all subtitles for a series
-- Subtitle Diff Viewer Improvements - inline accept/reject for individual changed cues
-- Jellyfin SSE Events - consume Jellyfin play-start events to auto-translate on-demand
-- CLI Mode - `sublarr search`, `sublarr translate`, `sublarr sync` commands for scripting and cron jobs
+- Remux Engine — mkvmerge (MKV) / ffmpeg (MP4) remux excluding selected streams; no re-encoding
+- Verification Pipeline — ffprobe comparison of duration, stream counts, file size after remux
+- Atomic File Swap — temp file → original → `.bak` chain via `os.replace()`
+- Backup Retention — `remux_backup_retention_days` setting; `GET/POST /api/v1/remux/backups`
+- *arr Pause Integration — `remux_arr_pause_enabled` calls Sonarr `set_monitoring()` around remux
+- Track Panel UI — two-click "Entfernen" confirmation; Socket.IO job progress
 
 ---
 
-## v0.22.0 (Advanced Anime Support)
+## v0.20.0 ✅ — Performance & Scalability
+
+- PostgreSQL First-Class Support — full migration guide, PG-compatible Alembic migrations, `docker-compose.postgres.yml`
+- Incremental Metadata Cache — ffprobe results cached in DB with mtime invalidation; `GET/POST /api/v1/cache/ffprobe/*`
+- Background Wanted Scanner — batch DB commits per series; `SUBLARR_SCAN_YIELD_MS` yield setting
+- Parallel Translation Workers — `SUBLARR_TRANSLATION_MAX_WORKERS` configures thread pool size
+- Redis Job Queue — RQ worker with `AppContextWorker`; `docker-compose.redis.yml`; fallback to MemoryJobQueue
+
+---
+
+## v0.21.0 ✅ — Export & UI Polish
+
+- Subtitle Export API — `GET /api/v1/subtitles/download?path=` — single sidecar file download (path-safe, ext whitelist)
+- Series ZIP Export — `GET /api/v1/series/{id}/subtitles/export[?lang=]` — all series subtitles as ZIP, 50 MB cap
+- SeriesDetail — download icon per sidecar badge; Export ZIP button in series header
+- Accessibility — Toast `aria-live`, skip-to-main link, `role="dialog"` on all 7 modals, `scope="col"` on all tables
+- StatusBadge — Lucide icons per status; `prefers-reduced-motion` CSS override
+- Page-Specific Skeletons — `LibrarySkeleton`, `TableSkeleton`, `ListSkeleton`, `FormSkeleton`
+- CSS Hover — replaced JS `useState` hover handlers with `.hover-surface:hover` utility class
+- Library Grid — `md:grid-cols-5` tablet breakpoint; 300 ms stagger animation cap
+
+---
+
+## v0.22.0 ✅ — Provider Ecosystem / Plugin Marketplace *(current)*
+
+- Marketplace — GitHub plugin discovery via `topic:sublarr-provider`; 1-hour cache TTL
+- Marketplace — Official/Community badges via `official-registry.json`
+- Marketplace — SHA256 integrity verification before install; empty hash rejected (HTTP 400)
+- Marketplace — Capability warnings for `filesystem`/`subprocess` on non-official plugins
+- Marketplace — `installed_plugins` DB table; hot-reload on install; update detection in UI
+- Config — `SUBLARR_GITHUB_TOKEN` for authenticated GitHub API requests
+- Security — SSRF prevention (HTTPS-only URLs), path traversal guard on all install/uninstall ops
+
+---
+
+## v0.23.0 — Batch Operations & Smart Filter *(next)*
+
+Goals: Multi-select workflows across Library and Wanted; auto-extract-on-scan; saved filter presets.
+
+- Auto-Extract on Scan — `scan_auto_extract` + `scan_auto_translate` settings; scanner extracts embedded subs on first detection
+- `POST /wanted/batch-extract` — extract embedded subs for multiple wanted items in one request
+- `POST /wanted/batch-search` extended — accepts `series_ids` array for multi-series search
+- SeriesDetail — episode checkboxes + floating batch toolbar (Search / Extract)
+- Library — series checkboxes + batch toolbar ("Search All Missing")
+- Filter Presets — save/load named filter configurations on Library, Wanted, History pages
+- Global Search (Ctrl+K) — fuzzy search across series, episodes, and subtitles
+
+---
+
+## v0.24.0 — Advanced Anime Support
 
 Goals: First-class support for complex anime subtitle scenarios.
 
-- Fansub Preference Rules - per-series preferred fansub group ordering
-- Chapter-Aware Sync - align subtitle timing to chapter markers in MKV
-- Opening/Ending Skip Detection - mark OP/ED cues for optional skip during translation
-- Staff Credit Filtering - detect and optionally strip credits-only subtitle lines
-- Multi-Audio Track Support - select correct audio track for Whisper transcription per series
+- Fansub Preference Rules — per-series preferred fansub group ordering with score bonuses
+- Chapter-Aware Sync — align subtitle timing to chapter markers in MKV files
+- Opening/Ending Skip Detection — mark OP/ED cues for optional skip during translation
+- Staff Credit Filtering — detect and optionally strip credits-only subtitle lines
+- Multi-Audio Track Support — select correct audio track for Whisper transcription per series
 
 ---
 
-## v1.0.0 (Stable Release)
+## v0.25.0 — Pipeline & Integrations
+
+Goals: Make Sublarr useful as a processing pipeline, not just a UI-driven tool.
+
+- Jellyfin SSE Events — consume Jellyfin play-start events to auto-translate on-demand
+- CLI Mode — `sublarr search`, `sublarr translate`, `sublarr sync` for scripting and cron jobs
+- Subtitle Diff Viewer — inline accept/reject for individual changed cues (upgrade from full-replace)
+- List Virtualization — `@tanstack/react-virtual` for Library and Wanted (requires div-based layout refactor)
+
+---
+
+## v1.0.0 — Stable Release
 
 Requirements for stable release:
 
@@ -177,11 +191,10 @@ Requirements for stable release:
 
 ## Long-Term Ideas (No Version Commitment)
 
-- Web Player Integration - embedded subtitle preview with video playback
-- AI-Assisted Glossary Building - auto-detect proper nouns and build glossary from translation history
-- Provider Plugin Marketplace - community-submitted provider plugins with sandboxed execution
-- Single-Account Login - optional password protection for the web UI (no multi-user/RBAC)
-- Subtitle Quality Score Export - export per-file quality metrics as NFO sidecar
+- Web Player Integration — embedded subtitle preview with video playback
+- AI-Assisted Glossary Building — auto-detect proper nouns from translation history
+- Single-Account Login — optional password protection for the web UI (no multi-user/RBAC)
+- Subtitle Quality Score Export — export per-file quality metrics as NFO sidecar
 
 ---
 
