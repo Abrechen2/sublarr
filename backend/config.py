@@ -160,6 +160,11 @@ class Settings(BaseSettings):
     hi_removal_enabled: bool = False
     hi_preference: str = "include"  # include | prefer | exclude | only
 
+    # Staff Credit Filtering
+    credit_threshold_sec: int = 90
+    """Seconds from end of subtitle file to treat as credits region.
+    Set via SUBLARR_CREDIT_THRESHOLD_SEC."""
+
     # Forced Subtitles
     forced_preference: str = "include"  # include | prefer | exclude | only
 
