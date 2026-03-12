@@ -5,6 +5,20 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.0-beta] — 2026-03-12
+
+### Added
+
+- **Credit Remover — `credit_remover.py`** — detects and removes credits-only subtitle lines from ASS/SSA/SRT files using 4 independent heuristics: role markers (`(Translator)`, `(QC)`, etc.), credit prefix patterns (`Credits:`, `Staff:`, etc.), duration heuristic (events near end of file), and isolated capitalized names (`John Smith`); `dry_run` mode for preview without modification
+- **`POST /api/v1/tools/remove-credits`** — new endpoint to strip detected credits; `dry_run=true` returns preview of lines that would be removed (capped at 50); `dry_run=false` creates `.bak` backup then writes cleaned file; returns `original_lines`, `cleaned_lines`, `removed`, `backed_up`
+- **Config — `credit_threshold_sec`** — new setting (`SUBLARR_CREDIT_THRESHOLD_SEC`, default 90s) controls how many seconds from the end of a file are considered the credits region
+
+### Changed
+
+- **SubtitleEditorModal — Quality Tools** — added Remove Credits button alongside existing Remove HI button
+
+---
+
 ## [0.23.0-beta] — 2026-03-12
 
 ### Added
