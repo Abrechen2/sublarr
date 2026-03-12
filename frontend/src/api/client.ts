@@ -1538,6 +1538,20 @@ export async function removeCredits(
   return data
 }
 
+export async function detectOpeningEnding(filePath: string): Promise<{
+  status: string
+  detected: Array<{
+    type: 'OP' | 'ED'
+    start_ms: number
+    end_ms: number
+    event_count: number
+    method: 'style' | 'duration'
+  }>
+}> {
+  const { data } = await api.post('/tools/detect-opening-ending', { file_path: filePath })
+  return data
+}
+
 // ─── Phase 33: Format conversion ──────────────────────────────────────────────
 
 export async function convertSubtitle(params: {
