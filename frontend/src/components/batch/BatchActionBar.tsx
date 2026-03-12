@@ -9,6 +9,7 @@ import { X, EyeOff, Eye, Ban, Download, Layers, Languages } from 'lucide-react'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useBatchAction, useBatchTranslate } from '@/hooks/useApi'
 import { batchExtractEmbedded } from '@/api/client'
+import { toast } from '@/components/shared/Toast'
 import type { BatchAction, FilterScope } from '@/lib/types'
 
 interface BatchActionDef {
@@ -57,17 +58,25 @@ export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blackl
     if (ids.length === 0) return
 
     if (action === 'extract') {
-      await batchExtractEmbedded(ids)
-      clearSelection(scope)
-      onActionComplete?.(action, { queued: ids.length })
+      try {
+        await batchExtractEmbedded(ids)
+        clearSelection(scope)
+        onActionComplete?.(action, { queued: ids.length })
+      } catch {
+        toast('Batch extract failed', 'error')
+      }
       return
     }
     if (action === 'translate') {
-      const result = await translateMutation.mutateAsync(ids)
-      setLastResult(`${result.queued} queued for translation`)
-      timeoutRef.current = setTimeout(() => setLastResult(null), 3000)
-      clearSelection(scope)
-      onActionComplete?.(action, result)
+      try {
+        const result = await translateMutation.mutateAsync(ids)
+        setLastResult(`${result.queued} queued for translation`)
+        timeoutRef.current = setTimeout(() => setLastResult(null), 3000)
+        clearSelection(scope)
+        onActionComplete?.(action, result)
+      } catch {
+        toast('Batch translate failed', 'error')
+      }
       return
     }
     if (action === 'export') {
@@ -105,7 +114,7 @@ export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blackl
         <button
           key={def.action}
           onClick={() => void handleAction(def.action)}
-          disabled={batchMutation.isPending}
+          disabled={batchMutation.isPending || translateMutation.isPending}
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors
             ${def.variant === 'destructive'
               ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
@@ -118,7 +127,7 @@ export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blackl
       ))}
 
       {lastResult && (
-        <span className="text-xs text-teal-400 ml-1">{lastResult}</span>
+        <span className="text-xs ml-1" style={{ color: 'var(--success)' }}>{lastResult}</span>
       )}
 
       <div className="h-4 w-px bg-border mx-1" />
