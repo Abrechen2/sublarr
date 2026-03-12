@@ -1071,6 +1071,39 @@ Remove staff credit lines from a subtitle file.
 | 404 | File not found |
 | 500 | Processing error |
 
+### POST /api/v1/tools/detect-opening-ending
+
+Detect Opening (OP) and Ending (ED) cue regions in a subtitle file. Read-only — does not modify the file.
+
+**Request:**
+```json
+{
+  "file_path": "/media/anime/ep01.ass"
+}
+```
+
+**Response 200 — detected:**
+```json
+{
+  "status": "detected",
+  "detected": [
+    { "type": "OP", "start_ms": 5000, "end_ms": 91400, "event_count": 12, "method": "style" },
+    { "type": "ED", "start_ms": 1382000, "end_ms": 1510000, "event_count": 8, "method": "duration" }
+  ]
+}
+```
+`detected` is an empty array `[]` when no regions are found (not an error).
+
+`method` is `"style"` when detection was based on ASS style name matching, `"duration"` when based on position + duration heuristic.
+
+| Status | Meaning |
+|--------|---------|
+| 200 | Detection complete (`detected` may be `[]`) |
+| 400 | Missing `file_path`, unsupported format (not `.ass`/`.ssa`/`.srt`) |
+| 403 | Path outside `media_path` |
+| 404 | File not found |
+| 500 | Processing error |
+
 ## Notifications
 
 ### POST /notifications/test
