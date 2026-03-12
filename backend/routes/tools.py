@@ -1,4 +1,4 @@
-"""Subtitle processing tools -- /tools/remove-hi, /tools/adjust-timing, /tools/common-fixes, /tools/preview, /tools/content, /tools/backup, /tools/validate, /tools/parse, /tools/health-check, /tools/health-fix, /tools/advanced-sync, /tools/compare, /tools/quality-trends, /tools/remove-credits."""
+"""Subtitle processing tools -- /tools/remove-hi, /tools/adjust-timing, /tools/common-fixes, /tools/preview, /tools/content, /tools/backup, /tools/validate, /tools/parse, /tools/health-check, /tools/health-fix, /tools/advanced-sync, /tools/compare, /tools/quality-trends, /tools/remove-credits, /tools/detect-opening-ending."""
 
 import contextlib
 import logging
@@ -276,6 +276,73 @@ def remove_credits():
     except Exception as exc:
         logger.error("Credit removal failed for %s: %s", abs_path, exc)
         return jsonify({"error": f"Credit removal failed: {exc}"}), 500
+
+
+# -- Detect Opening / Ending --------------------------------------------------
+
+
+@bp.route("/detect-opening-ending", methods=["POST"])
+def detect_opening_ending():
+    """Detect OP/ED cue regions in a subtitle file.
+    ---
+    post:
+      tags:
+        - Tools
+      summary: Detect OP/ED regions
+      description: Detects Opening (OP) and Ending (ED) cue regions in .srt/.ass/.ssa
+        files using style name matching and duration heuristics. Read-only — no file
+        modification. Returns empty detected list when nothing is found.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - file_path
+              properties:
+                file_path:
+                  type: string
+                  description: Path to subtitle file (must be under media_path)
+      responses:
+        200:
+          description: Detection complete (detected may be empty)
+        400:
+          description: Invalid file path or unsupported format
+        403:
+          description: File outside media_path
+        404:
+          description: File not found
+        500:
+          description: Processing error
+    """
+    from op_ed_detector import detect_op_ed_from_ass, detect_op_ed_from_srt
+
+    data = request.get_json() or {}
+    file_path = data.get("file_path", "")
+
+    error, result = _validate_file_path(file_path)
+    if error:
+        return jsonify({"error": error}), result
+
+    abs_path = result
+
+    try:
+        with open(abs_path, encoding="utf-8") as f:
+            content = f.read()
+
+        ext = os.path.splitext(abs_path)[1].lower()
+
+        if ext == ".srt":
+            detected = detect_op_ed_from_srt(content)
+        else:  # .ass / .ssa
+            detected = detect_op_ed_from_ass(content)
+
+        return jsonify({"status": "detected", "detected": detected})
+
+    except Exception as exc:
+        logger.error("OP/ED detection failed for %s: %s", abs_path, exc)
+        return jsonify({"error": f"OP/ED detection failed: {exc}"}), 500
 
 
 # -- Adjust Timing --------------------------------------------------------------
