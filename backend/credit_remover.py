@@ -39,6 +39,7 @@ _ISOLATED_NAME = re.compile(r"^[A-Z][a-z]+\s[A-Z][a-z]+$")
 def _get_credit_threshold_ms() -> int:
     """Return the credits region threshold in milliseconds."""
     import os
+
     # Try environment variable first (for test flexibility)
     env_val = os.environ.get("SUBLARR_CREDIT_THRESHOLD_SEC")
     if env_val:
@@ -50,6 +51,7 @@ def _get_credit_threshold_ms() -> int:
         # Fall back to config (once credit_threshold_sec field is added in Task 3)
         try:
             from config import get_settings
+
             threshold_sec = getattr(get_settings(), "credit_threshold_sec", 90)
         except Exception:
             threshold_sec = 90

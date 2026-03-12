@@ -236,18 +236,18 @@ def remove_credits():
                 original_blocks = content.strip().split("\n\n")
                 cleaned_blocks = set(cleaned.strip().split("\n\n"))
                 removed_texts = [
-                    b.split("\n", 2)[-1].strip()
-                    for b in original_blocks
-                    if b not in cleaned_blocks
+                    b.split("\n", 2)[-1].strip() for b in original_blocks if b not in cleaned_blocks
                 ][:50]
             else:
                 removed_texts = []
-            return jsonify({
-                "status": "dry_run",
-                "original_lines": original_lines,
-                "would_remove": removed,
-                "preview": removed_texts,
-            })
+            return jsonify(
+                {
+                    "status": "dry_run",
+                    "original_lines": original_lines,
+                    "would_remove": removed,
+                    "preview": removed_texts,
+                }
+            )
 
         cleaned_lines = len(cleaned.splitlines())
         bak_path = _create_backup(abs_path)
@@ -257,16 +257,21 @@ def remove_credits():
 
         logger.info(
             "Credit removal: %s -- %d lines -> %d lines (%d removed)",
-            abs_path, original_lines, cleaned_lines, removed,
+            abs_path,
+            original_lines,
+            cleaned_lines,
+            removed,
         )
 
-        return jsonify({
-            "status": "cleaned",
-            "original_lines": original_lines,
-            "cleaned_lines": cleaned_lines,
-            "removed": removed,
-            "backed_up": bak_path,
-        })
+        return jsonify(
+            {
+                "status": "cleaned",
+                "original_lines": original_lines,
+                "cleaned_lines": cleaned_lines,
+                "removed": removed,
+                "backed_up": bak_path,
+            }
+        )
 
     except Exception as exc:
         logger.error("Credit removal failed for %s: %s", abs_path, exc)

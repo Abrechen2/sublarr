@@ -1,4 +1,5 @@
 """Route tests for POST /api/v1/tools/remove-credits."""
+
 import os
 
 import pytest
@@ -9,8 +10,10 @@ def client(temp_db, tmp_path, monkeypatch):
     # temp_db comes from backend/tests/conftest.py (shared fixture that initialises SQLite)
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", str(tmp_path))
     from config import reload_settings
+
     reload_settings()
     from app import create_app
+
     app = create_app(testing=True)
     with app.test_client() as c:
         yield c, tmp_path
@@ -33,9 +36,11 @@ def test_dry_run_returns_preview_no_modification(client):
     f = _make_srt(tmp_path / "test.srt", SRT_WITH_CREDITS)
     original = (tmp_path / "test.srt").read_text()
 
-    resp = c.post("/api/v1/tools/remove-credits",
-                  json={"file_path": f, "dry_run": True},
-                  content_type="application/json")
+    resp = c.post(
+        "/api/v1/tools/remove-credits",
+        json={"file_path": f, "dry_run": True},
+        content_type="application/json",
+    )
     assert resp.status_code == 200
     data = resp.get_json()
     assert data["status"] == "dry_run"
@@ -49,9 +54,9 @@ def test_remove_credits_modifies_file_and_creates_backup(client):
     c, tmp_path = client
     f = _make_srt(tmp_path / "sub.srt", SRT_WITH_CREDITS)
 
-    resp = c.post("/api/v1/tools/remove-credits",
-                  json={"file_path": f},
-                  content_type="application/json")
+    resp = c.post(
+        "/api/v1/tools/remove-credits", json={"file_path": f}, content_type="application/json"
+    )
     assert resp.status_code == 200
     data = resp.get_json()
     assert data["status"] == "cleaned"
@@ -66,9 +71,11 @@ def test_remove_credits_modifies_file_and_creates_backup(client):
 
 def test_path_outside_media_path_returns_403(client):
     c, _ = client
-    resp = c.post("/api/v1/tools/remove-credits",
-                  json={"file_path": "/etc/passwd"},
-                  content_type="application/json")
+    resp = c.post(
+        "/api/v1/tools/remove-credits",
+        json={"file_path": "/etc/passwd"},
+        content_type="application/json",
+    )
     assert resp.status_code == 403
 
 
@@ -76,7 +83,7 @@ def test_unsupported_format_returns_400(client):
     c, tmp_path = client
     f = tmp_path / "test.vtt"
     f.write_text("WEBVTT\n\n1\n00:00:01.000 --> 00:00:03.000\nHello\n")
-    resp = c.post("/api/v1/tools/remove-credits",
-                  json={"file_path": str(f)},
-                  content_type="application/json")
+    resp = c.post(
+        "/api/v1/tools/remove-credits", json={"file_path": str(f)}, content_type="application/json"
+    )
     assert resp.status_code == 400
