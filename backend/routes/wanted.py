@@ -1772,6 +1772,7 @@ def cleanup_sidecars():
 # Batch re-translation
 # ---------------------------------------------------------------------------
 
+
 def _retranslate_item(item_id: int):
     """Queue re-translation for a single wanted item.
 
@@ -1820,10 +1821,12 @@ def _retranslate_item(item_id: int):
         new_job = create_job(file_path, force=True)
 
     from flask import current_app as _current_app
+
     _app = _current_app._get_current_object()
 
     def _run():
         from routes.translate import _run_job
+
         with _app.app_context():
             _run_job(new_job)
             emit_event(
