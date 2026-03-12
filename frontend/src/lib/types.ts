@@ -933,7 +933,7 @@ export interface GlobalSearchResults {
   subtitles: SearchResultSubtitle[]
 }
 
-export type BatchAction = 'ignore' | 'unignore' | 'blacklist' | 'export'
+export type BatchAction = 'ignore' | 'unignore' | 'blacklist' | 'export' | 'extract' | 'translate'
 
 export interface BatchActionResult {
   success: boolean

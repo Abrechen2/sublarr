@@ -1,9 +1,10 @@
 import { useState, useMemo, useCallback, memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLibrary, useLanguageProfiles, useAssignProfile } from '@/hooks/useApi'
+import { FilterPresetMenu } from '@/components/filters/FilterPresetMenu'
+import type { SeriesInfo, MovieInfo, LanguageProfile, SyncBatchProgress, SyncBatchComplete, FilterGroup } from '@/lib/types'
 import { Tv, Film, Loader2, Settings, ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, X, LayoutGrid, List } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import type { SeriesInfo, MovieInfo, LanguageProfile, SyncBatchProgress, SyncBatchComplete } from '@/lib/types'
 import { autoSyncBulk, startSeriesBatchSearch } from '@/api/client'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { toast } from '@/components/shared/Toast'
@@ -788,6 +789,27 @@ export function LibraryPage() {
                 <option key={p.id} value={p.name}>{p.name}</option>
               ))}
             </select>
+          )}
+
+          {/* Filter Preset Menu */}
+          {activeTab === 'series' && (
+            <FilterPresetMenu
+              scope="library"
+              activeFilters={[
+                ...(statusFilter !== 'all' ? [{ key: 'status', op: 'eq', value: statusFilter }] : []),
+                ...(profileFilter !== 'all' ? [{ key: 'profile', op: 'eq', value: profileFilter }] : []),
+              ]}
+              onPresetLoad={(conditions: FilterGroup) => {
+                if (conditions.logic === 'AND') {
+                  conditions.conditions.forEach((cond) => {
+                    if ('field' in cond && 'value' in cond) {
+                      if (cond.field === 'status') setStatusFilter(String(cond.value) as 'all' | 'missing' | 'complete')
+                      if (cond.field === 'profile') setProfileFilter(String(cond.value))
+                    }
+                  })
+                }
+              }}
+            />
           )}
 
           {/* View toggle */}

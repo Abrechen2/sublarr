@@ -176,6 +176,14 @@ export async function batchExtractEmbedded(
   return data
 }
 
+/** Queue multiple wanted items for re-translation. */
+export async function batchTranslate(
+  itemIds: number[],
+): Promise<{ queued: number; job_ids: string[] }> {
+  const { data } = await api.post('/wanted/batch-translate', { item_ids: itemIds })
+  return data
+}
+
 /** Extract ALL embedded subtitle tracks from every episode in a series, regardless of language. */
 export async function batchExtractAllTracks(seriesId: number): Promise<{ status: string }> {
   const { data } = await api.post(`/library/series/${seriesId}/batch-extract-tracks`, {})

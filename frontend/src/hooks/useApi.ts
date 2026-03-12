@@ -66,6 +66,7 @@ import {
   getScannerStatus,
   getSupportedLanguages,
   cleanupSidecars,
+  batchTranslate,
   getMarketplaceBrowse, refreshMarketplace, getInstalledPlugins,
   installBrowsePlugin, uninstallBrowsePlugin,
 } from '@/api/client'
@@ -1340,6 +1341,16 @@ export function useBatchAction() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['wanted'] })
       qc.invalidateQueries({ queryKey: ['library'] })
+    },
+  })
+}
+
+export function useBatchTranslate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (itemIds: number[]) => batchTranslate(itemIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wanted'] })
     },
   })
 }
