@@ -151,15 +151,55 @@ Goals: Multi-select workflows across Library and Wanted; auto-extract-on-scan; s
 
 ---
 
-## v0.24.0 — Advanced Anime Support
+## v0.24.0 — Staff Credit Filtering
 
-Goals: First-class support for complex anime subtitle scenarios.
+Goals: Detect and strip credits-only subtitle lines from downloaded subtitles.
 
-- Fansub Preference Rules — per-series preferred fansub group ordering with score bonuses
-- Chapter-Aware Sync — align subtitle timing to chapter markers in MKV files
-- Opening/Ending Skip Detection — mark OP/ED cues for optional skip during translation
-- Staff Credit Filtering — detect and optionally strip credits-only subtitle lines
-- Multi-Audio Track Support — select correct audio track for Whisper transcription per series
+- `credit_remover.py` — detect credit lines by regex patterns, duration heuristic, role markers
+- `POST /api/v1/tools/remove-credits` — strip detected credits; returns removed count
+- Quality Tools panel — Credit Filter button alongside existing Remove HI button
+
+---
+
+## v0.24.1 — Opening/Ending Skip Detection
+
+Goals: Mark OP/ED cue regions in subtitle files for optional skip during translation.
+
+- OP/ED detection by style name, duration heuristic (OP ≈ 90s, ED ≈ 130s), and content patterns
+- `POST /api/v1/tools/mark-opening-ending` — annotate OP/ED boundaries in ASS/SRT files
+- Quality Tools panel — Detect OP/ED button with preview of detected ranges
+
+---
+
+## v0.24.2 — Multi-Audio Track Support for Whisper
+
+Goals: Select the correct audio track per series for Whisper transcription.
+
+- Per-series audio track preference stored in DB (extend `series_language_profiles`)
+- `POST /whisper/transcribe` extended with optional `audio_track_index` parameter
+- SeriesDetail — audio track picker showing available tracks with language/codec info
+
+---
+
+## v0.24.3 — Fansub Preference Rules
+
+Goals: Per-series preferred fansub group ordering with score bonuses.
+
+- `SeriesFansubPreference` DB table — preferred groups list + bonus int per series
+- Scoring hook in `wanted_search.py` — apply fansub bonus/penalty at result ranking
+- SeriesDetail — Fansub Preferences panel (preferred groups, excluded groups, bonus value)
+- `GET/PUT /api/v1/series/<id>/fansub-prefs` endpoints
+
+---
+
+## v0.24.4 — Chapter-Aware Sync
+
+Goals: Align subtitle timing to chapter markers in MKV files.
+
+- Chapter extraction via mkvtoolnix/ffprobe; cache in DB per video file
+- Per-chapter sync using pysubs2 to apply offset corrections per chapter segment
+- `POST /tools/video-sync` extended with optional `chapter_id` parameter
+- Sync modal — chapter selector dropdown when chapters are detected
 
 ---
 
