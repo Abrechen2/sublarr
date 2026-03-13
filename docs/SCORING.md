@@ -128,6 +128,19 @@ Only a new subtitle with a sufficiently higher score wins.
 
 ---
 
+## Fansub Group Rules (v0.24.3+)
+
+Per-series fansub preferences can boost or suppress results based on their `release_info` field (case-insensitive substring match):
+
+| Rule | Effect |
+|------|--------|
+| **Preferred group** match | +`bonus` points (default: +20) |
+| **Excluded group** match | −999 points (effectively excluded) |
+
+Configure via **Series Detail → Fansub Preferences** or `PUT /api/v1/series/<id>/fansub-prefs`. Fansub rules are applied after all other scoring, immediately before the final sort.
+
+---
+
 ## Final Score Formula
 
 ```
@@ -140,6 +153,7 @@ score = format_base
       + uploader_trust_bonus
       - machine_translation_penalty
       + provider_modifier
+      + fansub_preference_bonus   # per-series; preferred: +bonus, excluded: -999
 ```
 
 The highest-scoring result above the minimum threshold is downloaded.
