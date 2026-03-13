@@ -28,7 +28,7 @@ def status(ctx: click.Context, only_running: bool) -> None:
     if not jobs:
         click.echo("  (none)")
     for job in jobs:
-        jid = job.get("id", "?")[:8]
+        jid = str(job.get("id") or "?")[:8]
         st = job.get("status", "?")
         fp = job.get("file_path", "?")
         click.echo(f"  [{jid}] {st:10s}  {fp}")
