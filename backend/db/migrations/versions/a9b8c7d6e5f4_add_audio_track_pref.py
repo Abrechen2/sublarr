@@ -20,13 +20,9 @@ depends_on = None
 
 def upgrade():
     with op.batch_alter_table("series_settings") as batch_op:
-        batch_op.add_column(
-            sa.Column("preferred_audio_track_index", sa.Integer(), nullable=True)
-        )
+        batch_op.add_column(sa.Column("preferred_audio_track_index", sa.Integer(), nullable=True))
     with op.batch_alter_table("whisper_jobs") as batch_op:
-        batch_op.add_column(
-            sa.Column("audio_track_index", sa.Integer(), nullable=True)
-        )
+        batch_op.add_column(sa.Column("audio_track_index", sa.Integer(), nullable=True))
 
 
 def downgrade():

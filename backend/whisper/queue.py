@@ -104,7 +104,15 @@ class WhisperQueue:
         # Start worker thread
         thread = threading.Thread(
             target=self._run_job,
-            args=(job_id, file_path, language, source_language, audio_track_index, whisper_manager, socketio),
+            args=(
+                job_id,
+                file_path,
+                language,
+                source_language,
+                audio_track_index,
+                whisper_manager,
+                socketio,
+            ),
             daemon=True,
             name=f"whisper-job-{job_id}",
         )

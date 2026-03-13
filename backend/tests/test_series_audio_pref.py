@@ -30,7 +30,9 @@ class TestGetAudioTrackByIndex:
 
         monkeypatch.setattr(
             "whisper.audio.get_audio_streams",
-            lambda _: [{"stream_index": 0, "language": "jpn", "codec": "aac", "channels": 2, "title": ""}],
+            lambda _: [
+                {"stream_index": 0, "language": "jpn", "codec": "aac", "channels": 2, "title": ""}
+            ],
         )
         with pytest.raises(ValueError, match="out of range"):
             get_audio_track_by_index("/fake/file.mkv", 5)

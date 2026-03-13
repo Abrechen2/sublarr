@@ -110,7 +110,9 @@ def transcribe():
     audio_track_index = data.get("audio_track_index")
     if audio_track_index is not None:
         if not isinstance(audio_track_index, int) or audio_track_index < 0:
-            return jsonify({"error": "audio_track_index must be a non-negative integer or null"}), 400
+            return jsonify(
+                {"error": "audio_track_index must be a non-negative integer or null"}
+            ), 400
 
     job_id = uuid.uuid4().hex
     manager = get_whisper_manager()
