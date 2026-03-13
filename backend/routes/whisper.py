@@ -1,11 +1,13 @@
 """Whisper routes -- /whisper/transcribe, /whisper/queue, /whisper/backends, /whisper/config, /whisper/stats."""
 
 import logging
+import os
 import uuid
 
 from flask import Blueprint, jsonify, request
 
 from extensions import socketio
+from security_utils import is_safe_path
 
 bp = Blueprint("whisper", __name__, url_prefix="/api/v1/whisper")
 logger = logging.getLogger(__name__)
@@ -86,10 +88,7 @@ def transcribe():
         404:
           description: File not found
     """
-    import os
-
     from config import get_settings, map_path
-    from security_utils import is_safe_path
     from whisper import get_whisper_manager
 
     data = request.get_json() or {}
@@ -108,6 +107,11 @@ def transcribe():
         return jsonify({"error": f"File not found: {file_path}"}), 404
     language = data.get("language", settings.source_language or "ja")
 
+    audio_track_index = data.get("audio_track_index")
+    if audio_track_index is not None:
+        if not isinstance(audio_track_index, int) or audio_track_index < 0:
+            return jsonify({"error": "audio_track_index must be a non-negative integer or null"}), 400
+
     job_id = uuid.uuid4().hex
     manager = get_whisper_manager()
     queue = _get_queue()
@@ -119,6 +123,7 @@ def transcribe():
         source_language=language,
         whisper_manager=manager,
         socketio=socketio,
+        audio_track_index=audio_track_index,
     )
 
     return jsonify(
