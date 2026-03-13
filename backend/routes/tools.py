@@ -2659,3 +2659,107 @@ def _get_waveform_duration(video_path: str) -> float:
         return float(data.get("format", {}).get("duration", 0))
     except Exception:
         return 0.0
+
+
+# -- Diff ----------------------------------------------------------------------
+
+
+@bp.route("/diff", methods=["POST"])
+def compute_diff():
+    """Compute a cue-level diff between two subtitle file contents.
+    ---
+    post:
+      summary: Diff two subtitle files
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [original, modified]
+              properties:
+                original:
+                  type: string
+                  description: Original subtitle file content (ASS/SRT string)
+                modified:
+                  type: string
+                  description: Modified subtitle file content (ASS/SRT string)
+      responses:
+        200:
+          description: Diff result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  diffs:
+                    type: array
+                  total:
+                    type: integer
+                  changed:
+                    type: integer
+        400:
+          description: Missing required field
+    """
+    import difflib
+
+    import pysubs2
+
+    def _cue_to_dict(event):
+        return {
+            "start": event.start / 1000.0,
+            "end": event.end / 1000.0,
+            "text": event.plaintext,
+            "style": event.style,
+        }
+
+    data = request.get_json() or {}
+    original_content = data.get("original", "")
+    modified_content = data.get("modified", "")
+
+    if not original_content:
+        return jsonify({"error": "original content is required"}), 400
+    if not modified_content:
+        return jsonify({"error": "modified content is required"}), 400
+
+    orig_subs = pysubs2.SSAFile.from_string(original_content)
+    mod_subs = pysubs2.SSAFile.from_string(modified_content)
+
+    orig_events = [e for e in orig_subs.events if e.type == "Dialogue"]
+    mod_events = [e for e in mod_subs.events if e.type == "Dialogue"]
+
+    matcher = difflib.SequenceMatcher(
+        None,
+        [e.plaintext for e in orig_events],
+        [e.plaintext for e in mod_events],
+        autojunk=False,
+    )
+
+    diffs = []
+    changed = 0
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "equal":
+            for k in range(i2 - i1):
+                diffs.append({
+                    "type": "unchanged",
+                    "original": _cue_to_dict(orig_events[i1 + k]),
+                    "modified": _cue_to_dict(mod_events[j1 + k]),
+                })
+        elif tag == "replace":
+            orig_slice = orig_events[i1:i2]
+            mod_slice = mod_events[j1:j2]
+            for k in range(max(len(orig_slice), len(mod_slice))):
+                orig_cue = _cue_to_dict(orig_slice[k]) if k < len(orig_slice) else None
+                mod_cue = _cue_to_dict(mod_slice[k]) if k < len(mod_slice) else None
+                diffs.append({"type": "modified", "original": orig_cue, "modified": mod_cue})
+                changed += 1
+        elif tag == "delete":
+            for k in range(i1, i2):
+                diffs.append({"type": "removed", "original": _cue_to_dict(orig_events[k]), "modified": None})
+                changed += 1
+        elif tag == "insert":
+            for k in range(j1, j2):
+                diffs.append({"type": "added", "original": None, "modified": _cue_to_dict(mod_events[k])})
+                changed += 1
+
+    return jsonify({"diffs": diffs, "total": len(diffs), "changed": changed})
