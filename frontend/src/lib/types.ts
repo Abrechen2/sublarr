@@ -429,6 +429,7 @@ export interface WhisperJob {
   id: string
   file_path: string
   language: string
+  audio_track_index: number | null
   status: 'queued' | 'extracting' | 'loading' | 'transcribing' | 'saving' | 'completed' | 'failed' | 'cancelled'
   progress: number
   phase: string
@@ -443,6 +444,19 @@ export interface WhisperJob {
   created_at: string
   started_at: string
   completed_at: string
+}
+
+export interface AudioTrackInfo {
+  stream_index: number
+  language: string
+  codec: string
+  channels: number
+  title: string
+}
+
+export interface SeriesAudioPref {
+  series_id: number
+  preferred_audio_track_index: number | null
 }
 
 export interface WhisperConfig {
@@ -826,6 +840,20 @@ export interface ComparisonResponse {
   panels: ComparisonPanel[]
 }
 
+// ─── Chapter Sync ────────────────────────────────────────────────────────────
+
+export interface Chapter {
+  id: number
+  title: string
+  start_ms: number
+  end_ms: number
+}
+
+export interface ChapterList {
+  video_path: string
+  chapters: Chapter[]
+}
+
 // ─── Sync ───────────────────────────────────────────────────────────────────
 
 export interface SyncPreviewEvent {
@@ -1160,4 +1188,13 @@ export interface ExportResult {
   filename: string
   content_type: string
   warnings: string[]
+}
+
+// ─── Fansub Preferences ──────────────────────────────────────────────────────
+
+export interface SeriesFansubPrefs {
+  series_id: number
+  preferred_groups: string[]
+  excluded_groups: string[]
+  bonus: number
 }

@@ -185,6 +185,21 @@ class FfprobeCache(db.Model):
     __table_args__ = (Index("idx_ffprobe_cache_mtime", "mtime"),)
 
 
+class ChapterCache(db.Model):
+    """Per-video chapter list cache, invalidated by file mtime.
+
+    chapters_json: JSON-encoded list of {"id", "title", "start_ms", "end_ms"} dicts.
+    Populated lazily when a video is opened in the sync UI.
+    """
+
+    __tablename__ = "chapter_cache"
+
+    file_path: Mapped[str] = mapped_column(Text, primary_key=True)
+    mtime: Mapped[float] = mapped_column(Float, nullable=False)
+    chapters_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    cached_at: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class BlacklistEntry(db.Model):
     """Blacklisted subtitle provider results."""
 
@@ -258,6 +273,26 @@ class SeriesSettings(db.Model):
 
     sonarr_series_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     absolute_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0=off, 1=on
+    preferred_audio_track_index: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, default=None
+    )
+    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class FansubPreference(db.Model):
+    """Per-series fansub group preferences for subtitle result scoring.
+
+    preferred_groups_json / excluded_groups_json: JSON-encoded list of group
+    name strings (case-insensitive substring match against result.release_info).
+    bonus: Score points added for preferred group hits; excluded hits get -999.
+    """
+
+    __tablename__ = "fansub_preferences"
+
+    sonarr_series_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    preferred_groups_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    excluded_groups_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    bonus: Mapped[int] = mapped_column(Integer, nullable=False, default=20)
     updated_at: Mapped[str] = mapped_column(Text, nullable=False)
 
 
@@ -271,8 +306,10 @@ __all__ = [
     "SeriesLanguageProfile",
     "MovieLanguageProfile",
     "FfprobeCache",
+    "ChapterCache",
     "BlacklistEntry",
     "FilterPreset",
     "AnidbAbsoluteMapping",
     "SeriesSettings",
+    "FansubPreference",
 ]

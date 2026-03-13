@@ -19,6 +19,8 @@ import type {
   NotificationTemplate, NotificationHistoryEntry, QuietHoursConfig, TemplateVariable, NotificationFilter,
   DiskSpaceStats, ScanStatus, DuplicateGroup, OrphanedFile, CleanupRule, CleanupHistoryEntry, CleanupPreviewData,
   BazarrMappingReport, CompatBatchResult, ExtendedHealthAllResponse, ExportResult,
+  ChapterList,
+  SeriesFansubPrefs,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -702,6 +704,20 @@ export const getWhisperJob = (jobId: string) => api.get(`/whisper/jobs/${jobId}`
 export const submitWhisperJob = (data: { file_path: string; language?: string }) => api.post('/whisper/transcribe', data).then(r => r.data)
 export const deleteWhisperJob = (jobId: string) => api.delete(`/whisper/jobs/${jobId}`).then(r => r.data)
 export const getWhisperStats = () => api.get('/whisper/stats').then(r => r.data)
+export const submitWhisperJobWithTrack = (data: { file_path: string; language?: string; audio_track_index?: number | null }) =>
+  api.post('/whisper/transcribe', data).then(r => r.data)
+
+// ─── Series Audio Track Preference ────────────────────────────────────────
+
+export async function getSeriesAudioPref(seriesId: number): Promise<import('@/lib/types').SeriesAudioPref> {
+  const { data } = await api.get(`/series/${seriesId}/audio-track-pref`)
+  return data
+}
+
+export async function setSeriesAudioPref(seriesId: number, trackIndex: number | null): Promise<import('@/lib/types').SeriesAudioPref> {
+  const { data } = await api.put(`/series/${seriesId}/audio-track-pref`, { preferred_audio_track_index: trackIndex })
+  return data
+}
 
 // ─── Standalone Mode ──────────────────────────────────────────────────────
 
@@ -899,13 +915,15 @@ export async function advancedSync(
   filePath: string,
   operation: 'offset' | 'speed' | 'framerate',
   params: Record<string, number>,
-  preview?: boolean
+  preview?: boolean,
+  chapterRange?: { start_ms: number; end_ms: number }
 ): Promise<SyncResult | SyncPreviewResult> {
   const { data } = await api.post('/tools/advanced-sync', {
     file_path: filePath,
     operation,
     ...params,
     preview: preview ?? false,
+    ...(chapterRange ? { chapter_range: chapterRange } : {}),
   })
   return data
 }
@@ -1492,6 +1510,13 @@ export async function getSyncJobStatus(jobId: string): Promise<{
   return data
 }
 
+export async function getVideoChapters(videoPath: string): Promise<ChapterList> {
+  const { data } = await api.get('/tools/chapters', {
+    params: { video_path: videoPath },
+  })
+  return data
+}
+
 // ─── Phase 35: Quality fixes ───────────────────────────────────────────────────
 
 export async function overlapFix(filePath: string): Promise<{ fixed: number; backup_path: string }> {
@@ -1709,6 +1734,25 @@ export async function installBrowsePlugin(plugin: MarketplaceBrowsePlugin): Prom
 export async function uninstallBrowsePlugin(name: string): Promise<{ status: string }> {
   const { data } = await api.post('/marketplace/uninstall', { plugin_name: name })
   return data
+}
+
+// ─── Fansub Preferences ──────────────────────────────────────────────────────
+
+export async function getSeriesFansubPrefs(seriesId: number): Promise<SeriesFansubPrefs> {
+  const { data } = await api.get(`/series/${seriesId}/fansub-prefs`)
+  return data
+}
+
+export async function setSeriesFansubPrefs(
+  seriesId: number,
+  prefs: { preferred_groups: string[]; excluded_groups: string[]; bonus: number },
+): Promise<SeriesFansubPrefs> {
+  const { data } = await api.put(`/series/${seriesId}/fansub-prefs`, prefs)
+  return data
+}
+
+export async function deleteSeriesFansubPrefs(seriesId: number): Promise<void> {
+  await api.delete(`/series/${seriesId}/fansub-prefs`)
 }
 
 export default api
