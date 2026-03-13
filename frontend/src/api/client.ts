@@ -900,13 +900,15 @@ export async function advancedSync(
   filePath: string,
   operation: 'offset' | 'speed' | 'framerate',
   params: Record<string, number>,
-  preview?: boolean
+  preview?: boolean,
+  chapterRange?: { start_ms: number; end_ms: number }
 ): Promise<SyncResult | SyncPreviewResult> {
   const { data } = await api.post('/tools/advanced-sync', {
     file_path: filePath,
     operation,
     ...params,
     preview: preview ?? false,
+    ...(chapterRange ? { chapter_range: chapterRange } : {}),
   })
   return data
 }

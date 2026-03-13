@@ -1289,12 +1289,14 @@ export function useAdvancedSync() {
       operation,
       params,
       preview,
+      chapterRange,
     }: {
       filePath: string
       operation: 'offset' | 'speed' | 'framerate'
       params: Record<string, number>
       preview?: boolean
-    }) => advancedSync(filePath, operation, params, preview),
+      chapterRange?: { start_ms: number; end_ms: number }
+    }) => advancedSync(filePath, operation, params, preview, chapterRange),
   })
 }
 
