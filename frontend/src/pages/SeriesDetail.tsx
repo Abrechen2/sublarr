@@ -24,6 +24,7 @@ import { HealthBadge } from '@/components/health/HealthBadge'
 import { SubtitleCleanupModal } from '@/components/shared/SubtitleCleanupModal'
 import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry, SidecarSubtitle } from '@/lib/types'
 import { EpisodeActionMenu } from '@/components/episodes/EpisodeActionMenu'
+import { SeriesFansubPrefsPanel } from '@/components/series/SeriesFansubPrefsPanel'
 import { SeriesAudioTrackPicker } from '@/components/series/SeriesAudioTrackPicker'
 
 const SubtitleComparison = lazy(() => import('@/components/comparison/SubtitleComparison').then(m => ({ default: m.SubtitleComparison })))
@@ -1688,6 +1689,19 @@ export function SeriesDetailPage() {
           style={{ border: '1px solid var(--border)' }}
         >
           {seriesId !== null && <GlossaryPanel seriesId={seriesId} />}
+        </div>
+      )}
+
+      {/* Fansub Preferences Panel */}
+      {seriesId !== null && (
+        <div
+          className="rounded-lg overflow-hidden"
+          style={{ border: '1px solid var(--border)', padding: '16px' }}
+        >
+          <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, marginTop: 0 }}>
+            Fansub Preferences
+          </h3>
+          <SeriesFansubPrefsPanel seriesId={seriesId} />
         </div>
       )}
 
