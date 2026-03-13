@@ -19,6 +19,7 @@ import type {
   NotificationTemplate, NotificationHistoryEntry, QuietHoursConfig, TemplateVariable, NotificationFilter,
   DiskSpaceStats, ScanStatus, DuplicateGroup, OrphanedFile, CleanupRule, CleanupHistoryEntry, CleanupPreviewData,
   BazarrMappingReport, CompatBatchResult, ExtendedHealthAllResponse, ExportResult,
+  ChapterList,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -1489,6 +1490,13 @@ export async function getSyncJobStatus(jobId: string): Promise<{
   error?: string
 }> {
   const { data } = await api.get(`/tools/video-sync/${jobId}`)
+  return data
+}
+
+export async function getVideoChapters(videoPath: string): Promise<ChapterList> {
+  const { data } = await api.get('/tools/chapters', {
+    params: { video_path: videoPath },
+  })
   return data
 }
 

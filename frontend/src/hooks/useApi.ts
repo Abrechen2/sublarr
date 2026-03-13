@@ -69,6 +69,7 @@ import {
   batchTranslate,
   getMarketplaceBrowse, refreshMarketplace, getInstalledPlugins,
   installBrowsePlugin, uninstallBrowsePlugin,
+  getVideoChapters,
 } from '@/api/client'
 import type {
   LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig, FilterScope, BatchAction,
@@ -1932,5 +1933,16 @@ export function useRefreshMarketplaceBrowse() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['marketplace', 'browse'] })
     },
+  })
+}
+
+// ─── v0.24.4 Chapter Sync ────────────────────────────────────────────────────
+
+export function useVideoChapters(videoPath: string | undefined) {
+  return useQuery({
+    queryKey: ['video-chapters', videoPath],
+    queryFn: () => getVideoChapters(videoPath!),
+    enabled: !!videoPath,
+    staleTime: 5 * 60 * 1000, // chapters rarely change — 5 min cache
   })
 }

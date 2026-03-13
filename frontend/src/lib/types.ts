@@ -826,6 +826,20 @@ export interface ComparisonResponse {
   panels: ComparisonPanel[]
 }
 
+// ─── Chapter Sync ────────────────────────────────────────────────────────────
+
+export interface Chapter {
+  id: number
+  title: string
+  start_ms: number
+  end_ms: number
+}
+
+export interface ChapterList {
+  video_path: string
+  chapters: Chapter[]
+}
+
 // ─── Sync ───────────────────────────────────────────────────────────────────
 
 export interface SyncPreviewEvent {
