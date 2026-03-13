@@ -1762,8 +1762,13 @@ export async function computeSubtitleDiff(
   original: string,
   modified: string,
 ): Promise<SubtitleDiffResult> {
-  const { data } = await api.post('/tools/diff', { original, modified })
-  return data
+  try {
+    const { data } = await api.post<SubtitleDiffResult>('/tools/diff', { original, modified })
+    return data
+  } catch (err: unknown) {
+    const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+    throw new Error(msg ?? `computeSubtitleDiff failed`)
+  }
 }
 
 export async function applySubtitleDiff(
@@ -1772,13 +1777,16 @@ export async function applySubtitleDiff(
   modified: string,
   rejectedIndices: number[],
 ): Promise<{ status: string; file_path: string; backup: string }> {
-  const { data } = await api.post('/tools/diff/apply', {
-    file_path: filePath,
-    original,
-    modified,
-    rejected_indices: rejectedIndices,
-  })
-  return data
+  try {
+    const { data } = await api.post<{ status: string; file_path: string; backup: string }>(
+      '/tools/diff/apply',
+      { file_path: filePath, original, modified, rejected_indices: rejectedIndices },
+    )
+    return data
+  } catch (err: unknown) {
+    const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+    throw new Error(msg ?? `applySubtitleDiff failed`)
+  }
 }
 
 export default api
