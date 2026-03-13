@@ -368,6 +368,11 @@ export default function SubtitleEditorModal({
                 format={format}
                 onClose={handleClose}
                 onBackToEditor={() => setMode('edit')}
+                onApplied={() => {
+                  void queryClient.invalidateQueries({ queryKey: ['subtitle-content', filePath] })
+                  void queryClient.invalidateQueries({ queryKey: ['subtitle-backup', filePath] })
+                  setMode('preview')
+                }}
               />
             )}
 
