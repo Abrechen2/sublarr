@@ -55,3 +55,63 @@ class TestFansubPreferenceRepository:
         repo.set_fansub_prefs(series_id=103, preferred=["X"], excluded=[], bonus=5)
         repo.delete_fansub_prefs(series_id=103)
         assert repo.get_fansub_prefs(series_id=103) is None
+
+
+class TestFansubPrefsRoutes:
+    def test_get_unknown_series_returns_defaults(self, client):
+        r = client.get("/api/v1/series/999/fansub-prefs")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["series_id"] == 999
+        assert data["preferred_groups"] == []
+        assert data["excluded_groups"] == []
+        assert data["bonus"] == 20
+
+    def test_put_sets_prefs(self, client):
+        r = client.put(
+            "/api/v1/series/42/fansub-prefs",
+            json={"preferred_groups": ["SubsPlease"], "excluded_groups": [], "bonus": 25},
+        )
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["preferred_groups"] == ["SubsPlease"]
+        assert data["bonus"] == 25
+
+    def test_get_after_put_returns_saved_prefs(self, client):
+        client.put(
+            "/api/v1/series/43/fansub-prefs",
+            json={
+                "preferred_groups": ["Erai-raws"],
+                "excluded_groups": ["HorribleSubs"],
+                "bonus": 15,
+            },
+        )
+        r = client.get("/api/v1/series/43/fansub-prefs")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["preferred_groups"] == ["Erai-raws"]
+        assert data["excluded_groups"] == ["HorribleSubs"]
+
+    def test_put_invalid_bonus_rejected(self, client):
+        r = client.put(
+            "/api/v1/series/44/fansub-prefs",
+            json={"preferred_groups": [], "excluded_groups": [], "bonus": "bad"},
+        )
+        assert r.status_code == 400
+
+    def test_put_groups_must_be_lists(self, client):
+        r = client.put(
+            "/api/v1/series/45/fansub-prefs",
+            json={"preferred_groups": "SubsPlease", "excluded_groups": [], "bonus": 10},
+        )
+        assert r.status_code == 400
+
+    def test_delete_clears_prefs(self, client):
+        client.put(
+            "/api/v1/series/46/fansub-prefs",
+            json={"preferred_groups": ["X"], "excluded_groups": [], "bonus": 5},
+        )
+        r = client.delete("/api/v1/series/46/fansub-prefs")
+        assert r.status_code == 200
+        r2 = client.get("/api/v1/series/46/fansub-prefs")
+        assert r2.get_json()["preferred_groups"] == []

@@ -13,6 +13,7 @@ def register_blueprints(app):
     from routes.blacklist import bp as blacklist_bp
     from routes.cleanup import bp as cleanup_bp
     from routes.config import bp as config_bp
+    from routes.fansub_prefs import bp as fansub_prefs_bp
     from routes.filter_presets import bp as filter_presets_bp
     from routes.hooks import bp as hooks_bp
     from routes.integrations import bp as integrations_bp
@@ -57,6 +58,7 @@ def register_blueprints(app):
         hooks_bp,
         tools_bp,
         search_bp,
+        fansub_prefs_bp,
         filter_presets_bp,
         api_keys_bp,
         notifications_mgmt_bp,
