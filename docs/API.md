@@ -1104,6 +1104,123 @@ Detect Opening (OP) and Ending (ED) cue regions in a subtitle file. Read-only â€
 | 404 | File not found |
 | 500 | Processing error |
 
+---
+
+### GET /api/v1/tools/chapters
+
+Return the chapter list for a video file. Results are cached in `chapter_cache` (invalidated on mtime change).
+
+**Query Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `video_path` | string | Yes | Absolute path to the video file |
+
+**Response 200:**
+```json
+{
+  "video_path": "/media/anime/ep01.mkv",
+  "chapters": [
+    { "id": 0, "title": "Opening", "start_ms": 0,      "end_ms": 91400  },
+    { "id": 1, "title": "Part A",  "start_ms": 91400,  "end_ms": 720000 },
+    { "id": 2, "title": "Ending",  "start_ms": 720000, "end_ms": 1440000 }
+  ]
+}
+```
+`chapters` is `[]` when the file has no chapters or `ffprobe` is unavailable.
+
+| Status | Meaning |
+|--------|---------|
+| 200 | Chapter list (may be empty) |
+| 400 | Missing `video_path` |
+| 403 | Path outside `media_path` |
+
+---
+
+### GET /api/v1/series/:id/audio-track-pref
+
+Return the preferred Whisper audio track index for a series.
+
+**Response 200:**
+```json
+{ "sonarr_series_id": 42, "preferred_audio_track_index": 1 }
+```
+`preferred_audio_track_index` is `null` when no preference is set (Whisper auto-selects).
+
+---
+
+### PUT /api/v1/series/:id/audio-track-pref
+
+Set or clear the preferred audio track index.
+
+**Request:**
+```json
+{ "track_index": 1 }
+```
+Send `"track_index": null` to clear the preference and resume auto-select.
+
+**Response 200:**
+```json
+{ "sonarr_series_id": 42, "preferred_audio_track_index": 1 }
+```
+
+| Status | Meaning |
+|--------|---------|
+| 200 | Preference saved |
+| 400 | Invalid `track_index` value |
+
+---
+
+### GET /api/v1/series/:id/fansub-prefs
+
+Return fansub group preferences for a series. Returns defaults for unconfigured series.
+
+**Response 200:**
+```json
+{
+  "sonarr_series_id": 42,
+  "preferred_groups": ["SubsPlease", "Erai-raws"],
+  "excluded_groups":  ["horriblesubs"],
+  "bonus": 20
+}
+```
+
+---
+
+### PUT /api/v1/series/:id/fansub-prefs
+
+Save fansub group preferences for a series.
+
+**Request:**
+```json
+{
+  "preferred_groups": ["SubsPlease"],
+  "excluded_groups":  ["horriblesubs"],
+  "bonus": 30
+}
+```
+All fields are optional; omitted fields keep their existing values.
+
+**Response 200:** Same structure as GET.
+
+---
+
+### DELETE /api/v1/series/:id/fansub-prefs
+
+Remove fansub preferences for a series (reverts to defaults on next GET).
+
+**Response 200:**
+```json
+{ "deleted": true }
+```
+
+| Status | Meaning |
+|--------|---------|
+| 200 | Preferences deleted |
+| 404 | No preferences found for this series |
+
+---
+
 ## Notifications
 
 ### POST /notifications/test
