@@ -181,7 +181,7 @@ Goals: Select the correct audio track per series for Whisper transcription.
 
 ---
 
-## v0.24.3 — Fansub Preference Rules
+## ~~v0.24.3 — Fansub Preference Rules~~ Complete
 
 Goals: Per-series preferred fansub group ordering with score bonuses.
 
