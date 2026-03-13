@@ -185,6 +185,21 @@ class FfprobeCache(db.Model):
     __table_args__ = (Index("idx_ffprobe_cache_mtime", "mtime"),)
 
 
+class ChapterCache(db.Model):
+    """Per-video chapter list cache, invalidated by file mtime.
+
+    chapters_json: JSON-encoded list of {"id", "title", "start_ms", "end_ms"} dicts.
+    Populated lazily when a video is opened in the sync UI.
+    """
+
+    __tablename__ = "chapter_cache"
+
+    file_path: Mapped[str] = mapped_column(Text, primary_key=True)
+    mtime: Mapped[float] = mapped_column(Float, nullable=False)
+    chapters_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    cached_at: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class BlacklistEntry(db.Model):
     """Blacklisted subtitle provider results."""
 
@@ -291,6 +306,7 @@ __all__ = [
     "SeriesLanguageProfile",
     "MovieLanguageProfile",
     "FfprobeCache",
+    "ChapterCache",
     "BlacklistEntry",
     "FilterPreset",
     "AnidbAbsoluteMapping",

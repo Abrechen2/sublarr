@@ -1,32 +1,44 @@
 /**
- * Timing sync UI with offset, speed, and framerate controls.
+ * Timing sync UI with offset, speed, framerate, and chapter controls.
  *
- * Three operation tabs allow adjusting subtitle timing via:
+ * Four operation tabs allow adjusting subtitle timing via:
  * - Offset: shift all timestamps by N milliseconds
  * - Speed: multiply timing by a speed factor
  * - Framerate: convert between frame rates (e.g., 23.976 -> 25)
+ * - Chapter: apply an offset restricted to a single chapter's time range
  *
  * Preview mode shows before/after timestamps before applying changes.
  */
 
 import { useState } from 'react'
 import { Timer, X, Loader2, Check, Eye } from 'lucide-react'
-import { useAdvancedSync } from '@/hooks/useApi'
+import { useAdvancedSync, useVideoChapters } from '@/hooks/useApi'
 import { SyncPreview } from './SyncPreview'
 import { toast } from '@/components/shared/Toast'
-import type { SyncPreviewResult, SyncPreviewEvent } from '@/lib/types'
+import type { SyncPreviewResult, SyncPreviewEvent, Chapter } from '@/lib/types'
 
-type SyncOperation = 'offset' | 'speed' | 'framerate'
+type SyncOperation = 'offset' | 'speed' | 'framerate' | 'chapter'
 
 const COMMON_FRAMERATES = [23.976, 24, 25, 29.97, 30]
 
 interface SyncControlsProps {
   filePath: string
+  videoPath?: string
   onSynced?: () => void
   onClose?: () => void
 }
 
-export function SyncControls({ filePath, onSynced, onClose }: SyncControlsProps) {
+function _formatMs(ms: number): string {
+  const totalSec = Math.floor(ms / 1000)
+  const h = Math.floor(totalSec / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  const s = totalSec % 60
+  return h > 0
+    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+export function SyncControls({ filePath, videoPath, onSynced, onClose }: SyncControlsProps) {
   const [activeTab, setActiveTab] = useState<SyncOperation>('offset')
   const [offsetMs, setOffsetMs] = useState(0)
   const [speedFactor, setSpeedFactor] = useState(1.0)
@@ -35,6 +47,10 @@ export function SyncControls({ filePath, onSynced, onClose }: SyncControlsProps)
   const [previewEvents, setPreviewEvents] = useState<SyncPreviewEvent[] | null>(null)
   const [previewOperation, setPreviewOperation] = useState('')
   const [showConfirm, setShowConfirm] = useState(false)
+
+  const { data: chapterData } = useVideoChapters(videoPath)
+  const chapters = chapterData?.chapters ?? []
+  const [selectedChapterId, setSelectedChapterId] = useState<number | null>(null)
 
   const syncMutation = useAdvancedSync()
 
@@ -48,13 +64,15 @@ export function SyncControls({ filePath, onSynced, onClose }: SyncControlsProps)
         return { speed_factor: speedFactor }
       case 'framerate':
         return { in_fps: inFps, out_fps: outFps }
+      case 'chapter':
+        return { offset_ms: offsetMs }
     }
   }
 
   const handlePreview = () => {
     setPreviewEvents(null)
     syncMutation.mutate(
-      { filePath, operation: activeTab, params: getParams(), preview: true },
+      { filePath, operation: activeTab === 'chapter' ? 'offset' : activeTab, params: getParams(), preview: true },
       {
         onSuccess: (data) => {
           const result = data as SyncPreviewResult
@@ -70,7 +88,7 @@ export function SyncControls({ filePath, onSynced, onClose }: SyncControlsProps)
 
   const handleApply = () => {
     syncMutation.mutate(
-      { filePath, operation: activeTab, params: getParams(), preview: false },
+      { filePath, operation: activeTab === 'chapter' ? 'offset' : activeTab, params: getParams(), preview: false },
       {
         onSuccess: () => {
           toast('Sync applied successfully')
@@ -86,7 +104,58 @@ export function SyncControls({ filePath, onSynced, onClose }: SyncControlsProps)
     )
   }
 
-  const tabs: { key: SyncOperation; label: string }[] = [
+  function handleChapterPreview() {
+    const chapter = chapters.find((c: Chapter) => c.id === selectedChapterId)
+    if (!chapter) return
+    syncMutation.mutate(
+      {
+        filePath,
+        operation: 'offset',
+        params: { offset_ms: offsetMs },
+        chapterRange: { start_ms: chapter.start_ms, end_ms: chapter.end_ms },
+        preview: true,
+      },
+      {
+        onSuccess: (data) => {
+          const result = data as SyncPreviewResult
+          setPreviewEvents(result.preview)
+          setPreviewOperation(result.operation)
+          setShowConfirm(false)
+        },
+        onError: () => {
+          toast('Chapter preview failed', 'error')
+        },
+      },
+    )
+  }
+
+  function handleChapterApply() {
+    const chapter = chapters.find((c: Chapter) => c.id === selectedChapterId)
+    if (!chapter) return
+    syncMutation.mutate(
+      {
+        filePath,
+        operation: 'offset',
+        params: { offset_ms: offsetMs },
+        chapterRange: { start_ms: chapter.start_ms, end_ms: chapter.end_ms },
+        preview: false,
+      },
+      {
+        onSuccess: () => {
+          toast('Chapter sync applied successfully')
+          setShowConfirm(false)
+          setPreviewEvents(null)
+          onSynced?.()
+        },
+        onError: () => {
+          toast('Chapter sync failed', 'error')
+          setShowConfirm(false)
+        },
+      },
+    )
+  }
+
+  const standardTabs: { key: SyncOperation; label: string }[] = [
     { key: 'offset', label: 'Offset' },
     { key: 'speed', label: 'Speed' },
     { key: 'framerate', label: 'Framerate' },
@@ -134,7 +203,7 @@ export function SyncControls({ filePath, onSynced, onClose }: SyncControlsProps)
         className="flex gap-1 px-4 py-2"
         style={{ borderBottom: '1px solid var(--border)' }}
       >
-        {tabs.map((tab) => (
+        {standardTabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => {
@@ -152,6 +221,23 @@ export function SyncControls({ filePath, onSynced, onClose }: SyncControlsProps)
             {tab.label}
           </button>
         ))}
+        {chapters.length > 0 && (
+          <button
+            onClick={() => {
+              setActiveTab('chapter')
+              setPreviewEvents(null)
+              setShowConfirm(false)
+            }}
+            className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+            style={{
+              backgroundColor: activeTab === 'chapter' ? 'var(--accent-bg)' : 'transparent',
+              color: activeTab === 'chapter' ? 'var(--accent)' : 'var(--text-muted)',
+              border: activeTab === 'chapter' ? '1px solid var(--accent-dim)' : '1px solid transparent',
+            }}
+          >
+            Chapter
+          </button>
+        )}
       </div>
 
       {/* Tab content */}
@@ -294,67 +380,200 @@ export function SyncControls({ filePath, onSynced, onClose }: SyncControlsProps)
           </div>
         )}
 
-        {/* Action buttons */}
-        <div className="flex items-center gap-2 pt-1">
-          <button
-            onClick={handlePreview}
-            disabled={syncMutation.isPending}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors"
-            style={{
-              backgroundColor: 'var(--bg-primary)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            {syncMutation.isPending ? (
-              <Loader2 size={12} className="animate-spin" />
-            ) : (
-              <Eye size={12} />
-            )}
-            Preview
-          </button>
+        {activeTab === 'chapter' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
+                Chapter
+              </label>
+              <select
+                value={selectedChapterId ?? ''}
+                onChange={(e) => setSelectedChapterId(e.target.value === '' ? null : Number(e.target.value))}
+                style={{
+                  width: '100%',
+                  padding: '6px 8px',
+                  borderRadius: 4,
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-primary)',
+                  color: 'var(--text-primary)',
+                  fontSize: 13,
+                }}
+              >
+                <option value="">Select chapter…</option>
+                {chapters.map((ch: Chapter) => (
+                  <option key={ch.id} value={ch.id}>
+                    {ch.title} ({_formatMs(ch.start_ms)} – {_formatMs(ch.end_ms)})
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {showConfirm ? (
-            <div className="flex items-center gap-2">
-              <span className="text-xs" style={{ color: 'var(--warning)' }}>
-                This will modify the file. A backup will be created.
-              </span>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
+                Offset (ms)
+              </label>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  type="number"
+                  value={offsetMs}
+                  onChange={(e) => setOffsetMs(Number(e.target.value))}
+                  style={{
+                    width: 90,
+                    padding: '6px 8px',
+                    borderRadius: 4,
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                    fontSize: 13,
+                    fontFamily: 'var(--font-mono)',
+                  }}
+                />
+                {[-500, -100, 100, 500].map((delta) => (
+                  <button
+                    key={delta}
+                    onClick={() => setOffsetMs((prev) => prev + delta)}
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: 4,
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg-primary)',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                    }}
+                  >
+                    {delta > 0 ? `+${delta}` : delta}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button
-                onClick={handleApply}
-                disabled={syncMutation.isPending}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white"
-                style={{ backgroundColor: 'var(--accent)' }}
+                disabled={selectedChapterId === null || syncMutation.isPending}
+                onClick={handleChapterPreview}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                style={{
+                  backgroundColor: 'var(--bg-primary)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                }}
               >
                 {syncMutation.isPending ? (
                   <Loader2 size={12} className="animate-spin" />
                 ) : (
-                  <Check size={12} />
+                  <Eye size={12} />
                 )}
-                Confirm
+                Preview
               </button>
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="px-2 py-1.5 rounded text-xs"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                Cancel
-              </button>
+
+              {showConfirm ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs" style={{ color: 'var(--warning)' }}>
+                    This will modify the file. A backup will be created.
+                  </span>
+                  <button
+                    onClick={handleChapterApply}
+                    disabled={syncMutation.isPending}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white"
+                    style={{ backgroundColor: 'var(--accent)' }}
+                  >
+                    {syncMutation.isPending ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <Check size={12} />
+                    )}
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => setShowConfirm(false)}
+                    className="px-2 py-1.5 rounded text-xs"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  disabled={selectedChapterId === null || syncMutation.isPending}
+                  onClick={() => setShowConfirm(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white transition-opacity"
+                  style={{
+                    backgroundColor: 'var(--accent)',
+                    opacity: selectedChapterId === null || syncMutation.isPending ? 0.5 : 1,
+                  }}
+                >
+                  <Check size={12} />
+                  Apply
+                </button>
+              )}
             </div>
-          ) : (
+          </div>
+        )}
+
+        {/* Action buttons (offset / speed / framerate tabs only) */}
+        {activeTab !== 'chapter' && (
+          <div className="flex items-center gap-2 pt-1">
             <button
-              onClick={() => setShowConfirm(true)}
+              onClick={handlePreview}
               disabled={syncMutation.isPending}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white transition-opacity"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors"
               style={{
-                backgroundColor: 'var(--accent)',
-                opacity: syncMutation.isPending ? 0.5 : 1,
+                backgroundColor: 'var(--bg-primary)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
               }}
             >
-              <Check size={12} />
-              Apply
+              {syncMutation.isPending ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Eye size={12} />
+              )}
+              Preview
             </button>
-          )}
-        </div>
+
+            {showConfirm ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs" style={{ color: 'var(--warning)' }}>
+                  This will modify the file. A backup will be created.
+                </span>
+                <button
+                  onClick={handleApply}
+                  disabled={syncMutation.isPending}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white"
+                  style={{ backgroundColor: 'var(--accent)' }}
+                >
+                  {syncMutation.isPending ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <Check size={12} />
+                  )}
+                  Confirm
+                </button>
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  className="px-2 py-1.5 rounded text-xs"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowConfirm(true)}
+                disabled={syncMutation.isPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white transition-opacity"
+                style={{
+                  backgroundColor: 'var(--accent)',
+                  opacity: syncMutation.isPending ? 0.5 : 1,
+                }}
+              >
+                <Check size={12} />
+                Apply
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Preview results */}
         {previewEvents && (

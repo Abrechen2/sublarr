@@ -10,6 +10,7 @@ import tempfile
 
 from flask import Blueprint, jsonify, request
 
+from chapters import get_chapters
 from security_utils import is_safe_path
 
 bp = Blueprint("tools", __name__, url_prefix="/api/v1/tools")
@@ -1695,6 +1696,7 @@ def advanced_sync():
     file_path = data.get("file_path", "")
     operation = data.get("operation", "")
     preview = data.get("preview", False)
+    chapter_range = data.get("chapter_range")
 
     if operation not in ("offset", "speed", "framerate"):
         return jsonify({"error": "operation must be one of: offset, speed, framerate"}), 400
@@ -1716,6 +1718,46 @@ def advanced_sync():
                     {"error": "offset_ms (integer) is required for offset operation"}
                 ), 400
             offset_ms = int(offset_ms)
+
+            if chapter_range:
+                cr_start = chapter_range.get("start_ms")
+                cr_end = chapter_range.get("end_ms")
+                if not isinstance(cr_start, (int, float)) or not isinstance(cr_end, (int, float)):
+                    return jsonify(
+                        {"error": "chapter_range must have start_ms and end_ms integers"}
+                    ), 400
+                cr_start = int(cr_start)
+                cr_end = int(cr_end)
+
+                in_range = [
+                    e for e in subs.events if not e.is_comment and cr_start <= e.start < cr_end
+                ]
+
+                if preview:
+                    return _chapter_range_preview(in_range, offset_ms, cr_start, cr_end)
+
+                _create_backup(abs_path)
+                for event in in_range:
+                    event.start += offset_ms
+                    event.end += offset_ms
+                subs.save(abs_path)
+                logger.info(
+                    "Chapter-range offset %dms [%d-%d ms] applied to %s (%d events)",
+                    offset_ms,
+                    cr_start,
+                    cr_end,
+                    abs_path,
+                    len(in_range),
+                )
+                return jsonify(
+                    {
+                        "status": "synced",
+                        "operation": "offset",
+                        "events": len(in_range),
+                        "offset_ms": offset_ms,
+                        "chapter_range": {"start_ms": cr_start, "end_ms": cr_end},
+                    }
+                )
 
             if preview:
                 return _sync_preview(
@@ -1867,6 +1909,70 @@ def _sync_preview(subs, apply_fn, operation, **params):
             **params,
         }
     )
+
+
+def _chapter_range_preview(in_range_events, offset_ms: int, cr_start: int, cr_end: int):
+    """Build a preview response showing before/after timing for chapter-range events."""
+    if not in_range_events:
+        return jsonify(
+            {
+                "status": "preview",
+                "operation": "offset",
+                "offset_ms": offset_ms,
+                "chapter_range": {"start_ms": cr_start, "end_ms": cr_end},
+                "events": [],
+            }
+        )
+
+    # Sample up to 5 representative events
+    n = len(in_range_events)
+    indices = sorted({0, n // 4, n // 2, 3 * n // 4, n - 1})
+    sampled = [in_range_events[i] for i in indices]
+
+    events = []
+    for ev in sampled:
+        events.append(
+            {
+                "index": in_range_events.index(ev),
+                "text": (ev.plaintext or "")[:60],
+                "before": {"start": ev.start, "end": ev.end},
+                "after": {"start": ev.start + offset_ms, "end": ev.end + offset_ms},
+            }
+        )
+
+    return jsonify(
+        {
+            "status": "preview",
+            "operation": "offset",
+            "offset_ms": offset_ms,
+            "chapter_range": {"start_ms": cr_start, "end_ms": cr_end},
+            "events": events,
+        }
+    )
+
+
+# -- Chapters ------------------------------------------------------------------
+
+
+@bp.route("/chapters", methods=["GET"])
+def get_video_chapters():
+    """Return chapter list for a video file.
+
+    Query params:
+        video_path (str, required): Absolute path to the video file.
+    """
+    from config import get_settings
+
+    video_path = request.args.get("video_path", "")
+    if not video_path:
+        return jsonify({"error": "video_path query parameter is required"}), 400
+
+    settings = get_settings()
+    if not is_safe_path(video_path, settings.media_path):
+        return jsonify({"error": "video_path is outside media directory"}), 403
+
+    chapters = get_chapters(video_path)
+    return jsonify({"video_path": video_path, "chapters": chapters})
 
 
 # -- Compare -------------------------------------------------------------------

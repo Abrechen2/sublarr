@@ -19,6 +19,7 @@ import type {
   NotificationTemplate, NotificationHistoryEntry, QuietHoursConfig, TemplateVariable, NotificationFilter,
   DiskSpaceStats, ScanStatus, DuplicateGroup, OrphanedFile, CleanupRule, CleanupHistoryEntry, CleanupPreviewData,
   BazarrMappingReport, CompatBatchResult, ExtendedHealthAllResponse, ExportResult,
+  ChapterList,
   SeriesFansubPrefs,
 } from '@/lib/types'
 
@@ -914,13 +915,15 @@ export async function advancedSync(
   filePath: string,
   operation: 'offset' | 'speed' | 'framerate',
   params: Record<string, number>,
-  preview?: boolean
+  preview?: boolean,
+  chapterRange?: { start_ms: number; end_ms: number }
 ): Promise<SyncResult | SyncPreviewResult> {
   const { data } = await api.post('/tools/advanced-sync', {
     file_path: filePath,
     operation,
     ...params,
     preview: preview ?? false,
+    ...(chapterRange ? { chapter_range: chapterRange } : {}),
   })
   return data
 }
@@ -1504,6 +1507,13 @@ export async function getSyncJobStatus(jobId: string): Promise<{
   error?: string
 }> {
   const { data } = await api.get(`/tools/video-sync/${jobId}`)
+  return data
+}
+
+export async function getVideoChapters(videoPath: string): Promise<ChapterList> {
+  const { data } = await api.get('/tools/chapters', {
+    params: { video_path: videoPath },
+  })
   return data
 }
 

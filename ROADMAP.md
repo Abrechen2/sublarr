@@ -192,7 +192,7 @@ Goals: Per-series preferred fansub group ordering with score bonuses.
 
 ---
 
-## v0.24.4 — Chapter-Aware Sync
+## ~~v0.24.4 — Chapter-Aware Sync~~ ✅ Complete
 
 Goals: Align subtitle timing to chapter markers in MKV files.
 

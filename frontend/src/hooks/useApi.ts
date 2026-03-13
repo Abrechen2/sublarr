@@ -70,6 +70,7 @@ import {
   batchTranslate,
   getMarketplaceBrowse, refreshMarketplace, getInstalledPlugins,
   installBrowsePlugin, uninstallBrowsePlugin,
+  getVideoChapters,
   getSeriesFansubPrefs, setSeriesFansubPrefs, deleteSeriesFansubPrefs,
 } from '@/api/client'
 import type {
@@ -1307,12 +1308,14 @@ export function useAdvancedSync() {
       operation,
       params,
       preview,
+      chapterRange,
     }: {
       filePath: string
       operation: 'offset' | 'speed' | 'framerate'
       params: Record<string, number>
       preview?: boolean
-    }) => advancedSync(filePath, operation, params, preview),
+      chapterRange?: { start_ms: number; end_ms: number }
+    }) => advancedSync(filePath, operation, params, preview, chapterRange),
   })
 }
 
@@ -1981,5 +1984,16 @@ export function useDeleteSeriesFansubPrefs(seriesId: number) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['series-fansub-prefs', seriesId] })
     },
+  })
+}
+
+// ─── v0.24.4 Chapter Sync ────────────────────────────────────────────────────
+
+export function useVideoChapters(videoPath: string | undefined) {
+  return useQuery({
+    queryKey: ['video-chapters', videoPath],
+    queryFn: () => getVideoChapters(videoPath!),
+    enabled: !!videoPath,
+    staleTime: 5 * 60 * 1000, // chapters rarely change — 5 min cache
   })
 }
