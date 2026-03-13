@@ -1,4 +1,5 @@
 """HTTP client wrapper for the Sublarr REST API."""
+
 import requests
 
 

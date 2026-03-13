@@ -1,4 +1,5 @@
 """sublarr search — find and download missing subtitles for a series."""
+
 import sys
 
 import click

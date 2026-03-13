@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
+
 from click.testing import CliRunner
+
 from cli.commands.search import search
 
 
@@ -28,6 +30,7 @@ class TestSearchCommand:
 
     def test_search_api_error(self):
         from cli.client import SublarrAPIError
+
         client = MagicMock()
         client.get.side_effect = SublarrAPIError("Cannot connect")
         result = CliRunner().invoke(search, ["--series-id", "1"], obj={"client": client})

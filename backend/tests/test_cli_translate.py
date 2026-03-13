@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
+
 from click.testing import CliRunner
+
 from cli.commands.translate import translate
 
 
@@ -39,6 +41,7 @@ class TestTranslateCommand:
 
     def test_api_error(self, tmp_path):
         from cli.client import SublarrAPIError
+
         sub = tmp_path / "ep.ass"
         sub.write_text("[Script Info]\n")
         client = MagicMock()

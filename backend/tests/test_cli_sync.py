@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
+
 from click.testing import CliRunner
+
 from cli.commands.sync import sync
 
 
@@ -29,7 +31,8 @@ class TestSyncCommand:
         client = MagicMock()
         client.post.return_value = {"status": "done"}
         CliRunner().invoke(
-            sync, ["--subtitle", str(sub), "--video", str(vid), "--engine", "alass"],
+            sync,
+            ["--subtitle", str(sub), "--video", str(vid), "--engine", "alass"],
             obj={"client": client},
         )
         assert client.post.call_args.kwargs["json"]["engine"] == "alass"
@@ -38,13 +41,15 @@ class TestSyncCommand:
         vid = tmp_path / "ep.mkv"
         vid.write_bytes(b"\x00")
         result = CliRunner().invoke(
-            sync, ["--subtitle", "/nope.ass", "--video", str(vid)],
+            sync,
+            ["--subtitle", "/nope.ass", "--video", str(vid)],
             obj={"client": MagicMock()},
         )
         assert result.exit_code != 0
 
     def test_api_error(self, tmp_path):
         from cli.client import SublarrAPIError
+
         sub = tmp_path / "ep.ass"
         sub.write_text("[Script Info]\n")
         vid = tmp_path / "ep.mkv"

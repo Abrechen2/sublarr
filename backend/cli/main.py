@@ -1,4 +1,5 @@
 """Sublarr CLI — root group and global options."""
+
 import click
 
 from cli.client import SublarrClient
@@ -26,9 +27,9 @@ def cli(ctx: click.Context, url: str, api_key: str) -> None:
 
 
 from cli.commands.search import search
-from cli.commands.translate import translate
-from cli.commands.sync import sync
 from cli.commands.status import status
+from cli.commands.sync import sync
+from cli.commands.translate import translate
 
 cli.add_command(search)
 cli.add_command(translate)

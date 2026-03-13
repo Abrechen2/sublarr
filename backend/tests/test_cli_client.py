@@ -1,6 +1,8 @@
-import pytest
 from unittest.mock import MagicMock, patch
-from cli.client import SublarrClient, SublarrAPIError
+
+import pytest
+
+from cli.client import SublarrAPIError, SublarrClient
 
 
 class TestSublarrClient:
@@ -37,14 +39,19 @@ class TestSublarrClient:
         mock_resp.ok = False
         mock_resp.status_code = 404
         mock_resp.json.return_value = {"error": "Not found"}
-        with patch("cli.client.requests.Session.get", return_value=mock_resp):
-            with pytest.raises(SublarrAPIError) as exc_info:
-                self.client.get("/wanted/99/search")
+        with (
+            patch("cli.client.requests.Session.get", return_value=mock_resp),
+            pytest.raises(SublarrAPIError) as exc_info,
+        ):
+            self.client.get("/wanted/99/search")
         assert "Not found" in str(exc_info.value)
 
     def test_connection_error_raises(self):
         import requests as req
-        with patch("cli.client.requests.Session.get", side_effect=req.ConnectionError("refused")):
-            with pytest.raises(SublarrAPIError) as exc_info:
-                self.client.get("/health")
+
+        with (
+            patch("cli.client.requests.Session.get", side_effect=req.ConnectionError("refused")),
+            pytest.raises(SublarrAPIError) as exc_info,
+        ):
+            self.client.get("/health")
         assert "Cannot connect" in str(exc_info.value)

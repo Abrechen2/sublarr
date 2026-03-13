@@ -1,4 +1,5 @@
 """sublarr status — show running jobs and background task state."""
+
 import sys
 
 import click
