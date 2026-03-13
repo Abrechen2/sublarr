@@ -5,6 +5,17 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.0-beta] — 2026-03-13
+
+### Added
+
+- **Jellyfin Play-Start Webhook — `POST /api/v1/webhook/jellyfin`** — receives `PlaybackStart` events from the Jellyfin Webhook Plugin; resolves `ItemId` → file path via configured Jellyfin media server instances (`GET /Items/{id}?Fields=Path`); triggers subtitle search+translate pipeline in background thread (same pipeline as Sonarr/Radarr webhooks)
+- **`JellyfinEmbyServer.get_item_path_by_id()`** — new method on the Jellyfin backend to fetch item path by Jellyfin item ID
+- **`MediaServerManager.get_item_path_from_jellyfin()`** — queries all enabled Jellyfin/Emby instances and returns the first resolved path; lazily loads instances if none are cached
+- **Config — `jellyfin_play_translate_enabled`** — new boolean setting (`SUBLARR_JELLYFIN_PLAY_TRANSLATE_ENABLED`, default `false`); feature is opt-in
+
+---
+
 ## [0.24.4-beta] — 2026-03-13
 
 ### Added

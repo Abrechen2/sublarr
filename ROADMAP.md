@@ -203,14 +203,45 @@ Goals: Align subtitle timing to chapter markers in MKV files.
 
 ---
 
-## v0.25.0 — Pipeline & Integrations
+## v0.25.0 ✅ — Jellyfin Play-Start Auto-Translate
 
-Goals: Make Sublarr useful as a processing pipeline, not just a UI-driven tool.
+Goals: Trigger subtitle search+translate automatically when Jellyfin starts playback.
 
-- Jellyfin SSE Events — consume Jellyfin play-start events to auto-translate on-demand
-- CLI Mode — `sublarr search`, `sublarr translate`, `sublarr sync` for scripting and cron jobs
-- Subtitle Diff Viewer — inline accept/reject for individual changed cues (upgrade from full-replace)
-- List Virtualization — `@tanstack/react-virtual` for Library and Wanted (requires div-based layout refactor)
+- `POST /api/v1/webhook/jellyfin` — receive `PlaybackStart` events from Jellyfin Webhook Plugin
+- `get_item_path_by_id()` on `JellyfinEmbyServer` — resolve ItemId → file path via REST API
+- `get_item_path_from_jellyfin()` on `MediaServerManager` — queries all Jellyfin instances
+- `jellyfin_play_translate_enabled` config setting — opt-in, default false
+
+---
+
+## v0.25.1 — CLI Mode
+
+Goals: Make Sublarr scriptable from the command line.
+
+- `sublarr search --series-id <id>` — search for missing subtitles
+- `sublarr translate <file.ass>` — translate a subtitle file
+- `sublarr sync --subtitle <file.ass> --video <file.mkv>` — sync subtitles to video
+- `sublarr status` — show running jobs
+
+---
+
+## v0.25.2 — Subtitle Diff Viewer
+
+Goals: Inline accept/reject for individual changed cues (upgrade from full-replace).
+
+- Diff computation between original and translated cues
+- Accept/reject per cue in the SubtitleEditorModal
+- `POST /api/v1/tools/diff` — compute diff between two subtitle files
+
+---
+
+## v0.25.3 — List Virtualization
+
+Goals: Smooth scrolling for large libraries.
+
+- `@tanstack/react-virtual` for Library and Wanted
+- Requires div-based layout refactor (currently `<table>/<tr>`)
+- Deferred from v0.21.1
 
 ---
 
