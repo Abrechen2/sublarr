@@ -12,9 +12,14 @@ def _get_repo():
     return _repo
 
 
-def create_whisper_job(job_id: str, file_path: str, language: str = "") -> dict:
+def create_whisper_job(
+    job_id: str,
+    file_path: str,
+    language: str = "",
+    audio_track_index: int | None = None,
+) -> dict:
     """Create a new whisper job in the database."""
-    return _get_repo().create_whisper_job(job_id, file_path, language)
+    return _get_repo().create_whisper_job(job_id, file_path, language, audio_track_index)
 
 
 def update_whisper_job(job_id: str, **kwargs) -> None:

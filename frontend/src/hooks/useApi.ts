@@ -22,6 +22,7 @@ import {
   getMediaServerTypes, getMediaServerInstances, saveMediaServerInstances, testMediaServer, getMediaServerHealth,
   getWhisperBackends, testWhisperBackend, getWhisperBackendConfig, saveWhisperBackendConfig,
   getWhisperConfig, saveWhisperConfig, getWhisperQueue, getWhisperStats,
+  getSeriesAudioPref, setSeriesAudioPref,
   getWatchedFolders, saveWatchedFolder, deleteWatchedFolder,
   getStandaloneSeries, getStandaloneMovies, triggerStandaloneScan,
   getStandaloneStatus, refreshSeriesMetadata,
@@ -70,6 +71,7 @@ import {
   getMarketplaceBrowse, refreshMarketplace, getInstalledPlugins,
   installBrowsePlugin, uninstallBrowsePlugin,
   getVideoChapters,
+  getSeriesFansubPrefs, setSeriesFansubPrefs, deleteSeriesFansubPrefs,
 } from '@/api/client'
 import type {
   LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig, FilterScope, BatchAction,
@@ -883,6 +885,23 @@ export function useWhisperQueue(params?: { status?: string; limit?: number }) {
 }
 export function useWhisperStats() {
   return useQuery({ queryKey: ['whisper-stats'], queryFn: getWhisperStats })
+}
+
+// ─── Series Audio Track Preference ────────────────────────────────────────
+
+export function useSeriesAudioPref(seriesId: number) {
+  return useQuery({
+    queryKey: ['series-audio-pref', seriesId],
+    queryFn: () => getSeriesAudioPref(seriesId),
+  })
+}
+
+export function useSetSeriesAudioPref(seriesId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (trackIndex: number | null) => setSeriesAudioPref(seriesId, trackIndex),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['series-audio-pref', seriesId] }) },
+  })
 }
 
 // ─── Standalone Mode ──────────────────────────────────────────────────────
@@ -1934,6 +1953,36 @@ export function useRefreshMarketplaceBrowse() {
     mutationFn: refreshMarketplace,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['marketplace', 'browse'] })
+    },
+  })
+}
+
+// ─── Fansub Preferences ──────────────────────────────────────────────────────
+
+export function useSeriesFansubPrefs(seriesId: number) {
+  return useQuery({
+    queryKey: ['series-fansub-prefs', seriesId],
+    queryFn: () => getSeriesFansubPrefs(seriesId),
+  })
+}
+
+export function useSetSeriesFansubPrefs(seriesId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (prefs: { preferred_groups: string[]; excluded_groups: string[]; bonus: number }) =>
+      setSeriesFansubPrefs(seriesId, prefs),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['series-fansub-prefs', seriesId] })
+    },
+  })
+}
+
+export function useDeleteSeriesFansubPrefs(seriesId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => deleteSeriesFansubPrefs(seriesId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['series-fansub-prefs', seriesId] })
     },
   })
 }

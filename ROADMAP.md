@@ -171,17 +171,17 @@ Goals: Mark OP/ED cue regions in subtitle files for optional skip during transla
 
 ---
 
-## v0.24.2 — Multi-Audio Track Support for Whisper
+## v0.24.2 — Multi-Audio Track Support for Whisper ✅
 
 Goals: Select the correct audio track per series for Whisper transcription.
 
-- Per-series audio track preference stored in DB (extend `series_language_profiles`)
+- Per-series audio track preference stored in DB (`series_settings.preferred_audio_track_index`)
 - `POST /whisper/transcribe` extended with optional `audio_track_index` parameter
 - SeriesDetail — audio track picker showing available tracks with language/codec info
 
 ---
 
-## v0.24.3 — Fansub Preference Rules
+## ~~v0.24.3 — Fansub Preference Rules~~ Complete
 
 Goals: Per-series preferred fansub group ordering with score bonuses.
 
