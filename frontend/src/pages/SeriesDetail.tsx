@@ -25,6 +25,7 @@ import { SubtitleCleanupModal } from '@/components/shared/SubtitleCleanupModal'
 import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry, SidecarSubtitle } from '@/lib/types'
 import { EpisodeActionMenu } from '@/components/episodes/EpisodeActionMenu'
 import { SeriesFansubPrefsPanel } from '@/components/series/SeriesFansubPrefsPanel'
+import { SeriesAudioTrackPicker } from '@/components/series/SeriesAudioTrackPicker'
 
 const SubtitleComparison = lazy(() => import('@/components/comparison/SubtitleComparison').then(m => ({ default: m.SubtitleComparison })))
 const SyncControls = lazy(() => import('@/components/sync/SyncControls').then(m => ({ default: m.SyncControls })))
@@ -1543,6 +1544,13 @@ export function SeriesDetailPage() {
               </button>
 
               {/* AniDB refresh button — shown only when absolute order is active */}
+              {seriesId != null && (
+                <SeriesAudioTrackPicker
+                  seriesId={seriesId}
+                  episodes={series.episodes ?? []}
+                />
+              )}
+
               {series.absolute_order && (
                 <button
                   onClick={handleRefreshAnidbMapping}

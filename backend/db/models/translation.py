@@ -99,6 +99,7 @@ class WhisperJob(db.Model):
     segment_count: Mapped[int | None] = mapped_column(Integer, default=0)
     duration_seconds: Mapped[float | None] = mapped_column(Float, default=0.0)
     processing_time_ms: Mapped[float | None] = mapped_column(Float, default=0.0)
+    audio_track_index: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
     error: Mapped[str | None] = mapped_column(Text, default="")
     created_at: Mapped[str] = mapped_column(Text, nullable=False)
     started_at: Mapped[str | None] = mapped_column(Text, default="")

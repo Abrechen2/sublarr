@@ -22,6 +22,7 @@ import {
   getMediaServerTypes, getMediaServerInstances, saveMediaServerInstances, testMediaServer, getMediaServerHealth,
   getWhisperBackends, testWhisperBackend, getWhisperBackendConfig, saveWhisperBackendConfig,
   getWhisperConfig, saveWhisperConfig, getWhisperQueue, getWhisperStats,
+  getSeriesAudioPref, setSeriesAudioPref,
   getWatchedFolders, saveWatchedFolder, deleteWatchedFolder,
   getStandaloneSeries, getStandaloneMovies, triggerStandaloneScan,
   getStandaloneStatus, refreshSeriesMetadata,
@@ -883,6 +884,23 @@ export function useWhisperQueue(params?: { status?: string; limit?: number }) {
 }
 export function useWhisperStats() {
   return useQuery({ queryKey: ['whisper-stats'], queryFn: getWhisperStats })
+}
+
+// ─── Series Audio Track Preference ────────────────────────────────────────
+
+export function useSeriesAudioPref(seriesId: number) {
+  return useQuery({
+    queryKey: ['series-audio-pref', seriesId],
+    queryFn: () => getSeriesAudioPref(seriesId),
+  })
+}
+
+export function useSetSeriesAudioPref(seriesId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (trackIndex: number | null) => setSeriesAudioPref(seriesId, trackIndex),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['series-audio-pref', seriesId] }) },
+  })
 }
 
 // ─── Standalone Mode ──────────────────────────────────────────────────────
