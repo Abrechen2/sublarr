@@ -2722,8 +2722,11 @@ def compute_diff():
     if not modified_content:
         return jsonify({"error": "modified content is required"}), 400
 
-    orig_subs = pysubs2.SSAFile.from_string(original_content)
-    mod_subs = pysubs2.SSAFile.from_string(modified_content)
+    try:
+        orig_subs = pysubs2.SSAFile.from_string(original_content)
+        mod_subs = pysubs2.SSAFile.from_string(modified_content)
+    except Exception as exc:
+        return jsonify({"error": f"Failed to parse subtitle content: {exc}"}), 400
 
     orig_events = [e for e in orig_subs.events if e.type == "Dialogue"]
     mod_events = [e for e in mod_subs.events if e.type == "Dialogue"]

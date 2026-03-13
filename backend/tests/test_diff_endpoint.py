@@ -56,3 +56,9 @@ def test_diff_returns_diffs(client):
 def test_diff_missing_original(client):
     resp = client.post("/api/v1/tools/diff", json={"modified": MOD_ASS})
     assert resp.status_code == 400
+
+
+def test_diff_malformed_input(client):
+    resp = client.post("/api/v1/tools/diff", json={"original": "not valid ass content", "modified": MOD_ASS})
+    assert resp.status_code == 400
+    assert "error" in (resp.get_json() or {})
