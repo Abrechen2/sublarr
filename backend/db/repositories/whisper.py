@@ -17,7 +17,13 @@ logger = logging.getLogger(__name__)
 class WhisperRepository(BaseRepository):
     """Repository for whisper_jobs table operations."""
 
-    def create_whisper_job(self, job_id: str, file_path: str, language: str = "") -> dict:
+    def create_whisper_job(
+        self,
+        job_id: str,
+        file_path: str,
+        language: str = "",
+        audio_track_index: int | None = None,
+    ) -> dict:
         """Create a new whisper job in the database.
 
         Returns:
@@ -28,6 +34,7 @@ class WhisperRepository(BaseRepository):
             id=job_id,
             file_path=file_path,
             language=language,
+            audio_track_index=audio_track_index,
             status="queued",
             progress=0.0,
             created_at=now,
@@ -39,6 +46,7 @@ class WhisperRepository(BaseRepository):
             "id": job_id,
             "file_path": file_path,
             "language": language,
+            "audio_track_index": audio_track_index,
             "status": "queued",
             "progress": 0.0,
             "created_at": now,

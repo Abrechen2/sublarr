@@ -27,6 +27,7 @@ def register_blueprints(app):
     from routes.providers import bp as providers_bp
     from routes.remux import bp as remux_bp
     from routes.search import bp as search_bp
+    from routes.series_audio import bp as series_audio_bp
     from routes.spell import bp as spell_bp
     from routes.standalone import bp as standalone_bp
     from routes.subtitles import bp as subtitles_bp
@@ -73,5 +74,6 @@ def register_blueprints(app):
         video_sync_bp,
         subtitles_bp,
         remux_bp,
+        series_audio_bp,
     ]:
         app.register_blueprint(blueprint)

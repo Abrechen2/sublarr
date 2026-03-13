@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from db.whisper import create_whisper_job, update_whisper_job
+from whisper.audio import extract_audio_to_wav, get_audio_track_by_index, select_audio_track
 from whisper.base import TranscriptionResult
 
 if TYPE_CHECKING:
@@ -29,6 +31,7 @@ class WhisperJob:
     job_id: str
     file_path: str
     language: str = ""
+    audio_track_index: int | None = None  # Explicit track index; None = auto-select by language
     status: str = "queued"  # queued/extracting/transcribing/saving/completed/failed/cancelled
     progress: float = 0.0
     phase: str = ""
@@ -60,6 +63,7 @@ class WhisperQueue:
         source_language: str,
         whisper_manager: "WhisperManager",
         socketio=None,
+        audio_track_index: int | None = None,
     ) -> str:
         """Submit a new transcription job.
 
@@ -73,6 +77,7 @@ class WhisperQueue:
             source_language: Source audio language for track selection
             whisper_manager: WhisperManager instance for transcription
             socketio: Optional Socket.IO instance for progress events
+            audio_track_index: Explicit 0-based audio track index; None = auto-select by language
 
         Returns:
             The job_id
@@ -82,6 +87,7 @@ class WhisperQueue:
             job_id=job_id,
             file_path=file_path,
             language=language,
+            audio_track_index=audio_track_index,
             status="queued",
             created_at=now,
         )
@@ -91,16 +97,22 @@ class WhisperQueue:
 
         # Persist to DB
         try:
-            from db.whisper import create_whisper_job
-
-            create_whisper_job(job_id, file_path, language)
+            create_whisper_job(job_id, file_path, language, audio_track_index)
         except Exception as e:
             logger.error("Failed to persist whisper job %s to DB: %s", job_id, e)
 
         # Start worker thread
         thread = threading.Thread(
             target=self._run_job,
-            args=(job_id, file_path, language, source_language, whisper_manager, socketio),
+            args=(
+                job_id,
+                file_path,
+                language,
+                source_language,
+                audio_track_index,
+                whisper_manager,
+                socketio,
+            ),
             daemon=True,
             name=f"whisper-job-{job_id}",
         )
@@ -138,8 +150,6 @@ class WhisperQueue:
 
         # Update DB
         try:
-            from db.whisper import update_whisper_job
-
             update_whisper_job(job_id, status="cancelled")
         except Exception as e:
             logger.error("Failed to update cancelled job %s in DB: %s", job_id, e)
@@ -153,6 +163,7 @@ class WhisperQueue:
         file_path: str,
         language: str,
         source_language: str,
+        audio_track_index: int | None,
         whisper_manager: "WhisperManager",
         socketio,
     ):
@@ -182,11 +193,12 @@ class WhisperQueue:
                 self._emit_progress(socketio, job_id, "extracting", 0.0, "Selecting audio track...")
 
                 # Phase 1: Audio extraction (0-10%)
-                from whisper.audio import extract_audio_to_wav, select_audio_track
-
-                track = select_audio_track(
-                    file_path, preferred_language=source_language or language or "ja"
-                )
+                if audio_track_index is not None:
+                    track = get_audio_track_by_index(file_path, audio_track_index)
+                else:
+                    track = select_audio_track(
+                        file_path, preferred_language=source_language or language or "ja"
+                    )
                 self._update_job(job_id, progress=0.05)
                 self._emit_progress(
                     socketio,
@@ -235,8 +247,6 @@ class WhisperQueue:
 
                 # Persist to DB
                 try:
-                    from db.whisper import update_whisper_job
-
                     update_whisper_job(
                         job_id,
                         status="completed",
@@ -324,8 +334,6 @@ class WhisperQueue:
 
             # Persist failure to DB
             try:
-                from db.whisper import update_whisper_job
-
                 update_whisper_job(
                     job_id,
                     status="failed",
