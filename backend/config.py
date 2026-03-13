@@ -174,6 +174,7 @@ class Settings(BaseSettings):
     webhook_auto_scan: bool = True
     webhook_auto_search: bool = True
     webhook_auto_translate: bool = True
+    jellyfin_play_translate_enabled: bool = False  # Auto-translate when Jellyfin starts playback
 
     # Video Sync (ffsubsync / alass)
     auto_sync_after_download: bool = False  # Auto-sync subtitle against video after download
