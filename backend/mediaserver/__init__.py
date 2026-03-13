@@ -194,6 +194,40 @@ class MediaServerManager:
                 )
         return results
 
+    def get_item_path_from_jellyfin(self, item_id: str) -> str | None:
+        """Resolve a Jellyfin ItemId to a filesystem path.
+
+        Queries all enabled Jellyfin/Emby instances in order; returns the
+        first non-None path found. Lazily loads instances if none cached.
+
+        Args:
+            item_id: Jellyfin item ID from a webhook payload.
+
+        Returns:
+            Absolute file path string, or None if no instance can resolve it.
+        """
+        from mediaserver.jellyfin import JellyfinEmbyServer
+
+        if not self._instances:
+            self.load_instances()
+
+        for instance_key, instance in self._instances.items():
+            if not isinstance(instance, JellyfinEmbyServer):
+                continue
+            if not self._instance_enabled.get(instance_key, True):
+                continue
+            path = instance.get_item_path_by_id(item_id)
+            if path:
+                logger.debug(
+                    "Resolved Jellyfin ItemId %s → %s via %s",
+                    item_id,
+                    path,
+                    instance_key,
+                )
+                return path
+
+        return None
+
     def invalidate_instances(self) -> None:
         """Clear cached instances (for config reload)."""
         self._instances.clear()

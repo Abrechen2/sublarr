@@ -269,3 +269,14 @@ class JellyfinEmbyServer(MediaServer):
             return result["Items"][0].get("Id")
 
         return None
+
+    def get_item_path_by_id(self, item_id: str) -> str | None:
+        """Return the filesystem path for a Jellyfin/Emby item by its ID.
+
+        Used by the play-start webhook to resolve ItemId → file path.
+        Returns None if the item is not found or has no Path field.
+        """
+        result = self._get(f"/Items/{item_id}", params={"Fields": "Path"})
+        if result and result.get("Path"):
+            return result["Path"]
+        return None
