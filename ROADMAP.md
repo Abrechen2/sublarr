@@ -1,6 +1,6 @@
 # Sublarr — Roadmap
 
-> Completed versions are marked ✅. The current release is **v0.23.0-beta**. Planned versions reflect intended direction and may shift.
+> Completed versions are marked ✅. The current release is **v0.24.4-beta**. Planned versions reflect intended direction and may shift.
 
 ---
 
@@ -137,7 +137,7 @@
 
 ---
 
-## v0.23.0 ✅ — Batch Operations & Smart Filter *(current)*
+## v0.23.0 ✅ — Batch Operations & Smart Filter
 
 Goals: Multi-select workflows across Library and Wanted; auto-extract-on-scan; saved filter presets.
 
@@ -151,7 +151,7 @@ Goals: Multi-select workflows across Library and Wanted; auto-extract-on-scan; s
 
 ---
 
-## v0.24.0 — Staff Credit Filtering
+## v0.24.0 ✅ — Staff Credit Filtering
 
 Goals: Detect and strip credits-only subtitle lines from downloaded subtitles.
 
@@ -161,7 +161,7 @@ Goals: Detect and strip credits-only subtitle lines from downloaded subtitles.
 
 ---
 
-## v0.24.1 — Opening/Ending Skip Detection
+## v0.24.1 ✅ — Opening/Ending Skip Detection
 
 Goals: Mark OP/ED cue regions in subtitle files for optional skip during translation.
 
@@ -171,7 +171,7 @@ Goals: Mark OP/ED cue regions in subtitle files for optional skip during transla
 
 ---
 
-## v0.24.2 — Multi-Audio Track Support for Whisper ✅
+## v0.24.2 ✅ — Multi-Audio Track Support for Whisper
 
 Goals: Select the correct audio track per series for Whisper transcription.
 
@@ -181,7 +181,7 @@ Goals: Select the correct audio track per series for Whisper transcription.
 
 ---
 
-## ~~v0.24.3 — Fansub Preference Rules~~ Complete
+## v0.24.3 ✅ — Fansub Preference Rules
 
 Goals: Per-series preferred fansub group ordering with score bonuses.
 
@@ -192,7 +192,7 @@ Goals: Per-series preferred fansub group ordering with score bonuses.
 
 ---
 
-## ~~v0.24.4 — Chapter-Aware Sync~~ ✅ Complete
+## v0.24.4 ✅ — Chapter-Aware Sync
 
 Goals: Align subtitle timing to chapter markers in MKV files.
 
