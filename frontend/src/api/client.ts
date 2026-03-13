@@ -702,6 +702,20 @@ export const getWhisperJob = (jobId: string) => api.get(`/whisper/jobs/${jobId}`
 export const submitWhisperJob = (data: { file_path: string; language?: string }) => api.post('/whisper/transcribe', data).then(r => r.data)
 export const deleteWhisperJob = (jobId: string) => api.delete(`/whisper/jobs/${jobId}`).then(r => r.data)
 export const getWhisperStats = () => api.get('/whisper/stats').then(r => r.data)
+export const submitWhisperJobWithTrack = (data: { file_path: string; language?: string; audio_track_index?: number | null }) =>
+  api.post('/whisper/transcribe', data).then(r => r.data)
+
+// ─── Series Audio Track Preference ────────────────────────────────────────
+
+export async function getSeriesAudioPref(seriesId: number): Promise<import('@/lib/types').SeriesAudioPref> {
+  const { data } = await api.get(`/series/${seriesId}/audio-track-pref`)
+  return data
+}
+
+export async function setSeriesAudioPref(seriesId: number, trackIndex: number | null): Promise<import('@/lib/types').SeriesAudioPref> {
+  const { data } = await api.put(`/series/${seriesId}/audio-track-pref`, { preferred_audio_track_index: trackIndex })
+  return data
+}
 
 // ─── Standalone Mode ──────────────────────────────────────────────────────
 
