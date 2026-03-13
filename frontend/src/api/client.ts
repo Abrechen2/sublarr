@@ -21,6 +21,7 @@ import type {
   BazarrMappingReport, CompatBatchResult, ExtendedHealthAllResponse, ExportResult,
   ChapterList,
   SeriesFansubPrefs,
+  SubtitleDiffResult,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -1753,6 +1754,31 @@ export async function setSeriesFansubPrefs(
 
 export async function deleteSeriesFansubPrefs(seriesId: number): Promise<void> {
   await api.delete(`/series/${seriesId}/fansub-prefs`)
+}
+
+// ─── Subtitle Diff ────────────────────────────────────────────────────────────
+
+export async function computeSubtitleDiff(
+  original: string,
+  modified: string,
+): Promise<SubtitleDiffResult> {
+  const { data } = await api.post('/tools/diff', { original, modified })
+  return data
+}
+
+export async function applySubtitleDiff(
+  filePath: string,
+  original: string,
+  modified: string,
+  rejectedIndices: number[],
+): Promise<{ status: string; file_path: string; backup: string }> {
+  const { data } = await api.post('/tools/diff/apply', {
+    file_path: filePath,
+    original,
+    modified,
+    rejected_indices: rejectedIndices,
+  })
+  return data
 }
 
 export default api
