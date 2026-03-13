@@ -170,6 +170,36 @@ def select_audio_track(
     return fallback
 
 
+def get_audio_track_by_index(file_path: str, index: int) -> dict:
+    """Return the audio stream dict for an explicit 0-based track index.
+
+    Args:
+        file_path: Path to the media file
+        index: 0-based audio stream index
+
+    Returns:
+        Stream dict with stream_index, language, codec, channels, title
+
+    Raises:
+        ValueError: If index is out of range for the file's audio streams
+        RuntimeError: If ffprobe fails (propagated from get_audio_streams)
+    """
+    streams = get_audio_streams(file_path)
+    if not streams or index >= len(streams):
+        raise ValueError(
+            f"Audio track index {index} out of range: file has {len(streams)} audio track(s)"
+        )
+    track = streams[index]
+    logger.info(
+        "Using pinned audio track %d (%s, %s, %dch)",
+        index,
+        track["language"],
+        track["codec"],
+        track["channels"],
+    )
+    return track
+
+
 def extract_audio_to_wav(
     file_path: str,
     stream_index: int,

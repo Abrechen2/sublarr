@@ -258,6 +258,7 @@ class SeriesSettings(db.Model):
 
     sonarr_series_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     absolute_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0=off, 1=on
+    preferred_audio_track_index: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
     updated_at: Mapped[str] = mapped_column(Text, nullable=False)
 
 
