@@ -1161,3 +1161,12 @@ export interface ExportResult {
   content_type: string
   warnings: string[]
 }
+
+// ─── Fansub Preferences ──────────────────────────────────────────────────────
+
+export interface SeriesFansubPrefs {
+  series_id: number
+  preferred_groups: string[]
+  excluded_groups: string[]
+  bonus: number
+}

@@ -19,6 +19,7 @@ import type {
   NotificationTemplate, NotificationHistoryEntry, QuietHoursConfig, TemplateVariable, NotificationFilter,
   DiskSpaceStats, ScanStatus, DuplicateGroup, OrphanedFile, CleanupRule, CleanupHistoryEntry, CleanupPreviewData,
   BazarrMappingReport, CompatBatchResult, ExtendedHealthAllResponse, ExportResult,
+  SeriesFansubPrefs,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -1709,6 +1710,25 @@ export async function installBrowsePlugin(plugin: MarketplaceBrowsePlugin): Prom
 export async function uninstallBrowsePlugin(name: string): Promise<{ status: string }> {
   const { data } = await api.post('/marketplace/uninstall', { plugin_name: name })
   return data
+}
+
+// ─── Fansub Preferences ──────────────────────────────────────────────────────
+
+export async function getSeriesFansubPrefs(seriesId: number): Promise<SeriesFansubPrefs> {
+  const { data } = await api.get(`/series/${seriesId}/fansub-prefs`)
+  return data
+}
+
+export async function setSeriesFansubPrefs(
+  seriesId: number,
+  prefs: { preferred_groups: string[]; excluded_groups: string[]; bonus: number },
+): Promise<SeriesFansubPrefs> {
+  const { data } = await api.put(`/series/${seriesId}/fansub-prefs`, prefs)
+  return data
+}
+
+export async function deleteSeriesFansubPrefs(seriesId: number): Promise<void> {
+  await api.delete(`/series/${seriesId}/fansub-prefs`)
 }
 
 export default api
