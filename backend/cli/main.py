@@ -23,3 +23,14 @@ def cli(ctx: click.Context, url: str, api_key: str) -> None:
     """Sublarr subtitle manager — command-line interface."""
     ctx.ensure_object(dict)
     ctx.obj["client"] = SublarrClient(url, api_key)
+
+
+from cli.commands.search import search
+from cli.commands.translate import translate
+from cli.commands.sync import sync
+from cli.commands.status import status
+
+cli.add_command(search)
+cli.add_command(translate)
+cli.add_command(sync)
+cli.add_command(status)
