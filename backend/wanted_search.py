@@ -454,6 +454,29 @@ def _get_priority_key(result, target_lang, source_lang):
         return (3, -result["score"])  # Lowest priority: source.srt
 
 
+def _apply_fansub_rules(
+    results: list[dict],
+    preferred: list[str],
+    excluded: list[str],
+    bonus: int,
+) -> None:
+    """Adjust scores in-place based on fansub group preferences.
+
+    Performs case-insensitive substring matching against result["release_info"].
+    Preferred group match: +bonus points.
+    Excluded group match: -999 points (effectively removes from selection).
+    """
+    preferred_lower = [g.lower() for g in preferred]
+    excluded_lower = [g.lower() for g in excluded]
+
+    for result in results:
+        info = result.get("release_info", "").lower()
+        if any(g in info for g in excluded_lower):
+            result["score"] -= 999
+        elif any(g in info for g in preferred_lower):
+            result["score"] += bonus
+
+
 def search_wanted_item(item_id: int) -> dict:
     """Search providers for a single wanted item.
 
@@ -515,6 +538,20 @@ def search_wanted_item(item_id: int) -> dict:
     except Exception as e:
         logger.warning("Source SRT search failed for wanted %d: %s", item_id, e, exc_info=True)
         # Continue with other searches - don't fail entire operation
+
+    # Apply per-series fansub group preferences
+    series_id = item.get("sonarr_series_id")
+    if series_id:
+        from db.repositories.fansub_prefs import FansubPreferenceRepository
+
+        fansub = FansubPreferenceRepository().get_fansub_prefs(series_id)
+        if fansub:
+            _apply_fansub_rules(
+                all_results,
+                preferred=fansub["preferred_groups"],
+                excluded=fansub["excluded_groups"],
+                bonus=fansub["bonus"],
+            )
 
     # Sort by priority: target.ass > source.ass > target.srt > source.srt
     all_results.sort(key=lambda r: _get_priority_key(r, item_lang, source_lang))
