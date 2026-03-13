@@ -44,6 +44,7 @@ export default function SubtitleDiff({
   const [diffResult, setDiffResult] = useState<SubtitleDiffResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [diffError, setDiffError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
   const [accepted, setAccepted] = useState<Set<number>>(new Set())
   const [showUnchanged, setShowUnchanged] = useState(false)
@@ -82,7 +83,7 @@ export default function SubtitleDiff({
     return () => {
       cancelled = true
     }
-  }, [backup?.content, currentContent])
+  }, [backup?.content, currentContent, retryCount])
 
   const toggleAccepted = (index: number) => {
     setAccepted(prev => {
@@ -163,6 +164,7 @@ export default function SubtitleDiff({
             onClick={() => {
               setDiffError(null)
               setDiffResult(null)
+              setRetryCount(c => c + 1)
             }}
             className="rounded px-4 py-1.5 text-sm transition-colors"
             style={{ backgroundColor: 'var(--bg-surface-hover)', color: 'var(--text-primary)' }}
