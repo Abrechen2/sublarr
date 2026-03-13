@@ -5,6 +5,40 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.4-beta] — 2026-03-13
+
+### Added
+
+- **ChapterCache — `chapter_cache` DB table** — per-video chapter list cache (PK: `file_path`, mtime-invalidated); stores JSON list of `{id, title, start_ms, end_ms}` dicts; avoids repeated `ffprobe` invocations
+- **`backend/chapters.py`** — `get_chapters(video_path)` via `ffprobe -show_chapters`; results cached in `chapter_cache`; returns `[]` if video has no chapters or `ffprobe` is unavailable
+- **`GET /api/v1/tools/chapters?video_path=…`** — returns `{video_path, chapters: [{id, title, start_ms, end_ms}]}`; path validated via `is_safe_path()`
+- **Advanced Sync — `chapter_range` parameter** — `POST /tools/advanced-sync` offset operation now accepts optional `chapter_range: {start_ms, end_ms}`; only subtitle events within the chapter window are shifted; preview mode samples only in-range events
+- **SyncControls — Chapter Tab** — new "Chapter" tab visible when `videoPath` prop is provided and chapters are detected; chapter dropdown (title + timestamps), ±offset presets, preview, two-step confirm-apply flow
+
+---
+
+## [0.24.3-beta] — 2026-03-13
+
+### Added
+
+- **FansubPreference — `fansub_preferences` DB table** — per-series fansub group rules (PK: `sonarr_series_id`); stores preferred groups, excluded groups, and bonus points as JSON
+- **`GET/PUT/DELETE /api/v1/series/<id>/fansub-prefs`** — read/write/delete fansub preferences; GET returns defaults `{preferred_groups: [], excluded_groups: [], bonus: 20}` for unconfigured series
+- **Scoring Hook — `_apply_fansub_rules()`** — injected in `wanted_search.py` before result sort; case-insensitive substring match on `result["release_info"]`; preferred group → +bonus points, excluded group → −999 (effectively excluded)
+- **SeriesFansubPrefsPanel** — new component mounted in SeriesDetail; comma-separated preferred/excluded group inputs + bonus score field + Save/Reset buttons
+
+---
+
+## [0.24.2-beta] — 2026-03-13
+
+### Added
+
+- **SeriesSettings — `preferred_audio_track_index`** — new nullable integer column on `series_settings` table; stores the pinned ffprobe stream index used for Whisper transcription
+- **`GET/PUT /api/v1/series/<id>/audio-track-pref`** — read/write preferred audio track index; PUT accepts `null` to clear (resume auto-select)
+- **WhisperQueue — `audio_track_index` propagation** — `queue_transcription()` accepts and forwards `audio_track_index`; the transcribe route extracts the preferred index from series settings when not explicitly provided
+- **SeriesAudioTrackPicker** — new component mounted in SeriesDetail; lazy-loads episode audio tracks via ffprobe; dropdown sets the per-series Whisper transcription preference
+
+---
+
 ## [0.24.1-beta] — 2026-03-12
 
 ### Added
