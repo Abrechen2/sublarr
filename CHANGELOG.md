@@ -5,6 +5,18 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.1-beta] — 2026-03-13
+
+### Added
+
+- **CLI — `sublarr search`** — search subtitle providers for all wanted items in a series via `--series-id <id>`; calls `GET /wanted` + `POST /wanted/batch-search`
+- **CLI — `sublarr translate`** — translate a subtitle file via `POST /translate/sync`; supports `--force` flag; prints output path (sync) or job ID (queued)
+- **CLI — `sublarr sync`** — sync subtitle timing to a video file via `POST /tools/auto-sync`; `--engine ffsubsync|alass`
+- **CLI — `sublarr status`** — show active translation jobs and background task state; `--running` to filter in-progress jobs only
+- **CLI — Entry point** — `backend/sublarr_cli.py`; configure via `SUBLARR_URL` and `SUBLARR_API_KEY` env vars or `--url`/`--api-key` flags
+
+---
+
 ## [0.25.0-beta] — 2026-03-13
 
 ### Added
