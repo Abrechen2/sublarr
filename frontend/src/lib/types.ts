@@ -20,6 +20,12 @@ export interface PaginatedJobs {
   total_pages: number
 }
 
+export interface AuthStatus {
+  configured: boolean
+  enabled: boolean
+  authenticated: boolean
+}
+
 export interface HealthStatus {
   status: 'healthy' | 'unhealthy'
   version: string
