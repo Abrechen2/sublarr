@@ -1227,3 +1227,19 @@ export interface SubtitleDiffResult {
   total: number
   changed: number
 }
+
+// ── Web Player ────────────────────────────────────────────────────────────
+export interface PlayerSubtitleTrack {
+  path: string
+  language: string
+  format: 'ass' | 'srt' | 'vtt'
+  label: string
+}
+
+export interface PlayerModalProps {
+  videoPath: string
+  subtitleTracks: PlayerSubtitleTrack[]
+  initialTrackIndex?: number
+  onClose: () => void
+  onSeekRequest?: (seekFn: (seconds: number) => void) => void
+}
