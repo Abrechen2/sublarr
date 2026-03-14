@@ -180,10 +180,18 @@ export function useContextWindowSize() {
 
 // ─── Wanted ─────────────────────────────────────────────────────────────
 
-export function useWantedItems(page = 1, perPage = 50, itemType?: string, status?: string, subtitleType?: string) {
+/** When fetchAll=true, fetches page=1 with perPage=9999 (cap ~9999 items). Sufficient for typical Wanted lists. */
+export function useWantedItems(page = 1, perPage = 50, itemType?: string, status?: string, subtitleType?: string, fetchAll = false) {
   return useQuery({
-    queryKey: ['wanted', page, perPage, itemType, status, subtitleType],
-    queryFn: () => getWantedItems(page, perPage, itemType, status, subtitleType),
+    queryKey: ['wanted', fetchAll ? 'all' : page, fetchAll ? 9999 : perPage, itemType, status, subtitleType],
+    queryFn: () =>
+      getWantedItems(
+        fetchAll ? 1 : page,
+        fetchAll ? 9999 : perPage,
+        itemType,
+        status,
+        subtitleType,
+      ),
     placeholderData: keepPreviousData,
   })
 }

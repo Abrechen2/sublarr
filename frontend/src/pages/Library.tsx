@@ -1,270 +1,19 @@
-import { useState, useMemo, useCallback, memo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLibrary, useLanguageProfiles, useAssignProfile } from '@/hooks/useApi'
 import { FilterPresetMenu } from '@/components/filters/FilterPresetMenu'
-import type { SeriesInfo, MovieInfo, LanguageProfile, SyncBatchProgress, SyncBatchComplete, FilterGroup } from '@/lib/types'
-import { Tv, Film, Loader2, Settings, ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw, X, LayoutGrid, List } from 'lucide-react'
+import type { SeriesInfo, MovieInfo, SyncBatchProgress, SyncBatchComplete, FilterGroup } from '@/lib/types'
+import { Tv, Film, Loader2, Settings, ChevronLeft, ChevronRight, Search, RefreshCw, X, LayoutGrid, List } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { autoSyncBulk, startSeriesBatchSearch } from '@/api/client'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { toast } from '@/components/shared/Toast'
 import { LibraryGridCard } from '@/components/library/LibraryGridCard'
+import { VirtualLibraryTable } from '@/components/library/VirtualLibraryTable'
 
 type Tab = 'series' | 'movies'
 type SortKey = 'title' | 'missing' | 'episodes'
 type SortDir = 'asc' | 'desc'
-const PAGE_SIZE = 25
-
-function ProgressBar({ current, total }: { current: number; total: number }) {
-  const pct = total > 0 ? (current / total) * 100 : 0
-  const isComplete = current === total && total > 0
-  const isEmpty = total === 0
-
-  const barColor = isEmpty
-    ? 'var(--text-muted)'
-    : isComplete
-      ? 'var(--success)'
-      : 'var(--warning)'
-
-  return (
-    <div className="flex items-center gap-2.5">
-      <div
-        className="flex-1 h-[18px] rounded-sm overflow-hidden relative"
-        style={{ backgroundColor: 'var(--bg-primary)', minWidth: 80 }}
-      >
-        <div
-          className="h-full rounded-sm transition-all duration-500"
-          style={{ width: `${pct}%`, backgroundColor: barColor }}
-        />
-        <span
-          className="absolute inset-0 flex items-center justify-center text-[11px] font-medium"
-          style={{
-            color: pct > 50 ? '#fff' : 'var(--text-secondary)',
-            fontFamily: 'var(--font-mono)',
-            textShadow: pct > 50 ? '0 1px 2px rgba(0,0,0,0.4)' : 'none',
-          }}
-        >
-          {current}/{total}
-        </span>
-      </div>
-    </div>
-  )
-}
-
-function MissingBadge({ count }: { count: number }) {
-  const color = count > 5 ? 'var(--error)' : count > 0 ? 'var(--warning)' : 'var(--success)'
-  const bg = count > 5 ? 'var(--error-bg)' : count > 0 ? 'var(--warning-bg)' : 'var(--success-bg)'
-  return (
-    <span
-      className="inline-flex items-center justify-center min-w-[28px] px-1.5 py-0.5 rounded text-[11px] font-bold tabular-nums"
-      style={{ backgroundColor: bg, color, fontFamily: 'var(--font-mono)' }}
-    >
-      {count}
-    </span>
-  )
-}
-
-function SortIcon({ sortKey, currentSort, currentDir }: { sortKey: SortKey; currentSort: SortKey; currentDir: SortDir }) {
-  if (currentSort !== sortKey) return <ArrowUpDown size={11} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-  return currentDir === 'asc'
-    ? <ArrowUp size={11} style={{ color: 'var(--accent)' }} />
-    : <ArrowDown size={11} style={{ color: 'var(--accent)' }} />
-}
-
-const LibraryTableRow = memo(function LibraryTableRow({
-  item,
-  isSeries,
-  profiles,
-  onRowClick,
-  onProfileChange,
-  t,
-  selected,
-  onToggle,
-}: {
-  item: SeriesInfo | MovieInfo
-  isSeries: boolean
-  profiles: LanguageProfile[]
-  onRowClick: (id: number) => void
-  onProfileChange: (seriesId: number, profileId: number) => void
-  t: (key: string, opts?: Record<string, unknown>) => string
-  selected: boolean
-  onToggle: () => void
-}) {
-  return (
-    <tr
-      data-testid="library-row"
-      className="transition-colors duration-100 cursor-pointer"
-      style={{ borderTop: '1px solid var(--border)' }}
-      onClick={() => onRowClick(item.id)}
-      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
-      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '' }}
-    >
-      {isSeries && (
-        <td className="w-10 pl-3" onClick={(e) => e.stopPropagation()}>
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={onToggle}
-            className="rounded"
-            style={{ accentColor: 'var(--accent)' }}
-          />
-        </td>
-      )}
-      <td className="px-4 py-2.5 max-w-xs">
-        <span className="text-sm font-medium hover:underline block truncate" title={item.title} style={{ color: 'var(--accent)' }}>
-          {item.title}
-        </span>
-      </td>
-      {isSeries && (
-        <td className="px-4 py-2.5">
-          <MissingBadge count={(item as SeriesInfo).missing_count ?? 0} />
-        </td>
-      )}
-      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
-        {isSeries && profiles.length > 0 ? (
-          <select
-            value={(item as SeriesInfo).profile_id ?? 0}
-            onChange={(e) => onProfileChange(item.id, Number(e.target.value))}
-            className="text-xs px-2 py-1 rounded cursor-pointer"
-            style={{
-              backgroundColor: 'var(--bg-primary)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border)',
-            }}
-          >
-            {profiles.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        ) : (
-          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-            {(item as SeriesInfo).profile_name || t('table.default_profile')}
-          </span>
-        )}
-      </td>
-      <td className="px-4 py-2.5">
-        {isSeries && 'episodes' in item ? (
-          <ProgressBar
-            current={(item as SeriesInfo).episodes_with_files || 0}
-            total={(item as SeriesInfo).episodes}
-          />
-        ) : (
-          <span
-            className="text-[10px] px-2 py-0.5 rounded font-medium inline-block"
-            style={{
-              backgroundColor: (item as MovieInfo).has_file ? 'var(--success-bg)' : 'var(--error-bg)',
-              color: (item as MovieInfo).has_file ? 'var(--success)' : 'var(--error)',
-            }}
-          >
-            {(item as MovieInfo).has_file ? t('table.on_disk') : t('table.missing_file')}
-          </span>
-        )}
-      </td>
-    </tr>
-  )
-})
-
-function LibraryTable({ items, type, profiles, onRowClick, onProfileChange, sortKey, sortDir, onSort, t, selectedSeries, onToggleSeries, onSelectAll, onClearSelection }: {
-  items: (SeriesInfo | MovieInfo)[]
-  type: Tab
-  profiles: LanguageProfile[]
-  onRowClick: (id: number) => void
-  onProfileChange: (seriesId: number, profileId: number) => void
-  sortKey: SortKey
-  sortDir: SortDir
-  onSort: (key: SortKey) => void
-  t: (key: string, opts?: Record<string, unknown>) => string
-  selectedSeries: Set<number>
-  onToggleSeries: (id: number) => void
-  onSelectAll: () => void
-  onClearSelection: () => void
-}) {
-  const isSeries = type === 'series'
-  const allSelected = isSeries && items.length > 0 && selectedSeries.size === items.length
-
-  return (
-    <div
-      className="rounded-lg overflow-hidden"
-      style={{ border: '1px solid var(--border)' }}
-    >
-      <table className="w-full">
-        <thead>
-          <tr style={{ backgroundColor: 'var(--bg-elevated)' }}>
-            {isSeries && (
-              <th scope="col" className="w-10 pl-3">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={() => allSelected ? onClearSelection() : onSelectAll()}
-                  className="rounded"
-                  title="Select all on this page"
-                  style={{ accentColor: 'var(--accent)' }}
-                />
-              </th>
-            )}
-            <th
-              scope="col"
-              aria-sort={sortKey === 'title' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-              className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 cursor-pointer select-none"
-              style={{ color: 'var(--text-secondary)' }}
-              onClick={() => onSort('title')}
-            >
-              <span className="inline-flex items-center gap-1.5">
-                {t('table.name')} <SortIcon sortKey="title" currentSort={sortKey} currentDir={sortDir} />
-              </span>
-            </th>
-            {isSeries && (
-              <th
-                scope="col"
-                aria-sort={sortKey === 'missing' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 w-20 cursor-pointer select-none"
-                style={{ color: 'var(--text-secondary)' }}
-                onClick={() => onSort('missing')}
-              >
-                <span className="inline-flex items-center gap-1.5">
-                  {t('table.missing')} <SortIcon sortKey="missing" currentSort={sortKey} currentDir={sortDir} />
-                </span>
-              </th>
-            )}
-            <th
-              scope="col"
-              className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 w-40"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              {t('table.profile')}
-            </th>
-            <th
-              scope="col"
-              aria-sort={sortKey === 'episodes' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-              className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 w-44 cursor-pointer select-none"
-              style={{ color: 'var(--text-secondary)' }}
-              onClick={() => onSort('episodes')}
-            >
-              <span className="inline-flex items-center gap-1.5">
-                {isSeries ? t('table.episodes') : t('table.status')} <SortIcon sortKey="episodes" currentSort={sortKey} currentDir={sortDir} />
-              </span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => (
-            <LibraryTableRow
-              key={item.id}
-              item={item}
-              isSeries={isSeries}
-              profiles={profiles}
-              onRowClick={onRowClick}
-              onProfileChange={onProfileChange}
-              t={t}
-              selected={selectedSeries.has(item.id)}
-              onToggle={() => onToggleSeries(item.id)}
-            />
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
 
 function Pagination({ page, totalPages, total, pageSize, onPageChange, t }: {
   page: number
@@ -544,7 +293,7 @@ export function LibraryPage() {
   const { data: profiles } = useLanguageProfiles()
   const assignProfile = useAssignProfile()
   const [activeTab, setActiveTab] = useState<Tab>('series')
-  const [page, setPage] = useState(1)
+  const [gridPage, setGridPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('title')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
@@ -583,7 +332,7 @@ export function LibraryPage() {
       setSortKey(key)
       setSortDir(key === 'missing' ? 'desc' : 'asc')
     }
-    setPage(1)
+    setGridPage(1)
   }, [sortKey])
 
   const handleProfileChange = useCallback((seriesId: number, profileId: number) => {
@@ -649,15 +398,19 @@ export function LibraryPage() {
   const movies = library?.movies || []
   const isEmpty = series.length === 0 && movies.length === 0
 
-  // Pagination
-  const totalPages = Math.ceil(processedItems.length / PAGE_SIZE)
-  const currentPage = Math.min(page, totalPages || 1)
-  const paginatedItems = processedItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+  // Grid pagination
+  const GRID_PAGE_SIZE = 25
+  const gridTotalPages = Math.ceil(processedItems.length / GRID_PAGE_SIZE)
+  const gridCurrentPage = Math.min(gridPage, gridTotalPages || 1)
+  const gridItems = processedItems.slice(
+    (gridCurrentPage - 1) * GRID_PAGE_SIZE,
+    gridCurrentPage * GRID_PAGE_SIZE,
+  )
 
   // Reset page on tab change
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab)
-    setPage(1)
+    setGridPage(1)
     setSearchQuery('')
   }
 
@@ -714,7 +467,7 @@ export function LibraryPage() {
               data-testid="library-search"
               type="text"
               value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setPage(1) }}
+              onChange={(e) => { setSearchQuery(e.target.value); setGridPage(1) }}
               placeholder={t('search_placeholder')}
               className="pl-8 pr-3 py-1.5 rounded-md text-xs w-48 focus:outline-none transition-all"
               style={{
@@ -758,7 +511,7 @@ export function LibraryPage() {
           {activeTab === 'series' && (
             <select
               value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setPage(1) }}
+              onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setGridPage(1) }}
               className="px-2 py-1.5 rounded-md text-xs"
               style={{
                 backgroundColor: 'var(--bg-surface)',
@@ -776,7 +529,7 @@ export function LibraryPage() {
           {activeTab === 'series' && profiles && profiles.length > 0 && (
             <select
               value={profileFilter}
-              onChange={(e) => { setProfileFilter(e.target.value); setPage(1) }}
+              onChange={(e) => { setProfileFilter(e.target.value); setGridPage(1) }}
               className="px-2 py-1.5 rounded-md text-xs"
               style={{
                 backgroundColor: 'var(--bg-surface)',
@@ -867,7 +620,7 @@ export function LibraryPage() {
         />
       )}
 
-      {paginatedItems.length === 0 ? (
+      {processedItems.length === 0 ? (
         <div
           className="rounded-lg p-8 text-center"
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
@@ -917,19 +670,32 @@ export function LibraryPage() {
             </div>
           )}
           {viewMode === 'grid' ? (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
-              {paginatedItems.map((item, i) => (
-                <LibraryGridCard
-                  key={item.id}
-                  item={item}
-                  onClick={() => handleRowClick(item.id)}
-                  style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}
+            <>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+                {gridItems.map((item, i) => (
+                  <LibraryGridCard
+                    key={item.id}
+                    item={item}
+                    onClick={() => handleRowClick(item.id)}
+                    style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}
+                  />
+                ))}
+              </div>
+              {gridTotalPages > 1 && (
+                <Pagination
+                  page={gridCurrentPage}
+                  totalPages={gridTotalPages}
+                  total={processedItems.length}
+                  pageSize={GRID_PAGE_SIZE}
+                  onPageChange={setGridPage}
+                  t={t}
                 />
-              ))}
-            </div>
+              )}
+            </>
           ) : (
-            <LibraryTable
-              items={paginatedItems}
+            <VirtualLibraryTable
+              key={activeTab}
+              items={processedItems}
               type={activeTab}
               profiles={profiles || []}
               onRowClick={handleRowClick}
@@ -940,18 +706,8 @@ export function LibraryPage() {
               t={t}
               selectedSeries={selectedSeries}
               onToggleSeries={toggleSeries}
-              onSelectAll={() => setSelectedSeries(new Set(paginatedItems.map(s => s.id)))}
+              onSelectAll={() => setSelectedSeries(new Set(processedItems.map((s) => s.id)))}
               onClearSelection={clearSelection}
-            />
-          )}
-          {totalPages > 1 && (
-            <Pagination
-              page={currentPage}
-              totalPages={totalPages}
-              total={processedItems.length}
-              pageSize={PAGE_SIZE}
-              onPageChange={setPage}
-              t={t}
             />
           )}
         </>

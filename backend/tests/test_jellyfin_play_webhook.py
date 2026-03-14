@@ -116,8 +116,11 @@ def app():
     import os
 
     os.environ.setdefault("SUBLARR_MEDIA_PATH", "/media")
-    os.environ.setdefault("SUBLARR_DB_PATH", ":memory:")
+    os.environ["SUBLARR_DB_PATH"] = ":memory:"
 
+    from config import reload_settings
+
+    reload_settings()
     from app import create_app
 
     application = create_app(testing=True)

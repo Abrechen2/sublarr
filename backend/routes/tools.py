@@ -2743,11 +2743,13 @@ def compute_diff():
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
         if tag == "equal":
             for k in range(i2 - i1):
-                diffs.append({
-                    "type": "unchanged",
-                    "original": _cue_to_dict(orig_events[i1 + k]),
-                    "modified": _cue_to_dict(mod_events[j1 + k]),
-                })
+                diffs.append(
+                    {
+                        "type": "unchanged",
+                        "original": _cue_to_dict(orig_events[i1 + k]),
+                        "modified": _cue_to_dict(mod_events[j1 + k]),
+                    }
+                )
         elif tag == "replace":
             orig_slice = orig_events[i1:i2]
             mod_slice = mod_events[j1:j2]
@@ -2758,11 +2760,15 @@ def compute_diff():
                 changed += 1
         elif tag == "delete":
             for k in range(i1, i2):
-                diffs.append({"type": "removed", "original": _cue_to_dict(orig_events[k]), "modified": None})
+                diffs.append(
+                    {"type": "removed", "original": _cue_to_dict(orig_events[k]), "modified": None}
+                )
                 changed += 1
         elif tag == "insert":
             for k in range(j1, j2):
-                diffs.append({"type": "added", "original": None, "modified": _cue_to_dict(mod_events[k])})
+                diffs.append(
+                    {"type": "added", "original": None, "modified": _cue_to_dict(mod_events[k])}
+                )
                 changed += 1
 
     return jsonify({"diffs": diffs, "total": len(diffs), "changed": changed})

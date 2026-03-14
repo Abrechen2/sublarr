@@ -12,7 +12,7 @@ import { formatRelativeTime, truncatePath } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
 import type { WantedSearchResponse, FilterCondition } from '@/lib/types'
 import {
-  RefreshCw, ChevronLeft, ChevronRight, Search, Film, Tv,
+  RefreshCw, Search, Film, Tv,
   ArrowUpCircle, EyeOff, Eye, Play, Loader2, ChevronUp, Ban,
   CheckSquare, Square, MinusSquare, Download, ArrowUp, ArrowDown, ScanSearch,
 } from 'lucide-react'
@@ -25,6 +25,7 @@ import { BatchActionBar } from '@/components/batch/BatchActionBar'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useQueryClient } from '@tanstack/react-query'
+import { useWantedVirtualizer } from '@/components/wanted/VirtualWantedTable'
 
 /** Derive subtitle file path from media path + language + format. */
 function formatRetryTime(isoString: string): string {
@@ -227,7 +228,6 @@ function SearchResultsRow({ results, isLoading, onBlacklist, t }: {
 
 export function WantedPage() {
   const { t } = useTranslation('library')
-  const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const [typeFilter, setTypeFilter] = useState<string | undefined>()
   const [subtitleTypeFilter, setSubtitleTypeFilter] = useState<string | undefined>()
@@ -258,7 +258,7 @@ export function WantedPage() {
   const clearSelection = useSelectionStore((s) => s.clearSelection)
   const isSelected = useCallback((id: number) => (scopeSelections ?? new Set()).has(id), [scopeSelections])
   const { data: summary } = useWantedSummary()
-  const { data: wanted, isLoading } = useWantedItems(page, 50, typeFilter, statusFilter, subtitleTypeFilter)
+  const { data: wanted, isLoading } = useWantedItems(1, 50, typeFilter, statusFilter, subtitleTypeFilter, true)
   const refreshWanted = useRefreshWanted()
   const updateStatus = useUpdateWantedStatus()
   const searchItem = useSearchWantedItem()
@@ -365,6 +365,9 @@ export function WantedPage() {
     return sorted
   }, [wanted?.data, upgradeFilter, languageFilter, debouncedSearch, sortBy, sortDir])
 
+  // Virtual scroll for Wanted list
+  const { parentRef: wantedParentRef, virtualItems: wantedVirtualItems, paddingTop: wantedPaddingTop, paddingBottom: wantedPaddingBottom } = useWantedVirtualizer(filteredData?.length ?? 0)
+
   // Bulk selection helpers using Zustand store
   const visibleIds = useMemo(() => filteredData?.map((d) => d.id) ?? [], [filteredData])
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => isSelected(id))
@@ -381,7 +384,6 @@ export function WantedPage() {
   // Handle FilterBar filter changes -- sync relevant filters with existing filter state
   const handleFiltersChange = useCallback((filters: ActiveFilter[]) => {
     setActiveFilters(filters)
-    setPage(1)
     // Sync FilterBar selections back to existing filter buttons
     const statusVal = filters.find(f => f.key === 'status')?.value
     setStatusFilter(statusVal)
@@ -636,7 +638,7 @@ export function WantedPage() {
             return (
               <button
                 key={s}
-                onClick={() => { setStatusFilter(s === 'all' ? undefined : s); setPage(1) }}
+                onClick={() => { setStatusFilter(s === 'all' ? undefined : s) }}
                 className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
                 style={{
                   backgroundColor: isActive ? 'var(--accent-bg)' : 'var(--bg-surface)',
@@ -655,7 +657,7 @@ export function WantedPage() {
             return (
               <button
                 key={t}
-                onClick={() => { setTypeFilter(t === 'all' ? undefined : t); setPage(1) }}
+                onClick={() => { setTypeFilter(t === 'all' ? undefined : t) }}
                 className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
                 style={{
                   backgroundColor: isActive ? 'var(--accent-bg)' : 'var(--bg-surface)',
@@ -675,7 +677,7 @@ export function WantedPage() {
               return (
                 <button
                   key={st}
-                  onClick={() => { setSubtitleTypeFilter(st === 'all' ? undefined : st); setPage(1) }}
+                  onClick={() => { setSubtitleTypeFilter(st === 'all' ? undefined : st) }}
                   className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
                   style={{
                     backgroundColor: isActive ? 'var(--accent-bg)' : 'var(--bg-surface)',
@@ -693,7 +695,7 @@ export function WantedPage() {
         {availableLanguages.length > 1 && (
           <div className="flex gap-1.5">
             <button
-              onClick={() => { setLanguageFilter(undefined); setPage(1) }}
+              onClick={() => { setLanguageFilter(undefined) }}
               className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
               style={{
                 backgroundColor: !languageFilter ? 'var(--accent-bg)' : 'var(--bg-surface)',
@@ -708,7 +710,7 @@ export function WantedPage() {
               return (
                 <button
                   key={lang}
-                  onClick={() => { setLanguageFilter(isActive ? undefined : lang); setPage(1) }}
+                  onClick={() => { setLanguageFilter(isActive ? undefined : lang) }}
                   className="px-3 py-1.5 rounded-md text-xs font-medium uppercase transition-all duration-150"
                   style={{
                     backgroundColor: isActive ? 'var(--accent-bg)' : 'var(--bg-surface)',
@@ -725,7 +727,7 @@ export function WantedPage() {
         )}
         {upgradeable > 0 && (
           <button
-            onClick={() => { setUpgradeFilter(!upgradeFilter); setPage(1) }}
+            onClick={() => { setUpgradeFilter(!upgradeFilter) }}
             className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
             style={{
               backgroundColor: upgradeFilter ? 'rgba(16,185,129,0.1)' : 'var(--bg-surface)',
@@ -766,7 +768,7 @@ export function WantedPage() {
           </span>
           <select
             value={sortBy}
-            onChange={(e) => { setSortBy(e.target.value); setPage(1) }}
+            onChange={(e) => { setSortBy(e.target.value) }}
             className="text-xs px-2 py-1.5 rounded-md cursor-pointer"
             style={{
               backgroundColor: 'var(--bg-surface)',
@@ -835,9 +837,9 @@ export function WantedPage() {
         className="rounded-lg overflow-hidden"
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
-        <div className="overflow-x-auto">
+        <div ref={wantedParentRef} style={{ height: 'calc(100vh - 300px)', overflowY: 'auto' }}>
           <table className="w-full min-w-[800px]">
-            <thead>
+            <thead style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--bg-elevated)' }}>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 <th scope="col" className="text-left px-3 py-2.5 w-8">
                   <button onClick={toggleSelectAll} className="p-0.5" style={{ color: 'var(--text-muted)' }}>
@@ -876,7 +878,16 @@ export function WantedPage() {
                   </tr>
                 ))
               ) : filteredData?.length ? (
-                filteredData.map((item, i) => (
+                <>
+                  {wantedPaddingTop > 0 && (
+                    <tr aria-hidden="true">
+                      <td colSpan={9} style={{ height: wantedPaddingTop, padding: 0 }} />
+                    </tr>
+                  )}
+                  {wantedVirtualItems.map((virtualRow) => {
+                    const item = filteredData[virtualRow.index]
+                    const i = virtualRow.index
+                    return (
                   <Fragment key={item.id}>
                     <tr
                       data-testid="wanted-item"
@@ -1116,7 +1127,14 @@ export function WantedPage() {
                       />
                     )}
                   </Fragment>
-                ))
+                    )
+                  })}
+                  {wantedPaddingBottom > 0 && (
+                    <tr aria-hidden="true">
+                      <td colSpan={9} style={{ height: wantedPaddingBottom, padding: 0 }} />
+                    </tr>
+                  )}
+                </>
               ) : (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -1127,58 +1145,6 @@ export function WantedPage() {
             </tbody>
           </table>
         </div>
-
-        {/* Pagination */}
-        {wanted && wanted.total_pages > 1 && (
-          <div
-            className="flex items-center justify-between px-4 py-2.5"
-            style={{ borderTop: '1px solid var(--border)' }}
-          >
-            <span className="text-xs" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-              {(debouncedSearch || upgradeFilter || languageFilter)
-                ? `${filteredData?.length ?? 0} filtered of ${wanted.total} total`
-                : `Page ${wanted.page} of ${wanted.total_pages} (${wanted.total} total)`}
-            </span>
-            <div className="flex gap-1.5">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="p-1.5 rounded-md transition-all duration-150"
-                style={{
-                  border: '1px solid var(--border)',
-                  backgroundColor: 'var(--bg-primary)',
-                  color: 'var(--text-secondary)',
-                }}
-                onMouseEnter={(e) => {
-                  if (!e.currentTarget.disabled) e.currentTarget.style.borderColor = 'var(--accent-dim)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border)'
-                }}
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <button
-                onClick={() => setPage((p) => Math.min(wanted.total_pages, p + 1))}
-                disabled={page >= wanted.total_pages}
-                className="p-1.5 rounded-md transition-all duration-150"
-                style={{
-                  border: '1px solid var(--border)',
-                  backgroundColor: 'var(--bg-primary)',
-                  color: 'var(--text-secondary)',
-                }}
-                onMouseEnter={(e) => {
-                  if (!e.currentTarget.disabled) e.currentTarget.style.borderColor = 'var(--accent-dim)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border)'
-                }}
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Floating BatchActionBar */}
