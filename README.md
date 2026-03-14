@@ -8,7 +8,7 @@
 
 *arr-compatible · Self-hosted · Open Source · LLM translation (beta)
 
-[![Version](https://img.shields.io/badge/version-0.21.1--beta-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
+[![Version](https://img.shields.io/badge/version-0.29.0--beta-teal.svg)](https://github.com/Abrechen2/sublarr/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776ab.svg)](https://www.python.org/)
 [![React 19](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
@@ -16,7 +16,7 @@
 
 ---
 
-**[Quick Start](#-quick-start)** · **[Configuration](#️-configuration)** · **[Integrations](#-integrations)** · **[Docs](#-documentation)**
+**[Quick Start](#-quick-start)** · **[Configuration](#️-configuration)** · **[Integrations](#-integrations)** · **[Docs](#-documentation)** · **[Website](https://sublarr.de)** · **[Wiki](https://wiki.sublarr.de)**
 
 </div>
 
@@ -124,7 +124,7 @@ Open **http://localhost:5765** — that's it.
 ```yaml
 services:
   sublarr:
-    image: ghcr.io/abrechen2/sublarr:0.21.1-beta
+    image: ghcr.io/abrechen2/sublarr:0.29.0-beta
     container_name: sublarr
     ports:
       - "5765:5765"
@@ -147,7 +147,7 @@ The image runs as a non-root user with `cap_drop: ALL` and no new privileges. A 
 ```yaml
 services:
   sublarr:
-    image: ghcr.io/abrechen2/sublarr:0.21.1-beta
+    image: ghcr.io/abrechen2/sublarr:0.29.0-beta
     container_name: sublarr
     ports:
       - "5765:5765"
@@ -250,7 +250,7 @@ If your Sonarr/Radarr runs on a different host and uses different paths than Sub
 SUBLARR_PATH_MAPPING=/data/media=/mnt/media
 ```
 
-See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for the complete variable reference.
+See [wiki.sublarr.de/getting-started/environment-variables](https://wiki.sublarr.de/getting-started/environment-variables) for the complete variable reference.
 
 ---
 
@@ -341,27 +341,30 @@ cd frontend && npm run lint && npx tsc --noEmit
 
 ## 📚 Documentation
 
-| Document | Description |
+Full documentation lives at **[wiki.sublarr.de](https://wiki.sublarr.de)**.
+
+| Topic | Wiki Page |
 |---|---|
-| [docs/USER-GUIDE.md](docs/USER-GUIDE.md) | End-user guide — all features explained with examples |
-| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Full `SUBLARR_*` variable reference |
-| [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) | Sonarr, Radarr, Jellyfin, Emby, Plex, Kodi setup walkthroughs |
-| [docs/FAQ.md](docs/FAQ.md) | Frequently asked questions |
-| [docs/LANGUAGE-PROFILES.md](docs/LANGUAGE-PROFILES.md) | Language profile system — per-series target language rules |
-| [docs/SCORING.md](docs/SCORING.md) | Subtitle scoring algorithm — how candidates are ranked |
-| [docs/DATABASE-SCHEMA.md](docs/DATABASE-SCHEMA.md) | Database tables and schema reference |
-| [docs/REVERSE-PROXY.md](docs/REVERSE-PROXY.md) | Nginx and Traefik reverse proxy setup |
-| [docs/PERFORMANCE-TUNING.md](docs/PERFORMANCE-TUNING.md) | Performance optimization for large libraries |
-| [docs/PROVIDERS.md](docs/PROVIDERS.md) | Provider system, scoring algorithm, adding custom providers |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, data flow, component overview |
-| [docs/API.md](docs/API.md) | Full REST API reference (`/api/v1/`) |
-| [docs/PLUGIN_DEVELOPMENT.md](docs/PLUGIN_DEVELOPMENT.md) | Writing subtitle provider plugins |
-| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Code style, testing, PR workflow |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions |
-| [docs/MIGRATION.md](docs/MIGRATION.md) | Upgrading between versions |
+| Installation | [Getting Started → Installation](https://wiki.sublarr.de/getting-started/installation) |
+| Configuration reference | [Getting Started → Environment Variables](https://wiki.sublarr.de/getting-started/environment-variables) |
+| Upgrade guide | [Getting Started → Upgrade Guide](https://wiki.sublarr.de/getting-started/upgrade-guide) |
+| FAQ | [Getting Started → FAQ](https://wiki.sublarr.de/getting-started/faq) |
+| Sonarr/Radarr/Jellyfin setup | [User Guide → Integrations](https://wiki.sublarr.de/user-guide/integrations) |
+| Language profiles | [User Guide → Language Profiles](https://wiki.sublarr.de/user-guide/language-profiles) |
+| LLM translation | [User Guide → Translation & LLM](https://wiki.sublarr.de/user-guide/translation-llm) |
+| Subtitle scoring algorithm | [Development → Scoring](https://wiki.sublarr.de/development/scoring) |
+| Provider system | [Development → Providers](https://wiki.sublarr.de/development/providers) |
+| REST API reference | [Development → API Reference](https://wiki.sublarr.de/development/api-reference) |
+| Architecture & data flow | [Development → Architecture](https://wiki.sublarr.de/development/architecture) |
+| Plugin development | [Development → Plugin Development](https://wiki.sublarr.de/development/plugin-development) |
+| Contributing & PR workflow | [Development → Contributing](https://wiki.sublarr.de/development/contributing) |
+| Database schema | [Development → Database Schema](https://wiki.sublarr.de/development/database-schema) |
+| Reverse proxy setup | [Troubleshooting → Reverse Proxy](https://wiki.sublarr.de/troubleshooting/reverse-proxy) |
+| Performance tuning | [Troubleshooting → Performance Tuning](https://wiki.sublarr.de/troubleshooting/performance-tuning) |
+| Troubleshooting | [Troubleshooting → General](https://wiki.sublarr.de/troubleshooting/general) |
 | [ROADMAP.md](ROADMAP.md) | Feature roadmap and version planning |
 | [CHANGELOG.md](CHANGELOG.md) | Release notes |
-| [.env.example](.env.example) | Minimal deployment template (server-level settings only) |
+| [.env.example](.env.example) | Minimal deployment template |
 
 ---
 
@@ -371,7 +374,7 @@ Contributions are welcome — bug reports, feature requests, and pull requests.
 
 1. **Bug reports** → open a GitHub Issue with your log output and config
 2. **Feature requests** → open a Discussion so we can talk through the approach first
-3. **Pull requests** → see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for code style, testing requirements, and commit format
+3. **Pull requests** → see [wiki.sublarr.de/development/contributing](https://wiki.sublarr.de/development/contributing) for code style, testing requirements, and commit format
 
 ---
 

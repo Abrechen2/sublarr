@@ -2,7 +2,7 @@
 
 Solo-Projekt-Workflow. Pragmatisch, aber mit genug Disziplin um eine saubere
 Git-History zu behalten und keine kaputten Builds auf `master` zu haben.
-Ausführliche Contributing-Guidelines: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
+Ausführliche Contributing-Guidelines: [wiki.sublarr.de/development/contributing](https://wiki.sublarr.de/development/contributing).
 
 ---
 
