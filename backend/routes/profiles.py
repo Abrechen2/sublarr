@@ -596,6 +596,65 @@ def delete_glossary_entry_endpoint(entry_id):
     return jsonify({"status": "deleted", "id": entry_id})
 
 
+@bp.route("/glossary/export", methods=["GET"])
+def export_glossary_tsv():
+    """Export glossary entries as a TSV file download.
+    ---
+    get:
+      tags:
+        - Profiles
+      summary: Export glossary as TSV
+      description: >
+        Downloads all glossary entries as a tab-separated values file.
+        When series_id is provided, exports only entries for that series.
+        When omitted, exports the global glossary.
+      parameters:
+        - in: query
+          name: series_id
+          schema:
+            type: integer
+          description: Series ID for per-series entries. Omit for global glossary.
+      responses:
+        200:
+          description: TSV file download
+          content:
+            text/tab-separated-values:
+              schema:
+                type: string
+    """
+    import io
+
+    from flask import Response
+
+    from db.translation import get_glossary_entries
+
+    series_id = request.args.get("series_id", type=int)
+    entries = get_glossary_entries(series_id)
+
+    output = io.StringIO()
+    output.write("source_term\ttarget_term\tterm_type\tnotes\n")
+    for entry in entries:
+        source_term = (entry.get("source_term") or "").replace("\t", " ")
+        target_term = (entry.get("target_term") or "").replace("\t", " ")
+        term_type = (entry.get("term_type") or "").replace("\t", " ")
+        notes = (entry.get("notes") or "").replace("\t", " ")
+        output.write(f"{source_term}\t{target_term}\t{term_type}\t{notes}\n")
+
+    tsv_content = output.getvalue()
+
+    if series_id is not None:
+        filename = f"glossary_series_{series_id}.tsv"
+    else:
+        filename = "glossary_global.tsv"
+
+    return Response(
+        tsv_content,
+        status=200,
+        mimetype="text/tab-separated-values; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 # ─── Prompt Presets Endpoints ────────────────────────────────────────────────
 
 

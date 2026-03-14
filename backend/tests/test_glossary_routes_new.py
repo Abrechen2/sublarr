@@ -15,7 +15,7 @@ def test_suggest_returns_candidates(client, monkeypatch):
 
     mock_sonarr = MagicMock()
     mock_sonarr.get_series_by_id.return_value = {"id": 1, "path": "/media/naruto"}
-    monkeypatch.setattr("routes.library.get_sonarr_client", lambda: mock_sonarr)
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda: mock_sonarr)
 
     monkeypatch.setattr(
         "routes.library.extract_candidates",
@@ -38,7 +38,7 @@ def test_suggest_series_not_found(client, monkeypatch):
     """POST /series/<id>/glossary/suggest returns empty candidates when series not in Sonarr."""
     mock_sonarr = MagicMock()
     mock_sonarr.get_series_by_id.return_value = None
-    monkeypatch.setattr("routes.library.get_sonarr_client", lambda: mock_sonarr)
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda: mock_sonarr)
 
     resp = client.post(
         "/api/v1/series/999/glossary/suggest",
@@ -54,7 +54,7 @@ def test_suggest_series_not_found(client, monkeypatch):
 
 def test_suggest_sonarr_not_configured(client, monkeypatch):
     """POST /series/<id>/glossary/suggest returns empty candidates when Sonarr not configured."""
-    monkeypatch.setattr("routes.library.get_sonarr_client", lambda: None)
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda: None)
 
     resp = client.post(
         "/api/v1/series/1/glossary/suggest",
@@ -79,7 +79,7 @@ def test_suggest_uses_defaults_when_no_body(client, monkeypatch):
 
     mock_sonarr = MagicMock()
     mock_sonarr.get_series_by_id.return_value = {"id": 1, "path": "/media/test"}
-    monkeypatch.setattr("routes.library.get_sonarr_client", lambda: mock_sonarr)
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda: mock_sonarr)
     monkeypatch.setattr("routes.library.extract_candidates", fake_extract)
 
     resp = client.post(
@@ -135,10 +135,19 @@ def test_export_tsv_series_scoped(client):
 
 def test_export_tsv_content(client):
     """GET /glossary/export includes glossary entries as TSV rows after the header."""
-    from db.translation import add_glossary_entry
-
-    add_glossary_entry(None, "Naruto", "Naruto", "")
-    add_glossary_entry(None, "Konoha", "Konoha", "leaf village")
+    # Insert entries via the API to avoid mixing app contexts
+    client.post(
+        "/api/v1/glossary",
+        data=json.dumps({"source_term": "Naruto", "target_term": "Naruto", "notes": ""}),
+        content_type="application/json",
+    )
+    client.post(
+        "/api/v1/glossary",
+        data=json.dumps(
+            {"source_term": "Konoha", "target_term": "Konoha", "notes": "leaf village"}
+        ),
+        content_type="application/json",
+    )
 
     resp = client.get("/api/v1/glossary/export")
 
@@ -154,9 +163,14 @@ def test_export_tsv_content(client):
 
 def test_export_tsv_notes_tabs_replaced(client):
     """GET /glossary/export replaces tabs in notes with spaces."""
-    from db.translation import add_glossary_entry
-
-    add_glossary_entry(None, "Term", "Term", "note\twith\ttabs")
+    # Insert an entry with a tab in notes via the API
+    client.post(
+        "/api/v1/glossary",
+        data=json.dumps(
+            {"source_term": "Term", "target_term": "Term", "notes": "note\twith\ttabs"}
+        ),
+        content_type="application/json",
+    )
 
     resp = client.get("/api/v1/glossary/export")
 
@@ -164,7 +178,7 @@ def test_export_tsv_notes_tabs_replaced(client):
     text = resp.data.decode("utf-8")
     # Notes column should not contain literal tabs (they'd be replaced by spaces)
     lines = text.splitlines()
-    data_lines = [l for l in lines[1:] if l.startswith("Term\t")]
+    data_lines = [line for line in lines[1:] if line.startswith("Term\t")]
     assert len(data_lines) == 1
     # Split on tab — 4 columns exactly
     cols = data_lines[0].split("\t")
