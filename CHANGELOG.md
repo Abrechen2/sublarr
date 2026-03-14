@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.3-beta] — 2026-03-14
+
+### Added
+- **List Virtualization — Library table view** — replaced client-side pagination (25/page) with `@tanstack/react-virtual` virtual scroll using the padding-row technique; `<table>/<tr>` DOM structure preserved; sticky header; scroll resets on filter/sort; grid view retains pagination; `VirtualLibraryTable` + `LibraryShared` components extracted to `frontend/src/components/library/`
+- **List Virtualization — Wanted list** — Wanted now fetches all matching items in a single request (up to 9 999) and renders with virtual scroll; `useWantedVirtualizer` hook in `frontend/src/components/wanted/VirtualWantedTable.tsx`; removes multi-page navigation
+
+---
+
 ## [0.25.2-beta] — 2026-03-13
 
 ### Added

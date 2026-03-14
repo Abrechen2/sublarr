@@ -235,7 +235,7 @@ Goals: Inline accept/reject for individual changed cues (upgrade from full-repla
 
 ---
 
-## v0.25.3 — List Virtualization
+## v0.25.3 ✅ — List Virtualization
 
 Goals: Smooth scrolling for large libraries.
 
