@@ -1,6 +1,6 @@
 # Sublarr — Roadmap
 
-> Completed versions are marked ✅. The current release is **v0.27.0-beta**. Planned versions reflect intended direction and may shift.
+> Completed versions are marked ✅. The current release is **v0.28.0-beta**. Planned versions reflect intended direction and may shift.
 
 ---
 
@@ -272,7 +272,7 @@ Goals: Persist per-file quality metadata as Kodi/Jellyfin-compatible NFO sidecar
 
 ---
 
-## v0.28.0 — AI Glossary Builder
+## v0.28.0 ✅ — AI Glossary Builder
 
 Goals: Per-series term glossary auto-populated from translation history, injected as LLM context to improve consistency.
 
