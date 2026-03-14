@@ -77,8 +77,6 @@ def test_stream_returns_404_for_missing_file(client):
 def test_stream_disabled_returns_503(client):
     c, path = client
     with patch("routes.media.get_settings") as mock_disabled:
-        mock_disabled.return_value = _mock_settings(
-            os.path.dirname(path), streaming_enabled=False
-        )
+        mock_disabled.return_value = _mock_settings(os.path.dirname(path), streaming_enabled=False)
         resp = c.get(f"/api/v1/media/stream?path={path}")
         assert resp.status_code == 503
