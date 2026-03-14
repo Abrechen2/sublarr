@@ -5,6 +5,16 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.27.0-beta] — 2026-03-14
+
+### Added
+- **NFO Export — Auto sidecar** — `auto_nfo_export` config flag (off by default) writes an XML `.nfo` file alongside every downloaded or translated subtitle; contains provider, source/target language, score, translation backend, BLEU score, timestamp, and Sublarr version
+- **NFO Export — API routes** — `POST /api/v1/subtitles/export-nfo?path=<path>` for single-subtitle export; `POST /api/v1/series/<id>/subtitles/export-nfo` for bulk export of all subtitles in a series; per-file `is_safe_path()` validation enforced on all paths
+- **NFO Export — Settings toggle** — `auto_nfo_export` toggle in Settings → Automation (advanced section); expert feature, hidden behind "Show advanced"
+- **NFO Export — SeriesDetail button** — `FileCode` button on each subtitle sidecar badge in SeriesDetail triggers single-file NFO export with toast feedback
+
+---
+
 ## [0.26.0-beta] — 2026-03-14
 
 ### Added
