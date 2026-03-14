@@ -52,11 +52,11 @@ def test_stream_rejects_path_traversal(client):
 
 
 def test_stream_returns_404_for_missing_file(client):
-    c, _ = client
-    import tempfile
-
-    resp = c.get(f"/api/v1/media/stream?path={tempfile.gettempdir()}/nonexistent.mp4")
-    assert resp.status_code in (403, 404)
+    c, path = client
+    # Use a path that is inside media_path but doesn't exist
+    missing = os.path.join(os.path.dirname(path), "nonexistent_file.mp4")
+    resp = c.get(f"/api/v1/media/stream?path={missing}")
+    assert resp.status_code == 404
 
 
 def test_stream_disabled_returns_503(tmp_path):
