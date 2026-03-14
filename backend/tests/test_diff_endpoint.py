@@ -6,7 +6,7 @@ import pytest
 
 
 @pytest.fixture
-def client(tmp_path):
+def client(temp_db, tmp_path):
     os.environ["SUBLARR_MEDIA_PATH"] = str(tmp_path)
     from config import reload_settings
 
