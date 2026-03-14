@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   LayoutDashboard,
@@ -17,9 +17,12 @@ import {
   ListChecks,
   Heart,
   Star,
+  LogOut,
 } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { useHealth, useUpdateInfo } from '@/hooks/useApi'
+import { getAuthStatus, logout } from '@/api/client'
 import { ThemeToggle } from '@/components/shared/ThemeToggle'
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher'
 import { ScanProgressIndicator } from '@/components/shared/ScanProgressIndicator'
@@ -70,6 +73,16 @@ export function Sidebar() {
   const { t } = useTranslation('common')
   const [mobileOpen, setMobileOpen] = useState(false)
   const isHealthy = health?.status === 'healthy'
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { data: auth } = useQuery({ queryKey: ['auth-status'], queryFn: getAuthStatus, staleTime: 60_000 })
+  const { mutate: doLogout } = useMutation({
+    mutationFn: logout,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auth-status'] })
+      navigate('/login')
+    },
+  })
 
   return (
     <>
@@ -212,6 +225,18 @@ export function Sidebar() {
         <div className="px-3 py-2.5" style={{ borderTop: '1px solid var(--border)' }}>
           {/* Scan progress */}
           <ScanProgressIndicator />
+
+          {/* Logout */}
+          {auth?.enabled && auth?.authenticated && (
+            <button
+              onClick={() => doLogout()}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-opacity hover:opacity-80"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              <LogOut size={16} />
+              <span>Log out</span>
+            </button>
+          )}
 
           {/* Donate + Star */}
           <div className="flex gap-1.5 mb-2">
