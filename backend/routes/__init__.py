@@ -38,6 +38,7 @@ def register_blueprints(app):
     from routes.translate import bp as translate_bp
     from routes.video import bp as video_bp
     from routes.video_sync import bp as video_sync_bp
+    from routes.nfo import bp as nfo_bp
     from routes.wanted import bp as wanted_bp
     from routes.webhooks import bp as webhooks_bp
     from routes.whisper import bp as whisper_bp
@@ -77,5 +78,6 @@ def register_blueprints(app):
         subtitles_bp,
         remux_bp,
         series_audio_bp,
+        nfo_bp,
     ]:
         app.register_blueprint(blueprint)
