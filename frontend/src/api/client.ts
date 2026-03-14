@@ -1663,6 +1663,11 @@ export async function deleteSubtitles(paths: string[], blacklist = false): Promi
   return data
 }
 
+export async function exportSubtitleNfo(path: string): Promise<{ status: string; nfo_path: string }> {
+  const { data } = await api.post('/subtitles/export-nfo', null, { params: { path } })
+  return data
+}
+
 export async function batchDeleteSeriesSubtitles(
   seriesId: number,
   filter: { languages?: string[]; formats?: string[] }
