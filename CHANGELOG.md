@@ -5,6 +5,18 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.29.0-beta] — 2026-03-14
+
+### Added
+- **Web Player — Streaming endpoint** — `GET /api/v1/media/stream?path=` serves video files with HTTP 206 range-request support; `is_safe_path()` enforced; `Content-Type` resolved by extension; `SUBLARR_STREAMING_ENABLED` setting (default true) allows disabling the endpoint
+- **Web Player — PlayerModal** — portal-based HTML5 `<video>` player with play/pause/seek/volume/fullscreen; opens via "Preview" button on episode cards in SeriesDetail
+- **Web Player — ASS/SRT subtitle overlay** — SubtitleOctopus (libass WASM) renders styled ASS subtitles natively in-browser; `subtitles-octopus-worker.js` and `.wasm` served from `/public/`
+- **Web Player — Subtitle track selector** — dropdown to switch between all available sidecar subtitle files for the episode; "Off" option disables overlay
+- **Web Player — Seek-to-cue** — clicking a cue row in SubtitleEditorModal jumps the player to that timestamp via `onSeekRequest` bridge
+- **Web Player — Settings toggle** — `streaming_enabled` toggle in Settings → Automation (advanced section)
+
+---
+
 ## [0.28.0-beta] — 2026-03-14
 
 ### Added
