@@ -21,6 +21,7 @@ def register_blueprints(app):
     from routes.library import bp as library_bp
     from routes.marketplace import bp as marketplace_bp
     from routes.mediaservers import bp as mediaservers_bp
+    from routes.nfo import bp as nfo_bp
     from routes.notifications_mgmt import bp as notifications_mgmt_bp
     from routes.ocr import bp as ocr_bp
     from routes.plugins import bp as plugins_bp
@@ -77,5 +78,6 @@ def register_blueprints(app):
         subtitles_bp,
         remux_bp,
         series_audio_bp,
+        nfo_bp,
     ]:
         app.register_blueprint(blueprint)
