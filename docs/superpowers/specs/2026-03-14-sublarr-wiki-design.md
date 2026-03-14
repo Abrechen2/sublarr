@@ -16,17 +16,18 @@ A self-hosted Wiki.js instance for Sublarr documentation, modeled on the Sonarr 
 
 | Component | Details |
 |-----------|---------|
-| Platform | Proxmox LXC CT 115 on pve-node1 (192.168.178.171) |
+| Platform | Proxmox LXC CT 124 on pve-node1 (192.168.178.171) |
 | OS | Ubuntu 22.04 LXC |
 | Resources | 2 vCPU, 2 GB RAM, 20 GB disk |
 | Runtime | Docker Compose |
 | Wiki engine | Wiki.js v2 (`ghcr.io/requarks/wiki:2`) |
 | Database | PostgreSQL 15 Alpine (internal, not exposed) |
-| LAN access | `http://192.168.178.194:3000` — LAN only, no reverse proxy initially |
+| LAN access | `http://192.168.178.142:3000` — LAN only, no reverse proxy initially |
+| SublarrWeb | `http://192.168.178.142:8899` — nginx static site |
 | Local dev | `http://localhost:3000` via `docker compose up` in `Z:\CC\SublarrWiki\` |
 | Git sync | `Abrechen2/sublarr-wiki` GitHub repo (separate from main Sublarr repo) |
 
-> **Note:** CT 115 IP to be confirmed at LXC creation time. `192.168.178.194` is a placeholder — verify next free DHCP/static slot on pve-node1 before deploy.
+> **Deployed:** CT 124, IP 192.168.178.142 (DHCP). Wiki.js + PostgreSQL under `/opt/wiki/`, SublarrWeb nginx under `/opt/sublarr-web/`. Admin: `dennis.wittke@sicotronic.de`.
 
 **Local folder:** `Z:\CC\SublarrWiki\` contains Docker Compose config, `.env`, and seed content stubs.
 

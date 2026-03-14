@@ -317,4 +317,4 @@ Requirements for stable release:
 
 ## How to Contribute
 
-See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for how to submit features, bug reports, and pull requests.
+See [wiki.sublarr.de/development/contributing](https://wiki.sublarr.de/development/contributing) for how to submit features, bug reports, and pull requests.
