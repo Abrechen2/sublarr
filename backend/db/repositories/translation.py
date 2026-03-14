@@ -64,11 +64,27 @@ class TranslationRepository(BaseRepository):
     # ---- Glossary Operations -------------------------------------------------
 
     def add_glossary_entry(
-        self, series_id: int | None, source_term: str, target_term: str, notes: str = ""
+        self,
+        series_id: int | None,
+        source_term: str,
+        target_term: str,
+        notes: str = "",
+        term_type: str = "other",
+        confidence: float | None = None,
+        approved: int = 1,
     ) -> int:
         """Add a new glossary entry. Returns the entry ID.
 
         When series_id is None, creates a global glossary entry.
+
+        Args:
+            series_id: Series ID or None for a global entry.
+            source_term: Source language term.
+            target_term: Target language translation.
+            notes: Optional notes.
+            term_type: Category — 'character', 'place', or 'other'.
+            confidence: Float 0-1 set by LLM extractor; None for manual entries.
+            approved: 1 for approved/manual entries, 0 for pending AI suggestions.
         """
         now = self._now()
         entry = GlossaryEntry(
@@ -76,6 +92,9 @@ class TranslationRepository(BaseRepository):
             source_term=source_term.strip(),
             target_term=target_term.strip(),
             notes=notes.strip(),
+            term_type=term_type,
+            confidence=confidence,
+            approved=approved,
             created_at=now,
             updated_at=now,
         )
@@ -167,9 +186,20 @@ class TranslationRepository(BaseRepository):
         return self._to_dict(entry)
 
     def update_glossary_entry(
-        self, entry_id: int, source_term: str = None, target_term: str = None, notes: str = None
+        self,
+        entry_id: int,
+        source_term: str = None,
+        target_term: str = None,
+        notes: str = None,
+        term_type: str = None,
+        confidence: float | None = ...,
+        approved: int = None,
     ) -> bool:
-        """Update a glossary entry. Returns True if updated."""
+        """Update a glossary entry. Returns True if updated.
+
+        Pass ``confidence=None`` explicitly to clear the confidence value.
+        Omit ``confidence`` (default sentinel ``...``) to leave it unchanged.
+        """
         entry = self.session.get(GlossaryEntry, entry_id)
         if entry is None:
             return False
@@ -183,6 +213,15 @@ class TranslationRepository(BaseRepository):
             updated = True
         if notes is not None:
             entry.notes = notes.strip()
+            updated = True
+        if term_type is not None:
+            entry.term_type = term_type
+            updated = True
+        if confidence is not ...:
+            entry.confidence = confidence
+            updated = True
+        if approved is not None:
+            entry.approved = approved
             updated = True
 
         if not updated:

@@ -46,6 +46,11 @@ def parse_llm_response(response_text: str, expected_count: int) -> list[str] | N
     Handles numbered responses (e.g. "1: text") and plain lines.
     Attempts to merge split lines before truncating.
 
+    Single-line mode: when ``expected_count == 1`` the V8 model returns a
+    single un-numbered line.  We accept it as-is (stripped) and reject
+    empty or suspiciously long results (> 500 chars) by returning ``None``
+    so the caller can trigger a retry.
+
     Args:
         response_text: Raw LLM response text
         expected_count: Number of lines expected
@@ -53,6 +58,13 @@ def parse_llm_response(response_text: str, expected_count: int) -> list[str] | N
     Returns:
         List of parsed lines, or None if count mismatch cannot be resolved
     """
+    # Single-line mode: model returns exactly one plain line (no numbering)
+    if expected_count == 1:
+        translation = response_text.strip()
+        if not translation or len(translation) > 500:
+            return None
+        return [translation]
+
     lines = response_text.strip().split("\n")
     lines = [l for l in lines if l.strip()]
 
@@ -103,23 +115,39 @@ def build_prompt_with_glossary(
 ) -> str:
     """Build a translation prompt with glossary terms prepended.
 
+    Only approved entries (approved != 0) are injected, capped at 15.
+    The glossary is rendered as a comma-separated inline line in the format
+    the V8 fine-tuned model was trained on:
+      ``Glossary: term1 → trans1, term2 → trans2``
+
+    Single-line mode: when only one subtitle line is provided the prompt uses
+    a direct ``Translate to German: <line>`` format (no numbering) so the
+    model returns a single un-numbered translation.
+
     Args:
-        prompt_template: Base prompt template
-        glossary_entries: List of {source_term, target_term} dicts (max 15)
+        prompt_template: Base prompt template (used for multi-line batches)
+        glossary_entries: List of {source_term, target_term[, approved]} dicts
         lines: List of subtitle lines to translate
 
     Returns:
-        Complete prompt with glossary and numbered lines
+        Complete prompt with optional glossary prefix and numbered lines
     """
-    if not glossary_entries:
-        numbered = "\n".join(f"{i + 1}: {line}" for i, line in enumerate(lines))
-        return prompt_template + numbered
+    # Filter out non-approved entries (approved == 0 means pending suggestion)
+    approved_entries: list[dict] = []
+    if glossary_entries:
+        approved_entries = [e for e in glossary_entries if e.get("approved", 1) != 0]
 
-    # Build glossary string (max 15 entries)
-    glossary_parts = [
-        f"{entry['source_term']} \u2192 {entry['target_term']}" for entry in glossary_entries[:15]
-    ]
-    glossary_str = "Glossary: " + ", ".join(glossary_parts) + "\n\n"
+    # Build glossary prefix (V8-compatible comma-separated format, max 15 entries)
+    glossary_str = ""
+    if approved_entries:
+        pairs = ", ".join(
+            f"{e['source_term']} \u2192 {e['target_term']}" for e in approved_entries[:15]
+        )
+        glossary_str = f"Glossary: {pairs}\n\n"
+
+    # Single-line mode: V8 expects direct "Translate to German: <line>" format
+    if len(lines) == 1:
+        return f"{glossary_str}Translate to German: {lines[0]}"
 
     numbered = "\n".join(f"{i + 1}: {line}" for i, line in enumerate(lines))
     return glossary_str + prompt_template + numbered

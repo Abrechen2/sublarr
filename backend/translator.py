@@ -442,28 +442,35 @@ def _translate_with_manager(lines, source_lang, target_lang, arr_context=None, s
     # Load glossary entries: merged (global + per-series) for series,
     # global-only for non-series (movies/standalone)
     glossary_entries = None
-    try:
-        if series_id:
-            from db.translation import get_merged_glossary_for_series
+    if getattr(get_settings(), "glossary_enabled", True):
+        try:
+            if series_id:
+                from db.translation import get_merged_glossary_for_series
 
-            entries = get_merged_glossary_for_series(series_id)
-            if entries:
-                glossary_entries = entries
-                logger.debug(
-                    "Loaded %d merged glossary entries for series %d", len(entries), series_id
-                )
-        else:
-            from db.translation import get_global_glossary
+                entries = get_merged_glossary_for_series(series_id)
+                if entries:
+                    max_terms = getattr(get_settings(), "glossary_max_terms", 100)
+                    entries = entries[:max_terms]
+                    glossary_entries = entries
+                    logger.debug(
+                        "Loaded %d merged glossary entries for series %d",
+                        len(entries),
+                        series_id,
+                    )
+            else:
+                from db.translation import get_global_glossary
 
-            global_entries = get_global_glossary()
-            if global_entries:
-                glossary_entries = [
-                    {"source_term": e["source_term"], "target_term": e["target_term"]}
-                    for e in global_entries
-                ]
-                logger.debug("Loaded %d global glossary entries", len(glossary_entries))
-    except Exception as e:
-        logger.debug("Failed to load glossary: %s", e)
+                global_entries = get_global_glossary()
+                if global_entries:
+                    max_terms = getattr(get_settings(), "glossary_max_terms", 100)
+                    global_entries = global_entries[:max_terms]
+                    glossary_entries = [
+                        {"source_term": e["source_term"], "target_term": e["target_term"]}
+                        for e in global_entries
+                    ]
+                    logger.debug("Loaded %d global glossary entries", len(glossary_entries))
+        except Exception as e:
+            logger.debug("Failed to load glossary: %s", e)
 
     # --- Translation memory cache lookup ---
     cache_enabled, similarity_threshold = _get_cache_config()

@@ -17,6 +17,7 @@ import {
   searchInteractive, searchInteractiveEpisode, downloadSpecific, downloadSpecificEpisode,
   exportConfig, importConfig,
   getGlossaryEntries, createGlossaryEntry, updateGlossaryEntry, deleteGlossaryEntry,
+  suggestGlossaryTerms, exportGlossaryTsv,
   getPromptPresets, getDefaultPromptPreset, createPromptPreset, updatePromptPreset, deletePromptPreset,
   getBackends, testBackend, getBackendConfig, saveBackendConfig, getBackendStats,
   getMediaServerTypes, getMediaServerInstances, saveMediaServerInstances, testMediaServer, getMediaServerHealth,
@@ -716,6 +717,41 @@ export function useDeleteGlossaryEntry() {
       } else {
         queryClient.invalidateQueries({ queryKey: ['glossary', 'global'] })
       }
+    },
+  })
+}
+
+export function useSuggestGlossaryTerms() {
+  return useMutation({
+    mutationFn: ({ seriesId, options }: {
+      seriesId: number
+      options?: { source_lang?: string; min_freq?: number }
+    }) => suggestGlossaryTerms(seriesId, options),
+  })
+}
+
+export function useExportGlossaryTsv() {
+  return useMutation({
+    mutationFn: ({ seriesId }: { seriesId?: number | null }) => exportGlossaryTsv(seriesId),
+    onSuccess: (blob, { seriesId }) => {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = seriesId != null ? `glossary_series_${seriesId}.tsv` : 'glossary_global.tsv'
+      a.click()
+      URL.revokeObjectURL(url)
+    },
+  })
+}
+
+export function useApproveGlossaryEntry() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ entryId }: { entryId: number; seriesId?: number | null }) =>
+      updateGlossaryEntry(entryId, { approved: 1 }),
+    onSuccess: (_, { seriesId }) => {
+      queryClient.invalidateQueries({ queryKey: ['glossary', seriesId] })
+      queryClient.invalidateQueries({ queryKey: ['glossary', 'global'] })
     },
   })
 }

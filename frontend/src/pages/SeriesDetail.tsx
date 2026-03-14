@@ -3,19 +3,20 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry, useStartWantedBatch, useUpdateSeriesSettings, useAnidbMappingStatus, useRefreshAnidbMapping, useBatchTranslate } from '@/hooks/useApi'
+import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry, useStartWantedBatch, useUpdateSeriesSettings, useAnidbMappingStatus, useRefreshAnidbMapping, useBatchTranslate, useSuggestGlossaryTerms, useExportGlossaryTsv } from '@/hooks/useApi'
 import {
   ArrowLeft, Loader2, ChevronDown, ChevronRight,
   Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search,
   Download, X, BookOpen, Plus, Edit2, Trash2, Check,
   Eye, Pencil, Database,
-  Layers, Sparkles, Trash, FileCode,
+  Layers, Sparkles, Trash, FileCode, Wand2,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { TrackPanel } from '@/components/tracks/TrackPanel'
 import { autoSyncFile, startWantedBatchSearch, batchExtractAllTracks, listSeriesSubtitles, deleteSubtitles, getSubtitleDownloadUrl, getSeriesSubtitleExportUrl, exportSubtitleNfo } from '@/api/client'
+import type { GlossaryCandidate } from '@/api/client'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
@@ -248,16 +249,41 @@ function EpisodeSearchPanel({ results, isLoading, onProcess }: {
 
 // ─── Glossary Panel ────────────────────────────────────────────────────────
 
+const TERM_TYPE_COLORS: Record<string, string> = {
+  character: 'var(--accent)',
+  place: '#3b82f6',
+  other: 'var(--text-muted)',
+}
+
+function TermTypeBadge({ type }: { type: string }) {
+  return (
+    <span
+      className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+      style={{
+        backgroundColor: 'var(--bg-surface)',
+        border: `1px solid ${TERM_TYPE_COLORS[type] ?? 'var(--border)'}`,
+        color: TERM_TYPE_COLORS[type] ?? 'var(--text-muted)',
+      }}
+    >
+      {type}
+    </span>
+  )
+}
+
 function GlossaryPanel({ seriesId }: { seriesId: number }) {
   const { t } = useTranslation('library')
   const { data, isLoading } = useGlossaryEntries(seriesId)
   const createEntry = useCreateGlossaryEntry()
   const updateEntry = useUpdateGlossaryEntry()
   const deleteEntry = useDeleteGlossaryEntry()
+  const suggestTerms = useSuggestGlossaryTerms()
+  const exportTsv = useExportGlossaryTsv()
   const [showAdd, setShowAdd] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [formData, setFormData] = useState({ source_term: '', target_term: '', notes: '' })
+  const [showCandidates, setShowCandidates] = useState<boolean>(false)
+  const [candidates, setCandidates] = useState<GlossaryCandidate[]>([])
 
   const entries = data?.entries || []
   const filteredEntries = searchQuery
@@ -325,6 +351,20 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
     )
   }
 
+  const handleSuggest = () => {
+    suggestTerms.mutate(
+      { seriesId, options: { source_lang: 'en', min_freq: 3 } },
+      {
+        onSuccess: (data) => {
+          setCandidates(data.candidates)
+          setShowCandidates(true)
+          if (data.candidates.length === 0) toast('No new candidates found', 'info')
+        },
+        onError: () => toast('Failed to fetch suggestions', 'error'),
+      }
+    )
+  }
+
   if (isLoading) {
     return (
       <div
@@ -343,17 +383,37 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
         <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
           {t('series_detail.glossary')} ({entries.length})
         </span>
-        <button
-          onClick={() => {
-            resetForm()
-            setShowAdd(true)
-          }}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-white hover:opacity-90"
-          style={{ backgroundColor: 'var(--accent)' }}
-        >
-          <Plus size={11} />
-          {t('series_detail.add_entry')}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => {
+              resetForm()
+              setShowAdd(true)
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-white hover:opacity-90"
+            style={{ backgroundColor: 'var(--accent)' }}
+          >
+            <Plus size={11} />
+            {t('series_detail.add_entry')}
+          </button>
+          <button
+            onClick={handleSuggest}
+            disabled={suggestTerms.isPending}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium hover:opacity-90"
+            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          >
+            {suggestTerms.isPending ? <Loader2 size={11} className="animate-spin" /> : <Wand2 size={11} />}
+            Suggest
+          </button>
+          <button
+            onClick={() => exportTsv.mutate({ seriesId })}
+            disabled={exportTsv.isPending}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium hover:opacity-90"
+            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          >
+            <Download size={11} />
+            TSV
+          </button>
+        </div>
       </div>
 
       {entries.length > 0 && (
@@ -444,6 +504,49 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
         </div>
       )}
 
+      {/* Candidates */}
+      {showCandidates && candidates.length > 0 && (
+        <div
+          className="rounded-lg p-3 space-y-2"
+          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--accent-dim)' }}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {candidates.length} Suggestions
+            </span>
+            <button onClick={() => setShowCandidates(false)} style={{ color: 'var(--text-muted)' }}>
+              <X size={12} />
+            </button>
+          </div>
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            {candidates.map((c) => (
+              <div
+                key={c.source_term}
+                className="flex items-center gap-2 px-2 py-1 rounded text-xs"
+                style={{ backgroundColor: 'var(--bg-primary)' }}
+              >
+                <span className="font-medium flex-1" style={{ color: 'var(--text-primary)' }}>
+                  {c.source_term}
+                </span>
+                <TermTypeBadge type={c.term_type} />
+                <span style={{ color: 'var(--text-muted)' }}>{Math.round(c.confidence * 100)}%</span>
+                <button
+                  onClick={() => {
+                    setFormData({ source_term: c.source_term, target_term: '', notes: '' })
+                    setShowAdd(true)
+                    setShowCandidates(false)
+                  }}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium text-white"
+                  style={{ backgroundColor: 'var(--accent)' }}
+                >
+                  <Plus size={10} /> Add
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Entries List */}
       {filteredEntries.length === 0 ? (
         <div className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>
@@ -457,6 +560,7 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Source</th>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Target</th>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Notes</th>
+                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Type</th>
                 <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Actions</th>
               </tr>
             </thead>
@@ -474,6 +578,16 @@ function GlossaryPanel({ seriesId }: { seriesId: number }) {
                   </td>
                   <td className="px-3 py-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
                     {entry.notes || '-'}
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <TermTypeBadge type={entry.term_type ?? 'other'} />
+                      {entry.approved === 0 && (
+                        <span className="text-[10px] px-1 rounded" style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                          pending
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-3 py-1.5">
                     <div className="flex items-center gap-1">

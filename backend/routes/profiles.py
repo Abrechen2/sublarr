@@ -464,11 +464,22 @@ def create_glossary_entry():
     source_term = data.get("source_term", "").strip()
     target_term = data.get("target_term", "").strip()
     notes = data.get("notes", "").strip()
+    term_type = data.get("term_type", "other")
+    confidence = data.get("confidence", None)
+    approved = data.get("approved", 1)
 
     if not source_term or not target_term:
         return jsonify({"error": "source_term and target_term are required"}), 400
 
-    entry_id = add_glossary_entry(series_id, source_term, target_term, notes)
+    entry_id = add_glossary_entry(
+        series_id,
+        source_term,
+        target_term,
+        notes,
+        term_type=term_type,
+        confidence=confidence,
+        approved=approved,
+    )
     entry = get_glossary_entry(entry_id)
     return jsonify(entry), 201
 
@@ -523,12 +534,21 @@ def update_glossary_entry_endpoint(entry_id):
     source_term = data.get("source_term")
     target_term = data.get("target_term")
     notes = data.get("notes")
+    term_type = data.get("term_type")
+    approved = data.get("approved")
+
+    # confidence uses Ellipsis as sentinel: omit key = unchanged, explicit None = clear it
+    _sentinel = ...
+    confidence = data.get("confidence", _sentinel) if "confidence" in data else _sentinel
 
     updated = update_glossary_entry(
         entry_id,
         source_term=source_term,
         target_term=target_term,
         notes=notes,
+        term_type=term_type,
+        confidence=confidence,
+        approved=approved,
     )
 
     if not updated:
@@ -574,6 +594,65 @@ def delete_glossary_entry_endpoint(entry_id):
     if not deleted:
         return jsonify({"error": "Entry not found"}), 404
     return jsonify({"status": "deleted", "id": entry_id})
+
+
+@bp.route("/glossary/export", methods=["GET"])
+def export_glossary_tsv():
+    """Export glossary entries as a TSV file download.
+    ---
+    get:
+      tags:
+        - Profiles
+      summary: Export glossary as TSV
+      description: >
+        Downloads all glossary entries as a tab-separated values file.
+        When series_id is provided, exports only entries for that series.
+        When omitted, exports the global glossary.
+      parameters:
+        - in: query
+          name: series_id
+          schema:
+            type: integer
+          description: Series ID for per-series entries. Omit for global glossary.
+      responses:
+        200:
+          description: TSV file download
+          content:
+            text/tab-separated-values:
+              schema:
+                type: string
+    """
+    import io
+
+    from flask import Response
+
+    from db.translation import get_glossary_entries
+
+    series_id = request.args.get("series_id", type=int)
+    entries = get_glossary_entries(series_id)
+
+    output = io.StringIO()
+    output.write("source_term\ttarget_term\tterm_type\tnotes\n")
+    for entry in entries:
+        source_term = (entry.get("source_term") or "").replace("\t", " ")
+        target_term = (entry.get("target_term") or "").replace("\t", " ")
+        term_type = (entry.get("term_type") or "").replace("\t", " ")
+        notes = (entry.get("notes") or "").replace("\t", " ")
+        output.write(f"{source_term}\t{target_term}\t{term_type}\t{notes}\n")
+
+    tsv_content = output.getvalue()
+
+    if series_id is not None:
+        filename = f"glossary_series_{series_id}.tsv"
+    else:
+        filename = "glossary_global.tsv"
+
+    return Response(
+        tsv_content,
+        status=200,
+        mimetype="text/tab-separated-values; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ─── Prompt Presets Endpoints ────────────────────────────────────────────────
