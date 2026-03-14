@@ -6,8 +6,9 @@ Serves video files with HTTP 206 range support.
 
 import os
 
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, jsonify, request, send_file
 
+from auth import require_api_key
 from config import get_settings
 from security_utils import is_safe_path
 
@@ -28,11 +29,12 @@ def _get_content_type(path: str) -> str:
     return _CONTENT_TYPES.get(ext, "application/octet-stream")
 
 
-def _stream_range(path: str, start: int, end: int, chunk: int = 1 << 20) -> Response:
+def _stream_range(
+    path: str, start: int, end: int, file_size: int, chunk: int = 1 << 20
+) -> Response:
     """Stream file bytes [start, end] inclusive as 206 Partial Content."""
     length = end - start + 1
     content_type = _get_content_type(path)
-    file_size = os.path.getsize(path)
 
     def generate():
         remaining = length
@@ -58,6 +60,7 @@ def _stream_range(path: str, start: int, end: int, chunk: int = 1 << 20) -> Resp
 
 
 @bp.route("/media/stream")
+@require_api_key
 def stream_media() -> Response:
     settings = get_settings()
 
@@ -87,8 +90,12 @@ def stream_media() -> Response:
         except (ValueError, IndexError):
             return jsonify({"error": "Invalid Range header"}), 416
 
-        end = min(end, file_size - 1)
-        return _stream_range(path, start, end)
+        # RFC 7233 compliance: reject invalid ranges
+        if start < 0 or start > end:
+            return jsonify({"error": "Invalid Range header"}), 416
 
-    # No Range header — stream entire file
-    return _stream_range(path, 0, file_size - 1)
+        end = min(end, file_size - 1)
+        return _stream_range(path, start, end, file_size)
+
+    # No Range header — serve full file as 200
+    return send_file(path, mimetype=_get_content_type(path), conditional=True)

@@ -1,8 +1,6 @@
 import os
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 def _make_app():
     """Import create_app lazily to avoid import-time side effects."""
@@ -13,6 +11,17 @@ def _make_app():
     return app
 
 
+def _mock_settings(tmp_path, streaming_enabled=True):
+    s = MagicMock()
+    s.streaming_enabled = streaming_enabled
+    s.media_path = str(tmp_path)
+    s.api_key = None  # No API key — auth passes through
+    return s
+
+
+import pytest
+
+
 @pytest.fixture()
 def client(tmp_path):
     app = _make_app()
@@ -20,10 +29,7 @@ def client(tmp_path):
     fake_video = tmp_path / "video.mp4"
     fake_video.write_bytes(b"\x00" * 1024)
     with patch("routes.media.get_settings") as mock_settings:
-        s = MagicMock()
-        s.streaming_enabled = True
-        s.media_path = str(tmp_path)
-        mock_settings.return_value = s
+        mock_settings.return_value = _mock_settings(tmp_path)
         with app.test_client() as c:
             yield c, str(fake_video)
 
@@ -42,7 +48,16 @@ def test_stream_returns_206_with_range(client):
 def test_stream_returns_200_without_range(client):
     c, path = client
     resp = c.get(f"/api/v1/media/stream?path={path}")
-    assert resp.status_code in (200, 206)
+    assert resp.status_code == 200
+
+
+def test_stream_rejects_invalid_range(client):
+    c, path = client
+    resp = c.get(
+        f"/api/v1/media/stream?path={path}",
+        headers={"Range": "bytes=900-100"},
+    )
+    assert resp.status_code == 416
 
 
 def test_stream_rejects_path_traversal(client):
@@ -67,10 +82,7 @@ def test_stream_disabled_returns_503(tmp_path):
     fake = tmp_path / "v.mp4"
     fake.write_bytes(b"\x00" * 64)
     with patch("routes.media.get_settings") as mock_settings:
-        s = MagicMock()
-        s.streaming_enabled = False
-        s.media_path = str(tmp_path)
-        mock_settings.return_value = s
+        mock_settings.return_value = _mock_settings(tmp_path, streaming_enabled=False)
         with app.test_client() as c:
             resp = c.get(f"/api/v1/media/stream?path={fake}")
             assert resp.status_code == 503
