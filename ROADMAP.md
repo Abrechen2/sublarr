@@ -1,6 +1,6 @@
 # Sublarr — Roadmap
 
-> Completed versions are marked ✅. The current release is **v0.25.2-beta**. Planned versions reflect intended direction and may shift.
+> Completed versions are marked ✅. The current release is **v0.25.3-beta**. Planned versions reflect intended direction and may shift.
 
 ---
 
@@ -245,6 +245,61 @@ Goals: Smooth scrolling for large libraries.
 
 ---
 
+## v0.26.0 — Single-Account Login
+
+Goals: Optional password protection for the web UI — no multi-user, no RBAC, just a simple access gate.
+
+- `SUBLARR_UI_PASSWORD` env var (hashed, bcrypt) — if set, login is required; if unset, UI is open
+- Session-based auth via signed HTTP-only cookie; configurable TTL (`SUBLARR_SESSION_TTL_HOURS`, default 72)
+- `/login` page — password form with redirect to original URL after success
+- Flask middleware: all non-API routes redirect to `/login` when session absent
+- API routes unaffected — existing `X-Api-Key` auth continues to work independently
+- Settings UI — change password, invalidate all sessions, show active session count
+- Sidebar — "Lock" button + session owner display
+
+---
+
+## v0.27.0 — Subtitle Quality Score Export
+
+Goals: Persist per-file quality metadata as Kodi/Jellyfin-compatible NFO sidecars for media managers.
+
+- NFO format: XML sidecar (`<filename>.nfo`) alongside subtitle file
+- Exported fields: provider, source language, target language, score, translation backend, BLEU score (if available), download timestamp, Sublarr version
+- `auto_nfo_export` config setting — write NFO automatically after every subtitle download/translation
+- `POST /api/v1/subtitles/export-nfo?path=` — manual trigger for single file (path-safe)
+- `POST /api/v1/series/<id>/subtitles/export-nfo` — bulk export for all sidecars of a series
+- SeriesDetail — "Export NFO" button in subtitle sidecar context menu
+
+---
+
+## v0.28.0 — AI Glossary Builder
+
+Goals: Per-series term glossary auto-populated from translation history, injected as LLM context to improve consistency.
+
+- `series_glossary_terms` DB table — term, translation, type (character/place/other), confidence, approved flag, per series
+- Auto-detection pipeline: frequency analysis + optional NER pass over past translated cues to surface recurring proper nouns
+- Glossary injected as system prompt prefix during LLM translation (`<glossary>` block, max 50 terms)
+- `GET/POST/PUT/DELETE /api/v1/series/<id>/glossary` — full CRUD
+- `POST /api/v1/series/<id>/glossary/suggest` — trigger auto-detection run; returns candidates for review
+- SeriesDetail — Glossary panel: suggestion list (approve/reject), manual add, search, export as TSV
+- `SUBLARR_GLOSSARY_ENABLED` setting (default true); `glossary_max_terms` per series (default 100)
+
+---
+
+## v0.29.0 — Web Player
+
+Goals: In-browser video preview with subtitle overlay — review and fix subs without leaving Sublarr.
+
+- `GET /api/v1/media/stream?path=` — range-request video streaming; `is_safe_path()` enforced; `Content-Type` by extension
+- HTML5 `<video>` player in a `PlayerModal` — play, pause, seek, volume, fullscreen
+- ASS/SRT subtitle overlay via SubtitleOctopus (libass WASM) — renders styled ASS natively in browser
+- Subtitle track selector — switch between all available sidecars for the episode
+- Seek-to-cue: clicking a cue row in SubtitleEditorModal jumps player to that timestamp
+- Episode card — "Preview" button opens PlayerModal
+- `SUBLARR_STREAMING_ENABLED` setting (default true) — allows disabling the streaming endpoint
+
+---
+
 ## v1.0.0 — Stable Release
 
 Requirements for stable release:
@@ -257,15 +312,6 @@ Requirements for stable release:
 - Unraid Community Applications template finalized
 - User Guide complete and reviewed
 - Load tested with library of 500+ series
-
----
-
-## Long-Term Ideas (No Version Commitment)
-
-- Web Player Integration — embedded subtitle preview with video playback
-- AI-Assisted Glossary Building — auto-detect proper nouns from translation history
-- Single-Account Login — optional password protection for the web UI (no multi-user/RBAC)
-- Subtitle Quality Score Export — export per-file quality metrics as NFO sidecar
 
 ---
 
