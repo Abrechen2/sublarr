@@ -1,6 +1,6 @@
 import axios from 'axios'
 import type {
-  HealthStatus, UpdateInfo, Stats, PaginatedJobs, Job, BatchState,
+  AuthStatus, HealthStatus, UpdateInfo, Stats, PaginatedJobs, Job, BatchState,
   LibraryInfo, SeriesDetail, AppConfig, PaginatedWanted, WantedSummary,
   WantedSearchResponse, WantedBatchStatus, ProviderInfo, ProviderStats,
   RetranslateStatus, LanguageProfile, EpisodeHistoryEntry,
@@ -38,6 +38,15 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && !error.config.url?.includes('/auth/')) {
+      window.location.reload()
+    }
+    return Promise.reject(error)
+  }
+)
 
 // ─── Health & Status ─────────────────────────────────────────────────────────
 
@@ -1787,6 +1796,33 @@ export async function applySubtitleDiff(
     const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
     throw new Error(msg ?? `applySubtitleDiff failed`)
   }
+}
+
+// ─── UI Auth ─────────────────────────────────────────────────────────────────
+
+export async function getAuthStatus(): Promise<AuthStatus> {
+  const { data } = await api.get('/auth/status')
+  return data
+}
+
+export async function setupAuth(body: { action: 'set_password'; password: string } | { action: 'disable' }): Promise<void> {
+  await api.post('/auth/setup', body)
+}
+
+export async function login(password: string): Promise<void> {
+  await api.post('/auth/login', { password })
+}
+
+export async function logout(): Promise<void> {
+  await api.post('/auth/logout')
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await api.post('/auth/change-password', { current_password: currentPassword, new_password: newPassword })
+}
+
+export async function toggleAuth(enabled: boolean): Promise<void> {
+  await api.post('/auth/toggle', { enabled })
 }
 
 export default api
