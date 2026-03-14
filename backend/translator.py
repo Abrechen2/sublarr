@@ -863,11 +863,17 @@ def translate_ass(
 
         _write_quality_sidecar(output_path, quality_scores)
         from nfo_export import maybe_write_nfo
-        maybe_write_nfo(output_path, {
-            "translation_backend": translation_result.backend_name if 'translation_result' in dir() else "",
-            "source_language": getattr(settings, "source_language", ""),
-            "target_language": tgt_lang or getattr(settings, "target_language", ""),
-        })
+
+        maybe_write_nfo(
+            output_path,
+            {
+                "translation_backend": translation_result.backend_name
+                if "translation_result" in dir()
+                else "",
+                "source_language": getattr(settings, "source_language", ""),
+                "target_language": tgt_lang or getattr(settings, "target_language", ""),
+            },
+        )
         _quality_stats = (
             _compute_quality_stats(quality_scores, _q_threshold) if quality_scores else {}
         )
@@ -1047,11 +1053,17 @@ def _translate_srt(srt_path, output_path, source="srt", target_language=None, ar
 
     _write_quality_sidecar(output_path, quality_scores)
     from nfo_export import maybe_write_nfo
-    maybe_write_nfo(output_path, {
-        "translation_backend": translation_result.backend_name if 'translation_result' in dir() else "",
-        "source_language": settings.source_language,
-        "target_language": target_language or settings.target_language,
-    })
+
+    maybe_write_nfo(
+        output_path,
+        {
+            "translation_backend": translation_result.backend_name
+            if "translation_result" in dir()
+            else "",
+            "source_language": settings.source_language,
+            "target_language": target_language or settings.target_language,
+        },
+    )
     _quality_stats = _compute_quality_stats(quality_scores, _q_threshold) if quality_scores else {}
 
     return {
@@ -1554,11 +1566,17 @@ def _translate_external_ass(
 
         _write_quality_sidecar(output_path, quality_scores)
         from nfo_export import maybe_write_nfo
-        maybe_write_nfo(output_path, {
-            "translation_backend": translation_result.backend_name if 'translation_result' in dir() else "",
-            "source_language": settings.source_language,
-            "target_language": target_language or settings.target_language,
-        })
+
+        maybe_write_nfo(
+            output_path,
+            {
+                "translation_backend": translation_result.backend_name
+                if "translation_result" in dir()
+                else "",
+                "source_language": settings.source_language,
+                "target_language": target_language or settings.target_language,
+            },
+        )
         _quality_stats = (
             _compute_quality_stats(quality_scores, _q_threshold) if quality_scores else {}
         )

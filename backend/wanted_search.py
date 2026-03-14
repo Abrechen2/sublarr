@@ -688,12 +688,16 @@ def process_wanted_item(item_id: int) -> dict:
                     result.provider_name,
                 )
                 from nfo_export import maybe_write_nfo
-                maybe_write_nfo(output_path, {
-                    "provider": result.provider_name,
-                    "source_language": getattr(result, "language", ""),
-                    "target_language": item_lang,
-                    "score": result.score,
-                })
+
+                maybe_write_nfo(
+                    output_path,
+                    {
+                        "provider": result.provider_name,
+                        "source_language": getattr(result, "language", ""),
+                        "target_language": item_lang,
+                        "score": result.score,
+                    },
+                )
                 update_wanted_status(item_id, "found")
                 return {
                     "wanted_id": item_id,
@@ -886,12 +890,16 @@ def process_wanted_item(item_id: int) -> dict:
                         result.provider_name,
                     )
                     from nfo_export import maybe_write_nfo
-                    maybe_write_nfo(output_path, {
-                        "provider": result.provider_name,
-                        "source_language": getattr(result, "language", ""),
-                        "target_language": item_lang,
-                        "score": result.score,
-                    })
+
+                    maybe_write_nfo(
+                        output_path,
+                        {
+                            "provider": result.provider_name,
+                            "source_language": getattr(result, "language", ""),
+                            "target_language": item_lang,
+                            "score": result.score,
+                        },
+                    )
                     update_wanted_status(item_id, "found")
                     return {
                         "wanted_id": item_id,

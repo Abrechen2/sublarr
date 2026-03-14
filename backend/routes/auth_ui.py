@@ -26,11 +26,13 @@ def _is_session_authenticated() -> bool:
 
 @auth_ui_bp.get("/status")
 def get_status():
-    return jsonify({
-        "configured": ui_auth.is_ui_auth_configured(),
-        "enabled": ui_auth.is_ui_auth_enabled(),
-        "authenticated": _is_session_authenticated(),
-    })
+    return jsonify(
+        {
+            "configured": ui_auth.is_ui_auth_configured(),
+            "enabled": ui_auth.is_ui_auth_enabled(),
+            "authenticated": _is_session_authenticated(),
+        }
+    )
 
 
 @auth_ui_bp.post("/setup")
@@ -50,7 +52,9 @@ def setup():
     if action == "set_password":
         password = body.get("password", "")
         if len(password) < _MIN_PASSWORD_LENGTH:
-            return jsonify({"error": f"Password must be at least {_MIN_PASSWORD_LENGTH} characters"}), 400
+            return jsonify(
+                {"error": f"Password must be at least {_MIN_PASSWORD_LENGTH} characters"}
+            ), 400
         ui_auth._save_config_entry("ui_password_hash", ui_auth.hash_password(password))
         ui_auth._save_config_entry("ui_auth_enabled", "true")
         session["ui_authenticated"] = True
@@ -100,7 +104,9 @@ def change_password():
         return jsonify({"error": "Current password is incorrect"}), 401
 
     if len(new_pw) < _MIN_PASSWORD_LENGTH:
-        return jsonify({"error": f"Password must be at least {_MIN_PASSWORD_LENGTH} characters"}), 400
+        return jsonify(
+            {"error": f"Password must be at least {_MIN_PASSWORD_LENGTH} characters"}
+        ), 400
 
     ui_auth._save_config_entry("ui_password_hash", ui_auth.hash_password(new_pw))
     logger.info("UI password changed")

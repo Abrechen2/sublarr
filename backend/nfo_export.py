@@ -2,6 +2,7 @@
 
 This is an expert feature disabled by default (auto_nfo_export = false).
 """
+
 import logging
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -23,6 +24,7 @@ _FIELDS = [
 def _is_enabled() -> bool:
     try:
         from config import get_settings
+
         return bool(getattr(get_settings(), "auto_nfo_export", False))
     except Exception:
         return False
@@ -31,6 +33,7 @@ def _is_enabled() -> bool:
 def _get_version() -> str:
     try:
         from version import __version__
+
         return __version__
     except Exception:
         return ""

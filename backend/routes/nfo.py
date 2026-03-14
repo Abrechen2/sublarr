@@ -128,8 +128,7 @@ def export_series_nfo(series_id: int):
 
             rows = conn.execute(
                 _text(
-                    "SELECT DISTINCT file_path FROM subtitle_downloads"
-                    " WHERE file_path LIKE :pat"
+                    "SELECT DISTINCT file_path FROM subtitle_downloads WHERE file_path LIKE :pat"
                 ),
                 {"pat": prefix + "%"},
             ).fetchall()

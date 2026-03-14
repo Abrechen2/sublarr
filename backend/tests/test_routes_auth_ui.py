@@ -38,7 +38,9 @@ def test_setup_set_password(app, monkeypatch):
     monkeypatch.setattr(ui_auth, "is_ui_auth_configured", lambda: False)
     monkeypatch.setattr(ui_auth, "_save_config_entry", lambda k, v: saved.update({k: v}))
     with app.test_client() as client:
-        r = client.post("/api/v1/auth/setup", json={"action": "set_password", "password": "hunter2"})
+        r = client.post(
+            "/api/v1/auth/setup", json={"action": "set_password", "password": "hunter2"}
+        )
         assert r.status_code == 200
         assert "ui_password_hash" in saved
         assert saved["ui_auth_enabled"] == "true"
@@ -72,7 +74,9 @@ def test_login_correct_password(app, monkeypatch):
     pw_hash = ui_auth.hash_password("correct")
     monkeypatch.setattr(ui_auth, "is_ui_auth_configured", lambda: True)
     monkeypatch.setattr(ui_auth, "is_ui_auth_enabled", lambda: True)
-    monkeypatch.setattr(ui_auth, "_get_config_entry", lambda k: pw_hash if k == "ui_password_hash" else "true")
+    monkeypatch.setattr(
+        ui_auth, "_get_config_entry", lambda k: pw_hash if k == "ui_password_hash" else "true"
+    )
     with app.test_client() as client:
         r = client.post("/api/v1/auth/login", json={"password": "correct"})
         assert r.status_code == 200
@@ -82,7 +86,9 @@ def test_login_wrong_password(app, monkeypatch):
     pw_hash = ui_auth.hash_password("correct")
     monkeypatch.setattr(ui_auth, "is_ui_auth_configured", lambda: True)
     monkeypatch.setattr(ui_auth, "is_ui_auth_enabled", lambda: True)
-    monkeypatch.setattr(ui_auth, "_get_config_entry", lambda k: pw_hash if k == "ui_password_hash" else "true")
+    monkeypatch.setattr(
+        ui_auth, "_get_config_entry", lambda k: pw_hash if k == "ui_password_hash" else "true"
+    )
     with app.test_client() as client:
         r = client.post("/api/v1/auth/login", json={"password": "wrong"})
         assert r.status_code == 401
@@ -108,24 +114,34 @@ def test_logout_clears_session(app, monkeypatch):
 
 def test_change_password_correct(app, monkeypatch):
     pw_hash = ui_auth.hash_password("old")
-    monkeypatch.setattr(ui_auth, "_get_config_entry", lambda k: pw_hash if k == "ui_password_hash" else "true")
+    monkeypatch.setattr(
+        ui_auth, "_get_config_entry", lambda k: pw_hash if k == "ui_password_hash" else "true"
+    )
     saved = {}
     monkeypatch.setattr(ui_auth, "_save_config_entry", lambda k, v: saved.update({k: v}))
     with app.test_client() as client:
         with client.session_transaction() as sess:
             sess["ui_authenticated"] = True
-        r = client.post("/api/v1/auth/change-password", json={"current_password": "old", "new_password": "newpass1"})
+        r = client.post(
+            "/api/v1/auth/change-password",
+            json={"current_password": "old", "new_password": "newpass1"},
+        )
         assert r.status_code == 200
         assert "ui_password_hash" in saved
 
 
 def test_change_password_wrong_current(app, monkeypatch):
     pw_hash = ui_auth.hash_password("old")
-    monkeypatch.setattr(ui_auth, "_get_config_entry", lambda k: pw_hash if k == "ui_password_hash" else "true")
+    monkeypatch.setattr(
+        ui_auth, "_get_config_entry", lambda k: pw_hash if k == "ui_password_hash" else "true"
+    )
     with app.test_client() as client:
         with client.session_transaction() as sess:
             sess["ui_authenticated"] = True
-        r = client.post("/api/v1/auth/change-password", json={"current_password": "wrong", "new_password": "newpass1"})
+        r = client.post(
+            "/api/v1/auth/change-password",
+            json={"current_password": "wrong", "new_password": "newpass1"},
+        )
         assert r.status_code == 401
 
 

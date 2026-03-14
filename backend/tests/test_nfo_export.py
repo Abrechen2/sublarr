@@ -1,4 +1,5 @@
 """Tests for nfo_export.py — XML sidecar writing."""
+
 import os
 import xml.etree.ElementTree as ET
 
@@ -10,7 +11,15 @@ import nfo_export
 def test_write_nfo_creates_file(tmp_path):
     sub = tmp_path / "ep01.de.ass"
     sub.write_text("dummy")
-    nfo_export.write_nfo(str(sub), {"provider": "OpenSubtitles", "score": 720, "source_language": "en", "target_language": "de"})
+    nfo_export.write_nfo(
+        str(sub),
+        {
+            "provider": "OpenSubtitles",
+            "score": 720,
+            "source_language": "en",
+            "target_language": "de",
+        },
+    )
     nfo = tmp_path / "ep01.de.ass.nfo"
     assert nfo.exists()
 
@@ -18,15 +27,18 @@ def test_write_nfo_creates_file(tmp_path):
 def test_write_nfo_xml_content(tmp_path):
     sub = tmp_path / "ep01.de.ass"
     sub.write_text("dummy")
-    nfo_export.write_nfo(str(sub), {
-        "provider": "OpenSubtitles",
-        "score": 720,
-        "source_language": "en",
-        "target_language": "de",
-        "translation_backend": "gpt-4o-mini",
-        "bleu_score": 0.41,
-        "downloaded_at": "2026-03-14T11:30:00",
-    })
+    nfo_export.write_nfo(
+        str(sub),
+        {
+            "provider": "OpenSubtitles",
+            "score": 720,
+            "source_language": "en",
+            "target_language": "de",
+            "translation_backend": "gpt-4o-mini",
+            "bleu_score": 0.41,
+            "downloaded_at": "2026-03-14T11:30:00",
+        },
+    )
     tree = ET.parse(str(tmp_path / "ep01.de.ass.nfo"))
     root = tree.getroot()
     assert root.tag == "subtitle"
