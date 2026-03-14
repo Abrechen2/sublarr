@@ -1230,6 +1230,8 @@ export function GlobalGlossaryPanel() {
   const createEntry = useCreateGlossaryEntry()
   const updateEntry = useUpdateGlossaryEntry()
   const deleteEntry = useDeleteGlossaryEntry()
+  const { data: config } = useConfig()
+  const updateConfig = useUpdateConfig()
   const [showAdd, setShowAdd] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -1242,6 +1244,38 @@ export function GlobalGlossaryPanel() {
         e.target_term.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : entries
+
+  const glossaryEnabled = config
+    ? (config as Record<string, unknown>)['glossary_enabled'] !== 'false'
+    : true
+  const glossaryMaxTerms = config
+    ? Number((config as Record<string, unknown>)['glossary_max_terms'] ?? 20)
+    : 20
+  const [localMaxTerms, setLocalMaxTerms] = useState<number>(glossaryMaxTerms)
+  useEffect(() => { setLocalMaxTerms(glossaryMaxTerms) }, [glossaryMaxTerms])
+
+  const handleGlossaryEnabledChange = (value: boolean) => {
+    updateConfig.mutate(
+      { glossary_enabled: String(value) },
+      {
+        onSuccess: () => toast('Glossary setting saved'),
+        onError: () => toast('Failed to save setting', 'error'),
+      },
+    )
+  }
+
+  const handleMaxTermsBlur = () => {
+    const clamped = Math.max(1, Math.min(200, Math.round(localMaxTerms)))
+    if (clamped !== glossaryMaxTerms) {
+      updateConfig.mutate(
+        { glossary_max_terms: String(clamped) },
+        {
+          onSuccess: () => toast('Max glossary terms saved'),
+          onError: () => toast('Failed to save setting', 'error'),
+        },
+      )
+    }
+  }
 
   const resetForm = () => {
     setShowAdd(false)
@@ -1335,6 +1369,49 @@ export function GlobalGlossaryPanel() {
           <Plus size={12} />
           Add Entry
         </button>
+      </div>
+
+      {/* Glossary Settings */}
+      <div
+        className="rounded-lg p-4 space-y-3"
+        style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      >
+        <SettingRow
+          label="Glossary"
+          helpText="Inject per-series glossary terms into LLM translation prompts for consistent proper noun handling."
+        >
+          <Toggle
+            checked={glossaryEnabled}
+            onChange={handleGlossaryEnabledChange}
+            disabled={updateConfig.isPending}
+          />
+        </SettingRow>
+        <SettingRow
+          label="Max Glossary Terms"
+          helpText="Maximum number of glossary terms injected per translation request."
+        >
+          <input
+            type="number"
+            min={1}
+            max={200}
+            step={1}
+            value={localMaxTerms}
+            disabled={!glossaryEnabled || updateConfig.isPending}
+            onChange={(e) => {
+              const parsed = parseInt(e.target.value, 10)
+              if (!isNaN(parsed)) setLocalMaxTerms(parsed)
+            }}
+            onBlur={handleMaxTermsBlur}
+            className="w-24 px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+              opacity: glossaryEnabled ? 1 : 0.5,
+            }}
+          />
+        </SettingRow>
       </div>
 
       {/* Search */}
