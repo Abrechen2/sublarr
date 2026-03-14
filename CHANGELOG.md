@@ -5,6 +5,18 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.26.0-beta] — 2026-03-14
+
+### Added
+- **Single-Account Login — First-run setup wizard** — on first visit, `/setup` presents two choices: set a password or leave the UI open; no forced registration
+- **Single-Account Login — Flask session auth** — `before_request` hook enforces session-or-`X-Api-Key` on all `/api/` routes when enabled; session secret auto-generated and persisted in `config_entries`; bcrypt password hashing
+- **Single-Account Login — Auth API** — `GET /api/v1/auth/status`, `POST /auth/setup` (first-run), `POST /auth/login`, `POST /auth/logout`, `POST /auth/change-password`, `POST /auth/toggle`; API key auth (`X-Api-Key`) remains independent
+- **Single-Account Login — React routing** — `AuthGuard` component redirects to `/setup` or `/login` as needed; auth pages render full-screen without Sidebar
+- **Settings → Security tab** — toggle UI auth on/off; change-password form (shown only when auth enabled)
+- **Sidebar — Logout button** — shown when `auth.enabled && auth.authenticated`; navigates to `/login` on success
+
+---
+
 ## [0.25.3-beta] — 2026-03-14
 
 ### Added
