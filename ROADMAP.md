@@ -1,6 +1,6 @@
 # Sublarr — Roadmap
 
-> Completed versions are marked ✅. The current release is **v0.24.4-beta**. Planned versions reflect intended direction and may shift.
+> Completed versions are marked ✅. The current release is **v0.25.2-beta**. Planned versions reflect intended direction and may shift.
 
 ---
 
@@ -214,7 +214,7 @@ Goals: Trigger subtitle search+translate automatically when Jellyfin starts play
 
 ---
 
-## v0.25.1 — CLI Mode
+## v0.25.1 ✅ — CLI Mode
 
 Goals: Make Sublarr scriptable from the command line.
 
@@ -225,7 +225,7 @@ Goals: Make Sublarr scriptable from the command line.
 
 ---
 
-## v0.25.2 — Subtitle Diff Viewer
+## v0.25.2 ✅ — Subtitle Diff Viewer
 
 Goals: Inline accept/reject for individual changed cues (upgrade from full-replace).
 
