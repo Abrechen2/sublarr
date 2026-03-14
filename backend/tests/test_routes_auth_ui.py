@@ -1,12 +1,14 @@
 """Tests for /api/v1/auth/* endpoints."""
 
 import pytest
+
 import ui_auth
 
 
 @pytest.fixture
 def app(monkeypatch):
     from flask import Flask
+
     from routes.auth_ui import auth_ui_bp
 
     monkeypatch.setattr(ui_auth, "_get_config_entry", lambda k: None)

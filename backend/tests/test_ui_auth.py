@@ -6,10 +6,10 @@ from flask import Flask, session
 import ui_auth
 from ui_auth import (
     hash_password,
-    verify_password,
+    init_ui_auth,
     is_ui_auth_configured,
     is_ui_auth_enabled,
-    init_ui_auth,
+    verify_password,
 )
 
 
