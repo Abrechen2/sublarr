@@ -19,15 +19,18 @@ export interface SubtitleOctopusOptions {
 }
 
 // libass-wasm has no @types — declare minimal interface
-declare class SubtitlesOctopusClass {
-  constructor(options: SubtitleOctopusOptions)
+export interface ISubtitleOctopus {
   setTrackByUrl(url: string): void
   setTrack(content: string): void
   freeTrack(): void
   dispose(): void
 }
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const SubtitleOctopus: typeof SubtitlesOctopusClass = require('libass-wasm')
+export interface SubtitleOctopusConstructor {
+  new (options: SubtitleOctopusOptions): ISubtitleOctopus
+}
 
-export { SubtitleOctopus }
+// libass-wasm is a CJS module with no TypeScript declarations.
+// We import it as a namespace (no esModuleInterop needed) and cast to our typed interface.
+import * as _LibassWasm from 'libass-wasm'
+export const SubtitleOctopus = _LibassWasm as unknown as SubtitleOctopusConstructor
