@@ -74,15 +74,11 @@ def test_stream_returns_404_for_missing_file(client):
     assert resp.status_code == 404
 
 
-def test_stream_disabled_returns_503(tmp_path):
-    from app import create_app
-
-    app = create_app()
-    app.config["TESTING"] = True
-    fake = tmp_path / "v.mp4"
-    fake.write_bytes(b"\x00" * 64)
-    with patch("routes.media.get_settings") as mock_settings:
-        mock_settings.return_value = _mock_settings(tmp_path, streaming_enabled=False)
-        with app.test_client() as c:
-            resp = c.get(f"/api/v1/media/stream?path={fake}")
-            assert resp.status_code == 503
+def test_stream_disabled_returns_503(client):
+    c, path = client
+    with patch("routes.media.get_settings") as mock_disabled:
+        mock_disabled.return_value = _mock_settings(
+            os.path.dirname(path), streaming_enabled=False
+        )
+        resp = c.get(f"/api/v1/media/stream?path={path}")
+        assert resp.status_code == 503

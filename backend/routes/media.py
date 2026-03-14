@@ -61,7 +61,7 @@ def _stream_range(
 
 @bp.route("/media/stream")
 @require_api_key
-def stream_media() -> Response:
+def stream_media():
     settings = get_settings()
 
     if not settings.streaming_enabled:
