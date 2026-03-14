@@ -33,6 +33,7 @@ interface SubtitleEditorModalProps {
   initialMode?: EditorMode
   onClose: () => void
   videoPath?: string              // optional: enables Waveform tab
+  onSeekRequest?: (seconds: number) => void  // optional: seek the co-open player
 }
 
 /** Truncate a file path for display, showing last 2 segments. */
@@ -49,6 +50,7 @@ export default function SubtitleEditorModal({
   initialMode = 'preview',
   onClose,
   videoPath,
+  onSeekRequest,
 }: SubtitleEditorModalProps) {
   const queryClient = useQueryClient()
   const [mode, setMode] = useState<EditorMode>(initialMode)
@@ -329,6 +331,7 @@ export default function SubtitleEditorModal({
                 filePath={filePath}
                 onEdit={() => setMode('edit')}
                 onClose={handleClose}
+                onSeekRequest={onSeekRequest}
                 className="h-full"
               />
             )}

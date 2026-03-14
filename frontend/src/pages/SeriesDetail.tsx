@@ -1,9 +1,9 @@
-import { useState, useMemo, useCallback, lazy, Suspense } from 'react'
+import { useState, useMemo, useCallback, lazy, Suspense, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry, useStartWantedBatch, useUpdateSeriesSettings, useAnidbMappingStatus, useRefreshAnidbMapping, useBatchTranslate, useSuggestGlossaryTerms, useExportGlossaryTsv } from '@/hooks/useApi'
+import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry, useStartWantedBatch, useUpdateSeriesSettings, useAnidbMappingStatus, useRefreshAnidbMapping, useBatchTranslate, useSuggestGlossaryTerms, useExportGlossaryTsv, useStreamingEnabled } from '@/hooks/useApi'
 import {
   ArrowLeft, Loader2, ChevronDown, ChevronRight,
   Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search,
@@ -14,6 +14,8 @@ import {
 import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
+import { PlayerModal } from '@/components/player/PlayerModal'
+import type { PlayerSubtitleTrack } from '@/lib/types'
 import { TrackPanel } from '@/components/tracks/TrackPanel'
 import { autoSyncFile, startWantedBatchSearch, batchExtractAllTracks, listSeriesSubtitles, deleteSubtitles, getSubtitleDownloadUrl, getSeriesSubtitleExportUrl, exportSubtitleNfo } from '@/api/client'
 import type { GlossaryCandidate } from '@/api/client'
@@ -719,7 +721,7 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
 
 // ─── Season Group ──────────────────────────────────────────────────────────
 
-function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, isExtracting, onExtract, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync, onHealthCheck, healthScores, onOpenEditor, sidecarMap, onDeleteSidecar, onOpenCleanupModal, t }: {
+function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, isExtracting, onExtract, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync, onHealthCheck, healthScores, onOpenEditor, sidecarMap, onDeleteSidecar, onOpenCleanupModal, onPreview, streamingEnabled, t }: {
   season: number
   episodes: EpisodeInfo[]
   targetLanguages: string[]
@@ -749,6 +751,8 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
   sidecarMap: Record<string, SidecarSubtitle[]>
   onDeleteSidecar: (path: string) => Promise<void>
   onOpenCleanupModal: () => void
+  onPreview: (ep: EpisodeInfo) => void
+  streamingEnabled: boolean
   t: (key: string, opts?: Record<string, unknown>) => string
 }) {
   const [expanded, setExpanded] = useState(true)
@@ -1051,6 +1055,16 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
 
                     {/* Actions */}
                     <div className="w-64 flex-shrink-0 flex gap-0.5 justify-end">
+                      {streamingEnabled && ep.has_file && ep.file_path && (
+                        <button
+                          onClick={() => onPreview(ep)}
+                          className="hover-surface p-1 rounded text-[var(--text-muted)] hover:text-[var(--teal-accent)]"
+                          title="Preview in player"
+                          aria-label={`Preview episode ${ep.episode}`}
+                        >
+                          <Play size={14} />
+                        </button>
+                      )}
                       {(() => {
                         const firstLang = ep.has_file
                           ? Object.entries(ep.subtitles).find(([, f]) => f === 'ass' || f === 'srt')
@@ -1201,6 +1215,14 @@ export function SeriesDetailPage() {
   // Subtitle editor modal state
   const [editorFilePath, setEditorFilePath] = useState<string | null>(null)
   const [editorMode, setEditorMode] = useState<'preview' | 'edit'>('preview')
+
+  // Web player state
+  const { data: streamingEnabled } = useStreamingEnabled()
+  const seekFnRef = useRef<((seconds: number) => void) | null>(null)
+  const [playerState, setPlayerState] = useState<{
+    videoPath: string
+    tracks: PlayerSubtitleTrack[]
+  } | null>(null)
 
   // Extraction progress (driven by WebSocket batch_extract_progress events)
   const [extractProgress, setExtractProgress] = useState<{
@@ -1394,6 +1416,19 @@ export function SeriesDetailPage() {
       toast(msg, 'error')
     })
   }, [seriesId, extractProgress])
+
+  const handlePreview = useCallback((ep: EpisodeInfo) => {
+    const epSidecars = sidecarMap[String(ep.id)] ?? []
+    const tracks: PlayerSubtitleTrack[] = epSidecars
+      .filter((s) => s.format === 'ass' || s.format === 'srt' || s.format === 'vtt')
+      .map((s) => ({
+        path: s.path,
+        language: s.language,
+        format: s.format as 'ass' | 'srt' | 'vtt',
+        label: `${s.language.toUpperCase()} — ${s.format.toUpperCase()}`,
+      }))
+    setPlayerState({ videoPath: ep.file_path, tracks })
+  }, [sidecarMap])
 
   const handleDeleteSidecar = useCallback((path: string) => {
     setDeleteAlsoBlacklist(false)
@@ -1936,6 +1971,8 @@ export function SeriesDetailPage() {
             sidecarMap={sidecarMap}
             onDeleteSidecar={handleDeleteSidecar}
             onOpenCleanupModal={() => setShowCleanupModal(true)}
+            onPreview={handlePreview}
+            streamingEnabled={streamingEnabled ?? false}
             t={t}
           />
         ))}
@@ -2028,6 +2065,7 @@ export function SeriesDetailPage() {
           filePath={editorFilePath}
           initialMode={editorMode}
           onClose={() => setEditorFilePath(null)}
+          onSeekRequest={playerState ? (seconds) => seekFnRef.current?.(seconds) : undefined}
         />
       )}
 
@@ -2138,6 +2176,16 @@ export function SeriesDetailPage() {
         onClose={() => setInteractiveEp(null)}
         onDownloaded={() => setInteractiveEp(null)}
       />
+
+      {/* Web Player Modal */}
+      {playerState && (
+        <PlayerModal
+          videoPath={playerState.videoPath}
+          subtitleTracks={playerState.tracks}
+          onClose={() => setPlayerState(null)}
+          onSeekReady={(fn) => { seekFnRef.current = fn }}
+        />
+      )}
 
       {/* Health Check Panel Modal */}
       {healthCheckPath && createPortal(

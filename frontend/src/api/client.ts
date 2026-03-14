@@ -1858,4 +1858,18 @@ export async function toggleAuth(enabled: boolean): Promise<void> {
   await api.post('/auth/toggle', { enabled })
 }
 
+// ── Web Player ────────────────────────────────────────────────────────────
+
+/** Returns the URL for streaming a media file. Not a fetch — just a URL builder. */
+export function getMediaStreamUrl(filePath: string): string {
+  const encoded = encodeURIComponent(filePath)
+  return `/api/v1/media/stream?path=${encoded}`
+}
+
+/** Fetch the streaming_enabled flag from config. */
+export async function getStreamingEnabled(): Promise<boolean> {
+  const { data } = await api.get<{ streaming_enabled?: boolean }>('/config')
+  return data.streaming_enabled ?? true
+}
+
 export default api

@@ -73,6 +73,7 @@ import {
   installBrowsePlugin, uninstallBrowsePlugin,
   getVideoChapters,
   getSeriesFansubPrefs, setSeriesFansubPrefs, deleteSeriesFansubPrefs,
+  getStreamingEnabled,
 } from '@/api/client'
 import type {
   LanguageProfile, BackendConfig, MediaServerInstance, HookConfig, WebhookConfig, LogRotationConfig, FilterScope, BatchAction,
@@ -2039,5 +2040,15 @@ export function useVideoChapters(videoPath: string | undefined) {
     queryFn: () => getVideoChapters(videoPath!),
     enabled: !!videoPath,
     staleTime: 5 * 60 * 1000, // chapters rarely change — 5 min cache
+  })
+}
+
+// ─── v0.29.0 Web Player ───────────────────────────────────────────────────────
+
+export function useStreamingEnabled() {
+  return useQuery({
+    queryKey: ['streaming-enabled'],
+    queryFn: getStreamingEnabled,
+    staleTime: 60_000,
   })
 }

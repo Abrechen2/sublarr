@@ -249,6 +249,10 @@ const FIELDS: FieldConfig[] = [
   { key: 'auto_nfo_export', label: 'Auto NFO Export', type: 'toggle', tab: 'Automation',
     description: 'Write an XML sidecar (.nfo) next to every downloaded or translated subtitle. Contains provider, language, score, and translation metadata. Off by default.',
     advanced: true },
+  // Automation — Web Player
+  { key: 'streaming_enabled', label: 'Enable Video Streaming', type: 'toggle', tab: 'Automation',
+    description: 'Serve video files for in-browser preview. Disable to block the /media/stream endpoint.',
+    advanced: true },
 ]
 
 // ─── Path Mapping Editor ────────────────────────────────────────────────────
