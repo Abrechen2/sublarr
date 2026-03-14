@@ -86,6 +86,8 @@ def export_subtitle_nfo():
 
     write_nfo(path, {})
     nfo_path = path + ".nfo"
+    if not os.path.exists(nfo_path):
+        return jsonify({"error": "NFO write failed"}), 500
     return jsonify({"status": "ok", "nfo_path": nfo_path}), 200
 
 
@@ -138,11 +140,15 @@ def export_series_nfo(series_id: int):
     exported = 0
     skipped = 0
     for (fp,) in rows:
-        if os.path.exists(fp):
-            write_nfo(fp, {})
-            exported += 1
-        else:
+        if not is_safe_path(fp, media_path):
+            skipped += 1
+            logger.debug("NFO export: skipping unsafe path %s", fp)
+            continue
+        if not os.path.exists(fp):
             skipped += 1
             logger.debug("NFO export: skipping missing file %s", fp)
+            continue
+        write_nfo(fp, {})
+        exported += 1
 
     return jsonify({"status": "ok", "exported": exported, "skipped": skipped}), 200
