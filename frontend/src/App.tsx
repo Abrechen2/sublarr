@@ -16,6 +16,7 @@ import { GlobalSearchModal } from '@/components/search/GlobalSearchModal'
 import { QuickActionsFAB } from '@/components/quick-actions/QuickActionsFAB'
 import { KeyboardShortcutsModal } from '@/components/quick-actions/KeyboardShortcutsModal'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { AuthGuard } from '@/components/auth/AuthGuard'
 
 // Route-level code splitting: each page is lazy-loaded as a separate chunk
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })))
@@ -33,6 +34,8 @@ const TasksPage = lazy(() => import('@/pages/Tasks').then(m => ({ default: m.Tas
 const PluginsPage = lazy(() => import('@/pages/Plugins').then(m => ({ default: m.PluginsPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFound').then(m => ({ default: m.NotFoundPage })))
 const Onboarding = lazy(() => import('@/pages/Onboarding'))
+const SetupPage = lazy(() => import('@/pages/Setup').then(m => ({ default: m.SetupPage })))
+const LoginPage = lazy(() => import('@/pages/Login').then(m => ({ default: m.LoginPage })))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,27 +49,39 @@ const queryClient = new QueryClient({
 
 function AnimatedRoutes() {
   const location = useLocation()
+  const isAuthRoute = location.pathname === '/setup' || location.pathname === '/login'
+
+  if (isAuthRoute) {
+    return (
+      <Routes location={location}>
+        <Route path="/setup" element={<Suspense fallback={<PageSkeleton />}><SetupPage /></Suspense>} />
+        <Route path="/login" element={<Suspense fallback={<PageSkeleton />}><LoginPage /></Suspense>} />
+      </Routes>
+    )
+  }
 
   return (
-    <div key={location.pathname} className="page-enter">
-      <Routes location={location}>
-        <Route path="/" element={<Suspense fallback={<PageSkeleton />}><Dashboard /></Suspense>} />
-        <Route path="/library" element={<Suspense fallback={<LibrarySkeleton />}><LibraryPage /></Suspense>} />
-        <Route path="/library/series/:id" element={<Suspense fallback={<PageSkeleton />}><SeriesDetailPage /></Suspense>} />
-        <Route path="/activity" element={<Suspense fallback={<PageSkeleton />}><ActivityPage /></Suspense>} />
-        <Route path="/wanted" element={<Suspense fallback={<ListSkeleton />}><WantedPage /></Suspense>} />
-        <Route path="/queue" element={<Suspense fallback={<TableSkeleton />}><QueuePage /></Suspense>} />
-        <Route path="/history" element={<Suspense fallback={<TableSkeleton />}><HistoryPage /></Suspense>} />
-        <Route path="/blacklist" element={<Suspense fallback={<TableSkeleton />}><BlacklistPage /></Suspense>} />
-        <Route path="/settings" element={<Suspense fallback={<FormSkeleton />}><SettingsPage /></Suspense>} />
-        <Route path="/statistics" element={<Suspense fallback={<PageSkeleton />}><StatisticsPage /></Suspense>} />
-        <Route path="/tasks" element={<Suspense fallback={<PageSkeleton />}><TasksPage /></Suspense>} />
-        <Route path="/plugins" element={<Suspense fallback={<PageSkeleton />}><PluginsPage /></Suspense>} />
-        <Route path="/logs" element={<Suspense fallback={<PageSkeleton />}><LogsPage /></Suspense>} />
-        <Route path="/onboarding" element={<Suspense fallback={<PageSkeleton />}><Onboarding /></Suspense>} />
-        <Route path="*" element={<Suspense fallback={<PageSkeleton />}><NotFoundPage /></Suspense>} />
-      </Routes>
-    </div>
+    <AuthGuard>
+      <div key={location.pathname} className="page-enter">
+        <Routes location={location}>
+          <Route path="/" element={<Suspense fallback={<PageSkeleton />}><Dashboard /></Suspense>} />
+          <Route path="/library" element={<Suspense fallback={<LibrarySkeleton />}><LibraryPage /></Suspense>} />
+          <Route path="/library/series/:id" element={<Suspense fallback={<PageSkeleton />}><SeriesDetailPage /></Suspense>} />
+          <Route path="/activity" element={<Suspense fallback={<PageSkeleton />}><ActivityPage /></Suspense>} />
+          <Route path="/wanted" element={<Suspense fallback={<ListSkeleton />}><WantedPage /></Suspense>} />
+          <Route path="/queue" element={<Suspense fallback={<TableSkeleton />}><QueuePage /></Suspense>} />
+          <Route path="/history" element={<Suspense fallback={<TableSkeleton />}><HistoryPage /></Suspense>} />
+          <Route path="/blacklist" element={<Suspense fallback={<TableSkeleton />}><BlacklistPage /></Suspense>} />
+          <Route path="/settings" element={<Suspense fallback={<FormSkeleton />}><SettingsPage /></Suspense>} />
+          <Route path="/statistics" element={<Suspense fallback={<PageSkeleton />}><StatisticsPage /></Suspense>} />
+          <Route path="/tasks" element={<Suspense fallback={<PageSkeleton />}><TasksPage /></Suspense>} />
+          <Route path="/plugins" element={<Suspense fallback={<PageSkeleton />}><PluginsPage /></Suspense>} />
+          <Route path="/logs" element={<Suspense fallback={<PageSkeleton />}><LogsPage /></Suspense>} />
+          <Route path="/onboarding" element={<Suspense fallback={<PageSkeleton />}><Onboarding /></Suspense>} />
+          <Route path="*" element={<Suspense fallback={<PageSkeleton />}><NotFoundPage /></Suspense>} />
+        </Routes>
+      </div>
+    </AuthGuard>
   )
 }
 
@@ -109,6 +124,55 @@ function GlobalShortcuts({ onToggleShortcutsModal }: { onToggleShortcutsModal: (
   return null
 }
 
+function AppInner({
+  searchOpen,
+  setSearchOpen,
+  shortcutsModalOpen,
+  toggleShortcutsModal,
+  closeShortcutsModal,
+}: {
+  searchOpen: boolean
+  setSearchOpen: (v: boolean) => void
+  shortcutsModalOpen: boolean
+  toggleShortcutsModal: () => void
+  closeShortcutsModal: () => void
+}) {
+  const location = useLocation()
+  const isAuthRoute = location.pathname === '/setup' || location.pathname === '/login'
+
+  return (
+    <>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:rounded"
+        style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+      >
+        Skip to main content
+      </a>
+      <GlobalWebSocketListener />
+      <GlobalShortcuts onToggleShortcutsModal={toggleShortcutsModal} />
+      {isAuthRoute ? (
+        <AnimatedRoutes />
+      ) : (
+        <div className="flex min-h-screen">
+          <Sidebar />
+          <main id="main-content" className="flex-1 min-w-0 p-4 md:p-5 pt-16 md:pt-5 min-h-screen">
+            <AnimatedRoutes />
+          </main>
+        </div>
+      )}
+      {!isAuthRoute && (
+        <>
+          <GlobalSearchModal open={searchOpen} onOpenChange={setSearchOpen} />
+          <QuickActionsFAB />
+          <KeyboardShortcutsModal open={shortcutsModalOpen} onClose={closeShortcutsModal} />
+        </>
+      )}
+      <ToastContainer />
+    </>
+  )
+}
+
 function App() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false)
@@ -137,25 +201,13 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <WebSocketProvider>
       <BrowserRouter>
-        <a
-          href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:rounded"
-          style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
-        >
-          Skip to main content
-        </a>
-        <GlobalWebSocketListener />
-        <GlobalShortcuts onToggleShortcutsModal={toggleShortcutsModal} />
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <main id="main-content" className="flex-1 min-w-0 p-4 md:p-5 pt-16 md:pt-5 min-h-screen">
-            <AnimatedRoutes />
-          </main>
-        </div>
-        <GlobalSearchModal open={searchOpen} onOpenChange={setSearchOpen} />
-        <ToastContainer />
-        <QuickActionsFAB />
-        <KeyboardShortcutsModal open={shortcutsModalOpen} onClose={closeShortcutsModal} />
+        <AppInner
+          searchOpen={searchOpen}
+          setSearchOpen={setSearchOpen}
+          shortcutsModalOpen={shortcutsModalOpen}
+          toggleShortcutsModal={toggleShortcutsModal}
+          closeShortcutsModal={closeShortcutsModal}
+        />
       </BrowserRouter>
       </WebSocketProvider>
     </QueryClientProvider>

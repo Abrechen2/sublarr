@@ -182,6 +182,8 @@ def create_app(testing=False):
 
     # Initialize authentication
     from auth import init_auth
+    from routes.auth_ui import auth_ui_bp
+    from ui_auth import init_ui_auth
 
     init_auth(app)
 
@@ -440,9 +442,15 @@ def create_app(testing=False):
         def handle_disconnect():
             logger.debug("WebSocket client disconnected")
 
+        # Register UI auth blueprint
+        app.register_blueprint(auth_ui_bp)
+
         # Start schedulers (skip during testing)
         if not testing:
             _start_schedulers(settings, app)
+
+        # Initialize UI auth (sets SECRET_KEY + before_request hook — must be LAST)
+        init_ui_auth(app)
 
     return app
 

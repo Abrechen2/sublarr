@@ -43,6 +43,7 @@ const NotificationTemplatesTab = lazy(() => import('./NotificationTemplatesTab')
 const CleanupTab = lazy(() => import('./CleanupTab').then(m => ({ default: m.CleanupTab })))
 const IntegrationsTab = lazy(() => import('./IntegrationsTab').then(m => ({ default: m.IntegrationsTab })))
 const MigrationTab = lazy(() => import('./MigrationTab').then(m => ({ default: m.MigrationTab })))
+const SecurityTab = lazy(() => import('./SecurityTab').then(m => ({ default: m.SecurityTab })))
 
 function TabSkeleton() {
   return (
@@ -72,7 +73,7 @@ const NAV_GROUPS: NavGroup[] = [
   { title: 'Translation', icon: Languages,  items: ['Translation', 'Translation Backends', 'Prompt Presets', 'Languages'] },
   { title: 'Automation',  icon: Zap,        items: ['Automation', 'Wanted', 'Whisper'] },
   { title: 'Providers',   icon: Globe,      items: ['Providers', 'Scoring'] },
-  { title: 'System',      icon: Cog,        items: ['Events & Hooks', 'Backup', 'Subtitle Tools', 'Cleanup', 'Integrations', 'Notification Templates'] },
+  { title: 'System',      icon: Cog,        items: ['Events & Hooks', 'Backup', 'Subtitle Tools', 'Cleanup', 'Integrations', 'Notification Templates', 'Security'] },
 ]
 
 // Flat list derived from groups (preserves ordering for legacy code)
@@ -828,6 +829,7 @@ function SettingsPageInner() {
   const isApiKeysTab = activeTab === 'API Keys'
   const isMigrationTab = activeTab === 'Migration'
   const isNotificationTemplatesTab = activeTab === 'Notification Templates'
+  const isSecurityTab = activeTab === 'Security'
 
   if (isLoading) {
     return (
@@ -1004,6 +1006,8 @@ function SettingsPageInner() {
             <MigrationTab />
           ) : isNotificationTemplatesTab ? (
             <NotificationTemplatesTab />
+          ) : isSecurityTab ? (
+            <SecurityTab />
           ) : isTranslationTab ? (
             <div className="space-y-0">
               {tabFields.map((field) => renderField(field))}
