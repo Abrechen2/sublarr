@@ -5,6 +5,20 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.28.0-beta] — 2026-03-14
+
+### Added
+- **AI Glossary Builder — DB schema** — adds `term_type` (character/place/other), `confidence` (float 0–1), `approved` (boolean) columns to `glossary_entries`; Alembic migration `f1a2b3c4d5e6`
+- **AI Glossary Builder — Extractor service** — `glossary_extractor.py` performs frequency analysis over subtitle sidecar files to surface recurring proper-noun candidates without requiring an LLM
+- **AI Glossary Builder — Suggest endpoint** — `POST /api/v1/series/<id>/glossary/suggest` triggers auto-detection and returns ranked candidates for human review
+- **AI Glossary Builder — TSV export** — `GET /api/v1/glossary/export` downloads all approved glossary terms as a tab-separated file for external use
+- **AI Glossary Builder — CRUD extended** — existing `POST/PUT /api/v1/glossary` endpoints accept the new `term_type`, `confidence`, and `approved` fields
+- **AI Glossary Builder — Config** — `SUBLARR_GLOSSARY_ENABLED` (default true) and `glossary_max_terms` per-series cap (default 100) in Settings → Translation (advanced section)
+- **AI Glossary Builder — LLM injection** — approved terms injected as `<glossary>` system prompt prefix during translation; capped at 50 terms; V8-compatible `term → translation` comma format retained; single-line fast-path added (`Translate to German: {line}`) when subtitle contains exactly one cue
+- **AI Glossary Builder — GlossaryPanel UI** — Suggest button (Wand2 icon) triggers candidate detection; candidate list with approve/pre-fill/reject actions; `TermTypeBadge` (character/place/other); Export TSV button; all wired via new `suggestGlossaryTerms` and `exportGlossaryTsv` hooks
+
+---
+
 ## [0.27.0-beta] — 2026-03-14
 
 ### Added
