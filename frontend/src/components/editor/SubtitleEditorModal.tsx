@@ -20,7 +20,7 @@ const SubtitleEditor = lazy(() =>
   import('@/components/editor/SubtitleEditor').then(m => ({ default: m.SubtitleEditor }))
 )
 const SubtitleDiff = lazy(() =>
-  import('@/components/editor/SubtitleDiff').then(m => ({ default: m.SubtitleDiff }))
+  import('@/components/editor/SubtitleDiff')
 )
 const WaveformTab = lazy(() =>
   import('@/components/editor/WaveformTab').then(m => ({ default: m.WaveformTab }))
@@ -368,6 +368,11 @@ export default function SubtitleEditorModal({
                 format={format}
                 onClose={handleClose}
                 onBackToEditor={() => setMode('edit')}
+                onApplied={() => {
+                  void queryClient.invalidateQueries({ queryKey: ['subtitle-content', filePath] })
+                  void queryClient.invalidateQueries({ queryKey: ['subtitle-backup', filePath] })
+                  setMode('preview')
+                }}
               />
             )}
 

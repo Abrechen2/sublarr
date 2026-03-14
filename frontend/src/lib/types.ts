@@ -1198,3 +1198,26 @@ export interface SeriesFansubPrefs {
   excluded_groups: string[]
   bonus: number
 }
+
+// ─── Subtitle Diff ────────────────────────────────────────────────────────────
+
+export interface SubtitleDiffCue {
+  start: number
+  end: number
+  text: string
+  style: string
+}
+
+export type SubtitleDiffType = 'unchanged' | 'modified' | 'added' | 'removed'
+
+export interface SubtitleDiffEntry {
+  type: SubtitleDiffType
+  original: SubtitleDiffCue | null
+  modified: SubtitleDiffCue | null
+}
+
+export interface SubtitleDiffResult {
+  diffs: SubtitleDiffEntry[]
+  total: number
+  changed: number
+}

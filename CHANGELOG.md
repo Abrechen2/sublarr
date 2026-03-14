@@ -5,6 +5,13 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.2-beta] — 2026-03-13
+
+### Added
+- **Subtitle Diff Viewer — Per-cue accept/reject** — `POST /tools/diff` computes a cue-level diff using pysubs2 + difflib.SequenceMatcher; returns structured diff entries (unchanged/modified/added/removed) with timing in seconds. `POST /tools/diff/apply` recomputes the diff server-side, merges accepted/rejected changes into the modified SSAFile (preserving header and styles), creates a `.bak` backup, and writes atomically via `os.replace`. Frontend `SubtitleDiff.tsx` rewritten from CodeMirror merge view to a filterable per-cue table; users can accept or reject each change individually or via Accept All / Reject All; applying navigates back to preview and invalidates the subtitle-content cache.
+
+---
+
 ## [0.25.1-beta] — 2026-03-13
 
 ### Added

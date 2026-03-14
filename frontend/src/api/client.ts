@@ -21,6 +21,7 @@ import type {
   BazarrMappingReport, CompatBatchResult, ExtendedHealthAllResponse, ExportResult,
   ChapterList,
   SeriesFansubPrefs,
+  SubtitleDiffResult,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -1753,6 +1754,39 @@ export async function setSeriesFansubPrefs(
 
 export async function deleteSeriesFansubPrefs(seriesId: number): Promise<void> {
   await api.delete(`/series/${seriesId}/fansub-prefs`)
+}
+
+// ─── Subtitle Diff ────────────────────────────────────────────────────────────
+
+export async function computeSubtitleDiff(
+  original: string,
+  modified: string,
+): Promise<SubtitleDiffResult> {
+  try {
+    const { data } = await api.post<SubtitleDiffResult>('/tools/diff', { original, modified })
+    return data
+  } catch (err: unknown) {
+    const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+    throw new Error(msg ?? `computeSubtitleDiff failed`)
+  }
+}
+
+export async function applySubtitleDiff(
+  filePath: string,
+  original: string,
+  modified: string,
+  rejectedIndices: number[],
+): Promise<{ status: string; file_path: string; backup: string }> {
+  try {
+    const { data } = await api.post<{ status: string; file_path: string; backup: string }>(
+      '/tools/diff/apply',
+      { file_path: filePath, original, modified, rejected_indices: rejectedIndices },
+    )
+    return data
+  } catch (err: unknown) {
+    const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+    throw new Error(msg ?? `applySubtitleDiff failed`)
+  }
 }
 
 export default api
