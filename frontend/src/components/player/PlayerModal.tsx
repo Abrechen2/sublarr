@@ -26,15 +26,21 @@ export function PlayerModal({
     subtitleTracks.length > 0 ? initialTrackIndex : null,
   )
   const playerRef = useRef<VideoPlayerHandle>(null)
+  const onSeekReadyRef = useRef(onSeekReady)
 
   const activeTrack = activeIndex !== null ? (subtitleTracks[activeIndex] ?? null) : null
   const streamUrl = getMediaStreamUrl(videoPath)
 
+  useEffect(() => {
+    onSeekReadyRef.current = onSeekReady
+  })
+
   // Expose seek to parent after mount
   useEffect(() => {
-    if (!onSeekReady) return
-    onSeekReady((seconds) => playerRef.current?.seek(seconds))
-  }, [onSeekReady])
+    if (!onSeekReadyRef.current) return
+    onSeekReadyRef.current((seconds) => playerRef.current?.seek(seconds))
+    // Intentionally empty deps: run once on mount only
+  }, [])
 
   // Close on Escape
   useEffect(() => {

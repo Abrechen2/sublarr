@@ -51,13 +51,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(
       }
     }, [activeTrack])
 
-    // Cleanup on unmount
-    useEffect(() => {
-      return () => {
-        octopusRef.current?.dispose()
-      }
-    }, [])
-
     return (
       <video
         ref={videoRef}
