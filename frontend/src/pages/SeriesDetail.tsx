@@ -9,13 +9,13 @@ import {
   Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search,
   Download, X, BookOpen, Plus, Edit2, Trash2, Check,
   Eye, Pencil, Database,
-  Layers, Sparkles, Trash,
+  Layers, Sparkles, Trash, FileCode,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { TrackPanel } from '@/components/tracks/TrackPanel'
-import { autoSyncFile, startWantedBatchSearch, batchExtractAllTracks, listSeriesSubtitles, deleteSubtitles, getSubtitleDownloadUrl, getSeriesSubtitleExportUrl } from '@/api/client'
+import { autoSyncFile, startWantedBatchSearch, batchExtractAllTracks, listSeriesSubtitles, deleteSubtitles, getSubtitleDownloadUrl, getSeriesSubtitleExportUrl, exportSubtitleNfo } from '@/api/client'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
@@ -834,6 +834,16 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                                         />
                                       </svg>
                                     </a>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); exportSubtitleNfo(matchingSidecar.path).then(() => toast.success('NFO exported')).catch(() => toast.error('NFO export failed')) }}
+                                      className="p-0.5 rounded transition-colors"
+                                      style={{ color: 'var(--text-muted)', lineHeight: 1 }}
+                                      title="Export NFO sidecar"
+                                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
+                                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
+                                    >
+                                      <FileCode size={11} />
+                                    </button>
                                   </>
                                 )}
                                 {(subFormat === 'ass' || subFormat === 'srt') && (

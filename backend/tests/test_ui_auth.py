@@ -6,10 +6,10 @@ from flask import Flask, session
 import ui_auth
 from ui_auth import (
     hash_password,
-    verify_password,
+    init_ui_auth,
     is_ui_auth_configured,
     is_ui_auth_enabled,
-    init_ui_auth,
+    verify_password,
 )
 
 
@@ -40,17 +40,23 @@ def test_is_ui_auth_configured_false_when_no_entry(monkeypatch):
 
 
 def test_is_ui_auth_configured_true_when_entry_exists(monkeypatch):
-    monkeypatch.setattr(ui_auth, "_get_config_entry", lambda k: "some_hash" if k == "ui_password_hash" else None)
+    monkeypatch.setattr(
+        ui_auth, "_get_config_entry", lambda k: "some_hash" if k == "ui_password_hash" else None
+    )
     assert is_ui_auth_configured() is True
 
 
 def test_is_ui_auth_enabled_false_when_disabled(monkeypatch):
-    monkeypatch.setattr(ui_auth, "_get_config_entry", lambda k: "false" if k == "ui_auth_enabled" else None)
+    monkeypatch.setattr(
+        ui_auth, "_get_config_entry", lambda k: "false" if k == "ui_auth_enabled" else None
+    )
     assert is_ui_auth_enabled() is False
 
 
 def test_is_ui_auth_enabled_true_when_enabled(monkeypatch):
-    monkeypatch.setattr(ui_auth, "_get_config_entry", lambda k: "true" if k == "ui_auth_enabled" else "hash")
+    monkeypatch.setattr(
+        ui_auth, "_get_config_entry", lambda k: "true" if k == "ui_auth_enabled" else "hash"
+    )
     assert is_ui_auth_enabled() is True
 
 
@@ -120,8 +126,10 @@ def test_hook_allows_api_key_without_session(monkeypatch):
     monkeypatch.setattr(ui_auth, "is_ui_auth_enabled", lambda: True)
 
     import os
+
     os.environ["SUBLARR_API_KEY"] = "test-key"
     from config import reload_settings
+
     reload_settings()
 
     app = Flask(__name__)

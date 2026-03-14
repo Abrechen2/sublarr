@@ -245,6 +245,10 @@ const FIELDS: FieldConfig[] = [
   // Automation — Subtitle Trash
   { key: 'subtitle_trash_retention_days', label: 'Papierkorb-Aufbewahrung (Tage)', type: 'number', placeholder: '7', tab: 'Automation',
     description: 'Gelöschte Sidecar-Dateien werden N Tage im Papierkorb behalten und können wiederhergestellt werden. 0 = dauerhaft behalten.' },
+  // Automation — NFO Export (expert)
+  { key: 'auto_nfo_export', label: 'Auto NFO Export', type: 'toggle', tab: 'Automation',
+    description: 'Write an XML sidecar (.nfo) next to every downloaded or translated subtitle. Contains provider, language, score, and translation metadata. Off by default.',
+    advanced: true },
 ]
 
 // ─── Path Mapping Editor ────────────────────────────────────────────────────

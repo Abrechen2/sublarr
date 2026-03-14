@@ -17,11 +17,13 @@ logger = logging.getLogger(__name__)
 
 def _get_config_entry(key: str):
     from db.config import get_config_entry
+
     return get_config_entry(key)
 
 
 def _save_config_entry(key: str, value: str):
     from db.config import save_config_entry
+
     save_config_entry(key, value)
 
 
@@ -54,6 +56,7 @@ def _get_or_create_secret_key() -> str:
 
 def _has_valid_api_key() -> bool:
     from config import get_settings
+
     settings = get_settings()
     if not settings.api_key:
         return False
