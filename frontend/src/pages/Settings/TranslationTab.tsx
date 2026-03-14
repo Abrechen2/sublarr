@@ -1389,6 +1389,7 @@ export function GlobalGlossaryPanel() {
         <SettingRow
           label="Max Glossary Terms"
           helpText="Maximum number of glossary terms injected per translation request."
+          advanced
         >
           <input
             type="number"
