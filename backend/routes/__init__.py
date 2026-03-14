@@ -21,6 +21,7 @@ def register_blueprints(app):
     from routes.library import bp as library_bp
     from routes.marketplace import bp as marketplace_bp
     from routes.mediaservers import bp as mediaservers_bp
+    from routes.nfo import bp as nfo_bp
     from routes.notifications_mgmt import bp as notifications_mgmt_bp
     from routes.ocr import bp as ocr_bp
     from routes.plugins import bp as plugins_bp
@@ -38,7 +39,6 @@ def register_blueprints(app):
     from routes.translate import bp as translate_bp
     from routes.video import bp as video_bp
     from routes.video_sync import bp as video_sync_bp
-    from routes.nfo import bp as nfo_bp
     from routes.wanted import bp as wanted_bp
     from routes.webhooks import bp as webhooks_bp
     from routes.whisper import bp as whisper_bp

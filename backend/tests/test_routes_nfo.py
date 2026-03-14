@@ -11,7 +11,6 @@ from flask import Flask
 import routes.nfo as nfo_module
 from routes.nfo import bp as nfo_bp
 
-
 # ---------------------------------------------------------------------------
 # App fixture — isolated Flask app with just the nfo blueprint
 # ---------------------------------------------------------------------------

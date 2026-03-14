@@ -1,7 +1,9 @@
 """Tests for nfo_export.py — XML sidecar writing."""
 import os
 import xml.etree.ElementTree as ET
+
 import pytest
+
 import nfo_export
 
 
