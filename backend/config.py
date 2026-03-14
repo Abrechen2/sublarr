@@ -180,6 +180,9 @@ class Settings(BaseSettings):
     auto_sync_after_download: bool = False  # Auto-sync subtitle against video after download
     auto_sync_engine: str = "ffsubsync"  # Engine for auto-sync: "ffsubsync" | "alass"
 
+    # NFO Export
+    auto_nfo_export: bool = False  # Expert: write XML NFO sidecar after every download/translation
+
     # Wanted Search Scheduler
     wanted_search_interval_hours: int = 24  # 0 = disabled
     wanted_search_on_startup: bool = False
