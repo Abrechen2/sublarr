@@ -20,6 +20,7 @@ def register_blueprints(app):
     from routes.languages import bp as languages_bp
     from routes.library import bp as library_bp
     from routes.marketplace import bp as marketplace_bp
+    from routes.media import bp as media_bp
     from routes.mediaservers import bp as mediaservers_bp
     from routes.nfo import bp as nfo_bp
     from routes.notifications_mgmt import bp as notifications_mgmt_bp
@@ -79,5 +80,6 @@ def register_blueprints(app):
         remux_bp,
         series_audio_bp,
         nfo_bp,
+        media_bp,
     ]:
         app.register_blueprint(blueprint)
