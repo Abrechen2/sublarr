@@ -10,6 +10,8 @@ import os
 import threading
 import time
 
+from sqlalchemy import text
+
 logger = logging.getLogger(__name__)
 
 
@@ -159,7 +161,7 @@ class StandaloneScanner:
 
         # Collect all video files
         video_files = []
-        for root, _dirs, files in os.walk(folder_path):
+        for root, _dirs, files in os.walk(folder_path, followlinks=True):
             for filename in files:
                 full_path = os.path.join(root, filename)
                 if is_video_file(full_path):
@@ -544,7 +546,7 @@ class StandaloneScanner:
             db = get_db()
             with _db_lock:
                 rows = db.execute(
-                    "SELECT id, file_path FROM wanted_items WHERE instance_name='standalone'"
+                    text("SELECT id, file_path FROM wanted_items WHERE instance_name='standalone'")
                 ).fetchall()
 
             to_remove = []

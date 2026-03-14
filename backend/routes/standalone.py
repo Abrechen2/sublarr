@@ -8,7 +8,8 @@ import logging
 import os
 import threading
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
+from sqlalchemy import text
 
 bp = Blueprint("standalone", __name__, url_prefix="/api/v1/standalone")
 logger = logging.getLogger(__name__)
@@ -287,8 +288,10 @@ def list_series():
         with _db_lock:
             for series in series_list:
                 row = db.execute(
-                    "SELECT COUNT(*) FROM wanted_items WHERE standalone_series_id=? AND status='wanted'",
-                    (series["id"],),
+                    text(
+                        "SELECT COUNT(*) FROM wanted_items WHERE standalone_series_id=:sid AND status='wanted'"
+                    ),
+                    {"sid": series["id"]},
                 ).fetchone()
                 series["wanted_count"] = row[0] if row else 0
 
@@ -337,10 +340,12 @@ def get_series(series_id):
         db = get_db()
         with _db_lock:
             rows = db.execute(
-                "SELECT * FROM wanted_items WHERE standalone_series_id=? ORDER BY file_path",
-                (series_id,),
+                text(
+                    "SELECT * FROM wanted_items WHERE standalone_series_id=:sid ORDER BY file_path"
+                ),
+                {"sid": series_id},
             ).fetchall()
-        series["wanted_items"] = [dict(row) for row in rows]
+        series["wanted_items"] = [dict(row._mapping) for row in rows]
 
         return jsonify(series)
     except Exception as e:
@@ -390,8 +395,8 @@ def delete_series(series_id):
         db = get_db()
         with _db_lock:
             db.execute(
-                "DELETE FROM wanted_items WHERE standalone_series_id=?",
-                (series_id,),
+                text("DELETE FROM wanted_items WHERE standalone_series_id=:sid"),
+                {"sid": series_id},
             )
             db.commit()
 
@@ -439,8 +444,10 @@ def list_movies():
         with _db_lock:
             for movie in movies:
                 row = db.execute(
-                    "SELECT COUNT(*) FROM wanted_items WHERE standalone_movie_id=? AND status='wanted'",
-                    (movie["id"],),
+                    text(
+                        "SELECT COUNT(*) FROM wanted_items WHERE standalone_movie_id=:mid AND status='wanted'"
+                    ),
+                    {"mid": movie["id"]},
                 ).fetchone()
                 movie["wanted_count"] = row[0] if row else 0
 
@@ -492,8 +499,8 @@ def delete_movie(movie_id):
         db = get_db()
         with _db_lock:
             db.execute(
-                "DELETE FROM wanted_items WHERE standalone_movie_id=?",
-                (movie_id,),
+                text("DELETE FROM wanted_items WHERE standalone_movie_id=:mid"),
+                {"mid": movie_id},
             )
             db.commit()
 
@@ -532,14 +539,17 @@ def scan_all():
                     type: string
     """
 
-    def _run_scan():
-        try:
-            from standalone.scanner import StandaloneScanner
+    app = current_app._get_current_object()
 
-            scanner = StandaloneScanner()
-            scanner.scan_all_folders()
-        except Exception as e:
-            logger.error("Standalone scan failed: %s", e)
+    def _run_scan():
+        with app.app_context():
+            try:
+                from standalone.scanner import StandaloneScanner
+
+                scanner = StandaloneScanner()
+                scanner.scan_all_folders()
+            except Exception as e:
+                logger.error("Standalone scan failed: %s", e)
 
     threading.Thread(target=_run_scan, daemon=True).start()
     return jsonify({"message": "Scan started"}), 202
@@ -581,14 +591,17 @@ def scan_folder(folder_id):
     if not folder:
         return jsonify({"error": "Folder not found"}), 404
 
-    def _run_scan():
-        try:
-            from standalone.scanner import StandaloneScanner
+    app = current_app._get_current_object()
 
-            scanner = StandaloneScanner()
-            scanner.scan_folder(folder["path"])
-        except Exception as e:
-            logger.error("Standalone scan for folder %d failed: %s", folder_id, e)
+    def _run_scan():
+        with app.app_context():
+            try:
+                from standalone.scanner import StandaloneScanner
+
+                scanner = StandaloneScanner()
+                scanner.scan_folder(folder["path"])
+            except Exception as e:
+                logger.error("Standalone scan for folder %d failed: %s", folder_id, e)
 
     threading.Thread(target=_run_scan, daemon=True).start()
     return jsonify({"message": f"Scan started for folder {folder_id}"}), 202
