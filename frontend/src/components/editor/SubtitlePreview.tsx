@@ -22,6 +22,7 @@ interface SubtitlePreviewProps {
   filePath: string
   onEdit?: () => void           // Optional callback to switch to edit mode
   onClose?: () => void          // Close preview
+  onSeekRequest?: (seconds: number) => void  // optional: seek co-open player to cue time
   className?: string
 }
 
@@ -36,6 +37,7 @@ export default function SubtitlePreview({
   filePath,
   onEdit,
   onClose,
+  onSeekRequest,
   className = '',
 }: SubtitlePreviewProps) {
   const { t } = useTranslation('editor')
@@ -56,9 +58,16 @@ export default function SubtitlePreview({
   // Select the correct language extension based on format
   const languageExt = contentData?.format === 'srt' ? srtLanguage : assLanguage
 
-  // Handle timeline cue click: scroll editor to approximate line
+  // Handle timeline cue click: scroll editor to approximate line and optionally seek player
   const handleCueClick = useCallback((cueIndex: number) => {
     const view = editorRef.current?.view
+    const cues = parseData?.cues
+
+    // Seek the co-open player to this cue's start time (in seconds)
+    if (onSeekRequest && cues && cues[cueIndex] !== undefined) {
+      onSeekRequest(cues[cueIndex].start)
+    }
+
     if (!view || !contentData) return
 
     // Estimate line position based on format and cue index
@@ -81,7 +90,7 @@ export default function SubtitlePreview({
     view.dispatch({
       effects: EditorView.scrollIntoView(line.from, { y: 'center' }),
     })
-  }, [contentData])
+  }, [contentData, parseData, onSeekRequest])
 
   // Loading state
   if (contentLoading) {
