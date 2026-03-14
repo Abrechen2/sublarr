@@ -1,6 +1,6 @@
 # Sublarr — Roadmap
 
-> Completed versions are marked ✅. The current release is **v0.25.3-beta**. Planned versions reflect intended direction and may shift.
+> Completed versions are marked ✅. The current release is **v0.27.0-beta**. Planned versions reflect intended direction and may shift.
 
 ---
 
@@ -245,7 +245,7 @@ Goals: Smooth scrolling for large libraries.
 
 ---
 
-## v0.26.0 — Single-Account Login
+## v0.26.0 ✅ — Single-Account Login
 
 Goals: Optional password protection for the web UI — no multi-user, no RBAC, just a simple access gate.
 
@@ -259,7 +259,7 @@ Goals: Optional password protection for the web UI — no multi-user, no RBAC, j
 
 ---
 
-## v0.27.0 — Subtitle Quality Score Export
+## v0.27.0 ✅ — Subtitle Quality Score Export
 
 Goals: Persist per-file quality metadata as Kodi/Jellyfin-compatible NFO sidecars for media managers.
 
