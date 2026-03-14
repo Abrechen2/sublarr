@@ -1,4 +1,5 @@
 """Tests for POST /tools/diff and POST /tools/diff/apply endpoints."""
+
 import os
 
 import pytest
@@ -8,8 +9,10 @@ import pytest
 def client(tmp_path):
     os.environ["SUBLARR_MEDIA_PATH"] = str(tmp_path)
     from config import reload_settings
+
     reload_settings()
     from app import create_app
+
     app = create_app(testing=True)
     with app.test_client() as c, app.app_context():
         yield c
@@ -48,6 +51,7 @@ Dialogue: 0,0:00:04.00,0:00:06.00,Default,,0,0,0,,This is unchanged
 
 # ── POST /tools/diff ────────────────────────────────────────────────────────────
 
+
 def test_diff_returns_diffs(client):
     resp = client.post("/api/v1/tools/diff", json={"original": ORIG_ASS, "modified": MOD_ASS})
     assert resp.status_code == 200
@@ -62,7 +66,9 @@ def test_diff_missing_original(client):
 
 
 def test_diff_malformed_input(client):
-    resp = client.post("/api/v1/tools/diff", json={"original": "not valid ass content", "modified": MOD_ASS})
+    resp = client.post(
+        "/api/v1/tools/diff", json={"original": "not valid ass content", "modified": MOD_ASS}
+    )
     assert resp.status_code == 400
     assert "error" in (resp.get_json() or {})
 
@@ -100,6 +106,7 @@ def test_diff_response_structure(client):
 
 # ── POST /tools/diff/apply ──────────────────────────────────────────────────────
 
+
 def _write_sub_file(tmp_path, content, filename="test.de.ass"):
     """Write subtitle content to a file in tmp_path and return its path."""
     sub_file = tmp_path / filename
@@ -109,12 +116,15 @@ def _write_sub_file(tmp_path, content, filename="test.de.ass"):
 
 def test_apply_creates_backup(client, tmp_path):
     sub_file = _write_sub_file(tmp_path, MOD_ASS)
-    resp = client.post("/api/v1/tools/diff/apply", json={
-        "file_path": sub_file,
-        "original": ORIG_ASS,
-        "modified": MOD_ASS,
-        "rejected_indices": [],
-    })
+    resp = client.post(
+        "/api/v1/tools/diff/apply",
+        json={
+            "file_path": sub_file,
+            "original": ORIG_ASS,
+            "modified": MOD_ASS,
+            "rejected_indices": [],
+        },
+    )
     assert resp.status_code == 200
     data = resp.get_json()
     assert "backup" in data
@@ -123,24 +133,30 @@ def test_apply_creates_backup(client, tmp_path):
 
 def test_apply_returns_status_applied(client, tmp_path):
     sub_file = _write_sub_file(tmp_path, MOD_ASS)
-    resp = client.post("/api/v1/tools/diff/apply", json={
-        "file_path": sub_file,
-        "original": ORIG_ASS,
-        "modified": MOD_ASS,
-        "rejected_indices": [],
-    })
+    resp = client.post(
+        "/api/v1/tools/diff/apply",
+        json={
+            "file_path": sub_file,
+            "original": ORIG_ASS,
+            "modified": MOD_ASS,
+            "rejected_indices": [],
+        },
+    )
     assert resp.status_code == 200
     assert resp.get_json()["status"] == "applied"
 
 
 def test_apply_accept_all_writes_modified_content(client, tmp_path):
     sub_file = _write_sub_file(tmp_path, MOD_ASS)
-    resp = client.post("/api/v1/tools/diff/apply", json={
-        "file_path": sub_file,
-        "original": ORIG_ASS,
-        "modified": MOD_ASS,
-        "rejected_indices": [],
-    })
+    resp = client.post(
+        "/api/v1/tools/diff/apply",
+        json={
+            "file_path": sub_file,
+            "original": ORIG_ASS,
+            "modified": MOD_ASS,
+            "rejected_indices": [],
+        },
+    )
     assert resp.status_code == 200
     written = open(sub_file, encoding="utf-8").read()
     assert "Hallo Welt" in written
@@ -152,52 +168,67 @@ def test_apply_reject_all_restores_original_content(client, tmp_path):
     diff_resp = client.post("/api/v1/tools/diff", json={"original": ORIG_ASS, "modified": MOD_ASS})
     diffs = diff_resp.get_json()["diffs"]
     rejected = [i for i, d in enumerate(diffs) if d["type"] != "unchanged"]
-    resp = client.post("/api/v1/tools/diff/apply", json={
-        "file_path": sub_file,
-        "original": ORIG_ASS,
-        "modified": MOD_ASS,
-        "rejected_indices": rejected,
-    })
+    resp = client.post(
+        "/api/v1/tools/diff/apply",
+        json={
+            "file_path": sub_file,
+            "original": ORIG_ASS,
+            "modified": MOD_ASS,
+            "rejected_indices": rejected,
+        },
+    )
     assert resp.status_code == 200
     written = open(sub_file, encoding="utf-8").read()
     assert "Hello world" in written
 
 
 def test_apply_missing_file_path(client):
-    resp = client.post("/api/v1/tools/diff/apply", json={
-        "original": ORIG_ASS,
-        "modified": MOD_ASS,
-        "rejected_indices": [],
-    })
+    resp = client.post(
+        "/api/v1/tools/diff/apply",
+        json={
+            "original": ORIG_ASS,
+            "modified": MOD_ASS,
+            "rejected_indices": [],
+        },
+    )
     assert resp.status_code == 400
 
 
 def test_apply_path_traversal_rejected(client, tmp_path):
-    resp = client.post("/api/v1/tools/diff/apply", json={
-        "file_path": "/etc/passwd",
-        "original": ORIG_ASS,
-        "modified": MOD_ASS,
-        "rejected_indices": [],
-    })
+    resp = client.post(
+        "/api/v1/tools/diff/apply",
+        json={
+            "file_path": "/etc/passwd",
+            "original": ORIG_ASS,
+            "modified": MOD_ASS,
+            "rejected_indices": [],
+        },
+    )
     assert resp.status_code == 403
 
 
 def test_apply_nonexistent_file(client, tmp_path):
-    resp = client.post("/api/v1/tools/diff/apply", json={
-        "file_path": str(tmp_path / "nonexistent.ass"),
-        "original": ORIG_ASS,
-        "modified": MOD_ASS,
-        "rejected_indices": [],
-    })
+    resp = client.post(
+        "/api/v1/tools/diff/apply",
+        json={
+            "file_path": str(tmp_path / "nonexistent.ass"),
+            "original": ORIG_ASS,
+            "modified": MOD_ASS,
+            "rejected_indices": [],
+        },
+    )
     assert resp.status_code == 404
 
 
 def test_apply_malformed_original(client, tmp_path):
     sub_file = _write_sub_file(tmp_path, MOD_ASS)
-    resp = client.post("/api/v1/tools/diff/apply", json={
-        "file_path": sub_file,
-        "original": "not valid",
-        "modified": MOD_ASS,
-        "rejected_indices": [],
-    })
+    resp = client.post(
+        "/api/v1/tools/diff/apply",
+        json={
+            "file_path": sub_file,
+            "original": "not valid",
+            "modified": MOD_ASS,
+            "rejected_indices": [],
+        },
+    )
     assert resp.status_code == 400
