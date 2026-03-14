@@ -103,26 +103,36 @@ def build_prompt_with_glossary(
 ) -> str:
     """Build a translation prompt with glossary terms prepended.
 
+    Only approved entries (approved != 0) are injected, capped at 50.
+    The glossary is rendered as a structured <glossary> XML block placed
+    before the prompt template.
+
     Args:
         prompt_template: Base prompt template
-        glossary_entries: List of {source_term, target_term} dicts (max 15)
+        glossary_entries: List of {source_term, target_term[, approved]} dicts (max 50)
         lines: List of subtitle lines to translate
 
     Returns:
-        Complete prompt with glossary and numbered lines
+        Complete prompt with optional glossary block and numbered lines
     """
+    numbered = "\n".join(f"{i + 1}: {line}" for i, line in enumerate(lines))
+
     if not glossary_entries:
-        numbered = "\n".join(f"{i + 1}: {line}" for i, line in enumerate(lines))
         return prompt_template + numbered
 
-    # Build glossary string (max 15 entries)
-    glossary_parts = [
-        f"{entry['source_term']} \u2192 {entry['target_term']}" for entry in glossary_entries[:15]
-    ]
-    glossary_str = "Glossary: " + ", ".join(glossary_parts) + "\n\n"
+    # Filter out non-approved entries (approved == 0 means pending suggestion)
+    approved = [e for e in glossary_entries if e.get("approved", 1) != 0]
 
-    numbered = "\n".join(f"{i + 1}: {line}" for i, line in enumerate(lines))
-    return glossary_str + prompt_template + numbered
+    if not approved:
+        return prompt_template + numbered
+
+    # Cap at 50 entries and build structured <glossary> block
+    glossary_lines = "\n".join(
+        f"  {entry['source_term']} \u2192 {entry['target_term']}" for entry in approved[:50]
+    )
+    glossary_block = f"<glossary>\n{glossary_lines}\n</glossary>\n\n"
+
+    return glossary_block + prompt_template + numbered
 
 
 def build_translation_prompt(
