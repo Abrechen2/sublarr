@@ -464,11 +464,22 @@ def create_glossary_entry():
     source_term = data.get("source_term", "").strip()
     target_term = data.get("target_term", "").strip()
     notes = data.get("notes", "").strip()
+    term_type = data.get("term_type", "other")
+    confidence = data.get("confidence", None)
+    approved = data.get("approved", 1)
 
     if not source_term or not target_term:
         return jsonify({"error": "source_term and target_term are required"}), 400
 
-    entry_id = add_glossary_entry(series_id, source_term, target_term, notes)
+    entry_id = add_glossary_entry(
+        series_id,
+        source_term,
+        target_term,
+        notes,
+        term_type=term_type,
+        confidence=confidence,
+        approved=approved,
+    )
     entry = get_glossary_entry(entry_id)
     return jsonify(entry), 201
 
@@ -523,12 +534,21 @@ def update_glossary_entry_endpoint(entry_id):
     source_term = data.get("source_term")
     target_term = data.get("target_term")
     notes = data.get("notes")
+    term_type = data.get("term_type")
+    approved = data.get("approved")
+
+    # confidence uses Ellipsis as sentinel: omit key = unchanged, explicit None = clear it
+    _sentinel = ...
+    confidence = data.get("confidence", _sentinel) if "confidence" in data else _sentinel
 
     updated = update_glossary_entry(
         entry_id,
         source_term=source_term,
         target_term=target_term,
         notes=notes,
+        term_type=term_type,
+        confidence=confidence,
+        approved=approved,
     )
 
     if not updated:

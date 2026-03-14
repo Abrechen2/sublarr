@@ -183,6 +183,10 @@ class Settings(BaseSettings):
     # NFO Export
     auto_nfo_export: bool = False  # Expert: write XML NFO sidecar after every download/translation
 
+    # Glossary
+    glossary_enabled: bool = True  # Enable glossary injection during translation
+    glossary_max_terms: int = 100  # Maximum number of glossary terms injected per translation
+
     # Wanted Search Scheduler
     wanted_search_interval_hours: int = 24  # 0 = disabled
     wanted_search_on_startup: bool = False
