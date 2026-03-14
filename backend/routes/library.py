@@ -4,6 +4,8 @@ import logging
 
 from flask import Blueprint, jsonify, request
 
+from services.glossary_extractor import extract_candidates
+
 bp = Blueprint("library", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
 
@@ -928,3 +930,86 @@ def episode_history(episode_id):
     mapped = map_path(file_path)
     entries = get_episode_history(mapped)
     return jsonify({"entries": entries})
+
+
+@bp.route("/series/<int:series_id>/glossary/suggest", methods=["POST"])
+def suggest_glossary_candidates(series_id):
+    """Extract glossary term candidates from subtitle sidecars for a series.
+    ---
+    post:
+      tags:
+        - Library
+      summary: Suggest glossary candidates
+      description: >
+        Scans the series subtitle sidecar files and returns frequency-based
+        proper-noun candidates suitable for seeding the glossary. Does not
+        write anything to the database.
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: series_id
+          required: true
+          schema:
+            type: integer
+          description: Sonarr series ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                source_lang:
+                  type: string
+                  default: en
+                  description: Language tag used in sidecar filenames (e.g. "en")
+                min_freq:
+                  type: integer
+                  default: 3
+                  description: Minimum occurrence count to include a candidate
+      responses:
+        200:
+          description: Candidate terms (empty list when series not found or no subs)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  candidates:
+                    type: array
+                    items:
+                      type: object
+                  series_id:
+                    type: integer
+                  message:
+                    type: string
+                    nullable: true
+    """
+    from config import map_path
+    from sonarr_client import get_sonarr_client
+
+    sonarr = get_sonarr_client()
+    if not sonarr:
+        return jsonify(
+            {"candidates": [], "series_id": series_id, "message": "Sonarr not configured"}
+        )
+
+    series = sonarr.get_series_by_id(series_id)
+    if not series or not series.get("path"):
+        return jsonify(
+            {"candidates": [], "series_id": series_id, "message": "Series media path not found"}
+        )
+
+    body = request.get_json(silent=True) or {}
+    source_lang = (body.get("source_lang") or "en").strip()
+    min_freq = int(body.get("min_freq") or 3)
+
+    media_path = map_path(series["path"])
+    candidates = extract_candidates(
+        media_path,
+        source_lang=source_lang,
+        min_freq=min_freq,
+        max_candidates=100,
+    )
+
+    return jsonify({"candidates": candidates, "series_id": series_id})

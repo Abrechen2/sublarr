@@ -38,6 +38,9 @@ class GlossaryEntry(db.Model):
     source_term: Mapped[str] = mapped_column(Text, nullable=False)
     target_term: Mapped[str] = mapped_column(Text, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, default="")
+    term_type: Mapped[str] = mapped_column(Text, nullable=False, default="other")
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    approved: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[str] = mapped_column(Text, nullable=False)
     updated_at: Mapped[str] = mapped_column(Text, nullable=False)
 
