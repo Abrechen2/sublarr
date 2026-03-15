@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Home } from 'lucide-react'
+import { Home, ArrowLeft } from 'lucide-react'
 
 export function NotFoundPage() {
   const navigate = useNavigate()
@@ -20,14 +20,25 @@ export function NotFoundPage() {
         <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
           The page you're looking for doesn't exist or has been moved.
         </p>
-        <button
-          onClick={() => navigate('/')}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90"
-          style={{ backgroundColor: 'var(--accent)' }}
-        >
-          <Home size={14} />
-          Go to Dashboard
-        </button>
+        <div className="flex justify-center flex-wrap gap-4">
+          <button
+            onClick={() => navigate(-1)}
+            data-testid="not-found-back"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-opacity hover:opacity-90"
+            style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+          >
+            <ArrowLeft size={14} />
+            Go Back
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90"
+            style={{ backgroundColor: 'var(--accent)' }}
+          >
+            <Home size={14} />
+            Go to Dashboard
+          </button>
+        </div>
       </div>
     </div>
   )

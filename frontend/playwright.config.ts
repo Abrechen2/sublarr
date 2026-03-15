@@ -44,11 +44,15 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  /* Dev: start Vite frontend (backend must be running separately on :5765) */
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-  },
+  /* Skipped when PLAYWRIGHT_BASE_URL points to an external/remote instance */
+  ...(!process.env.PLAYWRIGHT_BASE_URL || process.env.PLAYWRIGHT_BASE_URL.includes('localhost')
+    ? {
+        webServer: {
+          command: 'npm run dev',
+          url: 'http://localhost:5173',
+          reuseExistingServer: !process.env.CI,
+          timeout: 120 * 1000,
+        },
+      }
+    : {}),
 });

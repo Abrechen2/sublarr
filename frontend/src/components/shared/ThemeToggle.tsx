@@ -26,6 +26,7 @@ export function ThemeToggle() {
 
   return (
     <button
+      data-testid="theme-toggle"
       onClick={cycleTheme}
       aria-label={`Theme: ${label}`}
       title={label}

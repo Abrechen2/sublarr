@@ -131,6 +131,7 @@ export function DashboardGrid({ onOpenSettings }: DashboardGridProps) {
     <div ref={containerRef}>
       <div className="flex justify-end mb-2 px-1">
         <button
+          data-testid="edit-layout-btn"
           onClick={() => setIsEditMode((v) => !v)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all duration-150 hover:opacity-90"
           style={
