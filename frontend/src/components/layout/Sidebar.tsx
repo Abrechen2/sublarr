@@ -188,7 +188,6 @@ export function Sidebar() {
                   end={to === '/'}
                   data-testid={`nav-link-${to === '/' ? 'dashboard' : to.slice(1)}`}
                   onClick={() => setMobileOpen(false)}
-                  aria-current={isActive ? 'page' : undefined}
                   className={({ isActive }) =>
                     cn(
                       'flex items-center gap-2.5 px-3 py-[7px] text-[13px] font-medium transition-colors duration-100 mb-px relative',
