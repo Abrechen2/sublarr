@@ -53,7 +53,7 @@ test.describe('3.2 Ansicht wechseln', () => {
     await page.waitForTimeout(300);
     // Grid shows poster cards instead of table rows
     const gridCard = page.locator('[data-testid="library-card"], .grid img, .grid [role="img"]').first();
-    const hasGrid = await gridCard.isVisible().catch(() => false);
+    const _hasGrid = await gridCard.isVisible().catch(() => false);
     // Alternative: rows should not be visible in grid mode, or grid-specific element appears
     const bodyText = await page.locator('body').innerText();
     expect(bodyText.length).toBeGreaterThan(0);
@@ -177,7 +177,7 @@ test.describe('3.5 Refresh', () => {
     const library = new LibraryPage(page);
     await library.goto();
     await expect(library.rows.first()).toBeVisible({ timeout: 20000 });
-    const countBefore = await library.rows.count();
+    const _countBefore = await library.rows.count();
     // Refresh button — look for RefreshCw icon button
     const refreshBtn = page.locator('[data-testid="library-refresh"], button[aria-label*="efresh"], button[title*="efresh"]').first();
     const hasRefresh = await refreshBtn.isVisible({ timeout: 2000 }).catch(() => false);

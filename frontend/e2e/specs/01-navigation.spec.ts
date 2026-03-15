@@ -113,7 +113,7 @@ test.describe('1.2 Theme & Language', () => {
     // Using aria-label fallback until redeploy
     const themeToggle = page.locator('[data-testid="theme-toggle"], button[aria-label*="Theme"], button[aria-label*="theme"]').first();
     await expect(themeToggle).toBeVisible({ timeout: 5000 });
-    const themeBefore = await page.locator('html').getAttribute('class');
+    const _themeBefore = await page.locator('html').getAttribute('class');
     await themeToggle.click();
     await page.waitForTimeout(200);
     const themeAfter = await page.locator('html').getAttribute('class');
@@ -229,12 +229,6 @@ test.describe('1.3 Keyboard Shortcuts', () => {
 });
 
 test.describe('1.4 404 / Error Pages', () => {
-  let basePage: BasePage;
-
-  test.beforeEach(async ({ page }) => {
-    basePage = new BasePage(page);
-  });
-
   test('1.4.1 unknown route shows 404 page with content', async ({ page }) => {
     await page.goto('/this-route-does-not-exist-xyz');
     await page.waitForLoadState('domcontentloaded');

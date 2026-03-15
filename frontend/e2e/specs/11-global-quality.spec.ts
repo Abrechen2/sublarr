@@ -64,7 +64,7 @@ test.describe('15.3 Toast Notifications', () => {
     const base = new BasePage(page);
     await base.goto('/');
     // Toasts render into a fixed container
-    const toastContainer = page.locator('[data-testid="toast"], .toaster, [class*="toast"]').first();
+    const _toastContainer = page.locator('[data-testid="toast"], .toaster, [class*="toast"]').first();
     // Container may be empty but should exist in DOM structure
     const body = await page.locator('body').innerHTML();
     const hasToastEl = body.includes('toast') || body.includes('Toast');

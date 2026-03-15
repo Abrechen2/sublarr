@@ -60,7 +60,7 @@ test.describe('14.1 Login Page', () => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
     // Either dashboard loads (auth disabled) or redirects to /login
-    const url = page.url();
+    const _url = page.url();
     const bodyText = await page.locator('body').innerText();
     expect(bodyText.length).toBeGreaterThan(20);
     await page.screenshot({ path: 'e2e/visual-batch09/14-1-5-auth-guard.png' });
