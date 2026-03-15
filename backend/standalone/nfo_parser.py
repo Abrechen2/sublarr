@@ -76,15 +76,26 @@ def _parse_unique_ids(root) -> dict:
 def parse_series_nfo(folder_path: str) -> dict | None:
     """Parse tvshow.nfo from a series folder.
 
+    Searches folder_path first, then its parent (handles the common case
+    where episodes live in Season subfolders but NFO is in the series root).
+
     Args:
-        folder_path: Path to the series root folder.
+        folder_path: Path to the common parent of episode files (may be a
+            Season subfolder).
 
     Returns:
         Dict with metadata keys, or None if no NFO found / parse error.
         Keys: title, year, tvdb_id, tmdb_id, imdb_id, anilist_id,
               is_anime, status, metadata_source, local_poster
     """
+    # Try current folder, then parent (Season subfolder → series root)
     nfo_path = _find_file(folder_path, _SERIES_NFO_NAMES)
+    nfo_folder = folder_path
+    if nfo_path is None:
+        parent = os.path.dirname(folder_path)
+        if parent != folder_path:
+            nfo_path = _find_file(parent, _SERIES_NFO_NAMES)
+            nfo_folder = parent
     if nfo_path is None:
         return None
 
@@ -116,7 +127,8 @@ def parse_series_nfo(folder_path: str) -> dict | None:
 
         is_anime = _is_anime_from_genres(genres) or anidb_id is not None
 
-        local_poster = _find_file(folder_path, _POSTER_NAMES)
+        # Poster lives in the same folder as the NFO (series root, not Season subfolder)
+        local_poster = _find_file(nfo_folder, _POSTER_NAMES)
 
         result = {
             "title": _text(root, "title") or _text(root, "sorttitle"),
@@ -210,10 +222,17 @@ def parse_movie_nfo(folder_path: str) -> dict | None:
 def find_local_poster(folder_path: str) -> str | None:
     """Find a poster image in a media folder without parsing NFO.
 
+    Checks folder_path first, then parent (handles Season subfolder layout).
+
     Args:
-        folder_path: Path to the media folder.
+        folder_path: Path to the media folder (may be a Season subfolder).
 
     Returns:
         Absolute path to poster file, or None.
     """
-    return _find_file(folder_path, _POSTER_NAMES)
+    poster = _find_file(folder_path, _POSTER_NAMES)
+    if poster is None:
+        parent = os.path.dirname(folder_path)
+        if parent != folder_path:
+            poster = _find_file(parent, _POSTER_NAMES)
+    return poster
