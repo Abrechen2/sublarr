@@ -95,53 +95,69 @@ def get_library():
             if getattr(settings, "standalone_enabled", False):
                 default_profile = get_default_profile()
                 profile_id = default_profile.get("id", 0) if default_profile else 0
-                profile_name = default_profile.get("name", "Default") if default_profile else "Default"
+                profile_name = (
+                    default_profile.get("name", "Default") if default_profile else "Default"
+                )
 
                 db = get_db()
 
                 for s in get_standalone_series():
                     with _db_lock:
                         row = db.execute(
-                            text("SELECT COUNT(*) FROM wanted_items WHERE standalone_series_id=:sid AND status='wanted'"),
+                            text(
+                                "SELECT COUNT(*) FROM wanted_items WHERE standalone_series_id=:sid AND status='wanted'"
+                            ),
                             {"sid": s["id"]},
                         ).fetchone()
-                    result["series"].append({
-                        "id": s["id"],
-                        "title": s["title"],
-                        "year": s.get("year"),
-                        "seasons": s.get("season_count") or 0,
-                        "episodes": s.get("episode_count") or 0,
-                        "episodes_with_files": s.get("episode_count") or 0,
-                        "path": s.get("folder_path", ""),
-                        "poster": s.get("poster_url") or "",
-                        "status": "continuing",
-                        "profile_id": profile_id,
-                        "profile_name": profile_name,
-                        "missing_count": row[0] if row else 0,
-                        "source": "standalone",
-                    })
+                    result["series"].append(
+                        {
+                            "id": s["id"],
+                            "title": s["title"],
+                            "year": s.get("year"),
+                            "seasons": s.get("season_count") or 0,
+                            "episodes": s.get("episode_count") or 0,
+                            "episodes_with_files": s.get("episode_count") or 0,
+                            "path": s.get("folder_path", ""),
+                            "poster": s.get("poster_url") or "",
+                            "status": "continuing",
+                            "profile_id": profile_id,
+                            "profile_name": profile_name,
+                            "missing_count": row[0] if row else 0,
+                            "source": "standalone",
+                        }
+                    )
 
                 for m in get_standalone_movies():
                     # Skip misidentified entries (files inside series folders)
                     title = m.get("title", "")
-                    if not title or title.lower() in ("tvshow", "movie", "trailer", "featurette", "sample"):
+                    if not title or title.lower() in (
+                        "tvshow",
+                        "movie",
+                        "trailer",
+                        "featurette",
+                        "sample",
+                    ):
                         continue
                     with _db_lock:
                         row = db.execute(
-                            text("SELECT COUNT(*) FROM wanted_items WHERE standalone_movie_id=:mid AND status='wanted'"),
+                            text(
+                                "SELECT COUNT(*) FROM wanted_items WHERE standalone_movie_id=:mid AND status='wanted'"
+                            ),
                             {"mid": m["id"]},
                         ).fetchone()
-                    result["movies"].append({
-                        "id": m["id"],
-                        "title": title,
-                        "year": m.get("year"),
-                        "has_file": True,
-                        "path": m.get("file_path", ""),
-                        "poster": m.get("poster_url") or "",
-                        "status": "released",
-                        "missing_count": row[0] if row else 0,
-                        "source": "standalone",
-                    })
+                    result["movies"].append(
+                        {
+                            "id": m["id"],
+                            "title": title,
+                            "year": m.get("year"),
+                            "has_file": True,
+                            "path": m.get("file_path", ""),
+                            "poster": m.get("poster_url") or "",
+                            "status": "released",
+                            "missing_count": row[0] if row else 0,
+                            "source": "standalone",
+                        }
+                    )
         except Exception as e:
             logger.warning("Failed to get standalone library: %s", e)
 

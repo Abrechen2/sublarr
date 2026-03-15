@@ -8,7 +8,7 @@ import logging
 import os
 import threading
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, send_file
 from sqlalchemy import text
 
 bp = Blueprint("standalone", __name__, url_prefix="/api/v1/standalone")
@@ -353,6 +353,36 @@ def get_series(series_id):
         return jsonify({"error": "Failed to get standalone series"}), 500
 
 
+@bp.route("/series/<int:series_id>/poster", methods=["GET"])
+def series_poster(series_id):
+    """Serve the local poster image for a standalone series.
+
+    Returns the local poster.jpg/poster.png found in the series folder
+    during scanning. Falls back to 404 if no local poster is stored.
+    """
+    from db.standalone import get_standalone_series
+    from security_utils import is_safe_path
+
+    series = get_standalone_series(series_id)
+    if not series:
+        return jsonify({"error": "Series not found"}), 404
+
+    poster_path = series.get("poster_url", "")
+    if not poster_path or not os.path.isfile(poster_path):
+        return jsonify({"error": "No local poster available"}), 404
+
+    # Security: poster must reside inside the series folder
+    series_folder = series.get("folder_path", "")
+    if series_folder and not is_safe_path(poster_path, series_folder):
+        return jsonify({"error": "Forbidden"}), 403
+
+    try:
+        return send_file(poster_path)
+    except Exception as e:
+        logger.error("Failed to serve poster for series %d: %s", series_id, e)
+        return jsonify({"error": "Failed to serve poster"}), 500
+
+
 @bp.route("/series/<int:series_id>", methods=["DELETE"])
 def delete_series(series_id):
     """Delete a standalone series and its wanted items.
@@ -455,6 +485,32 @@ def list_movies():
     except Exception as e:
         logger.error("Failed to list standalone movies: %s", e)
         return jsonify({"error": "Failed to list standalone movies"}), 500
+
+
+@bp.route("/movies/<int:movie_id>/poster", methods=["GET"])
+def movie_poster(movie_id):
+    """Serve the local poster image for a standalone movie."""
+    from db.standalone import get_standalone_movies
+    from security_utils import is_safe_path
+
+    movie = get_standalone_movies(movie_id)
+    if not movie:
+        return jsonify({"error": "Movie not found"}), 404
+
+    poster_path = movie.get("poster_url", "")
+    if not poster_path or not os.path.isfile(poster_path):
+        return jsonify({"error": "No local poster available"}), 404
+
+    # Security: poster must reside inside the movie folder
+    movie_folder = os.path.dirname(movie.get("file_path", ""))
+    if movie_folder and not is_safe_path(poster_path, movie_folder):
+        return jsonify({"error": "Forbidden"}), 403
+
+    try:
+        return send_file(poster_path)
+    except Exception as e:
+        logger.error("Failed to serve poster for movie %d: %s", movie_id, e)
+        return jsonify({"error": "Failed to serve poster"}), 500
 
 
 @bp.route("/movies/<int:movie_id>", methods=["DELETE"])
