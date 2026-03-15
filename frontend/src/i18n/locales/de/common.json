@@ -10,7 +10,8 @@
     "settings": "Einstellungen",
     "logs": "Protokolle",
     "statistics": "Statistiken",
-    "tasks": "Aufgaben"
+    "tasks": "Aufgaben",
+    "plugins": "Plugins"
   },
   "nav_groups": {
     "content": "Inhalte",

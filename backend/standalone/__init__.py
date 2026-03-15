@@ -55,14 +55,16 @@ class StandaloneManager:
         self._scanner = StandaloneScanner()
         self._watcher_running = False
         self._socketio = None
+        self._app = None
 
-    def start(self, socketio=None) -> None:
+    def start(self, socketio=None, app=None) -> None:
         """Start standalone mode: watcher + initial scan.
 
         Args:
             socketio: Optional SocketIO instance for WebSocket events.
         """
         self._socketio = socketio
+        self._app = app
 
         try:
             from config import get_settings
@@ -150,7 +152,10 @@ class StandaloneManager:
 
     def _initial_scan(self) -> None:
         """Run an initial full scan of all watched folders (background thread)."""
+        ctx = self._app.app_context() if self._app is not None else None
         try:
+            if ctx is not None:
+                ctx.push()
             summary = self._scanner.scan_all_folders()
             try:
                 from events import emit_event
@@ -161,13 +166,19 @@ class StandaloneManager:
             logger.info("Initial standalone scan complete: %s", summary)
         except Exception as e:
             logger.error("Initial standalone scan failed: %s", e)
+        finally:
+            if ctx is not None:
+                ctx.pop()
 
     def _on_new_file(self, path: str) -> None:
         """Callback for the watcher when a new stable video file is detected.
 
         Processes the file through the scanner and emits an event.
         """
+        ctx = self._app.app_context() if self._app is not None else None
         try:
+            if ctx is not None:
+                ctx.push()
             result = self._scanner.process_single_file(path)
             try:
                 from events import emit_event
@@ -189,3 +200,6 @@ class StandaloneManager:
             )
         except Exception as e:
             logger.error("Error processing new file via watcher: %s", e)
+        finally:
+            if ctx is not None:
+                ctx.pop()

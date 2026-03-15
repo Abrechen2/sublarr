@@ -21,6 +21,12 @@ export function SetupPage() {
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Setup failed'
+      // "Already configured" means auth is already set up (e.g. AUTH_ENABLED=false in env) — just navigate
+      if (msg.includes('Already configured')) {
+        queryClient.invalidateQueries({ queryKey: ['auth-status'] })
+        navigate('/')
+        return
+      }
       toast(msg, 'error')
     },
   })

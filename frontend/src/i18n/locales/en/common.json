@@ -10,7 +10,8 @@
     "settings": "Settings",
     "logs": "Logs",
     "statistics": "Statistics",
-    "tasks": "Tasks"
+    "tasks": "Tasks",
+    "plugins": "Plugins"
   },
   "nav_groups": {
     "content": "Content",
