@@ -578,8 +578,8 @@ export function LibrarySourcesTab({
           <div className="flex items-center gap-2">
             <button
               onClick={handleScanAll}
-              disabled={scanAll.isPending}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium transition-all duration-150"
+              disabled={scanAll.isPending || standaloneStatus?.scanner_scanning}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium transition-all duration-150 disabled:opacity-60"
               style={{
                 border: '1px solid var(--border)',
                 color: 'var(--text-secondary)',
@@ -587,12 +587,12 @@ export function LibrarySourcesTab({
               }}
               title="Scan all folders"
             >
-              {scanAll.isPending ? (
+              {(scanAll.isPending || standaloneStatus?.scanner_scanning) ? (
                 <Loader2 size={12} className="animate-spin" />
               ) : (
                 <RefreshCw size={12} />
               )}
-              Scan All
+              {standaloneStatus?.scanner_scanning ? 'Scanning…' : 'Scan All'}
             </button>
             <button
               onClick={() => setShowAdd(true)}

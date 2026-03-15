@@ -991,7 +991,11 @@ export function useTriggerStandaloneScan() {
 }
 
 export function useStandaloneStatus() {
-  return useQuery({ queryKey: ['standaloneStatus'], queryFn: getStandaloneStatus })
+  return useQuery({
+    queryKey: ['standaloneStatus'],
+    queryFn: getStandaloneStatus,
+    refetchInterval: (query) => (query.state.data?.scanner_scanning ? 2000 : 15000),
+  })
 }
 
 export function useRefreshSeriesMetadata() {

@@ -520,7 +520,7 @@ def _start_schedulers(settings, app=None):
             from standalone import get_standalone_manager
 
             standalone_mgr = get_standalone_manager()
-            standalone_mgr.start(socketio=socketio)
+            standalone_mgr.start(socketio=socketio, app=app)
         except Exception as e:
             logging.getLogger(__name__).warning("Standalone watcher start failed: %s", e)
 
