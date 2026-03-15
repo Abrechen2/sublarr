@@ -353,6 +353,101 @@ def test_radarr_instance():
         return jsonify({"healthy": False, "message": str(e)}), 500
 
 
+def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
+    """Build a Sonarr-compatible series detail dict from standalone DB data."""
+    import re
+
+    from sqlalchemy import text
+
+    from db import _db_lock, get_db
+    from db.profiles import get_default_profile
+    from db.standalone import get_standalone_series
+    from translator import detect_existing_target_for_lang
+
+    series = get_standalone_series(series_id)
+    if not series:
+        return None
+
+    profile = get_default_profile()
+    target_languages = (
+        profile.get("target_languages", [settings.target_language])
+        if profile
+        else [settings.target_language]
+    )
+    target_language_names = (
+        profile.get("target_language_names", [settings.target_language_name])
+        if profile
+        else [settings.target_language_name]
+    )
+    profile_name = profile.get("name", "Default") if profile else "Default"
+
+    db = get_db()
+    with _db_lock:
+        rows = db.execute(
+            text("SELECT * FROM wanted_items WHERE standalone_series_id=:sid ORDER BY file_path"),
+            {"sid": series_id},
+        ).fetchall()
+    wanted_items = [dict(r._mapping) for r in rows]
+
+    episodes = []
+    seen: set = set()
+    for item in wanted_items:
+        fp = item.get("file_path", "")
+        if fp in seen:
+            continue
+        seen.add(fp)
+        se = item.get("season_episode", "")
+        season, episode = 0, 0
+        if se:
+            m = re.match(r"S(\d+)E(\d+)", se, re.IGNORECASE)
+            if m:
+                season, episode = int(m.group(1)), int(m.group(2))
+        subtitles: dict = {}
+        for lang in target_languages:
+            try:
+                result = detect_existing_target_for_lang(fp, lang)
+                subtitles[lang] = result or ""
+            except Exception:
+                subtitles[lang] = ""
+        episodes.append(
+            {
+                "id": item.get("id"),
+                "season": season,
+                "episode": episode,
+                "title": item.get("title", ""),
+                "has_file": True,
+                "file_path": fp,
+                "subtitles": subtitles,
+                "audio_languages": [],
+                "monitored": True,
+            }
+        )
+
+    poster = f"/api/v1/standalone/series/{series_id}/poster" if series.get("poster_url") else ""
+    return {
+        "id": series.get("id"),
+        "title": series.get("title", ""),
+        "year": series.get("year"),
+        "path": series.get("folder_path", ""),
+        "poster": poster,
+        "fanart": "",
+        "overview": "",
+        "status": series.get("status", "continuing"),
+        "season_count": series.get("season_count") or 0,
+        "episode_count": len(episodes),
+        "episode_file_count": len(episodes),
+        "tags": [],
+        "profile_name": profile_name,
+        "target_languages": target_languages,
+        "target_language_names": target_language_names,
+        "source_language": settings.source_language,
+        "source_language_name": settings.source_language_name,
+        "absolute_order": False,
+        "episodes": episodes,
+        "source": "standalone",
+    }
+
+
 @bp.route("/library/series/<int:series_id>", methods=["GET"])
 def get_series_detail(series_id):
     """Get detailed series info with episodes and subtitle status.
@@ -417,6 +512,10 @@ def get_series_detail(series_id):
 
     sonarr = get_sonarr_client()
     if not sonarr:
+        # Try standalone fallback before giving up
+        standalone_response = _get_standalone_series_detail(series_id, settings)
+        if standalone_response is not None:
+            return jsonify(standalone_response)
         return jsonify({"error": "Sonarr not configured"}), 503
 
     series = sonarr.get_series_by_id(series_id)
