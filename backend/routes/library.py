@@ -109,6 +109,10 @@ def get_library():
                             ),
                             {"sid": s["id"]},
                         ).fetchone()
+                    # Use the API endpoint for local posters (browser can't load file:// URLs)
+                    poster = (
+                        f"/api/v1/standalone/series/{s['id']}/poster" if s.get("poster_url") else ""
+                    )
                     result["series"].append(
                         {
                             "id": s["id"],
@@ -118,7 +122,7 @@ def get_library():
                             "episodes": s.get("episode_count") or 0,
                             "episodes_with_files": s.get("episode_count") or 0,
                             "path": s.get("folder_path", ""),
-                            "poster": s.get("poster_url") or "",
+                            "poster": poster,
                             "status": "continuing",
                             "profile_id": profile_id,
                             "profile_name": profile_name,
@@ -145,6 +149,9 @@ def get_library():
                             ),
                             {"mid": m["id"]},
                         ).fetchone()
+                    movie_poster = (
+                        f"/api/v1/standalone/movies/{m['id']}/poster" if m.get("poster_url") else ""
+                    )
                     result["movies"].append(
                         {
                             "id": m["id"],
@@ -152,7 +159,7 @@ def get_library():
                             "year": m.get("year"),
                             "has_file": True,
                             "path": m.get("file_path", ""),
-                            "poster": m.get("poster_url") or "",
+                            "poster": movie_poster,
                             "status": "released",
                             "missing_count": row[0] if row else 0,
                             "source": "standalone",

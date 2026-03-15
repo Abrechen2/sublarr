@@ -371,10 +371,16 @@ def series_poster(series_id):
     if not poster_path or not os.path.isfile(poster_path):
         return jsonify({"error": "No local poster available"}), 404
 
-    # Security: poster must reside inside the series folder
+    # Security: poster must reside inside the series folder or its parent
+    # (poster.jpg often lives in the series root while folder_path may point
+    # to a Season subfolder)
     series_folder = series.get("folder_path", "")
-    if series_folder and not is_safe_path(poster_path, series_folder):
-        return jsonify({"error": "Forbidden"}), 403
+    if series_folder:
+        allowed = is_safe_path(poster_path, series_folder) or is_safe_path(
+            poster_path, os.path.dirname(series_folder)
+        )
+        if not allowed:
+            return jsonify({"error": "Forbidden"}), 403
 
     try:
         return send_file(poster_path)
@@ -501,10 +507,14 @@ def movie_poster(movie_id):
     if not poster_path or not os.path.isfile(poster_path):
         return jsonify({"error": "No local poster available"}), 404
 
-    # Security: poster must reside inside the movie folder
+    # Security: poster must reside inside the movie folder or its parent
     movie_folder = os.path.dirname(movie.get("file_path", ""))
-    if movie_folder and not is_safe_path(poster_path, movie_folder):
-        return jsonify({"error": "Forbidden"}), 403
+    if movie_folder:
+        allowed = is_safe_path(poster_path, movie_folder) or is_safe_path(
+            poster_path, os.path.dirname(movie_folder)
+        )
+        if not allowed:
+            return jsonify({"error": "Forbidden"}), 403
 
     try:
         return send_file(poster_path)
