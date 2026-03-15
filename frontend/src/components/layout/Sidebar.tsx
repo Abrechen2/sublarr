@@ -18,6 +18,7 @@ import {
   Heart,
   Star,
   LogOut,
+  Puzzle,
 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
@@ -63,6 +64,7 @@ const navGroups: NavGroup[] = [
       { to: '/statistics', labelKey: 'nav.statistics', icon: BarChart3 },
       { to: '/tasks', labelKey: 'nav.tasks', icon: ListChecks },
       { to: '/logs', labelKey: 'nav.logs', icon: ScrollText },
+      { to: '/plugins', labelKey: 'nav.plugins', icon: Puzzle },
     ],
   },
 ]
@@ -186,6 +188,7 @@ export function Sidebar() {
                   end={to === '/'}
                   data-testid={`nav-link-${to === '/' ? 'dashboard' : to.slice(1)}`}
                   onClick={() => setMobileOpen(false)}
+                  aria-current={isActive ? 'page' : undefined}
                   className={({ isActive }) =>
                     cn(
                       'flex items-center gap-2.5 px-3 py-[7px] text-[13px] font-medium transition-colors duration-100 mb-px relative',

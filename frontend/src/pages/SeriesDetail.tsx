@@ -790,6 +790,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
         }}
       >
         <button
+          data-testid="season-group"
           onClick={() => setExpanded(!expanded)}
           className="flex-1 flex items-center gap-2 px-4 py-2.5 text-left transition-colors"
         >
@@ -830,7 +831,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
               const mode = expandedEp?.mode
 
               return (
-                <div key={ep.id}>
+                <div key={ep.id} data-testid="episode-row">
                   <div
                     className="flex items-start px-4 py-2 transition-colors"
                     style={{
@@ -1519,6 +1520,7 @@ export function SeriesDetailPage() {
     <div className="space-y-4 animate-in">
       {/* Back button */}
       <button
+        data-testid="series-back-btn"
         onClick={() => navigate('/library')}
         className="flex items-center gap-2 text-sm transition-colors hover:opacity-80"
         style={{ color: 'var(--text-secondary)' }}
@@ -1576,7 +1578,7 @@ export function SeriesDetailPage() {
 
           {/* Info */}
           <div className="flex-1 min-w-0 flex flex-col gap-3">
-            <h1 className="text-xl font-bold leading-tight">{series.title}</h1>
+            <h1 data-testid="series-title" className="text-xl font-bold leading-tight">{series.title}</h1>
 
             {/* Metadata chips */}
             <div className="flex flex-wrap gap-2 text-xs">

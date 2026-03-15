@@ -239,6 +239,7 @@ function BulkSyncPanel({
           </select>
 
           <button
+            data-testid="library-bulk-sync-start"
             onClick={() => { void handleStart() }}
             disabled={loading || (scope === 'series' && !selectedSeriesId)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50"
@@ -571,6 +572,7 @@ export function LibraryPage() {
             style={{ border: '1px solid var(--border)' }}
           >
             <button
+              data-testid="library-view-table"
               onClick={() => handleViewMode('table')}
               className="px-2.5 py-1.5 transition-colors"
               style={{
@@ -582,6 +584,7 @@ export function LibraryPage() {
               <List size={14} />
             </button>
             <button
+              data-testid="library-view-grid"
               onClick={() => handleViewMode('grid')}
               className="px-2.5 py-1.5 transition-colors"
               style={{
@@ -597,6 +600,7 @@ export function LibraryPage() {
 
           {/* Bulk Sync toggle */}
           <button
+            data-testid="library-bulk-sync-toggle"
             onClick={() => setShowBulkSync((v) => !v)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
             style={{

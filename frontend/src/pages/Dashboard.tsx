@@ -20,6 +20,7 @@ export function Dashboard() {
       <div className="flex items-center justify-between">
         <h1>{t('title')}</h1>
         <button
+          data-testid="customize-widgets-btn"
           onClick={() => setSettingsOpen(true)}
           className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 hover:opacity-80"
           style={{

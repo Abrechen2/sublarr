@@ -139,6 +139,7 @@ export function EpisodeActionMenu({
       {/* More dropdown */}
       <div className="relative" ref={dropdownRef}>
         <button
+          data-testid="episode-actions-menu"
           onClick={() => setDropdownOpen((v) => !v)}
           className={iconBtn}
           style={{ color: dropdownOpen ? accent : muted, backgroundColor: dropdownOpen ? accentBg : '' }}

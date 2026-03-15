@@ -13,6 +13,7 @@ export function LanguageSwitcher() {
 
   return (
     <button
+      data-testid="language-switcher"
       onClick={toggleLanguage}
       aria-label={`Switch language to ${currentLang === 'en' ? 'Deutsch' : 'English'}`}
       title={currentLang === 'en' ? 'Deutsch' : 'English'}

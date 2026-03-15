@@ -28,6 +28,7 @@ export function WidgetSettingsModal({ open, onClose }: WidgetSettingsModalProps)
     >
       <div
         role="dialog"
+        data-testid="widget-settings-modal"
         aria-modal="true"
         aria-labelledby="widget-settings-title"
         className="w-full max-w-md rounded-lg overflow-hidden shadow-2xl"
@@ -89,6 +90,7 @@ export function WidgetSettingsModal({ open, onClose }: WidgetSettingsModalProps)
 
                 {/* Toggle Switch */}
                 <button
+                  data-testid={`widget-toggle-${widget.id}`}
                   onClick={() => toggleWidget(widget.id)}
                   className="relative w-9 h-5 rounded-full transition-colors duration-200"
                   style={{
@@ -121,6 +123,7 @@ export function WidgetSettingsModal({ open, onClose }: WidgetSettingsModalProps)
           style={{ borderTop: '1px solid var(--border)' }}
         >
           <button
+            data-testid="reset-layout-btn"
             onClick={() => {
               resetToDefault()
               onClose()
