@@ -39,7 +39,7 @@ def test_setup_set_password(app, monkeypatch):
     monkeypatch.setattr(ui_auth, "_save_config_entry", lambda k, v: saved.update({k: v}))
     with app.test_client() as client:
         r = client.post(
-            "/api/v1/auth/setup", json={"action": "set_password", "password": "hunter2"}
+            "/api/v1/auth/setup", json={"action": "set_password", "password": "hunter2-correct"}
         )
         assert r.status_code == 200
         assert "ui_password_hash" in saved
@@ -124,7 +124,7 @@ def test_change_password_correct(app, monkeypatch):
             sess["ui_authenticated"] = True
         r = client.post(
             "/api/v1/auth/change-password",
-            json={"current_password": "old", "new_password": "newpass1"},
+            json={"current_password": "old", "new_password": "newpass1-secure"},
         )
         assert r.status_code == 200
         assert "ui_password_hash" in saved
