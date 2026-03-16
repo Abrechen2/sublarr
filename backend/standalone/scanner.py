@@ -14,6 +14,28 @@ from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
+# Filename stems and suffixes that mark non-episode extras (Jellyfin/Kodi convention).
+# Files matching these are excluded from subtitle discovery.
+_EXTRA_STEMS = frozenset({"tvshow", "movie", "trailer", "sample"})
+_EXTRA_SUFFIXES = (
+    "-trailer",
+    "-featurette",
+    "-behindthescenes",
+    "-deleted",
+    "-interview",
+    "-scene",
+    "-short",
+    "-sample",
+    "-theme",
+)
+
+
+def _is_extra_file(path: str) -> bool:
+    """Return True if *path* is a media extra (trailer, featurette, …) that should
+    be excluded from subtitle discovery."""
+    stem = os.path.splitext(os.path.basename(path))[0].lower()
+    return stem in _EXTRA_STEMS or any(stem.endswith(s) for s in _EXTRA_SUFFIXES)
+
 
 class StandaloneScanner:
     """Scans watched folders for video files, resolves metadata, and populates wanted_items.
@@ -152,6 +174,7 @@ class StandaloneScanner:
         Returns:
             Tuple of (series_count, movie_count, wanted_count).
         """
+        from config import get_settings
         from standalone.parser import group_files_by_series, is_video_file, parse_media_file
 
         folder_path = folder["path"]
@@ -159,12 +182,14 @@ class StandaloneScanner:
             logger.warning("Watched folder does not exist: %s", folder_path)
             return (0, 0, 0)
 
+        skip_extras = getattr(get_settings(), "standalone_skip_extras", True)
+
         # Collect all video files
         video_files = []
         for root, _dirs, files in os.walk(folder_path, followlinks=True):
             for filename in files:
                 full_path = os.path.join(root, filename)
-                if is_video_file(full_path):
+                if is_video_file(full_path) and (not skip_extras or not _is_extra_file(full_path)):
                     video_files.append(full_path)
 
         if not video_files:
@@ -613,8 +638,10 @@ class StandaloneScanner:
             Number of items removed.
         """
         try:
+            from config import get_settings
             from db import _db_lock, get_db
 
+            skip_extras = getattr(get_settings(), "standalone_skip_extras", True)
             db = get_db()
             with _db_lock:
                 rows = db.execute(
@@ -623,7 +650,7 @@ class StandaloneScanner:
 
             to_remove = []
             for row in rows:
-                if not os.path.exists(row[1]):
+                if not os.path.exists(row[1]) or (skip_extras and _is_extra_file(row[1])):
                     to_remove.append(row[0])
 
             if to_remove:

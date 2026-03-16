@@ -248,6 +248,7 @@ class Settings(BaseSettings):
     standalone_enabled: bool = False
     standalone_scan_interval_hours: int = 6  # 0 = disabled
     standalone_debounce_seconds: int = 10
+    standalone_skip_extras: bool = True  # Skip trailers/featurettes/samples during scan
     tmdb_api_key: str = ""  # TMDB API v3 Bearer token
     tvdb_api_key: str = ""  # TVDB API v4 key (optional)
     tvdb_pin: str = ""  # TVDB PIN (optional)
