@@ -58,6 +58,7 @@ export const HELP_TEXT: Record<string, string> = {
   tvdb_pin: 'Optional TVDB subscriber PIN.',
   standalone_scan_interval_hours: 'How often to scan watched folders for new files. 0 = disabled.',
   standalone_debounce_seconds: 'Wait this many seconds after file detection before processing.',
+  standalone_skip_extras: 'When enabled, files matching common extras naming conventions are ignored (e.g. movie-trailer.mp4, tvshow.mp4, movie-featurette.mkv). Follows the Jellyfin/Kodi extras standard.',
 
   // Translation Backends
   ollama_url: 'Full URL to your Ollama instance (e.g. http://localhost:11434).',

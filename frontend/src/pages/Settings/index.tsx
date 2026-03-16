@@ -234,6 +234,9 @@ const FIELDS: FieldConfig[] = [
   { key: 'standalone_debounce_seconds', label: 'File Detection Debounce (seconds)', type: 'number', placeholder: '10', tab: 'Library Sources',
     description: 'Wartezeit nach letzter Dateiänderung bevor Scan ausgelöst wird.',
     advanced: true },
+  { key: 'standalone_skip_extras', label: 'Skip Extra Files (Trailer, Featurettes …)', type: 'toggle', tab: 'Library Sources',
+    description: 'Trailer, Featurettes, Samples und ähnliche Dateien beim Scan ignorieren.',
+    advanced: true },
   // Automation — Sidecar Cleanup
   { key: 'auto_cleanup_after_extract', label: 'Nach Extraktion bereinigen', type: 'toggle', tab: 'Automation',
     description: 'Nach batch-extract automatisch nicht-benötigte Sprachen löschen. Benötigt keep_languages.' },

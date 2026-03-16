@@ -454,7 +454,7 @@ export function WantedPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5" style={{ height: 'calc(100vh - 40px)' }}>
       {/* Batch Probe Progress Banner */}
       {probeStatus?.running && (
         <div
@@ -834,10 +834,10 @@ export function WantedPage() {
       {/* Table */}
       <div
         data-testid="wanted-list"
-        className="rounded-lg overflow-hidden"
+        className="rounded-lg overflow-hidden flex-1 min-h-0 flex flex-col"
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
-        <div ref={wantedParentRef} style={{ height: 'calc(100vh - 300px)', overflowY: 'auto' }}>
+        <div ref={wantedParentRef} className="flex-1 min-h-0" style={{ overflowY: 'auto' }}>
           <table className="w-full min-w-[800px]">
             <thead style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--bg-elevated)' }}>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
