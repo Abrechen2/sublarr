@@ -74,6 +74,11 @@ def init_auth(app):
         if path.startswith("/api/v1/webhook/"):
             return None
 
+        # Skip auth for UI auth endpoints (login, setup, status, logout)
+        # These handle their own authentication logic
+        if path.startswith("/api/v1/auth/"):
+            return None
+
         provided_key = request.headers.get("X-Api-Key") or request.args.get("apikey")
 
         if not provided_key:

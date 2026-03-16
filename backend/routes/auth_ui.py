@@ -17,7 +17,7 @@ import ui_auth
 logger = logging.getLogger(__name__)
 
 auth_ui_bp = Blueprint("auth_ui", __name__, url_prefix="/api/v1/auth")
-_MIN_PASSWORD_LENGTH = 4
+_MIN_PASSWORD_LENGTH = 12
 
 
 def _is_session_authenticated() -> bool:
