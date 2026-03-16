@@ -92,7 +92,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.25.1-beta] — 2026-03-13
 
 ### Added
-
 - **CLI — `sublarr search`** — search subtitle providers for all wanted items in a series via `--series-id <id>`; calls `GET /wanted` + `POST /wanted/batch-search`
 - **CLI — `sublarr translate`** — translate a subtitle file via `POST /translate/sync`; supports `--force` flag; prints output path (sync) or job ID (queued)
 - **CLI — `sublarr sync`** — sync subtitle timing to a video file via `POST /tools/auto-sync`; `--engine ffsubsync|alass`
@@ -104,58 +103,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.25.0-beta] — 2026-03-13
 
 ### Added
-
-- **Jellyfin Play-Start Webhook — `POST /api/v1/webhook/jellyfin`** — receives `PlaybackStart` events from the Jellyfin Webhook Plugin; resolves `ItemId` → file path via configured Jellyfin media server instances (`GET /Items/{id}?Fields=Path`); triggers subtitle search+translate pipeline in background thread (same pipeline as Sonarr/Radarr webhooks)
-- **`JellyfinEmbyServer.get_item_path_by_id()`** — new method on the Jellyfin backend to fetch item path by Jellyfin item ID
-- **`MediaServerManager.get_item_path_from_jellyfin()`** — queries all enabled Jellyfin/Emby instances and returns the first resolved path; lazily loads instances if none are cached
-- **Config — `jellyfin_play_translate_enabled`** — new boolean setting (`SUBLARR_JELLYFIN_PLAY_TRANSLATE_ENABLED`, default `false`); feature is opt-in
+- **Jellyfin — Play-start webhook** — Sublarr now triggers the subtitle search+translate pipeline automatically when Jellyfin starts playing an episode; receives `PlaybackStart` events from the Jellyfin Webhook Plugin; resolves item path via configured Jellyfin/Emby media server instances
+- **Settings → Automation — Jellyfin play-translate** — new toggle enables automatic translation on Jellyfin playback start (`SUBLARR_JELLYFIN_PLAY_TRANSLATE_ENABLED`, default off)
 
 ---
 
 ## [0.24.4-beta] — 2026-03-13
 
 ### Added
-
-- **ChapterCache — `chapter_cache` DB table** — per-video chapter list cache (PK: `file_path`, mtime-invalidated); stores JSON list of `{id, title, start_ms, end_ms}` dicts; avoids repeated `ffprobe` invocations
-- **`backend/chapters.py`** — `get_chapters(video_path)` via `ffprobe -show_chapters`; results cached in `chapter_cache`; returns `[]` if video has no chapters or `ffprobe` is unavailable
-- **`GET /api/v1/tools/chapters?video_path=…`** — returns `{video_path, chapters: [{id, title, start_ms, end_ms}]}`; path validated via `is_safe_path()`
-- **Advanced Sync — `chapter_range` parameter** — `POST /tools/advanced-sync` offset operation now accepts optional `chapter_range: {start_ms, end_ms}`; only subtitle events within the chapter window are shifted; preview mode samples only in-range events
-- **SyncControls — Chapter Tab** — new "Chapter" tab visible when `videoPath` prop is provided and chapters are detected; chapter dropdown (title + timestamps), ±offset presets, preview, two-step confirm-apply flow
+- **Chapter Detection — ffprobe-based chapter list** — Sublarr reads chapter metadata from video files; results cached per-file (mtime-invalidated) to avoid repeated `ffprobe` calls; path validated via `is_safe_path()`
+- **Advanced Sync — Chapter Range** — offset operations can now be scoped to a chapter window; only subtitle events within the selected chapter are shifted; preview mode samples only in-range events
+- **SyncControls — Chapter Tab** — new "Chapter" tab visible when chapters are detected; chapter dropdown (title + timestamps), ±offset presets, preview, and two-step confirm-apply flow
 
 ---
 
 ## [0.24.3-beta] — 2026-03-13
 
 ### Added
-
-- **FansubPreference — `fansub_preferences` DB table** — per-series fansub group rules (PK: `sonarr_series_id`); stores preferred groups, excluded groups, and bonus points as JSON
-- **`GET/PUT/DELETE /api/v1/series/<id>/fansub-prefs`** — read/write/delete fansub preferences; GET returns defaults `{preferred_groups: [], excluded_groups: [], bonus: 20}` for unconfigured series
-- **Scoring Hook — `_apply_fansub_rules()`** — injected in `wanted_search.py` before result sort; case-insensitive substring match on `result["release_info"]`; preferred group → +bonus points, excluded group → −999 (effectively excluded)
-- **SeriesFansubPrefsPanel** — new component mounted in SeriesDetail; comma-separated preferred/excluded group inputs + bonus score field + Save/Reset buttons
+- **Fansub Preferences — per-series preferred and excluded groups** — configure preferred and excluded fansub groups per series; preferred groups receive a configurable score bonus, excluded groups are effectively filtered out; accessible from Series Detail
+- **SeriesFansubPrefsPanel** — new panel in SeriesDetail with comma-separated preferred/excluded group inputs, bonus score field, and Save/Reset buttons
 
 ---
 
 ## [0.24.2-beta] — 2026-03-13
 
 ### Added
-
-- **SeriesSettings — `preferred_audio_track_index`** — new nullable integer column on `series_settings` table; stores the pinned ffprobe stream index used for Whisper transcription
-- **`GET/PUT /api/v1/series/<id>/audio-track-pref`** — read/write preferred audio track index; PUT accepts `null` to clear (resume auto-select)
-- **WhisperQueue — `audio_track_index` propagation** — `queue_transcription()` accepts and forwards `audio_track_index`; the transcribe route extracts the preferred index from series settings when not explicitly provided
-- **SeriesAudioTrackPicker** — new component mounted in SeriesDetail; lazy-loads episode audio tracks via ffprobe; dropdown sets the per-series Whisper transcription preference
+- **SeriesSettings — per-series Whisper audio track** — pin a preferred audio track index for Whisper transcription per series; clearing the setting (set to null) resumes automatic track selection
+- **SeriesAudioTrackPicker** — new component in SeriesDetail; lazy-loads available audio tracks via ffprobe; dropdown sets the per-series Whisper transcription preference
 
 ---
 
 ## [0.24.1-beta] — 2026-03-12
 
 ### Added
-
-- **OP/ED Detector — `op_ed_detector.py`** — detects Opening and Ending cue regions in ASS/SSA/SRT files using two passes: Pass 1 matches ASS style names (`OP`, `ED`, `Opening`, `Ending`, `OP Theme`, `ED Theme`); Pass 2 uses position + duration heuristics (OP: 60–120 s in first window, ED: 90–180 s in last window) with per-type gating and overlapping-window guard
-- **`POST /api/v1/tools/detect-opening-ending`** — read-only endpoint returning detected OP/ED regions as `{type, start_ms, end_ms, event_count, method}`; returns `detected: []` when nothing found (not a 4xx); no file modification
-- **Config — `op_window_sec`** — new setting (`SUBLARR_OP_WINDOW_SEC`, default 300 s) controls how many seconds from the start and end of a file are considered the OP/ED detection window
+- **OP/ED Detector** — detects Opening and Ending cue regions in subtitle files using ASS style name matching and position/duration heuristics; read-only detection returns `{type, start_ms, end_ms, event_count, method}` without modifying the file; configurable detection window via `SUBLARR_OP_WINDOW_SEC` (default 300 s)
 
 ### Changed
-
 - **SubtitleEditorModal — Quality Tools** — added Detect OP/ED button after Remove Credits button
 
 ---
@@ -163,13 +146,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.24.0-beta] — 2026-03-12
 
 ### Added
-
 - **Credit Remover — `credit_remover.py`** — detects and removes credits-only subtitle lines from ASS/SSA/SRT files using 4 independent heuristics: role markers (`(Translator)`, `(QC)`, etc.), credit prefix patterns (`Credits:`, `Staff:`, etc.), duration heuristic (events near end of file), and isolated capitalized names (`John Smith`); `dry_run` mode for preview without modification
 - **`POST /api/v1/tools/remove-credits`** — new endpoint to strip detected credits; `dry_run=true` returns preview of lines that would be removed (capped at 50); `dry_run=false` creates `.bak` backup then writes cleaned file; returns `original_lines`, `cleaned_lines`, `removed`, `backed_up`
 - **Config — `credit_threshold_sec`** — new setting (`SUBLARR_CREDIT_THRESHOLD_SEC`, default 90s) controls how many seconds from the end of a file are considered the credits region
 
 ### Changed
-
 - **SubtitleEditorModal — Quality Tools** — added Remove Credits button alongside existing Remove HI button
 
 ---
@@ -177,7 +158,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.23.0-beta] — 2026-03-12
 
 ### Added
-
 - **Batch Translate — `POST /wanted/batch-translate`** — re-translate multiple subtitle files in one request; accepts `item_ids` array; returns per-item success/failure map
 - **Batch Search Extended** — `POST /wanted/batch-search` now accepts `series_ids` array for multi-series search in a single call
 - **Library — Series Checkboxes** — multi-select series in Library view with floating batch toolbar (Search All Missing)
@@ -191,7 +171,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.22.0-beta] — 2026-03-11
 
 ### Added
-
 - **Marketplace — GitHub Plugin Discovery** — new Settings → Providers → Marketplace tab; discovers community plugins via `topic:sublarr-provider` GitHub topic search; caches results in `marketplace_cache` DB table with 1-hour TTL
 - **Marketplace — Official/Community Badges** — plugins from `official-registry.json` receive a verified "Official" badge; community plugins show a neutral "Community" label; `is_official` flag persisted in DB
 - **Marketplace — SHA256 Integrity Verification** — `install_plugin_from_zip()` verifies SHA256 hash before extraction; SHA256 is required (empty string rejected with HTTP 400); prevents install of corrupted or tampered plugins
@@ -204,15 +183,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **DB Migration `a2b3c4d5e6f7`** — adds `marketplace_cache` and `installed_plugins` tables via Alembic
 
 ### Security
-
 - **SSRF Prevention** — `zip_url` validated to be HTTPS-only before download (`urlparse` scheme check)
 - **Path Traversal** — `is_safe_path()` applied to all install/uninstall plugin directory operations
 - **XSS Prevention** — `github_url` validated with `startsWith('https://')` before rendering as `<a href>`
 
+---
+
 ## [0.21.1-beta] — 2026-03-11
 
 ### Added
-
 - **Accessibility — Toast `aria-live`** — `ToastContainer` now has `role="status"`, `aria-live="polite"`, and `aria-atomic="true"`; screen readers announce toast messages without interrupting focus
 - **Accessibility — Skip-to-Main Link** — visually-hidden skip link added as first focusable element in the render tree; activating it moves focus to `#main-content`; visible on keyboard focus
 - **Accessibility — Modal `role="dialog"`** — all 7 modals (`SubtitleEditorModal`, `WidgetSettingsModal`, `GlobalSearchModal`, `SubtitleCleanupModal`, `SyncModal`, `AddProviderModal`, `ProviderEditModal`) now have `role="dialog"`, `aria-modal="true"`, `aria-labelledby` pointing to the modal title, and `autoFocus` on the close button
@@ -224,51 +203,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`prefers-reduced-motion`** — CSS media query added to `index.css`; overrides all animation/transition durations to `0.01ms` for users who opt out of motion
 
 ### Changed
-
 - **Library Grid — Tablet Breakpoint** — added `md:grid-cols-5` between `sm:grid-cols-4` and `lg:grid-cols-6`; smooths the column jump at 768px viewport
 - **Stagger Animation — 300ms Cap** — Library grid cards and Wanted list rows apply `animationDelay: Math.min(i * 30, 300)ms`; late items on large lists no longer appear broken
 - **CSS Hover — Remove JS State** — `RecentActivityWidget` and `ProviderTile` replaced `useState`/`onMouseEnter`/`onMouseLeave` background-color handlers with a `.hover-surface:hover` CSS utility class; eliminates unnecessary re-renders
 
+---
+
 ## [0.20.0-beta] — 2026-03-10
 
 ### Added
-
 - **PostgreSQL — First-Class Support** — full migration guide, PG-compatible Alembic migrations, dialect-aware health endpoints (`GET /database/health`), VACUUM guard (returns 501 on PostgreSQL); `docker-compose.postgres.yml` for batteries-included PG stack; `docs/POSTGRESQL.md` covers fresh install, SQLite→PG migration via pgloader, pool tuning, backup/restore
 - **Incremental Metadata Cache** — ffprobe results cached persistently in DB with mtime-based invalidation; `GET /api/v1/cache/ffprobe/stats` and `POST /api/v1/cache/ffprobe/cleanup` endpoints; batch wanted-scanner probes now use cache (`use_cache=True`); eliminates redundant ffprobe calls on unchanged files
 - **Background Wanted Scanner — Batch Commits** — scanner now batches all DB writes per series/movie into a single commit (instead of one commit per episode); thread-local `_batch_mode` flag ensures batch mode in the scanner thread never blocks concurrent API request commits; `SUBLARR_SCAN_YIELD_MS` setting (default: 0) adds optional CPU yield between series to reduce contention
 - **Parallel Translation Workers — Configurable Count** — `SUBLARR_TRANSLATION_MAX_WORKERS` setting (default: 4) controls the thread pool size of the in-memory job queue; `/translate` async endpoint now routes through the shared job queue (same as `/translate/sync`) so concurrency is always bounded and observable via `GET /api/v1/jobs`
 - **Redis Job Queue** — `backend/worker.py` RQ worker entry point with `AppContextWorker` subclass — each job runs inside a Flask app context; `docker-compose.redis.yml` stack with Redis 7 + Sublarr + `rq-worker`; scale workers with `--scale rq-worker=N`; graceful fallback to `MemoryJobQueue` when Redis is unreachable
 
+---
+
 ## [0.19.2-beta] — 2026-03-10
 
 ### Fixed
-
 - **Remux Engine — mkvmerge wrong track ID** — `_remux_mkvmerge` was referencing an undefined `stream_index` variable (NameError) and the call site was passing `subtitle_track_index` (0-based subtitle-only index, e.g. `0`) instead of the global ffprobe stream index (e.g. `2`); mkvmerge's `--subtitle-tracks !N` flag uses global Track IDs matching ffprobe's `stream_index` — passing `!0` targeted the video track and left the subtitle untouched; now `_remux_mkvmerge` receives and uses the correct global `stream_index`; validated with mkvmerge v92.0 inside Docker
+
+---
 
 ## [0.19.1-beta] — 2026-03-10
 
 ### Fixed
-
 - **Dockerfile — mkvtoolnix missing** — added `mkvtoolnix` to the Docker image apt-get install step; without it `mkvmerge` was unavailable inside the container and all MKV stream removal jobs failed with "mkvmerge not found"
+
+---
 
 ## [0.19.0-beta] — 2026-03-10
 
 ### Added
-
 - **Stream Removal — Safe Remux Engine** — remove embedded subtitle streams from video containers without re-encoding; mkvmerge used for MKV/MK3D, ffmpeg for all other containers (MP4, AVI, etc.); backend auto-detected by file extension; ffprobe verification after remux validates duration (±2s), video/audio stream counts, subtitle count (exactly -1), and file size (≥50% of original)
 - **Trash-Folder Backups — Configurable Retention** — original video moved to centralized `<media_root>/<remux_trash_dir>/trash/<YYYY-MM-DD>/<file>.<ts>.bak` before each remux (TinyMediaManager-style); absolute trash path supported; falls back to sibling `.bak` on permission error; CoW reflink attempted first on Btrfs/XFS for near-instant copies; `remux_trash_dir` (default `.sublarr`) and `remux_backup_retention_days` (default 7) configurable in Settings → Automation
 - **Async Remux Jobs** — `POST /api/v1/library/episodes/<ep_id>/tracks/<index>/remove-from-container` starts a background job; `GET /api/v1/remux/jobs` and `GET /api/v1/remux/jobs/<job_id>` expose status; real-time updates via Socket.IO `remux_job_update` events; optional Sonarr/Radarr folder-monitoring pause during remux
 - **Backup Management API** — `GET /api/v1/remux/backups` lists all `.bak` files in trash directories; `POST /api/v1/remux/backups/cleanup` deletes backups older than retention period (supports `dry_run` mode)
 - **Undo / Restore** — `POST /api/v1/remux/backups/restore` atomically restores backup to original video path via `os.replace()`; both paths validated with `is_safe_path()` to prevent path traversal; "Rückgängig" button appears in TrackPanel after successful stream removal and restores in one click
 
+---
+
 ## [0.18.0-beta] — 2026-03-10
 
 ### Added
-
 - **HI Support — Hearing Impaired Preference** — new `hi_preference` setting (`include` / `prefer` / `exclude` / `only`); provider results scored accordingly: `prefer` adds +30, `exclude` / `only` apply ±999 penalty; `hi_removal_enabled` toggle for future HI-tag stripping
 - **Forced Subtitle Support — Forced Preference** — new `forced_preference` setting (`include` / `prefer` / `exclude` / `only`) with same ±30/±999 scoring logic; bonuses stack when both HI and forced preferences match
 - **TRaSH Scoring Presets — Importable Community Profiles** — `backend/scoring_presets/` package with three bundled presets (`anime`, `tv`, `movies`); `GET /api/v1/scoring/presets`, `GET /api/v1/scoring/presets/<name>`, `POST /api/v1/scoring/presets/import` endpoints; Settings → Events & Hooks → Scoring tab shows preset selector and custom JSON import; import validates schema and calls `invalidate_scoring_cache()`
 - **Anti-Captcha Integration — Provider 403 Bypass** — new `CaptchaSolver` class supporting Anti-Captcha.com and CapMonster via identical `createTask` / `getTaskResult` REST API; `anti_captcha_provider` + `anti_captcha_api_key` settings; Kitsunekko calls `_try_solve_captcha_and_retry()` on HTTP 403 — submits reCAPTCHA v2 token and retries; falls back gracefully if no solver configured; Anti-Captcha section added to Providers tab in Settings
+
+---
 
 ## [0.17.0-beta] — 2026-03-10
 
@@ -391,27 +376,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.13.1-beta] — 2026-02-28
 
 ### Added
-
-**Sidecar subtitle management**
 - **Sidecar discovery APIs** — `GET /api/v1/library/series/<id>/subtitles` scans all episode files in parallel (ThreadPoolExecutor) and returns sidecar metadata keyed by Sonarr episode ID; `GET /api/v1/library/episodes/<id>/subtitles` for single-episode scan; response includes path, language, format, size, and mtime for each sidecar file
 - **Sidecar delete API** — `DELETE /api/v1/library/subtitles` moves one or more sidecar files to a `.sublarr_trash/` folder (manifest.json per entry) instead of permanently deleting; only files inside `SUBLARR_MEDIA_PATH` are accepted — path-traversal attempts return 403
 - **Trash management APIs** — `GET /api/v1/library/trash` lists recoverable files; `POST /api/v1/library/trash/<id>/restore` moves the file back; `DELETE /api/v1/library/trash/<id>` permanently removes it; auto-purge of entries older than `subtitle_trash_retention_days` (default: 7 days) runs on every delete call
 - **Batch delete API** — `POST /api/v1/library/series/<id>/subtitles/batch-delete` removes sidecars across all episodes of a series filtered by language and/or format; all deletions go through the trash system
 - **Inline sidecar badges** — SeriesDetail episode rows now show a badge for every sidecar file found on disk (language + format label); non-target-language sidecars are displayed in a dimmed style with a × delete button; clicking × soft-deletes the file and immediately refreshes the row
 - **Subtitle Cleanup Modal** — series-level "Clean up" button opens a modal grouped by language showing file count and total size per language; "Keep target languages only" quick action pre-selects all non-target languages for deletion; preview shows file count and MB to be moved to trash before confirming
-
-**Batch extraction improvements**
 - **Live extraction progress** — `batch-extract-tracks` emits a `batch_extract_progress` WebSocket event after each episode; SeriesDetail shows a progress banner (file name + `X / N episodes`) with a progress bar and animated spinner while extraction is running; Extract button is disabled during the operation
 - **Activity page visibility** — `batch-extract-tracks` now creates a DB job record (`running` → `completed`/`failed`) so every extraction run appears on the Activity page with succeeded, failed, and skipped episode counts; the job is visible within one poll cycle (~3 s) of starting
-
-**Series action toolbar**
 - **Always-visible series toolbar** — new action row pinned to the SeriesDetail hero header containing three buttons: "Extract Tracks" (triggers `batch-extract-tracks` for the whole series, shows live X/N counter), "Clean up" (opens Subtitle Cleanup Modal), and "Search N missing" (moved here from the language row); all three actions are available without selecting individual episodes
-
-**Auto-cleanup after extraction**
 - **Auto-cleanup settings** — three new config fields: `auto_cleanup_after_extract` (boolean toggle), `auto_cleanup_keep_languages` (comma-separated ISO 639-1 codes, e.g. `de,en`), `auto_cleanup_keep_formats` (`ass` / `srt` / `any`); when enabled, sidecars not matching the keep rules are moved to trash automatically at the end of each `batch-extract-tracks` run
 - **Settings UI** — three new fields added to the Automation tab; `subtitle_trash_retention_days` field also added to control automatic trash purge interval
-
-**Queue page — full background visibility**
 - **Wanted Batch Search card** — `useWantedBatchStatus()` was previously wired but never rendered; now shown as an amber card with a progress bar and found/failed/skipped item counts while a batch search is running
 - **Batch Probe card** — live progress card appears while `batch-probe` is running; shows total tracks scanned, found, extracted, and failed counts plus the currently processed file path; teal accent with animated `Layers` icon
 - **Wanted Scanner card** — new `GET /api/v1/wanted/scanner/status` endpoint exposes the full live state of the background wanted scanner (`is_scanning`, `is_searching`, phase label, current/total progress, added/updated counters); rendered as a green card with an optional phase badge and progress bar; adaptive polling — 3 s while active, 30 s idle
@@ -430,8 +405,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **wanted_item_searched event dropped** — the `wanted_item_searched` signal was emitted in `routes/wanted.py` but never registered in `events/catalog.py`, causing the event to be silently discarded by the unknown-name guard in `emit_event()`; catalog entry and signal registration added
 - **Duplicate language badges** — `ger` MKV track tag and target language `de` previously rendered as two separate badges; `normLang()` now normalises both sides before comparison so they collapse to a single badge
 
-### Tests
-- Full test suite brought to green (167 passed, 0 failed) across 10 previously failing test files; fixes include app-context push in async fixtures, corrected patch paths for lazily imported modules, Windows-compatible path normalisation in conftest, and adjusted timing thresholds in performance benchmarks
 
 ---
 
@@ -520,7 +493,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.9.6-beta] — 2026-02-xx
+## [0.9.6-beta] — 2026-02-21
 
 ### Fixed
 - Zombie jobs: jobs stuck in "running" state after backend restart are cleaned up on startup
@@ -530,7 +503,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.9.5-beta]
+## [0.9.5-beta] — 2026-02-21
 
 ### Added
 - Global Glossary — per-language term overrides applied during all translations; configurable in Settings → Translation
@@ -539,33 +512,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.9.0-beta] - 2026-02-16
+## [0.9.0-beta] — 2026-02-16
 
 ### Added
-
-#### Provider Plugin System (Phase 1)
 - Plugin architecture with hot-reload for custom subtitle providers
 - Plugin discovery from `/config/plugins/` with manifest validation
 - Plugin-specific configuration stored in `config_entries` database table
 - Watchdog-based hot-reload with 2-second debounce (opt-in via `plugin_hot_reload`)
 - Plugin developer template and documentation
 
-#### New Built-in Providers (Phase 1)
-- **Gestdown** -- Addic7ed proxy with REST API, covers both Addic7ed and Gestdown content
-- **Podnapisi** -- Large multilingual database with XML API and lxml parsing
-- **Kitsunekko** -- Japanese anime subtitles via HTML scraping (BeautifulSoup optional)
-- **Napisy24** -- Polish subtitles with MD5 file hash matching (first 10MB)
-- **Whisper-Subgen** -- External ASR integration, returns low-score placeholder in search
-- **Titrari** -- Romanian subtitles via polite scraping (no auth required)
-- **LegendasDivx** -- Portuguese subtitles with session authentication and daily limit tracking
+- **Gestdown** — Addic7ed proxy with REST API, covers both Addic7ed and Gestdown content
+- **Podnapisi** — Large multilingual database with XML API and lxml parsing
+- **Kitsunekko** — Japanese anime subtitles via HTML scraping (BeautifulSoup optional)
+- **Napisy24** — Polish subtitles with MD5 file hash matching (first 10MB)
+- **Whisper-Subgen** — External ASR integration, returns low-score placeholder in search
+- **Titrari** — Romanian subtitles via polite scraping (no auth required)
+- **LegendasDivx** — Portuguese subtitles with session authentication and daily limit tracking
 
-#### Provider Health Monitoring (Phase 1)
 - Per-provider response time tracking with weighted running average
 - Auto-disable after consecutive failure threshold (default: 10 failures)
 - Configurable cooldown period (`provider_auto_disable_cooldown_minutes`, default: 30 min)
 - Provider health dashboard with success rate, response time, and download counts
 
-#### Translation Multi-Backend (Phase 2)
 - **DeepL** backend with glossary caching by (source, target) language pair
 - **LibreTranslate** backend for self-hosted translation (line-by-line for 1:1 mapping)
 - **OpenAI-compatible** backend supporting any OpenAI API endpoint with CJK hallucination detection
@@ -575,14 +543,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Circuit breakers per translation backend (reuses provider circuit breaker pattern)
 - Translation quality metrics tracked per backend
 
-#### Media Server Abstraction (Phase 3)
 - **Plex** support with lazy `plexapi` connection (optional dependency)
 - **Kodi** support with JSON-RPC `VideoLibrary.Scan` (directory-scoped)
 - Unified media server settings page with multi-server configuration
 - `MediaServerManager.refresh_all()` notifies all configured servers after subtitle changes
 - Legacy Jellyfin configuration auto-migrated to new multi-server format
 
-#### Whisper Speech-to-Text (Phase 4)
 - **faster-whisper** backend with lazy model loading and device/compute_type caching
 - **Subgen** backend for external Whisper API integration
 - Case D translation pipeline: automatic Whisper fallback when all providers fail
@@ -590,7 +556,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Audio extraction via ffmpeg pipe (no temp files)
 - Language detection validation against expected source language
 
-#### Standalone Mode (Phase 5)
 - Folder-watch operation without Sonarr/Radarr dependency
 - **TMDB** metadata lookup (requires API key)
 - **AniList** metadata lookup (no API key required, 0.7s rate limiting)
@@ -601,14 +566,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `StandaloneScanner` groups files by series for efficient metadata lookup
 - Standalone items integrate with existing Wanted pipeline
 
-#### Forced/Signs Subtitle Management (Phase 6)
 - Multi-signal forced subtitle detection (ffprobe flags, filename patterns, title analysis, ASS style analysis)
 - Per-series forced subtitle preference (disabled/separate/auto) in language profiles
 - OpenSubtitles `foreign_parts_only` filter for native forced search
 - Post-search forced classification for providers without native support
 - Forced subtitle type badges and filter buttons in Wanted UI
 
-#### Event Bus and Hooks (Phase 7)
 - Internal event bus using `blinker` with signal isolation namespace
 - 22+ business events published (subtitle_downloaded, translation_complete, provider_failed, etc.)
 - Shell script hooks with environment variable payload and configurable timeouts
@@ -616,36 +579,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Event catalog with versioned payload schemas (CATALOG_VERSION=1)
 - SocketIO bridge for real-time event forwarding to frontend
 
-#### Custom Scoring (Phase 7)
 - Configurable scoring weights (hash, series, year, season, episode, release_group, ASS bonus)
 - Per-provider score modifiers (-100 to +100 range)
 - Scoring cache with 60s TTL and config-change invalidation
 
-#### UI Internationalization (Phase 8)
 - English and German translations for entire UI
 - `react-i18next` with static JSON imports (no HTTP backend)
 - Language preference stored in localStorage (`sublarr-language`)
 - `LanguageSwitcher` component in header
 
-#### Theme System (Phase 8)
 - Dark/light theme toggle with system preference detection
 - Theme stored in localStorage (`sublarr-theme`) with 3 states: dark, light, system
 - Inline script in `index.html` prevents flash of wrong theme before React hydration
 - CSS variable-based theming
 
-#### Backup and Restore (Phase 8)
 - Full backup (config + database as ZIP) with in-memory buffer
 - Scheduled automatic backups with configurable interval
 - Restore from ZIP upload via Settings UI
 - Backup rotation with configurable retention count
 
-#### Statistics Page (Phase 8)
 - Recharts-based charts with responsive containers
 - Time-range filters (7d, 30d, 90d, all)
 - Daily stats, provider usage, translation backend performance, format distribution
 - Subtitle download and upgrade history visualization
 
-#### Subtitle Tools (Phase 8)
 - Timing adjustment (centisecond precision, H:MM:SS.cc format)
 - Encoding fix (detect and convert to UTF-8)
 - Hearing impaired tag removal
@@ -653,13 +610,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All tools create `.bak` backup before modification
 - Path traversal prevention via `os.path.abspath` validation
 
-#### OpenAPI Documentation (Phase 9)
 - OpenAPI 3.0.3 specification at `/api/v1/openapi.json` with 65+ documented paths
 - Swagger UI at `/api/docs` for interactive API exploration
 - `apispec` + `apispec-webframeworks` for YAML docstring-based spec generation
 - X-Api-Key security scheme for authenticated endpoints
 
-#### Performance Optimizations (Phase 9)
 - Incremental wanted scan with timestamp tracking (only rescans modified items)
 - Full scan forced every 6th cycle as safety fallback
 - Parallel ffprobe via `ThreadPoolExecutor` (max 4 workers per series)
@@ -667,7 +622,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Route-level code splitting with `React.lazy` for all 13 page components
 - `PageSkeleton` loading component for Suspense fallback
 
-#### Health Monitoring (Phase 9)
 - Extended `/health/detailed` with 11 subsystem categories
 - Translation backend health checks per instance
 - Media server health checks per instance
@@ -676,66 +630,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scheduler status reporting
 
 ### Changed
-
-- **Architecture:** Application Factory pattern (`create_app()`) with 15 Flask Blueprints (from monolithic `server.py`)
-- **Database:** Split `database.py` into `db/` package with 9 domain modules (from monolithic 2153-line file)
-- **Frontend:** React 19 + TypeScript + Tailwind v4 (upgraded from React 18 + Tailwind CSS)
-- **Translation:** Ollama configuration moved from dedicated tab to unified Translation Backends tab
-- **Settings:** Split 4703-line `Settings.tsx` monolith into 7 focused tab modules under `Settings/` directory
-- **Version numbering:** Changed from v1.0.0-beta to v0.9.0-beta (standard pre-release convention -- v1.0.0 reserved for stable release)
-- **Gunicorn:** Single worker mode required for Flask-SocketIO WebSocket state consistency
+- **Architecture** — Application Factory pattern (`create_app()`) with 15 Flask Blueprints (from monolithic `server.py`)
+- **Database** — Split `database.py` into `db/` package with 9 domain modules (from monolithic 2153-line file)
+- **Frontend** — React 19 + TypeScript + Tailwind v4 (upgraded from React 18 + Tailwind CSS)
+- **Translation** — Ollama configuration moved from dedicated tab to unified Translation Backends tab
+- **Settings** — Split 4703-line `Settings.tsx` monolith into 7 focused tab modules under `Settings/` directory
+- **Version numbering** — Changed from v1.0.0-beta to v0.9.0-beta (standard pre-release convention -- v1.0.0 reserved for stable release)
+- **Gunicorn** — Single worker mode required for Flask-SocketIO WebSocket state consistency
 
 ### Fixed
-
 - Case-sensitive email uniqueness in provider configurations
 - Hardcoded version strings ("0.1.0") replaced with centralized `version.py`
 - SPA fallback route now returns correct version string
 - Toast message and ThemeToggle label i18n gaps closed
 - Pre-existing integration test expectations updated for health endpoint response format
 
-### Migration Notes
 
-See [docs/MIGRATION.md](docs/MIGRATION.md) for upgrade instructions from v1.0.0-beta.
+---
 
-## [1.0.0-beta] - 2026-02-14
+## [1.0.0-beta] — 2026-02-14
 
 ### Added
+- **Provider System** — Direct subtitle sourcing from AnimeTosho, Jimaku, OpenSubtitles, and SubDL
+- **Wanted System** — Automatic detection of missing subtitles via Sonarr/Radarr integration
+- **Search & Download Workflow** — End-to-end subtitle acquisition without Bazarr
+- **Upgrade System** — Automatic SRT-to-ASS upgrades with configurable score delta
+- **Language Profiles** — Per-series/movie target language configuration with multi-language support
+- **LLM Translation** — Integrated subtitle translation via Ollama (ASS and SRT formats)
+- **Glossary System** — Per-series translation glossaries for consistent terminology
+- **Prompt Presets** — Customizable translation prompt templates with default preset
+- **Blacklist & History** — Track downloads and block unwanted subtitle releases
+- **HI Removal** — Hearing impaired marker removal from subtitles before translation
+- **Embedded Subtitle Detection** — Extract and translate subtitles embedded in MKV files
+- **AniDB Integration** — TVDB-to-AniDB ID mapping for better anime episode matching
+- **Webhook Automation** — Sonarr/Radarr webhooks trigger scan-search-translate pipeline
+- **Multi-Instance Support** — Configure multiple Sonarr/Radarr instances
+- **Notification System** — Apprise-based notifications (Pushover, Discord, Telegram, etc.)
+- **Onboarding Wizard** — Guided first-time setup
+- **Provider Caching** — TTL-based search result caching per provider
+- **Re-Translation** — Detect and re-translate files when model/prompt/language changes
+- **Config Export/Import** — Backup and restore application configuration
+- **Docker Multi-Arch** — Builds for linux/amd64 and linux/arm64
+- **Unraid Template** — Community Applications template for Unraid
 
-- **Provider System:** Direct subtitle sourcing from AnimeTosho, Jimaku, OpenSubtitles, and SubDL
-- **Wanted System:** Automatic detection of missing subtitles via Sonarr/Radarr integration
-- **Search & Download Workflow:** End-to-end subtitle acquisition without Bazarr
-- **Upgrade System:** Automatic SRT-to-ASS upgrades with configurable score delta
-- **Language Profiles:** Per-series/movie target language configuration with multi-language support
-- **LLM Translation:** Integrated subtitle translation via Ollama (ASS and SRT formats)
-- **Glossary System:** Per-series translation glossaries for consistent terminology
-- **Prompt Presets:** Customizable translation prompt templates with default preset
-- **Blacklist & History:** Track downloads and block unwanted subtitle releases
-- **HI Removal:** Hearing impaired marker removal from subtitles before translation
-- **Embedded Subtitle Detection:** Extract and translate subtitles embedded in MKV files
-- **AniDB Integration:** TVDB-to-AniDB ID mapping for better anime episode matching
-- **Webhook Automation:** Sonarr/Radarr webhooks trigger scan-search-translate pipeline
-- **Multi-Instance Support:** Configure multiple Sonarr/Radarr instances
-- **Notification System:** Apprise-based notifications (Pushover, Discord, Telegram, etc.)
-- **Onboarding Wizard:** Guided first-time setup
-- **Provider Caching:** TTL-based search result caching per provider
-- **Re-Translation:** Detect and re-translate files when model/prompt/language changes
-- **Config Export/Import:** Backup and restore application configuration
-- **Docker Multi-Arch:** Builds for linux/amd64 and linux/arm64
-- **Unraid Template:** Community Applications template for Unraid
 
-### Architecture
-
-- Flask + Flask-SocketIO backend with Blueprint-based API
-- React 18 + TypeScript + Tailwind CSS frontend
-- SQLite with WAL mode for persistence
-- Pydantic Settings for type-validated configuration
-- Multi-stage Docker build (Node 20 + Python 3.11-slim + ffmpeg + unrar-free)
-
-### Provider Details
-
-| Provider | Auth | Format | Specialty |
-|---|---|---|---|
-| AnimeTosho | None | ASS (Fansub) | Extracts subs from releases, XZ compressed |
-| Jimaku | API Key | ASS/SRT | Anime-focused, ZIP/RAR archives |
-| OpenSubtitles | API Key | SRT/ASS | Largest database, REST API v2 |
-| SubDL | API Key | SRT/ASS | Subscene successor, ZIP download |

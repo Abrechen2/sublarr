@@ -160,10 +160,27 @@ def update_config():
     valid_keys = set(Settings.model_fields.keys()) if hasattr(Settings, "model_fields") else set()
     saved_keys = []
 
+    _ENUM_FIELDS = {
+        "log_level": {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"},
+        "auto_sync_engine": {"ffsubsync", "alass"},
+        "log_format": {"text", "json"},
+    }
+    _MAX_STRING_LENGTH = 4096
+
     for key, value in data.items():
         # Skip masked password values (user didn't change them)
         if str(value) == "***configured***":
             continue
+        # Validate enum fields
+        if key in _ENUM_FIELDS and value not in _ENUM_FIELDS[key]:
+            return jsonify(
+                {"error": f"Invalid value for {key}: must be one of {sorted(_ENUM_FIELDS[key])}"}
+            ), 400
+        # Enforce max string length
+        if isinstance(value, str) and len(value) > _MAX_STRING_LENGTH:
+            return jsonify(
+                {"error": f"Value for {key} exceeds maximum length of {_MAX_STRING_LENGTH}"}
+            ), 400
         # Allow known config keys OR namespaced extension keys (dot-notation, e.g. translation.context_window_size)
         is_extension_key = "." in key
         if not valid_keys or key in valid_keys or is_extension_key:

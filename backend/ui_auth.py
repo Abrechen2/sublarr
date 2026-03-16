@@ -76,6 +76,11 @@ def init_ui_auth(app):
     except Exception:
         app.config.setdefault("SECRET_KEY", secrets.token_hex(32))
 
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    # Secure flag only when served over HTTPS (not for internal HTTP-only deployments)
+    app.config["SESSION_COOKIE_SECURE"] = False
+
     @app.before_request
     def check_ui_session():
         path = request.path

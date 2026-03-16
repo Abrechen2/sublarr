@@ -378,6 +378,8 @@ class Settings(BaseSettings):
         import json as _json
 
         _SENSITIVE_PARTS = {"password", "pin", "secret", "token", "api_key"}
+        # Fields that contain credentials but don't match _SENSITIVE_PARTS name heuristics
+        _EXPLICIT_MASKED = {"database_url", "redis_url"}
         _JSON_BLOB_FIELDS = {
             "sonarr_instances_json",
             "radarr_instances_json",
@@ -387,7 +389,7 @@ class Settings(BaseSettings):
 
         data = self.model_dump()
         for key in list(data.keys()):
-            if (
+            if key in _EXPLICIT_MASKED or (
                 "api_key" in key
                 or "key" in key.split("_")
                 or any(s in key for s in _SENSITIVE_PARTS)
