@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import WaveSurfer from 'wavesurfer.js'
-import RegionsPlugin from 'wavesurfer.js/plugins/regions'
+import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.js'
 import { Loader2, Play, Pause } from 'lucide-react'
 import { useSubtitleParse } from '@/hooks/useApi'
 import { extractWaveform } from '@/api/client'
