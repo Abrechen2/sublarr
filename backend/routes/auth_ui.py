@@ -13,6 +13,7 @@ import logging
 from flask import Blueprint, jsonify, request, session
 
 import ui_auth
+from extensions import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,7 @@ def setup():
 
 
 @auth_ui_bp.post("/login")
+@limiter.limit("10/minute; 30/hour")
 def login():
     if not ui_auth.is_ui_auth_enabled():
         session["ui_authenticated"] = True

@@ -7,9 +7,15 @@ Flask-SQLAlchemy and Flask-Migrate are guarded with try/except ImportError
 for graceful degradation during the transition period.
 """
 
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_socketio import SocketIO
 
 socketio = SocketIO()
+
+# Rate limiter — unbound, init_app() called in create_app()
+# Default storage: in-memory (sufficient for single-process Gunicorn)
+limiter = Limiter(key_func=get_remote_address, default_limits=[])
 
 try:
     from flask_migrate import Migrate
