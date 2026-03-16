@@ -180,6 +180,13 @@ def create_app(testing=False):
 
     register_error_handlers(app)
 
+    @app.after_request
+    def add_security_headers(response):
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("Referrer-Policy", "same-origin")
+        return response
+
     # Initialize authentication
     from auth import init_auth
     from routes.auth_ui import auth_ui_bp

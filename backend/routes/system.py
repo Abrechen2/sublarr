@@ -175,13 +175,28 @@ def health():
             healthy = False
 
     status_code = 200 if healthy else 503
-    return jsonify(
-        {
-            "status": "healthy" if healthy else "unhealthy",
-            "version": __version__,
-            "services": service_status,
-        }
-    ), status_code
+
+    # Include version and service detail only for authenticated callers.
+    # Unauthenticated probes (uptime monitors, scanners) receive only the status.
+    import hmac as _hmac
+
+    from flask import session as _session
+
+    from config import get_settings as _get_settings
+
+    _settings = _get_settings()
+    _api_key = getattr(_settings, "api_key", None)
+    _provided = request.headers.get("X-Api-Key") or request.args.get("apikey", "")
+    _key_ok = bool(_api_key and _hmac.compare_digest(_provided, _api_key))
+    _session_ok = bool(_session.get("ui_authenticated"))
+    _authenticated = _key_ok or _session_ok or not _api_key
+
+    body: dict = {"status": "healthy" if healthy else "unhealthy"}
+    if _authenticated:
+        body["version"] = __version__
+        body["services"] = service_status
+
+    return jsonify(body), status_code
 
 
 @bp.route("/update", methods=["GET"])
