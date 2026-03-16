@@ -5,6 +5,27 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.30.0-beta] — 2026-03-16
+
+### Added
+- **Standalone — NFO metadata integration** — standalone scanner reads `.nfo` sidecar files to resolve series/movie title, year, TVDB/TMDB ID, and episode metadata without requiring an API lookup; falls back to filename parsing when no NFO is present
+- **Standalone — Skip extra files** — trailers, featurettes, samples and other non-episode extras are now excluded from subtitle discovery during standalone filesystem scan; follows Jellyfin/Kodi naming convention (`-trailer`, `-featurette`, `-behindthescenes`, `-deleted`, `-interview`, `-scene`, `-short`, `-sample`, `-theme`); configurable via `standalone_skip_extras` toggle in Settings → Library Sources (advanced)
+
+### Fixed
+- **Standalone — symlinks and SQLAlchemy text() compatibility** — `os.walk(followlinks=True)` now follows symlinked directories; raw SQL wrapped in `sqlalchemy.text()` to fix deprecation warnings
+- **Standalone — app context** — scanner operations that write to DB now correctly run inside Flask app context to avoid `RuntimeError: No application context`
+- **Standalone — library view** — standalone series/movies now appear in Library with correct poster URLs and breadcrumb navigation
+- **Standalone — series detail fallback** — SeriesDetail page gracefully handles episodes without a Sonarr instance; subtitle sidecar endpoint falls back to standalone path resolution
+- **Standalone — poster endpoint** — path security enforced via `is_safe_path()`; URL generation updated to use `/api/v1/` prefix consistently
+- **Standalone — NFO/poster lookup in Season subfolder** — scanner now finds `poster.jpg` and `.nfo` files inside `Season XX/` subdirectories, not only in the series root
+- **Settings — nav redirect** — Setup page correctly redirects to `/settings` after initial configuration; `NavLink` `isActive` prop removed (invalid in React Router v6)
+- **Wanted — scroll list layout** — replaced hardcoded `calc(100vh - 300px)` with `flex-1 / min-h-0` chain; list now fills the full remaining viewport at any window size
+
+### Changed
+- **Dependencies** — jsdom 28 → 29; 13 npm minor/patch updates
+
+---
+
 ## [0.29.0-beta] — 2026-03-14
 
 ### Added
