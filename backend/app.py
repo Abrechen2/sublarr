@@ -11,7 +11,7 @@ import os
 
 from flask import Flask
 
-from extensions import socketio
+from extensions import limiter, socketio
 
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
@@ -186,6 +186,9 @@ def create_app(testing=False):
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "same-origin")
         return response
+
+    # Initialize rate limiter (in-memory; swap storage_uri for Redis in multi-worker setups)
+    limiter.init_app(app)
 
     # Initialize authentication
     from auth import init_auth
