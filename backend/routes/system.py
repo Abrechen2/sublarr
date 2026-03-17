@@ -29,17 +29,17 @@ _RFC1918_NETWORKS = [
     _ipaddress.ip_network("192.168.0.0/16"),
 ]
 
-_IP_RE = re.compile(r'\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b')
+_IP_RE = re.compile(r"\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b")
 # Note: may match version strings (e.g. "1.2.3.4") — acceptable over-redaction
 _API_KEY_RE = re.compile(
     r'(["\']?(?:api[_-]?key|apikey|token|password|secret|credential)["\']?\s*[:=]\s*["\']?)'
-    r'([A-Za-z0-9+/=_\-]{16,})',
+    r"([A-Za-z0-9+/=_\-]{16,})",
     re.IGNORECASE,
 )
-_APIKEY_PARAM_RE = re.compile(r'(apikey=)([A-Za-z0-9_\-]{16,})', re.IGNORECASE)
-_EMAIL_RE = re.compile(r'[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}')
+_APIKEY_PARAM_RE = re.compile(r"(apikey=)([A-Za-z0-9_\-]{16,})", re.IGNORECASE)
+_EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}")
 _PATH_RE = re.compile(r'(?:/[^/]+){2,}/([^/\s][^/]*\.[^/\s]+)(?=["\'\s]|$)')
-_UNIX_HOME_RE = re.compile(r'/(?:home/[^/\s]+|root)(/[^\s]+)')
+_UNIX_HOME_RE = re.compile(r"/(?:home/[^/\s]+|root)(/[^\s]+)")
 
 
 def _classify_ip(ip: str) -> str:
@@ -94,6 +94,7 @@ except Exception:
 def _get_last_scan_minutes() -> int | None:
     """Return minutes since last wanted scan, or None if unknown."""
     import datetime as _dt2
+
     from db import get_db
     from db.repositories.config import ConfigRepository
 
@@ -119,9 +120,9 @@ def _extract_top_errors(max_errors: int = 10) -> list[dict]:
     log_path = getattr(_gs3(), "log_file", "log/sublarr.log")
     cutoff = _dt3.datetime.now() - _dt3.timedelta(hours=24)
 
-    _ts_re = re.compile(r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+\s+\[(ERROR|WARNING)\]')
+    _ts_re = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+\s+\[(ERROR|WARNING)\]")
     _msg_re = re.compile(
-        r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+\s+\[(?:ERROR|WARNING)\]\s+[^:]+:\s*(.*)'
+        r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+\s+\[(?:ERROR|WARNING)\]\s+[^:]+:\s*(.*)"
     )
 
     counts: _coll.Counter = _coll.Counter()
@@ -161,8 +162,8 @@ def _build_diagnostic() -> dict:
 
     Never raises — all errors are caught and reflected in the returned dict.
     """
-    import time as _time2
     import datetime as _dt4
+    import time as _time2
 
     from config import get_settings as _gs4
     from version import __version__ as _ver
@@ -178,6 +179,7 @@ def _build_diagnostic() -> dict:
     # Process uptime + memory via psutil (optional dependency)
     try:
         import psutil
+
         proc = psutil.Process()
         diag["uptime_minutes"] = int((_time2.time() - proc.create_time()) / 60)
         diag["memory_mb"] = round(proc.memory_info().rss / 1024 / 1024, 1)
@@ -187,9 +189,9 @@ def _build_diagnostic() -> dict:
     # Wanted + translation stats from DB
     try:
         from db import get_db
-        from db.repositories.wanted import WantedRepository
-        from db.repositories.translation import TranslationRepository
         from db.repositories.config import ConfigRepository
+        from db.repositories.translation import TranslationRepository
+        from db.repositories.wanted import WantedRepository
 
         with _db_lock:
             db = get_db()
@@ -207,9 +209,7 @@ def _build_diagnostic() -> dict:
                 "successful": sum(r.get("successful_translations", 0) or 0 for r in rows),
                 "failed": sum(r.get("failed_translations", 0) or 0 for r in rows),
             }
-            diag["config_entries_count"] = len(
-                ConfigRepository(db).get_all_config_entries()
-            )
+            diag["config_entries_count"] = len(ConfigRepository(db).get_all_config_entries())
     except Exception as exc:
         logger.warning("_build_diagnostic: DB query failed: %s", exc)
         diag["db_stats_error"] = "unavailable"
@@ -217,6 +217,7 @@ def _build_diagnostic() -> dict:
     # Provider status — read from _PROVIDER_CLASSES + settings, no DB needed
     try:
         from providers import _PROVIDER_CLASSES
+
         enabled_raw = getattr(settings, "providers_enabled", "") or ""
         enabled_set = {p.strip().lower() for p in enabled_raw.split(",") if p.strip()}
         diag["provider_status"] = [
@@ -1850,73 +1851,206 @@ def support_export():
         200:
           description: ZIP file with anonymized logs and system info
     """
-    import io
-    import re
-    import zipfile
-    from datetime import datetime, timezone
+    import hmac as _hmac
+    import json as _json
+    import platform
+    import zipfile as _zipfile
+    from datetime import datetime
+
+    from flask import session as _session
 
     from config import get_settings
 
-    settings = get_settings()
-    log_file = settings.log_file
+    _s = get_settings()
+    _api_key = getattr(_s, "api_key", None)
+    _provided = request.headers.get("X-Api-Key") or request.args.get("apikey", "")
+    _key_ok = bool(_api_key and _hmac.compare_digest(_provided, _api_key))
+    _session_ok = bool(_session.get("ui_authenticated"))
+    if not (_key_ok or _session_ok or not _api_key):
+        return jsonify({"error": "Unauthorized"}), 401
 
-    _REDACT_PATTERNS = [
-        # API keys / tokens (hex 32+ chars or base64-ish long strings)
-        (re.compile(r'(["\']?(?:api[_-]?key|apikey|token|password|secret)["\']?\s*[:=]\s*["\']?)([A-Za-z0-9+/=_\-]{16,})', re.IGNORECASE), r"\1***REDACTED***"),
-        # Explicit key= query param
-        (re.compile(r'(apikey=)([A-Za-z0-9_\-]{16,})', re.IGNORECASE), r"\1***REDACTED***"),
-        # IPv4 addresses (not 127.0.0.1 — keep localhost for context)
-        (re.compile(r'\b(?!127\.0\.0\.1)(?:\d{1,3}\.){3}\d{1,3}\b'), "x.x.x.x"),
-        # Email addresses
-        (re.compile(r'[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}'), "***USER***"),
-        # Windows-style absolute paths (keep last component)
-        (re.compile(r'[A-Za-z]:\\(?:[^\s\\]+\\)+([^\s\\]+)'), r"...\1"),
-        # Unix-style /home/user/... paths
-        (re.compile(r'/(?:home|root|Users)/[^/\s]+(/[^\s]*)'), r"~\1"),
-    ]
+    log_path = getattr(_s, "log_file", "log/sublarr.log")
+    candidates = [log_path] + [f"{log_path}.{i}" for i in range(1, 4)]
+    ts = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%SZ")
+    zip_name = f"sublarr-support-{ts}.zip"
 
-    def _anonymize(text: str) -> str:
-        for pattern, replacement in _REDACT_PATTERNS:
-            text = pattern.sub(replacement, text)
-        return text
+    hostname: str | None = None
+    try:
+        hostname = _socket.gethostname()
+    except Exception:
+        pass
 
     buf = io.BytesIO()
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        # Add anonymized log files
-        for suffix in ("", ".1", ".2", ".3"):
-            path = log_file + suffix if suffix else log_file
-            if not os.path.exists(path):
-                continue
+    with _zipfile.ZipFile(buf, "w", _zipfile.ZIP_DEFLATED) as zf:
+        # 1. Anonymized log files
+        for path in candidates:
             try:
-                with open(path, encoding="utf-8", errors="replace") as f:
-                    content = _anonymize(f.read())
-                name = f"logs/sublarr.log{suffix}"
-                zf.writestr(name, content)
-            except Exception as e:
-                zf.writestr(f"logs/error_{suffix}.txt", f"Could not read log: {e}")
+                with open(path, encoding="utf-8", errors="replace") as fh:
+                    content = "".join(_anonymize(line, hostname=hostname) for line in fh)
+                zf.writestr(f"logs/{os.path.basename(path)}", content)
+            except FileNotFoundError:
+                continue
 
-        # Add system info (non-sensitive)
-        info_lines = [
-            f"Sublarr version: {settings.version if hasattr(settings, 'version') else 'unknown'}",
-            f"Export time (UTC): {ts}",
-            f"Log level: {settings.log_level}",
-            f"Log format: {getattr(settings, 'log_format', 'text')}",
-            f"Target language: {settings.target_language}",
-            f"Source language: {settings.source_language}",
-            f"Ollama model: {settings.ollama_model}",
-            f"Batch size: {settings.batch_size}",
-            f"Provider priorities: {settings.provider_priorities}",
+        # 2. Diagnostic report as Markdown (shared helper)
+        diag = _build_diagnostic()
+        md_lines = [
+            "# Sublarr Support Report",
+            "",
+            f"**Version:** {diag.get('version', '?')}  ",
+            f"**Generated:** {diag.get('timestamp_utc', '?')}  ",
+            f"**Uptime:** {diag.get('uptime_minutes', 'N/A')} min  ",
+            f"**Memory:** {diag.get('memory_mb', 'N/A')} MB  ",
+            "",
+            "## Top Errors (last 24h)",
+            "",
         ]
-        zf.writestr("system-info.txt", "\n".join(info_lines))
+        for e in diag.get("top_errors", []):
+            md_lines.append(f"- **{e['message']}** (x{e['count']}, last: {e['last_seen']})")
+        if not diag.get("top_errors"):
+            md_lines.append("_No errors in the last 24h_")
+        md_lines += ["", "## Provider Status", ""]
+        for p in diag.get("provider_status", []):
+            md_lines.append(f"- {'active' if p['active'] else 'inactive'}: {p['name']}")
+        md_lines += ["", "## Stats", "", "| Metric | Value |", "|--------|-------|"]
+        for k, v in diag.get("wanted", {}).items():
+            md_lines.append(f"| Wanted {k} | {v} |")
+        for k, v in diag.get("translations", {}).items():
+            md_lines.append(f"| Translations {k} | {v} |")
+        zf.writestr("diagnostic-report.md", "\n".join(md_lines))
+
+        # 3. DB stats JSON
+        zf.writestr(
+            "db-stats.json",
+            _json.dumps(
+                {
+                    "wanted": diag.get("wanted", {}),
+                    "translations": diag.get("translations", {}),
+                    "providers": {
+                        "active": sum(1 for p in diag.get("provider_status", []) if p["active"]),
+                        "last_scan_ago_minutes": diag.get("last_scan_ago_minutes"),
+                    },
+                    "config_entries": diag.get("config_entries_count"),
+                    "last_errors": [e["message"] for e in diag.get("top_errors", [])[:5]],
+                },
+                indent=2,
+            ),
+        )
+
+        # 4. Config snapshot — redact secret fields by name
+        _SECRET_TOKENS = {"key", "token", "password", "secret", "credential"}
+        raw_cfg = _s.model_dump()
+        safe_cfg = {
+            k: "***REDACTED***" if any(t in k.lower() for t in _SECRET_TOKENS) else v
+            for k, v in raw_cfg.items()
+        }
+        zf.writestr("config-snapshot.json", _json.dumps(safe_cfg, indent=2, default=str))
+
+        # 5. System info
+        zf.writestr(
+            "system-info.txt",
+            "\n".join(
+                [
+                    f"Sublarr Version: {__version__}",
+                    f"Python: {platform.python_version()}",
+                    f"OS: {platform.system()} {platform.release()}",
+                    f"Export Timestamp (UTC): {ts}",
+                    f"Uptime (min): {diag.get('uptime_minutes', 'N/A')}",
+                    f"Memory (MB): {diag.get('memory_mb', 'N/A')}",
+                ]
+            ),
+        )
 
     buf.seek(0)
-    return send_file(
-        buf,
-        mimetype="application/zip",
-        as_attachment=True,
-        download_name=f"sublarr-support-{ts}.zip",
+    return send_file(buf, mimetype="application/zip", as_attachment=True, download_name=zip_name)
+
+
+@bp.route("/logs/support-preview", methods=["GET"])
+def support_preview():
+    """Return anonymized diagnostic data + redaction summary for the support export modal.
+    ---
+    get:
+      tags: [System]
+      summary: Support bundle preview (anonymization summary + diagnostic)
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Preview data for the support export modal
+    """
+    import collections
+    import hmac as _hmac
+
+    from flask import session as _session
+
+    from config import get_settings
+
+    _s = get_settings()
+    _api_key = getattr(_s, "api_key", None)
+    _provided = request.headers.get("X-Api-Key") or request.args.get("apikey", "")
+    _key_ok = bool(_api_key and _hmac.compare_digest(_provided, _api_key))
+    _session_ok = bool(_session.get("ui_authenticated"))
+    if not (_key_ok or _session_ok or not _api_key):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    diagnostic = _build_diagnostic()
+
+    log_path = getattr(_s, "log_file", "log/sublarr.log")
+    candidates = [log_path] + [f"{log_path}.{i}" for i in range(1, 4)]
+
+    counts: collections.Counter = collections.Counter()
+    path_example: tuple[str, str] | None = None
+    ip_example: tuple[str, str] | None = None
+    files_found = 0
+
+    hostname: str | None = None
+    try:
+        hostname = _socket.gethostname()
+    except Exception:
+        pass
+
+    for path in candidates:
+        try:
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    anon = _anonymize(line, hostname=hostname)
+                    if anon == line:
+                        continue
+                    if re.search(r"(?:\d+\.){1}\d+\.xxx\.xxx|xxx\.xxx\.xxx\.xxx", anon):
+                        counts["ips_redacted"] += 1
+                        if ip_example is None:
+                            ip_example = (line.strip(), anon.strip())
+                    if "***REDACTED***" in anon and "***REDACTED***" not in line:
+                        counts["api_keys_redacted"] += 1
+                    if "***USER***" in anon:
+                        counts["emails_redacted"] += 1
+                    if "***HOST***" in anon:
+                        counts["hostnames_redacted"] += 1
+                    if re.search(r"media/[^\s]+\.\w+", anon) and re.search(
+                        r"/[^\s]+/[^\s]+\.\w+", line
+                    ):
+                        counts["paths_redacted"] += 1
+                        if path_example is None:
+                            path_example = (line.strip(), anon.strip())
+            files_found += 1
+        except FileNotFoundError:
+            continue
+
+    return jsonify(
+        {
+            "diagnostic": diagnostic,
+            "redaction_summary": {
+                "log_files_found": files_found,
+                "ips_redacted": counts.get("ips_redacted", 0),
+                "api_keys_redacted": counts.get("api_keys_redacted", 0),
+                "paths_redacted": counts.get("paths_redacted", 0),
+                "emails_redacted": counts.get("emails_redacted", 0),
+                "hostnames_redacted": counts.get("hostnames_redacted", 0),
+                "example_path_before": path_example[0] if path_example else "",
+                "example_path_after": path_example[1] if path_example else "",
+                "example_ip_before": ip_example[0] if ip_example else "",
+                "example_ip_after": ip_example[1] if ip_example else "",
+            },
+        }
     )
 
 

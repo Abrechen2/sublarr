@@ -1,8 +1,11 @@
 """Tests for support export anonymization and diagnostic builder."""
+
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import pytest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 class TestAnonymize:
@@ -10,6 +13,7 @@ class TestAnonymize:
 
     def _fn(self, *args, **kwargs):
         from routes.system import _anonymize
+
         return _anonymize(*args, **kwargs)
 
     def test_private_ip_192_168(self):
@@ -70,6 +74,7 @@ class TestBuildDiagnostic:
 
     def _call(self):
         from routes.system import _build_diagnostic
+
         return _build_diagnostic()
 
     def test_returns_version(self):
@@ -102,8 +107,10 @@ class TestBuildDiagnostic:
         assert "memory_mb" in result  # may be None if psutil absent
 
     def test_db_error_handled_gracefully(self):
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
+
         from routes.system import _build_diagnostic
+
         # Simulate DB failure by patching _db_lock so __enter__ raises
         mock_lock = MagicMock()
         mock_lock.__enter__ = MagicMock(side_effect=Exception("locked"))
@@ -111,3 +118,90 @@ class TestBuildDiagnostic:
         with patch("routes.system._db_lock", mock_lock):
             result = _build_diagnostic()
         assert "db_stats_error" in result
+
+
+class TestSupportPreviewEndpoint:
+    """Test GET /api/v1/logs/support-preview."""
+
+    @pytest.fixture
+    def client(self):
+        from app import create_app
+
+        app = create_app()
+        app.config["TESTING"] = True
+        with app.test_client() as c:
+            yield c
+
+    def _headers(self):
+        from config import get_settings
+
+        return {"X-Api-Key": get_settings().api_key or ""}
+
+    def test_returns_200(self, client):
+        resp = client.get("/api/v1/logs/support-preview", headers=self._headers())
+        assert resp.status_code == 200
+
+    def test_response_shape(self, client):
+        data = client.get("/api/v1/logs/support-preview", headers=self._headers()).get_json()
+        assert "diagnostic" in data
+        assert "redaction_summary" in data
+
+    def test_redaction_summary_fields(self, client):
+        rs = client.get("/api/v1/logs/support-preview", headers=self._headers()).get_json()[
+            "redaction_summary"
+        ]
+        for key in (
+            "log_files_found",
+            "ips_redacted",
+            "api_keys_redacted",
+            "paths_redacted",
+            "example_path_before",
+            "example_ip_before",
+        ):
+            assert key in rs
+
+
+class TestSupportExportEndpoint:
+    """Test GET /api/v1/logs/support-export."""
+
+    @pytest.fixture
+    def client(self):
+        from app import create_app
+
+        app = create_app()
+        app.config["TESTING"] = True
+        with app.test_client() as c:
+            yield c
+
+    def _headers(self):
+        from config import get_settings
+
+        return {"X-Api-Key": get_settings().api_key or ""}
+
+    def test_returns_zip(self, client):
+        resp = client.get("/api/v1/logs/support-export", headers=self._headers())
+        assert resp.status_code == 200
+        assert "application/zip" in resp.content_type
+
+    def test_zip_contains_required_files(self, client):
+        import io
+        import zipfile
+
+        resp = client.get("/api/v1/logs/support-export", headers=self._headers())
+        z = zipfile.ZipFile(io.BytesIO(resp.data))
+        names = z.namelist()
+        assert "diagnostic-report.md" in names
+        assert "db-stats.json" in names
+        assert "config-snapshot.json" in names
+        assert "system-info.txt" in names
+
+    def test_config_snapshot_redacts_api_key(self, client):
+        import io
+        import json
+        import zipfile
+
+        resp = client.get("/api/v1/logs/support-export", headers=self._headers())
+        z = zipfile.ZipFile(io.BytesIO(resp.data))
+        cfg = json.loads(z.read("config-snapshot.json"))
+        # api_key field must be redacted
+        assert cfg.get("api_key") == "***REDACTED***"
