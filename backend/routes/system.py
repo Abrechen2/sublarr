@@ -3,9 +3,12 @@
 import contextlib
 import csv
 import io
+import ipaddress as _ipaddress
 import json
 import logging
 import os
+import re
+import socket as _socket
 import time
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -17,6 +20,65 @@ from sqlalchemy import text
 from version import __version__
 
 bp = Blueprint("system", __name__, url_prefix="/api/v1")
+
+# ─── Support export — anonymization helpers ───────────────────────────────────
+
+_RFC1918_NETWORKS = [
+    _ipaddress.ip_network("10.0.0.0/8"),
+    _ipaddress.ip_network("172.16.0.0/12"),
+    _ipaddress.ip_network("192.168.0.0/16"),
+]
+
+_IP_RE = re.compile(r'\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b')
+_API_KEY_RE = re.compile(
+    r'(["\']?(?:api[_-]?key|apikey|token|password|secret|credential)["\']?\s*[:=]\s*["\']?)'
+    r'([A-Za-z0-9+/=_\-]{16,})',
+    re.IGNORECASE,
+)
+_APIKEY_PARAM_RE = re.compile(r'(apikey=)([A-Za-z0-9_\-]{16,})', re.IGNORECASE)
+_EMAIL_RE = re.compile(r'[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}')
+_PATH_RE = re.compile(r'(?:/[^/]+){2,}/([^/\s][^/]*\.[^/\s]+)(?=["\'\s]|$)')
+_UNIX_HOME_RE = re.compile(r'/(?:home|root)/[^/\s]+(/[^\s]*)')
+
+
+def _classify_ip(ip: str) -> str:
+    """Classify and anonymize a single IPv4 address string."""
+    try:
+        addr = _ipaddress.IPv4Address(ip)
+    except ValueError:
+        return ip
+    if addr.is_loopback:
+        return ip
+    for network in _RFC1918_NETWORKS:
+        if addr in network:
+            parts = ip.split(".")
+            return f"{parts[0]}.{parts[1]}.xxx.xxx"
+    return "xxx.xxx.xxx.xxx"
+
+
+def _anonymize(text: str, hostname: str | None = None) -> str:
+    """Redact sensitive data from a log line or text blob.
+
+    Args:
+        text: The text to anonymize.
+        hostname: Server hostname to redact. If None, resolved via socket.gethostname()
+                  at call time (so it reflects runtime state, not import-time state).
+    """
+    if hostname is None:
+        try:
+            hostname = _socket.gethostname()
+        except Exception:
+            hostname = None
+
+    text = _API_KEY_RE.sub(r"\1***REDACTED***", text)
+    text = _APIKEY_PARAM_RE.sub(r"\1***REDACTED***", text)
+    text = _EMAIL_RE.sub("***USER***", text)
+    text = _UNIX_HOME_RE.sub(r"~\1", text)
+    text = _PATH_RE.sub(r"media/\1", text)
+    text = _IP_RE.sub(lambda m: _classify_ip(m.group(1)), text)
+    if hostname:
+        text = text.replace(hostname, "***HOST***")
+    return text
 
 # ─── Update check (GitHub releases) ──────────────────────────────────────────
 
