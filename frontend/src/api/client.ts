@@ -22,6 +22,7 @@ import type {
   ChapterList,
   SeriesFansubPrefs,
   SubtitleDiffResult,
+  SupportPreview,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -895,6 +896,30 @@ export async function getLogRotation(): Promise<LogRotationConfig> {
 export async function updateLogRotation(config: LogRotationConfig): Promise<LogRotationConfig> {
   const { data } = await api.put('/logs/rotation', config)
   return data
+}
+
+// ─── Support Export ───────────────────────────────────────────────────────────
+
+export async function fetchSupportPreview(): Promise<SupportPreview> {
+  const res = await api.get<SupportPreview>('/logs/support-preview')
+  return res.data
+}
+
+export async function downloadSupportBundle(): Promise<void> {
+  const res = await api.get('/logs/support-export', { responseType: 'blob' })
+  const contentDisposition = res.headers['content-disposition'] as string | undefined
+  const filenameMatch = contentDisposition?.match(/filename="?([^"]+)"?/)
+  const filename =
+    filenameMatch?.[1] ??
+    `sublarr-support-${new Date().toISOString().replace(/[:.]/g, '-')}.zip`
+  const url = URL.createObjectURL(res.data as Blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 // ─── Subtitle Tools ──────────────────────────────────────────────────────────

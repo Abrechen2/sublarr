@@ -1243,3 +1243,46 @@ export interface PlayerModalProps {
   onClose: () => void
   onSeekRequest?: (seekFn: (seconds: number) => void) => void
 }
+
+export interface SupportTopError {
+  message: string
+  count: number
+  last_seen: string
+}
+
+export interface SupportProviderStatus {
+  name: string
+  active: boolean
+}
+
+export interface SupportDiagnostic {
+  version: string
+  timestamp_utc: string
+  uptime_minutes: number | null
+  memory_mb: number | null
+  top_errors: SupportTopError[]
+  provider_status: SupportProviderStatus[]
+  wanted: { total: number; pending: number; extracted: number; failed: number }
+  translations: { total_requests: number; successful: number; failed: number }
+  last_scan_ago_minutes: number | null
+  config_entries_count: number
+  db_stats_error?: string
+}
+
+export interface SupportRedactionSummary {
+  log_files_found: number
+  ips_redacted: number
+  api_keys_redacted: number
+  paths_redacted: number
+  emails_redacted: number
+  hostnames_redacted: number
+  example_path_before: string
+  example_path_after: string
+  example_ip_before: string
+  example_ip_after: string
+}
+
+export interface SupportPreview {
+  diagnostic: SupportDiagnostic
+  redaction_summary: SupportRedactionSummary
+}
