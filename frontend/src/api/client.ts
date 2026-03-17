@@ -48,6 +48,25 @@ api.interceptors.response.use(
   }
 )
 
+/**
+ * Bootstrap: fetch the API key from the backend on first load.
+ * The /auth/bootstrap endpoint is only accessible from localhost or an
+ * authenticated UI session, so the key is never exposed to external callers.
+ * Once retrieved it is stored in localStorage and picked up by the interceptor.
+ */
+export async function bootstrapApiKey(): Promise<void> {
+  if (localStorage.getItem('sublarr_api_key')) return
+  try {
+    const res = await axios.get('/api/v1/auth/bootstrap')
+    const key: string = res.data?.api_key
+    if (key) {
+      localStorage.setItem('sublarr_api_key', key)
+    }
+  } catch {
+    // Non-local access or auth required — key must be set manually
+  }
+}
+
 // ─── Health & Status ─────────────────────────────────────────────────────────
 
 export async function getHealth(): Promise<HealthStatus> {

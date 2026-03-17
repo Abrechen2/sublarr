@@ -1612,6 +1612,96 @@ def download_logs():
     )
 
 
+@bp.route("/logs/support-export", methods=["GET"])
+def support_export():
+    """Download an anonymized support bundle (log files + system info) as a ZIP.
+
+    Sensitive data is stripped before export:
+    - API keys and passwords replaced with ***REDACTED***
+    - Local file paths shortened to filename only
+    - IPv4 addresses replaced with x.x.x.x
+    - Usernames and email addresses replaced with ***USER***
+    ---
+    get:
+      tags:
+        - System
+      summary: Download anonymized support bundle
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: ZIP file with anonymized logs and system info
+    """
+    import io
+    import re
+    import zipfile
+    from datetime import datetime, timezone
+
+    from config import get_settings
+
+    settings = get_settings()
+    log_file = settings.log_file
+
+    _REDACT_PATTERNS = [
+        # API keys / tokens (hex 32+ chars or base64-ish long strings)
+        (re.compile(r'(["\']?(?:api[_-]?key|apikey|token|password|secret)["\']?\s*[:=]\s*["\']?)([A-Za-z0-9+/=_\-]{16,})', re.IGNORECASE), r"\1***REDACTED***"),
+        # Explicit key= query param
+        (re.compile(r'(apikey=)([A-Za-z0-9_\-]{16,})', re.IGNORECASE), r"\1***REDACTED***"),
+        # IPv4 addresses (not 127.0.0.1 — keep localhost for context)
+        (re.compile(r'\b(?!127\.0\.0\.1)(?:\d{1,3}\.){3}\d{1,3}\b'), "x.x.x.x"),
+        # Email addresses
+        (re.compile(r'[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}'), "***USER***"),
+        # Windows-style absolute paths (keep last component)
+        (re.compile(r'[A-Za-z]:\\(?:[^\s\\]+\\)+([^\s\\]+)'), r"...\1"),
+        # Unix-style /home/user/... paths
+        (re.compile(r'/(?:home|root|Users)/[^/\s]+(/[^\s]*)'), r"~\1"),
+    ]
+
+    def _anonymize(text: str) -> str:
+        for pattern, replacement in _REDACT_PATTERNS:
+            text = pattern.sub(replacement, text)
+        return text
+
+    buf = io.BytesIO()
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        # Add anonymized log files
+        for suffix in ("", ".1", ".2", ".3"):
+            path = log_file + suffix if suffix else log_file
+            if not os.path.exists(path):
+                continue
+            try:
+                with open(path, encoding="utf-8", errors="replace") as f:
+                    content = _anonymize(f.read())
+                name = f"logs/sublarr.log{suffix}"
+                zf.writestr(name, content)
+            except Exception as e:
+                zf.writestr(f"logs/error_{suffix}.txt", f"Could not read log: {e}")
+
+        # Add system info (non-sensitive)
+        info_lines = [
+            f"Sublarr version: {settings.version if hasattr(settings, 'version') else 'unknown'}",
+            f"Export time (UTC): {ts}",
+            f"Log level: {settings.log_level}",
+            f"Log format: {getattr(settings, 'log_format', 'text')}",
+            f"Target language: {settings.target_language}",
+            f"Source language: {settings.source_language}",
+            f"Ollama model: {settings.ollama_model}",
+            f"Batch size: {settings.batch_size}",
+            f"Provider priorities: {settings.provider_priorities}",
+        ]
+        zf.writestr("system-info.txt", "\n".join(info_lines))
+
+    buf.seek(0)
+    return send_file(
+        buf,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=f"sublarr-support-{ts}.zip",
+    )
+
+
 @bp.route("/logs/rotation", methods=["GET"])
 def get_log_rotation():
     """Get current log rotation configuration.

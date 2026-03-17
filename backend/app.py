@@ -339,7 +339,7 @@ def create_app(testing=False):
         init_webhook_subscribers(webhook_dispatcher)
 
         # Apply DB config overrides on startup (settings saved via UI take precedence)
-        from db.config import get_all_config_entries
+        from db.config import get_all_config_entries, save_config_entry
 
         _db_overrides = get_all_config_entries()
         if _db_overrides:
@@ -347,6 +347,15 @@ def create_app(testing=False):
             settings = reload_settings(_db_overrides)
         else:
             logger.info("No config overrides in database, using env/defaults")
+
+        # Auto-generate API key on first start if not set via env or DB
+        if not settings.api_key:
+            import secrets
+
+            _generated_key = secrets.token_hex(32)
+            save_config_entry("api_key", _generated_key)
+            settings = reload_settings(get_all_config_entries())
+            logger.info("API key auto-generated on first start (64 hex chars)")
 
         # Initialize plugin system
         plugins_dir = getattr(settings, "plugins_dir", "")

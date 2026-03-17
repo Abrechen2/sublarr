@@ -36,6 +36,27 @@ def get_status():
     )
 
 
+@auth_ui_bp.get("/bootstrap")
+def bootstrap():
+    """Return the API key for the local frontend.
+
+    Only accessible from localhost or when a valid UI session exists.
+    This allows the SPA to auto-configure its API key without requiring
+    manual copy-paste, similar to how Sonarr/Radarr work.
+    """
+    from config import get_settings
+
+    remote = request.remote_addr or ""
+    is_local = remote in ("127.0.0.1", "::1", "localhost")
+    is_session_auth = _is_session_authenticated()
+
+    if not is_local and not is_session_auth:
+        return jsonify({"error": "Forbidden"}), 403
+
+    settings = get_settings()
+    return jsonify({"api_key": settings.api_key})
+
+
 @auth_ui_bp.post("/setup")
 def setup():
     if ui_auth.is_ui_auth_configured():
