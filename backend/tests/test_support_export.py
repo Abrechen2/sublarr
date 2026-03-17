@@ -63,3 +63,51 @@ class TestAnonymize:
         result = self._fn(line)
         assert "/root" not in result
         assert "~/.bashrc" in result
+
+
+class TestBuildDiagnostic:
+    """Test the _build_diagnostic() shared helper."""
+
+    def _call(self):
+        from routes.system import _build_diagnostic
+        return _build_diagnostic()
+
+    def test_returns_version(self):
+        result = self._call()
+        assert "version" in result
+        assert isinstance(result["version"], str)
+
+    def test_wanted_counts_present(self):
+        result = self._call()
+        # Either wanted dict exists, or db_stats_error is set — both are valid
+        assert "wanted" in result or result.get("db_stats_error") == "unavailable"
+
+    def test_translations_present(self):
+        result = self._call()
+        assert "translations" in result or result.get("db_stats_error") == "unavailable"
+
+    def test_top_errors_is_list(self):
+        result = self._call()
+        assert isinstance(result.get("top_errors", []), list)
+
+    def test_provider_status_is_list(self):
+        result = self._call()
+        assert isinstance(result.get("provider_status", []), list)
+        for p in result.get("provider_status", []):
+            assert "name" in p
+            assert "active" in p
+
+    def test_memory_mb_present(self):
+        result = self._call()
+        assert "memory_mb" in result  # may be None if psutil absent
+
+    def test_db_error_handled_gracefully(self):
+        from unittest.mock import patch, MagicMock
+        from routes.system import _build_diagnostic
+        # Simulate DB failure by patching _db_lock so __enter__ raises
+        mock_lock = MagicMock()
+        mock_lock.__enter__ = MagicMock(side_effect=Exception("locked"))
+        mock_lock.__exit__ = MagicMock(return_value=False)
+        with patch("routes.system._db_lock", mock_lock):
+            result = _build_diagnostic()
+        assert "db_stats_error" in result

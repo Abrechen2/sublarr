@@ -81,6 +81,161 @@ def _anonymize(text: str, hostname: str | None = None) -> str:
         text = text.replace(hostname, "***HOST***")
     return text
 
+
+# ─── Support export — diagnostic helpers ──────────────────────────────────────
+
+# Module-level reference so unit tests can patch routes.system._db_lock
+try:
+    from db import _db_lock
+except Exception:
+    _db_lock = None  # type: ignore[assignment]
+
+
+def _get_last_scan_minutes() -> int | None:
+    """Return minutes since last wanted scan, or None if unknown."""
+    import datetime as _dt2
+    from db import get_db
+    from db.repositories.config import ConfigRepository
+
+    try:
+        with _db_lock:
+            val = ConfigRepository(get_db()).get_all_config_entries().get("last_scan_timestamp")
+        if not val:
+            return None
+        ts = _dt2.datetime.fromisoformat(val)
+        delta = _dt2.datetime.utcnow() - ts
+        return int(delta.total_seconds() / 60)
+    except Exception:
+        return None
+
+
+def _extract_top_errors(max_errors: int = 10) -> list[dict]:
+    """Parse all log files and return top N error/warning groups from the last 24h."""
+    import collections as _coll
+    import datetime as _dt3
+
+    from config import get_settings as _gs3
+
+    log_path = getattr(_gs3(), "log_file", "log/sublarr.log")
+    cutoff = _dt3.datetime.now() - _dt3.timedelta(hours=24)
+
+    _ts_re = re.compile(r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+\s+\[(ERROR|WARNING)\]')
+    _msg_re = re.compile(
+        r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+\s+\[(?:ERROR|WARNING)\]\s+[^:]+:\s*(.*)'
+    )
+
+    counts: _coll.Counter = _coll.Counter()
+    last_seen: dict[str, str] = {}
+
+    candidates = [log_path] + [f"{log_path}.{i}" for i in range(1, 4)]
+    for path in candidates:
+        try:
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    m = _ts_re.match(line)
+                    if not m:
+                        continue
+                    try:
+                        ts = _dt3.datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
+                        if ts < cutoff:
+                            continue
+                    except ValueError:
+                        pass  # include line if timestamp unparseable
+                    msg_m = _msg_re.match(line)
+                    if not msg_m:
+                        continue
+                    key = msg_m.group(1)[:80]
+                    counts[key] += 1
+                    last_seen[key] = m.group(1)[11:16]  # HH:MM local time
+        except FileNotFoundError:
+            continue
+
+    return [
+        {"message": msg, "count": cnt, "last_seen": last_seen.get(msg, "")}
+        for msg, cnt in counts.most_common(max_errors)
+    ]
+
+
+def _build_diagnostic() -> dict:
+    """Build the diagnostic data dict. Used by both the preview endpoint and the ZIP report.
+
+    Never raises — all errors are caught and reflected in the returned dict.
+    """
+    import time as _time2
+    import datetime as _dt4
+
+    from config import get_settings as _gs4
+    from version import __version__ as _ver
+
+    settings = _gs4()
+    diag: dict = {
+        "version": _ver,
+        "timestamp_utc": _dt4.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "uptime_minutes": None,
+        "memory_mb": None,
+    }
+
+    # Process uptime + memory via psutil (optional dependency)
+    try:
+        import psutil
+        proc = psutil.Process()
+        diag["uptime_minutes"] = int((_time2.time() - proc.create_time()) / 60)
+        diag["memory_mb"] = round(proc.memory_info().rss / 1024 / 1024, 1)
+    except Exception:
+        pass  # psutil not installed or failed — fields stay None
+
+    # Wanted + translation stats from DB
+    try:
+        from db import get_db
+        from db.repositories.wanted import WantedRepository
+        from db.repositories.translation import TranslationRepository
+        from db.repositories.config import ConfigRepository
+
+        with _db_lock:
+            db = get_db()
+            wr = WantedRepository(db)
+            diag["wanted"] = {
+                "total": wr.get_wanted_count(),
+                "pending": wr.get_wanted_count(status="wanted"),
+                "extracted": wr.get_wanted_count(status="extracted"),
+                "failed": wr.get_wanted_count(status="failed"),
+            }
+            tr = TranslationRepository(db)
+            rows = tr.get_backend_stats()
+            diag["translations"] = {
+                "total_requests": sum(r.get("total_requests", 0) or 0 for r in rows),
+                "successful": sum(r.get("successful_translations", 0) or 0 for r in rows),
+                "failed": sum(r.get("failed_translations", 0) or 0 for r in rows),
+            }
+            diag["config_entries_count"] = len(
+                ConfigRepository(db).get_all_config_entries()
+            )
+    except Exception as exc:
+        logger.warning("_build_diagnostic: DB query failed: %s", exc)
+        diag["db_stats_error"] = "unavailable"
+
+    # Provider status — read from _PROVIDER_CLASSES + settings, no DB needed
+    try:
+        from providers import _PROVIDER_CLASSES
+        enabled_raw = getattr(settings, "providers_enabled", "") or ""
+        enabled_set = {p.strip().lower() for p in enabled_raw.split(",") if p.strip()}
+        diag["provider_status"] = [
+            {
+                "name": name,
+                "active": not enabled_set or name.lower() in enabled_set,
+            }
+            for name in _PROVIDER_CLASSES
+        ]
+    except Exception as exc:
+        logger.warning("_build_diagnostic: provider status failed: %s", exc)
+        diag["provider_status"] = []
+
+    diag["last_scan_ago_minutes"] = _get_last_scan_minutes()
+    diag["top_errors"] = _extract_top_errors()
+
+    return diag
+
+
 # ─── Update check (GitHub releases) ──────────────────────────────────────────
 
 _GITHUB_REPO = "Abrechen2/sublarr"
