@@ -30,6 +30,7 @@ _RFC1918_NETWORKS = [
 ]
 
 _IP_RE = re.compile(r'\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b')
+# Note: may match version strings (e.g. "1.2.3.4") — acceptable over-redaction
 _API_KEY_RE = re.compile(
     r'(["\']?(?:api[_-]?key|apikey|token|password|secret|credential)["\']?\s*[:=]\s*["\']?)'
     r'([A-Za-z0-9+/=_\-]{16,})',
@@ -38,7 +39,7 @@ _API_KEY_RE = re.compile(
 _APIKEY_PARAM_RE = re.compile(r'(apikey=)([A-Za-z0-9_\-]{16,})', re.IGNORECASE)
 _EMAIL_RE = re.compile(r'[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}')
 _PATH_RE = re.compile(r'(?:/[^/]+){2,}/([^/\s][^/]*\.[^/\s]+)(?=["\'\s]|$)')
-_UNIX_HOME_RE = re.compile(r'/(?:home|root)/[^/\s]+(/[^\s]*)')
+_UNIX_HOME_RE = re.compile(r'/(?:home/[^/\s]+|root)(/[^\s]+)')
 
 
 def _classify_ip(ip: str) -> str:

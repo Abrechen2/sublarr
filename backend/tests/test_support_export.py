@@ -57,3 +57,9 @@ class TestAnonymize:
         result = self._fn(line)
         assert "/home/dennis" not in result
         assert "~/sublarr/config.db" in result
+
+    def test_root_path_shortened(self):
+        line = "Config at /root/.bashrc"
+        result = self._fn(line)
+        assert "/root" not in result
+        assert "~/.bashrc" in result
