@@ -621,7 +621,7 @@ const TAB_KEYS: Record<string, string> = {
   'Integrations': 'tabs.integrations',
   'Notification Templates': 'tabs.notification_templates',
   'Prompt Presets': 'tabs.prompt_presets',
-  'Protokoll': 'tabs.protokoll_tab',
+  'Protokoll': 'protokoll_tab',
 }
 
 export function SettingsPage() {
