@@ -53,8 +53,8 @@ def _set_adaptive_retry_after(item_id: int, search_count: int, settings) -> None
         retry_after = _compute_retry_after(search_count, settings)
         if retry_after:
             set_wanted_retry_after(item_id, retry_after)
-    except Exception:
-        pass  # Non-critical — backoff is advisory, failure here must not abort the pipeline
+    except Exception as e:
+        logger.debug("_set_adaptive_retry_after failed for item %d (non-critical): %s", item_id, e)
 
 
 # Episode patterns for filename parsing (ordered by specificity)
@@ -807,16 +807,16 @@ def process_wanted_item(item_id: int) -> dict:
                     try:
                         if os.path.exists(actual_source_path):
                             os.remove(actual_source_path)
-                    except Exception:
-                        pass
+                    except OSError as e:
+                        logger.debug("Temp file cleanup failed: %s", e)
                     raise  # skip to next step
 
                 # Clean up temporary source file
                 try:
                     if os.path.exists(actual_source_path):
                         os.remove(actual_source_path)
-                except Exception:
-                    pass
+                except OSError as e:
+                    logger.debug("Temp file cleanup failed: %s", e)
 
                 if translate_result and translate_result.get("success"):
                     update_job(
@@ -1004,16 +1004,16 @@ def process_wanted_item(item_id: int) -> dict:
                     try:
                         if os.path.exists(actual_source_path):
                             os.remove(actual_source_path)
-                    except Exception:
-                        pass
+                    except OSError as e:
+                        logger.debug("Temp file cleanup failed: %s", e)
                     raise  # skip to next step
 
                 # Clean up temporary source file
                 try:
                     if os.path.exists(actual_source_path):
                         os.remove(actual_source_path)
-                except Exception:
-                    pass
+                except OSError as e:
+                    logger.debug("Temp file cleanup failed: %s", e)
 
                 if translate_result and translate_result.get("success"):
                     update_job(
@@ -1126,8 +1126,10 @@ def process_wanted_item(item_id: int) -> dict:
         error = str(e)
         try:
             update_job(job["id"], "failed", error=error)
-        except Exception:
-            pass  # job may not have been created
+        except Exception as e:
+            logger.debug(
+                "Failed to update job to failed status (job may not have been created): %s", e
+            )
         with contextlib.suppress(Exception):
             record_stat(success=False)
         logger.exception("Wanted %d: Process failed: %s", item_id, error)
@@ -1569,15 +1571,15 @@ def download_specific_for_item(
             try:
                 if os.path.exists(actual_source_path):
                     os.remove(actual_source_path)
-            except Exception:
-                pass
+            except OSError as e:
+                logger.debug("Temp file cleanup failed: %s", e)
             return {"success": False, "error": f"Translation failed: {e}"}
 
         try:
             if os.path.exists(actual_source_path):
                 os.remove(actual_source_path)
-        except Exception:
-            pass
+        except OSError as e:
+            logger.debug("Temp file cleanup failed: %s", e)
 
         if not translate_result or not translate_result.get("success"):
             err = (

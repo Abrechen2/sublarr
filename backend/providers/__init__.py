@@ -51,7 +51,7 @@ def _detect_format_from_content(content: bytes) -> SubtitleFormat:
     text_start = content[:512].lstrip(b"\xef\xbb\xbf")
     try:
         preview = text_start.decode("utf-8", errors="replace").strip()
-    except Exception:
+    except (UnicodeDecodeError, ValueError):
         return SubtitleFormat.SRT
     # ASS/SSA files always begin with [Script Info]
     if preview.startswith("[Script Info]") or preview.lower().startswith("[v4"):
@@ -779,8 +779,10 @@ class ProviderManager:
 
                 stats_list = get_all_provider_stats()
                 _dyn_stats = {s["provider_name"]: s for s in stats_list if s.get("provider_name")}
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(
+                    "Failed to fetch provider stats for dynamic timeout computation: %s", e
+                )
 
         if not self._providers:
             return all_results
@@ -1176,8 +1178,8 @@ class ProviderManager:
                 )
         except ValueError:
             raise
-        except Exception:
-            pass  # Config not available — skip path validation (e.g. tests)
+        except Exception as e:
+            logger.debug("Path validation skipped (config unavailable, likely in tests): %s", e)
 
         # Sanitize subtitle content before writing to disk
         try:
@@ -1444,8 +1446,10 @@ class ProviderManager:
             if provider:
                 try:
                     provider.terminate()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(
+                        "Provider %s terminate() raised during update_providers: %s", name, e
+                    )
             logger.info("Provider %s disabled (removed from pool)", name)
 
         # Add providers newly added to the enabled set
