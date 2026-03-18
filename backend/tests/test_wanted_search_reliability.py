@@ -175,10 +175,12 @@ class TestTranslationPipelineResilience:
     @patch("wanted_search.get_wanted_item")
     @patch("wanted_search.get_provider_manager")
     @patch("wanted_search.update_wanted_status")
+    @patch("wanted_search.get_settings")
     @patch("translator._translate_external_ass")
     def test_translation_failure_cleans_up_temp_file(
         self,
         mock_translate,
+        mock_get_settings,
         mock_update_status,
         mock_get_manager,
         mock_get_item,
@@ -186,37 +188,79 @@ class TestTranslationPipelineResilience:
         mock_wanted_item,
         temp_file,
     ):
-        """Test that translation failures clean up temporary files."""
+        """Test that translation failures clean up temporary files.
+
+        Previously a false positive: save_subtitle returned a MagicMock (not a real
+        path), so the temp file was never created on disk and the assertion
+        ``assert not os.path.exists(temp_source_path)`` passed vacuously.
+
+        The fix:
+        - save_subtitle returns the real path string so os.remove() can act on it.
+        - The temp file is created on disk before process_wanted_item() is called.
+        - Step 1 (target ASS) returns None; Step 2 (source ASS translation) gets the
+          mock result, triggering the cleanup code path we actually want to exercise.
+        """
         mock_wanted_item["file_path"] = temp_file
         mock_get_item.return_value = mock_wanted_item
+
+        # Pin settings so source_language is a known string and the temp path we
+        # compute below matches the path the production code builds.
+        settings_mock = MagicMock()
+        settings_mock.source_language = "en"
+        settings_mock.target_language = "de"
+        settings_mock.target_language_name = "German"
+        settings_mock.source_language_name = "English"
+        settings_mock.wanted_auto_translate = True
+        settings_mock.wanted_max_search_attempts = 3
+        settings_mock.upgrade_prefer_ass = True
+        settings_mock.upgrade_min_score_delta = 50
+        settings_mock.upgrade_window_days = 7
+        settings_mock.wanted_skip_srt_on_no_ass = True
+        settings_mock.wanted_adaptive_backoff_enabled = False
+        mock_get_settings.return_value = settings_mock
+
+        # Compute the path the production code will use for the temp source file
+        # (same formula as Step 2 in wanted_search.py: f"{base}.{source_language}.ass")
+        base = os.path.splitext(temp_file)[0]
+        temp_source_path = f"{base}.en.ass"
 
         # Mock provider to return source ASS
         mock_result = Mock(spec=SubtitleResult)
         mock_result.content = b"test content"
         mock_result.provider_name = "test_provider"
+        mock_result.subtitle_id = "test_sub_id"
         mock_result.format = SubtitleFormat.ASS
         mock_result.score = 100
         mock_result.language = "en"
 
         mock_manager = Mock()
-        mock_manager.search_and_download_best.return_value = mock_result
+        # Step 1 (target language ASS direct match) returns nothing so the code
+        # falls through to Step 2 (source ASS for translation).
+        # Step 2 returns mock_result, triggering save_subtitle + _translate_external_ass.
+        mock_manager.search_and_download_best.side_effect = [None, mock_result]
+        # Return the real path string so production code's os.remove() targets the
+        # actual file on disk (not a MagicMock, which caused the false-positive pass).
+        mock_manager.save_subtitle.return_value = temp_source_path
         mock_get_manager.return_value = mock_manager
 
-        # Mock translation to fail
+        # Mock translation to fail — this is what triggers the cleanup branch.
         mock_translate.side_effect = Exception("Translation failed")
 
-        # Create temp file path
-        base = os.path.splitext(temp_file)[0]
-        temp_source_path = f"{base}.en.ass"
+        # Create the temp source file on disk so the pre-cleanup os.path.exists()
+        # check in the production code returns True — the assertion below is now
+        # non-vacuous: it can only pass if the production cleanup ran successfully.
+        with open(temp_source_path, "w") as f:
+            f.write("fake subtitle content")
+        assert os.path.exists(temp_source_path), "Pre-condition: temp file must exist before process"
 
-        # Process should handle translation failure
+        # Process should handle translation failure without raising
         result = process_wanted_item(1)
 
-        # Temp file should be cleaned up (or at least attempted)
-        # Note: In real code, cleanup happens in finally block
+        # Production cleanup (lines 807-811 of wanted_search.py) must have removed
+        # the temp source file after the translation exception.
         assert "status" in result
         assert not os.path.exists(temp_source_path), (
-            "Temp file should have been cleaned up after failure"
+            "Temp file should have been cleaned up after translation failure"
         )
 
 
