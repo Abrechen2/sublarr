@@ -379,13 +379,13 @@ class TestValidateServiceUrl:
     @pytest.mark.parametrize(
         "url",
         [
-            "http://192.168.178.36:8989",       # Sonarr on LAN
-            "http://192.168.178.155:11434",     # Ollama on LAN
-            "https://192.168.1.1",              # HTTPS private IP
-            "http://10.0.0.5:7878",             # Radarr on 10.x network
-            "http://172.16.0.1:8096",           # Jellyfin on 172.16.x
-            "http://sonarr.local:8989",         # mDNS hostname
-            "https://api.opensubtitles.com",    # External provider
+            "http://192.168.178.36:8989",  # Sonarr on LAN
+            "http://192.168.178.155:11434",  # Ollama on LAN
+            "https://192.168.1.1",  # HTTPS private IP
+            "http://10.0.0.5:7878",  # Radarr on 10.x network
+            "http://172.16.0.1:8096",  # Jellyfin on 172.16.x
+            "http://sonarr.local:8989",  # mDNS hostname
+            "https://api.opensubtitles.com",  # External provider
         ],
     )
     def test_valid_urls_accepted(self, url):
@@ -415,9 +415,9 @@ class TestValidateServiceUrl:
     @pytest.mark.parametrize(
         "url",
         [
-            "http://169.254.169.254/latest/meta-data/",         # AWS / Azure / GCP
+            "http://169.254.169.254/latest/meta-data/",  # AWS / Azure / GCP
             "http://169.254.169.254/",
-            "http://100.100.100.200/latest/meta-data/",          # Alibaba Cloud
+            "http://100.100.100.200/latest/meta-data/",  # Alibaba Cloud
             "http://metadata.google.internal/computeMetadata/",  # GCP named endpoint
             "http://metadata.goog/",
         ],
