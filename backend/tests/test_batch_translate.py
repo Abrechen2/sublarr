@@ -29,7 +29,9 @@ class TestBatchTranslate:
         assert resp.status_code == 400
 
     def test_valid_item_ids_queued(self, client):
-        with patch("routes.wanted._retranslate_item", return_value="job-abc-123") as mock_rt:
+        with patch(
+            "routes.wanted.providers._retranslate_item", return_value="job-abc-123"
+        ) as mock_rt:
             resp = client.post(
                 "/api/v1/wanted/batch-translate",
                 json={"item_ids": [1, 2, 3]},
@@ -41,7 +43,7 @@ class TestBatchTranslate:
         assert mock_rt.call_count == 3
 
     def test_item_not_found_skipped(self, client):
-        with patch("routes.wanted._retranslate_item", return_value=None):
+        with patch("routes.wanted.providers._retranslate_item", return_value=None):
             resp = client.post(
                 "/api/v1/wanted/batch-translate",
                 json={"item_ids": [9999]},
