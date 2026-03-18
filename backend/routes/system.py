@@ -873,7 +873,7 @@ def get_stats():
                     type: integer
     """
     from db.jobs import get_pending_job_count, get_stats_summary
-    from routes.translate import _memory_stats, batch_lock, batch_state, stats_lock
+    from routes.batch_state import _memory_stats, batch_lock, batch_state, stats_lock
 
     db_stats = get_stats_summary()
 
@@ -2535,7 +2535,7 @@ def list_tasks():
 
     # Batch Extraction
     try:
-        from routes.wanted import _batch_extract_lock, _batch_extract_state
+        from routes.batch_state import _batch_extract_lock, _batch_extract_state
 
         with _batch_extract_lock:
             ext = dict(_batch_extract_state)

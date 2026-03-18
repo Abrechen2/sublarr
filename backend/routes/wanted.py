@@ -10,46 +10,17 @@ from flask import Blueprint, current_app, jsonify, request
 
 from events import emit_event
 from extensions import socketio
+from routes.batch_state import (
+    _batch_extract_lock,
+    _batch_extract_state,
+    _batch_probe_lock,
+    _batch_probe_state,
+    wanted_batch_lock,
+    wanted_batch_state,
+)
 
 bp = Blueprint("wanted", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
-
-# Wanted batch state (in-memory for real-time tracking)
-wanted_batch_state = {
-    "running": False,
-    "total": 0,
-    "processed": 0,
-    "found": 0,
-    "failed": 0,
-    "skipped": 0,
-    "current_item": None,
-}
-wanted_batch_lock = threading.Lock()
-
-# Batch-extract state (in-memory for real-time tracking)
-_batch_extract_state = {
-    "running": False,
-    "total": 0,
-    "processed": 0,
-    "succeeded": 0,
-    "failed": 0,
-    "skipped": 0,
-    "current_item": None,
-}
-_batch_extract_lock = threading.Lock()
-
-# Batch-probe state (in-memory for real-time tracking)
-_batch_probe_state = {
-    "running": False,
-    "total": 0,
-    "processed": 0,
-    "found": 0,
-    "extracted": 0,
-    "skipped": 0,
-    "failed": 0,
-    "current_item": None,
-}
-_batch_probe_lock = threading.Lock()
 
 
 @bp.route("/wanted", methods=["GET"])

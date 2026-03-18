@@ -4,7 +4,6 @@ import ipaddress
 import logging
 import os
 import threading
-import time
 from urllib.parse import urlparse
 
 import requests
@@ -12,6 +11,12 @@ from flask import Blueprint, current_app, jsonify, request
 
 from events import emit_event
 from extensions import socketio
+from routes.batch_state import (
+    _memory_stats,
+    batch_lock,
+    batch_state,
+    stats_lock,
+)
 from security_utils import is_safe_path
 
 bp = Blueprint("translate", __name__, url_prefix="/api/v1")
@@ -110,28 +115,6 @@ BACKEND_TEMPLATES = [
         },
     },
 ]
-
-
-# Batch state (still in-memory for real-time tracking)
-batch_state = {
-    "running": False,
-    "total": 0,
-    "processed": 0,
-    "succeeded": 0,
-    "failed": 0,
-    "skipped": 0,
-    "current_file": None,
-    "errors": [],
-}
-batch_lock = threading.Lock()
-
-# In-memory stats for quick access (synced to DB)
-stats_lock = threading.Lock()
-_memory_stats = {
-    "started_at": time.time(),
-    "upgrades": {"srt_to_ass_translated": 0, "srt_upgrade_skipped": 0},
-    "quality_warnings": 0,
-}
 
 
 def _update_stats(result):
