@@ -49,18 +49,24 @@ class TestProviderErrorHandling:
     @patch("wanted_search.get_provider_manager")
     @patch("wanted_search.update_wanted_status")
     @patch("wanted_search.update_wanted_search")
+    @patch("wanted_search.build_query_from_wanted")
     def test_provider_search_failure_continues(
         self,
+        mock_build_query,
         mock_update_search,
         mock_update_status,
         mock_get_manager,
         mock_get_item,
+        app_ctx,
         mock_wanted_item,
         temp_file,
     ):
         """Test that provider search failures don't abort the entire process."""
         mock_wanted_item["file_path"] = temp_file
         mock_get_item.return_value = mock_wanted_item
+
+        # build_query_from_wanted needs a VideoQuery-like object with a .languages attr
+        mock_build_query.return_value = MagicMock()
 
         # Mock provider manager to raise exception on search
         mock_manager = Mock()
