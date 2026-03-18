@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+from collections import OrderedDict
 
 from flask import Blueprint, jsonify, request
 
@@ -16,7 +17,8 @@ from security_utils import is_safe_path
 bp = Blueprint("tools", __name__, url_prefix="/api/v1/tools")
 logger = logging.getLogger(__name__)
 
-WAVEFORM_CACHE: dict = {}  # (video_path, mtime) -> temp_opus_file_path
+_WAVEFORM_CACHE_MAX = 100
+WAVEFORM_CACHE: OrderedDict = OrderedDict()  # (video_path, mtime) -> temp_opus_file_path
 
 SUPPORTED_FORMATS = {"srt", "ass", "ssa", "vtt"}
 PYSUBS2_EXT = {"srt": "srt", "ass": "ass", "ssa": "ssa", "vtt": "vtt"}
@@ -2612,6 +2614,14 @@ def waveform_extract():
             return jsonify({"error": "ffmpeg audio extraction failed"}), 500
 
         WAVEFORM_CACHE[cache_key] = tmp.name
+        # Evict oldest entry if over capacity, delete its orphaned temp file
+        if len(WAVEFORM_CACHE) > _WAVEFORM_CACHE_MAX:
+            _, evicted_path = WAVEFORM_CACHE.popitem(last=False)
+            try:
+                if os.path.exists(evicted_path):
+                    os.remove(evicted_path)
+            except OSError as e:
+                logger.debug("Waveform cache eviction cleanup failed: %s", e)
         audio_path = tmp.name
         logger.info("Waveform extracted: %s -> %s", video_path, audio_path)
 
