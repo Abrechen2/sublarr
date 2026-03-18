@@ -251,7 +251,9 @@ class TestTranslationPipelineResilience:
         # non-vacuous: it can only pass if the production cleanup ran successfully.
         with open(temp_source_path, "w") as f:
             f.write("fake subtitle content")
-        assert os.path.exists(temp_source_path), "Pre-condition: temp file must exist before process"
+        assert os.path.exists(temp_source_path), (
+            "Pre-condition: temp file must exist before process"
+        )
 
         # Process should handle translation failure without raising
         result = process_wanted_item(1)

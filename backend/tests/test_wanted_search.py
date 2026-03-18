@@ -1,7 +1,8 @@
 """Unit tests for wanted_search.py — core subtitle search pipeline."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 
@@ -62,7 +63,7 @@ class TestComputeRetryAfter:
         result = _compute_retry_after(search_count=1, settings=settings)
         assert result is not None
         ts = datetime.fromisoformat(result)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         delta_hours = (ts - now).total_seconds() / 3600
         assert 1.9 <= delta_hours <= 2.1, f"Expected ~2h delay, got {delta_hours:.2f}h"
 
@@ -70,13 +71,13 @@ class TestComputeRetryAfter:
         from wanted_search import _compute_retry_after
 
         settings = _make_settings(wanted_backoff_base_hours=1.0, wanted_backoff_cap_hours=168.0)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         delays = []
         for count in range(1, 5):
             ts = datetime.fromisoformat(_compute_retry_after(count, settings))
             delays.append((ts - now).total_seconds() / 3600)
         for i in range(len(delays) - 1):
-            assert delays[i + 1] > delays[i], f"Delay did not increase at step {i+1}"
+            assert delays[i + 1] > delays[i], f"Delay did not increase at step {i + 1}"
 
     def test_cap_is_respected(self):
         from wanted_search import _compute_retry_after
@@ -84,7 +85,7 @@ class TestComputeRetryAfter:
         settings = _make_settings(wanted_backoff_base_hours=1.0, wanted_backoff_cap_hours=10.0)
         result = _compute_retry_after(search_count=20, settings=settings)
         ts = datetime.fromisoformat(result)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         delay_hours = (ts - now).total_seconds() / 3600
         assert delay_hours <= 10.5, f"Cap exceeded: {delay_hours:.2f}h"
 
@@ -132,9 +133,7 @@ class TestBuildQueryFromWanted:
             def get_episode_metadata(self, series_id, episode_id):
                 raise ConnectionError("Sonarr unreachable")
 
-        monkeypatch.setattr(
-            "sonarr_client.get_sonarr_client", lambda *a, **kw: BrokenSonarr()
-        )
+        monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: BrokenSonarr())
         item = {
             "id": 1,
             "item_type": "episode",
@@ -299,6 +298,7 @@ class TestProcessWantedItem:
     def test_auto_translate_not_called_when_disabled(self, app_ctx, monkeypatch, tmp_path):
         """When wanted_auto_translate=False, _translate_external_ass must not be called."""
         import os
+
         from config import reload_settings
         from wanted_search import process_wanted_item
 
@@ -322,7 +322,9 @@ class TestProcessWantedItem:
             monkeypatch.setattr("wanted_search.get_provider_manager", lambda: mock_mgr)
 
             process_wanted_item(item_id)
-            assert not translate_called, "_translate_external_ass called despite auto_translate=False"
+            assert not translate_called, (
+                "_translate_external_ass called despite auto_translate=False"
+            )
         finally:
             os.environ.pop("SUBLARR_WANTED_AUTO_TRANSLATE", None)
             reload_settings()

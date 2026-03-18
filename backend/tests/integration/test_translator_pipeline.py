@@ -367,7 +367,9 @@ class TestQualityValidation:
 
         is_valid, errors = translator.validate_translation_output(original, bad, format="srt")
 
-        assert not is_valid, "validate_translation_output accepted >30% empty translated lines as valid"
+        assert not is_valid, (
+            "validate_translation_output accepted >30% empty translated lines as valid"
+        )
         assert len(errors) > 0, "errors list must be non-empty when is_valid is False"
 
     def test_rejects_output_too_long(self):
@@ -390,9 +392,7 @@ class TestQualityValidation:
 
         is_valid, errors = translator.validate_translation_output(original, good, format="srt")
 
-        assert is_valid and len(errors) == 0, (
-            f"Good translation incorrectly rejected: {errors}"
-        )
+        assert is_valid and len(errors) == 0, f"Good translation incorrectly rejected: {errors}"
 
     def test_identical_text_structurally_valid(self):
         """Identical (un-translated) text passes structural validation.
@@ -420,6 +420,4 @@ class TestQualityValidation:
 
         is_valid, errors = translator.validate_translation_output([], [], format="srt")
 
-        assert is_valid and len(errors) == 0, (
-            f"Empty input should be structurally valid: {errors}"
-        )
+        assert is_valid and len(errors) == 0, f"Empty input should be structurally valid: {errors}"

@@ -41,9 +41,7 @@ def _patch_db_noop(monkeypatch):
     # DB cache: always miss
     monkeypatch.setattr("db.providers.get_cached_results", lambda *a, **kw: None)
     # get_all_provider_stats may not exist in all versions -- use raising=False
-    monkeypatch.setattr(
-        "db.providers.get_all_provider_stats", lambda: [], raising=False
-    )
+    monkeypatch.setattr("db.providers.get_all_provider_stats", lambda: [], raising=False)
 
 
 def _bypass_fast_cache(monkeypatch):
@@ -189,9 +187,7 @@ class TestCircuitBreaker:
         query = _make_query("/test/cb_closed.mkv")
         manager.search(query)
 
-        assert provider.search.called, (
-            "Provider was not called despite closed circuit breaker"
-        )
+        assert provider.search.called, "Provider was not called despite closed circuit breaker"
 
     def test_no_circuit_breaker_entry_allows_provider(self, app_ctx, monkeypatch):
         """Provider with no circuit breaker entry must not be blocked."""
@@ -211,9 +207,7 @@ class TestCircuitBreaker:
         query = _make_query("/test/cb_none.mkv")
         manager.search(query)
 
-        assert provider.search.called, (
-            "Provider without circuit breaker entry must not be skipped"
-        )
+        assert provider.search.called, "Provider without circuit breaker entry must not be skipped"
 
 
 # ---------------------------------------------------------------------------
@@ -246,9 +240,7 @@ class TestRateLimiter:
         query = _make_query("/test/rate_limited.mkv")
         manager.search(query)
 
-        assert not provider.search.called, (
-            "Provider was called despite rate limit returning False"
-        )
+        assert not provider.search.called, "Provider was called despite rate limit returning False"
 
     def test_rate_not_limited_provider_is_called(self, app_ctx, monkeypatch):
         from providers import ProviderManager
@@ -272,6 +264,4 @@ class TestRateLimiter:
         query = _make_query("/test/rate_ok.mkv")
         manager.search(query)
 
-        assert provider.search.called, (
-            "Provider was not called despite rate limit allowing access"
-        )
+        assert provider.search.called, "Provider was not called despite rate limit allowing access"
