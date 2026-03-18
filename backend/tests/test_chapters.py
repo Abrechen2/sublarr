@@ -151,8 +151,8 @@ class TestGetChaptersEndpoint:
             {"id": 0, "title": "Opening", "start_ms": 0, "end_ms": 90000},
             {"id": 1, "title": "Main", "start_ms": 90000, "end_ms": 1350000},
         ]
-        monkeypatch.setattr("routes.tools.get_chapters", lambda p: fake_chapters)
-        monkeypatch.setattr("routes.tools.is_safe_path", lambda p, b: True)
+        monkeypatch.setattr("routes.tools.analysis.get_chapters", lambda p: fake_chapters)
+        monkeypatch.setattr("routes.tools.analysis.is_safe_path", lambda p, b: True)
 
         r = client.get(f"/api/v1/tools/chapters?video_path={video}")
         assert r.status_code == 200
@@ -166,7 +166,7 @@ class TestGetChaptersEndpoint:
         assert r.status_code == 400
 
     def test_get_chapters_unsafe_path_rejected(self, client, monkeypatch):
-        monkeypatch.setattr("routes.tools.is_safe_path", lambda p, b: False)
+        monkeypatch.setattr("routes.tools.analysis.is_safe_path", lambda p, b: False)
         r = client.get("/api/v1/tools/chapters?video_path=/etc/passwd")
         assert r.status_code == 403
 
@@ -178,7 +178,7 @@ class TestAdvancedSyncChapterRange:
             "1\n00:00:01,000 --> 00:00:02,000\nIn chapter\n\n"
             "2\n00:05:00,000 --> 00:05:01,000\nOutside chapter\n"
         )
-        monkeypatch.setattr("routes.tools.is_safe_path", lambda p, b: True)
+        monkeypatch.setattr("routes.tools._helpers.is_safe_path", lambda p, b: True)
 
         r = client.post(
             "/api/v1/tools/advanced-sync",
@@ -208,7 +208,7 @@ class TestAdvancedSyncChapterRange:
             "1\n00:00:01,000 --> 00:00:02,000\nIn chapter\n\n"
             "2\n00:05:00,000 --> 00:05:01,000\nOutside\n"
         )
-        monkeypatch.setattr("routes.tools.is_safe_path", lambda p, b: True)
+        monkeypatch.setattr("routes.tools._helpers.is_safe_path", lambda p, b: True)
 
         r = client.post(
             "/api/v1/tools/advanced-sync",
