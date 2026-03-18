@@ -1,6 +1,5 @@
 """Unit tests for ProviderManager -- cache hit/miss, circuit breaker, rate limiter."""
 
-import json
 from unittest.mock import MagicMock
 
 import pytest
