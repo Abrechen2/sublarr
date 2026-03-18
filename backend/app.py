@@ -332,7 +332,7 @@ def create_app(testing=False):
 
         init_event_system(app)
 
-        hook_engine = HookEngine(max_workers=4)
+        hook_engine = HookEngine(max_workers=4, app=app)
         init_hook_subscribers(hook_engine)
 
         webhook_dispatcher = WebhookDispatcher(max_workers=4, app=app)
