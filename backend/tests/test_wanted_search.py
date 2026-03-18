@@ -214,7 +214,7 @@ class TestSearchWantedItem:
         item_id, _ = _make_wanted_item(tmp_path)
         mock_mgr = MagicMock()
         mock_mgr.search.side_effect = Exception("all down")
-        monkeypatch.setattr("wanted_search.get_provider_manager", lambda: mock_mgr)
+        monkeypatch.setattr("wanted_search.search.get_provider_manager", lambda: mock_mgr)
 
         result = search_wanted_item(item_id)
         assert result.get("wanted_id") == item_id
@@ -238,7 +238,7 @@ class TestSearchWantedItem:
             [],
             [],
         ]
-        monkeypatch.setattr("wanted_search.get_provider_manager", lambda: mock_mgr)
+        monkeypatch.setattr("wanted_search.search.get_provider_manager", lambda: mock_mgr)
 
         result = search_wanted_item(item_id)
         assert result.get("wanted_id") == item_id
@@ -260,7 +260,7 @@ class TestSearchWantedItem:
         sub = _make_subtitle_result(language="de", score=90, fmt_value="ass")
         mock_mgr = MagicMock()
         mock_mgr.search.side_effect = [[sub], [], [], []]
-        monkeypatch.setattr("wanted_search.get_provider_manager", lambda: mock_mgr)
+        monkeypatch.setattr("wanted_search.search.get_provider_manager", lambda: mock_mgr)
 
         result = search_wanted_item(item_id)
         target = result.get("target_results", [])
@@ -289,7 +289,7 @@ class TestProcessWantedItem:
         mock_mgr = MagicMock()
         mock_mgr.search.return_value = []
         mock_mgr.search_and_download_best.return_value = None
-        monkeypatch.setattr("wanted_search.get_provider_manager", lambda: mock_mgr)
+        monkeypatch.setattr("wanted_search.process.get_provider_manager", lambda: mock_mgr)
 
         result = process_wanted_item(item_id)
         assert isinstance(result, dict)
@@ -319,7 +319,7 @@ class TestProcessWantedItem:
             mock_mgr = MagicMock()
             mock_mgr.search.return_value = []
             mock_mgr.search_and_download_best.return_value = None
-            monkeypatch.setattr("wanted_search.get_provider_manager", lambda: mock_mgr)
+            monkeypatch.setattr("wanted_search.process.get_provider_manager", lambda: mock_mgr)
 
             process_wanted_item(item_id)
             assert not translate_called, (
