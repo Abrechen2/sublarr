@@ -333,3 +333,95 @@ class TestErrorHandling:
 
         assert result["success"] is False
         assert "error" in result or "Ollama" in str(result.get("stats", {}).get("error", ""))
+
+
+class TestQualityValidation:
+    """validate_translation_output must flag structurally bad translations.
+
+    Design note: validate_translation_output checks structural quality only
+    (line count parity, output length ratio, empty-line ratio). It does NOT
+    detect semantic issues such as untranslated text — that is intentional,
+    as content-level comparison is outside the scope of this validator.
+    """
+
+    def test_rejects_line_count_mismatch(self):
+        import translator
+
+        original = ["Hello world", "How are you?", "I am fine."]
+        # Fewer lines returned than original — line count mismatch
+        bad = ["Hallo Welt", "Wie geht es dir?"]
+
+        is_valid, errors = translator.validate_translation_output(original, bad, format="srt")
+
+        assert not is_valid
+        assert any("mismatch" in e.lower() for e in errors), (
+            f"Expected line-count-mismatch error, got: {errors}"
+        )
+
+    def test_rejects_too_many_empty_lines(self):
+        import translator
+
+        # 4 originals, 4 translated but 3 are empty (75% > 30% threshold)
+        original = ["Line one.", "Line two.", "Line three.", "Line four."]
+        bad = ["Zeile eins.", "", "", ""]
+
+        is_valid, errors = translator.validate_translation_output(original, bad, format="srt")
+
+        assert not is_valid or len(errors) > 0, (
+            "validate_translation_output accepted >30% empty translated lines as valid"
+        )
+
+    def test_rejects_output_too_long(self):
+        import translator
+
+        original = ["Hi"]
+        # Output is >1.5x the length of the original
+        inflated = ["H" * 200]
+
+        is_valid, errors = translator.validate_translation_output(original, inflated, format="srt")
+
+        assert not is_valid or len(errors) > 0, (
+            "validate_translation_output accepted a 200x inflated line as valid"
+        )
+
+    def test_accepts_plausible_german_translation(self):
+        import translator
+
+        original = ["Hello world", "How are you?"]
+        good = ["Hallo Welt", "Wie geht es dir?"]
+
+        is_valid, errors = translator.validate_translation_output(original, good, format="srt")
+
+        assert is_valid and len(errors) == 0, (
+            f"Good translation incorrectly rejected: {errors}"
+        )
+
+    def test_identical_text_structurally_valid(self):
+        """Identical (un-translated) text passes structural validation.
+
+        The validator only checks structure — not whether content changed.
+        This test documents that known design boundary explicitly.
+        """
+        import translator
+
+        original = ["Hello world", "How are you?", "I am fine."]
+        # Same text back — structurally fine, but semantically un-translated
+        same = ["Hello world", "How are you?", "I am fine."]
+
+        is_valid, errors = translator.validate_translation_output(original, same, format="srt")
+
+        # Structural checks pass — identical text has the right line count,
+        # reasonable length, and no empty lines.
+        assert is_valid and len(errors) == 0, (
+            "Structural validator should accept identical text (content check is out of scope); "
+            f"unexpected errors: {errors}"
+        )
+
+    def test_empty_inputs_are_valid(self):
+        import translator
+
+        is_valid, errors = translator.validate_translation_output([], [], format="srt")
+
+        assert is_valid and len(errors) == 0, (
+            f"Empty input should be structurally valid: {errors}"
+        )
