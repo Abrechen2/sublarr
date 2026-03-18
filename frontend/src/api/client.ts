@@ -22,6 +22,7 @@ import type {
   ChapterList,
   SeriesFansubPrefs,
   SubtitleDiffResult,
+  SupportPreview,
 } from '@/lib/types'
 
 const api = axios.create({
@@ -47,6 +48,25 @@ api.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+/**
+ * Bootstrap: fetch the API key from the backend on first load.
+ * The /auth/bootstrap endpoint is only accessible from localhost or an
+ * authenticated UI session, so the key is never exposed to external callers.
+ * Once retrieved it is stored in localStorage and picked up by the interceptor.
+ */
+export async function bootstrapApiKey(): Promise<void> {
+  if (localStorage.getItem('sublarr_api_key')) return
+  try {
+    const res = await axios.get('/api/v1/auth/bootstrap')
+    const key: string = res.data?.api_key
+    if (key) {
+      localStorage.setItem('sublarr_api_key', key)
+    }
+  } catch {
+    // Non-local access or auth required — key must be set manually
+  }
+}
 
 // ─── Health & Status ─────────────────────────────────────────────────────────
 
@@ -876,6 +896,30 @@ export async function getLogRotation(): Promise<LogRotationConfig> {
 export async function updateLogRotation(config: LogRotationConfig): Promise<LogRotationConfig> {
   const { data } = await api.put('/logs/rotation', config)
   return data
+}
+
+// ─── Support Export ───────────────────────────────────────────────────────────
+
+export async function fetchSupportPreview(): Promise<SupportPreview> {
+  const res = await api.get<SupportPreview>('/logs/support-preview')
+  return res.data
+}
+
+export async function downloadSupportBundle(): Promise<void> {
+  const res = await api.get('/logs/support-export', { responseType: 'blob' })
+  const contentDisposition = res.headers['content-disposition'] as string | undefined
+  const filenameMatch = contentDisposition?.match(/filename="?([^"]+)"?/)
+  const filename =
+    filenameMatch?.[1] ??
+    `sublarr-support-${new Date().toISOString().replace(/[:.]/g, '-')}.zip`
+  const url = URL.createObjectURL(res.data as Blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 // ─── Subtitle Tools ──────────────────────────────────────────────────────────

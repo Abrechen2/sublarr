@@ -1,16 +1,24 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual'
-import { useLogs, useLogRotation, useUpdateLogRotation } from '@/hooks/useApi'
+import { useLogs } from '@/hooks/useApi'
 import { useWebSocket } from '@/hooks/useWebSocket'
-import { Pause, Search, ArrowDown, Download, ChevronDown, ChevronUp, Save, Loader2 } from 'lucide-react'
-import { toast } from '@/components/shared/Toast'
+import { Pause, Search, ArrowDown, Download } from 'lucide-react'
 
 const ROW_HEIGHT = 30
 const OVERSCAN = 10
 
 const LOG_LEVELS = ['ALL', 'DEBUG', 'INFO', 'WARNING', 'ERROR'] as const
 const LEVEL_SEVERITY: Record<string, number> = { DEBUG: 0, INFO: 1, WARNING: 2, ERROR: 3 }
+
+const CATEGORY_PREFIXES: Record<string, string[]> = {
+  scanner:     ['wanted_scanner', 'standalone'],
+  translation: ['translation', 'llm_utils'],
+  providers:   ['jimaku', 'podnapisi', 'opensubtitles', 'subdl', 'addic7ed'],
+  jobs:        ['apscheduler', 'worker'],
+  auth:        ['auth', 'auth_ui'],
+  api_access:  ['werkzeug'],
+}
 
 function getLineLevel(line: string): string {
   if (line.includes('[ERROR]')) return 'ERROR'
@@ -26,22 +34,9 @@ export function LogsPage() {
   const [search, setSearch] = useState('')
   const [autoScroll, setAutoScroll] = useState(true)
   const [liveEntries, setLiveEntries] = useState<string[]>([])
-  const [rotationOpen, setRotationOpen] = useState(false)
-  const [rotationMaxSize, setRotationMaxSize] = useState(10)
-  const [rotationBackupCount, setRotationBackupCount] = useState(5)
   const parentRef = useRef<HTMLDivElement>(null)
 
   const { data: logs } = useLogs(500)
-  const { data: rotationConfig } = useLogRotation()
-  const updateRotation = useUpdateLogRotation()
-
-  // Sync rotation config from API
-  useEffect(() => {
-    if (rotationConfig) {
-      setRotationMaxSize(rotationConfig.max_size_mb)
-      setRotationBackupCount(rotationConfig.backup_count)
-    }
-  }, [rotationConfig])
 
   useWebSocket({
     onLogEntry: (data: unknown) => {
@@ -65,8 +60,40 @@ export function LogsPage() {
     return true
   })
 
+  const logViewPrefs = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('sublarr_log_view_prefs')
+      return raw ? JSON.parse(raw) : null
+    } catch {
+      return null
+    }
+  }, [])
+
+  function isLineVisible(line: string): boolean {
+    if (!logViewPrefs?.categories) return true
+    for (const [cat, prefixes] of Object.entries(CATEGORY_PREFIXES)) {
+      if (logViewPrefs.categories[cat] === false) {
+        if ((prefixes as string[]).some(prefix => line.includes(` ${prefix}:`))) return false
+      }
+    }
+    return true
+  }
+
+  function formatLine(line: string): string {
+    if (logViewPrefs?.showTimestamps === false) {
+      return line.replace(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+ /, '')
+    }
+    return line
+  }
+
+  const visibleLogs = useMemo(
+    () => filtered.filter(isLineVisible),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filtered],
+  )
+
   const virtualizer = useVirtualizer({
-    count: filtered.length,
+    count: visibleLogs.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => ROW_HEIGHT,
     overscan: OVERSCAN,
@@ -79,7 +106,7 @@ export function LogsPage() {
     if (autoScroll && parentRef.current) {
       parentRef.current.scrollTop = parentRef.current.scrollHeight
     }
-  }, [filtered.length, autoScroll])
+  }, [visibleLogs.length, autoScroll])
 
   const getLevelColor = (line: string) => {
     if (line.includes('[ERROR]')) return 'var(--error)'
@@ -90,16 +117,6 @@ export function LogsPage() {
 
   const handleDownload = () => {
     window.open('/api/v1/logs/download', '_blank')
-  }
-
-  const handleSaveRotation = () => {
-    updateRotation.mutate(
-      { max_size_mb: rotationMaxSize, backup_count: rotationBackupCount },
-      {
-        onSuccess: () => toast(t('toast.rotation_saved')),
-        onError: () => toast(t('toast.rotation_failed'), 'error'),
-      }
-    )
   }
 
   return (
@@ -191,7 +208,7 @@ export function LogsPage() {
           lineHeight: '1.6',
         }}
       >
-        {filtered.length > 0 ? (
+        {visibleLogs.length > 0 ? (
           <div
             style={{
               height: `${totalHeight}px`,
@@ -200,7 +217,7 @@ export function LogsPage() {
             }}
           >
             {virtualItems.map((virtualRow: VirtualItem) => {
-              const entry = filtered[virtualRow.index]
+              const entry = visibleLogs[virtualRow.index]
               return (
                 <div
                   key={virtualRow.key}
@@ -210,9 +227,10 @@ export function LogsPage() {
                     color: getLevelColor(entry),
                     transform: `translateY(${virtualRow.start}px)`,
                     height: `${ROW_HEIGHT}px`,
+                    whiteSpace: logViewPrefs?.wrapLines ? 'pre-wrap' : 'pre',
                   }}
                 >
-                  {entry}
+                  {formatLine(entry)}
                 </div>
               )
             })}
@@ -220,85 +238,6 @@ export function LogsPage() {
         ) : (
           <div className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
             {level ? t('no_logs_for_level', { level }) : t('no_logs')}
-          </div>
-        )}
-      </div>
-
-      {/* Rotation Config (collapsible) */}
-      <div
-        className="rounded-lg shrink-0"
-        style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
-      >
-        <button
-          onClick={() => setRotationOpen(!rotationOpen)}
-          className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          <span>{t('rotation_config')}</span>
-          {rotationOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        </button>
-        {rotationOpen && (
-          <div className="px-4 pb-4 pt-0 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
-            <div className="grid grid-cols-2 gap-3 mt-3">
-              <div className="space-y-1">
-                <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                  {t('max_size_mb')}
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={rotationMaxSize}
-                  onChange={(e) => setRotationMaxSize(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
-                  className="w-full px-3 py-2 rounded-md text-sm"
-                  style={{
-                    backgroundColor: 'var(--bg-primary)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text-primary)',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '13px',
-                  }}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                  {t('backup_count')}
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={rotationBackupCount}
-                  onChange={(e) => setRotationBackupCount(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
-                  className="w-full px-3 py-2 rounded-md text-sm"
-                  style={{
-                    backgroundColor: 'var(--bg-primary)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text-primary)',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '13px',
-                  }}
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                {t('changes_on_restart')}
-              </p>
-              <button
-                onClick={handleSaveRotation}
-                disabled={updateRotation.isPending}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white"
-                style={{ backgroundColor: 'var(--accent)' }}
-              >
-                {updateRotation.isPending ? (
-                  <Loader2 size={12} className="animate-spin" />
-                ) : (
-                  <Save size={12} />
-                )}
-                Save
-              </button>
-            </div>
           </div>
         )}
       </div>

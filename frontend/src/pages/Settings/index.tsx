@@ -18,7 +18,7 @@ import { LanguageSelect } from '@/components/shared/LanguageSelect'
 import { HELP_TEXT } from './settingsHelpText'
 import { SettingsCard } from '@/components/shared/SettingsCard'
 import type { ConnectionStatus } from '@/components/shared/ConnectionBadge'
-import { Shield, FileText, Map, Archive, Database } from 'lucide-react'
+import { Shield, Map, Archive, Database } from 'lucide-react'
 
 // Tab sub-components — lazy loaded so each tab's code is only fetched on first open
 const ProvidersTab = lazy(() => import('./ProvidersTab').then(m => ({ default: m.ProvidersTab })))
@@ -44,6 +44,9 @@ const CleanupTab = lazy(() => import('./CleanupTab').then(m => ({ default: m.Cle
 const IntegrationsTab = lazy(() => import('./IntegrationsTab').then(m => ({ default: m.IntegrationsTab })))
 const MigrationTab = lazy(() => import('./MigrationTab').then(m => ({ default: m.MigrationTab })))
 const SecurityTab = lazy(() => import('./SecurityTab').then(m => ({ default: m.SecurityTab })))
+const ProtokollTab = lazy(() =>
+  import('./ProtokollTab').then(m => ({ default: m.ProtokollTab }))
+)
 
 function TabSkeleton() {
   return (
@@ -73,7 +76,7 @@ const NAV_GROUPS: NavGroup[] = [
   { title: 'Translation', icon: Languages,  items: ['Translation', 'Translation Backends', 'Prompt Presets', 'Languages'] },
   { title: 'Automation',  icon: Zap,        items: ['Automation', 'Wanted', 'Whisper'] },
   { title: 'Providers',   icon: Globe,      items: ['Providers', 'Scoring'] },
-  { title: 'System',      icon: Cog,        items: ['Events & Hooks', 'Backup', 'Subtitle Tools', 'Cleanup', 'Integrations', 'Notification Templates', 'Security'] },
+  { title: 'System',      icon: Cog,        items: ['Events & Hooks', 'Backup', 'Subtitle Tools', 'Cleanup', 'Integrations', 'Notification Templates', 'Security', 'Protokoll'] },
 ]
 
 // Flat list derived from groups (preserves ordering for legacy code)
@@ -618,6 +621,7 @@ const TAB_KEYS: Record<string, string> = {
   'Integrations': 'tabs.integrations',
   'Notification Templates': 'tabs.notification_templates',
   'Prompt Presets': 'tabs.prompt_presets',
+  'Protokoll': 'protokoll_tab',
 }
 
 export function SettingsPage() {
@@ -841,6 +845,7 @@ function SettingsPageInner() {
   const isMigrationTab = activeTab === 'Migration'
   const isNotificationTemplatesTab = activeTab === 'Notification Templates'
   const isSecurityTab = activeTab === 'Security'
+  const isProtokollTab = activeTab === 'Protokoll'
 
   if (isLoading) {
     return (
@@ -1019,6 +1024,8 @@ function SettingsPageInner() {
             <NotificationTemplatesTab />
           ) : isSecurityTab ? (
             <SecurityTab />
+          ) : isProtokollTab ? (
+            <ProtokollTab />
           ) : isTranslationTab ? (
             <div className="space-y-0">
               {tabFields.map((field) => renderField(field))}
@@ -1038,9 +1045,6 @@ function SettingsPageInner() {
               <SettingsCard title="Sicherheit" icon={Shield}
                 description="API-Key-Authentifizierung für externe Zugriffe">
                 {FIELDS.filter(f => f.tab === 'General' && f.key === 'api_key').map(renderField)}
-              </SettingsCard>
-              <SettingsCard title="Protokollierung" icon={FileText}>
-                {FIELDS.filter(f => f.tab === 'General' && f.key === 'log_level').map(renderField)}
               </SettingsCard>
               <SettingsCard title="Pfadzuordnung" icon={Map}
                 description="Sonarr/Radarr Remote-Pfade auf lokale Pfade mappen">
