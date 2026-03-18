@@ -137,14 +137,16 @@ def reset_provider_manager():
     """Reset ProviderManager singleton before each test.
 
     Prevents state from one test bleeding into the next.
+    Post-test uses invalidate_manager() to properly shut down thread pools
+    and clear caches before nulling the singleton.
     Does NOT conflict with mock_provider_manager — that patches the getter function,
     while this resets the underlying singleton reference.
     """
     import providers as _prov_module
 
-    _prov_module._manager = None
+    _prov_module._manager = None  # pre-test: nothing running yet, direct null is safe
     yield
-    _prov_module._manager = None
+    _prov_module.invalidate_manager()  # post-test: shutdown cleanly, then null
 
 
 @pytest.fixture
@@ -153,6 +155,8 @@ def mock_sonarr(monkeypatch):
 
     NOTE: wanted_search.py imports get_sonarr_client lazily inside function bodies,
     so we must patch at sonarr_client.get_sonarr_client, NOT wanted_search.get_sonarr_client.
+    Do not combine with mock_provider_manager in the same test if the code path calls both
+    get_sonarr_client and get_provider_manager — fixture teardown order is not guaranteed.
     """
 
     class MockSonarrClient:
@@ -189,6 +193,8 @@ def mock_radarr(monkeypatch):
     """Mock RadarrClient — patch at source module.
 
     NOTE: Same lazy-import pattern as sonarr — patch at radarr_client.get_radarr_client.
+    Do not combine with mock_provider_manager in the same test if the code path calls both
+    get_radarr_client and get_provider_manager — fixture teardown order is not guaranteed.
     """
 
     class MockRadarrClient:
@@ -211,15 +217,20 @@ def mock_radarr(monkeypatch):
 def provider_error_factory():
     """Factory for mock providers that raise specific errors on search/download."""
 
-    def _make(error_class=Exception, message="provider error"):
+    def _make(error_class=Exception, message="provider error", name="failing_provider"):
         class FailingProvider:
-            name = "failing_provider"
+            pass
 
-            def search(self, query):
-                raise error_class(message)
+        FailingProvider.name = name
 
-            def download(self, result):
-                raise error_class(message)
+        def search(self, query):
+            raise error_class(message)
+
+        def download(self, result):
+            raise error_class(message)
+
+        FailingProvider.search = search
+        FailingProvider.download = download
 
         return FailingProvider()
 
