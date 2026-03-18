@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   useEventCatalog, useHookConfigs, useCreateHook, useUpdateHook, useDeleteHook, useTestHook,
   useWebhookConfigs, useCreateWebhook, useUpdateWebhook, useDeleteWebhook, useTestWebhook,
@@ -419,7 +419,7 @@ export function ScoringTab() {
   const [showCustomImport, setShowCustomImport] = useState(false)
 
   const weights: ScoringWeights | undefined = scoringData
-  const providerList = providers?.providers || []
+  const providerList = useMemo(() => providers?.providers ?? [], [providers])
 
   useEffect(() => {
     if (weights && !weightsInit) {

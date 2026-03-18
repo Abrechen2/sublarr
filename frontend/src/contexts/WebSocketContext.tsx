@@ -41,6 +41,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 }
 
 /** Returns the shared Socket.IO instance (null if used outside <WebSocketProvider> or if dispatcher is null). */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useSocket(): Socket | null {
   try {
     return useContext(WebSocketContext)
