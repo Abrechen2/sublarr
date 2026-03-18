@@ -47,9 +47,9 @@ def _patch_db_noop(monkeypatch):
     )
 
 
-def _bypass_fast_cache(manager, monkeypatch):
-    """Force the app-level fast cache to always miss (tier 1 bypass)."""
-    monkeypatch.setattr(manager, "_get_cache_backend", lambda: None)
+def _bypass_fast_cache(monkeypatch):
+    """Patch _get_cache_backend at class level (it's a @staticmethod — instance shadow is fragile)."""
+    monkeypatch.setattr("providers.ProviderManager._get_cache_backend", staticmethod(lambda: None))
 
 
 def _make_query(file_path="/test/movie.mkv", languages=None):
@@ -126,14 +126,14 @@ class TestProviderManagerCache:
 
         _patch_db_noop(monkeypatch)
         # Both tiers always miss
-        _bypass_fast_cache(manager, monkeypatch)
+        _bypass_fast_cache(monkeypatch)
 
         query = _make_query("/test/no_cache.mkv")
 
         manager.search(query)
         manager.search(query)
 
-        assert provider.search.call_count >= 2, (
+        assert provider.search.call_count == 2, (
             "Provider.search should be called on every search when cache misses"
         )
 
@@ -153,7 +153,7 @@ class TestCircuitBreaker:
         provider, _ = _make_mock_provider()
 
         _patch_db_noop(monkeypatch)
-        _bypass_fast_cache(manager, monkeypatch)
+        _bypass_fast_cache(monkeypatch)
 
         # Circuit breaker OPEN: allow_request() returns False
         open_cb = MagicMock()
@@ -177,7 +177,7 @@ class TestCircuitBreaker:
         provider, _ = _make_mock_provider()
 
         _patch_db_noop(monkeypatch)
-        _bypass_fast_cache(manager, monkeypatch)
+        _bypass_fast_cache(monkeypatch)
 
         # Circuit breaker CLOSED: allow_request() returns True
         closed_cb = MagicMock()
@@ -202,7 +202,7 @@ class TestCircuitBreaker:
         provider, _ = _make_mock_provider()
 
         _patch_db_noop(monkeypatch)
-        _bypass_fast_cache(manager, monkeypatch)
+        _bypass_fast_cache(monkeypatch)
 
         manager._providers.clear()
         manager._providers["test_provider"] = provider
@@ -232,7 +232,7 @@ class TestRateLimiter:
         provider, _ = _make_mock_provider()
 
         _patch_db_noop(monkeypatch)
-        _bypass_fast_cache(manager, monkeypatch)
+        _bypass_fast_cache(monkeypatch)
 
         # Force rate limit to deny access
         monkeypatch.setattr(manager, "_check_rate_limit", lambda name: False)
@@ -258,7 +258,7 @@ class TestRateLimiter:
         provider, _ = _make_mock_provider()
 
         _patch_db_noop(monkeypatch)
-        _bypass_fast_cache(manager, monkeypatch)
+        _bypass_fast_cache(monkeypatch)
 
         # Rate limit allows access
         monkeypatch.setattr(manager, "_check_rate_limit", lambda name: True)
