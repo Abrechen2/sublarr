@@ -9,6 +9,7 @@ interface AdvancedSettingsContextValue {
 
 const AdvancedSettingsContext = createContext<AdvancedSettingsContextValue | undefined>(undefined)
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAdvancedSettings() {
   const ctx = useContext(AdvancedSettingsContext)
   if (ctx === undefined) {

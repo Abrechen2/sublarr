@@ -332,10 +332,10 @@ def create_app(testing=False):
 
         init_event_system(app)
 
-        hook_engine = HookEngine(max_workers=4)
+        hook_engine = HookEngine(max_workers=4, app=app)
         init_hook_subscribers(hook_engine)
 
-        webhook_dispatcher = WebhookDispatcher(max_workers=4)
+        webhook_dispatcher = WebhookDispatcher(max_workers=4, app=app)
         init_webhook_subscribers(webhook_dispatcher)
 
         # Apply DB config overrides on startup (settings saved via UI take precedence)
@@ -348,8 +348,10 @@ def create_app(testing=False):
         else:
             logger.info("No config overrides in database, using env/defaults")
 
-        # Auto-generate API key on first start if not set via env or DB
-        if not settings.api_key:
+        # Auto-generate API key on first start if not set via env or DB.
+        # Skip when SUBLARR_API_KEY is explicitly set (even to "") — that means
+        # the operator consciously chose to disable API-key auth (also covers tests).
+        if not settings.api_key and "SUBLARR_API_KEY" not in os.environ:
             import secrets
 
             _generated_key = secrets.token_hex(32)

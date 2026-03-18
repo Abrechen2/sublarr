@@ -1244,7 +1244,7 @@ export function SeriesDetailPage() {
     // Fallback poll while extraction is running (covers edge cases like reconnects)
     refetchInterval: extractProgress !== null ? 2_000 : false,
   })
-  const sidecarMap: Record<string, SidecarSubtitle[]> = sidecarData?.subtitles ?? {}
+  const sidecarMap: Record<string, SidecarSubtitle[]> = useMemo(() => sidecarData?.subtitles ?? {}, [sidecarData])
 
   // WebSocket: batch extraction progress
   useWebSocket({
