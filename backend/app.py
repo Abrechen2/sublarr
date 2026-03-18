@@ -348,8 +348,10 @@ def create_app(testing=False):
         else:
             logger.info("No config overrides in database, using env/defaults")
 
-        # Auto-generate API key on first start if not set via env or DB
-        if not settings.api_key:
+        # Auto-generate API key on first start if not set via env or DB.
+        # Skip when SUBLARR_API_KEY is explicitly set (even to "") — that means
+        # the operator consciously chose to disable API-key auth (also covers tests).
+        if not settings.api_key and "SUBLARR_API_KEY" not in os.environ:
             import secrets
 
             _generated_key = secrets.token_hex(32)
