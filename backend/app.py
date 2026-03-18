@@ -335,7 +335,7 @@ def create_app(testing=False):
         hook_engine = HookEngine(max_workers=4)
         init_hook_subscribers(hook_engine)
 
-        webhook_dispatcher = WebhookDispatcher(max_workers=4)
+        webhook_dispatcher = WebhookDispatcher(max_workers=4, app=app)
         init_webhook_subscribers(webhook_dispatcher)
 
         # Apply DB config overrides on startup (settings saved via UI take precedence)
