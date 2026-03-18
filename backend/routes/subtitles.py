@@ -233,18 +233,17 @@ def list_series_subtitles(series_id: int):
         # Standalone fallback: scan wanted_items for this series
         from sqlalchemy import text
 
-        from db import _db_lock, get_db
+        from db import get_db
         from db.standalone import get_standalone_series
 
         if get_standalone_series(series_id) is None:
             return jsonify({"error": "Sonarr not configured"}), 503
 
         db = get_db()
-        with _db_lock:
-            rows = db.execute(
-                text("SELECT id, file_path FROM wanted_items WHERE standalone_series_id=:sid"),
-                {"sid": series_id},
-            ).fetchall()
+        rows = db.execute(
+            text("SELECT id, file_path FROM wanted_items WHERE standalone_series_id=:sid"),
+            {"sid": series_id},
+        ).fetchall()
         result: dict[str, list[dict]] = {}
         for row in rows:
             sidecars = scan_subtitle_sidecars(row.file_path)

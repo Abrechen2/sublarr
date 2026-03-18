@@ -84,12 +84,6 @@ def _anonymize(text: str, hostname: str | None = None) -> str:
 
 # ─── Support export — diagnostic helpers ──────────────────────────────────────
 
-# Module-level reference so unit tests can patch routes.system._db_lock
-try:
-    from db import _db_lock
-except Exception:
-    _db_lock = None  # type: ignore[assignment]
-
 
 def _get_last_scan_minutes() -> int | None:
     """Return minutes since last wanted scan, or None if unknown."""
@@ -99,8 +93,7 @@ def _get_last_scan_minutes() -> int | None:
     from db.repositories.config import ConfigRepository
 
     try:
-        with _db_lock:
-            val = ConfigRepository(get_db()).get_all_config_entries().get("last_scan_timestamp")
+        val = ConfigRepository(get_db()).get_all_config_entries().get("last_scan_timestamp")
         if not val:
             return None
         ts = _dt2.datetime.fromisoformat(val)
@@ -193,23 +186,22 @@ def _build_diagnostic() -> dict:
         from db.repositories.translation import TranslationRepository
         from db.repositories.wanted import WantedRepository
 
-        with _db_lock:
-            db = get_db()
-            wr = WantedRepository(db)
-            diag["wanted"] = {
-                "total": wr.get_wanted_count(),
-                "pending": wr.get_wanted_count(status="wanted"),
-                "extracted": wr.get_wanted_count(status="extracted"),
-                "failed": wr.get_wanted_count(status="failed"),
-            }
-            tr = TranslationRepository(db)
-            rows = tr.get_backend_stats()
-            diag["translations"] = {
-                "total_requests": sum(r.get("total_requests", 0) or 0 for r in rows),
-                "successful": sum(r.get("successful_translations", 0) or 0 for r in rows),
-                "failed": sum(r.get("failed_translations", 0) or 0 for r in rows),
-            }
-            diag["config_entries_count"] = len(ConfigRepository(db).get_all_config_entries())
+        db = get_db()
+        wr = WantedRepository(db)
+        diag["wanted"] = {
+            "total": wr.get_wanted_count(),
+            "pending": wr.get_wanted_count(status="wanted"),
+            "extracted": wr.get_wanted_count(status="extracted"),
+            "failed": wr.get_wanted_count(status="failed"),
+        }
+        tr = TranslationRepository(db)
+        rows = tr.get_backend_stats()
+        diag["translations"] = {
+            "total_requests": sum(r.get("total_requests", 0) or 0 for r in rows),
+            "successful": sum(r.get("successful_translations", 0) or 0 for r in rows),
+            "failed": sum(r.get("failed_translations", 0) or 0 for r in rows),
+        }
+        diag["config_entries_count"] = len(ConfigRepository(db).get_all_config_entries())
     except Exception as exc:
         logger.warning("_build_diagnostic: DB query failed: %s", exc)
         diag["db_stats_error"] = "unavailable"
@@ -1549,7 +1541,7 @@ def get_statistics():
                   range:
                     type: string
     """
-    from db import _db_lock, get_db
+    from db import get_db
     from db.providers import get_provider_stats
 
     range_param = request.args.get("range", "30d")
@@ -1559,10 +1551,9 @@ def get_statistics():
     db = get_db()
 
     # Daily stats
-    with _db_lock:
-        daily_rows = db.execute(
-            text("SELECT * FROM daily_stats ORDER BY date DESC LIMIT :days"), {"days": days}
-        ).fetchall()
+    daily_rows = db.execute(
+        text("SELECT * FROM daily_stats ORDER BY date DESC LIMIT :days"), {"days": days}
+    ).fetchall()
     daily = []
     by_format_totals: dict = {}
     for row in daily_rows:
@@ -1588,45 +1579,41 @@ def get_statistics():
     providers = get_provider_stats()
 
     # Downloads by provider
-    with _db_lock:
-        dl_rows = db.execute(
-            text("""SELECT provider_name, COUNT(*) as count, AVG(score) as avg_score
-               FROM subtitle_downloads GROUP BY provider_name""")
-        ).fetchall()
+    dl_rows = db.execute(
+        text("""SELECT provider_name, COUNT(*) as count, AVG(score) as avg_score
+           FROM subtitle_downloads GROUP BY provider_name""")
+    ).fetchall()
     downloads_by_provider = [
         {"provider_name": row[0], "count": row[1], "avg_score": round(row[2] or 0, 1)}
         for row in dl_rows
     ]
 
     # Translation backend stats
-    with _db_lock:
-        backend_rows = db.execute(text("SELECT * FROM translation_backend_stats")).fetchall()
+    backend_rows = db.execute(text("SELECT * FROM translation_backend_stats")).fetchall()
     backend_stats = [dict(row._mapping) for row in backend_rows]
 
     # Upgrade history summary
-    with _db_lock:
-        upgrade_rows = db.execute(
-            text("""SELECT old_format || ' -> ' || new_format as upgrade_type, COUNT(*) as count
-               FROM upgrade_history GROUP BY upgrade_type""")
-        ).fetchall()
+    upgrade_rows = db.execute(
+        text("""SELECT old_format || ' -> ' || new_format as upgrade_type, COUNT(*) as count
+           FROM upgrade_history GROUP BY upgrade_type""")
+    ).fetchall()
     upgrades = [{"type": row[0], "count": row[1]} for row in upgrade_rows]
 
     # Quality trend: daily avg score from subtitle_downloads (normalized 0-100)
     _SCORE_MAX = 900.0
-    with _db_lock:
-        qt_rows = db.execute(
-            text("""
-                SELECT substr(downloaded_at, 1, 10) as date,
-                       AVG(COALESCE(score, 0)) as avg_score,
-                       COUNT(*) as files_checked,
-                       SUM(CASE WHEN COALESCE(score, 0) < 100 THEN 1 ELSE 0 END) as issues_count
-                FROM subtitle_downloads
-                WHERE downloaded_at >= date('now', :offset)
-                GROUP BY substr(downloaded_at, 1, 10)
-                ORDER BY date ASC
-            """),
-            {"offset": f"-{days} days"},
-        ).fetchall()
+    qt_rows = db.execute(
+        text("""
+            SELECT substr(downloaded_at, 1, 10) as date,
+                   AVG(COALESCE(score, 0)) as avg_score,
+                   COUNT(*) as files_checked,
+                   SUM(CASE WHEN COALESCE(score, 0) < 100 THEN 1 ELSE 0 END) as issues_count
+            FROM subtitle_downloads
+            WHERE downloaded_at >= date('now', :offset)
+            GROUP BY substr(downloaded_at, 1, 10)
+            ORDER BY date ASC
+        """),
+        {"offset": f"-{days} days"},
+    ).fetchall()
     quality_trend = [
         {
             "date": row[0],
@@ -1638,22 +1625,21 @@ def get_statistics():
     ]
 
     # Series quality: per-series avg score and format breakdown from subtitle_downloads
-    with _db_lock:
-        sq_rows = db.execute(
-            text("""
-                SELECT wi.title,
-                       AVG(COALESCE(sd.score, 0)) as avg_score,
-                       COUNT(*) as download_count,
-                       MAX(sd.downloaded_at) as last_download,
-                       GROUP_CONCAT(DISTINCT sd.format) as formats
-                FROM subtitle_downloads sd
-                JOIN wanted_items wi ON sd.file_path = wi.file_path
-                WHERE wi.title != ''
-                GROUP BY wi.title
-                ORDER BY download_count DESC
-                LIMIT 20
-            """)
-        ).fetchall()
+    sq_rows = db.execute(
+        text("""
+            SELECT wi.title,
+                   AVG(COALESCE(sd.score, 0)) as avg_score,
+                   COUNT(*) as download_count,
+                   MAX(sd.downloaded_at) as last_download,
+                   GROUP_CONCAT(DISTINCT sd.format) as formats
+            FROM subtitle_downloads sd
+            JOIN wanted_items wi ON sd.file_path = wi.file_path
+            WHERE wi.title != ''
+            GROUP BY wi.title
+            ORDER BY download_count DESC
+            LIMIT 20
+        """)
+    ).fetchall()
     series_quality = [
         {
             "title": row[0],
@@ -1720,7 +1706,7 @@ def export_statistics():
                 type: string
                 format: binary
     """
-    from db import _db_lock, get_db
+    from db import get_db
     from db.providers import get_provider_stats
 
     range_param = request.args.get("range", "30d")
@@ -1731,10 +1717,9 @@ def export_statistics():
     db = get_db()
 
     # Fetch daily stats
-    with _db_lock:
-        daily_rows = db.execute(
-            text("SELECT * FROM daily_stats ORDER BY date DESC LIMIT :days"), {"days": days}
-        ).fetchall()
+    daily_rows = db.execute(
+        text("SELECT * FROM daily_stats ORDER BY date DESC LIMIT :days"), {"days": days}
+    ).fetchall()
     daily = []
     for row in daily_rows:
         d = row._mapping
@@ -1767,11 +1752,10 @@ def export_statistics():
     else:
         # JSON export with full data
         providers = get_provider_stats()
-        with _db_lock:
-            dl_rows = db.execute(
-                text("""SELECT provider_name, COUNT(*) as count, AVG(score) as avg_score
-                   FROM subtitle_downloads GROUP BY provider_name""")
-            ).fetchall()
+        dl_rows = db.execute(
+            text("""SELECT provider_name, COUNT(*) as count, AVG(score) as avg_score
+               FROM subtitle_downloads GROUP BY provider_name""")
+        ).fetchall()
         downloads_by_provider = [
             {"provider": row[0], "count": row[1], "avg_score": round(row[2] or 0, 1)}
             for row in dl_rows

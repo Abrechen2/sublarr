@@ -132,7 +132,6 @@ class TestStatisticsQualityFields:
 
         with (
             app.test_request_context("/api/v1/statistics?range=30d"),
-            patch("db._db_lock", MagicMock()),
             patch("db.get_db") as mock_get_db,
             patch("db.providers.get_provider_stats", return_value={}),
         ):
@@ -153,7 +152,6 @@ class TestStatisticsQualityFields:
 
         with (
             app.test_request_context("/api/v1/statistics?range=30d"),
-            patch("db._db_lock", MagicMock()),
             patch("db.get_db") as mock_get_db,
             patch("db.providers.get_provider_stats", return_value={}),
         ):

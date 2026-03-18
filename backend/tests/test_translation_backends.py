@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from config import reload_settings
-from db import _db_lock, close_db, get_db, init_db
+from db import close_db, get_db, init_db
 
 # ---------------------------------------------------------------------------
 # Fixtures

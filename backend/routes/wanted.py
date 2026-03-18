@@ -1785,14 +1785,12 @@ def _retranslate_item(item_id: int):
     import threading
 
     from config import get_settings
-    from db import _db_lock
     from db.jobs import create_job
     from db.wanted import get_wanted_item
     from events import emit_event
     from security_utils import is_safe_path
 
-    with _db_lock:
-        item = get_wanted_item(item_id)
+    item = get_wanted_item(item_id)
     if not item:
         return None
 
@@ -1817,8 +1815,7 @@ def _retranslate_item(item_id: int):
                 except OSError as exc:
                     logger.warning("batch-translate: could not remove %s: %s", target, exc)
 
-    with _db_lock:
-        new_job = create_job(file_path, force=True)
+    new_job = create_job(file_path, force=True)
 
     from flask import current_app as _current_app
 

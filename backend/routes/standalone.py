@@ -277,7 +277,7 @@ def list_series():
         500:
           description: Server error
     """
-    from db import _db_lock, get_db
+    from db import get_db
     from db.standalone import get_standalone_series
 
     try:
@@ -285,15 +285,14 @@ def list_series():
 
         # Enrich with wanted counts from wanted_items table
         db = get_db()
-        with _db_lock:
-            for series in series_list:
-                row = db.execute(
-                    text(
-                        "SELECT COUNT(*) FROM wanted_items WHERE standalone_series_id=:sid AND status='wanted'"
-                    ),
-                    {"sid": series["id"]},
-                ).fetchone()
-                series["wanted_count"] = row[0] if row else 0
+        for series in series_list:
+            row = db.execute(
+                text(
+                    "SELECT COUNT(*) FROM wanted_items WHERE standalone_series_id=:sid AND status='wanted'"
+                ),
+                {"sid": series["id"]},
+            ).fetchone()
+            series["wanted_count"] = row[0] if row else 0
 
         return jsonify(series_list)
     except Exception as e:
@@ -328,7 +327,7 @@ def get_series(series_id):
         500:
           description: Server error
     """
-    from db import _db_lock, get_db
+    from db import get_db
     from db.standalone import get_standalone_series
 
     try:
@@ -338,13 +337,10 @@ def get_series(series_id):
 
         # Get wanted items for this series
         db = get_db()
-        with _db_lock:
-            rows = db.execute(
-                text(
-                    "SELECT * FROM wanted_items WHERE standalone_series_id=:sid ORDER BY file_path"
-                ),
-                {"sid": series_id},
-            ).fetchall()
+        rows = db.execute(
+            text("SELECT * FROM wanted_items WHERE standalone_series_id=:sid ORDER BY file_path"),
+            {"sid": series_id},
+        ).fetchall()
         series["wanted_items"] = [dict(row._mapping) for row in rows]
 
         return jsonify(series)
@@ -419,7 +415,7 @@ def delete_series(series_id):
         500:
           description: Server error
     """
-    from db import _db_lock, get_db
+    from db import get_db
     from db.standalone import delete_standalone_series, get_standalone_series
 
     series = get_standalone_series(series_id)
@@ -429,12 +425,11 @@ def delete_series(series_id):
     try:
         # Delete associated wanted items first
         db = get_db()
-        with _db_lock:
-            db.execute(
-                text("DELETE FROM wanted_items WHERE standalone_series_id=:sid"),
-                {"sid": series_id},
-            )
-            db.commit()
+        db.execute(
+            text("DELETE FROM wanted_items WHERE standalone_series_id=:sid"),
+            {"sid": series_id},
+        )
+        db.commit()
 
         delete_standalone_series(series_id)
         return jsonify({"success": True})
@@ -469,7 +464,7 @@ def list_movies():
         500:
           description: Server error
     """
-    from db import _db_lock, get_db
+    from db import get_db
     from db.standalone import get_standalone_movies
 
     try:
@@ -477,15 +472,14 @@ def list_movies():
 
         # Enrich with wanted status
         db = get_db()
-        with _db_lock:
-            for movie in movies:
-                row = db.execute(
-                    text(
-                        "SELECT COUNT(*) FROM wanted_items WHERE standalone_movie_id=:mid AND status='wanted'"
-                    ),
-                    {"mid": movie["id"]},
-                ).fetchone()
-                movie["wanted_count"] = row[0] if row else 0
+        for movie in movies:
+            row = db.execute(
+                text(
+                    "SELECT COUNT(*) FROM wanted_items WHERE standalone_movie_id=:mid AND status='wanted'"
+                ),
+                {"mid": movie["id"]},
+            ).fetchone()
+            movie["wanted_count"] = row[0] if row else 0
 
         return jsonify(movies)
     except Exception as e:
@@ -553,7 +547,7 @@ def delete_movie(movie_id):
         500:
           description: Server error
     """
-    from db import _db_lock, get_db
+    from db import get_db
     from db.standalone import delete_standalone_movie, get_standalone_movies
 
     movie = get_standalone_movies(movie_id)
@@ -563,12 +557,11 @@ def delete_movie(movie_id):
     try:
         # Delete associated wanted items first
         db = get_db()
-        with _db_lock:
-            db.execute(
-                text("DELETE FROM wanted_items WHERE standalone_movie_id=:mid"),
-                {"mid": movie_id},
-            )
-            db.commit()
+        db.execute(
+            text("DELETE FROM wanted_items WHERE standalone_movie_id=:mid"),
+            {"mid": movie_id},
+        )
+        db.commit()
 
         delete_standalone_movie(movie_id)
         return jsonify({"success": True})

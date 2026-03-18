@@ -111,11 +111,8 @@ class TestBuildDiagnostic:
 
         from routes.system import _build_diagnostic
 
-        # Simulate DB failure by patching _db_lock so __enter__ raises
-        mock_lock = MagicMock()
-        mock_lock.__enter__ = MagicMock(side_effect=Exception("locked"))
-        mock_lock.__exit__ = MagicMock(return_value=False)
-        with patch("routes.system._db_lock", mock_lock):
+        # Simulate DB failure by patching get_db so it raises
+        with patch("db.get_db", side_effect=Exception("locked")):
             result = _build_diagnostic()
         assert "db_stats_error" in result
 

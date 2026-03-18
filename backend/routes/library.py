@@ -87,7 +87,7 @@ def get_library():
             from sqlalchemy import text
 
             from config import get_settings
-            from db import _db_lock, get_db
+            from db import get_db
             from db.profiles import get_default_profile
             from db.standalone import get_standalone_movies, get_standalone_series
 
@@ -102,13 +102,12 @@ def get_library():
                 db = get_db()
 
                 for s in get_standalone_series():
-                    with _db_lock:
-                        row = db.execute(
-                            text(
-                                "SELECT COUNT(*) FROM wanted_items WHERE standalone_series_id=:sid AND status='wanted'"
-                            ),
-                            {"sid": s["id"]},
-                        ).fetchone()
+                    row = db.execute(
+                        text(
+                            "SELECT COUNT(*) FROM wanted_items WHERE standalone_series_id=:sid AND status='wanted'"
+                        ),
+                        {"sid": s["id"]},
+                    ).fetchone()
                     # Use the API endpoint for local posters (browser can't load file:// URLs)
                     poster = (
                         f"/api/v1/standalone/series/{s['id']}/poster" if s.get("poster_url") else ""
@@ -142,13 +141,12 @@ def get_library():
                         "sample",
                     ):
                         continue
-                    with _db_lock:
-                        row = db.execute(
-                            text(
-                                "SELECT COUNT(*) FROM wanted_items WHERE standalone_movie_id=:mid AND status='wanted'"
-                            ),
-                            {"mid": m["id"]},
-                        ).fetchone()
+                    row = db.execute(
+                        text(
+                            "SELECT COUNT(*) FROM wanted_items WHERE standalone_movie_id=:mid AND status='wanted'"
+                        ),
+                        {"mid": m["id"]},
+                    ).fetchone()
                     movie_poster = (
                         f"/api/v1/standalone/movies/{m['id']}/poster" if m.get("poster_url") else ""
                     )
@@ -359,7 +357,7 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
 
     from sqlalchemy import text
 
-    from db import _db_lock, get_db
+    from db import get_db
     from db.profiles import get_default_profile
     from db.standalone import get_standalone_series
     from translator import detect_existing_target_for_lang
@@ -382,11 +380,10 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
     profile_name = profile.get("name", "Default") if profile else "Default"
 
     db = get_db()
-    with _db_lock:
-        rows = db.execute(
-            text("SELECT * FROM wanted_items WHERE standalone_series_id=:sid ORDER BY file_path"),
-            {"sid": series_id},
-        ).fetchall()
+    rows = db.execute(
+        text("SELECT * FROM wanted_items WHERE standalone_series_id=:sid ORDER BY file_path"),
+        {"sid": series_id},
+    ).fetchall()
     wanted_items = [dict(r._mapping) for r in rows]
 
     episodes = []
@@ -503,7 +500,7 @@ def get_series_detail(series_id):
     from concurrent.futures import ThreadPoolExecutor
 
     from config import get_settings, map_path
-    from db import _db_lock, get_db
+    from db import get_db
     from db.profiles import get_default_profile, get_series_profile
     from sonarr_client import get_sonarr_client
     from translator import detect_existing_target_for_lang
@@ -583,15 +580,14 @@ def get_series_detail(series_id):
             }
             mapped_to_ep_id = {v: k for k, v in ep_id_to_mapped.items()}
             paths = list(mapped_to_ep_id.keys())
-            with _db_lock:
-                conn = get_db()
-                placeholders = ",".join("?" * len(paths))
-                rows = conn.execute(
-                    f"SELECT file_path, language, format FROM subtitle_downloads "
-                    f"WHERE file_path IN ({placeholders}) AND format != '' "
-                    f"ORDER BY downloaded_at DESC",
-                    paths,
-                ).fetchall()
+            conn = get_db()
+            placeholders = ",".join("?" * len(paths))
+            rows = conn.execute(
+                f"SELECT file_path, language, format FROM subtitle_downloads "
+                f"WHERE file_path IN ({placeholders}) AND format != '' "
+                f"ORDER BY downloaded_at DESC",
+                paths,
+            ).fetchall()
             for row in rows:
                 path, lang, fmt = row[0], row[1], row[2]
                 ep_id = mapped_to_ep_id.get(path)
@@ -610,14 +606,13 @@ def get_series_detail(series_id):
     wanted_fallback: dict = {}  # ep_id -> {lang: existing_sub}
     if ep_ids:
         try:
-            with _db_lock:
-                conn = get_db()
-                placeholders = ",".join("?" * len(ep_ids))
-                rows = conn.execute(
-                    f"SELECT sonarr_episode_id, target_language, existing_sub "
-                    f"FROM wanted_items WHERE sonarr_episode_id IN ({placeholders})",
-                    ep_ids,
-                ).fetchall()
+            conn = get_db()
+            placeholders = ",".join("?" * len(ep_ids))
+            rows = conn.execute(
+                f"SELECT sonarr_episode_id, target_language, existing_sub "
+                f"FROM wanted_items WHERE sonarr_episode_id IN ({placeholders})",
+                ep_ids,
+            ).fetchall()
             for row in rows:
                 eid, lang, existing = row[0], row[1], row[2]
                 if eid not in wanted_fallback:

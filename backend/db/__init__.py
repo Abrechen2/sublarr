@@ -1,6 +1,6 @@
 """Database package -- SQLAlchemy ORM integration.
 
-Provides backward-compatible shims for code importing get_db, _db_lock,
+Provides backward-compatible shims for code importing get_db,
 init_db, and close_db. All database access now goes through SQLAlchemy
 sessions managed by Flask-SQLAlchemy.
 
@@ -11,25 +11,6 @@ delegate to their repository counterparts in db/repositories/.
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-class _NoOpLock:
-    """No-op lock -- SQLAlchemy handles thread safety via session scoping."""
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        pass
-
-    def acquire(self, *args, **kwargs):
-        pass
-
-    def release(self, *args, **kwargs):
-        pass
-
-
-_db_lock = _NoOpLock()
 
 
 def get_db():

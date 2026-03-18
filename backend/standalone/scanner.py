@@ -639,14 +639,13 @@ class StandaloneScanner:
         """
         try:
             from config import get_settings
-            from db import _db_lock, get_db
+            from db import get_db
 
             skip_extras = getattr(get_settings(), "standalone_skip_extras", True)
             db = get_db()
-            with _db_lock:
-                rows = db.execute(
-                    text("SELECT id, file_path FROM wanted_items WHERE instance_name='standalone'")
-                ).fetchall()
+            rows = db.execute(
+                text("SELECT id, file_path FROM wanted_items WHERE instance_name='standalone'")
+            ).fetchall()
 
             to_remove = []
             for row in rows:

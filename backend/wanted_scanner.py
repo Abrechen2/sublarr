@@ -789,13 +789,12 @@ class WantedScanner:
         # Collect all file paths from standalone wanted items
         scanned_paths = set()
         try:
-            from db import _db_lock, get_db
+            from db import get_db
 
             db = get_db()
-            with _db_lock:
-                rows = db.execute(
-                    "SELECT file_path FROM wanted_items WHERE instance_name='standalone'"
-                ).fetchall()
+            rows = db.execute(
+                "SELECT file_path FROM wanted_items WHERE instance_name='standalone'"
+            ).fetchall()
             scanned_paths = {row[0] for row in rows}
         except Exception as e:
             logger.debug("Could not collect standalone scanned paths: %s", e)
