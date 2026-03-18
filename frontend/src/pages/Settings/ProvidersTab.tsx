@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   useProviders, useTestProvider, useProviderStats, useClearProviderCache,
 } from '@/hooks/useApi'
@@ -32,7 +32,7 @@ export function ProvidersTab({
   const [isNewProvider, setIsNewProvider] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
 
-  const providers = providersData?.providers ?? []
+  const providers = useMemo(() => providersData?.providers ?? [], [providersData])
 
   useEffect(() => {
     if (providers.length > 0 && localPriority === null) {

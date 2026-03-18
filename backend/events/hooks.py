@@ -29,11 +29,12 @@ class HookEngine:
     never blocks the event producer (async dispatch to thread pool).
     """
 
-    def __init__(self, max_workers: int = 4):
+    def __init__(self, max_workers: int = 4, app=None):
         self._pool = ThreadPoolExecutor(
             max_workers=max_workers,
             thread_name_prefix="hook",
         )
+        self._app = app
         logger.debug("HookEngine created with %d workers", max_workers)
 
     def execute_hook(self, hook_config: dict, event_name: str, event_data: dict) -> dict:
@@ -130,7 +131,12 @@ class HookEngine:
         try:
             from db.hooks import get_hook_configs
 
-            configs = get_hook_configs(event_name=event_name)
+            # DB access requires Flask app context (may be called from a background thread)
+            if self._app is not None:
+                with self._app.app_context():
+                    configs = get_hook_configs(event_name=event_name)
+            else:
+                configs = get_hook_configs(event_name=event_name)
         except Exception as e:
             logger.error("Failed to load hook configs for %s: %s", event_name, e)
             return

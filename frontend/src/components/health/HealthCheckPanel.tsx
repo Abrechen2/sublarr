@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   Loader2, RefreshCw, Wrench, XCircle, AlertTriangle, Info,
   CheckCircle2, X,
@@ -45,7 +45,7 @@ export function HealthCheckPanel({ filePath, onClose, onFixed }: HealthCheckPane
     (a, b) => severityOrder(a.severity) - severityOrder(b.severity)
   )
   const fixableIssues = issues.filter((i) => i.auto_fixable)
-  const fixableChecks = [...new Set(fixableIssues.map((i) => i.check))]
+  const fixableChecks = useMemo(() => [...new Set(fixableIssues.map((i) => i.check))], [fixableIssues])
 
   const handleFixSingle = useCallback(
     (checkName: string) => {

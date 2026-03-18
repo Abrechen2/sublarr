@@ -160,6 +160,7 @@ export function VirtualLibraryTable({
   const colSpan = isSeries ? 5 : 3
 
   const parentRef = useRef<HTMLDivElement>(null)
+  // eslint-disable-next-line react-hooks/incompatible-library
   const rowVirtualizer = useVirtualizer({
     count: items.length,
     getScrollElement: () => parentRef.current,

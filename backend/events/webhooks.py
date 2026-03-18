@@ -60,11 +60,12 @@ class WebhookDispatcher:
     and timeout. Execution never blocks the event producer.
     """
 
-    def __init__(self, max_workers: int = 4):
+    def __init__(self, max_workers: int = 4, app=None):
         self._pool = ThreadPoolExecutor(
             max_workers=max_workers,
             thread_name_prefix="webhook",
         )
+        self._app = app
         logger.debug("WebhookDispatcher created with %d workers", max_workers)
 
     def send_webhook(self, webhook_config: dict, event_name: str, event_data: dict) -> dict:
@@ -150,10 +151,17 @@ class WebhookDispatcher:
         try:
             from db.hooks import get_webhook_configs
 
-            # Get exact match + wildcard webhooks
-            exact_configs = get_webhook_configs(event_name=event_name)
-            wildcard_configs = get_webhook_configs(event_name="*")
-            configs = exact_configs + wildcard_configs
+            def _load_configs() -> list:
+                exact = get_webhook_configs(event_name=event_name)
+                wildcard = get_webhook_configs(event_name="*")
+                return exact + wildcard
+
+            # DB access requires Flask app context (may be called from a background thread)
+            if self._app is not None:
+                with self._app.app_context():
+                    configs = _load_configs()
+            else:
+                configs = _load_configs()
         except Exception as e:
             logger.error("Failed to load webhook configs for %s: %s", event_name, e)
             return

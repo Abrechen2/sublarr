@@ -12,6 +12,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
  */
 export function useWantedVirtualizer(count: number, estimatedRowHeight = 42) {
   const parentRef = useRef<HTMLDivElement>(null)
+  // eslint-disable-next-line react-hooks/incompatible-library
   const rowVirtualizer = useVirtualizer({
     count,
     getScrollElement: () => parentRef.current,

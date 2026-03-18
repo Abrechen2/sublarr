@@ -35,20 +35,6 @@ export function SpellCheckPanel({
   const spellCheckMutation = useSpellCheck()
   const { data: _dictionaries } = useSpellDictionaries()
 
-  // Run spell check when content changes (debounced)
-  useEffect(() => {
-    if (!content) {
-      setErrors([])
-      return
-    }
-
-    const timer = setTimeout(() => {
-      runSpellCheck()
-    }, 1000) // 1 second debounce
-
-    return () => clearTimeout(timer)
-  }, [content, filePath, language, customWords])
-
   const runSpellCheck = useCallback(async () => {
     if (!content) {
       setErrors([])
@@ -71,6 +57,20 @@ export function SpellCheckPanel({
       setIsChecking(false)
     }
   }, [content, filePath, language, customWords, spellCheckMutation])
+
+  // Run spell check when content changes (debounced)
+  useEffect(() => {
+    if (!content) {
+      setErrors([])
+      return
+    }
+
+    const timer = setTimeout(() => {
+      runSpellCheck()
+    }, 1000) // 1 second debounce
+
+    return () => clearTimeout(timer)
+  }, [content, filePath, language, customWords, runSpellCheck])
 
   const handleReplace = useCallback(
     (error: SpellCheckError, suggestion: string) => {
