@@ -367,9 +367,8 @@ class TestQualityValidation:
 
         is_valid, errors = translator.validate_translation_output(original, bad, format="srt")
 
-        assert not is_valid or len(errors) > 0, (
-            "validate_translation_output accepted >30% empty translated lines as valid"
-        )
+        assert not is_valid, "validate_translation_output accepted >30% empty translated lines as valid"
+        assert len(errors) > 0, "errors list must be non-empty when is_valid is False"
 
     def test_rejects_output_too_long(self):
         import translator
@@ -380,9 +379,8 @@ class TestQualityValidation:
 
         is_valid, errors = translator.validate_translation_output(original, inflated, format="srt")
 
-        assert not is_valid or len(errors) > 0, (
-            "validate_translation_output accepted a 200x inflated line as valid"
-        )
+        assert not is_valid, "validate_translation_output accepted a 200x inflated line as valid"
+        assert len(errors) > 0, "errors list must be non-empty when is_valid is False"
 
     def test_accepts_plausible_german_translation(self):
         import translator
