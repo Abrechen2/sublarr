@@ -78,6 +78,7 @@ class Settings(BaseSettings):
 
     # OpenSubtitles.com (API v2)
     opensubtitles_api_key: str = ""
+    betaseries_api_key: str = ""
     opensubtitles_username: str = ""
     opensubtitles_password: str = ""
 

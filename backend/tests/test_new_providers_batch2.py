@@ -382,3 +382,102 @@ class TestZimukuProvider:
         content = p.download(r)
         assert content == srt_content
         assert r.content == content
+
+
+class TestBetaSeriesProvider:
+    """Tests for the BetaSeries provider."""
+
+    def test_import_and_name(self):
+        from providers.betaseries import BetaSeriesProvider
+        p = BetaSeriesProvider()
+        assert p.name == "betaseries"
+
+    def test_has_api_key_config_field(self):
+        from providers.betaseries import BetaSeriesProvider
+        p = BetaSeriesProvider()
+        field_keys = [f["key"] for f in p.config_fields]
+        assert "betaseries_api_key" in field_keys
+
+    def test_languages_includes_french(self):
+        from providers.betaseries import BetaSeriesProvider
+        p = BetaSeriesProvider()
+        assert "fr" in p.languages
+        assert "en" in p.languages
+
+    def test_health_check_not_initialized(self):
+        from providers.betaseries import BetaSeriesProvider
+        p = BetaSeriesProvider()
+        healthy, msg = p.health_check()
+        assert not healthy
+
+    def test_health_check_no_api_key(self):
+        from providers.betaseries import BetaSeriesProvider
+        p = BetaSeriesProvider()
+        p.session = MagicMock()
+        p.api_key = ""
+        healthy, msg = p.health_check()
+        assert not healthy
+        assert "API key" in msg
+
+    def test_initialize_creates_session(self):
+        from providers.betaseries import BetaSeriesProvider
+        p = BetaSeriesProvider(api_key="test-key")
+        with patch("providers.betaseries.create_session") as mock_cs:
+            mock_cs.return_value = MagicMock()
+            p.initialize()
+            assert p.session is not None
+
+    def test_terminate_closes_session(self):
+        from providers.betaseries import BetaSeriesProvider
+        p = BetaSeriesProvider()
+        p.session = MagicMock()
+        p.terminate()
+        assert p.session is None
+
+    def test_search_returns_empty_without_session(self):
+        from providers.base import VideoQuery
+        from providers.betaseries import BetaSeriesProvider
+        p = BetaSeriesProvider()
+        q = VideoQuery(title="Test", languages=["fr"])
+        assert p.search(q) == []
+
+    def test_search_returns_empty_without_api_key(self):
+        from providers.base import VideoQuery
+        from providers.betaseries import BetaSeriesProvider
+        p = BetaSeriesProvider(api_key="")
+        p.session = MagicMock()
+        q = VideoQuery(title="Lupin", season=1, episode=1, languages=["fr"])
+        assert p.search(q) == []
+
+    def test_download_raises_without_session(self):
+        import pytest
+        from providers.base import SubtitleResult, SubtitleFormat
+        from providers.betaseries import BetaSeriesProvider
+        p = BetaSeriesProvider()
+        r = SubtitleResult(
+            provider_name="betaseries", subtitle_id="12345",
+            language="fr", format=SubtitleFormat.SRT,
+            filename="x.srt", download_url="https://api.betaseries.com/x",
+        )
+        with pytest.raises(RuntimeError):
+            p.download(r)
+
+    def test_download_success_returns_content(self):
+        from providers.base import SubtitleResult, SubtitleFormat
+        from providers.betaseries import BetaSeriesProvider
+        p = BetaSeriesProvider(api_key="test-key")
+        mock_session = MagicMock()
+        srt_bytes = b"1\n00:00:01,000 --> 00:00:02,000\nBonjour\n"
+        mock_session.get.return_value = MagicMock(
+            status_code=200,
+            content=srt_bytes,
+        )
+        p.session = mock_session
+        r = SubtitleResult(
+            provider_name="betaseries", subtitle_id="12345",
+            language="fr", format=SubtitleFormat.SRT,
+            filename="12345.srt", download_url="https://api.betaseries.com/subs/12345.srt",
+        )
+        content = p.download(r)
+        assert content == srt_bytes
+        assert r.content == content
