@@ -30,6 +30,7 @@ import { EpisodeActionMenu } from '@/components/episodes/EpisodeActionMenu'
 import { SeriesFansubPrefsPanel } from '@/components/series/SeriesFansubPrefsPanel'
 import { SeriesAudioTrackPicker } from '@/components/series/SeriesAudioTrackPicker'
 import { SubtitleActionsMenu } from '@/components/processing/SubtitleActionsMenu'
+import { SeriesProcessingOverride } from '@/components/processing/SeriesProcessingOverride'
 
 const SubtitleComparison = lazy(() => import('@/components/comparison/SubtitleComparison').then(m => ({ default: m.SubtitleComparison })))
 const SyncControls = lazy(() => import('@/components/sync/SyncControls').then(m => ({ default: m.SyncControls })))
@@ -1875,6 +1876,14 @@ export function SeriesDetailPage() {
           </h3>
           <SeriesFansubPrefsPanel seriesId={seriesId} />
         </div>
+      )}
+
+      {/* Processing Override Panel */}
+      {seriesId !== null && (
+        <SeriesProcessingOverride
+          seriesId={seriesId}
+          initialConfig={{}}
+        />
       )}
 
       {/* Episode Table */}
