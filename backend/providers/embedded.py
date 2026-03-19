@@ -146,6 +146,10 @@ class EmbeddedSubtitlesProvider(SubtitleProvider):
 
     # Deliberately no self.session — avoids ProviderManager's session=None guard
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._initialized = False
+
     def initialize(self) -> None:
         self._initialized = True
 

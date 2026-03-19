@@ -1060,45 +1060,9 @@ class ProviderManager:
         Returns:
             List of SubtitleResult sorted by score (highest first)
         """
-        # 1. Try provider search first
-        results = self.search(
+        return self.search(
             query, format_filter=format_filter, min_score=min_score, early_exit=early_exit
         )
-        if results:
-            return results
-
-        # 2. Fallback: Check embedded subtitles
-        if not query.file_path or not os.path.exists(query.file_path):
-            return []
-
-        try:
-            from ass_utils import get_media_streams, has_target_language_stream
-            from providers.base import SubtitleFormat, SubtitleResult
-
-            probe_data = get_media_streams(query.file_path)
-            if not probe_data:
-                return []
-
-            # Check for target language embedded subtitle
-            target_lang = query.languages[0] if query.languages else None
-            embedded_format = has_target_language_stream(probe_data, target_language=target_lang)
-
-            if embedded_format:
-                # Create pseudo-result for embedded subtitle
-                embedded_result = SubtitleResult(
-                    provider_name="embedded",
-                    subtitle_id="embedded",
-                    language=target_lang or "unknown",
-                    format=SubtitleFormat.ASS if embedded_format == "ass" else SubtitleFormat.SRT,
-                    filename=os.path.basename(query.file_path),
-                    score=100,  # Lower than provider results but still valid
-                )
-                logger.info("Found embedded %s subtitle in %s", embedded_format, query.file_path)
-                return [embedded_result]
-        except Exception as e:
-            logger.debug("Fallback embedded subtitle check failed: %s", e)
-
-        return []
 
     def download(self, result: SubtitleResult) -> bytes | None:
         """Download a subtitle from its provider.
