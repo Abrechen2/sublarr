@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { X, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Download, Database } from 'lucide-react'
+import { X, Loader2, TestTube, Trash2, Download, Database } from 'lucide-react'
 import { SettingRow } from '@/components/shared/SettingRow'
 import type { ProviderInfo } from '@/lib/types'
 import {
@@ -11,16 +11,12 @@ interface ProviderEditModalProps {
   provider: ProviderInfo
   cacheCount: number
   priority: number
-  isFirst: boolean
-  isLast: boolean
   totalProviders: number
   fieldValues: Record<string, string>
   testResult?: { healthy: boolean; message: string } | 'testing'
   onFieldChange: (key: string, value: string) => void
   onTest: () => void
   onToggle: () => void
-  onMoveUp: () => void
-  onMoveDown: () => void
   onClearCache: () => void
   onReEnable: () => void
   onRemove?: () => void
@@ -29,9 +25,9 @@ interface ProviderEditModalProps {
 }
 
 export function ProviderEditModal({
-  provider, cacheCount, priority, isFirst, isLast, totalProviders,
+  provider, cacheCount, priority, totalProviders,
   fieldValues, testResult,
-  onFieldChange, onTest, onToggle, onMoveUp, onMoveDown,
+  onFieldChange, onTest, onToggle,
   onClearCache, onReEnable, onRemove, isNew, onClose,
 }: ProviderEditModalProps) {
   const [confirmRemove, setConfirmRemove] = useState(false)
@@ -247,43 +243,6 @@ export function ProviderEditModal({
               {cacheCount} gecacht
             </span>
           </div>
-
-          {/* ── Priorität ── */}
-          <SettingRow
-            label="Priorität"
-            description={`Rang #${priority} von ${totalProviders} — niedriger = höhere Priorität`}
-          >
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={onMoveUp}
-                disabled={isFirst}
-                className="p-1.5 rounded transition-all"
-                style={{
-                  border: '1px solid var(--border)',
-                  backgroundColor: 'var(--bg-primary)',
-                  color: isFirst ? 'var(--text-muted)' : 'var(--text-secondary)',
-                  opacity: isFirst ? 0.4 : 1,
-                }}
-                title="Höhere Priorität"
-              >
-                <ChevronUp size={14} />
-              </button>
-              <button
-                onClick={onMoveDown}
-                disabled={isLast}
-                className="p-1.5 rounded transition-all"
-                style={{
-                  border: '1px solid var(--border)',
-                  backgroundColor: 'var(--bg-primary)',
-                  color: isLast ? 'var(--text-muted)' : 'var(--text-secondary)',
-                  opacity: isLast ? 0.4 : 1,
-                }}
-                title="Niedrigere Priorität"
-              >
-                <ChevronDown size={14} />
-              </button>
-            </div>
-          </SettingRow>
 
           {/* ── Zugangsdaten ── */}
           {provider.config_fields.length > 0 ? (

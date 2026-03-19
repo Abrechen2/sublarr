@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import {
   useProviders, useTestProvider, useProviderStats, useClearProviderCache,
 } from '@/hooks/useApi'
-import { Loader2, Trash2, Plus } from 'lucide-react'
+import { Loader2, Trash2, Plus, GripVertical } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import type { ProviderInfo } from '@/lib/types'
 import { ProviderTile } from './providers/ProviderTile'
@@ -11,6 +11,15 @@ import { AddProviderModal } from './providers/AddProviderModal'
 import { MarketplaceTab } from './providers/MarketplaceTab'
 
 type ProviderTabId = 'configured' | 'marketplace'
+
+/** Reorder a provider priority list — returns a new array (immutable). */
+export function reorderProviders(items: string[], fromIndex: number, toIndex: number): string[] {
+  if (fromIndex === toIndex) return [...items]
+  const next = [...items]
+  const [moved] = next.splice(fromIndex, 1)
+  next.splice(toIndex, 0, moved)
+  return next
+}
 
 export function ProvidersTab({
   values,
@@ -31,6 +40,8 @@ export function ProvidersTab({
   const [editingProvider, setEditingProvider] = useState<string | null>(null)
   const [isNewProvider, setIsNewProvider] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [dragFrom, setDragFrom] = useState<number | null>(null)
+  const [dragOver, setDragOver] = useState<number | null>(null)
 
   const providers = useMemo(() => providersData?.providers ?? [], [providersData])
 
@@ -117,15 +128,26 @@ export function ProvidersTab({
     setShowAddModal(false)
   }
 
-  const handleMove = (index: number, direction: 'up' | 'down') => {
-    if (!localPriority) return
-    const newOrder = [...localPriority]
-    const swapIdx = direction === 'up' ? index - 1 : index + 1
-    if (swapIdx < 0 || swapIdx >= newOrder.length) return
-    ;[newOrder[index], newOrder[swapIdx]] = [newOrder[swapIdx], newOrder[index]]
-    setLocalPriority(newOrder)
-    onSave({ provider_priorities: newOrder.join(',') })
+  function handleDragStart(index: number) { setDragFrom(index) }
+
+  function handleDragOverTile(e: React.DragEvent, index: number) {
+    e.preventDefault()
+    setDragOver(index)
   }
+
+  function handleDrop(e: React.DragEvent, toIndex: number) {
+    e.preventDefault()
+    if (dragFrom === null || dragFrom === toIndex) {
+      setDragFrom(null); setDragOver(null); return
+    }
+    const current = localPriority ?? providers.map((p) => p.name)
+    const reordered = reorderProviders(current, dragFrom, toIndex)
+    setLocalPriority(reordered)
+    onSave({ provider_priorities: reordered.join(',') })
+    setDragFrom(null); setDragOver(null)
+  }
+
+  function handleDragEnd() { setDragFrom(null); setDragOver(null) }
 
   const handleClearCache = (providerName?: string) => {
     clearCacheMut.mutate(providerName, {
@@ -219,16 +241,45 @@ export function ProvidersTab({
       {/* Tile Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {shownProviders.map((provider, idx) => (
-          <ProviderTile
+          <div
             key={provider.name}
-            provider={provider}
-            cacheCount={statsData?.cache[provider.name]?.total ?? 0}
-            priority={idx + 1}
-            testResult={testResults[provider.name]}
-            onOpenEdit={() => setEditingProvider(provider.name)}
-            onToggle={() => handleToggle(provider.name, provider.enabled)}
-            onRemove={() => handleHide(provider.name)}
-          />
+            draggable
+            onDragStart={() => handleDragStart(idx)}
+            onDragOver={(e) => handleDragOverTile(e, idx)}
+            onDrop={(e) => handleDrop(e, idx)}
+            onDragEnd={handleDragEnd}
+            style={{
+              position: 'relative',
+              opacity: dragFrom === idx ? 0.5 : 1,
+              outline: dragOver === idx && dragFrom !== idx ? '2px solid var(--accent)' : 'none',
+              cursor: 'grab',
+              borderRadius: '0.375rem',
+            }}
+          >
+            <GripVertical
+              size={14}
+              style={{
+                color: 'var(--text-muted)',
+                cursor: 'grab',
+                flexShrink: 0,
+                position: 'absolute',
+                top: '4px',
+                left: '4px',
+                zIndex: 2,
+                pointerEvents: 'none',
+              }}
+              aria-hidden="true"
+            />
+            <ProviderTile
+              provider={provider}
+              cacheCount={statsData?.cache[provider.name]?.total ?? 0}
+              priority={idx + 1}
+              testResult={testResults[provider.name]}
+              onOpenEdit={() => setEditingProvider(provider.name)}
+              onToggle={() => handleToggle(provider.name, provider.enabled)}
+              onRemove={() => handleHide(provider.name)}
+            />
+          </div>
         ))}
 
         {/* Empty state */}
@@ -320,8 +371,6 @@ export function ProvidersTab({
           provider={editingProviderData}
           cacheCount={statsData?.cache[editingProviderData.name]?.total ?? 0}
           priority={editingProviderIdx + 1}
-          isFirst={editingProviderIdx === 0}
-          isLast={editingProviderIdx === shownProviders.length - 1}
           totalProviders={shownProviders.length}
           fieldValues={Object.fromEntries(
             editingProviderData.config_fields.map((f) => [f.key, values[f.key] ?? ''])
@@ -331,8 +380,6 @@ export function ProvidersTab({
           onFieldChange={onFieldChange}
           onTest={() => handleTest(editingProviderData.name)}
           onToggle={() => handleToggle(editingProviderData.name, editingProviderData.enabled)}
-          onMoveUp={() => handleMove(editingProviderIdx, 'up')}
-          onMoveDown={() => handleMove(editingProviderIdx, 'down')}
           onClearCache={() => handleClearCache(editingProviderData.name)}
           onReEnable={() => handleReEnable(editingProviderData.name)}
           onRemove={() => handleHide(editingProviderData.name)}
