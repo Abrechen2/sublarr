@@ -282,6 +282,10 @@ def _run_pipeline_for_path(subtitle_path: str, series_id: int | None) -> None:
     Called post-download (synchronously for fast ops) or from batch.
     No-ops if no processing mods are enabled.
     """
+    ext = os.path.splitext(subtitle_path)[1].lower()
+    if ext not in (".srt", ".ass", ".ssa"):
+        return
+
     from db.models.core import SeriesSettings
     from extensions import db as _db
     from subtitle_processor import apply_mods, resolve_config
@@ -297,7 +301,10 @@ def _run_pipeline_for_path(subtitle_path: str, series_id: int | None) -> None:
     if series_id is not None:
         row = _db.session.get(SeriesSettings, series_id)
         if row and row.processing_config:
-            series_cfg = json.loads(row.processing_config)
+            try:
+                series_cfg = json.loads(row.processing_config)
+            except json.JSONDecodeError:
+                logger.warning("[pipeline] malformed processing_config for series %s, using global config", series_id)
 
     resolved = resolve_config(global_cfg, series_cfg)
     mods = _build_pipeline_mods(resolved)

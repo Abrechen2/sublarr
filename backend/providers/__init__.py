@@ -1332,7 +1332,7 @@ class ProviderManager:
 
             _run_pipeline_for_path(output_path, series_id=series_id)
         except Exception as _exc:
-            logger.debug("[pipeline] hook error: %s", _exc)
+            logger.warning("[pipeline] hook error: %s", _exc)
 
         return output_path
 

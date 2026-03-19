@@ -84,7 +84,15 @@ def test_pipeline_triggered_after_successful_download(tmp_path, monkeypatch):
     sub = tmp_path / "ep.en.srt"
     sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n\n", encoding="utf-8")
 
-    with patch("subtitle_processor.apply_mods", side_effect=mock_apply_mods):
+    from subtitle_processor import ModConfig, ModName
+
+    known_mods = [ModConfig(mod=ModName.HI_REMOVAL)]
+
+    with (
+        patch("subtitle_processor.apply_mods", side_effect=mock_apply_mods),
+        patch("subtitle_processor.resolve_config", return_value={"hi_removal": True, "common_fixes": False, "credit_removal": False}),
+        patch("routes.subtitle_processor._build_pipeline_mods", return_value=known_mods),
+    ):
         from routes.subtitle_processor import _run_pipeline_for_path
 
         _run_pipeline_for_path(str(sub), series_id=None)
