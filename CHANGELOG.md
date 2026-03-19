@@ -5,6 +5,24 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.31.0-beta] — 2026-03-19
+
+### Changed
+- **Backend — Test Foundation** — added 29 new tests covering `WantedSearchService`, `ProviderManager`, and quality-validation logic; total suite now 736 tests at 47.76% coverage
+- **Backend — Type Safety + Lint** — resolved all `ruff` errors and `mypy` type warnings across the entire backend; no new ignores added
+- **Backend — File Splits** — 8 oversized files (800–2921 lines) decomposed into focused packages: `routes/hooks/`, `routes/library/`, `routes/wanted/`, `routes/translate/`, `routes/system/`, `routes/tools/`; service packages `translator/` and `wanted_search/`; shared batch state extracted to `routes/batch_state.py`
+- **Backend — Architecture** — `providers/registry.py` with `PROVIDER_METADATA` dict replaces three class-level dicts; nested `Settings` views (`GeneralSettings`, `TranslationSettings`, `ProviderSettings`, `MediaServerSettings`, `ScanningSettings`) with read-only delegation; singleton lifecycle via `get_scanner()`/`get_provider_manager()` checking `app.extensions`
+- **Frontend — SyncControls split** — `SyncControls.tsx` decomposed into `OffsetTab`, `SpeedTab`, `FramerateTab`, `ChapterTab`, `StandardActions`, `SyncTabBar`; orchestrator retains all state and handlers
+- **Frontend — useApi split** — `useApi.ts` decomposed into six domain files: `useLibraryApi`, `useWantedApi`, `useTranslationApi`, `useProvidersApi`, `useIntegrationApi`, `useSystemApi`; barrel re-exports all public hooks
+- **Frontend — Error Boundaries** — `ErrorBoundary` component wraps Library, Wanted, and Settings routes; runtime errors are caught per-route instead of crashing the full app
+
+### Fixed
+- **Backend — monkeypatch targets** — updated `test_wanted_search_reliability.py` patch paths to point to the submodule where each function is called after the Phase 3 package split
+- **Frontend — verbatimModuleSyntax** — added `import type` to all interface-only imports in `VideoPlayer.tsx`, `PlayerModal.tsx`, `SubtitleTrackSelector.tsx` to satisfy `verbatimModuleSyntax: true` in tsconfig
+- **Frontend — TypeScript strict errors** — fixed all errors from `tsc --project tsconfig.app.json`: toast call signature (`toast.success/error` → `toast(msg, type)`), `'warning'` toast type (→ `'error'`), missing `RefreshCw` import, `handleDeleteSidecar` return type, duplicate `style` JSX attribute, Recharts `Formatter` type mismatch, duplicate `subscene` provider key, implicit `any` in Logs filter callback, `useSeriesDetail` nullable parameter, missing libass-wasm type declaration
+
+---
+
 ## [0.30.0-beta] — 2026-03-16
 
 ### Added
