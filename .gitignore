@@ -70,3 +70,6 @@ backend/CLAUDE.md
 backend/providers/CLAUDE.md
 backend/translation/CLAUDE.md
 frontend/CLAUDE.md
+
+# Git worktrees
+.worktrees/
