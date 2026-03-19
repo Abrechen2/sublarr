@@ -185,8 +185,12 @@ def update_config():
             return jsonify(
                 {"error": f"Invalid value for {key}: must be one of {sorted(_ENUM_FIELDS[key])}"}
             ), 400
-        # Validate service URL fields — block dangerous schemes and metadata endpoints
-        if key in _URL_FIELDS and value:
+        # Validate service URL fields — block dangerous schemes and metadata endpoints.
+        # Also validates any extension key (dot-notation) whose name ends with "_url" or "url".
+        _is_url_key = key in _URL_FIELDS or (
+            "." in key and key.lower().endswith(("_url", "url"))
+        )
+        if _is_url_key and value:
             ok, reason = validate_service_url(str(value))
             if not ok:
                 return jsonify({"error": f"Invalid URL for {key}: {reason}"}), 400

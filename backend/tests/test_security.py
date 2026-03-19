@@ -505,3 +505,70 @@ class TestSocketIOLogSanitizer:
         result = Handler._sanitize(raw)
         assert "Database error" in result
         assert "col x" not in result
+
+
+# ---------------------------------------------------------------------------
+# TestExtensionUrlValidation (F-13a regression)
+# ---------------------------------------------------------------------------
+
+
+class TestExtensionUrlValidation:
+    """PUT /config must validate dot-notation URL extension keys (F-13a).
+
+    Prior to this fix, keys like 'whisper.subgen.url' bypassed SSRF validation
+    because they were treated as opaque extension keys.
+    """
+
+    @pytest.fixture
+    def client(self, tmp_path, monkeypatch):
+        import os
+        import sys
+
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        monkeypatch.setenv("SUBLARR_DB_PATH", str(tmp_path / "test.db"))
+        monkeypatch.setenv("SUBLARR_API_KEY", "")
+        monkeypatch.setenv("SUBLARR_LOG_LEVEL", "ERROR")
+        monkeypatch.setenv("SUBLARR_PLUGINS_DIR", str(tmp_path / "plugins"))
+        monkeypatch.setenv("SUBLARR_MEDIA_PATH", str(tmp_path))
+
+        from app import create_app
+        from config import reload_settings
+        from db import init_db
+
+        reload_settings()
+        (tmp_path / "plugins").mkdir(exist_ok=True)
+        app = create_app()
+        init_db()
+        app.config["TESTING"] = True
+        with app.test_client() as c:
+            yield c
+
+    @pytest.mark.parametrize(
+        "key",
+        ["whisper.subgen.url", "whisper.faster_whisper.url", "translation.backend_url"],
+    )
+    def test_dangerous_scheme_rejected_for_extension_url_keys(self, client, key):
+        """Dot-notation URL keys must reject dangerous schemes (e.g. file://)."""
+        resp = client.put("/api/v1/config", json={key: "file:///etc/passwd"})
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert "Invalid URL" in data.get("error", "")
+
+    @pytest.mark.parametrize(
+        "key",
+        ["whisper.subgen.url", "whisper.faster_whisper.url"],
+    )
+    def test_metadata_ip_rejected_for_extension_url_keys(self, client, key):
+        """Cloud metadata endpoints must also be blocked for extension URL keys."""
+        resp = client.put("/api/v1/config", json={key: "http://169.254.169.254/latest"})
+        assert resp.status_code == 400
+
+    @pytest.mark.parametrize(
+        "key",
+        ["whisper.subgen.url", "whisper.faster_whisper.url"],
+    )
+    def test_valid_lan_url_accepted_for_extension_url_keys(self, client, key):
+        """Valid LAN URLs must still be accepted for extension URL keys."""
+        resp = client.put("/api/v1/config", json={key: "http://192.168.1.100:9000"})
+        # 200 = saved, anything other than 400 means validation passed
+        assert resp.status_code != 400 or "Invalid URL" not in resp.get_json().get("error", "")
