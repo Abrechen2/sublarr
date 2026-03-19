@@ -7,7 +7,7 @@ import {
 } from '@/hooks/useApi'
 import {
   Save, Loader2, TestTube, Trash2, Plus, Upload, FileDown, X, Check,
-  Settings2, Download, Server, Languages, Zap, Globe, Cog, Search,
+  Server, Languages, Zap, Globe, Cog, Search,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { getHealth } from '@/api/client'
@@ -69,14 +69,32 @@ interface NavGroup {
   items: string[]
 }
 
-const NAV_GROUPS: NavGroup[] = [
-  { title: 'General',     icon: Settings2,  items: ['General', 'API Keys'] },
-  { title: 'Download',    icon: Download,   items: ['Sonarr', 'Radarr', 'Library Sources'] },
-  { title: 'Servers',     icon: Server,     items: ['Media Servers'] },
-  { title: 'Translation', icon: Languages,  items: ['Translation', 'Translation Backends', 'Prompt Presets', 'Languages'] },
-  { title: 'Automation',  icon: Zap,        items: ['Automation', 'Wanted', 'Whisper'] },
-  { title: 'Providers',   icon: Globe,      items: ['Providers', 'Scoring'] },
-  { title: 'System',      icon: Cog,        items: ['Events & Hooks', 'Backup', 'Subtitle Tools', 'Cleanup', 'Integrations', 'Notification Templates', 'Security', 'Protokoll'] },
+export const NAV_GROUPS: NavGroup[] = [
+  {
+    title: 'Connections',
+    icon: Server,
+    items: ['Sonarr', 'Radarr', 'Library Sources', 'Media Servers', 'API Keys'],
+  },
+  {
+    title: 'Languages & Subtitles',
+    icon: Languages,
+    items: ['Languages', 'Scoring', 'Subtitle Tools', 'Cleanup'],
+  },
+  {
+    title: 'Providers',
+    icon: Globe,
+    items: ['Providers'],
+  },
+  {
+    title: 'Automation',
+    icon: Zap,
+    items: ['Automation', 'Wanted', 'Whisper', 'Translation', 'Translation Backends', 'Prompt Presets'],
+  },
+  {
+    title: 'System',
+    icon: Cog,
+    items: ['General', 'Events & Hooks', 'Backup', 'Integrations', 'Notification Templates', 'Security', 'Protokoll'],
+  },
 ]
 
 // Flat list derived from groups (preserves ordering for legacy code)
