@@ -22,6 +22,7 @@ def _result_to_dict(result) -> dict:
         "filename": result.filename,
         "release_info": result.release_info,
         "score": result.score,
+        "score_breakdown": result.score_breakdown,
         "hearing_impaired": result.hearing_impaired,
         "matches": list(result.matches),
     }
@@ -40,6 +41,7 @@ def _result_to_dict_interactive(result) -> dict:
         "filename": result.filename,
         "release_info": result.release_info,
         "score": result.score,
+        "score_breakdown": result.score_breakdown,
         "hearing_impaired": result.hearing_impaired,
         "forced": result.forced,
         "matches": list(result.matches),

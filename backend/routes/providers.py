@@ -321,6 +321,7 @@ def search_providers():
                         "filename": r.filename,
                         "release_info": r.release_info,
                         "score": r.score,
+                        "score_breakdown": r.score_breakdown,
                         "hearing_impaired": r.hearing_impaired,
                         "matches": list(r.matches),
                     }

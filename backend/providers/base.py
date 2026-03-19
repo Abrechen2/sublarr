@@ -132,6 +132,7 @@ class SubtitleResult:
     # Scoring
     score: int = 0
     matches: set[str] = field(default_factory=set)
+    score_breakdown: dict = field(default_factory=dict)  # component → points
 
     # Provider metadata
     provider_data: dict = field(default_factory=dict)
@@ -271,25 +272,31 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
     Uses configurable weights from the database (with 60s TTL cache),
     falling back to hardcoded EPISODE_SCORES / MOVIE_SCORES defaults.
     Applies per-provider score modifiers after base score computation.
+    Populates result.score_breakdown with per-component point values.
     """
     score_type = "episode" if query.is_episode else "movie"
     weights = _get_cached_weights(score_type)
-    score = 0
+    breakdown: dict[str, int] = {}
 
     for match in result.matches:
-        score += weights.get(match, 0)
+        pts = weights.get(match, 0)
+        if pts:
+            breakdown[match] = pts
 
     # ASS format bonus (Sublarr always prefers ASS)
     if result.is_ass:
-        score += weights.get("format_bonus", 0)
+        pts = weights.get("format_bonus", 0)
+        if pts:
+            breakdown["format_bonus"] = pts
 
     # Per-provider modifier (bonus or penalty)
     modifier = _get_cached_modifier(result.provider_name)
-    score += modifier
+    if modifier:
+        breakdown["provider_modifier"] = int(modifier)
 
     # Uploader trust bonus (OpenSubtitles only, 0-20 based on uploader rank)
     if result.provider_name == "opensubtitles" and result.uploader_trust > 0:
-        score += int(result.uploader_trust)
+        breakdown["uploader_trust"] = int(result.uploader_trust)
 
     # HI preference modifier
     from config import get_settings  # local import to avoid circular deps
@@ -297,24 +304,25 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
     settings = get_settings()
     hi_pref = getattr(settings, "hi_preference", "include")
     if hi_pref == "prefer" and result.hearing_impaired:
-        score += 30
+        breakdown["hi_preference"] = 30
     elif (
         hi_pref == "exclude"
         and result.hearing_impaired
         or hi_pref == "only"
         and not result.hearing_impaired
     ):
-        score -= 999
+        breakdown["hi_preference"] = -999
 
     # Forced subtitle preference modifier
     forced_pref = getattr(settings, "forced_preference", "include")
     if forced_pref == "prefer" and result.forced:
-        score += 30
+        breakdown["forced_preference"] = 30
     elif forced_pref == "exclude" and result.forced or forced_pref == "only" and not result.forced:
-        score -= 999
+        breakdown["forced_preference"] = -999
 
-    result.score = score
-    return score
+    result.score_breakdown = breakdown
+    result.score = sum(breakdown.values())
+    return result.score
 
 
 # ─── Provider base class ─────────────────────────────────────────────────────
