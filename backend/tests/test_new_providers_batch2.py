@@ -781,7 +781,7 @@ class TestEmbeddedSubtitlesProvider:
         }
         with (
             patch("providers.embedded.get_media_streams", return_value=streams),
-            patch("os.path.exists", return_value=True),
+            patch("providers.embedded.os.path.exists", return_value=True),
         ):
             q = VideoQuery(
                 file_path="/data/video.mkv",
@@ -821,7 +821,7 @@ class TestEmbeddedSubtitlesProvider:
         }
         with (
             patch("providers.embedded.get_media_streams", return_value=streams),
-            patch("os.path.exists", return_value=True),
+            patch("providers.embedded.os.path.exists", return_value=True),
         ):
             # Only request German
             q = VideoQuery(file_path="/data/video.mkv", title="Test", languages=["de"])
@@ -850,12 +850,80 @@ class TestEmbeddedSubtitlesProvider:
         }
         with (
             patch("providers.embedded.get_media_streams", return_value=streams),
-            patch("os.path.exists", return_value=True),
+            patch("providers.embedded.os.path.exists", return_value=True),
         ):
             q = VideoQuery(file_path="/data/video.mkv", title="Test", languages=["de"])
             results = p.search(q)
         assert results[0].provider_data["stream_index"] == 5
         assert results[0].provider_data["file_path"] == "/data/video.mkv"
+
+    def test_download_raises_when_no_file_path_in_provider_data(self):
+        import pytest
+
+        from providers.base import SubtitleFormat, SubtitleResult
+        from providers.embedded import EmbeddedSubtitlesProvider
+
+        p = EmbeddedSubtitlesProvider()
+        p.initialize()
+        r = SubtitleResult(
+            provider_name="embedded",
+            subtitle_id="track_2",
+            language="de",
+            format=SubtitleFormat.SRT,
+            filename="track_2.srt",
+            download_url="",
+            provider_data={},  # no file_path
+        )
+        with pytest.raises(RuntimeError, match="no file_path"):
+            p.download(r)
+
+    def test_download_cleans_up_tempfile_on_ffmpeg_error(self):
+        import os
+        from unittest.mock import patch
+
+        import pytest
+
+        from providers.base import SubtitleFormat, SubtitleResult
+        from providers.embedded import EmbeddedSubtitlesProvider
+
+        p = EmbeddedSubtitlesProvider()
+        p.initialize()
+        r = SubtitleResult(
+            provider_name="embedded",
+            subtitle_id="track_5",
+            language="de",
+            format=SubtitleFormat.ASS,
+            filename="track_5.ass",
+            download_url="",
+            provider_data={
+                "file_path": "/data/video.mkv",
+                "stream_index": 5,
+                "sub_index": 0,
+                "codec": "ass",
+            },
+        )
+        created_tmp = []
+
+        real_mkstemp = __import__("tempfile").mkstemp
+
+        def fake_mkstemp(suffix=""):
+            fd, path = real_mkstemp(suffix=suffix)
+            created_tmp.append(path)
+            return fd, path
+
+        with (
+            patch("tempfile.mkstemp", side_effect=fake_mkstemp),
+            patch(
+                "providers.embedded.extract_subtitle_stream",
+                side_effect=RuntimeError("ffmpeg failed"),
+            ),
+            pytest.raises(RuntimeError, match="ffmpeg failed"),
+        ):
+            p.download(r)
+
+        # Tempfile must be cleaned up
+        for path in created_tmp:
+            assert not os.path.exists(path), f"Tempfile not cleaned up: {path}"
 
     def test_download_raises_when_ffmpeg_fails(self):
         from unittest.mock import patch
