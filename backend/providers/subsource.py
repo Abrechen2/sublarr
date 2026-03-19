@@ -147,9 +147,14 @@ class SubsourceProvider(SubtitleProvider):
         except Exception as e:
             raise RuntimeError(f"Subsource download link error: {e}") from e
 
-        resp2 = self.session.get(dl_url, timeout=self.timeout)
-        if resp2.status_code != 200:
-            raise RuntimeError(f"Subsource file download failed: HTTP {resp2.status_code}")
+        try:
+            resp2 = self.session.get(dl_url, timeout=self.timeout)
+            if resp2.status_code != 200:
+                raise RuntimeError(f"Subsource file download failed: HTTP {resp2.status_code}")
+        except RuntimeError:
+            raise
+        except Exception as e:
+            raise RuntimeError(f"Subsource file download error: {e}") from e
 
         content = resp2.content
         if content[:2] == b"PK":
@@ -160,8 +165,8 @@ class SubsourceProvider(SubtitleProvider):
                     result.filename = name
                     ext = name.lower().rsplit(".", 1)[-1] if "." in name else ""
                     result.format = _FORMAT_MAP.get(f".{ext}", SubtitleFormat.SRT)
-            except ValueError as e:
-                raise RuntimeError(f"Subsource archive check failed: {e}") from e
+            except Exception as e:
+                raise RuntimeError(f"Subsource: archive error: {e}") from e
 
         result.content = content
         return content
