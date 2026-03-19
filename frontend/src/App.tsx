@@ -17,6 +17,7 @@ import { QuickActionsFAB } from '@/components/quick-actions/QuickActionsFAB'
 import { KeyboardShortcutsModal } from '@/components/quick-actions/KeyboardShortcutsModal'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { AuthGuard } from '@/components/auth/AuthGuard'
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 
 // Route-level code splitting: each page is lazy-loaded as a separate chunk
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })))
@@ -65,14 +66,14 @@ function AnimatedRoutes() {
       <div key={location.pathname} className="page-enter">
         <Routes location={location}>
           <Route path="/" element={<Suspense fallback={<PageSkeleton />}><Dashboard /></Suspense>} />
-          <Route path="/library" element={<Suspense fallback={<LibrarySkeleton />}><LibraryPage /></Suspense>} />
+          <Route path="/library" element={<ErrorBoundary><Suspense fallback={<LibrarySkeleton />}><LibraryPage /></Suspense></ErrorBoundary>} />
           <Route path="/library/series/:id" element={<Suspense fallback={<PageSkeleton />}><SeriesDetailPage /></Suspense>} />
           <Route path="/activity" element={<Suspense fallback={<PageSkeleton />}><ActivityPage /></Suspense>} />
-          <Route path="/wanted" element={<Suspense fallback={<ListSkeleton />}><WantedPage /></Suspense>} />
+          <Route path="/wanted" element={<ErrorBoundary><Suspense fallback={<ListSkeleton />}><WantedPage /></Suspense></ErrorBoundary>} />
           <Route path="/queue" element={<Suspense fallback={<TableSkeleton />}><QueuePage /></Suspense>} />
           <Route path="/history" element={<Suspense fallback={<TableSkeleton />}><HistoryPage /></Suspense>} />
           <Route path="/blacklist" element={<Suspense fallback={<TableSkeleton />}><BlacklistPage /></Suspense>} />
-          <Route path="/settings" element={<Suspense fallback={<FormSkeleton />}><SettingsPage /></Suspense>} />
+          <Route path="/settings" element={<ErrorBoundary><Suspense fallback={<FormSkeleton />}><SettingsPage /></Suspense></ErrorBoundary>} />
           <Route path="/statistics" element={<Suspense fallback={<PageSkeleton />}><StatisticsPage /></Suspense>} />
           <Route path="/tasks" element={<Suspense fallback={<PageSkeleton />}><TasksPage /></Suspense>} />
           <Route path="/plugins" element={<Suspense fallback={<PageSkeleton />}><PluginsPage /></Suspense>} />
