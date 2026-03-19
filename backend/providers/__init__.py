@@ -39,6 +39,7 @@ from providers.base import (
     VideoQuery,
     compute_score,
 )
+from providers.registry import PROVIDER_METADATA
 
 
 def _detect_format_from_content(content: bytes) -> SubtitleFormat:
@@ -124,30 +125,6 @@ def update_manager_providers(new_enabled_str: str) -> None:
 
 class ProviderManager:
     """Manages multiple subtitle providers with priority ordering and scoring."""
-
-    # Provider-specific rate limits: (max_requests, window_seconds)
-    PROVIDER_RATE_LIMITS = {
-        "opensubtitles": (40, 10),  # 40 requests per 10 seconds
-        "jimaku": (100, 60),  # 100 requests per 60 seconds
-        "animetosho": (50, 30),  # 50 requests per 30 seconds
-        "subdl": (30, 10),  # 30 requests per 10 seconds
-    }
-
-    # Provider-specific timeouts (seconds)
-    PROVIDER_TIMEOUTS = {
-        "animetosho": 10,
-        "opensubtitles": 10,
-        "jimaku": 12,
-        "subdl": 10,
-    }
-
-    # Provider-specific retry counts
-    PROVIDER_RETRIES = {
-        "animetosho": 2,
-        "opensubtitles": 3,
-        "jimaku": 2,
-        "subdl": 2,
-    }
 
     def __init__(self):
         from config import get_settings
@@ -454,14 +431,14 @@ class ProviderManager:
     def _get_rate_limit(self, provider_name: str) -> tuple[int, int]:
         """Get rate limit for a provider: (max_requests, window_seconds).
 
-        Prefers class attribute, falls back to hardcoded dict, then (0, 0).
+        Prefers class attribute, falls back to registry, then (0, 0).
         """
         cls = _PROVIDER_CLASSES.get(provider_name)
         if cls:
             class_limit = getattr(cls, "rate_limit", (0, 0))
             if class_limit != (0, 0):
                 return class_limit
-        return self.PROVIDER_RATE_LIMITS.get(provider_name, (0, 0))
+        return PROVIDER_METADATA.get(provider_name, {}).get("rate_limit", (0, 0))
 
     def _compute_dynamic_timeout(self, provider_name: str, stats: dict) -> int | None:
         """Compute a dynamic timeout from provider stats (avg response time × multiplier + buffer).
@@ -488,9 +465,9 @@ class ProviderManager:
         """Get timeout for a provider (seconds).
 
         Priority:
-        1. Dynamic timeout computed from historical avg_response_time_ms (when enabled + 5+ samples)
+        1. Dynamic timeout computed from historical avg_response_time_ms
         2. Class attribute (provider-specific hardcoded timeout)
-        3. Hardcoded per-provider dict (PROVIDER_TIMEOUTS)
+        3. Registry (PROVIDER_METADATA)
         4. Global provider_search_timeout setting
         """
         # 1. Dynamic timeout from stats
@@ -504,20 +481,21 @@ class ProviderManager:
             class_timeout = getattr(cls, "timeout", 0)
             if class_timeout > 0:
                 return class_timeout
-        # 3. Hardcoded dict, 4. Global setting
-        return self.PROVIDER_TIMEOUTS.get(provider_name, self.settings.provider_search_timeout)
+        # 3. Registry, 4. Global setting
+        meta = PROVIDER_METADATA.get(provider_name, {})
+        return meta.get("timeout", self.settings.provider_search_timeout)
 
     def _get_retries(self, provider_name: str) -> int:
         """Get retry count for a provider.
 
-        Prefers class attribute, falls back to hardcoded dict, then default 2.
+        Prefers class attribute, falls back to registry, then default 2.
         """
         cls = _PROVIDER_CLASSES.get(provider_name)
         if cls:
             class_retries = getattr(cls, "max_retries", -1)
             if class_retries >= 0:
                 return class_retries
-        return self.PROVIDER_RETRIES.get(provider_name, 2)
+        return PROVIDER_METADATA.get(provider_name, {}).get("retries", 2)
 
     def _check_rate_limit(self, provider_name: str) -> bool:
         """Check if provider is within rate limit.
