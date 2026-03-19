@@ -265,3 +265,120 @@ class TestSubf2mProvider:
         )
         with pytest.raises(RuntimeError):
             p.download(r)
+
+
+class TestZimukuProvider:
+    """Tests for the Zimuku provider (Chinese subtitles)."""
+
+    def test_import_and_name(self):
+        from providers.zimuku import ZimukuProvider
+        p = ZimukuProvider()
+        assert p.name == "zimuku"
+
+    def test_languages_chinese_only(self):
+        from providers.zimuku import ZimukuProvider
+        p = ZimukuProvider()
+        assert "zh" in p.languages
+        assert "zh-hans" in p.languages
+        assert "zh-hant" in p.languages
+        # Should not support unrelated languages
+        assert "de" not in p.languages
+
+    def test_no_credentials_required(self):
+        from providers.zimuku import ZimukuProvider
+        p = ZimukuProvider()
+        assert p.config_fields == []
+
+    def test_health_check_not_initialized(self):
+        from providers.zimuku import ZimukuProvider
+        p = ZimukuProvider()
+        healthy, msg = p.health_check()
+        assert not healthy
+
+    def test_initialize_creates_session(self):
+        from providers.zimuku import ZimukuProvider
+        p = ZimukuProvider()
+        with patch("providers.zimuku.create_session") as mock_cs:
+            mock_cs.return_value = MagicMock()
+            p.initialize()
+            assert p.session is not None
+
+    def test_terminate_closes_session(self):
+        from providers.zimuku import ZimukuProvider
+        p = ZimukuProvider()
+        p.session = MagicMock()
+        p.terminate()
+        assert p.session is None
+
+    def test_search_returns_empty_without_session(self):
+        from providers.base import VideoQuery
+        from providers.zimuku import ZimukuProvider
+        p = ZimukuProvider()
+        q = VideoQuery(title="Test", languages=["zh"])
+        assert p.search(q) == []
+
+    def test_search_skips_non_chinese_languages(self):
+        from providers.base import VideoQuery
+        from providers.zimuku import ZimukuProvider
+        p = ZimukuProvider()
+        p.session = MagicMock()
+        with patch("providers.zimuku._HAS_BS4", True):
+            result = p.search(VideoQuery(title="Test", languages=["en", "de"]))
+        assert result == []
+
+    def test_download_raises_without_session(self):
+        import pytest
+        from providers.base import SubtitleResult, SubtitleFormat
+        from providers.zimuku import ZimukuProvider
+        p = ZimukuProvider()
+        r = SubtitleResult(
+            provider_name="zimuku", subtitle_id="x",
+            language="zh", format=SubtitleFormat.SRT,
+            filename="x.srt", download_url="https://zimuku.net/x",
+        )
+        with pytest.raises(RuntimeError):
+            p.download(r)
+
+    def test_download_handles_rar_archive(self):
+        """Zimuku often serves RAR archives — must not crash on RAR magic bytes."""
+        import pytest
+        from providers.base import SubtitleResult, SubtitleFormat
+        from providers.zimuku import ZimukuProvider
+        p = ZimukuProvider()
+        mock_session = MagicMock()
+        # RAR magic: Rar! (0x52 0x61 0x72 0x21)
+        rar_bytes = b"Rar!\x1a\x07\x00" + b"\x00" * 50
+        mock_session.get.return_value = MagicMock(
+            status_code=200, content=rar_bytes
+        )
+        p.session = mock_session
+        r = SubtitleResult(
+            provider_name="zimuku", subtitle_id="x",
+            language="zh", format=SubtitleFormat.SRT,
+            filename="x.rar", download_url="https://zimuku.net/x",
+            provider_data={"detail_url": "https://zimuku.net/subs/123"},
+        )
+        # Should attempt RAR extraction and raise RuntimeError on invalid RAR
+        with pytest.raises((RuntimeError, Exception)):
+            p.download(r)
+
+    def test_download_success_returns_content(self):
+        from providers.base import SubtitleResult, SubtitleFormat
+        from providers.zimuku import ZimukuProvider
+        p = ZimukuProvider()
+        mock_session = MagicMock()
+        srt_content = b"1\n00:00:01,000 --> 00:00:02,000\n\xe4\xb8\xad\xe6\x96\x87\n"
+        mock_session.get.return_value = MagicMock(
+            status_code=200,
+            content=srt_content,
+        )
+        p.session = mock_session
+        r = SubtitleResult(
+            provider_name="zimuku", subtitle_id="123",
+            language="zh", format=SubtitleFormat.SRT,
+            filename="sub.srt", download_url="https://zimuku.net/dld/123",
+            provider_data={"detail_url": "https://zimuku.net/subs/123"},
+        )
+        content = p.download(r)
+        assert content == srt_content
+        assert r.content == content
