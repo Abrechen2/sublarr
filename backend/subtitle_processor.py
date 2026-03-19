@@ -233,3 +233,17 @@ def _apply_credit_removal(subs: pysubs2.SSAFile, options: dict) -> list[Change]:
         del subs.events[i]
 
     return changes
+
+
+def resolve_config(global_cfg: dict, series_cfg: dict | None) -> dict:
+    """Merge series-level override on top of global config.
+
+    series_cfg values:
+        None or missing key → use global value
+        True / False        → override global value
+    """
+    result = dict(global_cfg)
+    for key, value in (series_cfg or {}).items():
+        if value is not None:
+            result[key] = value
+    return result

@@ -276,6 +276,7 @@ class SeriesSettings(db.Model):
     preferred_audio_track_index: Mapped[int | None] = mapped_column(
         Integer, nullable=True, default=None
     )
+    processing_config: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[str] = mapped_column(Text, nullable=False)
 
 
