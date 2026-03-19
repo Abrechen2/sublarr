@@ -7,7 +7,7 @@ import logging
 import os
 import shutil
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 import pysubs2
 
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 SUPPORTED_EXTENSIONS = {".srt", ".ass", ".ssa", ".vtt"}
 
 
-class ModName(str, Enum):
+class ModName(StrEnum):
     COMMON_FIXES = "common_fixes"
     HI_REMOVAL = "hi_removal"
     CREDIT_REMOVAL = "credit_removal"
@@ -63,6 +63,7 @@ def apply_mods(path: str, mods: list[ModConfig], dry_run: bool = False) -> Proce
     for mod_config in ordered_mods:
         if mod_config.mod == ModName.COMMON_FIXES:
             from common_fixes import apply_common_fixes
+
             changes = apply_common_fixes(subs, mod_config.options)
         elif mod_config.mod == ModName.HI_REMOVAL:
             changes = _apply_hi_removal(subs, mod_config.options)
@@ -90,6 +91,7 @@ def apply_mods(path: str, mods: list[ModConfig], dry_run: bool = False) -> Proce
 
 def _apply_hi_removal(subs: pysubs2.SSAFile, options: dict) -> list[Change]:
     import re
+
     from hi_remover import remove_hi_markers
 
     opts = {
@@ -171,6 +173,7 @@ def _apply_hi_removal(subs: pysubs2.SSAFile, options: dict) -> list[Change]:
 
 def _mark_multiline_bracket_events(subs: pysubs2.SSAFile, to_remove: list[int]) -> None:
     import re
+
     open_pattern = re.compile(r"\[[\w\s]+$")
     close_pattern = re.compile(r"^[\w\s]+\]")
 
@@ -186,8 +189,10 @@ def _mark_multiline_bracket_events(subs: pysubs2.SSAFile, to_remove: list[int]) 
 
 def _build_interjection_pattern():
     import re
+
     try:
         from config import get_settings
+
         settings = get_settings()
         raw = getattr(settings, "hi_interjections_list", "").strip()
     except Exception as exc:

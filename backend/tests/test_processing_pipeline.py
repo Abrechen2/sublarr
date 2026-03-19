@@ -40,7 +40,7 @@ def test_resolve_config_partial_override():
 
     result = resolve_config(global_cfg, series_cfg)
     assert result["hi_removal"] is False
-    assert result["common_fixes"] is True   # untouched
+    assert result["common_fixes"] is True  # untouched
     assert result["credit_removal"] is False  # untouched
 
 

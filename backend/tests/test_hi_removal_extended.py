@@ -2,6 +2,7 @@
 """Tests for extended HI removal patterns applied by the processor."""
 
 import os
+
 import pytest
 
 
@@ -13,11 +14,12 @@ def test_curly_brackets_removed(create_test_subtitle):
     that plaintext, so the result should have no {APPLAUSE} in the output text.
     We verify the event text does not contain the curly-bracket tag in the output.
     """
-    from subtitle_processor import ModConfig, ModName, apply_mods
     import pysubs2
 
+    from subtitle_processor import ModConfig, ModName, apply_mods
+
     path = create_test_subtitle(fmt="srt", lines=["{APPLAUSE} Thank you"])
-    result = apply_mods(path, [ModConfig(mod=ModName.HI_REMOVAL)], dry_run=True)
+    apply_mods(path, [ModConfig(mod=ModName.HI_REMOVAL)], dry_run=True)
 
     # pysubs2 strips {APPLAUSE} as an ASS override tag — so plaintext is just "Thank you".
     # No change record is produced because the content was already stripped by pysubs2.
@@ -30,12 +32,12 @@ def test_curly_brackets_removed(create_test_subtitle):
 def test_japanese_parens_removed(create_test_subtitle):
     from subtitle_processor import ModConfig, ModName, apply_mods
 
-    path = create_test_subtitle(fmt="srt", lines=["\uFF08\u7B11\uFF09 Hello"])
+    path = create_test_subtitle(fmt="srt", lines=["\uff08\u7b11\uff09 Hello"])
     result = apply_mods(path, [ModConfig(mod=ModName.HI_REMOVAL)], dry_run=True)
 
-    changes = [c for c in result.changes if "\uFF08" in c.original_text]
+    changes = [c for c in result.changes if "\uff08" in c.original_text]
     assert changes
-    assert "\uFF08" not in changes[0].modified_text
+    assert "\uff08" not in changes[0].modified_text
 
 
 def test_all_caps_line_removed(create_test_subtitle):
@@ -84,6 +86,7 @@ def test_multiline_bracket_span_removed(create_test_subtitle):
     Verify the correct indices are identified so the processor knows to drop them.
     """
     import pysubs2
+
     from subtitle_processor import _mark_multiline_bracket_events
 
     # Build an in-memory SSAFile with the multiline bracket pattern

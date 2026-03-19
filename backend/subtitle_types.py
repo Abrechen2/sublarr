@@ -9,9 +9,9 @@ from dataclasses import dataclass
 @dataclass
 class Change:
     event_index: int
-    timestamp: str       # "HH:MM:SS,mmm --> HH:MM:SS,mmm"
+    timestamp: str  # "HH:MM:SS,mmm --> HH:MM:SS,mmm"
     original_text: str
-    modified_text: str   # empty string = event removed
+    modified_text: str  # empty string = event removed
     mod_name: str
 
 
