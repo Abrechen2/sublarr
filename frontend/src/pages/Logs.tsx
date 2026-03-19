@@ -50,7 +50,7 @@ export function LogsPage() {
   // Fix 6: deduplicate API-polled entries against live WebSocket entries by content
   const allEntries = useMemo(() => {
     const wsSet = new Set(liveEntries)
-    const apiEntries = (logs?.entries || []).filter((e) => !wsSet.has(e))
+    const apiEntries = (logs?.entries || []).filter((e: string) => !wsSet.has(e))
     return [...apiEntries, ...liveEntries]
   }, [logs?.entries, liveEntries])
   const minSeverity = level ? LEVEL_SEVERITY[level] ?? 0 : -1

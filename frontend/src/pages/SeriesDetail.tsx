@@ -8,7 +8,7 @@ import {
   ArrowLeft, Loader2, ChevronDown, ChevronRight,
   Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search,
   Download, X, BookOpen, Plus, Edit2, Trash2, Check,
-  Eye, Pencil, Database,
+  Eye, Pencil, Database, RefreshCw,
   Layers, Sparkles, Trash, FileCode, Wand2,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
@@ -954,7 +954,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                                       </svg>
                                     </a>
                                     <button
-                                      onClick={(e) => { e.stopPropagation(); exportSubtitleNfo(matchingSidecar.path).then(() => toast.success('NFO exported')).catch(() => toast.error('NFO export failed')) }}
+                                      onClick={(e) => { e.stopPropagation(); exportSubtitleNfo(matchingSidecar.path).then(() => toast('NFO exported', 'success')).catch(() => toast('NFO export failed', 'error')) }}
                                       className="p-0.5 rounded transition-colors"
                                       style={{ color: 'var(--text-muted)', lineHeight: 1 }}
                                       title="Export NFO sidecar"
@@ -1267,7 +1267,7 @@ export function SeriesDetailPage() {
         : d.failed > 0
           ? `Extraktion fehlgeschlagen (${d.failed} Fehler)`
           : 'Extraktion abgeschlossen — alle bereits vorhanden'
-      toast(msg, d.failed > 0 ? 'warning' : 'success')
+      toast(msg, d.failed > 0 ? 'error' : 'success')
     },
   })
 
@@ -1431,9 +1431,10 @@ export function SeriesDetailPage() {
     setPlayerState({ videoPath: ep.file_path, tracks })
   }, [sidecarMap])
 
-  const handleDeleteSidecar = useCallback((path: string) => {
+  const handleDeleteSidecar = useCallback((path: string): Promise<void> => {
     setDeleteAlsoBlacklist(false)
     setDeleteConfirm(path)
+    return Promise.resolve()
   }, [])
 
   const handleDeleteConfirm = useCallback(async () => {

@@ -112,10 +112,6 @@ const PROVIDER_META: Record<string, ProviderMeta> = {
     description: 'Lokale KI-Transkription via Whisper-Modell',
     credentialType: 'free',
   },
-  subscene: {
-    description: 'Große Community-Sammlung — 60+ Sprachen, kein Konto nötig',
-    credentialType: 'free',
-  },
   addic7ed: {
     description: 'TV-Serien-Spezialist mit episodengenauen Untertiteln — optionaler Account',
     credentialType: 'login',

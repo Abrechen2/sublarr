@@ -26,11 +26,11 @@ export function useLibrary() {
   })
 }
 
-export function useSeriesDetail(seriesId: number) {
+export function useSeriesDetail(seriesId: number | null) {
   return useQuery({
     queryKey: ['series', seriesId],
-    queryFn: () => getSeriesDetail(seriesId),
-    enabled: !!seriesId,
+    queryFn: () => getSeriesDetail(seriesId!),
+    enabled: seriesId !== null,
   })
 }
 

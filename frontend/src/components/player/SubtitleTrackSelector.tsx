@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react'
-import { PlayerSubtitleTrack } from '@/lib/types'
+import type { PlayerSubtitleTrack } from '@/lib/types'
 
 interface Props {
   tracks: PlayerSubtitleTrack[]

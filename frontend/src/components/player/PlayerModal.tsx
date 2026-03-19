@@ -1,8 +1,8 @@
 import { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
-import { PlayerSubtitleTrack } from '@/lib/types'
-import { VideoPlayer, VideoPlayerHandle } from './VideoPlayer'
+import type { PlayerSubtitleTrack } from '@/lib/types'
+import { VideoPlayer, type VideoPlayerHandle } from './VideoPlayer'
 import { SubtitleTrackSelector } from './SubtitleTrackSelector'
 import { getMediaStreamUrl } from '@/api/client'
 

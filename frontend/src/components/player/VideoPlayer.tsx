@@ -1,6 +1,6 @@
 import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
-import { PlayerSubtitleTrack } from '@/lib/types'
-import { SubtitleOctopus, ISubtitleOctopus } from '@/lib/subtitleOctopus'
+import type { PlayerSubtitleTrack } from '@/lib/types'
+import { SubtitleOctopus, type ISubtitleOctopus } from '@/lib/subtitleOctopus'
 
 export interface VideoPlayerHandle {
   seek: (seconds: number) => void

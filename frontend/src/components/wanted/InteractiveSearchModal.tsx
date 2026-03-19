@@ -390,9 +390,8 @@ export function InteractiveSearchModal({
       {popover && (
         <div
           data-popover
-          style={{ top: popover.top, left: popover.left }}
           className="fixed z-[60] rounded-lg shadow-xl py-1 min-w-[220px]"
-          style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-hover)' }}
+          style={{ top: popover.top, left: popover.left, backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-hover)' }}
         >
           <button
             onClick={() => handleDownload(false)}

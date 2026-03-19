@@ -87,7 +87,9 @@ export function DiskSpaceWidget({ stats }: DiskSpaceWidgetProps) {
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number | undefined) => formatBytes(value ?? 0)}
+                  formatter={((value: number | undefined) => formatBytes(value ?? 0)
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  ) as any}
                   contentStyle={{
                     backgroundColor: 'var(--bg-surface)',
                     border: '1px solid var(--border)',
@@ -131,12 +133,14 @@ export function DiskSpaceWidget({ stats }: DiskSpaceWidgetProps) {
               <XAxis type="number" hide />
               <YAxis type="category" dataKey="name" hide />
               <Tooltip
-                formatter={(value: number | undefined, name: string | undefined) => [
+                formatter={((value: number | undefined, name: string | undefined) => [
                   formatBytes(value ?? 0),
                   name === 'total'
                     ? t('cleanup.diskSpace.uniqueData', 'Unique')
                     : t('cleanup.diskSpace.duplicateData', 'Duplicate'),
-                ]}
+                ]
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  ) as any}
                 contentStyle={{
                   backgroundColor: 'var(--bg-surface)',
                   border: '1px solid var(--border)',
@@ -174,7 +178,9 @@ export function DiskSpaceWidget({ stats }: DiskSpaceWidgetProps) {
                 <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="var(--text-muted)" />
                 <YAxis tick={{ fontSize: 10 }} stroke="var(--text-muted)" tickFormatter={formatBytes} width={50} />
                 <Tooltip
-                  formatter={(value: number | undefined) => [formatBytes(value ?? 0), t('cleanup.diskSpace.bytesFreed', 'Freed')]}
+                  formatter={((value: number | undefined) => [formatBytes(value ?? 0), t('cleanup.diskSpace.bytesFreed', 'Freed')]
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  ) as any}
                   contentStyle={{
                     backgroundColor: 'var(--bg-surface)',
                     border: '1px solid var(--border)',

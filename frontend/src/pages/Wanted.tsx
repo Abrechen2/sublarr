@@ -442,7 +442,7 @@ export function WantedPage() {
       onSuccess: (result) => {
         toast(t('wanted.cleanup_result', { count: result.deleted.length }), 'success')
         if (result.errors.length) {
-          toast(`${result.errors.length} error(s) during cleanup`, 'warning')
+          toast(`${result.errors.length} error(s) during cleanup`, 'error')
         }
         setShowCleanupConfirm(false)
       },
