@@ -48,6 +48,9 @@ const ProtokollTab = lazy(() =>
   import('./ProtokollTab').then(m => ({ default: m.ProtokollTab }))
 )
 
+import { ProcessingPipelineSettings } from '@/components/processing/ProcessingPipelineSettings'
+import { BatchProcessButton } from '@/components/processing/BatchProcessButton'
+
 function TabSkeleton() {
   return (
     <div className="animate-pulse space-y-4 pt-2">
@@ -1163,6 +1166,35 @@ function SettingsPageInner() {
             </div>
           ) : activeTab === 'Automation' ? (
             <div className="space-y-5">
+              <SettingsCard title="Post-Download Verarbeitung"
+                description="Welche Korrekturen nach dem Subtitle-Download automatisch angewendet werden">
+                <div className="py-3">
+                  <ProcessingPipelineSettings
+                    config={{
+                      auto_process_common_fixes: values['auto_process_common_fixes'] === 'true',
+                      auto_process_hi_removal: values['auto_process_hi_removal'] === 'true',
+                      auto_process_credit_removal: values['auto_process_credit_removal'] === 'true',
+                      auto_sync_after_download: values['auto_sync_after_download'] === 'true',
+                      auto_process_sync_threshold: Number(values['auto_process_sync_threshold'] ?? 80),
+                      auto_sync_engine: values['auto_sync_engine'] ?? 'alass',
+                      auto_process_sync_fallback_engine: values['auto_process_sync_fallback_engine'] ?? 'ffsubsync',
+                    }}
+                    onSave={(updates) => {
+                      const next: Record<string, string> = {}
+                      for (const [k, v] of Object.entries(updates)) {
+                        next[k] = String(v)
+                      }
+                      setValues(prev => ({ ...prev, ...next }))
+                    }}
+                  />
+                </div>
+              </SettingsCard>
+              <SettingsCard title="Batch-Verarbeitung"
+                description="Alle Untertitel in der Library nachträglich verarbeiten">
+                <div className="py-3">
+                  <BatchProcessButton />
+                </div>
+              </SettingsCard>
               <SettingsCard title="Webhook-Aktionen"
                 description="Was passiert automatisch nach Sonarr/Radarr Downloads">
                 {['webhook_auto_scan','webhook_auto_search','webhook_auto_translate']
