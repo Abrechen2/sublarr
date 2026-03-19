@@ -145,8 +145,39 @@ def reset_provider_manager():
     import providers as _prov_module
 
     _prov_module._manager = None  # pre-test: nothing running yet, direct null is safe
+    # Clear from extensions if an app context is already active (prevents stale mock bleed)
+    try:
+        from flask import current_app, has_app_context
+
+        if has_app_context():
+            current_app.extensions.pop("provider_manager", None)
+    except RuntimeError:
+        pass
     yield
     _prov_module.invalidate_manager()  # post-test: shutdown cleanly, then null
+
+
+@pytest.fixture(autouse=True)
+def reset_wanted_scanner():
+    """Reset WantedScanner singleton before each test.
+
+    Symmetric fixture to reset_provider_manager — prevents stale scanner
+    state from leaking between tests.
+    Post-test uses invalidate_scanner() to stop the scheduler thread cleanly.
+    """
+    import wanted_scanner as _ws_module
+
+    _ws_module._scanner = None
+    # Clear from extensions if an app context is already active
+    try:
+        from flask import current_app, has_app_context
+
+        if has_app_context():
+            current_app.extensions.pop("wanted_scanner", None)
+    except RuntimeError:
+        pass
+    yield
+    _ws_module.invalidate_scanner()
 
 
 @pytest.fixture

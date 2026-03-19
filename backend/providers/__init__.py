@@ -91,12 +91,26 @@ _provider_manager_lock = threading.Lock()
 
 
 def get_provider_manager() -> "ProviderManager":
-    """Get or create the singleton ProviderManager (thread-safe)."""
+    """Get or create the singleton ProviderManager (thread-safe).
+
+    When called inside a Flask app context, the result is stored in and
+    retrieved from ``app.extensions["provider_manager"]`` — this lets tests
+    inject a mock by writing to that key. Falls back to a module-level
+    global when no app context is available (e.g. scheduler threads).
+    """
     global _manager
+    in_ctx = _has_flask_app_context()
+    if in_ctx:
+        manager = _get_from_extensions("provider_manager")
+        if manager is not None:
+            return manager
     if _manager is None:
         with _provider_manager_lock:
             if _manager is None:
                 _manager = ProviderManager()
+    # Re-populate extensions if inside an app context (self-healing after invalidation)
+    if in_ctx:
+        _set_in_extensions("provider_manager", _manager)
     return _manager
 
 
@@ -106,6 +120,43 @@ def invalidate_manager():
     if _manager:
         _manager.shutdown()
     _manager = None
+    _pop_from_extensions("provider_manager")
+
+
+def _has_flask_app_context() -> bool:
+    try:
+        from flask import has_app_context
+
+        return has_app_context()
+    except ImportError:
+        return False
+
+
+def _get_from_extensions(key: str):
+    try:
+        from flask import current_app
+
+        return current_app.extensions.get(key)
+    except RuntimeError:
+        return None
+
+
+def _set_in_extensions(key: str, value) -> None:
+    try:
+        from flask import current_app
+
+        current_app.extensions[key] = value
+    except RuntimeError:
+        pass
+
+
+def _pop_from_extensions(key: str) -> None:
+    try:
+        from flask import current_app
+
+        current_app.extensions.pop(key, None)
+    except RuntimeError:
+        pass
 
 
 def update_manager_providers(new_enabled_str: str) -> None:

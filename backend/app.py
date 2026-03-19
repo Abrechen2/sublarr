@@ -473,6 +473,13 @@ def create_app(testing=False):
         # Initialize UI auth (sets SECRET_KEY + before_request hook — must be LAST)
         init_ui_auth(app)
 
+        # Register singletons in app.extensions for lifecycle visibility and test injection
+        from providers import get_provider_manager as _gpm
+        from wanted_scanner import get_scanner as _gs
+
+        app.extensions["wanted_scanner"] = _gs()
+        app.extensions["provider_manager"] = _gpm()
+
     return app
 
 
