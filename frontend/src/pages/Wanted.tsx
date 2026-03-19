@@ -37,6 +37,50 @@ function formatRetryTime(isoString: string): string {
   return `${hrs}h`
 }
 
+export function formatRetryCountdown(retryAfter: string | null): string | null {
+  if (!retryAfter) return null
+  const diff = new Date(retryAfter).getTime() - Date.now()
+  if (diff <= 0) return null
+  const totalMinutes = Math.floor(diff / 60_000)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+}
+
+interface FailureReasonRowProps {
+  error: string
+  retryAfter: string | null
+  searchCount: number
+}
+
+export function FailureReasonRow({ error, retryAfter, searchCount }: FailureReasonRowProps) {
+  if (!error) return null
+  const countdown = formatRetryCountdown(retryAfter)
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: '8px',
+      padding: '5px 10px', marginTop: '4px',
+      background: 'color-mix(in srgb, var(--error) 8%, transparent)',
+      borderLeft: '3px solid var(--error)',
+      borderRadius: '0 4px 4px 0', fontSize: '12px',
+      color: 'var(--text-secondary)',
+    }}>
+      <span style={{ color: 'var(--error)', flexShrink: 0 }}>✗</span>
+      <div>
+        {error}
+        <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
+          ({searchCount} attempt{searchCount !== 1 ? 's' : ''})
+        </span>
+        {countdown && (
+          <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
+            · Next retry in {countdown}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function deriveSubtitlePath(mediaPath: string, lang: string, format: string): string {
   const lastDot = mediaPath.lastIndexOf('.')
   const base = lastDot > 0 ? mediaPath.substring(0, lastDot) : mediaPath
@@ -957,19 +1001,12 @@ export function WantedPage() {
                             <StatusBadge status={item.status} />
                             <SubtitleTypeBadge subtitleType={item.subtitle_type} />
                           </div>
-                          {item.status === 'failed' && item.error && (
-                            <span
-                              className="text-xs truncate max-w-[14rem] cursor-help"
-                              style={{ color: 'var(--error)' }}
-                              title={item.error}
-                            >
-                              ⚠ {item.error}
-                            </span>
-                          )}
-                          {item.status === 'failed' && item.retry_after && (
-                            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                              {t('wanted.retry_at')}: {formatRetryTime(item.retry_after)}
-                            </span>
+                          {item.status === 'failed' && (
+                            <FailureReasonRow
+                              error={item.error}
+                              retryAfter={item.retry_after}
+                              searchCount={item.search_count}
+                            />
                           )}
                         </div>
                       </td>
