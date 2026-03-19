@@ -15,6 +15,7 @@ import logging
 import os
 import shutil
 import threading
+from datetime import UTC, datetime
 
 from flask import Blueprint, current_app, jsonify, request
 
@@ -23,6 +24,9 @@ from security_utils import is_safe_path
 
 bp = Blueprint("subtitle_processor", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
+
+_batch_lock = threading.Lock()
+_batch_running = False
 
 
 def _validate_path(path: str):
@@ -36,6 +40,9 @@ def _validate_path(path: str):
     abs_path = os.path.realpath(mapped)
     if not os.path.exists(abs_path):
         return (f"File not found: {path}", 404), None
+    ext = os.path.splitext(abs_path)[1].lower()
+    if ext not in (".srt", ".ass", ".ssa"):
+        return ("Only .srt, .ass, and .ssa files are supported", 400), None
     return None, abs_path
 
 
@@ -159,21 +166,32 @@ def put_interjections():
     if not isinstance(items, list):
         return jsonify({"error": "items must be an array"}), 400
 
-    new_value = "\n".join(str(i).strip() for i in items if str(i).strip())
+    saved = [str(i).strip() for i in items if str(i).strip()]
+    new_value = "\n".join(saved)
     save_config_entry("hi_interjections_list", new_value)
     reload_settings(get_all_config_entries())
 
-    return jsonify({"status": "ok", "count": len(items)}), 200
+    return jsonify({"status": "ok", "count": len(saved)}), 200
 
 
 @bp.route("/library/series/<int:series_id>/process", methods=["POST"])
 def process_series(series_id):
     """Trigger background processing for all subtitles in a series."""
+    global _batch_running
+    with _batch_lock:
+        if _batch_running:
+            return jsonify({"error": "A batch process is already running"}), 409
+        _batch_running = True
+
     app = current_app._get_current_object()
 
     def _run(app):
-        with app.app_context():
-            _batch_process_series(series_id)
+        global _batch_running
+        try:
+            with app.app_context():
+                _batch_process_series(series_id)
+        finally:
+            _batch_running = False
 
     threading.Thread(target=_run, args=(app,), daemon=True).start()
     return jsonify({"status": "started", "series_id": series_id}), 202
@@ -184,11 +202,26 @@ def process_all():
     """Trigger background processing for all series in the library."""
     data = request.get_json(force=True, silent=True) or {}
     filter_mode = data.get("filter", "all")  # "all" | "unprocessed"
+
+    VALID_FILTER_MODES = {"all", "unprocessed"}
+    if filter_mode not in VALID_FILTER_MODES:
+        return jsonify({"error": f"filter must be one of {sorted(VALID_FILTER_MODES)}"}), 400
+
+    global _batch_running
+    with _batch_lock:
+        if _batch_running:
+            return jsonify({"error": "A batch process is already running"}), 409
+        _batch_running = True
+
     app = current_app._get_current_object()
 
     def _run(app):
-        with app.app_context():
-            _batch_process_library(filter_mode)
+        global _batch_running
+        try:
+            with app.app_context():
+                _batch_process_library(filter_mode)
+        finally:
+            _batch_running = False
 
     threading.Thread(target=_run, args=(app,), daemon=True).start()
     return jsonify({"status": "started", "filter": filter_mode}), 202
@@ -197,8 +230,6 @@ def process_all():
 @bp.route("/library/series/<int:series_id>/processing-config", methods=["PATCH"])
 def update_series_processing_config(series_id):
     """Save per-series processing override config."""
-    from datetime import datetime
-
     from db.models.core import SeriesSettings
     from extensions import db as _db
 
@@ -209,12 +240,12 @@ def update_series_processing_config(series_id):
     row = _db.session.get(SeriesSettings, series_id)
     if row:
         row.processing_config = json.dumps(config) if config else None
-        row.updated_at = datetime.utcnow().isoformat()
+        row.updated_at = datetime.now(UTC).isoformat()
     else:
         row = SeriesSettings(
             sonarr_series_id=series_id,
             processing_config=json.dumps(config) if config else None,
-            updated_at=datetime.utcnow().isoformat(),
+            updated_at=datetime.now(UTC).isoformat(),
         )
         _db.session.add(row)
     _db.session.commit()
@@ -227,14 +258,16 @@ def update_series_processing_config(series_id):
 
 def _build_pipeline_mods(cfg: dict):
     """Convert a resolved config dict into an ordered list of ModConfig objects."""
-    import json as _json
-
     from subtitle_processor import ModConfig, ModName
 
     mods = []
     if cfg.get("common_fixes"):
         raw = get_settings().auto_process_common_fixes_config_json.strip()
-        options = _json.loads(raw) if raw else {}
+        try:
+            options = json.loads(raw) if raw else {}
+        except json.JSONDecodeError:
+            logger.warning("[batch-process] invalid common_fixes JSON config, using defaults")
+            options = {}
         mods.append(ModConfig(mod=ModName.COMMON_FIXES, options=options))
     if cfg.get("hi_removal"):
         mods.append(ModConfig(mod=ModName.HI_REMOVAL))
