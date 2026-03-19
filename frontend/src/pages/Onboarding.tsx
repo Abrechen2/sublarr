@@ -3,27 +3,33 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { updateConfig, completeOnboarding, getHealth, getMediaServerTypes, saveMediaServerInstances, testMediaServer, saveWatchedFolder, triggerStandaloneScan } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
-import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Server, Globe, Cpu, Search, Play, Monitor, Plus, TestTube, Trash2, Eye, EyeOff, FolderOpen } from 'lucide-react'
+import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Server, Globe, Cpu, Search, Play, Monitor, Plus, TestTube, Trash2, Eye, EyeOff, FolderOpen, Languages, Zap } from 'lucide-react'
 import type { MediaServerType, MediaServerInstance, MediaServerTestResult } from '@/lib/types'
 
-const ALL_STEPS = [
+export const ALL_STEPS = [
   { id: 'mode', titleKey: 'steps.mode', icon: Server, descKey: 'mode_step.description' },
   { id: 'arr', titleKey: 'steps.arr', icon: Server, descKey: 'arr_step.description' },
   { id: 'standalone', titleKey: 'steps.standalone', icon: FolderOpen, descKey: 'standalone_step.description' },
   { id: 'pathmapping', titleKey: 'steps.pathmapping', icon: Globe, descKey: 'pathmapping_step.description' },
+  { id: 'language', titleKey: 'steps.language', icon: Languages, descKey: 'language_step.description' },
   { id: 'providers', titleKey: 'steps.providers', icon: Search, descKey: 'providers_step.description' },
+  { id: 'automation', titleKey: 'steps.automation', icon: Zap, descKey: 'automation_step.description' },
   { id: 'ollama', titleKey: 'steps.ollama', icon: Cpu, descKey: 'ollama_step.description' },
   { id: 'mediaservers', titleKey: 'steps.mediaservers', icon: Monitor, descKey: 'mediaservers_step.description' },
   { id: 'scan', titleKey: 'steps.scan', icon: Play, descKey: 'scan_step.description' },
 ]
 
-function getVisibleSteps(setupMode: 'arr' | 'standalone' | null) {
+export function getVisibleSteps(setupMode: 'arr' | 'standalone' | null) {
   if (!setupMode) return [ALL_STEPS[0]] // only setup mode step
   if (setupMode === 'arr') {
-    return ALL_STEPS.filter(s => ['mode', 'arr', 'pathmapping', 'providers', 'ollama', 'mediaservers', 'scan'].includes(s.id))
+    return ALL_STEPS.filter(s =>
+      ['mode', 'arr', 'pathmapping', 'language', 'providers', 'automation', 'ollama', 'mediaservers', 'scan'].includes(s.id)
+    )
   }
   // standalone: skip arr and pathmapping
-  return ALL_STEPS.filter(s => ['mode', 'standalone', 'providers', 'ollama', 'mediaservers', 'scan'].includes(s.id))
+  return ALL_STEPS.filter(s =>
+    ['mode', 'standalone', 'language', 'providers', 'automation', 'ollama', 'mediaservers', 'scan'].includes(s.id)
+  )
 }
 
 const inputStyle = {
@@ -67,6 +73,9 @@ export default function Onboarding() {
     source_language_name: 'English',
     tmdb_api_key: '',
     tvdb_api_key: '',
+    automation_enabled: 'true',
+    search_interval_hours: '6',
+    upgrade_enabled: 'true',
   })
 
   // Media server state
@@ -412,6 +421,66 @@ export default function Onboarding() {
             </div>
           )}
 
+          {currentStepDef.id === 'language' && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  {t('language_step.target_language')}
+                </label>
+                <select
+                  value={values.target_language}
+                  onChange={(e) => set('target_language', e.target.value)}
+                  className="w-full px-3 py-2 rounded-md text-sm focus:outline-none"
+                  style={inputStyle}
+                >
+                  <option value="de">German (de)</option>
+                  <option value="en">English (en)</option>
+                  <option value="fr">French (fr)</option>
+                  <option value="es">Spanish (es)</option>
+                  <option value="it">Italian (it)</option>
+                  <option value="pt">Portuguese (pt)</option>
+                  <option value="nl">Dutch (nl)</option>
+                  <option value="pl">Polish (pl)</option>
+                  <option value="zh">Chinese (zh)</option>
+                  <option value="ja">Japanese (ja)</option>
+                  <option value="ko">Korean (ko)</option>
+                  <option value="hr">Croatian (hr)</option>
+                  <option value="sr">Serbian (sr)</option>
+                  <option value="cs">Czech (cs)</option>
+                  <option value="hu">Hungarian (hu)</option>
+                  <option value="ro">Romanian (ro)</option>
+                  <option value="tr">Turkish (tr)</option>
+                  <option value="ru">Russian (ru)</option>
+                  <option value="ar">Arabic (ar)</option>
+                  <option value="he">Hebrew (he)</option>
+                  <option value="el">Greek (el)</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  {t('language_step.source_language')}
+                </label>
+                <select
+                  value={values.source_language}
+                  onChange={(e) => set('source_language', e.target.value)}
+                  className="w-full px-3 py-2 rounded-md text-sm focus:outline-none"
+                  style={inputStyle}
+                >
+                  <option value="en">English (en)</option>
+                  <option value="ja">Japanese (ja)</option>
+                  <option value="ko">Korean (ko)</option>
+                  <option value="zh">Chinese (zh)</option>
+                  <option value="de">German (de)</option>
+                  <option value="fr">French (fr)</option>
+                  <option value="es">Spanish (es)</option>
+                </select>
+              </div>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {t('language_step.help')}
+              </p>
+            </div>
+          )}
+
           {currentStepDef.id === 'providers' && (
             <div className="space-y-4">
               <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -420,6 +489,86 @@ export default function Onboarding() {
               <Field label={t('providers_step.opensubtitles_api_key')} keyName="opensubtitles_api_key" type="password" />
               <Field label={t('providers_step.jimaku_api_key')} keyName="jimaku_api_key" type="password" />
               <Field label={t('providers_step.subdl_api_key')} keyName="subdl_api_key" type="password" />
+            </div>
+          )}
+
+          {currentStepDef.id === 'automation' && (
+            <div className="space-y-4">
+              {/* Automatic subtitle search toggle */}
+              <div
+                className="flex items-start gap-3 p-3 rounded-lg"
+                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)' }}
+              >
+                <input
+                  type="checkbox"
+                  id="automation_enabled"
+                  checked={values.automation_enabled === 'true'}
+                  onChange={(e) => set('automation_enabled', e.target.checked ? 'true' : 'false')}
+                  className="mt-0.5 h-4 w-4 rounded"
+                  style={{ accentColor: 'var(--accent)' }}
+                />
+                <div className="flex-1 space-y-1">
+                  <label htmlFor="automation_enabled" className="block text-sm font-medium cursor-pointer" style={{ color: 'var(--text-primary)' }}>
+                    {t('automation_step.auto_search_label')}
+                  </label>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {t('automation_step.auto_search_description')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Interval select — only shown when automation enabled */}
+              {values.automation_enabled === 'true' && (
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {t('automation_step.interval_label')}
+                  </label>
+                  <select
+                    value={values.search_interval_hours}
+                    onChange={(e) => set('search_interval_hours', e.target.value)}
+                    className="w-full px-3 py-2 rounded-md text-sm focus:outline-none"
+                    style={inputStyle}
+                  >
+                    <option value="1">1 hour</option>
+                    <option value="3">3 hours</option>
+                    <option value="6">6 hours</option>
+                    <option value="12">12 hours</option>
+                    <option value="24">24 hours</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Upgrade existing subtitles toggle */}
+              <div
+                className="flex items-start gap-3 p-3 rounded-lg"
+                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)' }}
+              >
+                <input
+                  type="checkbox"
+                  id="upgrade_enabled"
+                  checked={values.upgrade_enabled === 'true'}
+                  onChange={(e) => set('upgrade_enabled', e.target.checked ? 'true' : 'false')}
+                  className="mt-0.5 h-4 w-4 rounded"
+                  style={{ accentColor: 'var(--accent)' }}
+                />
+                <div className="flex-1 space-y-1">
+                  <label htmlFor="upgrade_enabled" className="block text-sm font-medium cursor-pointer" style={{ color: 'var(--text-primary)' }}>
+                    {t('automation_step.upgrade_label')}
+                  </label>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {t('automation_step.upgrade_description')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Info box */}
+              <div
+                className="flex items-start gap-2 p-3 rounded-lg text-xs"
+                style={{ backgroundColor: 'var(--accent-bg)', border: '1px solid var(--accent-dim)', color: 'var(--text-secondary)' }}
+              >
+                <Zap size={12} className="mt-0.5 shrink-0" style={{ color: 'var(--accent)' }} />
+                <span>{t('automation_step.settings_hint')}</span>
+              </div>
             </div>
           )}
 
