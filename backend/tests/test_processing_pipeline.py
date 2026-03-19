@@ -61,3 +61,57 @@ def test_resolve_config_missing_key_treated_as_null():
     result = resolve_config(global_cfg, series_cfg)
     assert result["hi_removal"] is True
     assert result["common_fixes"] is True
+
+
+def test_pipeline_triggered_after_successful_download(tmp_path, monkeypatch):
+    """Processing pipeline runs when _run_pipeline_for_path is called with HI removal enabled."""
+    from unittest.mock import patch
+
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", str(tmp_path))
+    monkeypatch.setenv("SUBLARR_AUTO_PROCESS_HI_REMOVAL", "true")
+    from config import reload_settings
+
+    reload_settings()
+
+    called_with = []
+
+    def mock_apply_mods(path, mods, dry_run=False):
+        called_with.append(path)
+        from subtitle_processor import ProcessingResult
+
+        return ProcessingResult(changes=[], backed_up=False, output_path=path, dry_run=dry_run)
+
+    sub = tmp_path / "ep.en.srt"
+    sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n\n", encoding="utf-8")
+
+    with patch("subtitle_processor.apply_mods", side_effect=mock_apply_mods):
+        from routes.subtitle_processor import _run_pipeline_for_path
+
+        _run_pipeline_for_path(str(sub), series_id=None)
+
+    assert len(called_with) == 1
+    assert called_with[0] == str(sub)
+
+
+def test_pipeline_noop_when_no_mods_enabled(tmp_path, monkeypatch):
+    """Pipeline is a no-op when all auto_process flags are False."""
+    from unittest.mock import patch
+
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", str(tmp_path))
+    monkeypatch.setenv("SUBLARR_AUTO_PROCESS_HI_REMOVAL", "false")
+    monkeypatch.setenv("SUBLARR_AUTO_PROCESS_COMMON_FIXES", "false")
+    monkeypatch.setenv("SUBLARR_AUTO_PROCESS_CREDIT_REMOVAL", "false")
+    from config import reload_settings
+
+    reload_settings()
+
+    sub = tmp_path / "ep.en.srt"
+    sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n\n", encoding="utf-8")
+
+    called = []
+    with patch("subtitle_processor.apply_mods", side_effect=lambda *a, **k: called.append(a)):
+        from routes.subtitle_processor import _run_pipeline_for_path
+
+        _run_pipeline_for_path(str(sub), series_id=None)
+
+    assert called == []

@@ -1322,6 +1322,14 @@ class ProviderManager:
         except Exception as _ev_err:
             logger.debug("subtitle_downloaded event skipped: %s", _ev_err)
 
+        # Post-download processing pipeline
+        try:
+            from routes.subtitle_processor import _run_pipeline_for_path
+
+            _run_pipeline_for_path(output_path, series_id=None)
+        except Exception as _exc:
+            logger.debug("[pipeline] hook error: %s", _exc)
+
         return output_path
 
     def get_provider_status(self) -> list[dict]:

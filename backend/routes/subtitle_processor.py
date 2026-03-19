@@ -276,6 +276,41 @@ def _build_pipeline_mods(cfg: dict):
     return mods
 
 
+def _run_pipeline_for_path(subtitle_path: str, series_id: int | None) -> None:
+    """Run the configured processing pipeline for one subtitle file.
+
+    Called post-download (synchronously for fast ops) or from batch.
+    No-ops if no processing mods are enabled.
+    """
+    from db.models.core import SeriesSettings
+    from extensions import db as _db
+    from subtitle_processor import apply_mods, resolve_config
+
+    s = get_settings()
+    global_cfg = {
+        "common_fixes": s.auto_process_common_fixes,
+        "hi_removal": s.auto_process_hi_removal,
+        "credit_removal": s.auto_process_credit_removal,
+    }
+
+    series_cfg = None
+    if series_id is not None:
+        row = _db.session.get(SeriesSettings, series_id)
+        if row and row.processing_config:
+            series_cfg = json.loads(row.processing_config)
+
+    resolved = resolve_config(global_cfg, series_cfg)
+    mods = _build_pipeline_mods(resolved)
+    if not mods:
+        return
+
+    try:
+        apply_mods(subtitle_path, mods)
+        logger.debug("[pipeline] processed %s", subtitle_path)
+    except Exception as exc:
+        logger.warning("[pipeline] failed for %s: %s", subtitle_path, exc)
+
+
 def _batch_process_series(series_id: int) -> None:
     """Process all subtitle sidecars for a series. Called in background thread."""
     from db.models.core import SeriesSettings
