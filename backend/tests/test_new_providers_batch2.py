@@ -112,3 +112,82 @@ class TestSubsourceProvider:
         content = p.download(r)
         assert content == b"1\n00:00:01,000 --> 00:00:02,000\nHello\n"
         assert r.content == content
+
+
+class TestSubf2mProvider:
+    def test_import_and_name(self):
+        from providers.subf2m import Subf2mProvider
+        p = Subf2mProvider()
+        assert p.name == "subf2m"
+
+    def test_languages_multilingual(self):
+        from providers.subf2m import Subf2mProvider
+        p = Subf2mProvider()
+        assert "en" in p.languages
+        assert "de" in p.languages
+        assert "fr" in p.languages
+        assert len(p.languages) >= 20
+
+    def test_no_credentials_required(self):
+        from providers.subf2m import Subf2mProvider
+        p = Subf2mProvider()
+        assert p.config_fields == []
+
+    def test_health_check_not_initialized(self):
+        from providers.subf2m import Subf2mProvider
+        p = Subf2mProvider()
+        healthy, msg = p.health_check()
+        assert not healthy
+
+    def test_health_check_reports_missing_bs4(self):
+        from providers.subf2m import Subf2mProvider
+        p = Subf2mProvider()
+        p.session = MagicMock()
+        with patch("providers.subf2m._HAS_BS4", False):
+            healthy, msg = p.health_check()
+        assert not healthy
+        assert "beautifulsoup4" in msg
+
+    def test_initialize_creates_session(self):
+        from providers.subf2m import Subf2mProvider
+        p = Subf2mProvider()
+        with patch("providers.subf2m.create_session") as mock_cs:
+            mock_cs.return_value = MagicMock()
+            p.initialize()
+            assert p.session is not None
+
+    def test_terminate_closes_session(self):
+        from providers.subf2m import Subf2mProvider
+        p = Subf2mProvider()
+        p.session = MagicMock()
+        p.terminate()
+        assert p.session is None
+
+    def test_search_returns_empty_without_session(self):
+        from providers.base import VideoQuery
+        from providers.subf2m import Subf2mProvider
+        p = Subf2mProvider()
+        q = VideoQuery(title="Test", languages=["en"])
+        assert p.search(q) == []
+
+    def test_search_returns_empty_without_bs4(self):
+        from providers.base import VideoQuery
+        from providers.subf2m import Subf2mProvider
+        p = Subf2mProvider()
+        p.session = MagicMock()
+        with patch("providers.subf2m._HAS_BS4", False):
+            result = p.search(VideoQuery(title="Test", languages=["en"]))
+        assert result == []
+
+    def test_download_raises_without_session(self):
+        import pytest
+        from providers.base import SubtitleResult, SubtitleFormat
+        from providers.subf2m import Subf2mProvider
+        p = Subf2mProvider()
+        r = SubtitleResult(
+            provider_name="subf2m", subtitle_id="x",
+            language="en", format=SubtitleFormat.SRT,
+            filename="x.srt", download_url="https://subf2m.co/x",
+        )
+        with pytest.raises(RuntimeError):
+            p.download(r)
