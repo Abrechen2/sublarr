@@ -121,7 +121,7 @@ class TestSupportPreviewEndpoint:
     """Test GET /api/v1/logs/support-preview."""
 
     @pytest.fixture
-    def client(self):
+    def client(self, temp_db):
         from app import create_app
 
         app = create_app()
@@ -162,7 +162,7 @@ class TestSupportExportEndpoint:
     """Test GET /api/v1/logs/support-export."""
 
     @pytest.fixture
-    def client(self):
+    def client(self, temp_db):
         from app import create_app
 
         app = create_app()
