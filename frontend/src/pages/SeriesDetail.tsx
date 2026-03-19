@@ -1882,7 +1882,7 @@ export function SeriesDetailPage() {
       {seriesId !== null && (
         <SeriesProcessingOverride
           seriesId={seriesId}
-          initialConfig={{}}
+          initialConfig={(series as { processing_config?: Record<string, boolean | null> })?.processing_config ?? {}}
         />
       )}
 

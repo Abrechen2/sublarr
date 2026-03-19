@@ -11,7 +11,9 @@ export function InterjectionListEditor() {
     getInterjections().then(({ items, is_custom }) => {
       setText(items.join('\n'))
       setIsCustom(is_custom)
-    }).catch(() => {})
+    }).catch(() => {
+      toast('Interjektionsliste konnte nicht geladen werden', 'error')
+    })
   }, [])
 
   async function handleSave() {

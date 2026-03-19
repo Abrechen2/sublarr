@@ -16,11 +16,11 @@ test('renders override selects', () => {
   expect(screen.getByText(/Common Fixes/)).toBeTruthy()
 })
 
-test('null value shows "Use global"', () => {
+test('null value selects "Global" option', () => {
   render(<SeriesProcessingOverride seriesId={1} initialConfig={{ hi_removal: null }} />)
   fireEvent.click(screen.getByText('Processing Override'))
-  const selects = screen.getAllByRole('combobox')
-  expect(selects[0]).toBeTruthy()
+  const selects = screen.getAllByRole('combobox') as HTMLSelectElement[]
+  expect(selects[0].value).toBe('global')
 })
 
 test('saves config with null for "Use global" option', async () => {

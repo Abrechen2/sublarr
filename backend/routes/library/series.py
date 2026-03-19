@@ -353,6 +353,20 @@ def get_series_detail(series_id):
     except Exception as _e:
         logger.debug("Could not load series settings for %d: %s", series_id, _e)
 
+    # Load processing config override for this series
+    import json as _json
+
+    processing_config: dict = {}
+    try:
+        from db.models.core import SeriesSettings
+        from extensions import db as _db
+
+        row = _db.session.get(SeriesSettings, series_id)
+        if row and row.processing_config:
+            processing_config = _json.loads(row.processing_config)
+    except Exception as _e:
+        logger.debug("Could not load processing config for %d: %s", series_id, _e)
+
     return jsonify(
         {
             "id": series.get("id"),
@@ -373,6 +387,7 @@ def get_series_detail(series_id):
             "source_language": settings.source_language,
             "source_language_name": settings.source_language_name,
             "absolute_order": absolute_order,
+            "processing_config": processing_config,
             "episodes": episodes,
         }
     )
