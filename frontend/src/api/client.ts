@@ -1964,7 +1964,7 @@ export async function undoProcessSubtitle(path: string): Promise<void> {
 
 export async function getInterjections(): Promise<{ items: string[]; is_custom: boolean }> {
   const res = await fetch('/api/v1/tools/process/interjections')
-  if (!res.ok) throw new Error(res.statusText)
+  if (!res.ok) throw new Error((await res.json()).error ?? res.statusText)
   return res.json()
 }
 
@@ -1979,7 +1979,7 @@ export async function putInterjections(items: string[]): Promise<void> {
 
 export async function processSeries(series_id: number): Promise<void> {
   const res = await fetch(`/api/v1/library/series/${series_id}/process`, { method: 'POST' })
-  if (!res.ok) throw new Error(res.statusText)
+  if (!res.ok) throw new Error((await res.json()).error ?? res.statusText)
 }
 
 export async function processLibraryAll(filter: 'all' | 'unprocessed' = 'all'): Promise<void> {
@@ -1988,7 +1988,7 @@ export async function processLibraryAll(filter: 'all' | 'unprocessed' = 'all'): 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ filter }),
   })
-  if (!res.ok) throw new Error(res.statusText)
+  if (!res.ok) throw new Error((await res.json()).error ?? res.statusText)
 }
 
 export async function updateSeriesProcessingConfig(
