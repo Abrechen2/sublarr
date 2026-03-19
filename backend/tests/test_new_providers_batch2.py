@@ -481,3 +481,113 @@ class TestBetaSeriesProvider:
         content = p.download(r)
         assert content == srt_bytes
         assert r.content == content
+
+
+class TestTitloviProvider:
+    """Tests for the Titlovi provider (Balkan subtitles)."""
+
+    def test_import_and_name(self):
+        from providers.titlovi import TitloviProvider
+        p = TitloviProvider()
+        assert p.name == "titlovi"
+
+    def test_languages_balkan(self):
+        from providers.titlovi import TitloviProvider
+        p = TitloviProvider()
+        assert "hr" in p.languages  # Croatian
+        assert "sr" in p.languages  # Serbian
+        assert "bs" in p.languages  # Bosnian
+        assert "sl" in p.languages  # Slovenian
+        assert "mk" in p.languages  # Macedonian
+        assert "zh" not in p.languages
+
+    def test_no_credentials_required(self):
+        from providers.titlovi import TitloviProvider
+        p = TitloviProvider()
+        assert p.config_fields == []
+
+    def test_health_check_not_initialized(self):
+        from providers.titlovi import TitloviProvider
+        p = TitloviProvider()
+        healthy, msg = p.health_check()
+        assert not healthy
+
+    def test_initialize_creates_session(self):
+        from providers.titlovi import TitloviProvider
+        p = TitloviProvider()
+        with patch("providers.titlovi.create_session") as mock_cs:
+            mock_cs.return_value = MagicMock()
+            p.initialize()
+            assert p.session is not None
+
+    def test_terminate_closes_session(self):
+        from providers.titlovi import TitloviProvider
+        p = TitloviProvider()
+        p.session = MagicMock()
+        p.terminate()
+        assert p.session is None
+
+    def test_search_returns_empty_without_session(self):
+        from providers.base import VideoQuery
+        from providers.titlovi import TitloviProvider
+        p = TitloviProvider()
+        q = VideoQuery(title="Test", languages=["hr"])
+        assert p.search(q) == []
+
+    def test_search_skips_non_balkan_languages(self):
+        from providers.base import VideoQuery
+        from providers.titlovi import TitloviProvider
+        p = TitloviProvider()
+        p.session = MagicMock()
+        result = p.search(VideoQuery(title="Test", languages=["en", "de", "fr"]))
+        assert result == []
+
+    def test_search_builds_correct_params(self):
+        from providers.base import VideoQuery
+        from providers.titlovi import TitloviProvider
+        p = TitloviProvider()
+        mock_session = MagicMock()
+        mock_session.get.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {"subtitles": []},
+        )
+        p.session = mock_session
+        q = VideoQuery(title="Squid Game", season=1, episode=1, languages=["hr"])
+        p.search(q)
+        mock_session.get.assert_called_once()
+        call_kwargs = mock_session.get.call_args
+        params = call_kwargs.kwargs.get("params") or {}
+        assert params.get("title") == "Squid Game"
+
+    def test_download_raises_without_session(self):
+        import pytest
+        from providers.base import SubtitleResult, SubtitleFormat
+        from providers.titlovi import TitloviProvider
+        p = TitloviProvider()
+        r = SubtitleResult(
+            provider_name="titlovi", subtitle_id="12345",
+            language="hr", format=SubtitleFormat.SRT,
+            filename="x.srt", download_url="https://titlovi.com/download/12345",
+        )
+        with pytest.raises(RuntimeError):
+            p.download(r)
+
+    def test_download_success_returns_content(self):
+        from providers.base import SubtitleResult, SubtitleFormat
+        from providers.titlovi import TitloviProvider
+        p = TitloviProvider()
+        mock_session = MagicMock()
+        srt_bytes = b"1\n00:00:01,000 --> 00:00:02,000\nHvala\n"
+        mock_session.get.return_value = MagicMock(
+            status_code=200,
+            content=srt_bytes,
+        )
+        p.session = mock_session
+        r = SubtitleResult(
+            provider_name="titlovi", subtitle_id="12345",
+            language="hr", format=SubtitleFormat.SRT,
+            filename="sub.srt", download_url="https://titlovi.com/download/12345",
+        )
+        content = p.download(r)
+        assert content == srt_bytes
+        assert r.content == content
