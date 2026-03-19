@@ -1917,4 +1917,90 @@ export async function getStreamingEnabled(): Promise<boolean> {
   return data.streaming_enabled ?? true
 }
 
+// ─── Subtitle Processing ──────────────────────────────────────────────────────
+
+export interface ModConfig {
+  mod: 'common_fixes' | 'hi_removal' | 'credit_removal'
+  options?: Record<string, unknown>
+}
+
+export interface ProcessingChange {
+  event_index: number
+  timestamp: string
+  original_text: string
+  modified_text: string
+  mod_name: string
+}
+
+export interface ProcessingResult {
+  changes: ProcessingChange[]
+  backed_up: boolean
+  output_path: string
+  dry_run: boolean
+}
+
+export async function processSubtitle(
+  path: string,
+  mods: ModConfig[],
+  dry_run = false
+): Promise<ProcessingResult> {
+  const res = await fetch('/api/v1/tools/process', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path, mods, dry_run }),
+  })
+  if (!res.ok) throw new Error((await res.json()).error ?? res.statusText)
+  return res.json()
+}
+
+export async function undoProcessSubtitle(path: string): Promise<void> {
+  const res = await fetch('/api/v1/tools/process/undo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path }),
+  })
+  if (!res.ok) throw new Error((await res.json()).error ?? res.statusText)
+}
+
+export async function getInterjections(): Promise<{ items: string[]; is_custom: boolean }> {
+  const res = await fetch('/api/v1/tools/process/interjections')
+  if (!res.ok) throw new Error(res.statusText)
+  return res.json()
+}
+
+export async function putInterjections(items: string[]): Promise<void> {
+  const res = await fetch('/api/v1/tools/process/interjections', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items }),
+  })
+  if (!res.ok) throw new Error((await res.json()).error ?? res.statusText)
+}
+
+export async function processSeries(series_id: number): Promise<void> {
+  const res = await fetch(`/api/v1/library/series/${series_id}/process`, { method: 'POST' })
+  if (!res.ok) throw new Error(res.statusText)
+}
+
+export async function processLibraryAll(filter: 'all' | 'unprocessed' = 'all'): Promise<void> {
+  const res = await fetch('/api/v1/library/process-all', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filter }),
+  })
+  if (!res.ok) throw new Error(res.statusText)
+}
+
+export async function updateSeriesProcessingConfig(
+  series_id: number,
+  config: Record<string, boolean | null>
+): Promise<void> {
+  const res = await fetch(`/api/v1/library/series/${series_id}/processing-config`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  })
+  if (!res.ok) throw new Error(res.statusText)
+}
+
 export default api
