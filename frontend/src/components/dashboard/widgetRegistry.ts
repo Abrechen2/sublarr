@@ -100,6 +100,13 @@ export const WIDGET_REGISTRY: readonly WidgetDefinition[] = [
     defaultLayout: { w: 4, h: 3, x: 0, y: 14, minW: 3, minH: 2 },
     component: lazy(() => import('./widgets/DiskSpaceWidget')),
   },
+  {
+    id: 'automation',
+    titleKey: 'widgets.automation',
+    icon: Zap,
+    defaultLayout: { w: 6, h: 4, x: 0, y: 17, minW: 3, minH: 3 },
+    component: lazy(() => import('./widgets/AutomationWidget')),
+  },
 ] as const
 
 /** Widget ID type derived from registry */
