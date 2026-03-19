@@ -3,12 +3,17 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 from dataclasses import dataclass, field
 from enum import Enum
 
 import pysubs2
+
+from subtitle_types import Change, _ms_to_str
+
+logger = logging.getLogger(__name__)
 
 SUPPORTED_EXTENSIONS = {".srt", ".ass", ".ssa", ".vtt"}
 
@@ -29,28 +34,11 @@ class ModConfig:
 
 
 @dataclass
-class Change:
-    event_index: int
-    timestamp: str
-    original_text: str
-    modified_text: str
-    mod_name: str
-
-
-@dataclass
 class ProcessingResult:
     changes: list[Change]
     backed_up: bool
     output_path: str
     dry_run: bool
-
-
-def _ms_to_str(ms: int) -> str:
-    h = ms // 3_600_000
-    m = (ms % 3_600_000) // 60_000
-    s = (ms % 60_000) // 1_000
-    rem = ms % 1_000
-    return f"{h:02d}:{m:02d}:{s:02d},{rem:03d}"
 
 
 def _make_bak_path(path: str) -> str:
@@ -59,16 +47,17 @@ def _make_bak_path(path: str) -> str:
 
 
 def apply_mods(path: str, mods: list[ModConfig], dry_run: bool = False) -> ProcessingResult:
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"File not found: {path}")
     ext = os.path.splitext(path)[1].lower()
     if ext not in SUPPORTED_EXTENSIONS:
         raise ValueError(f"Unsupported format: {ext!r}. Supported: {SUPPORTED_EXTENSIONS}")
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"File not found: {path}")
 
     mods_by_name = {m.mod: m for m in mods}
     ordered_mods = [mods_by_name[n] for n in _MOD_ORDER if n in mods_by_name]
 
-    subs = pysubs2.load(path, encoding="utf-8")
+    fmt = ext.lstrip(".")  # ".srt" → "srt", ".ass" → "ass", etc.
+    subs = pysubs2.load(path, format_=fmt, encoding="utf-8")
     all_changes: list[Change] = []
 
     for mod_config in ordered_mods:
@@ -89,7 +78,7 @@ def apply_mods(path: str, mods: list[ModConfig], dry_run: bool = False) -> Proce
         if not os.path.exists(bak_path):
             shutil.copy2(path, bak_path)
             backed_up = True
-        subs.save(path, encoding="utf-8")
+        subs.save(path, format_=fmt, encoding="utf-8")
 
     return ProcessingResult(
         changes=all_changes,
@@ -201,7 +190,8 @@ def _build_interjection_pattern():
         from config import get_settings
         settings = get_settings()
         raw = getattr(settings, "hi_interjections_list", "").strip()
-    except Exception:
+    except Exception as exc:
+        logger.warning("_build_interjection_pattern: failed to load settings: %s", exc)
         raw = ""
 
     if raw:
