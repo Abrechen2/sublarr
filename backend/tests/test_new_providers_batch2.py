@@ -167,27 +167,21 @@ class TestYifySubtitlesProvider:
         )
         with pytest.raises(RuntimeError):
             p.download(r)
+
     def test_download_success_returns_content(self):
         from providers.base import SubtitleResult, SubtitleFormat
-        from providers.subsource import SubsourceProvider
-        p = SubsourceProvider()
+        from providers.yifysubtitles import YifySubtitlesProvider
+        p = YifySubtitlesProvider()
         mock_session = MagicMock()
-        # Step 1: POST /getDownloadLink returns a URL
-        mock_session.post.return_value = MagicMock(
-            status_code=200,
-            json=lambda: {"link": "https://subsource.net/files/sub.srt"},
-        )
-        # Step 2: GET the actual file
         mock_session.get.return_value = MagicMock(
             status_code=200,
             content=b"1\n00:00:01,000 --> 00:00:02,000\nHello\n",
         )
         p.session = mock_session
         r = SubtitleResult(
-            provider_name="subsource", subtitle_id="sub1",
+            provider_name="yifysubtitles", subtitle_id="sub1",
             language="en", format=SubtitleFormat.SRT,
-            filename="sub.srt", download_url="https://subsource.net/api/getDownloadLink",
-            provider_data={"link_name": "sub1"},
+            filename="sub1.srt", download_url="https://yifysubtitles.ch/subs/sub1.zip",
         )
         content = p.download(r)
         assert content == b"1\n00:00:01,000 --> 00:00:02,000\nHello\n"
