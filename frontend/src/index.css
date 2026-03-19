@@ -1,0 +1,351 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* =================================================================
+   SUBLARR — *arr-suite Design System
+   Sonarr-inspired layout, Sublarr teal accent
+   Light theme in :root, dark theme in .dark class
+   ================================================================= */
+
+:root {
+  /* Backgrounds — Light */
+  --bg-primary: #eff1f4;
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #f5f7fa;
+  --bg-elevated: #f9fafb;
+
+  /* Borders — Light */
+  --border: #dde0e8;
+  --border-hover: #c6cad5;
+
+  /* Text — Light */
+  --text-primary: #18191f;
+  --text-secondary: #525968;
+  --text-muted: #8c95a6;
+
+  /* Brand — Sublarr Teal */
+  --accent: #0f9bb5;
+  --accent-hover: #0d8aa1;
+  --accent-dim: #0a7089;
+  --accent-subtle: rgba(15, 155, 181, 0.08);
+  --accent-bg: rgba(15, 155, 181, 0.12);
+
+  /* Status — Light */
+  --success: #22a55b;
+  --success-bg: rgba(34, 165, 91, 0.1);
+  --error: #e5334b;
+  --error-bg: rgba(229, 51, 75, 0.1);
+  --warning: #d48a08;
+  --warning-bg: rgba(212, 138, 8, 0.1);
+  --upgrade: #7c3aed;
+  --upgrade-bg: rgba(124, 58, 237, 0.10);
+
+  /* Typography */
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  /* Radius — sharp *arr-style */
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 5px;
+  --radius-xl: 5px;
+}
+
+.dark {
+  /* Backgrounds — Dark (neutral Sonarr-style grays, no blue-purple tint) */
+  --bg-primary: #1c1f27;
+  --bg-surface: #232730;
+  --bg-surface-hover: #282d3a;
+  --bg-elevated: #2b3040;
+
+  /* Borders — Dark */
+  --border: #2d3342;
+  --border-hover: #3c4557;
+
+  /* Text — Dark */
+  --text-primary: #d0d4dc;
+  --text-secondary: #7e8799;
+  --text-muted: #49536a;
+
+  /* Brand — Sublarr Teal (unchanged) */
+  --accent: #1DB8D4;
+  --accent-hover: #19a5bf;
+  --accent-dim: #116d7e;
+  --accent-subtle: rgba(29, 184, 212, 0.08);
+  --accent-bg: rgba(29, 184, 212, 0.10);
+
+  /* Status — Dark */
+  --success: #2ed573;
+  --success-bg: rgba(46, 213, 115, 0.10);
+  --error: #f43f5e;
+  --error-bg: rgba(244, 63, 94, 0.10);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.10);
+  --upgrade: #a78bfa;
+  --upgrade-bg: rgba(167, 139, 250, 0.10);
+}
+
+/* ---- Reset ---- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+*, ::before, ::after {
+  border-color: var(--border);
+}
+
+/* ---- Body ---- */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+#root {
+  position: relative;
+}
+
+/* ---- Typography ---- */
+h1 {
+  font-size: clamp(1.25rem, 2.5vw, 1.5rem);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: clamp(0.95rem, 2vw, 1.1rem);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* ---- Scrollbar (*arr-style thin) ---- */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-hover);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadePage {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes dotGlow {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 3px currentColor;
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 8px currentColor, 0 0 12px currentColor;
+  }
+}
+
+@keyframes progressPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+/* Utility: page entrance — opacity-only to avoid breaking position:fixed descendants */
+.page-enter {
+  animation: fadePage 0.25s ease-out both;
+}
+
+/* Utility: element entrance */
+.animate-in {
+  animation: fadeSlideUp 0.3s ease-out both;
+  opacity: 0;
+}
+
+/* Utility: staggered children */
+.stagger-1 { animation-delay: 0.04s; }
+.stagger-2 { animation-delay: 0.08s; }
+.stagger-3 { animation-delay: 0.12s; }
+.stagger-4 { animation-delay: 0.16s; }
+.stagger-5 { animation-delay: 0.20s; }
+.stagger-6 { animation-delay: 0.24s; }
+
+/* Utility: skeleton loading */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface) 25%,
+    var(--bg-surface-hover) 50%,
+    var(--bg-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+/* Hover utilities for CSS custom property backgrounds */
+.bg-surface {
+  background-color: var(--bg-surface);
+}
+
+.hover-surface:hover {
+  background-color: var(--bg-surface-hover);
+}
+
+/* ---- Card (*arr-style flat) ---- */
+.card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  transition: border-color 0.15s ease;
+}
+
+.card:hover {
+  border-color: var(--border-hover);
+}
+
+/* ---- Buttons ---- */
+button {
+  font-family: var(--font-body);
+  transition: all 0.15s ease;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---- Input Focus ---- */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px var(--accent-subtle) !important;
+}
+
+/* ---- Links ---- */
+a {
+  transition: color 0.15s ease;
+}
+
+a:hover {
+  color: var(--accent);
+}
+
+/* ---- Selection ---- */
+::selection {
+  background: rgba(29, 184, 212, 0.2);
+  color: var(--text-primary);
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 640px) {
+  body {
+    font-size: 13px;
+  }
+}
+
+@media (min-width: 1024px) {
+  body {
+    font-size: 14px;
+  }
+}
+
+/* Respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* =================================================================
+   PLYR VIDEO PLAYER — Sublarr theme overrides
+   Map Plyr's CSS custom properties to the Sublarr design system.
+   The player always renders on a black background inside the modal,
+   so only the controls accent colour and font need to match.
+   ================================================================= */
+
+.plyr {
+  --plyr-color-main: var(--accent);
+  --plyr-font-family: inherit;
+  --plyr-font-size-base: 13px;
+  --plyr-control-spacing: 10px;
+  --plyr-control-icon-size: 16px;
+  --plyr-range-thumb-height: 12px;
+  --plyr-range-fill-background: var(--accent);
+  --plyr-video-background: #000;
+  font-family: inherit;
+  border-radius: 0;
+}
+
+/* Remove Plyr's default border-radius on the container so it fits
+   flush inside the PlayerModal's overflow-hidden card. */
+.plyr--video {
+  border-radius: 0;
+}
+
+/* Ensure the libass-wasm subtitle canvas (rendered by SubtitleOctopus)
+   is visible above the video but below the Plyr controls overlay. */
+.plyr canvas {
+  z-index: 1;
+  pointer-events: none;
+}
