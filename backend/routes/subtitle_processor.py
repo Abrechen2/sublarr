@@ -304,7 +304,10 @@ def _run_pipeline_for_path(subtitle_path: str, series_id: int | None) -> None:
             try:
                 series_cfg = json.loads(row.processing_config)
             except json.JSONDecodeError:
-                logger.warning("[pipeline] malformed processing_config for series %s, using global config", series_id)
+                logger.warning(
+                    "[pipeline] malformed processing_config for series %s, using global config",
+                    series_id,
+                )
 
     resolved = resolve_config(global_cfg, series_cfg)
     mods = _build_pipeline_mods(resolved)

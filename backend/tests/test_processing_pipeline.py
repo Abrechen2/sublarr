@@ -90,7 +90,10 @@ def test_pipeline_triggered_after_successful_download(tmp_path, monkeypatch):
 
     with (
         patch("subtitle_processor.apply_mods", side_effect=mock_apply_mods),
-        patch("subtitle_processor.resolve_config", return_value={"hi_removal": True, "common_fixes": False, "credit_removal": False}),
+        patch(
+            "subtitle_processor.resolve_config",
+            return_value={"hi_removal": True, "common_fixes": False, "credit_removal": False},
+        ),
         patch("routes.subtitle_processor._build_pipeline_mods", return_value=known_mods),
     ):
         from routes.subtitle_processor import _run_pipeline_for_path
