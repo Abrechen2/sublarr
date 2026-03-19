@@ -458,6 +458,7 @@ export interface InteractiveSearchResult {
   filename: string
   release_info: string
   score: number
+  score_breakdown?: Record<string, number>
   hearing_impaired: boolean
   forced: boolean
   matches: string[]
