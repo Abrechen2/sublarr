@@ -1151,12 +1151,16 @@ class ProviderManager:
 
         return None
 
-    def save_subtitle(self, result: SubtitleResult, output_path: str) -> str:
+    def save_subtitle(
+        self, result: SubtitleResult, output_path: str, series_id: int | None = None
+    ) -> str:
         """Save a downloaded subtitle to disk.
 
         Args:
             result: SubtitleResult with content populated
             output_path: Base path (without extension — extension from format)
+            series_id: Sonarr series ID, used to apply per-series pipeline overrides.
+                       Pass None for movies or when no series context is available.
 
         Returns:
             Path to saved file
@@ -1326,7 +1330,7 @@ class ProviderManager:
         try:
             from routes.subtitle_processor import _run_pipeline_for_path
 
-            _run_pipeline_for_path(output_path, series_id=None)
+            _run_pipeline_for_path(output_path, series_id=series_id)
         except Exception as _exc:
             logger.debug("[pipeline] hook error: %s", _exc)
 
