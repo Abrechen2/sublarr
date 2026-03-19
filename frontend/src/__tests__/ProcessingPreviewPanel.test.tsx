@@ -58,3 +58,19 @@ test('calls onCancel without modifying when Abbrechen clicked', () => {
   expect(onCancel).toHaveBeenCalledOnce()
   expect(onConfirm).not.toHaveBeenCalled()
 })
+
+test('shows (entfernt) for deleted lines and (leer) for empty originals', () => {
+  const deletedChange = [
+    { event_index: 0, timestamp: '00:00:01,000 --> 00:00:02,000', original_text: '[MUSIC]', modified_text: '', mod_name: 'hi_removal' },
+    { event_index: 1, timestamp: '00:00:03,000 --> 00:00:04,000', original_text: '', modified_text: 'Added line', mod_name: 'common_fixes' },
+  ]
+  render(
+    <ProcessingPreviewPanel
+      changes={deletedChange}
+      onConfirm={vi.fn()}
+      onCancel={vi.fn()}
+    />
+  )
+  expect(screen.getByText('(entfernt)')).toBeTruthy()
+  expect(screen.getByText('(leer)')).toBeTruthy()
+})

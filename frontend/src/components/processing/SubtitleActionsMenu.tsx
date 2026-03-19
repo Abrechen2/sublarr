@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown, Scissors, Wrench, RotateCcw } from 'lucide-react'
-import { processSubtitle, undoProcessSubtitle } from '@/api/client'
+import { checkBakExists, processSubtitle, undoProcessSubtitle } from '@/api/client'
 import type { ProcessingChange } from '@/api/client'
 import { ProcessingPreviewPanel } from './ProcessingPreviewPanel'
 import { toast } from '@/components/shared/Toast'
@@ -19,13 +19,15 @@ export function SubtitleActionsMenu({ subtitlePath, onRefresh }: Props) {
   const [previewChanges, setPreviewChanges] = useState<ProcessingChange[]>([])
   const [loading, setLoading] = useState(false)
 
+  useEffect(() => {
+    setHasBak(false)
+  }, [subtitlePath])
+
   async function handleOpen() {
     setOpen(v => !v)
     if (!open) {
-      try {
-        const res = await fetch(`/api/v1/tools/process/bak-exists?path=${encodeURIComponent(subtitlePath)}`)
-        if (res.ok) setHasBak((await res.json()).exists)
-      } catch { /* ignore */ }
+      const exists = await checkBakExists(subtitlePath)
+      setHasBak(exists)
     }
   }
 

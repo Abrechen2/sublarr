@@ -1962,6 +1962,12 @@ export async function undoProcessSubtitle(path: string): Promise<void> {
   if (!res.ok) throw new Error((await res.json()).error ?? res.statusText)
 }
 
+export async function checkBakExists(path: string): Promise<boolean> {
+  const res = await fetch(`/api/v1/tools/process/bak-exists?path=${encodeURIComponent(path)}`)
+  if (!res.ok) return false
+  return (await res.json()).exists as boolean
+}
+
 export async function getInterjections(): Promise<{ items: string[]; is_custom: boolean }> {
   const res = await fetch('/api/v1/tools/process/interjections')
   if (!res.ok) throw new Error((await res.json()).error ?? res.statusText)
