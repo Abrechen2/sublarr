@@ -45,11 +45,11 @@ def temp_file():
 class TestProviderErrorHandling:
     """Test that provider errors don't crash the entire workflow."""
 
-    @patch("wanted_search.get_wanted_item")
-    @patch("wanted_search.get_provider_manager")
-    @patch("wanted_search.update_wanted_status")
-    @patch("wanted_search.update_wanted_search")
-    @patch("wanted_search.build_query_from_wanted")
+    @patch("wanted_search.search.get_wanted_item")
+    @patch("wanted_search.search.get_provider_manager")
+    @patch("wanted_search.search.update_wanted_status", create=True)
+    @patch("wanted_search.search.update_wanted_search")
+    @patch("wanted_search.search.build_query_from_wanted")
     def test_provider_search_failure_continues(
         self,
         mock_build_query,
@@ -82,11 +82,11 @@ class TestProviderErrorHandling:
         assert "target_results" in result
         assert "source_results" in result
 
-    @patch("wanted_search.get_wanted_item")
-    @patch("wanted_search.get_provider_manager")
-    @patch("wanted_search.update_wanted_status")
-    @patch("wanted_search.update_wanted_search")
-    @patch("wanted_search.build_query_from_wanted")
+    @patch("wanted_search.process.get_wanted_item")
+    @patch("wanted_search.process.get_provider_manager")
+    @patch("wanted_search.process.update_wanted_status")
+    @patch("wanted_search.process.update_wanted_search")
+    @patch("wanted_search.process.build_query_from_wanted")
     def test_save_subtitle_failure_continues(
         self,
         mock_build_query,
@@ -126,9 +126,9 @@ class TestProviderErrorHandling:
 class TestFileSystemGuards:
     """Test defensive guards for file system operations."""
 
-    @patch("wanted_search.get_wanted_item")
-    @patch("wanted_search.get_provider_manager")
-    @patch("wanted_search.update_wanted_status")
+    @patch("wanted_search.process.get_wanted_item")
+    @patch("wanted_search.process.get_provider_manager")
+    @patch("wanted_search.process.update_wanted_status")
     def test_disk_space_check_in_save(
         self,
         mock_update_status,
@@ -172,10 +172,10 @@ class TestFileSystemGuards:
 class TestTranslationPipelineResilience:
     """Test that translation pipeline failures are handled gracefully."""
 
-    @patch("wanted_search.get_wanted_item")
-    @patch("wanted_search.get_provider_manager")
-    @patch("wanted_search.update_wanted_status")
-    @patch("wanted_search.get_settings")
+    @patch("wanted_search.process.get_wanted_item")
+    @patch("wanted_search.process.get_provider_manager")
+    @patch("wanted_search.process.update_wanted_status")
+    @patch("wanted_search.process.get_settings")
     @patch("translator._translate_external_ass")
     def test_translation_failure_cleans_up_temp_file(
         self,
@@ -283,12 +283,12 @@ class TestAutoTranslateGuard:
         s.wanted_skip_srt_on_no_ass = True
         return s
 
-    @patch("wanted_search.get_settings")
-    @patch("wanted_search.get_wanted_item")
-    @patch("wanted_search.get_provider_manager")
-    @patch("wanted_search.update_wanted_status")
-    @patch("wanted_search.update_wanted_search")
-    @patch("wanted_search.build_query_from_wanted")
+    @patch("wanted_search.process.get_settings")
+    @patch("wanted_search.process.get_wanted_item")
+    @patch("wanted_search.process.get_provider_manager")
+    @patch("wanted_search.process.update_wanted_status")
+    @patch("wanted_search.process.update_wanted_search")
+    @patch("wanted_search.process.build_query_from_wanted")
     def test_no_translation_when_auto_translate_disabled(
         self,
         mock_build_query,
@@ -329,12 +329,12 @@ class TestAutoTranslateGuard:
         # Item must stay "wanted" so it can be retried later
         mock_update_status.assert_called_with(1, "wanted")
 
-    @patch("wanted_search.get_settings")
-    @patch("wanted_search.get_wanted_item")
-    @patch("wanted_search.get_provider_manager")
-    @patch("wanted_search.update_wanted_status")
-    @patch("wanted_search.update_wanted_search")
-    @patch("wanted_search.build_query_from_wanted")
+    @patch("wanted_search.process.get_settings")
+    @patch("wanted_search.process.get_wanted_item")
+    @patch("wanted_search.process.get_provider_manager")
+    @patch("wanted_search.process.update_wanted_status")
+    @patch("wanted_search.process.update_wanted_search")
+    @patch("wanted_search.process.build_query_from_wanted")
     def test_direct_download_still_works_when_auto_translate_disabled(
         self,
         mock_build_query,
@@ -379,7 +379,7 @@ class TestAutoTranslateGuard:
                 "translator.get_output_path_for_lang",
                 return_value=temp_file.replace(".mkv", ".de.ass"),
             ),
-            patch("wanted_search.record_subtitle_download"),
+            patch("wanted_search.process.record_subtitle_download"),
             patch("translator.translate_file") as mock_translate_file,
         ):
             result = process_wanted_item(1)
