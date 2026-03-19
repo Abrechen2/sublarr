@@ -5,6 +5,22 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.32.0-beta] - 2026-03-19
+
+### Changed
+- **Settings — Navigation** — Restructured from 7 groups / 23 tabs to 5 logical groups (Connections, Languages & Subtitles, Providers, Automation, System); no tabs removed
+- **Providers — Priority** — Replaced move-up/down buttons in edit modal with drag & drop handles on provider tiles
+
+### Added
+- **Score Breakdown** — Hover tooltip on score badges in search results shows per-component point breakdown (series title, season, episode, format bonus, provider modifier, etc.)
+- **Wanted — Failure Details** — Failed items now show inline error reason, attempt count, and next retry countdown
+- **Wanted — Batch Progress** — Progress bar with found/failed counters during "Search All" operation
+- **Dashboard — Automation Widget** — New widget showing automation status (enabled/disabled), today's found/failed subtitle stats, last/next run times, and Run Now button
+- **Onboarding — Language Step** — New wizard step to configure target and source language during first-time setup
+- **Onboarding — Automation Step** — New wizard step to configure automatic search interval and subtitle upgrade behavior
+
+---
+
 ## [0.31.0-beta] — 2026-03-19
 
 ### Changed
