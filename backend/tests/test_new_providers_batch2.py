@@ -87,6 +87,86 @@ class TestSubsourceProvider:
         with pytest.raises(RuntimeError):
             p.download(r)
 
+
+class TestYifySubtitlesProvider:
+    def test_import_and_name(self):
+        from providers.yifysubtitles import YifySubtitlesProvider
+        p = YifySubtitlesProvider()
+        assert p.name == "yifysubtitles"
+
+    def test_movies_only_flag(self):
+        from providers.yifysubtitles import YifySubtitlesProvider
+        p = YifySubtitlesProvider()
+        assert p.movies_only is True
+
+    def test_no_credentials_required(self):
+        from providers.yifysubtitles import YifySubtitlesProvider
+        p = YifySubtitlesProvider()
+        assert p.config_fields == []
+
+    def test_health_check_not_initialized(self):
+        from providers.yifysubtitles import YifySubtitlesProvider
+        p = YifySubtitlesProvider()
+        healthy, msg = p.health_check()
+        assert not healthy
+
+    def test_initialize_creates_session(self):
+        from providers.yifysubtitles import YifySubtitlesProvider
+        p = YifySubtitlesProvider()
+        with patch("providers.yifysubtitles.create_session") as mock_cs:
+            mock_cs.return_value = MagicMock()
+            p.initialize()
+            assert p.session is not None
+
+    def test_terminate_closes_session(self):
+        from providers.yifysubtitles import YifySubtitlesProvider
+        p = YifySubtitlesProvider()
+        p.session = MagicMock()
+        p.terminate()
+        assert p.session is None
+
+    def test_search_skips_tv_series(self):
+        from providers.base import VideoQuery
+        from providers.yifysubtitles import YifySubtitlesProvider
+        p = YifySubtitlesProvider()
+        p.session = MagicMock()
+        q = VideoQuery(title="Breaking Bad", season=1, episode=1, languages=["en"])
+        assert p.search(q) == []
+
+    def test_search_returns_empty_without_session(self):
+        from providers.base import VideoQuery
+        from providers.yifysubtitles import YifySubtitlesProvider
+        p = YifySubtitlesProvider()
+        q = VideoQuery(title="Inception", imdb_id="tt1375666", languages=["en"])
+        assert p.search(q) == []
+
+    def test_search_uses_imdb_id_when_available(self):
+        from providers.base import VideoQuery
+        from providers.yifysubtitles import YifySubtitlesProvider
+        p = YifySubtitlesProvider()
+        mock_session = MagicMock()
+        mock_session.get.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {"subtitles": [{"lang": "English", "rating": 5, "url": "/subs/1.zip"}]},
+        )
+        p.session = mock_session
+        q = VideoQuery(title="Inception", imdb_id="tt1375666", languages=["en"])
+        results = p.search(q)
+        call_url = mock_session.get.call_args[0][0]
+        assert "tt1375666" in call_url
+
+    def test_download_raises_without_session(self):
+        import pytest
+        from providers.base import SubtitleResult, SubtitleFormat
+        from providers.yifysubtitles import YifySubtitlesProvider
+        p = YifySubtitlesProvider()
+        r = SubtitleResult(
+            provider_name="yifysubtitles", subtitle_id="x",
+            language="en", format=SubtitleFormat.SRT,
+            filename="x.srt", download_url="https://yifysubtitles.ch/subs/x.zip",
+        )
+        with pytest.raises(RuntimeError):
+            p.download(r)
     def test_download_success_returns_content(self):
         from providers.base import SubtitleResult, SubtitleFormat
         from providers.subsource import SubsourceProvider
