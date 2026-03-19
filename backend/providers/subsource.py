@@ -24,21 +24,50 @@ _BROWSER_UA = (
 )
 
 _LANG_MAP = {
-    "en": "english", "de": "german", "fr": "french", "es": "spanish",
-    "it": "italian", "pt": "portuguese", "nl": "dutch", "pl": "polish",
-    "ro": "romanian", "cs": "czech", "sk": "slovak", "hu": "hungarian",
-    "hr": "croatian", "sr": "serbian", "bg": "bulgarian", "ru": "russian",
-    "uk": "ukrainian", "tr": "turkish", "ar": "arabic", "fa": "farsi_persian",
-    "zh": "chinese_simplified", "zh-hans": "chinese_simplified",
-    "zh-hant": "chinese_traditional", "ja": "japanese", "ko": "korean",
-    "vi": "vietnamese", "id": "indonesian", "he": "hebrew", "el": "greek",
-    "sv": "swedish", "da": "danish", "no": "norwegian", "fi": "finnish",
-    "th": "thai", "hi": "hindi", "bn": "bengali", "ms": "malay",
+    "en": "english",
+    "de": "german",
+    "fr": "french",
+    "es": "spanish",
+    "it": "italian",
+    "pt": "portuguese",
+    "nl": "dutch",
+    "pl": "polish",
+    "ro": "romanian",
+    "cs": "czech",
+    "sk": "slovak",
+    "hu": "hungarian",
+    "hr": "croatian",
+    "sr": "serbian",
+    "bg": "bulgarian",
+    "ru": "russian",
+    "uk": "ukrainian",
+    "tr": "turkish",
+    "ar": "arabic",
+    "fa": "farsi_persian",
+    "zh": "chinese_simplified",
+    "zh-hans": "chinese_simplified",
+    "zh-hant": "chinese_traditional",
+    "ja": "japanese",
+    "ko": "korean",
+    "vi": "vietnamese",
+    "id": "indonesian",
+    "he": "hebrew",
+    "el": "greek",
+    "sv": "swedish",
+    "da": "danish",
+    "no": "norwegian",
+    "fi": "finnish",
+    "th": "thai",
+    "hi": "hindi",
+    "bn": "bengali",
+    "ms": "malay",
 }
 
 _FORMAT_MAP = {
-    ".ass": SubtitleFormat.ASS, ".ssa": SubtitleFormat.SSA,
-    ".srt": SubtitleFormat.SRT, ".vtt": SubtitleFormat.VTT,
+    ".ass": SubtitleFormat.ASS,
+    ".ssa": SubtitleFormat.SSA,
+    ".srt": SubtitleFormat.SRT,
+    ".vtt": SubtitleFormat.VTT,
 }
 
 
@@ -57,7 +86,10 @@ class SubsourceProvider(SubtitleProvider):
 
     def initialize(self):
         self.session = create_session(
-            max_retries=2, backoff_factor=1.0, timeout=self.timeout, user_agent=_BROWSER_UA,
+            max_retries=2,
+            backoff_factor=1.0,
+            timeout=self.timeout,
+            user_agent=_BROWSER_UA,
         )
         self.session.headers.update({"Accept": "application/json"})
 
@@ -71,7 +103,11 @@ class SubsourceProvider(SubtitleProvider):
             return False, "Not initialized"
         try:
             resp = self.session.get(f"{_API_BASE}/search", timeout=8)
-            return (True, "OK") if resp.status_code in (200, 400) else (False, f"HTTP {resp.status_code}")
+            return (
+                (True, "OK")
+                if resp.status_code in (200, 400)
+                else (False, f"HTTP {resp.status_code}")
+            )
         except Exception as e:
             return False, str(e)
 
@@ -102,28 +138,28 @@ class SubsourceProvider(SubtitleProvider):
             return []
 
         results = []
-        for sub in (data.get("subs") or []):
+        for sub in data.get("subs") or []:
             sub_lang_name = (sub.get("lang") or "").lower()
-            matched_lang = next(
-                (lc for lc in valid_langs if _LANG_MAP[lc] == sub_lang_name), None
-            )
+            matched_lang = next((lc for lc in valid_langs if _LANG_MAP[lc] == sub_lang_name), None)
             if not matched_lang:
                 continue
             link_name = sub.get("linkName") or ""
             release = sub.get("releaseName") or link_name
             if not link_name:
                 continue
-            results.append(SubtitleResult(
-                provider_name=self.name,
-                subtitle_id=link_name,
-                language=matched_lang,
-                format=SubtitleFormat.SRT,
-                filename=f"{release}.srt",
-                download_url=f"{_API_BASE}/getDownloadLink",
-                release_info=release,
-                matches={"series", "season", "episode"} if query.is_episode else {"title"},
-                provider_data={"link_name": link_name},
-            ))
+            results.append(
+                SubtitleResult(
+                    provider_name=self.name,
+                    subtitle_id=link_name,
+                    language=matched_lang,
+                    format=SubtitleFormat.SRT,
+                    filename=f"{release}.srt",
+                    download_url=f"{_API_BASE}/getDownloadLink",
+                    release_info=release,
+                    matches={"series", "season", "episode"} if query.is_episode else {"title"},
+                    provider_data={"link_name": link_name},
+                )
+            )
 
         return results
 
@@ -134,7 +170,9 @@ class SubsourceProvider(SubtitleProvider):
         link_name = (result.provider_data or {}).get("link_name") or result.subtitle_id
         try:
             resp = self.session.post(
-                f"{_API_BASE}/getDownloadLink", json={"link": link_name}, timeout=self.timeout,
+                f"{_API_BASE}/getDownloadLink",
+                json={"link": link_name},
+                timeout=self.timeout,
             )
             if resp.status_code != 200:
                 raise RuntimeError(f"Subsource download link failed: HTTP {resp.status_code}")

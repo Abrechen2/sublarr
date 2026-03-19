@@ -88,7 +88,11 @@ class TitloviProvider(SubtitleProvider):
                 params={"title": "test", "lang": "Croatian"},
                 timeout=8,
             )
-            return (True, "OK") if resp.status_code in (200, 400) else (False, f"HTTP {resp.status_code}")
+            return (
+                (True, "OK")
+                if resp.status_code in (200, 400)
+                else (False, f"HTTP {resp.status_code}")
+            )
         except Exception as e:
             return False, str(e)
 
@@ -137,16 +141,18 @@ class TitloviProvider(SubtitleProvider):
                 release = sub.get("release") or sub.get("title") or title
                 if not sub_id:
                     continue
-                results.append(SubtitleResult(
-                    provider_name=self.name,
-                    subtitle_id=sub_id,
-                    language=lang_code,
-                    format=SubtitleFormat.SRT,
-                    filename=f"{release}.srt",
-                    download_url=dl_url,
-                    release_info=release,
-                    matches={"series", "season", "episode"} if query.is_episode else {"title"},
-                ))
+                results.append(
+                    SubtitleResult(
+                        provider_name=self.name,
+                        subtitle_id=sub_id,
+                        language=lang_code,
+                        format=SubtitleFormat.SRT,
+                        filename=f"{release}.srt",
+                        download_url=dl_url,
+                        release_info=release,
+                        matches={"series", "season", "episode"} if query.is_episode else {"title"},
+                    )
+                )
 
         logger.info("Titlovi: found %d results", len(results))
         return results

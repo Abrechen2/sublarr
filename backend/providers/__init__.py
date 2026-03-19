@@ -273,6 +273,34 @@ class ProviderManager:
             from providers import turkcealtyazi  # noqa: F401
         except ImportError as e:
             logger.debug("Turkcealtyazi provider not available: %s", e)
+        try:
+            from providers import subsource  # noqa: F401
+        except ImportError as e:
+            logger.debug("Subsource provider not available: %s", e)
+        try:
+            from providers import subf2m  # noqa: F401
+        except ImportError as e:
+            logger.debug("Subf2m provider not available: %s", e)
+        try:
+            from providers import yifysubtitles  # noqa: F401
+        except ImportError as e:
+            logger.debug("YifySubtitles provider not available: %s", e)
+        try:
+            from providers import zimuku  # noqa: F401
+        except ImportError as e:
+            logger.debug("Zimuku provider not available: %s", e)
+        try:
+            from providers import betaseries  # noqa: F401
+        except ImportError as e:
+            logger.debug("BetaSeries provider not available: %s", e)
+        try:
+            from providers import titlovi  # noqa: F401
+        except ImportError as e:
+            logger.debug("Titlovi provider not available: %s", e)
+        try:
+            from providers import embedded  # noqa: F401
+        except ImportError as e:
+            logger.debug("Embedded subtitle provider not available: %s", e)
 
         # Load plugin providers (from plugins directory)
         self._load_plugins()
@@ -1081,11 +1109,6 @@ class ProviderManager:
         Returns:
             Raw subtitle file content, or None on failure
         """
-        # Handle embedded subtitles (no download needed, already in file)
-        if result.provider_name == "embedded":
-            logger.debug("Skipping download for embedded subtitle")
-            return b""  # Return empty bytes, extraction happens elsewhere
-
         provider = self._providers.get(result.provider_name)
         if not provider:
             logger.error("Provider %s not available for download", result.provider_name)

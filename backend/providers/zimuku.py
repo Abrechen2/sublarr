@@ -16,6 +16,7 @@ from archive_utils import extract_subtitles_from_rar, extract_subtitles_from_zip
 
 try:
     from bs4 import BeautifulSoup
+
     _HAS_BS4 = True
 except ImportError:
     _HAS_BS4 = False
@@ -82,10 +83,12 @@ class ZimukuProvider(SubtitleProvider):
             timeout=self.timeout,
             user_agent=_BROWSER_UA,
         )
-        self.session.headers.update({
-            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-            "Referer": _BASE_URL,
-        })
+        self.session.headers.update(
+            {
+                "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                "Referer": _BASE_URL,
+            }
+        )
 
     def terminate(self):
         if self.session:

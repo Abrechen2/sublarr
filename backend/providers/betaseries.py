@@ -84,11 +84,13 @@ class BetaSeriesProvider(SubtitleProvider):
             timeout=self.timeout,
         )
         if self.api_key:
-            self.session.headers.update({
-                "X-BetaSeries-Key": self.api_key,
-                "X-BetaSeries-Version": _API_VERSION,
-                "Accept": "application/json",
-            })
+            self.session.headers.update(
+                {
+                    "X-BetaSeries-Key": self.api_key,
+                    "X-BetaSeries-Version": _API_VERSION,
+                    "Accept": "application/json",
+                }
+            )
 
     def terminate(self):
         if self.session:
@@ -168,16 +170,18 @@ class BetaSeriesProvider(SubtitleProvider):
                 if not dl_url:
                     continue
                 sub_id = str(sub.get("id") or dl_url.split("/")[-1])
-                results.append(SubtitleResult(
-                    provider_name=self.name,
-                    subtitle_id=sub_id,
-                    language=matched,
-                    format=_format_from_url(dl_url),
-                    filename=f"{sub_id}.srt",
-                    download_url=dl_url,
-                    release_info=sub.get("source") or "",
-                    matches={"series", "season", "episode"},
-                ))
+                results.append(
+                    SubtitleResult(
+                        provider_name=self.name,
+                        subtitle_id=sub_id,
+                        language=matched,
+                        format=_format_from_url(dl_url),
+                        filename=f"{sub_id}.srt",
+                        download_url=dl_url,
+                        release_info=sub.get("source") or "",
+                        matches={"series", "season", "episode"},
+                    )
+                )
 
         elif not query.is_episode and query.title:
             try:
@@ -202,16 +206,18 @@ class BetaSeriesProvider(SubtitleProvider):
                 if not dl_url:
                     continue
                 sub_id = str(sub.get("id") or dl_url.split("/")[-1])
-                results.append(SubtitleResult(
-                    provider_name=self.name,
-                    subtitle_id=sub_id,
-                    language=matched,
-                    format=_format_from_url(dl_url),
-                    filename=f"{sub_id}.srt",
-                    download_url=dl_url,
-                    release_info=sub.get("source") or "",
-                    matches={"title"},
-                ))
+                results.append(
+                    SubtitleResult(
+                        provider_name=self.name,
+                        subtitle_id=sub_id,
+                        language=matched,
+                        format=_format_from_url(dl_url),
+                        filename=f"{sub_id}.srt",
+                        download_url=dl_url,
+                        release_info=sub.get("source") or "",
+                        matches={"title"},
+                    )
+                )
 
         logger.info("BetaSeries: found %d results", len(results))
         return results
