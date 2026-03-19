@@ -166,3 +166,30 @@ def test_put_interjections_updates_list(client):
     data = resp2.get_json()
     assert "Blorp" in data["items"]
     assert data["is_custom"] is True
+
+
+def test_process_series_returns_202(client):
+    resp = client.post("/api/v1/library/series/123/process")
+    assert resp.status_code == 202
+    data = resp.get_json()
+    assert data["status"] == "started"
+    assert data["series_id"] == 123
+
+
+def test_process_all_returns_202(client):
+    resp = client.post("/api/v1/library/process-all", json={"filter": "all"})
+    assert resp.status_code == 202
+    data = resp.get_json()
+    assert data["status"] == "started"
+    assert data["filter"] == "all"
+
+
+def test_update_series_processing_config_returns_200(client):
+    resp = client.patch(
+        "/api/v1/library/series/42/processing-config",
+        json={"hi_removal": True, "common_fixes": False},
+    )
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["series_id"] == 42
+    assert data["config"]["hi_removal"] is True

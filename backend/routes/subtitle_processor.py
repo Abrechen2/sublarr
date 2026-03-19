@@ -322,15 +322,24 @@ def _batch_process_library(filter_mode: str) -> None:
     """Process all series in library. filter_mode: 'all' | 'unprocessed'."""
     from db.models.core import SeriesSettings
     from extensions import db as _db
+    from sonarr_client import get_sonarr_client
 
-    if filter_mode == "unprocessed":
-        rows = (
-            _db.session.query(SeriesSettings)
-            .filter(SeriesSettings.processing_config.is_(None))
-            .all()
-        )
-    else:
-        rows = _db.session.query(SeriesSettings).all()
+    client = get_sonarr_client()
+    if not client:
+        return
 
-    for row in rows:
-        _batch_process_series(row.sonarr_series_id)
+    try:
+        all_series = client.get_series()
+    except Exception as exc:
+        logger.warning("[batch-process-library] failed to fetch series: %s", exc)
+        return
+
+    for series in all_series:
+        series_id = series.get("id")
+        if not series_id:
+            continue
+        if filter_mode == "unprocessed":
+            row = _db.session.get(SeriesSettings, series_id)
+            if row and row.processing_config is not None:
+                continue  # already has processing config, skip
+        _batch_process_series(series_id)
