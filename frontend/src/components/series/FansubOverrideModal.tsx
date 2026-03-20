@@ -4,6 +4,7 @@ import {
   useSetSeriesFansubPrefs,
   useDeleteSeriesFansubPrefs,
 } from '@/hooks/useApi'
+import { toast } from '@/components/shared/Toast'
 
 interface Props {
   seriesId: number
@@ -47,7 +48,7 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
       { preferred_groups: parseGroups(preferred), excluded_groups: parseGroups(excluded), bonus },
       {
         onSuccess: onClose,
-        onError: (err) => console.error('Failed to save fansub preferences', err),
+        onError: () => toast('Failed to save fansub preferences', 'error'),
       },
     )
   }
@@ -55,7 +56,7 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
   const handleReset = () => {
     deletePrefs.mutate(undefined, {
       onSuccess: onClose,
-      onError: (err) => console.error('Failed to reset fansub preferences', err),
+      onError: () => toast('Failed to reset fansub preferences', 'error'),
     })
   }
 
