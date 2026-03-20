@@ -32,6 +32,7 @@ import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry, SidecarSub
 import { EpisodeActionMenu } from '@/components/episodes/EpisodeActionMenu'
 import { FansubOverrideModal } from '@/components/series/FansubOverrideModal'
 import { SeriesAudioTrackPicker } from '@/components/series/SeriesAudioTrackPicker'
+import { normLang, deriveSubtitlePath } from '@/components/series/seriesUtils'
 import { SubtitleActionsMenu } from '@/components/processing/SubtitleActionsMenu'
 import { SeriesProcessingOverride } from '@/components/processing/SeriesProcessingOverride'
 
@@ -40,55 +41,6 @@ const SyncControls = lazy(() => import('@/components/sync/SyncControls').then(m 
 const SyncModal = lazy(() => import('@/components/sync/SyncModal').then(m => ({ default: m.SyncModal })))
 const HealthCheckPanel = lazy(() => import('@/components/health/HealthCheckPanel').then(m => ({ default: m.HealthCheckPanel })))
 
-// ─── Language normalisation ─────────────────────────────────────────────────
-// MKV/ffprobe stores ISO 639-2 three-letter codes (ger, eng, jpn…). Target
-// languages in Sublarr use ISO 639-1 two-letter codes (de, en, ja…).
-// normLang() maps 3→2 so that badge de-duplication works across both systems.
-
-const ISO6392_TO_1: Record<string, string> = {
-  ger: 'de', deu: 'de',
-  eng: 'en',
-  dut: 'nl', nld: 'nl',
-  swe: 'sv',
-  dan: 'da',
-  nor: 'no', nob: 'no', nno: 'no',
-  fre: 'fr', fra: 'fr',
-  spa: 'es',
-  ita: 'it',
-  por: 'pt',
-  ron: 'ro', rum: 'ro',
-  pol: 'pl',
-  rus: 'ru',
-  ces: 'cs', cze: 'cs',
-  slk: 'sk', slo: 'sk',
-  hrv: 'hr',
-  srp: 'sr',
-  bul: 'bg',
-  ukr: 'uk',
-  jpn: 'ja',
-  chi: 'zh', zho: 'zh',
-  kor: 'ko',
-  tha: 'th',
-  vie: 'vi',
-  ind: 'id',
-  ara: 'ar',
-  tur: 'tr',
-  hun: 'hu',
-  fin: 'fi',
-  heb: 'he',
-}
-
-function normLang(code: string): string {
-  const lower = code.toLowerCase()
-  return ISO6392_TO_1[lower] ?? lower
-}
-
-/** Derive subtitle file path from media path + language + format. */
-function deriveSubtitlePath(mediaPath: string, lang: string, format: string): string {
-  const lastDot = mediaPath.lastIndexOf('.')
-  const base = lastDot > 0 ? mediaPath.substring(0, lastDot) : mediaPath
-  return `${base}.${lang}.${format}`
-}
 
 function SubBadge({ lang, format }: { lang: string; format: string }) {
   // Three visual states:
@@ -128,11 +80,35 @@ function SubBadge({ lang, format }: { lang: string; format: string }) {
 }
 
 function ScoreBadge({ score }: { score: number }) {
-  const color = score >= 300 ? 'var(--success)' : score >= 200 ? 'var(--warning)' : 'var(--text-muted)'
+  // Match mockup: high=success, medium=accent, low=warning, very-low=error
+  const color = score >= 300
+    ? 'var(--success)'
+    : score >= 200
+      ? 'var(--accent)'
+      : score >= 100
+        ? 'var(--warning)'
+        : 'var(--error)'
+  const bg = score >= 300
+    ? 'var(--success-bg)'
+    : score >= 200
+      ? 'var(--accent-bg)'
+      : score >= 100
+        ? 'var(--warning-bg)'
+        : 'var(--error-bg)'
   return (
     <span
-      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums"
-      style={{ backgroundColor: `${color}18`, color, fontFamily: 'var(--font-mono)' }}
+      className="inline-flex items-center tabular-nums"
+      style={{
+        padding: '3px 10px',
+        borderRadius: '6px',
+        fontSize: '12px',
+        fontWeight: 700,
+        backgroundColor: bg,
+        color,
+        fontFamily: 'var(--font-mono)',
+        textAlign: 'center',
+        width: 'fit-content',
+      }}
     >
       {score}
     </span>
@@ -787,28 +763,30 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
 
   return (
     <div>
-      {/* Season Header */}
+      {/* Season Header — pill-shaped tab style */}
       <div
         className="flex items-center"
         style={{
-          backgroundColor: 'var(--bg-elevated)',
+          backgroundColor: expanded ? 'var(--bg-elevated)' : 'var(--bg-surface)',
           borderBottom: expanded ? '1px solid var(--border)' : 'none',
+          transition: 'background-color 0.15s',
         }}
       >
         <button
           data-testid="season-group"
           onClick={() => setExpanded(!expanded)}
-          className="flex-1 flex items-center gap-2 px-4 py-2.5 text-left transition-colors"
+          className="flex-1 flex items-center gap-2 text-left transition-colors"
+          style={{ padding: '8px 16px' }}
         >
           {expanded ? (
             <ChevronDown size={14} style={{ color: 'var(--accent)' }} />
           ) : (
             <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
           )}
-          <span className="text-sm font-semibold">
+          <span style={{ fontSize: '13px', fontWeight: 600 }}>
             {t('series_detail.season', { number: season })}
           </span>
-          <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>
             ({t('series_detail.episodes_count', { count: episodes.length })})
           </span>
         </button>
@@ -844,8 +822,9 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                 >
                 <div data-testid="episode-row">
                   <div
-                    className="flex items-start px-4 py-2 transition-colors"
+                    className="flex items-start transition-colors"
                     style={{
+                      padding: '10px 14px',
                       borderBottom: isExpanded ? 'none' : '1px solid var(--border)',
                       backgroundColor: isExpanded ? 'var(--bg-surface-hover)' : '',
                     }}
@@ -1587,31 +1566,41 @@ export function SeriesDetailPage() {
           }}
         />
 
-        <div className="relative flex gap-5 p-5">
+        <div className="relative flex gap-6 p-5">
           {/* Poster */}
           <div
-            className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden shadow-lg"
-            style={{ border: '1px solid var(--border)' }}
+            className="flex-shrink-0 rounded-lg overflow-hidden shadow-lg relative"
+            style={{ width: '180px', minWidth: '180px', aspectRatio: '2/3', border: '1px solid var(--border)' }}
           >
             {series.poster ? (
               <img
                 src={series.poster}
                 alt={series.title}
-                className="w-full h-auto"
+                className="w-full h-full object-cover"
               />
             ) : (
               <div
-                className="w-full aspect-[2/3] flex items-center justify-center"
+                className="w-full h-full flex items-center justify-center"
                 style={{ backgroundColor: 'var(--bg-surface)' }}
               >
                 <FileVideo size={32} style={{ color: 'var(--text-muted)' }} />
               </div>
             )}
+            {/* Score overlay gradient */}
+            <div
+              className="absolute bottom-0 left-0 right-0"
+              style={{ height: '60%', background: 'linear-gradient(to top, rgba(19,21,25,0.9), transparent)' }}
+            />
           </div>
 
           {/* Info */}
           <div className="flex-1 min-w-0 flex flex-col gap-3">
-            <h1 data-testid="series-title" className="text-xl font-bold leading-tight">{series.title}</h1>
+            <div className="flex items-center gap-2.5">
+              <h1 data-testid="series-title" style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.5px' }}>{series.title}</h1>
+              {series.year && (
+                <span className="text-sm" style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{series.year}</span>
+              )}
+            </div>
 
             {/* Stat boxes */}
             {(() => {
@@ -1622,21 +1611,27 @@ export function SeriesDetailPage() {
               ).length ?? 0
               const totalEps = series.episode_file_count
               return (
-                <div className="flex flex-wrap gap-2">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
                   {[
-                    { label: 'Episodes', value: totalEps, color: 'var(--text-secondary)' },
+                    { label: 'Episodes', value: totalEps, color: 'var(--accent)' },
                     { label: 'With Subs', value: withSubs, color: 'var(--success)' },
                     { label: 'Missing', value: missingCount, color: missingCount > 0 ? 'var(--error)' : 'var(--success)' },
+                    { label: 'Low Score', value: 0, color: 'var(--upgrade)' },
                   ].map(({ label, value, color }) => (
                     <div
                       key={label}
-                      className="flex flex-col items-center px-3 py-1.5 rounded-lg"
-                      style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      className="flex flex-col items-center text-center"
+                      style={{
+                        backgroundColor: 'var(--bg-surface)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '10px 14px',
+                      }}
                     >
-                      <span className="text-base font-bold tabular-nums" style={{ color, fontFamily: 'var(--font-mono)' }}>
+                      <span style={{ fontSize: '20px', fontWeight: 700, color, fontFamily: 'var(--font-mono)' }} className="tabular-nums">
                         {value}
                       </span>
-                      <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px', marginTop: '2px' }}>
                         {label}
                       </span>
                     </div>
@@ -1645,43 +1640,45 @@ export function SeriesDetailPage() {
               )
             })()}
 
-            {/* Metadata chips */}
-            <div className="flex flex-wrap gap-2 text-xs">
+            {/* Meta tags — pill-shaped with bg-elevated */}
+            <div className="flex flex-wrap gap-1.5" style={{ marginBottom: '4px' }}>
               <span
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
-                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
+                className="inline-flex items-center gap-1.5"
+                style={{ padding: '3px 10px', borderRadius: '6px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary)' }}
               >
                 <Folder size={11} />
                 {series.path}
               </span>
               <span
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
-                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
+                className="inline-flex items-center gap-1.5"
+                style={{ padding: '3px 10px', borderRadius: '6px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary)' }}
               >
                 <FileVideo size={11} />
                 {t('series_detail.files', { count: series.episode_file_count })}
               </span>
               <span
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
+                className="inline-flex items-center gap-1.5"
                 style={{
+                  padding: '3px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 500,
                   backgroundColor: missingCount > 0 ? 'var(--warning-bg)' : 'var(--success-bg)',
                   color: missingCount > 0 ? 'var(--warning)' : 'var(--success)',
+                  border: '1px solid transparent',
                 }}
               >
                 <AlertTriangle size={11} />
                 {t('series_detail.missing_subtitles', { count: missingCount })}
               </span>
               <span
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
-                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
+                className="inline-flex items-center gap-1.5"
+                style={{ padding: '3px 10px', borderRadius: '6px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary)' }}
               >
                 <Play size={11} />
                 {series.status === 'continuing' ? t('series_detail.continuing') : series.status === 'ended' ? t('series_detail.ended') : series.status}
               </span>
               {series.tags.length > 0 && (
                 <span
-                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
+                  className="inline-flex items-center gap-1.5"
+                  style={{ padding: '3px 10px', borderRadius: '6px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary)' }}
                 >
                   <Tag size={11} />
                   {series.tags.join(' | ')}
@@ -1950,41 +1947,42 @@ export function SeriesDetailPage() {
       >
         {/* Table Header */}
         <div
-          className="flex items-center px-4 py-2"
+          className="flex items-center px-4"
           style={{
             backgroundColor: 'var(--bg-elevated)',
             borderBottom: '1px solid var(--border)',
+            padding: '6px 14px',
           }}
         >
           <div className="w-6 flex-shrink-0" />
           <div className="w-5 flex-shrink-0" />
           <div
-            className="w-12 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider"
-            style={{ color: 'var(--text-secondary)' }}
+            className="w-12 flex-shrink-0"
+            style={{ color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}
           >
             {t('series_detail.ep')}
           </div>
           <div
-            className="flex-1 text-[11px] font-semibold uppercase tracking-wider"
-            style={{ color: 'var(--text-secondary)' }}
+            className="flex-1"
+            style={{ color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}
           >
             {t('series_detail.title_col')}
           </div>
           <div
-            className="w-24 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider"
-            style={{ color: 'var(--text-secondary)' }}
+            className="w-24 flex-shrink-0"
+            style={{ color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}
           >
             {t('series_detail.audio')}
           </div>
           <div
-            className="flex-1 min-w-[200px] text-[11px] font-semibold uppercase tracking-wider"
-            style={{ color: 'var(--text-secondary)' }}
+            className="flex-1 min-w-[200px]"
+            style={{ color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}
           >
             {t('series_detail.subtitles')}
           </div>
           <div
-            className="w-64 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider text-right"
-            style={{ color: 'var(--text-secondary)' }}
+            className="w-64 flex-shrink-0 text-right"
+            style={{ color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}
           >
             {t('series_detail.actions')}
           </div>
