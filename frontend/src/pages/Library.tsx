@@ -8,12 +8,14 @@ import { useNavigate } from 'react-router-dom'
 import { autoSyncBulk, startSeriesBatchSearch } from '@/api/client'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { toast } from '@/components/shared/Toast'
-import { LibraryGridCard } from '@/components/library/LibraryGridCard'
+import { LibraryCard } from '@/components/library/LibraryCard'
 import { VirtualLibraryTable } from '@/components/library/VirtualLibraryTable'
+import { FilterChips } from '@/components/shared/FilterChips'
 
 type Tab = 'series' | 'movies'
 type SortKey = 'title' | 'missing' | 'episodes'
 type SortDir = 'asc' | 'desc'
+type LibraryChip = 'all' | 'missing' | 'low_score' | 'anime' | 'complete'
 
 function Pagination({ page, totalPages, total, pageSize, onPageChange, t }: {
   page: number
@@ -303,7 +305,7 @@ export function LibraryPage() {
   const [viewMode, setViewMode] = useState<'table' | 'grid'>(() =>
     (localStorage.getItem('library_view_mode') as 'table' | 'grid') ?? 'table'
   )
-  const [statusFilter, setStatusFilter] = useState<'all' | 'missing' | 'complete'>('all')
+  const [activeChip, setActiveChip] = useState<LibraryChip>('all')
   const [profileFilter, setProfileFilter] = useState<string>('all')
   const navigate = useNavigate()
 
@@ -352,12 +354,29 @@ export function LibraryPage() {
       items = items.filter((item) => item.title.toLowerCase().includes(q))
     }
 
-    // Status filter (series only)
-    if (activeTab === 'series' && statusFilter !== 'all') {
-      items = items.filter((item) => {
-        const missing = (item as SeriesInfo).missing_count ?? 0
-        return statusFilter === 'missing' ? missing > 0 : missing === 0
-      })
+    // Chip filter
+    if (activeTab === 'series') {
+      if (activeChip === 'missing') {
+        items = items.filter((item) => ((item as SeriesInfo).missing_count ?? 0) > 0)
+      } else if (activeChip === 'complete') {
+        items = items.filter((item) => {
+          const s = item as SeriesInfo
+          return s.missing_count === 0 && s.episodes > 0
+        })
+      } else if (activeChip === 'low_score') {
+        items = items.filter((item) => {
+          const s = item as SeriesInfo
+          if (s.episodes === 0) return false
+          const pct = Math.round((s.episodes_with_files / s.episodes) * 100)
+          return pct < 50
+        })
+      } else if (activeChip === 'anime') {
+        items = items.filter((item) =>
+          item.title.toLowerCase().includes('anime') ||
+          (item as SeriesInfo).status === 'continuing' ||
+          (item as SeriesInfo).seasons > 0,
+        )
+      }
     }
 
     // Profile filter (series only)
@@ -385,7 +404,7 @@ export function LibraryPage() {
     })
 
     return items
-  }, [library, activeTab, searchQuery, sortKey, sortDir, statusFilter, profileFilter])
+  }, [library, activeTab, searchQuery, sortKey, sortDir, activeChip, profileFilter])
 
   if (isLoading) {
     return (
@@ -413,6 +432,7 @@ export function LibraryPage() {
     setActiveTab(tab)
     setGridPage(1)
     setSearchQuery('')
+    setActiveChip('all')
   }
 
   const handleRowClick = (id: number) => {
@@ -508,22 +528,19 @@ export function LibraryPage() {
             </button>
           </div>
 
-          {/* Status filter (series only) */}
+          {/* Filter chips (series only) */}
           {activeTab === 'series' && (
-            <select
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setGridPage(1) }}
-              className="px-2 py-1.5 rounded-md text-xs"
-              style={{
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              <option value="all">{t('filter_status_all')}</option>
-              <option value="missing">{t('filter_status_missing')}</option>
-              <option value="complete">{t('filter_status_complete')}</option>
-            </select>
+            <FilterChips
+              chips={[
+                { id: 'all', label: t('filter_status_all') },
+                { id: 'missing', label: t('filter_status_missing') },
+                { id: 'low_score', label: t('filter_chip_low_score', 'Low Score') },
+                { id: 'anime', label: t('filter_chip_anime', 'Anime') },
+                { id: 'complete', label: t('filter_status_complete') },
+              ]}
+              activeChip={activeChip}
+              onChange={(id) => { setActiveChip(id as LibraryChip); setGridPage(1) }}
+            />
           )}
 
           {/* Profile filter (series only) */}
@@ -550,14 +567,14 @@ export function LibraryPage() {
             <FilterPresetMenu
               scope="library"
               activeFilters={[
-                ...(statusFilter !== 'all' ? [{ key: 'status', op: 'eq', value: statusFilter }] : []),
+                ...(activeChip !== 'all' ? [{ key: 'status', op: 'eq', value: activeChip }] : []),
                 ...(profileFilter !== 'all' ? [{ key: 'profile', op: 'eq', value: profileFilter }] : []),
               ]}
               onPresetLoad={(conditions: FilterGroup) => {
                 if (conditions.logic === 'AND') {
                   conditions.conditions.forEach((cond) => {
                     if ('field' in cond && 'value' in cond) {
-                      if (cond.field === 'status') setStatusFilter(String(cond.value) as 'all' | 'missing' | 'complete')
+                      if (cond.field === 'status') setActiveChip(String(cond.value) as LibraryChip)
                       if (cond.field === 'profile') setProfileFilter(String(cond.value))
                     }
                   })
@@ -677,7 +694,7 @@ export function LibraryPage() {
             <>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
                 {gridItems.map((item, i) => (
-                  <LibraryGridCard
+                  <LibraryCard
                     key={item.id}
                     item={item}
                     onClick={() => handleRowClick(item.id)}
