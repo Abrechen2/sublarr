@@ -36,84 +36,13 @@ import { normLang, deriveSubtitlePath } from '@/components/series/seriesUtils'
 import { SubtitleActionsMenu } from '@/components/processing/SubtitleActionsMenu'
 import { SeriesProcessingOverride } from '@/components/processing/SeriesProcessingOverride'
 
+import { SubBadge } from '@/components/series/SubBadge'
+import { ScoreBadge } from '@/components/series/ScoreBadge'
+
 const SubtitleComparison = lazy(() => import('@/components/comparison/SubtitleComparison').then(m => ({ default: m.SubtitleComparison })))
 const SyncControls = lazy(() => import('@/components/sync/SyncControls').then(m => ({ default: m.SyncControls })))
 const SyncModal = lazy(() => import('@/components/sync/SyncModal').then(m => ({ default: m.SyncModal })))
 const HealthCheckPanel = lazy(() => import('@/components/health/HealthCheckPanel').then(m => ({ default: m.HealthCheckPanel })))
-
-
-function SubBadge({ lang, format }: { lang: string; format: string }) {
-  // Three visual states:
-  //  teal   = optimal   (ass / embedded_ass)
-  //  amber  = upgradeable (srt / embedded_srt — present but not best format)
-  //  orange = missing   (no subtitle file at all)
-  const isOptimal = format === 'ass' || format === 'embedded_ass'
-  const isUpgradeable = format === 'srt' || format === 'embedded_srt'
-  const isEmbedded = format === 'embedded_ass' || format === 'embedded_srt'
-  const hasFile = isOptimal || isUpgradeable
-
-  const bg = isOptimal ? 'var(--accent-bg)' : isUpgradeable ? 'var(--upgrade-bg)' : 'var(--warning-bg)'
-  const color = isOptimal ? 'var(--accent)' : isUpgradeable ? 'var(--upgrade)' : 'var(--warning)'
-  const border = isOptimal
-    ? '1px solid var(--accent-dim)'
-    : isUpgradeable
-      ? '1px solid rgba(167,139,250,0.4)'
-      : '1px solid rgba(245,158,11,0.3)'
-
-  const label = isEmbedded ? format.replace('embedded_', '') + '⊕' : format
-  const title = hasFile
-    ? `${lang.toUpperCase()} (${format.toUpperCase()}${isEmbedded ? ' — eingebettet' : ''}${isUpgradeable ? ' — upgradeable zu ASS' : ''})`
-    : `${lang.toUpperCase()} fehlt`
-
-  return (
-    <span
-      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide"
-      style={{ backgroundColor: bg, color, border }}
-      title={title}
-    >
-      {lang.toUpperCase()}
-      {hasFile && (
-        <span style={{ opacity: 0.6, fontSize: '9px' }}>{label}</span>
-      )}
-    </span>
-  )
-}
-
-function ScoreBadge({ score }: { score: number }) {
-  // Match mockup: high=success, medium=accent, low=warning, very-low=error
-  const color = score >= 300
-    ? 'var(--success)'
-    : score >= 200
-      ? 'var(--accent)'
-      : score >= 100
-        ? 'var(--warning)'
-        : 'var(--error)'
-  const bg = score >= 300
-    ? 'var(--success-bg)'
-    : score >= 200
-      ? 'var(--accent-bg)'
-      : score >= 100
-        ? 'var(--warning-bg)'
-        : 'var(--error-bg)'
-  return (
-    <span
-      className="inline-flex items-center tabular-nums"
-      style={{
-        padding: '3px 10px',
-        borderRadius: '6px',
-        fontSize: '12px',
-        fontWeight: 700,
-        backgroundColor: bg,
-        color,
-        fontFamily: 'var(--font-mono)',
-        textAlign: 'center',
-        width: 'fit-content',
-      }}
-    >
-      {score}
-    </span>
-  )
-}
 
 // ─── Search Results Panel ──────────────────────────────────────────────────
 
