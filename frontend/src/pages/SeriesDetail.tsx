@@ -3,6 +3,9 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Breadcrumb } from '@/components/shared/Breadcrumb'
+import { SeasonSummaryBar } from '@/components/library/SeasonSummaryBar'
+import { EpisodeRow } from '@/components/library/EpisodeRow'
 import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry, useStartWantedBatch, useUpdateSeriesSettings, useAnidbMappingStatus, useRefreshAnidbMapping, useBatchTranslate, useSuggestGlossaryTerms, useExportGlossaryTsv, useStreamingEnabled, useSeriesFansubPrefs } from '@/hooks/useApi'
 import {
   ArrowLeft, Loader2, ChevronDown, ChevronRight,
@@ -834,7 +837,12 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
               const mode = expandedEp?.mode
 
               return (
-                <div key={ep.id} data-testid="episode-row">
+                <EpisodeRow
+                  key={ep.id}
+                  ep={ep}
+                  targetLanguages={targetLanguages}
+                >
+                <div data-testid="episode-row">
                   <div
                     className="flex items-start px-4 py-2 transition-colors"
                     style={{
@@ -1139,6 +1147,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                     </div>
                   )}
                 </div>
+                </EpisodeRow>
               )
             })}
 
@@ -1538,16 +1547,20 @@ export function SeriesDetailPage() {
 
   return (
     <div className="space-y-4 animate-in">
-      {/* Back button */}
-      <button
-        data-testid="series-back-btn"
-        onClick={() => navigate('/library')}
-        className="flex items-center gap-2 text-sm transition-colors hover:opacity-80"
-        style={{ color: 'var(--text-secondary)' }}
-      >
-        <ArrowLeft size={14} />
-        Back to Library
-      </button>
+      {/* Breadcrumb navigation */}
+      <div className="flex items-center justify-between">
+        <Breadcrumb items={[{ label: 'Library', href: '/library' }, { label: series.title }]} />
+        {/* Hidden back button for tests */}
+        <button
+          data-testid="series-back-btn"
+          onClick={() => navigate('/library')}
+          className="sr-only"
+          aria-hidden="true"
+        >
+          <ArrowLeft size={14} />
+          Back to Library
+        </button>
+      </div>
 
       {/* Hero Header — like Bazarr */}
       <div
@@ -1577,7 +1590,7 @@ export function SeriesDetailPage() {
         <div className="relative flex gap-5 p-5">
           {/* Poster */}
           <div
-            className="flex-shrink-0 w-[150px] rounded-lg overflow-hidden shadow-lg"
+            className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden shadow-lg"
             style={{ border: '1px solid var(--border)' }}
           >
             {series.poster ? (
@@ -1599,6 +1612,38 @@ export function SeriesDetailPage() {
           {/* Info */}
           <div className="flex-1 min-w-0 flex flex-col gap-3">
             <h1 data-testid="series-title" className="text-xl font-bold leading-tight">{series.title}</h1>
+
+            {/* Stat boxes */}
+            {(() => {
+              const withSubs = series.episodes?.filter(
+                (ep) => ep.has_file && series.target_languages.some(
+                  (lang) => { const f = ep.subtitles[lang]; return f != null && f !== '' }
+                )
+              ).length ?? 0
+              const totalEps = series.episode_file_count
+              return (
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: 'Episodes', value: totalEps, color: 'var(--text-secondary)' },
+                    { label: 'With Subs', value: withSubs, color: 'var(--success)' },
+                    { label: 'Missing', value: missingCount, color: missingCount > 0 ? 'var(--error)' : 'var(--success)' },
+                  ].map(({ label, value, color }) => (
+                    <div
+                      key={label}
+                      className="flex flex-col items-center px-3 py-1.5 rounded-lg"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    >
+                      <span className="text-base font-bold tabular-nums" style={{ color, fontFamily: 'var(--font-mono)' }}>
+                        {value}
+                      </span>
+                      <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                        {label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
 
             {/* Metadata chips */}
             <div className="flex flex-wrap gap-2 text-xs">
@@ -1974,8 +2019,13 @@ export function SeriesDetailPage() {
 
         {/* Season Groups */}
         {seasonGroups.map(([season, episodes]) => (
+          <div key={season}>
+            <SeasonSummaryBar
+              season={season}
+              episodes={episodes}
+              targetLanguages={series.target_languages}
+            />
           <SeasonGroup
-            key={season}
             season={season}
             episodes={episodes}
             targetLanguages={series.target_languages}
@@ -2010,6 +2060,7 @@ export function SeriesDetailPage() {
             onRefreshSidecars={() => queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })}
             t={t}
           />
+          </div>
         ))}
 
         {seasonGroups.length === 0 && (
