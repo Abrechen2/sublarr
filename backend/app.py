@@ -60,13 +60,30 @@ def _has_app_context() -> bool:
 class SocketIOLogHandler(logging.Handler):
     """Emits log entries to connected WebSocket clients."""
 
+    # Patterns that indicate internal DB details that must not leak via WebSocket.
+    _DB_ERROR_PATTERNS = ("psycopg2.errors.", "psycopg2.exc.", "sqlalchemy.exc.")
+
     def __init__(self, sio):
         super().__init__()
         self.sio = sio
 
+    @staticmethod
+    def _sanitize(message: str) -> str:
+        """Strip DB-internal error details before emitting to WebSocket clients.
+
+        Replaces the portion of the message starting at the DB exception class name
+        with a generic placeholder so that table names, column names, and query
+        fragments never reach browser clients.
+        """
+        for pattern in SocketIOLogHandler._DB_ERROR_PATTERNS:
+            idx = message.find(pattern)
+            if idx != -1:
+                return message[:idx] + "Database error (details hidden)"
+        return message
+
     def emit(self, record: logging.LogRecord) -> None:
         try:
-            msg = self.format(record)
+            msg = self._sanitize(self.format(record))
             self.sio.emit("log_entry", {"message": msg})
         except Exception:
             pass  # Never break the app because of log emission
