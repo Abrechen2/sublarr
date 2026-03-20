@@ -29,6 +29,8 @@ import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry, SidecarSub
 import { EpisodeActionMenu } from '@/components/episodes/EpisodeActionMenu'
 import { SeriesFansubPrefsPanel } from '@/components/series/SeriesFansubPrefsPanel'
 import { SeriesAudioTrackPicker } from '@/components/series/SeriesAudioTrackPicker'
+import { SubtitleActionsMenu } from '@/components/processing/SubtitleActionsMenu'
+import { SeriesProcessingOverride } from '@/components/processing/SeriesProcessingOverride'
 
 const SubtitleComparison = lazy(() => import('@/components/comparison/SubtitleComparison').then(m => ({ default: m.SubtitleComparison })))
 const SyncControls = lazy(() => import('@/components/sync/SyncControls').then(m => ({ default: m.SyncControls })))
@@ -721,7 +723,7 @@ function EpisodeHistoryPanel({ entries, isLoading }: {
 
 // ─── Season Group ──────────────────────────────────────────────────────────
 
-function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, isExtracting, onExtract, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync, onHealthCheck, healthScores, onOpenEditor, sidecarMap, onDeleteSidecar, onOpenCleanupModal, onPreview, streamingEnabled, t }: {
+function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, isExtracting, onExtract, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync, onHealthCheck, healthScores, onOpenEditor, sidecarMap, onDeleteSidecar, onOpenCleanupModal, onPreview, streamingEnabled, onRefreshSidecars, t }: {
   season: number
   episodes: EpisodeInfo[]
   targetLanguages: string[]
@@ -753,6 +755,7 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
   onOpenCleanupModal: () => void
   onPreview: (ep: EpisodeInfo) => void
   streamingEnabled: boolean
+  onRefreshSidecars?: () => void
   t: (key: string, opts?: Record<string, unknown>) => string
 }) {
   const [expanded, setExpanded] = useState(true)
@@ -963,6 +966,10 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                                     >
                                       <FileCode size={11} />
                                     </button>
+                                    <SubtitleActionsMenu
+                                      subtitlePath={matchingSidecar.path}
+                                      onRefresh={onRefreshSidecars}
+                                    />
                                   </>
                                 )}
                                 {(subFormat === 'ass' || subFormat === 'srt') && (
@@ -1045,6 +1052,10 @@ function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, i
                                     />
                                   </svg>
                                 </a>
+                                <SubtitleActionsMenu
+                                  subtitlePath={s.path}
+                                  onRefresh={onRefreshSidecars}
+                                />
                               </span>
                             ))
                           })()}
@@ -1867,6 +1878,14 @@ export function SeriesDetailPage() {
         </div>
       )}
 
+      {/* Processing Override Panel */}
+      {seriesId !== null && (
+        <SeriesProcessingOverride
+          seriesId={seriesId}
+          initialConfig={(series as { processing_config?: Record<string, boolean | null> })?.processing_config ?? {}}
+        />
+      )}
+
       {/* Episode Table */}
       <div
         className="rounded-lg overflow-hidden"
@@ -1976,6 +1995,7 @@ export function SeriesDetailPage() {
             onOpenCleanupModal={() => setShowCleanupModal(true)}
             onPreview={handlePreview}
             streamingEnabled={streamingEnabled ?? false}
+            onRefreshSidecars={() => queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })}
             t={t}
           />
         ))}

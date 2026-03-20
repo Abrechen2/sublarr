@@ -180,6 +180,17 @@ class Settings(BaseSettings):
     auto_sync_after_download: bool = False  # Auto-sync subtitle against video after download
     auto_sync_engine: str = "ffsubsync"  # Engine for auto-sync: "ffsubsync" | "alass"
 
+    # Post-download subtitle processing pipeline
+    auto_process_common_fixes: bool = False
+    auto_process_common_fixes_config_json: str = ""  # JSON; empty = all defaults
+    auto_process_hi_removal: bool = False
+    auto_process_credit_removal: bool = False
+    auto_process_sync_threshold: int = 60  # score below which auto-sync triggers
+    auto_process_sync_fallback_engine: str = "ffsubsync"
+
+    # HI interjections list (newline-separated; empty = use backend/data/hi_interjections.txt)
+    hi_interjections_list: str = ""
+
     # NFO Export
     auto_nfo_export: bool = False  # Expert: write XML NFO sidecar after every download/translation
 

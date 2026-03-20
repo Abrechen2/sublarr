@@ -69,7 +69,9 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                 ext = result.format.value if result.format != SubtitleFormat.UNKNOWN else fmt.value
                 output_path = get_forced_output_path(file_path, fmt=ext, target_language=item_lang)
                 try:
-                    manager.save_subtitle(result, output_path)
+                    manager.save_subtitle(
+                        result, output_path, series_id=item.get("sonarr_series_id")
+                    )
                     record_subtitle_download(
                         result.provider_name,
                         result.subtitle_id,
@@ -135,7 +137,9 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                     file_path, fmt=ext, target_language=source_lang
                 )
                 try:
-                    manager.save_subtitle(result, output_path)
+                    manager.save_subtitle(
+                        result, output_path, series_id=item.get("sonarr_series_id")
+                    )
                     record_subtitle_download(
                         result.provider_name,
                         result.subtitle_id,
@@ -303,7 +307,7 @@ def process_wanted_item(item_id: int) -> dict:
                 )
 
             try:
-                manager.save_subtitle(result, output_path)
+                manager.save_subtitle(result, output_path, series_id=item.get("sonarr_series_id"))
                 record_subtitle_download(
                     result.provider_name,
                     result.subtitle_id,
@@ -379,7 +383,9 @@ def process_wanted_item(item_id: int) -> dict:
                 try:
                     # Use the returned path — save_subtitle may adjust the extension
                     # (e.g. if the downloaded file turns out to be SRT, not ASS)
-                    actual_source_path = manager.save_subtitle(result, tmp_source_path)
+                    actual_source_path = manager.save_subtitle(
+                        result, tmp_source_path, series_id=item.get("sonarr_series_id")
+                    )
                     record_subtitle_download(
                         result.provider_name,
                         result.subtitle_id,
@@ -505,7 +511,9 @@ def process_wanted_item(item_id: int) -> dict:
 
                 output_path = get_output_path_for_lang(file_path, "srt", item_lang)
                 try:
-                    manager.save_subtitle(result, output_path)
+                    manager.save_subtitle(
+                        result, output_path, series_id=item.get("sonarr_series_id")
+                    )
                     record_subtitle_download(
                         result.provider_name,
                         result.subtitle_id,
@@ -576,7 +584,9 @@ def process_wanted_item(item_id: int) -> dict:
                 base = os.path.splitext(file_path)[0]
                 tmp_source_path = f"{base}.{settings.source_language}.srt"
                 try:
-                    actual_source_path = manager.save_subtitle(result, tmp_source_path)
+                    actual_source_path = manager.save_subtitle(
+                        result, tmp_source_path, series_id=item.get("sonarr_series_id")
+                    )
                     record_subtitle_download(
                         result.provider_name,
                         result.subtitle_id,
@@ -831,7 +841,9 @@ def download_specific_for_item(
         tmp_source_path = f"{base}.{language}.{fmt_ext}"
 
         try:
-            actual_source_path = manager.save_subtitle(target_result, tmp_source_path)
+            actual_source_path = manager.save_subtitle(
+                target_result, tmp_source_path, series_id=item.get("sonarr_series_id")
+            )
             record_subtitle_download(
                 provider_name,
                 subtitle_id,
@@ -929,7 +941,9 @@ def download_specific_for_item(
     # Download only (no translation)
     output_path = get_output_path_for_lang(file_path, fmt_ext, language)
     try:
-        actual_path = manager.save_subtitle(target_result, output_path)
+        actual_path = manager.save_subtitle(
+            target_result, output_path, series_id=item.get("sonarr_series_id")
+        )
         record_subtitle_download(
             provider_name,
             subtitle_id,
