@@ -187,9 +187,7 @@ def update_config():
             ), 400
         # Validate service URL fields — block dangerous schemes and metadata endpoints.
         # Also validates any extension key (dot-notation) whose name ends with "_url" or "url".
-        _is_url_key = key in _URL_FIELDS or (
-            "." in key and key.lower().endswith(("_url", "url"))
-        )
+        _is_url_key = key in _URL_FIELDS or ("." in key and key.lower().endswith(("_url", "url")))
         if _is_url_key and value:
             ok, reason = validate_service_url(str(value))
             if not ok:
