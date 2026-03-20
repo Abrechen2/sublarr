@@ -33,6 +33,7 @@ def register_blueprints(app):
     from routes.series_audio import bp as series_audio_bp
     from routes.spell import bp as spell_bp
     from routes.standalone import bp as standalone_bp
+    from routes.subtitle_processor import bp as subtitle_processor_bp
     from routes.subtitles import bp as subtitles_bp
     from routes.system import bp as system_bp
     from routes.tools import bp as tools_bp
@@ -81,5 +82,6 @@ def register_blueprints(app):
         series_audio_bp,
         nfo_bp,
         media_bp,
+        subtitle_processor_bp,
     ]:
         app.register_blueprint(blueprint)

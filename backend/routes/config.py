@@ -7,6 +7,7 @@ from flask import Blueprint, jsonify, request
 
 from cache_response import cached_get, invalidate_response_cache
 from events import emit_event
+from security_utils import validate_service_url
 
 bp = Blueprint("config", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -165,6 +166,14 @@ def update_config():
         "auto_sync_engine": {"ffsubsync", "alass"},
         "log_format": {"text", "json"},
     }
+    # Config keys that hold outbound service URLs — validated to block dangerous schemes
+    # and cloud metadata endpoints before being persisted.
+    _URL_FIELDS = {
+        "ollama_url",
+        "sonarr_url",
+        "radarr_url",
+        "jellyfin_url",
+    }
     _MAX_STRING_LENGTH = 4096
 
     for key, value in data.items():
@@ -176,6 +185,15 @@ def update_config():
             return jsonify(
                 {"error": f"Invalid value for {key}: must be one of {sorted(_ENUM_FIELDS[key])}"}
             ), 400
+        # Validate service URL fields — block dangerous schemes and metadata endpoints.
+        # Also validates any extension key (dot-notation) whose name ends with "_url" or "url".
+        _is_url_key = key in _URL_FIELDS or (
+            "." in key and key.lower().endswith(("_url", "url"))
+        )
+        if _is_url_key and value:
+            ok, reason = validate_service_url(str(value))
+            if not ok:
+                return jsonify({"error": f"Invalid URL for {key}: {reason}"}), 400
         # Enforce max string length
         if isinstance(value, str) and len(value) > _MAX_STRING_LENGTH:
             return jsonify(
