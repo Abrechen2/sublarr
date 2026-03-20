@@ -54,7 +54,8 @@ describe('SettingsDetailLayout', () => {
       </SettingsDetailLayout>,
     )
     expect(screen.getByText('Integrations')).toBeInTheDocument()
-    expect(screen.getByText('Providers')).toBeInTheDocument()
+    // 'Providers' appears in both breadcrumb and heading — verify at least one exists
+    expect(screen.getAllByText('Providers').length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders children inside the content area', () => {
