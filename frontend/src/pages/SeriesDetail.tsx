@@ -31,6 +31,7 @@ import { SeriesProcessingOverride } from '@/components/processing/SeriesProcessi
 
 import { GlossaryPanel } from '@/components/series/GlossaryPanel'
 import { SeasonGroup } from '@/components/series/SeasonGroup'
+import { EpisodeGridHeader } from '@/components/series/EpisodeGrid'
 
 const SubtitleComparison = lazy(() => import('@/components/comparison/SubtitleComparison').then(m => ({ default: m.SubtitleComparison })))
 const SyncControls = lazy(() => import('@/components/sync/SyncControls').then(m => ({ default: m.SyncControls })))
@@ -856,7 +857,8 @@ export function SeriesDetailPage() {
           </div>
         )}
 
-        {/* Season Groups */}
+        {/* Episode grid header + Season Groups */}
+        <EpisodeGridHeader />
         {seasonGroups.map(([season, episodes]) => (
           <div key={season}>
             <SeasonSummaryBar
