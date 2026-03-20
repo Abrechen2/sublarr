@@ -225,8 +225,6 @@ function RadarrSection() {
 // ─── Main ConnectionsSettings Page ───────────────────────────────────────────
 
 export function ConnectionsSettings() {
-  const { t } = useTranslation('common')
-
   return (
     <SettingsDetailLayout
       title="Connections"
