@@ -376,6 +376,11 @@ a:hover {
   }
 }
 
+/* Icon Sidebar — show labels on hover (CSS-only, no JS state) */
+.icon-sidebar:hover .sidebar-label {
+  opacity: 1 !important;
+}
+
 /* Respect user motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *,
