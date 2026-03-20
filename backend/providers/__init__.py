@@ -273,6 +273,34 @@ class ProviderManager:
             from providers import turkcealtyazi  # noqa: F401
         except ImportError as e:
             logger.debug("Turkcealtyazi provider not available: %s", e)
+        try:
+            from providers import subsource  # noqa: F401
+        except ImportError as e:
+            logger.debug("Subsource provider not available: %s", e)
+        try:
+            from providers import subf2m  # noqa: F401
+        except ImportError as e:
+            logger.debug("Subf2m provider not available: %s", e)
+        try:
+            from providers import yifysubtitles  # noqa: F401
+        except ImportError as e:
+            logger.debug("YifySubtitles provider not available: %s", e)
+        try:
+            from providers import zimuku  # noqa: F401
+        except ImportError as e:
+            logger.debug("Zimuku provider not available: %s", e)
+        try:
+            from providers import betaseries  # noqa: F401
+        except ImportError as e:
+            logger.debug("BetaSeries provider not available: %s", e)
+        try:
+            from providers import titlovi  # noqa: F401
+        except ImportError as e:
+            logger.debug("Titlovi provider not available: %s", e)
+        try:
+            from providers import embedded  # noqa: F401
+        except ImportError as e:
+            logger.debug("Embedded subtitle provider not available: %s", e)
 
         # Load plugin providers (from plugins directory)
         self._load_plugins()
@@ -1032,45 +1060,9 @@ class ProviderManager:
         Returns:
             List of SubtitleResult sorted by score (highest first)
         """
-        # 1. Try provider search first
-        results = self.search(
+        return self.search(
             query, format_filter=format_filter, min_score=min_score, early_exit=early_exit
         )
-        if results:
-            return results
-
-        # 2. Fallback: Check embedded subtitles
-        if not query.file_path or not os.path.exists(query.file_path):
-            return []
-
-        try:
-            from ass_utils import get_media_streams, has_target_language_stream
-            from providers.base import SubtitleFormat, SubtitleResult
-
-            probe_data = get_media_streams(query.file_path)
-            if not probe_data:
-                return []
-
-            # Check for target language embedded subtitle
-            target_lang = query.languages[0] if query.languages else None
-            embedded_format = has_target_language_stream(probe_data, target_language=target_lang)
-
-            if embedded_format:
-                # Create pseudo-result for embedded subtitle
-                embedded_result = SubtitleResult(
-                    provider_name="embedded",
-                    subtitle_id="embedded",
-                    language=target_lang or "unknown",
-                    format=SubtitleFormat.ASS if embedded_format == "ass" else SubtitleFormat.SRT,
-                    filename=os.path.basename(query.file_path),
-                    score=100,  # Lower than provider results but still valid
-                )
-                logger.info("Found embedded %s subtitle in %s", embedded_format, query.file_path)
-                return [embedded_result]
-        except Exception as e:
-            logger.debug("Fallback embedded subtitle check failed: %s", e)
-
-        return []
 
     def download(self, result: SubtitleResult) -> bytes | None:
         """Download a subtitle from its provider.
@@ -1081,11 +1073,6 @@ class ProviderManager:
         Returns:
             Raw subtitle file content, or None on failure
         """
-        # Handle embedded subtitles (no download needed, already in file)
-        if result.provider_name == "embedded":
-            logger.debug("Skipping download for embedded subtitle")
-            return b""  # Return empty bytes, extraction happens elsewhere
-
         provider = self._providers.get(result.provider_name)
         if not provider:
             logger.error("Provider %s not available for download", result.provider_name)
