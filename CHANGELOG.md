@@ -5,6 +5,31 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.33.0-beta] - 2026-03-20
+
+### Added
+- **Providers — Subf2m** — new subtitle provider supporting 60+ languages via Subf2m.co
+- **Providers — Subsource** — new subtitle provider (multi-language, movie & TV)
+- **Providers — YIFY Subtitles** — movie-only provider using IMDB-based JSON API
+- **Providers — Zimuku** — Chinese subtitle provider (simplified & traditional)
+- **Providers — BetaSeries** — French subtitle provider for TV series
+- **Providers — Titlovi** — Balkan subtitle provider (Croatian, Serbian, Bosnian, Slovenian, Macedonian)
+- **Providers — EmbeddedSubtitles** — integrates embedded subtitle tracks from media files directly into the search and scoring pipeline
+- **Subtitle Processing Pipeline** — post-download processing hook; 18 fix functions (HI removal, common formatting corrections, OCR artifact cleanup); configurable per-series via series detail panel
+- **Settings — Processing Pipeline** — new settings section for configuring post-processing behavior (fix modules, interjection list)
+- **Series Detail — Batch Process** — button to run post-processing on all existing subtitles for a series; progress log modal
+
+### Changed
+- **Settings — Fansub / Release Groups** — global release-group preference fields moved from Wanted tab to Scoring tab where they belong conceptually
+- **Series Detail — Fansub Preferences** — replaced the always-visible card with a compact toolbar button; active overrides highlighted in accent color; per-series settings in a modal dialog
+
+### Fixed
+- **Security — SSRF** — URL validation in `PUT /api/v1/config` now covers dot-notation extension keys (e.g. `whisper.subgen.url`) that previously bypassed the `_URL_FIELDS` check
+- **Security — SocketIO log sanitization** — `SocketIOLogHandler` now strips DB-internal error details (table names, column names, query fragments) before emitting to WebSocket clients
+- **Backend — startup crash** — `validate_service_url` was imported in `routes/config.py` but never implemented; added full SSRF-safe implementation
+
+---
+
 ## [0.32.0-beta] - 2026-03-19
 
 ### Changed
