@@ -23,12 +23,8 @@ import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })))
 const ActivityPage = lazy(() => import('@/pages/ActivityPage').then(m => ({ default: m.ActivityPage })))
 const SettingsPage = lazy(() => import('@/pages/Settings').then(m => ({ default: m.SettingsPage })))
-const LogsPage = lazy(() => import('@/pages/Logs').then(m => ({ default: m.LogsPage })))
-const StatisticsPage = lazy(() => import('@/pages/Statistics').then(m => ({ default: m.StatisticsPage })))
 const LibraryPage = lazy(() => import('@/pages/Library').then(m => ({ default: m.LibraryPage })))
 const SeriesDetailPage = lazy(() => import('@/pages/SeriesDetail').then(m => ({ default: m.SeriesDetailPage })))
-const TasksPage = lazy(() => import('@/pages/Tasks').then(m => ({ default: m.TasksPage })))
-const PluginsPage = lazy(() => import('@/pages/Plugins').then(m => ({ default: m.PluginsPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFound').then(m => ({ default: m.NotFoundPage })))
 const Onboarding = lazy(() => import('@/pages/Onboarding'))
 const SetupPage = lazy(() => import('@/pages/Setup').then(m => ({ default: m.SetupPage })))
@@ -70,11 +66,12 @@ function AnimatedRoutes() {
           <Route path="/queue" element={<Navigate to="/activity?tab=progress" replace />} />
           <Route path="/history" element={<Navigate to="/activity?tab=completed" replace />} />
           <Route path="/blacklist" element={<Navigate to="/activity?tab=blacklist" replace />} />
-          <Route path="/settings" element={<ErrorBoundary><Suspense fallback={<FormSkeleton />}><SettingsPage /></Suspense></ErrorBoundary>} />
-          <Route path="/statistics" element={<Suspense fallback={<PageSkeleton />}><StatisticsPage /></Suspense>} />
-          <Route path="/tasks" element={<Suspense fallback={<PageSkeleton />}><TasksPage /></Suspense>} />
-          <Route path="/plugins" element={<Suspense fallback={<PageSkeleton />}><PluginsPage /></Suspense>} />
-          <Route path="/logs" element={<Suspense fallback={<PageSkeleton />}><LogsPage /></Suspense>} />
+          <Route path="/settings/*" element={<ErrorBoundary><Suspense fallback={<FormSkeleton />}><SettingsPage /></Suspense></ErrorBoundary>} />
+          {/* Redirect old standalone pages into settings sub-routes */}
+          <Route path="/statistics" element={<Navigate to="/settings/system" replace />} />
+          <Route path="/tasks" element={<Navigate to="/settings/automation" replace />} />
+          <Route path="/plugins" element={<Navigate to="/settings/providers" replace />} />
+          <Route path="/logs" element={<Navigate to="/settings/system" replace />} />
           <Route path="/onboarding" element={<Suspense fallback={<PageSkeleton />}><Onboarding /></Suspense>} />
           <Route path="*" element={<Suspense fallback={<PageSkeleton />}><NotFoundPage /></Suspense>} />
         </Routes>

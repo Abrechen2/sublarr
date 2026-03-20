@@ -12,7 +12,7 @@ import { ChevronUp, ChevronDown } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import { downloadFullBackupUrl } from '@/api/client'
 import type { LanguageProfile, WatchedFolder, FullBackupInfo } from '@/lib/types'
-import type { FieldConfig } from './index'
+import type { FieldConfig } from './LegacySettings'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
 
