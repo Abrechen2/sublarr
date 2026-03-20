@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useEffect, useCallback } from 'react'
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { IconSidebar } from '@/components/layout/IconSidebar'
 import { BottomNav } from '@/components/layout/BottomNav'
@@ -8,8 +8,6 @@ import { ToastContainer, toast } from '@/components/shared/Toast'
 import {
   PageSkeleton,
   LibrarySkeleton,
-  TableSkeleton,
-  ListSkeleton,
   FormSkeleton,
 } from '@/components/shared/PageSkeleton'
 import { useWebSocket } from '@/hooks/useWebSocket'
@@ -23,16 +21,12 @@ import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 
 // Route-level code splitting: each page is lazy-loaded as a separate chunk
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })))
-const ActivityPage = lazy(() => import('@/pages/Activity').then(m => ({ default: m.ActivityPage })))
-const WantedPage = lazy(() => import('@/pages/Wanted').then(m => ({ default: m.WantedPage })))
-const QueuePage = lazy(() => import('@/pages/Queue').then(m => ({ default: m.QueuePage })))
+const ActivityPage = lazy(() => import('@/pages/ActivityPage').then(m => ({ default: m.ActivityPage })))
 const SettingsPage = lazy(() => import('@/pages/Settings').then(m => ({ default: m.SettingsPage })))
 const LogsPage = lazy(() => import('@/pages/Logs').then(m => ({ default: m.LogsPage })))
 const StatisticsPage = lazy(() => import('@/pages/Statistics').then(m => ({ default: m.StatisticsPage })))
 const LibraryPage = lazy(() => import('@/pages/Library').then(m => ({ default: m.LibraryPage })))
 const SeriesDetailPage = lazy(() => import('@/pages/SeriesDetail').then(m => ({ default: m.SeriesDetailPage })))
-const HistoryPage = lazy(() => import('@/pages/History').then(m => ({ default: m.HistoryPage })))
-const BlacklistPage = lazy(() => import('@/pages/Blacklist').then(m => ({ default: m.BlacklistPage })))
 const TasksPage = lazy(() => import('@/pages/Tasks').then(m => ({ default: m.TasksPage })))
 const PluginsPage = lazy(() => import('@/pages/Plugins').then(m => ({ default: m.PluginsPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFound').then(m => ({ default: m.NotFoundPage })))
@@ -71,10 +65,11 @@ function AnimatedRoutes() {
           <Route path="/library" element={<ErrorBoundary><Suspense fallback={<LibrarySkeleton />}><LibraryPage /></Suspense></ErrorBoundary>} />
           <Route path="/library/series/:id" element={<Suspense fallback={<PageSkeleton />}><SeriesDetailPage /></Suspense>} />
           <Route path="/activity" element={<Suspense fallback={<PageSkeleton />}><ActivityPage /></Suspense>} />
-          <Route path="/wanted" element={<ErrorBoundary><Suspense fallback={<ListSkeleton />}><WantedPage /></Suspense></ErrorBoundary>} />
-          <Route path="/queue" element={<Suspense fallback={<TableSkeleton />}><QueuePage /></Suspense>} />
-          <Route path="/history" element={<Suspense fallback={<TableSkeleton />}><HistoryPage /></Suspense>} />
-          <Route path="/blacklist" element={<Suspense fallback={<TableSkeleton />}><BlacklistPage /></Suspense>} />
+          {/* Redirect old routes to unified Activity page tabs */}
+          <Route path="/wanted" element={<Navigate to="/activity?tab=wanted" replace />} />
+          <Route path="/queue" element={<Navigate to="/activity?tab=progress" replace />} />
+          <Route path="/history" element={<Navigate to="/activity?tab=completed" replace />} />
+          <Route path="/blacklist" element={<Navigate to="/activity?tab=blacklist" replace />} />
           <Route path="/settings" element={<ErrorBoundary><Suspense fallback={<FormSkeleton />}><SettingsPage /></Suspense></ErrorBoundary>} />
           <Route path="/statistics" element={<Suspense fallback={<PageSkeleton />}><StatisticsPage /></Suspense>} />
           <Route path="/tasks" element={<Suspense fallback={<PageSkeleton />}><TasksPage /></Suspense>} />
