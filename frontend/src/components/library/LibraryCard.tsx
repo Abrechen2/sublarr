@@ -47,7 +47,7 @@ export function LibraryCard({ item, onClick, style, className }: LibraryCardProp
       style={{
         backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-lg)',
+        borderRadius: 'var(--radius-md)',
         ...style,
       }}
       onMouseEnter={(e) => {
@@ -75,7 +75,7 @@ export function LibraryCard({ item, onClick, style, className }: LibraryCardProp
         ) : (
           <div
             className="w-full h-full flex items-center justify-center"
-            style={{ backgroundColor: 'var(--bg-primary)' }}
+            style={{ background: 'linear-gradient(135deg, #1e2130, #282c3a)' }}
           >
             {series ? (
               <Tv size={32} style={{ color: 'var(--text-muted)' }} />
@@ -95,8 +95,16 @@ export function LibraryCard({ item, onClick, style, className }: LibraryCardProp
         {missingCount > 0 && (
           <span
             data-testid="library-card-missing-badge"
-            className="absolute top-1.5 right-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold text-white z-10"
-            style={{ backgroundColor: 'var(--warning)' }}
+            className="absolute z-10 font-bold"
+            style={{
+              top: '6px',
+              right: '6px',
+              padding: '2px 5px',
+              fontSize: '9px',
+              borderRadius: '999px',
+              backgroundColor: 'var(--warning)',
+              color: '#000',
+            }}
           >
             {missingCount}
           </span>
@@ -114,10 +122,10 @@ export function LibraryCard({ item, onClick, style, className }: LibraryCardProp
       </div>
 
       {/* Title bar */}
-      <div className="px-2 py-2">
+      <div style={{ padding: '8px 10px' }}>
         <div className="flex items-start gap-1">
           <p
-            className="text-xs font-medium truncate flex-1"
+            className="text-xs font-semibold truncate flex-1"
             style={{ color: 'var(--text-primary)' }}
             title={item.title}
           >

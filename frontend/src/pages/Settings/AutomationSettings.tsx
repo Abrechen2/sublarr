@@ -42,14 +42,15 @@ function boolVal(config: unknown, key: string, fallback = false): boolean {
 // ─── Shared input style ───────────────────────────────────────────────────────
 
 const inputStyle: React.CSSProperties = {
-  background: 'var(--bg-primary)',
+  background: 'var(--bg-elevated)',
   border: '1px solid var(--border)',
   color: 'var(--text-primary)',
   borderRadius: '6px',
-  padding: '6px 10px',
+  padding: '7px 12px',
   fontSize: '13px',
-  width: '100%',
-  minWidth: 0,
+  fontFamily: 'var(--font-body)',
+  width: '220px',
+  outline: 'none',
 }
 
 // ─── SectionSkeleton ─────────────────────────────────────────────────────────

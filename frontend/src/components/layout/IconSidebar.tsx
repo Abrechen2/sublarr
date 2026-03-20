@@ -37,7 +37,7 @@ export function IconSidebar() {
       className={cn(
         'icon-sidebar',
         'fixed left-0 top-0 h-screen z-40 flex flex-col',
-        'w-[60px] hover:w-[220px] transition-[width] duration-200 ease-in-out',
+        'w-[48px] hover:w-[220px] transition-[width] duration-200 ease-in-out',
         'overflow-hidden',
         'hidden md:flex'
       )}
@@ -47,19 +47,14 @@ export function IconSidebar() {
       }}
     >
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-3 py-3.5 shrink-0">
-        <div
+      <div className="sidebar-logo-area flex items-center py-3 shrink-0" style={{ paddingLeft: 0, paddingRight: 0, justifyContent: 'center' }}>
+        <img
           data-testid="sidebar-logo"
-          className="flex items-center justify-center shrink-0 rounded-md font-bold text-white"
-          style={{
-            width: 36,
-            height: 36,
-            background: 'linear-gradient(135deg, #0f9bb5, #1DB8D4)',
-            fontSize: 18,
-          }}
-        >
-          S
-        </div>
+          src="/logo-192.png"
+          alt="Sublarr"
+          className="shrink-0 rounded-[8px]"
+          style={{ width: 28, height: 28 }}
+        />
         <div className="sidebar-label flex flex-col min-w-0 opacity-0 transition-opacity duration-200">
           <span
             className="text-base font-bold tracking-tight truncate"
@@ -78,7 +73,7 @@ export function IconSidebar() {
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 flex flex-col px-2 py-2">
+      <nav className="flex-1 flex flex-col px-1 py-2">
         {mainNavItems.map((item) => (
           <SidebarNavItem
             key={item.to}
@@ -92,12 +87,12 @@ export function IconSidebar() {
       {/* Separator */}
       <div
         data-testid="sidebar-separator"
-        className="mx-3"
+        className="mx-2"
         style={{ borderTop: '1px solid var(--border)' }}
       />
 
       {/* Bottom Items */}
-      <div className="mt-auto px-2 py-2 shrink-0">
+      <div className="mt-auto px-1 py-2 shrink-0">
         {bottomNavItems.map((item) => (
           <SidebarNavItem
             key={item.to}
@@ -131,7 +126,7 @@ function SidebarNavItem({ item, label, badgeCount }: SidebarNavItemProps) {
       aria-label={label}
       className={({ isActive }) =>
         cn(
-          'flex items-center gap-3 px-3 py-2 mb-0.5 rounded-md relative',
+          'sidebar-nav-item flex items-center py-2 mb-0.5 rounded-md relative',
           'transition-colors duration-100',
           !isActive && 'hover:bg-[rgba(255,255,255,0.04)]'
         )
@@ -149,17 +144,18 @@ function SidebarNavItem({ item, label, badgeCount }: SidebarNavItemProps) {
               style={{ backgroundColor: 'var(--accent)' }}
             />
           )}
-          <Icon size={24} strokeWidth={isActive ? 2.2 : 1.8} className="shrink-0" />
+          <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} className="shrink-0" />
           <span className="sidebar-label text-[13px] font-medium truncate opacity-0 transition-opacity duration-200">
             {label}
           </span>
           {badgeCount > 0 && (
             <span
               data-testid="activity-badge"
-              className="sidebar-label ml-auto text-[11px] font-semibold px-1.5 py-0.5 rounded-full opacity-0 transition-opacity duration-200"
+              className="sidebar-label ml-auto text-[10px] font-bold rounded-full opacity-0 transition-opacity duration-200"
               style={{
-                backgroundColor: 'var(--warning-bg)',
-                color: 'var(--warning)',
+                backgroundColor: 'var(--warning)',
+                color: '#000',
+                padding: '1px 6px',
               }}
             >
               {badgeCount > 99 ? '99+' : badgeCount}

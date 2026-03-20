@@ -31,11 +31,11 @@ function renderWithRouter(ui: React.ReactElement, { route = '/' } = {}) {
 }
 
 describe('IconSidebar', () => {
-  it('renders the logo with gradient square and "S"', () => {
+  it('renders the logo image', () => {
     renderWithRouter(<IconSidebar />)
     const logo = screen.getByTestId('sidebar-logo')
     expect(logo).toBeInTheDocument()
-    expect(logo).toHaveTextContent('S')
+    expect(logo.tagName).toBe('IMG')
   })
 
   it('renders 3 main nav items (Dashboard, Library, Activity)', () => {
@@ -85,7 +85,7 @@ describe('IconSidebar', () => {
   it('has the collapsed sidebar class by default', () => {
     renderWithRouter(<IconSidebar />)
     const sidebar = screen.getByTestId('icon-sidebar')
-    expect(sidebar.className).toMatch(/w-\[60px\]/)
+    expect(sidebar.className).toMatch(/w-\[48px\]/)
   })
 
   it('has a separator between main nav and bottom items', () => {

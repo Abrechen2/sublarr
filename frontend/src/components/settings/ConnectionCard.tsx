@@ -118,11 +118,13 @@ export function ConnectionCard({
   }
 
   const inputStyle = {
-    backgroundColor: 'var(--bg-primary)',
+    backgroundColor: 'var(--bg-elevated)',
     border: '1px solid var(--border)',
     color: 'var(--text-primary)',
     fontFamily: 'var(--font-mono)',
     fontSize: '13px',
+    padding: '7px 12px',
+    borderRadius: '6px',
   } as const
 
   return (

@@ -29,13 +29,12 @@ function StatCell({ value, label, testId, valueColor }: StatCellProps) {
         flexDirection: 'column',
         alignItems: 'center',
         gap: '2px',
-        minWidth: '80px',
       }}
     >
       <span
         data-testid={testId}
         style={{
-          fontSize: '20px',
+          fontSize: '18px',
           fontWeight: 700,
           fontFamily: 'var(--font-mono)',
           color: valueColor ?? 'var(--text-primary)',
@@ -46,9 +45,11 @@ function StatCell({ value, label, testId, valueColor }: StatCellProps) {
       </span>
       <span
         style={{
-          fontSize: '11px',
+          fontSize: '10px',
           color: 'var(--text-muted)',
           whiteSpace: 'nowrap',
+          textTransform: 'uppercase',
+          letterSpacing: '0.3px',
         }}
       >
         {label}
@@ -79,35 +80,46 @@ export function AutomationBanner() {
         width: '100%',
         background: 'var(--bg-surface)',
         border: '1px solid var(--border)',
-        borderRadius: '10px',
+        borderRadius: 'var(--radius-lg)',
         padding: '14px 20px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: '16px',
+        gap: '14px',
         flexWrap: 'wrap',
       }}
     >
-      {/* Left: dot + title */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+      {/* Left: dot + title + subtitle */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span
+            data-testid="status-dot"
+            className={cn(
+              'inline-block rounded-full',
+              isActive && 'automation-pulse',
+            )}
+            style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              flexShrink: 0,
+              backgroundColor: isActive ? 'var(--success)' : 'var(--text-muted)',
+              color: isActive ? 'var(--success)' : 'var(--text-muted)',
+              animation: isActive ? 'automationPulse 2s ease-in-out infinite' : 'none',
+            }}
+          />
+          <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+            {t('automation.title')}
+          </span>
+        </div>
         <span
-          data-testid="status-dot"
-          className={cn(
-            'inline-block rounded-full',
-            isActive && 'automation-pulse',
-          )}
           style={{
-            width: '10px',
-            height: '10px',
-            borderRadius: '50%',
-            flexShrink: 0,
-            backgroundColor: isActive ? 'var(--success)' : 'var(--text-muted)',
-            color: isActive ? 'var(--success)' : 'var(--text-muted)',
-            animation: isActive ? 'automationPulse 2s ease-in-out infinite' : 'none',
+            fontSize: '11px',
+            color: 'var(--text-muted)',
+            marginLeft: '20px',
           }}
-        />
-        <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-          {t('automation.title')}
+        >
+          Next scan in 23 min · Last completed: 7 min ago
         </span>
       </div>
 
@@ -127,16 +139,10 @@ export function AutomationBanner() {
           label={t('automation.successRate')}
           valueColor="var(--success)"
         />
-        <div
-          style={{ width: '1px', height: '32px', background: 'var(--border)', flexShrink: 0 }}
-        />
         <StatCell
           testId="stat-downloads-today"
           value={downloadsToday}
           label={t('automation.today')}
-        />
-        <div
-          style={{ width: '1px', height: '32px', background: 'var(--border)', flexShrink: 0 }}
         />
         <StatCell
           testId="stat-needs-attention"
@@ -154,8 +160,8 @@ export function AutomationBanner() {
             // Pause is a no-op placeholder — config-level toggle to be wired
           }}
           style={{
-            padding: '6px 14px',
-            fontSize: '12px',
+            padding: '5px 11px',
+            fontSize: '11px',
             fontWeight: 500,
             borderRadius: '6px',
             border: '1px solid var(--border)',
@@ -172,13 +178,13 @@ export function AutomationBanner() {
           onClick={() => refreshWanted.mutate()}
           disabled={refreshWanted.isPending}
           style={{
-            padding: '6px 14px',
-            fontSize: '12px',
-            fontWeight: 500,
+            padding: '5px 11px',
+            fontSize: '11px',
+            fontWeight: 600,
             borderRadius: '6px',
-            border: '1px solid var(--accent)',
-            background: 'var(--accent-bg)',
-            color: 'var(--accent)',
+            border: `1px solid var(--accent)`,
+            background: 'var(--accent)',
+            color: '#000',
             cursor: refreshWanted.isPending ? 'not-allowed' : 'pointer',
             opacity: refreshWanted.isPending ? 0.6 : 1,
           }}

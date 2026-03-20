@@ -92,7 +92,7 @@ describe('EpisodeRow', () => {
       </EpisodeRow>
     )
     const el = container.firstChild as HTMLElement
-    expect(el.style.borderLeft).toContain('3px solid')
+    expect(el.style.borderLeft).toContain('2px solid')
   })
 })
 

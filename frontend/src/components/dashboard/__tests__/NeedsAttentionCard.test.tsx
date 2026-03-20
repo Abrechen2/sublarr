@@ -69,11 +69,11 @@ describe('NeedsAttentionCard', () => {
     expect(card.style.borderLeft).toContain('var(--warning)')
   })
 
-  it('renders "Needs Attention" header with AlertTriangle icon', async () => {
+  it('renders "Needs Attention" header with count badge', async () => {
     const { NeedsAttentionCard } = await import('../NeedsAttentionCard')
     renderWithRouter(<NeedsAttentionCard />)
     expect(screen.getByTestId('needs-attention-header')).toBeInTheDocument()
-    expect(screen.getByTestId('needs-attention-icon')).toBeInTheDocument()
+    expect(screen.getByTestId('needs-attention-count')).toBeInTheDocument()
   })
 
   it('renders failed items (status=failed) with Search and Skip buttons', async () => {

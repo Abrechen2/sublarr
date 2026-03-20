@@ -34,47 +34,61 @@ export function SeasonSummaryBar({ season, episodes, targetLanguages }: SeasonSu
 
   return (
     <div
-      className="flex items-center gap-3 px-4 py-2"
-      style={{ borderBottom: '1px solid var(--border)' }}
+      className="flex items-center"
+      style={{
+        padding: '10px 16px',
+        backgroundColor: 'var(--bg-surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-md)',
+        marginBottom: '10px',
+        gap: '14px',
+        fontSize: '12px',
+      }}
       aria-label={`Season ${season} summary`}
     >
       <span
-        className="text-[11px] font-semibold uppercase tracking-wider flex-shrink-0 w-20"
+        className="flex-shrink-0"
         style={{ color: 'var(--text-muted)' }}
       >
-        S{String(season).padStart(2, '0')} subs
+        Season {season} &mdash; {total} episodes
       </span>
 
       {/* Segmented progress bar */}
       <div
-        className="flex-1 h-2 rounded-full overflow-hidden flex"
-        style={{ backgroundColor: 'var(--bg-primary)' }}
+        className="flex-1 flex overflow-hidden"
+        style={{
+          height: '6px',
+          borderRadius: '3px',
+          backgroundColor: 'rgba(255,255,255,0.05)',
+        }}
         title={`${ok} ok, ${missing} missing`}
       >
         {ok > 0 && (
           <div
-            className="h-full transition-all duration-500"
-            style={{ width: `${okPct}%`, backgroundColor: 'var(--success)' }}
+            className="transition-all duration-500"
+            style={{ width: `${okPct}%`, height: '100%', backgroundColor: 'var(--success)' }}
           />
         )}
         {missing > 0 && (
           <div
-            className="h-full transition-all duration-500"
-            style={{ width: `${missingPct}%`, backgroundColor: 'var(--error)' }}
+            className="transition-all duration-500"
+            style={{ width: `${missingPct}%`, height: '100%', backgroundColor: 'var(--error)', opacity: 0.7 }}
           />
         )}
       </div>
 
-      {/* Counts */}
-      <div className="flex items-center gap-2 flex-shrink-0 text-[11px] font-medium tabular-nums">
+      {/* Legend dots + counts */}
+      <div className="flex items-center flex-shrink-0" style={{ gap: '12px', fontSize: '11px' }}>
         {ok > 0 && (
-          <span style={{ color: 'var(--success)' }} title="With subtitles">
-            {ok} ok
+          <span className="flex items-center" style={{ gap: '4px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)', display: 'inline-block' }} />
+            {ok} OK
           </span>
         )}
         {missing > 0 && (
-          <span style={{ color: 'var(--error)' }} title="Missing subtitles">
-            {missing} missing
+          <span className="flex items-center" style={{ gap: '4px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--error)', display: 'inline-block' }} />
+            {missing} Missing
           </span>
         )}
       </div>

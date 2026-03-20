@@ -270,13 +270,13 @@ describe('GeneralSettings', () => {
 
   it('addon toggle reflects translation_enabled=false', () => {
     renderWithProviders(<GeneralSettings />)
-    const addonToggle = screen.getByTestId('feature-addon-toggle').querySelector('[role="switch"]')
+    const addonToggle = screen.getByTestId('feature-addon-status').querySelector('[role="switch"]')
     expect(addonToggle).toHaveAttribute('aria-checked', 'false')
   })
 
   it('calls updateConfig with translation_enabled=true when addon toggle is clicked', () => {
     renderWithProviders(<GeneralSettings />)
-    const addonToggle = screen.getByTestId('feature-addon-toggle').querySelector(
+    const addonToggle = screen.getByTestId('feature-addon-status').querySelector(
       '[role="switch"]',
     ) as HTMLElement
     fireEvent.click(addonToggle)

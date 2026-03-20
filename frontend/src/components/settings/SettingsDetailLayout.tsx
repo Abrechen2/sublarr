@@ -42,7 +42,7 @@ export function SettingsDetailLayout({
         actions={actions}
       />
 
-      <div data-testid="settings-detail-content" className="space-y-4">
+      <div data-testid="settings-detail-content" className="flex flex-col" style={{ gap: '14px' }}>
         {children}
       </div>
     </div>

@@ -31,10 +31,12 @@ export function WidgetWrapper({
 
   return (
     <div
-      className="h-full flex flex-col rounded-lg overflow-hidden"
+      className="h-full flex flex-col overflow-hidden"
       style={{
         backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-lg)',
+        transition: 'border-color 0.15s',
       }}
     >
       {/* Drag Handle Header */}
@@ -45,8 +47,8 @@ export function WidgetWrapper({
         <div className="flex items-center gap-2 min-w-0">
           <Icon size={14} style={{ color: 'var(--accent)' }} className="shrink-0" />
           <span
-            className="text-xs font-semibold uppercase tracking-wider truncate"
-            style={{ color: 'var(--text-muted)' }}
+            className="text-xs font-semibold truncate"
+            style={{ color: 'var(--text-secondary)' }}
           >
             {t(definition.titleKey)}
           </span>
@@ -67,7 +69,7 @@ export function WidgetWrapper({
       </div>
 
       {/* Content Area */}
-      <div className={`flex-1 overflow-auto${noPadding ? '' : ' p-4'}`}>
+      <div className="flex-1 overflow-auto" style={noPadding ? undefined : { padding: '18px 20px' }}>
         {children}
       </div>
     </div>

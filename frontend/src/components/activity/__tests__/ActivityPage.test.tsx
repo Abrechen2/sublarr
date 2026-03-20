@@ -79,6 +79,10 @@ vi.mock('@/pages/Blacklist', () => ({
   BlacklistPage: () => <div data-testid="blacklist-page-content">Blacklist Content</div>,
 }))
 
+vi.mock('@/components/activity/NeedsAttentionTab', () => ({
+  NeedsAttentionTab: () => <div data-testid="attention-page-content">Attention Content</div>,
+}))
+
 vi.mock('@/components/layout/PageHeader', () => ({
   PageHeader: ({ title, subtitle }: { title: string; subtitle?: string }) => (
     <div data-testid="page-header">
@@ -168,12 +172,12 @@ describe('ActivityPage', () => {
     expect(screen.getByTestId('tab-blacklist')).toBeInTheDocument()
   })
 
-  it('defaults to wanted tab', () => {
+  it('defaults to attention tab', () => {
     renderWithProviders('/activity')
 
-    // With no tab param, defaults to 'wanted'
-    expect(screen.getByTestId('tab-wanted')).toHaveAttribute('data-active', 'true')
-    expect(screen.getByTestId('wanted-page-content')).toBeInTheDocument()
+    // With no tab param, defaults to 'attention'
+    expect(screen.getByTestId('tab-attention')).toHaveAttribute('data-active', 'true')
+    expect(screen.getByTestId('attention-page-content')).toBeInTheDocument()
   })
 
   it('renders wanted tab content when tab=wanted', () => {
@@ -221,10 +225,10 @@ describe('ActivityPage', () => {
     expect(badge).toHaveTextContent('2')
   })
 
-  it('falls back to wanted tab for invalid tab param', () => {
+  it('falls back to attention tab for invalid tab param', () => {
     renderWithProviders('/activity?tab=invalid')
 
-    expect(screen.getByTestId('tab-wanted')).toHaveAttribute('data-active', 'true')
-    expect(screen.getByTestId('wanted-page-content')).toBeInTheDocument()
+    expect(screen.getByTestId('tab-attention')).toHaveAttribute('data-active', 'true')
+    expect(screen.getByTestId('attention-page-content')).toBeInTheDocument()
   })
 })

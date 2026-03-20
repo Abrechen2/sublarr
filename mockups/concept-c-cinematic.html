@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sublarr — Concept C: Cinematic Dark</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --accent: #1DB8D4;
+    --accent-hover: #19a5bf;
+    --accent-dim: #116d7e;
+    --accent-subtle: rgba(29, 184, 212, 0.06);
+    --accent-bg: rgba(29, 184, 212, 0.10);
+    --accent-glow: rgba(29, 184, 212, 0.3);
+
+    --bg-deep: #050507;
+    --bg-primary: #0a0a0e;
+    --bg-surface: #111116;
+    --bg-surface-hover: #18181f;
+    --bg-elevated: #1c1c24;
+
+    --text-primary: #ededef;
+    --text-secondary: #8a8f98;
+    --text-muted: #4a4e58;
+
+    --border: rgba(255, 255, 255, 0.06);
+    --border-hover: rgba(255, 255, 255, 0.12);
+
+    --success: #2ed573;
+    --success-bg: rgba(46, 213, 115, 0.10);
+    --error: #f43f5e;
+    --error-bg: rgba(244, 63, 94, 0.10);
+    --warning: #f59e0b;
+    --warning-bg: rgba(245, 158, 11, 0.10);
+
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-lg: 18px;
+    --radius-xl: 24px;
+
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* ===== AMBIENT GLOW ===== */
+  .ambient-1, .ambient-2 {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(100px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .ambient-1 {
+    width: 600px;
+    height: 600px;
+    background: var(--accent);
+    opacity: 0.025;
+    top: -200px;
+    right: -150px;
+    animation: float1 20s ease-in-out infinite;
+  }
+
+  .ambient-2 {
+    width: 400px;
+    height: 400px;
+    background: #a78bfa;
+    opacity: 0.02;
+    bottom: -100px;
+    left: -100px;
+    animation: float2 25s ease-in-out infinite;
+  }
+
+  @keyframes float1 {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(-40px, 30px); }
+  }
+
+  @keyframes float2 {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(30px, -20px); }
+  }
+
+  /* ===== CONCEPT BADGE ===== */
+  .concept-badge {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 1000;
+    background: var(--accent);
+    color: #000;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  /* ===== LEFT RAIL (48px) ===== */
+  .rail {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 52px;
+    background: var(--bg-primary);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 0;
+    z-index: 100;
+  }
+
+  .rail-logo {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, var(--accent), #0f9bb5);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: #fff;
+    font-weight: 800;
+    margin-bottom: 24px;
+  }
+
+  .rail-item {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    color: var(--text-muted);
+    cursor: pointer;
+    margin-bottom: 4px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+  }
+
+  .rail-item:hover {
+    color: var(--text-primary);
+    background: var(--bg-surface-hover);
+  }
+
+  .rail-item.active {
+    color: var(--accent);
+    background: var(--accent-subtle);
+  }
+
+  .rail-item.active::after {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 20px;
+    background: var(--accent);
+    border-radius: 0 2px 2px 0;
+  }
+
+  .rail-item .notif-dot {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--error);
+    border: 1.5px solid var(--bg-primary);
+  }
+
+  .rail-sep {
+    width: 24px;
+    height: 1px;
+    background: var(--border);
+    margin: 8px 0;
+  }
+
+  .rail-bottom {
+    margin-top: auto;
+  }
+
+  /* Tooltip on hover */
+  .rail-item[data-tip]:hover::before {
+    content: attr(data-tip);
+    position: absolute;
+    left: 48px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    color: var(--text-primary);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    z-index: 200;
+  }
+
+  /* ===== TOP BAR ===== */
+  .topbar {
+    position: fixed;
+    top: 0;
+    left: 52px;
+    right: 0;
+    height: 52px;
+    background: rgba(5, 5, 7, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    z-index: 90;
+  }
+
+  .topbar-title {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+
+  .topbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .search-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .search-pill:hover {
+    border-color: var(--border-hover);
+    background: rgba(255,255,255,0.06);
+  }
+
+  .search-pill kbd {
+    font-size: 10px;
+    background: rgba(255,255,255,0.06);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: var(--font);
+  }
+
+  .avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--accent-bg);
+    border: 1.5px solid var(--accent-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    cursor: pointer;
+  }
+
+  /* ===== MAIN ===== */
+  .main {
+    margin-left: 52px;
+    padding: 72px 32px 32px;
+    max-width: 1400px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ===== HERO STATS ===== */
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+
+  .hero-stat {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 22px 24px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .hero-stat:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 30px var(--accent-glow);
+    border-color: rgba(29, 184, 212, 0.15);
+  }
+
+  .hero-stat::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(29,184,212,0.15), transparent);
+  }
+
+  .stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 10px;
+  }
+
+  .stat-value {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -1.5px;
+    margin-bottom: 4px;
+  }
+
+  .stat-value.glow {
+    color: var(--accent);
+    text-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .stat-value.warning { color: var(--warning); }
+  .stat-value.success { color: var(--success); }
+
+  .stat-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .stat-delta {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 999px;
+  }
+
+  .delta-up { background: var(--success-bg); color: var(--success); }
+  .delta-down { background: var(--error-bg); color: var(--error); }
+
+  /* ===== ELEVATED CARDS ===== */
+  .grid-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 22px 24px;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+
+  .card:hover {
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    border-color: var(--border-hover);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.3px;
+  }
+
+  .card-action {
+    font-size: 12px;
+    color: var(--accent);
+    cursor: pointer;
+    font-weight: 500;
+  }
+
+  /* ===== PROVIDERS ===== */
+  .provider-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .provider-name {
+    font-size: 13px;
+    font-weight: 500;
+    min-width: 100px;
+  }
+
+  .provider-bar-bg {
+    flex: 1;
+    height: 4px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .provider-bar {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
+
+  .provider-pct {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 35px;
+    text-align: right;
+  }
+
+  /* ===== SERVICES ===== */
+  .svc {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .svc:last-child { border-bottom: none; }
+
+  .svc-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+
+  .svc-dot.on { background: var(--success); box-shadow: 0 0 10px rgba(46,213,115,0.4); }
+  .svc-dot.off { background: var(--text-muted); }
+
+  .svc-name { font-size: 13px; font-weight: 500; flex: 1; }
+  .svc-status { font-size: 12px; color: var(--text-secondary); }
+
+  /* ===== ACTIVITY ===== */
+  .act-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .act-item:last-child { border-bottom: none; }
+
+  .act-poster {
+    width: 38px;
+    height: 52px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #151520, #1e1e2e);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  .act-info { flex: 1; }
+  .act-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .act-meta { font-size: 11px; color: var(--text-muted); }
+
+  .act-score {
+    font-size: 13px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 8px;
+  }
+
+  .act-score.high { background: var(--success-bg); color: var(--success); }
+
+  /* ===== CHART ===== */
+  .chart-bars {
+    height: 110px;
+    display: flex;
+    align-items: flex-end;
+    gap: 5px;
+    padding-top: 16px;
+  }
+
+  .cbar {
+    flex: 1;
+    border-radius: 4px 4px 0 0;
+    min-height: 10px;
+    opacity: 0.5;
+    transition: all 0.2s;
+    background: linear-gradient(180deg, var(--accent), var(--accent-dim));
+    box-shadow: 0 0 6px var(--accent-glow);
+  }
+
+  .cbar:hover { opacity: 1; transform: scaleY(1.05); transform-origin: bottom; }
+
+  /* ===== FILTER CHIPS ===== */
+  .chips {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .chip {
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .chip:hover { border-color: var(--border-hover); color: var(--text-primary); }
+  .chip.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+
+  /* ===== LIBRARY ===== */
+  .lib-grid {
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    gap: 16px;
+  }
+
+  .lib-card {
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+  }
+
+  .lib-card:hover {
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5), 0 0 30px var(--accent-glow);
+  }
+
+  .lib-poster {
+    width: 100%;
+    aspect-ratio: 2/3;
+    background: linear-gradient(160deg, #12121e, #1a1a2c, #0f0f1a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    position: relative;
+  }
+
+  .lib-poster::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60%;
+    background: linear-gradient(transparent, rgba(5,5,7,0.95));
+  }
+
+  .lib-poster .miss {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--warning);
+    color: #000;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 999px;
+    z-index: 2;
+  }
+
+  .lib-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 14px;
+    z-index: 2;
+  }
+
+  .lib-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .lib-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* ===== TABS ===== */
+  .tabs {
+    display: none;
+    gap: 2px;
+    margin-bottom: 16px;
+  }
+
+  .tab {
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+
+  .tab:hover { color: var(--text-secondary); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab .cnt { font-size: 11px; color: var(--accent); margin-left: 4px; font-weight: 600; }
+
+  /* ===== TABLE ===== */
+  .data-table {
+    display: none;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .data-table th {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .data-table td {
+    padding: 12px 14px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .data-table tr:hover td {
+    background: var(--bg-surface-hover);
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .pill.miss { background: var(--warning-bg); color: var(--warning); }
+  .pill.search { background: var(--accent-bg); color: var(--accent); }
+  .pill.fail { background: var(--error-bg); color: var(--error); }
+  .pill.done { background: var(--success-bg); color: var(--success); }
+
+  .btn {
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font);
+  }
+
+  .btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+
+  .btn.accent {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+    font-weight: 600;
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+
+  .btn.accent:hover { box-shadow: 0 0 20px var(--accent-glow); }
+
+  /* ===== SETTINGS ===== */
+  .settings-grid {
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+  }
+
+  .settings-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .settings-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 0 20px var(--accent-glow);
+  }
+
+  .settings-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(29,184,212,0.1), transparent);
+  }
+
+  .sc-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--accent-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    margin-bottom: 14px;
+  }
+
+  .sc-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    letter-spacing: -0.3px;
+  }
+
+  .sc-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .sc-count {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  /* ===== SECTION VISIBILITY ===== */
+  .page-section { display: none; }
+  .page-section.active { display: block; }
+
+  @media (max-width: 768px) {
+    .rail { display: none; }
+    .topbar { left: 0; }
+    .main { margin-left: 0; padding: 68px 16px 16px; }
+    .hero-stats { grid-template-columns: repeat(2, 1fr); }
+    .grid-row { grid-template-columns: 1fr; }
+    .lib-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .settings-grid { grid-template-columns: 1fr !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="ambient-1"></div>
+<div class="ambient-2"></div>
+
+<div class="concept-badge">Concept C: Cinematic</div>
+
+<!-- LEFT RAIL -->
+<nav class="rail">
+  <div class="rail-logo">S</div>
+  <div class="rail-item active" data-tip="Dashboard" onclick="showPage('dashboard',this)">&#9776;</div>
+  <div class="rail-item" data-tip="Library" onclick="showPage('library',this)">&#128218;</div>
+  <div class="rail-item" data-tip="Activity" onclick="showPage('activity',this)">&#128276;<div class="notif-dot"></div></div>
+  <div class="rail-sep"></div>
+  <div class="rail-bottom">
+    <div class="rail-item" data-tip="Settings" onclick="showPage('settings',this)">&#9881;</div>
+    <div class="rail-item" data-tip="Theme">&#9790;</div>
+  </div>
+</nav>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-title" id="topbar-title">Dashboard</div>
+  <div class="topbar-right">
+    <div class="search-pill">&#128269; Search <kbd>Ctrl K</kbd></div>
+    <div class="avatar">DW</div>
+  </div>
+</div>
+
+<main class="main">
+
+  <!-- ===== DASHBOARD ===== -->
+  <section class="page-section active" id="page-dashboard">
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="stat-label">Subtitles</div>
+        <div class="stat-value glow">12,847</div>
+        <div class="stat-sub"><span class="stat-delta delta-up">+48 today</span></div>
+      </div>
+      <div class="hero-stat">
+        <div class="stat-label">Missing</div>
+        <div class="stat-value warning">234</div>
+        <div class="stat-sub"><span class="stat-delta delta-down">-12</span> since yesterday</div>
+      </div>
+      <div class="hero-stat">
+        <div class="stat-label">Quality</div>
+        <div class="stat-value glow">87.3%</div>
+        <div class="stat-sub"><span class="stat-delta delta-up">+2.1%</span> this week</div>
+      </div>
+      <div class="hero-stat">
+        <div class="stat-label">Active Jobs</div>
+        <div class="stat-value success">12</div>
+        <div class="stat-sub">3 queued</div>
+      </div>
+    </div>
+
+    <div class="grid-row">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Provider Health</div>
+          <div class="card-action">Details &#8594;</div>
+        </div>
+        <div class="provider-row">
+          <div class="provider-name">Jimaku</div>
+          <div class="provider-bar-bg"><div class="provider-bar" style="width:89%"></div></div>
+          <div class="provider-pct">89%</div>
+        </div>
+        <div class="provider-row">
+          <div class="provider-name">OpenSubtitles</div>
+          <div class="provider-bar-bg"><div class="provider-bar" style="width:67%"></div></div>
+          <div class="provider-pct">67%</div>
+        </div>
+        <div class="provider-row">
+          <div class="provider-name">Subdl</div>
+          <div class="provider-bar-bg"><div class="provider-bar" style="width:92%"></div></div>
+          <div class="provider-pct">92%</div>
+        </div>
+        <div class="provider-row">
+          <div class="provider-name">Animetosho</div>
+          <div class="provider-bar-bg"><div class="provider-bar" style="width:78%"></div></div>
+          <div class="provider-pct">78%</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Services</div></div>
+        <div class="svc"><div class="svc-dot on"></div><div class="svc-name">Sonarr</div><div class="svc-status">Connected</div></div>
+        <div class="svc"><div class="svc-dot on"></div><div class="svc-name">Radarr</div><div class="svc-status">Connected</div></div>
+        <div class="svc"><div class="svc-dot on"></div><div class="svc-name">Ollama</div><div class="svc-status">3 models</div></div>
+        <div class="svc"><div class="svc-dot off"></div><div class="svc-name">Whisper</div><div class="svc-status" style="color:var(--text-muted)">Not set up</div></div>
+      </div>
+    </div>
+
+    <div class="grid-row">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Recent Activity</div><div class="card-action">All &#8594;</div></div>
+        <div class="act-item"><div class="act-poster">FR</div><div class="act-info"><div class="act-title">Frieren S2E03</div><div class="act-meta">Downloaded &middot; 2 min ago</div></div><div class="act-score high">94</div></div>
+        <div class="act-item"><div class="act-poster">SL</div><div class="act-info"><div class="act-title">Solo Leveling E12</div><div class="act-meta">Translated &middot; 8 min ago</div></div><div class="act-score high">88</div></div>
+        <div class="act-item"><div class="act-poster">ON</div><div class="act-info"><div class="act-title">Oshi no Ko S2E08</div><div class="act-meta">Translating...</div></div><span style="font-size:12px;color:var(--accent);">67%</span></div>
+        <div class="act-item"><div class="act-poster">DD</div><div class="act-info"><div class="act-title">Dandadan E05</div><div class="act-meta">No match</div></div><div class="act-score" style="background:var(--warning-bg);color:var(--warning)">!</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Quality Trend</div><div class="card-action">30d</div></div>
+        <div class="chart-bars">
+          <div class="cbar" style="height:42%"></div>
+          <div class="cbar" style="height:50%"></div>
+          <div class="cbar" style="height:46%"></div>
+          <div class="cbar" style="height:60%"></div>
+          <div class="cbar" style="height:55%"></div>
+          <div class="cbar" style="height:72%"></div>
+          <div class="cbar" style="height:66%"></div>
+          <div class="cbar" style="height:74%"></div>
+          <div class="cbar" style="height:80%"></div>
+          <div class="cbar" style="height:84%"></div>
+          <div class="cbar" style="height:76%"></div>
+          <div class="cbar" style="height:90%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:10px;color:var(--text-muted)"><span>Mar 1</span><span>Mar 20</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== LIBRARY ===== -->
+  <section class="page-section" id="page-library">
+    <div class="chips">
+      <div class="chip active">All</div>
+      <div class="chip">Missing Subs</div>
+      <div class="chip">Translated</div>
+      <div class="chip">Anime</div>
+      <div class="chip">Movies</div>
+    </div>
+    <div class="lib-grid" style="display:grid;">
+      <div class="lib-card"><div class="lib-poster">&#127860;<div class="miss">3</div></div><div class="lib-info"><div class="lib-title">Frieren</div><div class="lib-meta">S2 &middot; 24 ep</div></div></div>
+      <div class="lib-card"><div class="lib-poster">&#9876;</div><div class="lib-info"><div class="lib-title">Solo Leveling</div><div class="lib-meta">S1 &middot; 12 ep</div></div></div>
+      <div class="lib-card"><div class="lib-poster">&#11088;<div class="miss">8</div></div><div class="lib-info"><div class="lib-title">Oshi no Ko</div><div class="lib-meta">S2 &middot; 13 ep</div></div></div>
+      <div class="lib-card"><div class="lib-poster">&#128165;<div class="miss">5</div></div><div class="lib-info"><div class="lib-title">Dandadan</div><div class="lib-meta">S1 &middot; 12 ep</div></div></div>
+      <div class="lib-card"><div class="lib-poster">&#9917;</div><div class="lib-info"><div class="lib-title">Blue Lock</div><div class="lib-meta">S2 &middot; 24 ep</div></div></div>
+      <div class="lib-card"><div class="lib-poster">&#127775;</div><div class="lib-info"><div class="lib-title">Jujutsu Kaisen</div><div class="lib-meta">S2 &middot; 23 ep</div></div></div>
+      <div class="lib-card"><div class="lib-poster">&#128526;<div class="miss">2</div></div><div class="lib-info"><div class="lib-title">Classroom of the Elite</div><div class="lib-meta">S3 &middot; 13 ep</div></div></div>
+      <div class="lib-card"><div class="lib-poster">&#9889;</div><div class="lib-info"><div class="lib-title">Dragon Ball Daima</div><div class="lib-meta">S1 &middot; 20 ep</div></div></div>
+    </div>
+  </section>
+
+  <!-- ===== ACTIVITY ===== -->
+  <section class="page-section" id="page-activity">
+    <div class="tabs" style="display:flex;">
+      <div class="tab active">Wanted <span class="cnt">234</span></div>
+      <div class="tab">Queue <span class="cnt">12</span></div>
+      <div class="tab">History</div>
+      <div class="tab">Blacklist <span class="cnt">3</span></div>
+    </div>
+    <div class="chips">
+      <div class="chip active">All</div>
+      <div class="chip">Missing</div>
+      <div class="chip">Searching</div>
+      <div class="chip">No Match</div>
+    </div>
+    <table class="data-table" style="display:table;">
+      <thead>
+        <tr><th style="width:30px"><input type="checkbox"/></th><th>Title</th><th>Episode</th><th>Status</th><th>Format</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><input type="checkbox"/></td><td><strong>Frieren</strong></td><td>S2E03</td><td><span class="pill miss">Missing</span></td><td>ASS</td><td><button class="btn accent">Search</button></td></tr>
+        <tr><td><input type="checkbox"/></td><td><strong>Solo Leveling</strong></td><td>E12</td><td><span class="pill miss">Missing</span></td><td>SRT</td><td><button class="btn accent">Search</button></td></tr>
+        <tr><td><input type="checkbox" checked/></td><td><strong>Oshi no Ko</strong></td><td>S2E08</td><td><span class="pill search">Searching...</span></td><td>ASS</td><td><button class="btn" disabled>Searching</button></td></tr>
+        <tr><td><input type="checkbox"/></td><td><strong>Dandadan</strong></td><td>E05</td><td><span class="pill fail">No Match</span></td><td>ASS</td><td><button class="btn accent">Retry</button></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===== SETTINGS ===== -->
+  <section class="page-section" id="page-settings">
+    <div style="margin-bottom:20px;">
+      <input type="text" placeholder="&#128269; Search settings..." style="width:100%;padding:10px 16px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:13px;font-family:var(--font);outline:none;" />
+    </div>
+    <div class="settings-grid" style="display:grid;">
+      <div class="settings-card">
+        <div class="sc-icon">&#9881;</div>
+        <div class="sc-title">General</div>
+        <div class="sc-desc">Language, media path, port, and logging preferences</div>
+        <div class="sc-count">4 options</div>
+      </div>
+      <div class="settings-card">
+        <div class="sc-icon">&#128279;</div>
+        <div class="sc-title">Connections</div>
+        <div class="sc-desc">Sonarr, Radarr, Jellyfin and media server integrations</div>
+        <div class="sc-count">3 services</div>
+      </div>
+      <div class="settings-card">
+        <div class="sc-icon">&#128196;</div>
+        <div class="sc-title">Subtitles</div>
+        <div class="sc-desc">Scoring, format preferences, fansub settings, and cleanup rules</div>
+        <div class="sc-count">12 options</div>
+      </div>
+      <div class="settings-card">
+        <div class="sc-icon">&#128230;</div>
+        <div class="sc-title">Providers</div>
+        <div class="sc-desc">Install, configure, and manage subtitle providers</div>
+        <div class="sc-count">6 active</div>
+      </div>
+      <div class="settings-card">
+        <div class="sc-icon">&#127760;</div>
+        <div class="sc-title">Translation</div>
+        <div class="sc-desc">Ollama backend, model selection, prompts, and glossary</div>
+        <div class="sc-count">Ollama</div>
+      </div>
+      <div class="settings-card">
+        <div class="sc-icon">&#9889;</div>
+        <div class="sc-title">Automation</div>
+        <div class="sc-desc">Auto-ranking, wanted search, scheduling, and upgrade rules</div>
+        <div class="sc-count">5 rules</div>
+      </div>
+      <div class="settings-card">
+        <div class="sc-icon">&#128276;</div>
+        <div class="sc-title">Notifications</div>
+        <div class="sc-desc">Discord, Telegram, webhooks, templates, and quiet hours</div>
+        <div class="sc-count">2 channels</div>
+      </div>
+      <div class="settings-card">
+        <div class="sc-icon">&#128296;</div>
+        <div class="sc-title">System</div>
+        <div class="sc-desc">Security, backups, API keys, logs, and event hooks</div>
+        <div class="sc-count">Admin</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+function showPage(page, el) {
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.rail-item[data-tip]').forEach(i => i.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const titles = { dashboard: 'Dashboard', library: 'Library', activity: 'Activity', settings: 'Settings' };
+  document.getElementById('topbar-title').textContent = titles[page] || page;
+}
+
+document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
+  c.parentElement.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+}));
+
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  t.parentElement.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+}));
+</script>
+</body>
+</html>

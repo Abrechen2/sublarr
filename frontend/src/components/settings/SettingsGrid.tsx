@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useConfig } from '@/hooks/useApi'
 
 interface SettingsCategory {
   readonly id: string
@@ -99,10 +100,18 @@ interface SettingsGridProps {
 interface CategoryCardProps {
   readonly category: SettingsCategory
   readonly disabled: boolean
+  readonly isTranslationCard?: boolean
+  readonly translationEnabled?: boolean
   readonly onClick: () => void
 }
 
-function CategoryCard({ category, disabled, onClick }: CategoryCardProps) {
+function CategoryCard({
+  category,
+  disabled,
+  isTranslationCard = false,
+  translationEnabled = false,
+  onClick,
+}: CategoryCardProps) {
   const { t } = useTranslation('common')
   const Icon = category.icon
   const fallback = CATEGORY_FALLBACKS[category.id]
@@ -127,25 +136,56 @@ function CategoryCard({ category, disabled, onClick }: CategoryCardProps) {
         }
       }}
       className={cn(
-        'relative flex flex-col gap-3 rounded-xl p-4 cursor-pointer',
+        'relative flex flex-col gap-3 rounded-xl cursor-pointer',
         'border border-[var(--border)] bg-[var(--bg-surface)]',
         'transition-all duration-200',
-        'hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-md',
+        'hover:-translate-y-0.5 hover:border-[var(--accent)]',
         'focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-1',
         disabled && 'opacity-40 pointer-events-none cursor-default',
       )}
+      style={{ padding: 22 }}
+      onMouseEnter={(e) => {
+        if (!disabled) {
+          (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 20px rgba(0,0,0,0.2)'
+        }
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLDivElement).style.boxShadow = 'none'
+      }}
     >
-      {/* Top-right badge */}
-      <div
-        data-testid={`settings-card-badge-${category.id}`}
-        className="absolute top-3 right-3 px-2 py-0.5 rounded-md text-[10px] font-medium"
-        style={{
-          backgroundColor: 'var(--accent-bg)',
-          color: 'var(--accent)',
-        }}
-      >
-        {category.badge}
-      </div>
+      {/* Top-right: feature-tag for translation card, plain muted text for others */}
+      {isTranslationCard ? (
+        <div
+          data-testid={`settings-card-badge-${category.id}`}
+          className="absolute"
+          style={{
+            top: 18,
+            right: 18,
+            fontSize: 9,
+            fontWeight: 600,
+            padding: '2px 7px',
+            borderRadius: 999,
+            backgroundColor: translationEnabled ? 'var(--success-bg)' : 'var(--accent-bg)',
+            color: translationEnabled ? 'var(--success)' : 'var(--accent)',
+          }}
+        >
+          {translationEnabled ? 'Enabled' : 'Requires Enable'}
+        </div>
+      ) : (
+        <div
+          data-testid={`settings-card-badge-${category.id}`}
+          className="absolute"
+          style={{
+            top: 18,
+            right: 18,
+            fontSize: 10,
+            fontWeight: 500,
+            color: 'var(--text-muted)',
+          }}
+        >
+          {category.badge}
+        </div>
+      )}
 
       {/* Icon box */}
       <div
@@ -172,7 +212,7 @@ function CategoryCard({ category, disabled, onClick }: CategoryCardProps) {
         <span
           data-testid={`settings-card-desc-${category.id}`}
           className="leading-snug"
-          style={{ fontSize: 11, color: 'var(--text-secondary)' }}
+          style={{ fontSize: 11, color: 'var(--text-muted)' }}
         >
           {description}
         </span>
@@ -183,24 +223,38 @@ function CategoryCard({ category, disabled, onClick }: CategoryCardProps) {
 
 export function SettingsGrid({ disabledCategories = [], className }: SettingsGridProps) {
   const navigate = useNavigate()
+  const { data: config } = useConfig()
+
+  const translationEnabled = Boolean(config?.translation_enabled)
 
   return (
-    <div
-      data-testid="settings-grid"
-      className={cn(
-        'grid gap-4',
-        'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
-        className,
-      )}
-    >
-      {CATEGORIES.map((category) => (
-        <CategoryCard
-          key={category.id}
-          category={category}
-          disabled={disabledCategories.includes(category.id)}
-          onClick={() => navigate(`/settings/${category.id}`)}
-        />
-      ))}
+    <div className="flex flex-col gap-0">
+      {/* Card grid */}
+      <div
+        data-testid="settings-grid"
+        className={cn(className)}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
+          gap: 12,
+        }}
+      >
+        {CATEGORIES.map((category) => {
+          const isTranslationCard = category.id === 'translation'
+          const isDisabled = disabledCategories.includes(category.id) ||
+            (isTranslationCard && !translationEnabled)
+          return (
+            <CategoryCard
+              key={category.id}
+              category={category}
+              disabled={isDisabled}
+              isTranslationCard={isTranslationCard}
+              translationEnabled={translationEnabled}
+              onClick={() => navigate(`/settings/${category.id}`)}
+            />
+          )
+        })}
+      </div>
     </div>
   )
 }

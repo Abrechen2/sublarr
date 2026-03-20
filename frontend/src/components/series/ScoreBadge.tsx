@@ -1,28 +1,41 @@
 import React from 'react'
 
-export function ScoreBadge({ score }: { score: number }) {
-  // Match mockup: high=success, medium=accent, low=warning, very-low=error
-  const color = score >= 300
+interface ScoreBadgeProps {
+  readonly score: number
+  readonly size?: 'sm' | 'md'
+}
+
+/**
+ * Score badge with mockup-matched color tiers:
+ *   ≥80 = success (green), 50–79 = accent (teal), 1–49 = warning (amber), 0 = error (red)
+ */
+export function ScoreBadge({ score, size = 'md' }: ScoreBadgeProps) {
+  const color = score >= 70
     ? 'var(--success)'
-    : score >= 200
+    : score >= 50
       ? 'var(--accent)'
-      : score >= 100
+      : score >= 1
         ? 'var(--warning)'
         : 'var(--error)'
-  const bg = score >= 300
+  const bg = score >= 70
     ? 'var(--success-bg)'
-    : score >= 200
+    : score >= 50
       ? 'var(--accent-bg)'
-      : score >= 100
+      : score >= 1
         ? 'var(--warning-bg)'
         : 'var(--error-bg)'
+
+  const padding = size === 'sm' ? '2px 8px' : '3px 10px'
+  const fontSize = size === 'sm' ? '11px' : '12px'
+
   return (
     <span
+      data-testid="score-badge"
       className="inline-flex items-center tabular-nums"
       style={{
-        padding: '3px 10px',
+        padding,
         borderRadius: '6px',
-        fontSize: '12px',
+        fontSize,
         fontWeight: 700,
         backgroundColor: bg,
         color,

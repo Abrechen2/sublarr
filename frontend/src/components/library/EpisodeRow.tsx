@@ -37,7 +37,7 @@ export function EpisodeRow({ ep, targetLanguages, children }: EpisodeRowProps) {
   return (
     <div
       style={{
-        borderLeft: `3px solid ${borderColor}`,
+        borderLeft: `2px solid ${borderColor}`,
         transition: 'border-color 0.2s ease',
       }}
       data-status={status}

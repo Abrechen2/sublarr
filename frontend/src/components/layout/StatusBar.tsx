@@ -19,13 +19,15 @@ export function StatusBar() {
   return (
     <div
       data-testid="status-bar"
-      className="fixed bottom-0 left-0 right-0 z-30 hidden md:flex items-center gap-3 px-4"
+      className="fixed bottom-0 left-0 right-0 z-30 hidden md:flex items-center"
       style={{
         height: 26,
         backgroundColor: 'var(--bg-primary)',
         borderTop: '1px solid var(--border)',
         marginLeft: 'var(--sidebar-width, 60px)',
-        fontSize: 11,
+        padding: '0 14px',
+        gap: '14px',
+        fontSize: 10,
         color: 'var(--text-muted)',
         fontFamily: 'var(--font-mono)',
       }}

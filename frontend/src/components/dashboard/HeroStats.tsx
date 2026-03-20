@@ -56,11 +56,10 @@ function DeltaBadge({
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        padding: '2px 7px',
+        padding: '2px 6px',
         borderRadius: '999px',
-        fontSize: '11px',
+        fontSize: '10px',
         fontWeight: 600,
-        fontFamily: 'var(--font-mono)',
         color: DELTA_COLOR_MAP[variant],
         background: `color-mix(in srgb, ${DELTA_COLOR_MAP[variant]} 12%, transparent)`,
         lineHeight: 1.4,
@@ -98,42 +97,41 @@ function HeroStatCard({
         background: 'var(--bg-surface)',
         border: '1px solid var(--border)',
         borderRadius: '12px',
-        padding: '18px 20px',
+        padding: '16px 18px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '6px',
       }}
     >
-      {/* Label — micro uppercase */}
-      <span
-        style={{
-          fontSize: '10px',
-          fontWeight: 600,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          color: 'var(--text-muted)',
-          lineHeight: 1,
-        }}
-      >
-        {label}
-      </span>
-
-      {/* Value row: big number + delta badge */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+      {/* Top row: label (left) + delta badge (right) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
         <span
-          data-testid={`hero-stat-${cardId}`}
           style={{
-            fontSize: '28px',
-            fontWeight: 700,
-            fontFamily: 'var(--font-mono)',
-            color: CARD_BORDER_COLOR_MAP[color],
+            fontSize: '11px',
+            fontWeight: 600,
+            letterSpacing: '0.5px',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
             lineHeight: 1,
           }}
         >
-          {value}
+          {label}
         </span>
         <DeltaBadge value={delta} variant={deltaVariant} testId={`delta-${cardId}`} />
       </div>
+
+      {/* Value — big number */}
+      <span
+        data-testid={`hero-stat-${cardId}`}
+        style={{
+          fontSize: '26px',
+          fontWeight: 700,
+          letterSpacing: '-1px',
+          color: color === 'success' ? 'var(--text-primary)' : CARD_BORDER_COLOR_MAP[color],
+          lineHeight: 1,
+        }}
+      >
+        {value}
+      </span>
 
       {/* Sub-text */}
       <span
@@ -142,6 +140,7 @@ function HeroStatCard({
           fontSize: '11px',
           color: 'var(--text-muted)',
           lineHeight: 1.3,
+          marginTop: '2px',
         }}
       >
         {subText}
@@ -171,7 +170,7 @@ export function HeroStats() {
     <div
       data-testid="hero-stats"
       className={cn(
-        'grid gap-4',
+        'grid gap-3',
         'grid-cols-2 sm:grid-cols-2 lg:grid-cols-4',
       )}
     >

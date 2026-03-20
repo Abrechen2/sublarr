@@ -22,13 +22,17 @@ export function FormGroup({
     <div
       data-testid={testId ?? 'form-group'}
       className={cn(
-        'flex flex-col md:flex-row md:items-start gap-2 md:gap-6 py-3',
-        'border-b border-[var(--border)] last:border-b-0',
+        'flex flex-col md:flex-row md:items-start md:justify-between gap-2',
+        'last:border-b-0 last:pb-0 first:pt-0',
         className,
       )}
+      style={{
+        padding: '12px 0',
+        borderBottom: '1px solid rgba(42, 46, 56, 0.5)',
+      }}
     >
       {/* Label group — left side */}
-      <div className="flex flex-col gap-0.5 pt-0.5 flex-shrink-0 md:w-[320px]">
+      <div className="flex flex-col gap-0.5 flex-1 min-w-0" style={{ maxWidth: '320px' }}>
         {htmlFor ? (
           <label
             htmlFor={htmlFor}
@@ -58,7 +62,8 @@ export function FormGroup({
       {/* Control group — right side */}
       <div
         data-testid="form-group-control"
-        className="flex items-center min-h-[32px] md:min-w-[260px] flex-1"
+        className="flex items-center gap-2"
+        style={{ minWidth: '260px', justifyContent: 'flex-end' }}
       >
         {children}
       </div>

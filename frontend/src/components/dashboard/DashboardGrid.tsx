@@ -8,7 +8,7 @@
  * - Pitfall 4: mounted guard prevents layout flash before hydration
  * - Pitfall 5: onLayoutChange used for all-layouts persistence (not per-pixel)
  */
-import { Suspense, useMemo, useCallback, useState } from 'react'
+import { Suspense, useMemo, useCallback, useState, useRef } from 'react'
 import { ResponsiveGridLayout, useContainerWidth } from 'react-grid-layout'
 import type { Layout, LayoutItem, ResponsiveLayouts } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
@@ -78,10 +78,21 @@ export function DashboardGrid({ onOpenSettings }: DashboardGridProps) {
     return result
   }, [storedLayouts, visibleWidgets])
 
-  // Persist on layout change (all breakpoints at once)
+  // Persist on layout change — only after a user drag/resize interaction.
+  // react-grid-layout fires onLayoutChange on every render, which causes
+  // an infinite loop (setLayouts → mergedLayouts recalc → re-render → repeat).
+  // We gate persistence behind a "dirty" flag set by onDragStop/onResizeStop.
+  const userInteracted = useRef(false)
+
+  const markDirty = useCallback(() => {
+    userInteracted.current = true
+  }, [])
+
   const handleLayoutChange = useCallback(
     (_currentLayout: Layout, allLayouts: ResponsiveLayouts) => {
-      // Convert readonly Layout to mutable LayoutItem[] for storage
+      if (!userInteracted.current) return
+      userInteracted.current = false
+
       const mutableLayouts: Record<string, LayoutItem[]> = {}
       for (const [bp, layout] of Object.entries(allLayouts)) {
         if (layout) {
@@ -153,6 +164,8 @@ export function DashboardGrid({ onOpenSettings }: DashboardGridProps) {
         margin={[12, 12]}
         dragConfig={{ enabled: true, handle: '.widget-drag-handle', threshold: 3 }}
         resizeConfig={{ enabled: true, handles: ['se'] }}
+        onDragStop={markDirty}
+        onResizeStop={markDirty}
         onLayoutChange={handleLayoutChange}
       >
         {visibleWidgets.map((widget) => {

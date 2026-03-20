@@ -17,7 +17,7 @@ import type { WantedItem } from '@/lib/types'
 const VALID_TABS = ['attention', 'wanted', 'progress', 'completed', 'blacklist'] as const
 type TabId = typeof VALID_TABS[number]
 
-const DEFAULT_TAB: TabId = 'wanted'
+const DEFAULT_TAB: TabId = 'attention'
 
 function isValidTab(value: string | null): value is TabId {
   return value !== null && (VALID_TABS as readonly string[]).includes(value)

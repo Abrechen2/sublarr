@@ -303,7 +303,7 @@ export function LibraryPage() {
   const [showBulkSync, setShowBulkSync] = useState(false)
   const [selectedSeries, setSelectedSeries] = useState<Set<number>>(new Set())
   const [viewMode, setViewMode] = useState<'table' | 'grid'>(() =>
-    (localStorage.getItem('library_view_mode') as 'table' | 'grid') ?? 'table'
+    (localStorage.getItem('library_view_mode') as 'table' | 'grid') ?? 'grid'
   )
   const [activeChip, setActiveChip] = useState<LibraryChip>('all')
   const [profileFilter, setProfileFilter] = useState<string>('all')
@@ -528,21 +528,6 @@ export function LibraryPage() {
             </button>
           </div>
 
-          {/* Filter chips (series only) */}
-          {activeTab === 'series' && (
-            <FilterChips
-              chips={[
-                { id: 'all', label: t('filter_status_all') },
-                { id: 'missing', label: t('filter_status_missing') },
-                { id: 'low_score', label: t('filter_chip_low_score', 'Low Score') },
-                { id: 'anime', label: t('filter_chip_anime', 'Anime') },
-                { id: 'complete', label: t('filter_status_complete') },
-              ]}
-              activeChip={activeChip}
-              onChange={(id) => { setActiveChip(id as LibraryChip); setGridPage(1) }}
-            />
-          )}
-
           {/* Profile filter (series only) */}
           {activeTab === 'series' && profiles && profiles.length > 0 && (
             <select
@@ -632,6 +617,21 @@ export function LibraryPage() {
         </div>
       </div>
 
+      {/* Filter chips row (series only) */}
+      {activeTab === 'series' && (
+        <FilterChips
+          chips={[
+            { id: 'all', label: t('filter_status_all') },
+            { id: 'missing', label: t('filter_status_missing') },
+            { id: 'low_score', label: t('filter_chip_low_score', 'Low Score') },
+            { id: 'anime', label: t('filter_chip_anime', 'Anime') },
+            { id: 'complete', label: t('filter_status_complete') },
+          ]}
+          activeChip={activeChip}
+          onChange={(id) => { setActiveChip(id as LibraryChip); setGridPage(1) }}
+        />
+      )}
+
       {/* Bulk Sync Panel */}
       {showBulkSync && (
         <BulkSyncPanel
@@ -692,7 +692,7 @@ export function LibraryPage() {
           )}
           {viewMode === 'grid' ? (
             <>
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+              <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(145px, 1fr))' }}>
                 {gridItems.map((item, i) => (
                   <LibraryCard
                     key={item.id}

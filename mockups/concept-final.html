@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sublarr — Final Concept: Automation-First</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --accent: #1DB8D4;
+    --accent-hover: #19a5bf;
+    --accent-dim: #116d7e;
+    --accent-subtle: rgba(29, 184, 212, 0.08);
+    --accent-bg: rgba(29, 184, 212, 0.10);
+    --accent-glow: rgba(29, 184, 212, 0.25);
+
+    --bg-deep: #131519;
+    --bg-primary: #1a1d23;
+    --bg-surface: #1f2228;
+    --bg-surface-hover: #252830;
+    --bg-elevated: #282c35;
+
+    --text-primary: #e0e4ec;
+    --text-secondary: #848b9e;
+    --text-muted: #4a5168;
+
+    --border: #2a2e38;
+    --border-hover: #3a3f4d;
+
+    --success: #2ed573;
+    --success-bg: rgba(46, 213, 115, 0.10);
+    --error: #f43f5e;
+    --error-bg: rgba(244, 63, 94, 0.10);
+    --warning: #f59e0b;
+    --warning-bg: rgba(245, 158, 11, 0.10);
+    --upgrade: #a78bfa;
+    --upgrade-bg: rgba(167, 139, 250, 0.10);
+
+    --radius-sm: 8px;
+    --radius-md: 10px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+  }
+
+  .concept-badge {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 1000;
+    background: linear-gradient(135deg, var(--accent), #0f9bb5);
+    color: #000;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+
+  /* ===== ICON SIDEBAR (from B) ===== */
+  .sidebar {
+    width: 60px;
+    height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    background: var(--bg-primary);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px 0;
+    z-index: 100;
+    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+  }
+
+  .sidebar:hover {
+    width: 220px;
+    box-shadow: 4px 0 32px rgba(0,0,0,0.35);
+  }
+
+  .sidebar-logo {
+    width: 36px; height: 36px; min-width: 36px;
+    background: linear-gradient(135deg, var(--accent), #0f9bb5);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: #fff; font-weight: 800;
+    margin-bottom: 6px; flex-shrink: 0;
+  }
+
+  .sidebar-version {
+    font-size: 10px; color: var(--text-muted);
+    margin-bottom: 18px; white-space: nowrap;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .sidebar:hover .sidebar-version { opacity: 1; }
+
+  .sidebar-sep {
+    width: 28px; height: 1px; background: var(--border);
+    margin: 6px 0; transition: width 0.2s;
+  }
+  .sidebar:hover .sidebar-sep { width: 80%; }
+
+  .sidebar-item {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; padding: 9px 18px;
+    cursor: pointer; transition: all 0.15s ease;
+    white-space: nowrap; color: var(--text-secondary); position: relative;
+  }
+
+  .sidebar-item:hover { color: var(--text-primary); background: var(--bg-surface-hover); }
+
+  .sidebar-item.active { color: var(--accent); }
+  .sidebar-item.active::before {
+    content: ''; position: absolute; left: 0; top: 7px; bottom: 7px;
+    width: 3px; background: var(--accent); border-radius: 0 2px 2px 0;
+  }
+
+  .sidebar-icon {
+    width: 24px; height: 24px; min-width: 24px;
+    display: flex; align-items: center; justify-content: center; font-size: 17px;
+  }
+
+  .sidebar-label {
+    font-size: 13px; font-weight: 500;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .sidebar:hover .sidebar-label { opacity: 1; }
+
+  .sidebar-badge {
+    margin-left: auto;
+    background: var(--warning);
+    color: #000;
+    font-size: 10px; font-weight: 700;
+    padding: 1px 6px; border-radius: 999px;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .sidebar:hover .sidebar-badge { opacity: 1; }
+
+  .sidebar-bottom { margin-top: auto; width: 100%; }
+
+  /* ===== MAIN ===== */
+  .main {
+    margin-left: 60px;
+    flex: 1;
+    padding: 24px 32px 60px;
+    max-width: 1380px;
+  }
+
+  .page-header {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .page-title {
+    font-size: 20px; font-weight: 700; letter-spacing: -0.5px;
+  }
+
+  .page-actions { display: flex; gap: 8px; align-items: center; }
+
+  /* ===== SEARCH ===== */
+  .search-bar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px;
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text-muted); font-size: 13px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .search-bar:hover { border-color: var(--border-hover); }
+  .search-bar kbd {
+    font-size: 10px; background: var(--bg-elevated);
+    border: 1px solid var(--border); padding: 1px 5px;
+    border-radius: 4px; margin-left: 6px; font-family: var(--font);
+  }
+
+  /* ===== AUTOMATION BANNER ===== */
+  .auto-banner {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 20px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 16px;
+  }
+
+  .auto-banner-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 8px rgba(46,213,115,0.4);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .auto-banner-text { flex: 1; }
+  .auto-banner-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .auto-banner-sub { font-size: 11px; color: var(--text-muted); }
+
+  .auto-banner-stats {
+    display: flex; gap: 20px;
+  }
+
+  .auto-stat {
+    text-align: center;
+  }
+
+  .auto-stat-value { font-size: 18px; font-weight: 700; }
+  .auto-stat-value.accent { color: var(--accent); }
+  .auto-stat-value.success { color: var(--success); }
+  .auto-stat-value.warning { color: var(--warning); }
+  .auto-stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+
+  .auto-banner-actions { display: flex; gap: 6px; }
+
+  /* ===== HERO STATS ===== */
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .hero-stat {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+    transition: border-color 0.15s;
+  }
+
+  .hero-stat:hover { border-color: var(--border-hover); }
+
+  .hero-stat-top {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .hero-stat-label {
+    font-size: 11px; font-weight: 600;
+    color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;
+  }
+
+  .hero-stat-delta {
+    font-size: 10px; font-weight: 600;
+    padding: 2px 6px; border-radius: 999px;
+  }
+
+  .delta-up { background: var(--success-bg); color: var(--success); }
+  .delta-down { background: var(--error-bg); color: var(--error); }
+
+  .hero-stat-value {
+    font-size: 26px; font-weight: 700; letter-spacing: -1px;
+  }
+
+  .hero-stat-value.accent { color: var(--accent); }
+  .hero-stat-value.success { color: var(--success); }
+  .hero-stat-value.warning { color: var(--warning); }
+
+  .hero-stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ===== CARDS ===== */
+  .grid-2 {
+    display: grid; grid-template-columns: 2fr 1fr;
+    gap: 12px; margin-bottom: 12px;
+  }
+
+  .grid-2-equal {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; margin-bottom: 12px;
+  }
+
+  .card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    transition: border-color 0.15s;
+  }
+
+  .card:hover { border-color: var(--border-hover); }
+
+  .card-header {
+    display: flex; align-items: center;
+    justify-content: space-between; margin-bottom: 14px;
+  }
+
+  .card-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+  .card-link { font-size: 12px; color: var(--accent); cursor: pointer; font-weight: 500; }
+
+  /* ===== NEEDS ATTENTION (Dashboard) ===== */
+  .attention-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--warning);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    margin-bottom: 12px;
+  }
+
+  .attention-header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .attention-icon { font-size: 16px; }
+
+  .attention-title {
+    font-size: 13px; font-weight: 600; flex: 1;
+  }
+
+  .attention-count {
+    font-size: 12px; font-weight: 600;
+    background: var(--warning-bg); color: var(--warning);
+    padding: 2px 8px; border-radius: 999px;
+  }
+
+  .attention-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .attention-item:last-child { border-bottom: none; }
+
+  .att-avatar {
+    width: 30px; height: 30px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: var(--text-secondary); flex-shrink: 0;
+  }
+
+  .att-info { flex: 1; }
+  .att-title { font-size: 13px; font-weight: 500; margin-bottom: 1px; }
+  .att-reason { font-size: 11px; color: var(--text-muted); }
+
+  .att-actions { display: flex; gap: 4px; }
+
+  /* ===== PROVIDER / SERVICE / ACTIVITY (same as B) ===== */
+  .provider-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .provider-name { font-size: 13px; font-weight: 500; min-width: 85px; }
+  .provider-bar-track { flex: 1; height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; }
+  .provider-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+  .provider-pct { font-size: 12px; font-weight: 600; color: var(--text-secondary); min-width: 32px; text-align: right; }
+
+  .svc { display: flex; align-items: center; gap: 9px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .svc:last-child { border-bottom: none; }
+  .svc-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .svc-dot.on { background: var(--success); }
+  .svc-dot.off { background: var(--text-muted); }
+  .svc-name { font-size: 13px; font-weight: 500; flex: 1; }
+  .svc-status { font-size: 11px; color: var(--text-secondary); }
+
+  .act-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .act-item:last-child { border-bottom: none; }
+  .act-av { width: 28px; height: 28px; border-radius: 6px; background: var(--bg-elevated); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--text-secondary); flex-shrink: 0; }
+  .act-info { flex: 1; }
+  .act-title { font-size: 12px; font-weight: 500; margin-bottom: 1px; }
+  .act-meta { font-size: 10px; color: var(--text-muted); }
+  .score-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px; }
+  .score-badge.high { background: var(--success-bg); color: var(--success); }
+  .score-badge.low { background: var(--warning-bg); color: var(--warning); }
+
+  .chart-area { height: 80px; display: flex; align-items: flex-end; gap: 3px; padding-top: 10px; }
+  .chart-bar { flex: 1; background: var(--accent); border-radius: 2px 2px 0 0; min-height: 6px; opacity: 0.5; transition: opacity 0.15s; }
+  .chart-bar:hover { opacity: 1; }
+
+  /* ===== BUTTONS ===== */
+  .btn {
+    padding: 5px 11px; border-radius: 6px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text-secondary); font-size: 11px;
+    cursor: pointer; transition: all 0.15s; font-family: var(--font);
+  }
+  .btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
+  .btn.primary:hover { background: var(--accent-hover); }
+  .btn.sm { padding: 3px 8px; font-size: 10px; }
+
+  /* ===== CHIPS ===== */
+  .chips { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; }
+  .chip {
+    padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 500;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text-secondary); cursor: pointer; white-space: nowrap; transition: all 0.15s;
+  }
+  .chip:hover { border-color: var(--border-hover); color: var(--text-primary); }
+  .chip.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+
+  /* ===== PILL TABS ===== */
+  .pill-tabs {
+    display: flex; gap: 2px;
+    background: var(--bg-surface); border-radius: var(--radius-md);
+    padding: 3px; width: fit-content; margin-bottom: 14px;
+  }
+  .pill-tab {
+    padding: 6px 14px; font-size: 12px; font-weight: 500;
+    color: var(--text-secondary); cursor: pointer;
+    border-radius: 7px; transition: all 0.15s;
+  }
+  .pill-tab:hover { color: var(--text-primary); }
+  .pill-tab.active {
+    background: var(--bg-elevated); color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .pill-tab .cnt { font-size: 10px; color: var(--accent); margin-left: 3px; font-weight: 600; }
+
+  /* ===== STATUS PILLS ===== */
+  .pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 9px; border-radius: 6px; font-size: 10px; font-weight: 600;
+  }
+  .pill.miss { background: var(--warning-bg); color: var(--warning); }
+  .pill.search { background: var(--accent-bg); color: var(--accent); }
+  .pill.fail { background: var(--error-bg); color: var(--error); }
+  .pill.done { background: var(--success-bg); color: var(--success); }
+  .pill.low-score { background: var(--upgrade-bg); color: var(--upgrade); }
+
+  /* ===== TABLE ===== */
+  .data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+  .data-table th {
+    font-size: 10px; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border);
+  }
+  .data-table td { padding: 10px 12px; font-size: 12px; border-bottom: 1px solid var(--border); }
+  .data-table tr:hover td { background: var(--bg-surface-hover); }
+
+  /* ===== LIBRARY GRID ===== */
+  .lib-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+    gap: 12px;
+  }
+
+  .lib-card {
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--radius-md); overflow: hidden;
+    cursor: pointer; transition: all 0.2s ease;
+  }
+  .lib-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+  .lib-poster {
+    width: 100%; aspect-ratio: 2/3;
+    background: linear-gradient(135deg, #1e2130, #282c3a);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; position: relative;
+  }
+  .lib-poster .miss-badge {
+    position: absolute; top: 6px; right: 6px;
+    background: var(--warning); color: #000;
+    font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 999px;
+  }
+  .lib-poster .score-indicator {
+    position: absolute; bottom: 6px; left: 6px;
+    font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 999px;
+  }
+  .lib-info { padding: 8px 10px; }
+  .lib-title { font-size: 12px; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lib-meta { font-size: 10px; color: var(--text-muted); }
+
+  /* ===== SETTINGS CARD GRID (from C) ===== */
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px;
+  }
+
+  .settings-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 22px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+
+  .settings-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  }
+
+  .sc-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: var(--accent-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; margin-bottom: 12px;
+  }
+
+  .sc-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; letter-spacing: -0.2px; }
+  .sc-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+  .sc-count {
+    position: absolute; top: 18px; right: 18px;
+    font-size: 10px; color: var(--text-muted); font-weight: 500;
+  }
+
+  .settings-card.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .settings-card .feature-tag {
+    position: absolute; top: 18px; right: 18px;
+    font-size: 9px; font-weight: 600;
+    padding: 2px 7px; border-radius: 999px;
+    background: var(--accent-bg); color: var(--accent);
+  }
+
+  /* Translation disabled state */
+  .translation-hint {
+    background: var(--bg-surface);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+    padding: 22px;
+    text-align: center;
+    grid-column: span 1;
+  }
+
+  .translation-hint-title {
+    font-size: 14px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);
+  }
+
+  .translation-hint-desc {
+    font-size: 11px; color: var(--text-muted); margin-bottom: 12px;
+  }
+
+  /* ===== BATCH BAR ===== */
+  .batch-bar {
+    position: fixed; bottom: 18px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 9px 18px;
+    display: none; align-items: center; gap: 10px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    z-index: 50;
+  }
+  .batch-bar.visible { display: flex; }
+  .batch-text { font-size: 12px; color: var(--text-secondary); }
+  .batch-text strong { color: var(--accent); }
+
+  /* ===== STATUS BAR ===== */
+  .status-bar {
+    position: fixed; bottom: 0; left: 60px; right: 0;
+    height: 26px; background: var(--bg-primary);
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 14px; font-size: 10px; color: var(--text-muted);
+    gap: 14px; z-index: 50;
+  }
+  .status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--success); margin-right: 2px; display: inline-block; }
+
+  /* ===== SECTION VISIBILITY ===== */
+  .page-section { display: none; }
+  .page-section.active { display: block; }
+
+  /* ===== TRANSLATION TOGGLE ===== */
+  .feature-toggle-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px;
+    background: rgba(167, 139, 250, 0.05);
+    border: 1px solid rgba(167, 139, 250, 0.1);
+    border-radius: var(--radius-md);
+    margin-bottom: 14px;
+    font-size: 12px; color: var(--text-secondary);
+  }
+
+  .mini-toggle {
+    width: 34px; height: 18px; border-radius: 9px;
+    background: var(--border); cursor: pointer;
+    position: relative; transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .mini-toggle.on { background: var(--accent); }
+  .mini-toggle::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; transition: transform 0.2s;
+  }
+  .mini-toggle.on::after { transform: translateX(16px); }
+
+  .toggle-label { flex: 1; }
+  .toggle-label strong { color: var(--text-primary); font-weight: 600; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 16px; }
+    .hero-stats { grid-template-columns: repeat(2, 1fr); }
+    .grid-2, .grid-2-equal { grid-template-columns: 1fr; }
+    .auto-banner-stats { display: none; }
+    .settings-grid { grid-template-columns: 1fr; }
+    .status-bar { left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="concept-badge">FINAL: B + C Settings + Automation-First</div>
+
+<!-- SIDEBAR (from B) -->
+<nav class="sidebar">
+  <div class="sidebar-logo">S</div>
+  <div class="sidebar-version">v0.33.0-beta</div>
+
+  <div class="sidebar-item active" onclick="showPage('dashboard',this)">
+    <div class="sidebar-icon">&#9776;</div>
+    <span class="sidebar-label">Dashboard</span>
+  </div>
+  <div class="sidebar-item" onclick="showPage('library',this)">
+    <div class="sidebar-icon">&#128218;</div>
+    <span class="sidebar-label">Library</span>
+  </div>
+  <div class="sidebar-item" onclick="showPage('activity',this)">
+    <div class="sidebar-icon">&#128276;</div>
+    <span class="sidebar-label">Activity</span>
+    <span class="sidebar-badge">7</span>
+  </div>
+
+  <div class="sidebar-sep"></div>
+
+  <div class="sidebar-bottom">
+    <div class="sidebar-item" onclick="showPage('settings',this)">
+      <div class="sidebar-icon">&#9881;</div>
+      <span class="sidebar-label">Settings</span>
+    </div>
+    <div class="sidebar-item">
+      <div class="sidebar-icon">&#9790;</div>
+      <span class="sidebar-label">Dark Mode</span>
+    </div>
+  </div>
+</nav>
+
+<main class="main">
+
+  <!-- ========== DASHBOARD ========== -->
+  <section class="page-section active" id="page-dashboard">
+    <div class="page-header">
+      <h1 class="page-title">Dashboard</h1>
+      <div class="page-actions">
+        <div class="search-bar">&#128269; Search... <kbd>Ctrl K</kbd></div>
+      </div>
+    </div>
+
+    <!-- AUTOMATION STATUS BANNER -->
+    <div class="auto-banner">
+      <div class="auto-banner-dot"></div>
+      <div class="auto-banner-text">
+        <div class="auto-banner-title">Automation Running</div>
+        <div class="auto-banner-sub">Next scan in 23 min &middot; Last completed: 7 min ago</div>
+      </div>
+      <div class="auto-banner-stats">
+        <div class="auto-stat">
+          <div class="auto-stat-value success">94%</div>
+          <div class="auto-stat-label">Success Rate</div>
+        </div>
+        <div class="auto-stat">
+          <div class="auto-stat-value accent">48</div>
+          <div class="auto-stat-label">Today</div>
+        </div>
+        <div class="auto-stat">
+          <div class="auto-stat-value warning">7</div>
+          <div class="auto-stat-label">Need Attention</div>
+        </div>
+      </div>
+      <div class="auto-banner-actions">
+        <button class="btn sm">Pause</button>
+        <button class="btn sm primary">Run Now</button>
+      </div>
+    </div>
+
+    <!-- HERO STATS -->
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-top">
+          <div class="hero-stat-label">Subtitles</div>
+          <div class="hero-stat-delta delta-up">+48</div>
+        </div>
+        <div class="hero-stat-value">12,847</div>
+        <div class="hero-stat-sub">Total managed</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-top">
+          <div class="hero-stat-label">Missing</div>
+          <div class="hero-stat-delta delta-down">-12</div>
+        </div>
+        <div class="hero-stat-value warning">234</div>
+        <div class="hero-stat-sub">Automation searching</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-top">
+          <div class="hero-stat-label">Quality</div>
+          <div class="hero-stat-delta delta-up">+2.1%</div>
+        </div>
+        <div class="hero-stat-value accent">87.3%</div>
+        <div class="hero-stat-sub">Average score</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-top">
+          <div class="hero-stat-label">Low Score</div>
+        </div>
+        <div class="hero-stat-value" style="color:var(--upgrade)">18</div>
+        <div class="hero-stat-sub">Below threshold (60)</div>
+      </div>
+    </div>
+
+    <!-- NEEDS ATTENTION -->
+    <div class="attention-card">
+      <div class="attention-header">
+        <div class="attention-icon">&#9888;&#65039;</div>
+        <div class="attention-title">Needs Attention</div>
+        <div class="attention-count">7 items</div>
+        <button class="btn sm">View All</button>
+      </div>
+      <div class="attention-item">
+        <div class="att-avatar">FR</div>
+        <div class="att-info">
+          <div class="att-title">Frieren S2E03</div>
+          <div class="att-reason">No match found after 3 attempts</div>
+        </div>
+        <div class="att-actions">
+          <button class="btn sm primary">Manual Search</button>
+          <button class="btn sm">Skip</button>
+        </div>
+      </div>
+      <div class="attention-item">
+        <div class="att-avatar">DD</div>
+        <div class="att-info">
+          <div class="att-title">Dandadan E05</div>
+          <div class="att-reason">Score 42 — below threshold</div>
+        </div>
+        <div class="att-actions">
+          <button class="btn sm primary">Find Better</button>
+          <button class="btn sm">Accept</button>
+        </div>
+      </div>
+      <div class="attention-item">
+        <div class="att-avatar">BL</div>
+        <div class="att-info">
+          <div class="att-title">Blue Lock S2E01</div>
+          <div class="att-reason">Provider timeout — Jimaku unreachable</div>
+        </div>
+        <div class="att-actions">
+          <button class="btn sm primary">Retry</button>
+          <button class="btn sm">Other Provider</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GRID: Provider + Services -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Provider Health</div>
+          <div class="card-link">Details &#8594;</div>
+        </div>
+        <div class="provider-item"><div class="provider-name">Jimaku</div><div class="provider-bar-track"><div class="provider-bar-fill" style="width:89%"></div></div><div class="provider-pct">89%</div></div>
+        <div class="provider-item"><div class="provider-name">OpenSubs</div><div class="provider-bar-track"><div class="provider-bar-fill" style="width:67%"></div></div><div class="provider-pct">67%</div></div>
+        <div class="provider-item"><div class="provider-name">Subdl</div><div class="provider-bar-track"><div class="provider-bar-fill" style="width:92%"></div></div><div class="provider-pct">92%</div></div>
+        <div class="provider-item"><div class="provider-name">Animetosho</div><div class="provider-bar-track"><div class="provider-bar-fill" style="width:78%"></div></div><div class="provider-pct">78%</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Services</div></div>
+        <div class="svc"><div class="svc-dot on"></div><div class="svc-name">Sonarr</div><div class="svc-status">47 series</div></div>
+        <div class="svc"><div class="svc-dot on"></div><div class="svc-name">Radarr</div><div class="svc-status">128 movies</div></div>
+        <div class="svc"><div class="svc-dot on"></div><div class="svc-name">Automation</div><div class="svc-status" style="color:var(--success)">Active</div></div>
+        <div class="svc"><div class="svc-dot off"></div><div class="svc-name">Translation</div><div class="svc-status" style="color:var(--text-muted)">Disabled</div></div>
+      </div>
+    </div>
+
+    <!-- GRID: Recent + Quality -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Completed (auto)</div><div class="card-link">All &#8594;</div></div>
+        <div class="act-item"><div class="act-av">SL</div><div class="act-info"><div class="act-title">Solo Leveling E12</div><div class="act-meta">Auto-downloaded &middot; Subdl &middot; 8 min ago</div></div><div class="score-badge high">88</div></div>
+        <div class="act-item"><div class="act-av">JK</div><div class="act-info"><div class="act-title">Jujutsu Kaisen S2E20</div><div class="act-meta">Auto-upgraded &middot; Jimaku &middot; 25 min ago</div></div><div class="score-badge high">92</div></div>
+        <div class="act-item"><div class="act-av">MT</div><div class="act-info"><div class="act-title">Mushoku Tensei S2E22</div><div class="act-meta">Auto-downloaded &middot; OpenSubs &middot; 1h ago</div></div><div class="score-badge high">81</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Quality (30d)</div></div>
+        <div class="chart-area">
+          <div class="chart-bar" style="height:40%"></div><div class="chart-bar" style="height:48%"></div>
+          <div class="chart-bar" style="height:45%"></div><div class="chart-bar" style="height:55%"></div>
+          <div class="chart-bar" style="height:52%"></div><div class="chart-bar" style="height:68%"></div>
+          <div class="chart-bar" style="height:62%"></div><div class="chart-bar" style="height:70%"></div>
+          <div class="chart-bar" style="height:76%"></div><div class="chart-bar" style="height:80%"></div>
+          <div class="chart-bar" style="height:74%"></div><div class="chart-bar" style="height:86%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:var(--text-muted)"><span>Feb 20</span><span>Mar 20</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== LIBRARY ========== -->
+  <section class="page-section" id="page-library">
+    <div class="page-header">
+      <h1 class="page-title">Library</h1>
+      <div class="page-actions">
+        <div class="search-bar">&#128269; Search library...</div>
+        <button class="btn">&#9638;</button>
+        <button class="btn">&#9776;</button>
+      </div>
+    </div>
+    <div class="chips">
+      <div class="chip active">All</div>
+      <div class="chip">Missing Subs</div>
+      <div class="chip">Low Score</div>
+      <div class="chip">Anime</div>
+      <div class="chip">Movies</div>
+      <div class="chip">Complete</div>
+    </div>
+    <div class="lib-grid">
+      <div class="lib-card"><div class="lib-poster">&#127860;<div class="miss-badge">3</div></div><div class="lib-info"><div class="lib-title">Frieren</div><div class="lib-meta">S2 &middot; 24 ep</div></div></div>
+      <div class="lib-card"><div class="lib-poster">&#9876;<div class="score-indicator" style="background:var(--success-bg);color:var(--success)">88</div></div><div class="lib-info"><div class="lib-title">Solo Leveling</div><div class="lib-meta">S1 &middot; 12 ep &middot; &#10003;</div></div></div>
+      <div class="lib-card"><div class="lib-poster">&#11088;<div class="miss-badge">8</div></div><div class="lib-info"><div class="lib-title">Oshi no Ko</div><div class="lib-meta">S2 &middot; 13 ep</div></div></div>
+      <div class="lib-card"><div class="lib-poster">&#128165;<div class="score-indicator" style="background:var(--warning-bg);color:var(--warning)">42</div></div><div class="lib-info"><div class="lib-title">Dandadan</div><div class="lib-meta">S1 &middot; Low score</div></div></div>
+      <div class="lib-card"><div class="lib-poster">&#9917;<div class="miss-badge">1</div></div><div class="lib-info"><div class="lib-title">Blue Lock</div><div class="lib-meta">S2 &middot; 24 ep</div></div></div>
+      <div class="lib-card"><div class="lib-poster">&#127775;<div class="score-indicator" style="background:var(--success-bg);color:var(--success)">92</div></div><div class="lib-info"><div class="lib-title">Jujutsu Kaisen</div><div class="lib-meta">S2 &middot; 23 ep &middot; &#10003;</div></div></div>
+      <div class="lib-card"><div class="lib-poster">&#128526;<div class="miss-badge">2</div></div><div class="lib-info"><div class="lib-title">Classroom of the Elite</div><div class="lib-meta">S3 &middot; 13 ep</div></div></div>
+      <div class="lib-card"><div class="lib-poster">&#9889;<div class="score-indicator" style="background:var(--success-bg);color:var(--success)">85</div></div><div class="lib-info"><div class="lib-title">Dragon Ball Daima</div><div class="lib-meta">S1 &middot; 20 ep &middot; &#10003;</div></div></div>
+      <div class="lib-card"><div class="lib-poster">&#128038;<div class="score-indicator" style="background:var(--success-bg);color:var(--success)">79</div></div><div class="lib-info"><div class="lib-title">Wind Breaker</div><div class="lib-meta">S1 &middot; 13 ep &middot; &#10003;</div></div></div>
+      <div class="lib-card"><div class="lib-poster">&#127794;<div class="miss-badge">1</div></div><div class="lib-info"><div class="lib-title">Mushoku Tensei</div><div class="lib-meta">S2 &middot; 25 ep</div></div></div>
+    </div>
+  </section>
+
+  <!-- ========== ACTIVITY ========== -->
+  <section class="page-section" id="page-activity">
+    <div class="page-header">
+      <h1 class="page-title">Activity</h1>
+      <div class="page-actions">
+        <button class="btn primary" id="searchAllBtn">&#9889; Auto-Fix All</button>
+      </div>
+    </div>
+
+    <div class="pill-tabs">
+      <div class="pill-tab active" onclick="switchActivityTab(this)">Needs Attention <span class="cnt">7</span></div>
+      <div class="pill-tab" onclick="switchActivityTab(this)">Wanted <span class="cnt">234</span></div>
+      <div class="pill-tab" onclick="switchActivityTab(this)">In Progress <span class="cnt">4</span></div>
+      <div class="pill-tab" onclick="switchActivityTab(this)">Completed</div>
+      <div class="pill-tab" onclick="switchActivityTab(this)">Blacklist <span class="cnt">3</span></div>
+    </div>
+
+    <div class="chips">
+      <div class="chip active">All</div>
+      <div class="chip">No Match</div>
+      <div class="chip">Low Score</div>
+      <div class="chip">Provider Error</div>
+    </div>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th style="width:24px"><input type="checkbox"/></th>
+          <th>Title</th>
+          <th>Issue</th>
+          <th>Attempts</th>
+          <th>Last Tried</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><input type="checkbox"/></td>
+          <td><strong>Frieren</strong> &middot; S2E03</td>
+          <td><span class="pill fail">No Match</span></td>
+          <td>3</td>
+          <td style="color:var(--text-muted)">7 min ago</td>
+          <td><button class="btn sm primary">Manual Search</button> <button class="btn sm">Skip</button></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox"/></td>
+          <td><strong>Dandadan</strong> &middot; E05</td>
+          <td><span class="pill low-score">Score: 42</span></td>
+          <td>1</td>
+          <td style="color:var(--text-muted)">15 min ago</td>
+          <td><button class="btn sm primary">Find Better</button> <button class="btn sm">Accept</button></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox"/></td>
+          <td><strong>Blue Lock</strong> &middot; S2E01</td>
+          <td><span class="pill fail">Provider Error</span></td>
+          <td>2</td>
+          <td style="color:var(--text-muted)">22 min ago</td>
+          <td><button class="btn sm primary">Retry</button> <button class="btn sm">Other Provider</button></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox"/></td>
+          <td><strong>Classroom</strong> &middot; S3E11</td>
+          <td><span class="pill low-score">Score: 55</span></td>
+          <td>1</td>
+          <td style="color:var(--text-muted)">1h ago</td>
+          <td><button class="btn sm primary">Find Better</button> <button class="btn sm">Accept</button></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox"/></td>
+          <td><strong>Oshi no Ko</strong> &middot; S2E08</td>
+          <td><span class="pill miss">Missing</span></td>
+          <td>5</td>
+          <td style="color:var(--text-muted)">2h ago</td>
+          <td><button class="btn sm primary">Manual Search</button> <button class="btn sm">Blacklist</button></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="batch-bar visible">
+      <div class="batch-text"><strong>0</strong> selected</div>
+      <button class="btn primary sm">Retry Selected</button>
+      <button class="btn sm">Skip All</button>
+      <button class="btn sm">Blacklist</button>
+    </div>
+  </section>
+
+  <!-- ========== SETTINGS (Card Grid from C) ========== -->
+  <section class="page-section" id="page-settings">
+    <div class="page-header">
+      <h1 class="page-title">Settings</h1>
+      <div class="page-actions">
+        <div class="search-bar">&#128269; Search settings...</div>
+      </div>
+    </div>
+
+    <!-- Translation Feature Toggle -->
+    <div class="feature-toggle-bar">
+      <div class="mini-toggle" onclick="toggleTranslation(this)"></div>
+      <div class="toggle-label">
+        <strong>Translation</strong> is disabled &mdash; enable to configure Ollama/LLM translation backend
+      </div>
+    </div>
+
+    <div class="settings-grid">
+      <div class="settings-card">
+        <div class="sc-icon">&#9881;</div>
+        <div class="sc-title">General</div>
+        <div class="sc-desc">Language, media path, port, and logging</div>
+        <div class="sc-count">4 options</div>
+      </div>
+      <div class="settings-card">
+        <div class="sc-icon">&#128279;</div>
+        <div class="sc-title">Connections</div>
+        <div class="sc-desc">Sonarr, Radarr, and media server integrations</div>
+        <div class="sc-count">3 services</div>
+      </div>
+      <div class="settings-card">
+        <div class="sc-icon">&#128196;</div>
+        <div class="sc-title">Subtitles</div>
+        <div class="sc-desc">Scoring rules, format preferences, fansub settings, cleanup</div>
+        <div class="sc-count">12 options</div>
+      </div>
+      <div class="settings-card">
+        <div class="sc-icon">&#128230;</div>
+        <div class="sc-title">Providers</div>
+        <div class="sc-desc">Install, configure, and test subtitle providers</div>
+        <div class="sc-count">6 active</div>
+      </div>
+      <div class="settings-card">
+        <div class="sc-icon">&#9889;</div>
+        <div class="sc-title">Automation</div>
+        <div class="sc-desc">Auto-search, auto-upgrade, scheduling, score thresholds</div>
+        <div class="sc-count">5 rules</div>
+      </div>
+      <div class="settings-card">
+        <div class="sc-icon">&#128276;</div>
+        <div class="sc-title">Notifications</div>
+        <div class="sc-desc">Discord, Telegram, webhooks, and quiet hours</div>
+        <div class="sc-count">2 channels</div>
+      </div>
+      <div class="settings-card">
+        <div class="sc-icon">&#128296;</div>
+        <div class="sc-title">System</div>
+        <div class="sc-desc">Security, backups, API keys, logs, events</div>
+        <div class="sc-count">Admin</div>
+      </div>
+
+      <!-- Translation Card (disabled) -->
+      <div class="settings-card disabled" id="translation-card">
+        <div class="sc-icon" style="background:var(--upgrade-bg);">&#127760;</div>
+        <div class="sc-title">Translation</div>
+        <div class="sc-desc">Ollama backend, model selection, prompts, glossary</div>
+        <div class="feature-tag">Requires Enable</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <span><span class="status-dot"></span> All systems operational</span>
+  <span>Automation: active</span>
+  <span>v0.33.0-beta</span>
+  <span style="margin-left:auto;">Next auto-scan: 23 min</span>
+</div>
+
+<script>
+function showPage(page, el) {
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+
+function switchActivityTab(el) {
+  el.parentElement.querySelectorAll('.pill-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function toggleTranslation(el) {
+  el.classList.toggle('on');
+  const card = document.getElementById('translation-card');
+  const label = el.nextElementSibling;
+  if (el.classList.contains('on')) {
+    card.classList.remove('disabled');
+    card.querySelector('.feature-tag').textContent = 'Enabled';
+    card.querySelector('.feature-tag').style.background = 'var(--success-bg)';
+    card.querySelector('.feature-tag').style.color = 'var(--success)';
+    label.innerHTML = '<strong>Translation</strong> is enabled &mdash; Ollama backend configured';
+  } else {
+    card.classList.add('disabled');
+    card.querySelector('.feature-tag').textContent = 'Requires Enable';
+    card.querySelector('.feature-tag').style.background = 'var(--accent-bg)';
+    card.querySelector('.feature-tag').style.color = 'var(--accent)';
+    label.innerHTML = '<strong>Translation</strong> is disabled &mdash; enable to configure Ollama/LLM translation backend';
+  }
+}
+
+document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
+  c.parentElement.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+}));
+
+// Batch bar checkbox counting
+document.querySelectorAll('.data-table input[type="checkbox"]').forEach(cb => {
+  cb.addEventListener('change', () => {
+    const checked = document.querySelectorAll('.data-table tbody input:checked').length;
+    document.querySelector('.batch-text').innerHTML = '<strong>' + checked + '</strong> selected';
+  });
+});
+</script>
+</body>
+</html>

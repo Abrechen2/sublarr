@@ -1,16 +1,14 @@
 import { useState, useMemo, useCallback } from 'react'
-import { ChevronDown, ChevronRight, Loader2, X, Eye, Pencil, Play, FileCode } from 'lucide-react'
+import { ChevronDown, ChevronRight, Loader2, Play } from 'lucide-react'
 import { EpisodeRow } from '@/components/library/EpisodeRow'
 import { EpisodeActionMenu } from '@/components/episodes/EpisodeActionMenu'
 import { SubBadge } from './SubBadge'
 import { EpisodeSearchPanel } from './EpisodeSearchPanel'
 import { EpisodeHistoryPanel } from './EpisodeHistoryPanel'
 import { TrackPanel } from '@/components/tracks/TrackPanel'
-import { HealthBadge } from '@/components/health/HealthBadge'
-import { SubtitleActionsMenu } from '@/components/processing/SubtitleActionsMenu'
-import { normLang, deriveSubtitlePath } from './seriesUtils'
-import { toast } from '@/components/shared/Toast'
-import { getSubtitleDownloadUrl, startWantedBatchSearch, exportSubtitleNfo } from '@/api/client'
+import { episodeGridRowStyle, FormatBadge } from './EpisodeGrid'
+import { deriveSubtitlePath } from './seriesUtils'
+import { startWantedBatchSearch } from '@/api/client'
 import { useBatchTranslate } from '@/hooks/useApi'
 import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry, SidecarSubtitle } from '@/lib/types'
 
@@ -50,7 +48,7 @@ export interface SeasonGroupProps {
   readonly t: (key: string, opts?: Record<string, unknown>) => string
 }
 
-export function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, isExtracting, onExtract, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync, onHealthCheck, healthScores, onOpenEditor, sidecarMap, onDeleteSidecar, onOpenCleanupModal, onPreview, streamingEnabled, onRefreshSidecars, t }: SeasonGroupProps) {
+export function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, isExtracting, onExtract, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync, onHealthCheck, healthScores: _healthScores, onOpenEditor, sidecarMap: _sidecarMap, onDeleteSidecar: _onDeleteSidecar, onOpenCleanupModal, onPreview, streamingEnabled, onRefreshSidecars: _onRefreshSidecars, t }: SeasonGroupProps) {
   const [expanded, setExpanded] = useState(true)
   const [selectedEpisodes, setSelectedEpisodes] = useState<Set<number>>(new Set())
 
@@ -136,21 +134,19 @@ export function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seri
                 >
                 <div data-testid="episode-row">
                   <div
-                    className="flex items-start transition-colors"
-                    style={{
-                      padding: '10px 14px',
-                      borderBottom: isExpanded ? 'none' : '1px solid var(--border)',
-                      backgroundColor: isExpanded ? 'var(--bg-surface-hover)' : '',
-                    }}
+                    style={episodeGridRowStyle({
+                      status: !ep.has_file ? 'missing' : targetLanguages.some(lang => !ep.subtitles[lang]) ? 'missing' : 'ok',
+                      isExpanded,
+                    })}
                     onMouseEnter={(e) => {
                       if (!isExpanded) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
                     }}
                     onMouseLeave={(e) => {
-                      if (!isExpanded) e.currentTarget.style.backgroundColor = ''
+                      if (!isExpanded) e.currentTarget.style.backgroundColor = 'var(--bg-surface)'
                     }}
                   >
-                    {/* Selection checkbox */}
-                    <div className="w-6 flex-shrink-0 flex items-center">
+                    {/* Column 1: Episode number */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <input
                         type="checkbox"
                         checked={selectedEpisodes.has(ep.id)}
@@ -159,219 +155,49 @@ export function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seri
                         style={{ accentColor: 'var(--accent)' }}
                         onClick={(e) => e.stopPropagation()}
                       />
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                        E{String(ep.episode).padStart(2, '0')}
+                      </span>
                     </div>
 
-                    {/* Monitored indicator */}
-                    <div className="w-5 flex-shrink-0">
-                      {ep.has_file ? (
-                        <div
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: 'var(--success)' }}
-                          title={t('series_detail.has_file')}
-                        />
-                      ) : (
-                        <div
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: 'var(--text-muted)' }}
-                          title={t('series_detail.no_file')}
-                        />
-                      )}
-                    </div>
-
-                    {/* Episode number */}
-                    <div
-                      className="w-12 flex-shrink-0 text-sm font-medium"
-                      style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}
-                    >
-                      {ep.episode}
-                    </div>
-
-                    {/* Title */}
-                    <div className="flex-1 min-w-0 text-sm truncate" title={ep.title}>
-                      {ep.title || t('series_detail.tba')}
-                    </div>
-
-                    {/* Audio */}
-                    <div className="w-24 flex-shrink-0 flex gap-1">
-                      {ep.audio_languages.length > 0 ? (
-                        ep.audio_languages.map((lang, i) => (
-                          <span
-                            key={i}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-medium uppercase"
-                            style={{
-                              backgroundColor: 'rgba(99, 102, 241, 0.12)',
-                              color: '#818cf8',
-                            }}
-                          >
-                            {lang}
+                    {/* Column 2: Episode title + file path + subtitle badges */}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ep.title}>
+                        {ep.title || 'TBA'}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>
+                        {ep.has_file ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{ep.file_path.split(/[/\\]/).pop() || ep.file_path}</span>
+                            {/* Compact subtitle badges */}
+                            {targetLanguages.map(lang => {
+                              const subFormat = ep.subtitles[lang] || ''
+                              return <SubBadge key={lang} lang={lang} format={subFormat} />
+                            })}
                           </span>
-                        ))
-                      ) : (
-                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>&mdash;</span>
-                      )}
+                        ) : (
+                          <span style={{ color: 'var(--error)' }}>No file</span>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Subtitles */}
-                    <div className="flex-1 min-w-[200px] flex gap-1 flex-wrap items-center">
-                      {ep.has_file ? (
-                        <>
-                          {/* Target language badges: teal=ass, amber=srt, orange=missing */}
-                          {targetLanguages.length > 0 ? targetLanguages.map((lang) => {
-                            const subFormat = ep.subtitles[lang] || ''
-                            const epSidecars = sidecarMap[String(ep.id)] ?? []
-                            // Find matching sidecar on disk (handles ISO 639-2 ↔ 639-1 mismatch)
-                            const matchingSidecar = (subFormat === 'ass' || subFormat === 'srt')
-                              ? epSidecars.find(s => normLang(s.language) === normLang(lang) && s.format === subFormat)
-                              : null
-                            return (
-                              <span key={lang} className="inline-flex items-center gap-0.5">
-                                <SubBadge lang={lang} format={subFormat} />
-                                {matchingSidecar && (
-                                  <>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); void onDeleteSidecar(matchingSidecar.path) }}
-                                      className="p-0.5 rounded hover:opacity-80"
-                                      style={{ color: 'var(--error)', lineHeight: 1 }}
-                                      title={`Löschen: ${matchingSidecar.path}`}
-                                    >
-                                      <X size={9} />
-                                    </button>
-                                    <a
-                                      href={getSubtitleDownloadUrl(matchingSidecar.path)}
-                                      download
-                                      title={`Download ${matchingSidecar.language} ${matchingSidecar.format}`}
-                                      className="ml-1 text-neutral-400 hover:text-teal-400 transition-colors"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-3.5 w-3.5 inline"
-                                        viewBox="0 0 20 20"
-                                        fill="currentColor"
-                                        aria-hidden="true"
-                                      >
-                                        <path
-                                          fillRule="evenodd"
-                                          d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                                          clipRule="evenodd"
-                                        />
-                                      </svg>
-                                    </a>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); exportSubtitleNfo(matchingSidecar.path).then(() => toast('NFO exported', 'success')).catch(() => toast('NFO export failed', 'error')) }}
-                                      className="p-0.5 rounded transition-colors"
-                                      style={{ color: 'var(--text-muted)', lineHeight: 1 }}
-                                      title="Export NFO sidecar"
-                                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
-                                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
-                                    >
-                                      <FileCode size={11} />
-                                    </button>
-                                    <SubtitleActionsMenu
-                                      subtitlePath={matchingSidecar.path}
-                                      onRefresh={onRefreshSidecars}
-                                    />
-                                  </>
-                                )}
-                                {(subFormat === 'ass' || subFormat === 'srt') && (
-                                  <>
-                                    <HealthBadge score={healthScores[deriveSubtitlePath(ep.file_path, lang, subFormat)] ?? null} size="sm" />
-                                    <button
-                                      onClick={() => onPreviewSub(deriveSubtitlePath(ep.file_path, lang, subFormat))}
-                                      className="p-0.5 rounded transition-colors"
-                                      style={{ color: 'var(--text-muted)' }}
-                                      title="Preview subtitle"
-                                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
-                                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
-                                    >
-                                      <Eye size={12} />
-                                    </button>
-                                    <button
-                                      onClick={() => onEditSub(deriveSubtitlePath(ep.file_path, lang, subFormat))}
-                                      className="p-0.5 rounded transition-colors"
-                                      style={{ color: 'var(--text-muted)' }}
-                                      title="Edit subtitle"
-                                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
-                                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
-                                    >
-                                      <Pencil size={12} />
-                                    </button>
-                                  </>
-                                )}
-                              </span>
-                            )
-                          }) : (
-                            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>&#x2014;</span>
-                          )}
-
-                          {/* Extra sidecar badges: non-target languages, deduped via normLang */}
-                          {(() => {
-                            const epSidecars = sidecarMap[String(ep.id)] ?? []
-                            const extraSidecars = epSidecars.filter(
-                              s => !targetLanguages.some(tl => normLang(tl) === normLang(s.language))
-                            )
-                            if (extraSidecars.length === 0) return null
-                            return extraSidecars.map((s) => (
-                              <span
-                                key={s.path}
-                                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase"
-                                style={{
-                                  backgroundColor: 'var(--bg-surface)',
-                                  color: 'var(--text-muted)',
-                                  border: '1px solid var(--border)',
-                                }}
-                                title={`${s.language.toUpperCase()} ${s.format.toUpperCase()} — extra sidecar`}
-                              >
-                                {s.language.toUpperCase()}
-                                <span style={{ opacity: 0.6, fontSize: '9px' }}>{s.format}</span>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); void onDeleteSidecar(s.path) }}
-                                  className="ml-0.5 rounded hover:opacity-80"
-                                  style={{ color: 'var(--error)', lineHeight: 1 }}
-                                  title={`Löschen: ${s.path}`}
-                                >
-                                  <X size={9} />
-                                </button>
-                                <a
-                                  href={getSubtitleDownloadUrl(s.path)}
-                                  download
-                                  title={`Download ${s.language} ${s.format}`}
-                                  className="ml-1 text-neutral-400 hover:text-teal-400 transition-colors"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-3.5 w-3.5 inline"
-                                    viewBox="0 0 20 20"
-                                    fill="currentColor"
-                                    aria-hidden="true"
-                                  >
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                </a>
-                                <SubtitleActionsMenu
-                                  subtitlePath={s.path}
-                                  onRefresh={onRefreshSidecars}
-                                />
-                              </span>
-                            ))
-                          })()}
-                        </>
-                      ) : (
-                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>No file</span>
-                      )}
+                    {/* Column 3: Format */}
+                    <div>
+                      <FormatBadge format={targetLanguages.length > 0 ? (ep.subtitles[targetLanguages[0]] || '') : ''} />
                     </div>
 
-                    {/* Actions */}
-                    <div className="w-64 flex-shrink-0 flex gap-0.5 justify-end">
+                    {/* Column 4: Provider (not in data model yet) */}
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>&mdash;</div>
+
+                    {/* Column 5: Score (not in data model yet) */}
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>&mdash;</div>
+
+                    {/* Column 6: Actions */}
+                    <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
                       {streamingEnabled && ep.has_file && ep.file_path && (
                         <button
                           onClick={() => onPreview(ep)}
-                          className="hover-surface p-1 rounded text-[var(--text-muted)] hover:text-[var(--teal-accent)]"
+                          className="hover-surface p-1 rounded text-[var(--text-muted)] hover:text-[var(--accent)]"
                           title="Preview in player"
                           aria-label={`Preview episode ${ep.episode}`}
                         >

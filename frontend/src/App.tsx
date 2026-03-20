@@ -153,7 +153,8 @@ function AppInner({
           <IconSidebar />
           <main
             id="main-content"
-            className="flex-1 min-w-0 min-h-screen ml-0 md:ml-[60px] px-4 py-4 md:px-8 md:py-6 pb-20 md:pb-10"
+            className="flex-1 min-w-0 min-h-screen main-content-area"
+            style={{ padding: '24px 32px 60px', maxWidth: '1380px' }}
           >
             <AnimatedRoutes />
           </main>

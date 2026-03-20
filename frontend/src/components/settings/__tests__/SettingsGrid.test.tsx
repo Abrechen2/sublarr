@@ -19,6 +19,11 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
+vi.mock('@/hooks/useApi', () => ({
+  useConfig: () => ({ data: { translation_enabled: false } }),
+  useUpdateConfig: () => ({ mutate: vi.fn() }),
+}))
+
 function renderWithRouter(ui: React.ReactElement) {
   return render(<BrowserRouter>{ui}</BrowserRouter>)
 }

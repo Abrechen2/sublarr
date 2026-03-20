@@ -24,8 +24,8 @@ export function PageHeader({ title, subtitle, breadcrumb, actions, className }: 
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1
-            className="font-semibold text-[var(--text-primary)]"
-            style={{ fontSize: 'clamp(1.25rem, 2.5vw, 1.5rem)' }}
+            className="text-[var(--text-primary)]"
+            style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.5px' }}
           >
             {title}
           </h1>

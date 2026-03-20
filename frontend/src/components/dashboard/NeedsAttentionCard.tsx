@@ -1,18 +1,17 @@
 /**
  * NeedsAttentionCard — dashboard card listing wanted items that require manual action.
  *
- * - Warning-colored left border (4px --warning)
- * - Header: AlertTriangle icon + "Needs Attention" title + total count badge
- * - Each item row: title, episode info, reason badge, contextual action buttons
+ * - Warning-colored left border (3px --warning)
+ * - Header: "Needs Attention" title + total count badge + "View All" button (same row)
+ * - Each item row: 2-letter initials avatar, title, episode info, reason text, contextual action buttons
  *   - status === 'failed' (no match)  → Search + Skip
  *   - score < 50 (low quality match) → Find Better + Accept
  *   - fallback                        → Retry
- * - "View All" link at bottom → /activity
  * - Max 5 items shown
  */
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { AlertTriangle, Search, SkipForward, RefreshCw, ChevronRight } from 'lucide-react'
+import { Search, SkipForward, RefreshCw, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useWantedItems, useSearchWantedItem, useUpdateWantedStatus } from '@/hooks/useWantedApi'
 
@@ -37,6 +36,10 @@ function resolveIssueType(item: WantedItem): IssueType {
   return 'other'
 }
 
+function getInitials(title: string): string {
+  return title.slice(0, 2).toUpperCase()
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 interface ActionButtonProps {
@@ -57,13 +60,13 @@ function ActionButton({ testId, onClick, icon, label, variant = 'ghost' }: Actio
         display: 'flex',
         alignItems: 'center',
         gap: '4px',
-        padding: '4px 8px',
+        padding: '5px 11px',
         fontSize: '11px',
-        fontWeight: 500,
-        borderRadius: '5px',
+        fontWeight: variant === 'primary' ? 600 : 500,
+        borderRadius: '6px',
         border: variant === 'primary' ? '1px solid var(--accent)' : '1px solid var(--border)',
-        background: variant === 'primary' ? 'var(--accent-bg)' : 'transparent',
-        color: variant === 'primary' ? 'var(--accent)' : 'var(--text-secondary)',
+        background: variant === 'primary' ? 'var(--accent)' : 'transparent',
+        color: variant === 'primary' ? '#000' : 'var(--text-secondary)',
         cursor: 'pointer',
         whiteSpace: 'nowrap',
       }}
@@ -76,12 +79,13 @@ function ActionButton({ testId, onClick, icon, label, variant = 'ghost' }: Actio
 
 interface ItemRowProps {
   readonly item: WantedItem
+  readonly isLast: boolean
   readonly onSearch: (id: number) => void
   readonly onSkip: (id: number) => void
   readonly onAccept: (id: number) => void
 }
 
-function ItemRow({ item, onSearch, onSkip, onAccept }: ItemRowProps) {
+function ItemRow({ item, isLast, onSearch, onSkip, onAccept }: ItemRowProps) {
   const { t } = useTranslation('common')
   const issueType = resolveIssueType(item)
 
@@ -97,40 +101,34 @@ function ItemRow({ item, onSearch, onSkip, onAccept }: ItemRowProps) {
         ? t('needsAttention.reason.lowScore', `Score ${item.score}`)
         : t('needsAttention.reason.error', 'Error')
 
-  const reasonColor =
-    issueType === 'failed'
-      ? 'var(--error)'
-      : issueType === 'low_score'
-        ? 'var(--warning)'
-        : 'var(--text-muted)'
-
   return (
     <div
       data-testid={`item-row-${item.id}`}
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '10px',
+        gap: '12px',
         padding: '8px 0',
-        borderBottom: '1px solid var(--border)',
+        borderBottom: isLast ? 'none' : '1px solid var(--border)',
       }}
     >
-      {/* Avatar / icon placeholder */}
+      {/* 2-letter initials avatar */}
       <div
         style={{
-          width: '32px',
-          height: '32px',
-          borderRadius: '6px',
-          background: 'var(--bg-primary)',
-          border: '1px solid var(--border)',
+          width: '30px',
+          height: '30px',
+          borderRadius: 'var(--radius-sm, 8px)',
+          background: 'var(--bg-elevated)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
-          color: reasonColor,
+          fontSize: '11px',
+          fontWeight: 600,
+          color: 'var(--text-secondary)',
         }}
       >
-        <AlertTriangle size={14} />
+        {getInitials(item.series_title)}
       </div>
 
       {/* Title + reason */}
@@ -139,7 +137,7 @@ function ItemRow({ item, onSearch, onSkip, onAccept }: ItemRowProps) {
           data-testid={`item-title-${item.id}`}
           style={{
             fontSize: '13px',
-            fontWeight: 600,
+            fontWeight: 500,
             color: 'var(--text-primary)',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -163,14 +161,8 @@ function ItemRow({ item, onSearch, onSkip, onAccept }: ItemRowProps) {
         <span
           data-testid={`item-reason-${item.id}`}
           style={{
-            display: 'inline-block',
-            fontSize: '10px',
-            fontWeight: 500,
-            color: reasonColor,
-            background: `color-mix(in srgb, ${reasonColor} 12%, transparent)`,
-            padding: '1px 6px',
-            borderRadius: '4px',
-            marginTop: '2px',
+            fontSize: '11px',
+            color: 'var(--text-muted)',
           }}
         >
           {reasonLabel}
@@ -257,12 +249,11 @@ export function NeedsAttentionCard() {
       style={{
         background: 'var(--bg-surface)',
         border: '1px solid var(--border)',
-        borderLeft: '4px solid var(--warning)',
+        borderLeft: '3px solid var(--warning)',
         borderRadius: 'var(--radius-lg, 12px)',
-        padding: '16px',
+        padding: '18px 20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '4px',
       }}
     >
       {/* Header */}
@@ -272,15 +263,10 @@ export function NeedsAttentionCard() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: '4px',
+          marginBottom: '14px',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <AlertTriangle
-            data-testid="needs-attention-icon"
-            size={16}
-            style={{ color: 'var(--warning)', flexShrink: 0 }}
-          />
           <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
             {t('needsAttention.title', 'Needs Attention')}
           </span>
@@ -300,35 +286,8 @@ export function NeedsAttentionCard() {
             </span>
           )}
         </div>
-      </div>
 
-      {/* Item rows */}
-      {attentionItems.length === 0 ? (
-        <p
-          style={{
-            fontSize: '13px',
-            color: 'var(--text-muted)',
-            textAlign: 'center',
-            padding: '16px 0',
-            margin: 0,
-          }}
-        >
-          {t('needsAttention.empty', 'No items need attention')}
-        </p>
-      ) : (
-        attentionItems.map(item => (
-          <ItemRow
-            key={item.id}
-            item={item}
-            onSearch={handleSearch}
-            onSkip={handleSkip}
-            onAccept={handleAccept}
-          />
-        ))
-      )}
-
-      {/* View All link */}
-      <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
+        {/* View All link in header row */}
         <Link
           data-testid="view-all-link"
           to="/activity"
@@ -346,6 +305,32 @@ export function NeedsAttentionCard() {
           <ChevronRight size={12} />
         </Link>
       </div>
+
+      {/* Item rows */}
+      {attentionItems.length === 0 ? (
+        <p
+          style={{
+            fontSize: '13px',
+            color: 'var(--text-muted)',
+            textAlign: 'center',
+            padding: '16px 0',
+            margin: 0,
+          }}
+        >
+          {t('needsAttention.empty', 'No items need attention')}
+        </p>
+      ) : (
+        attentionItems.map((item, index) => (
+          <ItemRow
+            key={item.id}
+            item={item}
+            isLast={index === attentionItems.length - 1}
+            onSearch={handleSearch}
+            onSkip={handleSkip}
+            onAccept={handleAccept}
+          />
+        ))
+      )}
     </div>
   )
 }
