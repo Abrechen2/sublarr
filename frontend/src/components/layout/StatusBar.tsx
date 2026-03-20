@@ -24,7 +24,7 @@ export function StatusBar() {
         height: 26,
         backgroundColor: 'var(--bg-primary)',
         borderTop: '1px solid var(--border)',
-        marginLeft: 60,
+        marginLeft: 'var(--sidebar-width, 60px)',
         fontSize: 11,
         color: 'var(--text-muted)',
         fontFamily: 'var(--font-mono)',

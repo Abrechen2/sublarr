@@ -133,7 +133,6 @@ function SidebarNavItem({ item, label, badgeCount }: SidebarNavItemProps) {
         cn(
           'flex items-center gap-3 px-3 py-2 mb-0.5 rounded-md relative',
           'transition-colors duration-100',
-          isActive && 'sidebar-item-active',
           !isActive && 'hover:bg-[rgba(255,255,255,0.04)]'
         )
       }
@@ -163,7 +162,7 @@ function SidebarNavItem({ item, label, badgeCount }: SidebarNavItemProps) {
                 color: 'var(--warning)',
               }}
             >
-              {badgeCount}
+              {badgeCount > 99 ? '99+' : badgeCount}
             </span>
           )}
         </>

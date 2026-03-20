@@ -51,6 +51,9 @@
   /* Accent glow */
   --accent-glow: rgba(15, 155, 181, 0.25);
 
+  /* Layout */
+  --sidebar-width: 60px;
+
   /* Radius — modern */
   --radius-sm: 6px;
   --radius-md: 10px;
