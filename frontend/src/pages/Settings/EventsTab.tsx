@@ -537,6 +537,9 @@ export function ScoringTab() {
 
   return (
     <div className="space-y-4">
+      {/* Release Group Filter */}
+      <ReleaseGroupSection />
+
       {/* Scoring Presets */}
       <SettingSection
         title="Load Preset"
@@ -674,6 +677,131 @@ export function ScoringTab() {
       {/* Machine Translation Detection */}
       <MtDetectionSection />
     </div>
+  )
+}
+
+
+// ─── Release Group Section ────────────────────────────────────────────────────
+
+function ReleaseGroupSection() {
+  const { data: configData } = useConfig()
+  const updateConfig = useUpdateConfig()
+
+  const [prefer, setPrefer] = useState<string>('')
+  const [exclude, setExclude] = useState<string>('')
+  const [bonus, setBonus] = useState<number>(20)
+  const [init, setInit] = useState(false)
+
+  useEffect(() => {
+    if (configData && !init) {
+      const p = configData['release_group_prefer']
+      const e = configData['release_group_exclude']
+      const b = configData['release_group_prefer_bonus']
+      if (p !== undefined) setPrefer(String(p))
+      if (e !== undefined) setExclude(String(e))
+      if (b !== undefined) setBonus(Number(b))
+      setInit(true)
+    }
+  }, [configData, init])
+
+  const handleSave = () => {
+    updateConfig.mutate(
+      {
+        release_group_prefer: prefer,
+        release_group_exclude: exclude,
+        release_group_prefer_bonus: bonus,
+      },
+      {
+        onSuccess: () => toast('Release group settings saved'),
+        onError: () => toast('Failed to save release group settings', 'error'),
+      }
+    )
+  }
+
+  return (
+    <SettingSection
+      title="Release Group Filter"
+      description="Provider-Suchergebnisse nach Release-Gruppe filtern und priorisieren."
+    >
+      <div className="flex items-center justify-end -mt-1">
+        <button
+          onClick={handleSave}
+          disabled={updateConfig.isPending}
+          className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white"
+          style={{ backgroundColor: 'var(--accent)' }}
+        >
+          {updateConfig.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+          Save
+        </button>
+      </div>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>Preferred Release Groups</span>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              Komma-getrennte Release-Gruppen die bevorzugt werden (Score-Bonus). Leer = deaktiviert.
+            </p>
+          </div>
+          <input
+            type="text"
+            value={prefer}
+            onChange={(e) => setPrefer(e.target.value)}
+            placeholder="SubsPlease,Erai-raws"
+            className="w-48 px-2 py-1 rounded text-[12px]"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-mono)',
+            }}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>Blocked Release Groups</span>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              Komma-getrennte Release-Gruppen die aus Suchergebnissen ausgeschlossen werden.
+            </p>
+          </div>
+          <input
+            type="text"
+            value={exclude}
+            onChange={(e) => setExclude(e.target.value)}
+            placeholder="HorribleSubs,CoalGirls"
+            className="w-48 px-2 py-1 rounded text-[12px]"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-mono)',
+            }}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <span className="text-[12px] font-medium" style={{ color: 'var(--text-primary)' }}>Prefer Bonus (score pts)</span>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              Score-Bonus für Ergebnisse die einer bevorzugten Gruppe entsprechen.
+            </p>
+          </div>
+          <input
+            type="number"
+            min={0}
+            max={999}
+            value={bonus}
+            onChange={(e) => setBonus(Math.max(0, Math.min(999, parseInt(e.target.value) || 0)))}
+            placeholder="20"
+            className="w-20 px-2 py-1 rounded text-[12px] text-right"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-mono)',
+            }}
+          />
+        </div>
+      </div>
+    </SettingSection>
   )
 }
 

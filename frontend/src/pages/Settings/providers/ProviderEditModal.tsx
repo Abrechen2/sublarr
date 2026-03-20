@@ -25,7 +25,7 @@ interface ProviderEditModalProps {
 }
 
 export function ProviderEditModal({
-  provider, cacheCount, priority, totalProviders,
+  provider, cacheCount, priority: _priority, totalProviders: _totalProviders,
   fieldValues, testResult,
   onFieldChange, onTest, onToggle,
   onClearCache, onReEnable, onRemove, isNew, onClose,

@@ -27,16 +27,6 @@ import { useWebSocket } from '@/hooks/useWebSocket'
 import { useQueryClient } from '@tanstack/react-query'
 import { useWantedVirtualizer } from '@/components/wanted/VirtualWantedTable'
 
-/** Derive subtitle file path from media path + language + format. */
-function formatRetryTime(isoString: string): string {
-  const ms = new Date(isoString).getTime() - Date.now()
-  if (ms <= 0) return 'soon'
-  const mins = Math.round(ms / 60000)
-  if (mins < 60) return `${mins}m`
-  const hrs = Math.round(ms / 3600000)
-  return `${hrs}h`
-}
-
 export function formatRetryCountdown(retryAfter: string | null): string | null {
   if (!retryAfter) return null
   const diff = new Date(retryAfter).getTime() - Date.now()

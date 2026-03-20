@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry, useStartWantedBatch, useUpdateSeriesSettings, useAnidbMappingStatus, useRefreshAnidbMapping, useBatchTranslate, useSuggestGlossaryTerms, useExportGlossaryTsv, useStreamingEnabled } from '@/hooks/useApi'
+import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry, useStartWantedBatch, useUpdateSeriesSettings, useAnidbMappingStatus, useRefreshAnidbMapping, useBatchTranslate, useSuggestGlossaryTerms, useExportGlossaryTsv, useStreamingEnabled, useSeriesFansubPrefs } from '@/hooks/useApi'
 import {
   ArrowLeft, Loader2, ChevronDown, ChevronRight,
   Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search,
@@ -27,7 +27,7 @@ import { HealthBadge } from '@/components/health/HealthBadge'
 import { SubtitleCleanupModal } from '@/components/shared/SubtitleCleanupModal'
 import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry, SidecarSubtitle } from '@/lib/types'
 import { EpisodeActionMenu } from '@/components/episodes/EpisodeActionMenu'
-import { SeriesFansubPrefsPanel } from '@/components/series/SeriesFansubPrefsPanel'
+import { FansubOverrideModal } from '@/components/series/FansubOverrideModal'
 import { SeriesAudioTrackPicker } from '@/components/series/SeriesAudioTrackPicker'
 import { SubtitleActionsMenu } from '@/components/processing/SubtitleActionsMenu'
 import { SeriesProcessingOverride } from '@/components/processing/SeriesProcessingOverride'
@@ -1244,6 +1244,7 @@ export function SeriesDetailPage() {
   } | null>(null)
   // Sidecar management
   const [showCleanupModal, setShowCleanupModal] = useState(false)
+  const [fansubOpen, setFansubOpen] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [deleteAlsoBlacklist, setDeleteAlsoBlacklist] = useState(false)
   const queryClient = useQueryClient()
@@ -1302,6 +1303,13 @@ export function SeriesDetailPage() {
   const processItem = useProcessWantedItem()
   const startSeriesSearch = useStartWantedBatch()
   const [seriesSearchStarted, setSeriesSearchStarted] = useState(false)
+
+  // Fansub override indicator
+  const { data: fansubPrefs } = useSeriesFansubPrefs(seriesId ?? -1)
+  const hasFansubOverride = seriesId !== null && (
+    (fansubPrefs?.preferred_groups.length ?? 0) > 0 ||
+    (fansubPrefs?.excluded_groups.length ?? 0) > 0
+  )
 
   // AniDB absolute order
   const updateSeriesSettingsMutation = useUpdateSeriesSettings()
@@ -1793,6 +1801,23 @@ export function SeriesDetailPage() {
                 Bereinigen
               </button>
 
+              {/* Fansub override button */}
+              {seriesId !== null && (
+                <button
+                  onClick={() => setFansubOpen(true)}
+                  title="Fansub Preferences"
+                  style={{
+                    background: 'transparent',
+                    border: `1px solid ${hasFansubOverride ? 'var(--accent)' : 'var(--border)'}`,
+                    color: hasFansubOverride ? 'var(--accent)' : 'var(--text-muted)',
+                    borderRadius: 4, padding: '4px 10px', fontSize: 12, cursor: 'pointer',
+                    fontWeight: hasFansubOverride ? 600 : 400,
+                  }}
+                >
+                  Fansub
+                </button>
+              )}
+
               {/* Export ZIP */}
               <a
                 href={getSeriesSubtitleExportUrl(series.id)}
@@ -1862,19 +1887,6 @@ export function SeriesDetailPage() {
           style={{ border: '1px solid var(--border)' }}
         >
           {seriesId !== null && <GlossaryPanel seriesId={seriesId} />}
-        </div>
-      )}
-
-      {/* Fansub Preferences Panel */}
-      {seriesId !== null && (
-        <div
-          className="rounded-lg overflow-hidden"
-          style={{ border: '1px solid var(--border)', padding: '16px' }}
-        >
-          <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, marginTop: 0 }}>
-            Fansub Preferences
-          </h3>
-          <SeriesFansubPrefsPanel seriesId={seriesId} />
         </div>
       )}
 
@@ -2246,6 +2258,14 @@ export function SeriesDetailPage() {
           </div>
         </div>,
         document.body
+      )}
+
+      {seriesId !== null && (
+        <FansubOverrideModal
+          seriesId={seriesId}
+          open={fansubOpen}
+          onClose={() => setFansubOpen(false)}
+        />
       )}
     </div>
   )
