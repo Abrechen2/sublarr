@@ -1,7 +1,9 @@
 import { lazy, Suspense, useState, useEffect, useCallback } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Sidebar } from '@/components/layout/Sidebar'
+import { IconSidebar } from '@/components/layout/IconSidebar'
+import { BottomNav } from '@/components/layout/BottomNav'
+import { StatusBar } from '@/components/layout/StatusBar'
 import { ToastContainer, toast } from '@/components/shared/Toast'
 import {
   PageSkeleton,
@@ -156,10 +158,15 @@ function AppInner({
         <AnimatedRoutes />
       ) : (
         <div className="flex min-h-screen">
-          <Sidebar />
-          <main id="main-content" className="flex-1 min-w-0 p-4 md:p-5 pt-16 md:pt-5 min-h-screen">
+          <IconSidebar />
+          <main
+            id="main-content"
+            className="flex-1 min-w-0 min-h-screen ml-0 md:ml-[60px] px-4 py-4 md:px-8 md:py-6 pb-20 md:pb-10"
+          >
             <AnimatedRoutes />
           </main>
+          <StatusBar />
+          <BottomNav />
         </div>
       )}
       {!isAuthRoute && (

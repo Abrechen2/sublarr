@@ -10,9 +10,15 @@ vi.mock('@/hooks/useWebSocket', () => ({
   useWebSocket: () => ({}),
 }))
 
-// Mock the Sidebar so we don't pull in all nav dependencies
-vi.mock('@/components/layout/Sidebar', () => ({
-  Sidebar: () => <nav data-testid="sidebar" />,
+// Mock the layout components so we don't pull in all nav dependencies
+vi.mock('@/components/layout/IconSidebar', () => ({
+  IconSidebar: () => <nav data-testid="icon-sidebar" />,
+}))
+vi.mock('@/components/layout/BottomNav', () => ({
+  BottomNav: () => null,
+}))
+vi.mock('@/components/layout/StatusBar', () => ({
+  StatusBar: () => null,
 }))
 
 // Mock global modals / FABs
@@ -82,7 +88,7 @@ describe('Skip link', () => {
     const { container } = render(<App />)
 
     const skipLink = container.querySelector('a[href="#main-content"]')
-    const sidebar = container.querySelector('[data-testid="sidebar"]')
+    const sidebar = container.querySelector('[data-testid="icon-sidebar"]')
     expect(skipLink).toBeInTheDocument()
     expect(sidebar).toBeInTheDocument()
 
