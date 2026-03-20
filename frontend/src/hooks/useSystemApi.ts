@@ -26,6 +26,7 @@ import {
   getCleanupRules, createCleanupRule, updateCleanupRule, deleteCleanupRule, runCleanupRule,
   getCleanupHistory, getCleanupPreview,
   getSupportedLanguages,
+  testSonarrInstance, testRadarrInstance,
 } from '@/api/client'
 import type {
   LogRotationConfig, FilterScope,
@@ -150,6 +151,20 @@ export function useRetryJob() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
     },
+  })
+}
+
+// ─── Sonarr / Radarr Test ────────────────────────────────────────────────────
+
+export function useTestSonarrInstance() {
+  return useMutation({
+    mutationFn: (config: { url: string; api_key: string }) => testSonarrInstance(config),
+  })
+}
+
+export function useTestRadarrInstance() {
+  return useMutation({
+    mutationFn: (config: { url: string; api_key: string }) => testRadarrInstance(config),
   })
 }
 
