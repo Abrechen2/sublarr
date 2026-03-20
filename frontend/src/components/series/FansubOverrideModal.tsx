@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   useSeriesFansubPrefs,
   useSetSeriesFansubPrefs,
@@ -20,6 +20,14 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
   const [excluded, setExcluded] = useState('')
   const [bonus, setBonus] = useState(20)
 
+  const dialogRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (open) {
+      dialogRef.current?.focus()
+    }
+  }, [open])
+
   // Include `open` so re-opening with cached prefs still resets fields
   useEffect(() => {
     if (prefs) {
@@ -37,12 +45,18 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
   const handleSave = () => {
     setPrefs.mutate(
       { preferred_groups: parseGroups(preferred), excluded_groups: parseGroups(excluded), bonus },
-      { onSuccess: onClose },
+      {
+        onSuccess: onClose,
+        onError: (err) => console.error('Failed to save fansub preferences', err),
+      },
     )
   }
 
   const handleReset = () => {
-    deletePrefs.mutate(undefined, { onSuccess: onClose })
+    deletePrefs.mutate(undefined, {
+      onSuccess: onClose,
+      onError: (err) => console.error('Failed to reset fansub preferences', err),
+    })
   }
 
   const hasOverride =
@@ -58,9 +72,11 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
         }}
       />
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        aria-label="Fansub Preferences"
+        aria-labelledby="fansub-modal-title"
         style={{
           position: 'fixed', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
@@ -69,7 +85,7 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
         }}
         onKeyDown={(e) => e.key === 'Escape' && onClose()}
       >
-        <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 600 }}>
+        <h3 id="fansub-modal-title" style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 600 }}>
           Fansub Preferences
         </h3>
 
@@ -120,7 +136,7 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
                 value={bonus}
                 min={0}
                 max={999}
-                onChange={(e) => setBonus(Math.max(0, Math.min(999, parseInt(e.target.value) || 0)))}
+                onChange={(e) => setBonus(Math.max(0, Math.min(999, parseInt(e.target.value, 10) || 0)))}
                 style={{
                   width: 80,
                   background: 'var(--bg-input)', border: '1px solid var(--border)',
