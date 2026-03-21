@@ -17,7 +17,7 @@ import { SubtitlesSettings } from '../SubtitlesSettings'
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
 // Mock heavy lazy-loaded sub-tabs so tests don't require real API calls
-vi.mock('@/pages/Settings/EventsTab', () => ({
+vi.mock('@/pages/Settings/ScoringTab', () => ({
   ScoringTab: () => <div data-testid="mock-scoring-tab">Scoring Tab</div>,
 }))
 

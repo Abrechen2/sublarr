@@ -22,7 +22,7 @@ import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 // ─── Lazy sub-tabs ───────────────────────────────────────────────────────────
 
 const ScoringTab = lazy(() =>
-  import('./EventsTab').then((m) => ({ default: m.ScoringTab })),
+  import('./ScoringTab').then((m) => ({ default: m.ScoringTab })),
 )
 const LanguageProfilesTab = lazy(() =>
   import('./AdvancedTab').then((m) => ({ default: m.LanguageProfilesTab })),
