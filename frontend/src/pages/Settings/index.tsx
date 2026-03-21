@@ -50,6 +50,9 @@ const SystemSettings = lazy(() =>
 const AboutSettings = lazy(() =>
   import('./AboutSettings').then((m) => ({ default: m.AboutSettings })),
 )
+const HooksPage = lazy(() =>
+  import('./HooksPage').then((m) => ({ default: m.HooksPage })),
+)
 
 export function SettingsPage() {
   return (
@@ -65,6 +68,7 @@ export function SettingsPage() {
         <Route path="notifications" element={<NotificationsSettings />} />
         <Route path="system" element={<SystemSettings />} />
         <Route path="about" element={<AboutSettings />} />
+        <Route path="hooks" element={<HooksPage />} />
       </Routes>
     </Suspense>
   )
