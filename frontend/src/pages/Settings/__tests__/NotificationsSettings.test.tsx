@@ -264,3 +264,40 @@ describe('NotificationsSettings — Quiet Hours stub (Step 24)', () => {
     expect(toggle).toHaveAttribute('aria-checked', 'true')
   })
 })
+
+// ─── Step 39: Quiet Hours section ────────────────────────────────────────────
+
+describe('Quiet Hours section (Step 39)', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('renders heading "Quiet Hours"', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-quiet-hours')
+    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
+    expect(title).toHaveTextContent('Quiet Hours')
+  })
+
+  it('toggle-quiet-hours-enabled is rendered with unchecked toggle by default', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-quiet-hours')
+    fireEvent.click(
+      wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    )
+    const toggleWrapper = screen.getByTestId('toggle-quiet-hours-enabled')
+    expect(toggleWrapper).toBeInTheDocument()
+    // The inner button should have aria-checked=false (enabled=false by default from mock)
+    const innerBtn = toggleWrapper.querySelector('[data-testid="quiet-hours-enabled-toggle"]')
+    expect(innerBtn).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('toggling calls updateConfig with { quiet_hours_enabled: "true" }', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-quiet-hours')
+    fireEvent.click(
+      wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    )
+    const btn = screen.getByTestId('quiet-hours-enabled-toggle')
+    fireEvent.click(btn)
+    expect(mockUpdateConfigMutate).toHaveBeenCalledWith({ quiet_hours_enabled: 'true' })
+  })
+})

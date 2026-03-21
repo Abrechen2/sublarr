@@ -12,6 +12,8 @@ import { Bell, Webhook, Moon } from 'lucide-react'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
+import { FormGroup } from '@/components/settings/FormGroup'
+import { Toggle } from '@/components/shared/Toggle'
 
 // ─── Lazy sub-tabs ───────────────────────────────────────────────────────────
 
@@ -39,7 +41,34 @@ function SectionSkeleton() {
   )
 }
 
-// ─── Quiet Hours Config Stub ─────────────────────────────────────────────────
+// ─── Shared input style for Quiet Hours ──────────────────────────────────────
+
+function strVal(config: unknown, key: string, fallback = ''): string {
+  if (!config || typeof config !== 'object') return fallback
+  const v = (config as Record<string, unknown>)[key]
+  return v !== undefined && v !== null ? String(v) : fallback
+}
+
+function boolVal(config: unknown, key: string, fallback = false): boolean {
+  if (!config || typeof config !== 'object') return fallback
+  const v = (config as Record<string, unknown>)[key]
+  if (v === undefined || v === null) return fallback
+  return String(v) === 'true' || v === true
+}
+
+const quietInputStyle: React.CSSProperties = {
+  background: 'var(--bg-elevated)',
+  border: '1px solid var(--border)',
+  color: 'var(--text-primary)',
+  borderRadius: '6px',
+  padding: '7px 12px',
+  fontSize: '13px',
+  fontFamily: 'var(--font-body)',
+  width: '160px',
+  outline: 'none',
+}
+
+// ─── Quiet Hours Config ───────────────────────────────────────────────────────
 
 function QuietHoursConfigStub() {
   const { t } = useTranslation('common')
@@ -51,9 +80,9 @@ function QuietHoursConfigStub() {
   const [enabled, setEnabled] = useState(
     () => String(cfg?.quiet_hours_enabled ?? 'false') === 'true'
   )
-  const [start, setStart]       = useState(() => String(cfg?.quiet_hours_start ?? ''))
-  const [end, setEnd]           = useState(() => String(cfg?.quiet_hours_end ?? ''))
-  const [timezone, setTimezone] = useState(() => String(cfg?.quiet_hours_timezone ?? ''))
+  const [start, setStart]       = useState(() => String(cfg?.quiet_hours_start ?? '23:00'))
+  const [end, setEnd]           = useState(() => String(cfg?.quiet_hours_end ?? '07:00'))
+  const [timezone, setTimezone] = useState(() => String(cfg?.quiet_hours_timezone ?? 'UTC'))
 
   const handleSave = () => {
     updateConfig.mutate({
@@ -83,112 +112,85 @@ function QuietHoursConfigStub() {
         <span>
           {t(
             'settings.notifications.quietHours.stubBanner',
-            'Diese Felder werden nach dem nächsten Backend-Update aktiv.',
+            'Configure the time window during which notifications are suppressed.',
           )}
         </span>
       </div>
 
       {/* quiet_hours_enabled — Toggle */}
-      <div
-        className="flex items-center justify-between py-2"
-        style={{ borderBottom: '1px solid rgba(42,46,56,0.5)' }}
+      <FormGroup
+        label={t('settings.notifications.quietHours.enabled', 'Enable Quiet Hours')}
+        hint={t(
+          'settings.notifications.quietHours.enabledHint',
+          'Suppress all notifications during the configured window.',
+        )}
+        data-testid="form-group-quiet-hours-enabled"
       >
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
-            {t('settings.notifications.quietHours.enabled', 'Quiet Hours Enabled')}
-          </span>
-          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            {t(
-              'settings.notifications.quietHours.enabledHint',
-              'Suppress all notifications during the configured window.',
-            )}
-          </span>
+        {/* Wrapper carries both legacy testid (aria-checked flip) and new Step 39 testid */}
+        <div data-testid="toggle-quiet-hours-enabled">
+          <button
+            data-testid="quiet-hours-enabled-toggle"
+            type="button"
+            role="switch"
+            aria-checked={enabled}
+            onClick={() => {
+              setEnabled((v) => !v)
+              updateConfig.mutate({ quiet_hours_enabled: String(!enabled) })
+            }}
+            className="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors duration-200"
+            style={{ backgroundColor: enabled ? 'var(--accent)' : 'var(--border)' }}
+          >
+            <span
+              className="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 mt-0.5"
+              style={{ transform: enabled ? 'translateX(16px)' : 'translateX(2px)' }}
+            />
+          </button>
         </div>
-        <button
-          data-testid="quiet-hours-enabled-toggle"
-          type="button"
-          role="switch"
-          aria-checked={enabled}
-          onClick={() => setEnabled((v) => !v)}
-          className="relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors duration-200"
-          style={{ backgroundColor: enabled ? 'var(--accent)' : 'var(--border)' }}
-        >
-          <span
-            className="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 mt-0.5"
-            style={{ transform: enabled ? 'translateX(16px)' : 'translateX(2px)' }}
-          />
-        </button>
-      </div>
+      </FormGroup>
 
       {/* quiet_hours_start */}
-      <div
-        className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2"
-        style={{ borderBottom: '1px solid rgba(42,46,56,0.5)' }}
+      <FormGroup
+        label={t('settings.notifications.quietHours.start', 'Start Time')}
+        hint={t('settings.notifications.quietHours.startHint', 'Time when quiet hours begin (HH:MM)')}
+        htmlFor="quiet-hours-start"
+        data-testid="form-group-quiet-hours-start"
       >
-        <label
-          htmlFor="quiet-hours-start"
-          className="text-[13px] font-medium"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          {t('settings.notifications.quietHours.start', 'Start Time')}
-        </label>
         <input
           id="quiet-hours-start"
           data-testid="quiet-hours-start-input"
-          type="text"
+          type="time"
           value={start}
           onChange={(e) => setStart(e.target.value)}
           placeholder="23:00"
-          className="px-2.5 py-1.5 rounded text-xs focus:outline-none"
-          style={{
-            width: '120px',
-            backgroundColor: 'var(--bg-elevated)',
-            border: '1px solid var(--border)',
-            color: 'var(--text-primary)',
-            fontFamily: 'var(--font-mono)',
-          }}
+          style={{ ...quietInputStyle, width: '120px' }}
         />
-      </div>
+      </FormGroup>
 
       {/* quiet_hours_end */}
-      <div
-        className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2"
-        style={{ borderBottom: '1px solid rgba(42,46,56,0.5)' }}
+      <FormGroup
+        label={t('settings.notifications.quietHours.end', 'End Time')}
+        hint={t('settings.notifications.quietHours.endHint', 'Time when quiet hours end (HH:MM)')}
+        htmlFor="quiet-hours-end"
+        data-testid="form-group-quiet-hours-end"
       >
-        <label
-          htmlFor="quiet-hours-end"
-          className="text-[13px] font-medium"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          {t('settings.notifications.quietHours.end', 'End Time')}
-        </label>
         <input
           id="quiet-hours-end"
           data-testid="quiet-hours-end-input"
-          type="text"
+          type="time"
           value={end}
           onChange={(e) => setEnd(e.target.value)}
           placeholder="07:00"
-          className="px-2.5 py-1.5 rounded text-xs focus:outline-none"
-          style={{
-            width: '120px',
-            backgroundColor: 'var(--bg-elevated)',
-            border: '1px solid var(--border)',
-            color: 'var(--text-primary)',
-            fontFamily: 'var(--font-mono)',
-          }}
+          style={{ ...quietInputStyle, width: '120px' }}
         />
-      </div>
+      </FormGroup>
 
       {/* quiet_hours_timezone */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2">
-        <label
-          htmlFor="quiet-hours-timezone"
-          className="text-[13px] font-medium"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          {t('settings.notifications.quietHours.timezone', 'Timezone')}
-        </label>
+      <FormGroup
+        label={t('settings.notifications.quietHours.timezone', 'Timezone')}
+        hint={t('settings.notifications.quietHours.timezoneHint', 'Timezone for quiet hours window')}
+        htmlFor="quiet-hours-timezone"
+        data-testid="form-group-quiet-hours-timezone"
+      >
         <input
           id="quiet-hours-timezone"
           data-testid="quiet-hours-timezone-input"
@@ -196,16 +198,9 @@ function QuietHoursConfigStub() {
           value={timezone}
           onChange={(e) => setTimezone(e.target.value)}
           placeholder="UTC"
-          className="px-2.5 py-1.5 rounded text-xs focus:outline-none"
-          style={{
-            width: '160px',
-            backgroundColor: 'var(--bg-elevated)',
-            border: '1px solid var(--border)',
-            color: 'var(--text-primary)',
-            fontFamily: 'var(--font-mono)',
-          }}
+          style={{ ...quietInputStyle, width: '160px' }}
         />
-      </div>
+      </FormGroup>
 
       {/* Save */}
       <div className="flex justify-end pt-1">
