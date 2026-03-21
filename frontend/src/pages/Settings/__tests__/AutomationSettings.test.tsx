@@ -30,17 +30,15 @@ const mockMutate = vi.fn()
 vi.mock('@/hooks/useApi', () => ({
   useConfig: () => ({
     data: {
-      wanted_search_frequency: '60',
-      auto_search_on_download: 'true',
-      scan_on_start: 'false',
-      auto_upgrade_enabled: 'false',
-      auto_upgrade_threshold: '10',
-      upgrade_check_frequency: '360',
-      auto_translate: 'false',
-      auto_sync: 'false',
-      auto_cleanup: 'false',
-      keep_original_subs: 'true',
-      sidecar_format: 'srt',
+      wanted_search_interval_hours: '6',
+      webhook_auto_search: 'true',
+      wanted_search_on_startup: 'false',
+      upgrade_enabled: 'false',
+      upgrade_min_score_delta: '10',
+      upgrade_scan_interval_hours: '24',
+      wanted_auto_translate: 'false',
+      auto_sync_after_download: 'false',
+      auto_cleanup_after_extract: 'false',
     },
     isLoading: false,
   }),
@@ -97,10 +95,10 @@ describe('AutomationSettings', () => {
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
   })
 
-  it('renders exactly 6 settings sections', () => {
+  it('renders exactly 5 settings sections', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections).toHaveLength(6)
+    expect(sections).toHaveLength(5)
   })
 
   // ── Section presence ─────────────────────────────────────────────────────
@@ -123,11 +121,6 @@ describe('AutomationSettings', () => {
   it('renders the Processing Pipeline section', () => {
     renderPage()
     expect(screen.getByTestId('section-processing-pipeline')).toBeInTheDocument()
-  })
-
-  it('renders the Sidecar & Cleanup section', () => {
-    renderPage()
-    expect(screen.getByTestId('section-sidecar-cleanup')).toBeInTheDocument()
   })
 
   it('renders the Scheduled Tasks section', () => {
@@ -163,13 +156,6 @@ describe('AutomationSettings', () => {
     const wrapper = screen.getByTestId('section-processing-pipeline')
     const title = wrapper.querySelector('[data-testid="settings-section-title"]')
     expect(title).toHaveTextContent('Processing Pipeline')
-  })
-
-  it('shows "Sidecar & Cleanup" section title', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('section-sidecar-cleanup')
-    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
-    expect(title).toHaveTextContent('Sidecar & Cleanup')
   })
 
   it('shows "Scheduled Tasks" section title', () => {
@@ -237,131 +223,101 @@ describe('AutomationSettings', () => {
 
   // ── Search & Scan interactions ────────────────────────────────────────────
 
-  it('displays wanted_search_frequency value from config', () => {
+  it('displays wanted_search_interval_hours value from config', () => {
     renderPage()
-    const input = screen.getByTestId('input-wanted-search-frequency') as HTMLInputElement
-    expect(input.value).toBe('60')
+    const input = screen.getByTestId('input-wanted-search-interval-hours') as HTMLInputElement
+    expect(input.value).toBe('6')
   })
 
-  it('calls updateConfig with wanted_search_frequency on change', () => {
+  it('calls updateConfig with wanted_search_interval_hours as number on change', () => {
     renderPage()
-    const input = screen.getByTestId('input-wanted-search-frequency')
-    fireEvent.change(input, { target: { value: '120' } })
-    expect(mockMutate).toHaveBeenCalledWith({ wanted_search_frequency: '120' })
+    const input = screen.getByTestId('input-wanted-search-interval-hours')
+    fireEvent.change(input, { target: { value: '12' } })
+    expect(mockMutate).toHaveBeenCalledWith({ wanted_search_interval_hours: 12 })
   })
 
-  it('auto_search_on_download toggle reflects config value (true)', () => {
+  it('webhook_auto_search toggle reflects config value (true)', () => {
     renderPage()
-    const formGroup = screen.getByTestId('form-group-auto-search-on-download')
+    const formGroup = screen.getByTestId('form-group-webhook-auto-search')
     const toggle = formGroup.querySelector('[role="switch"]')
     expect(toggle).toHaveAttribute('aria-checked', 'true')
   })
 
-  it('scan_on_start toggle reflects config value (false)', () => {
+  it('wanted_search_on_startup toggle reflects config value (false)', () => {
     renderPage()
-    const formGroup = screen.getByTestId('form-group-scan-on-start')
+    const formGroup = screen.getByTestId('form-group-wanted-search-on-startup')
     const toggle = formGroup.querySelector('[role="switch"]')
     expect(toggle).toHaveAttribute('aria-checked', 'false')
   })
 
-  it('calls updateConfig with scan_on_start=true when toggle is clicked', () => {
+  it('calls updateConfig with wanted_search_on_startup=true when toggle is clicked', () => {
     renderPage()
-    const formGroup = screen.getByTestId('form-group-scan-on-start')
+    const formGroup = screen.getByTestId('form-group-wanted-search-on-startup')
     const toggle = formGroup.querySelector('[role="switch"]') as HTMLElement
     fireEvent.click(toggle)
-    expect(mockMutate).toHaveBeenCalledWith({ scan_on_start: true })
+    expect(mockMutate).toHaveBeenCalledWith({ wanted_search_on_startup: true })
   })
 
   // ── Upgrade Rules interactions ─────────────────────────────────────────────
 
-  it('displays auto_upgrade_threshold value from config', () => {
+  it('displays upgrade_min_score_delta value from config', () => {
     renderPage()
-    const input = screen.getByTestId('input-auto-upgrade-threshold') as HTMLInputElement
+    const input = screen.getByTestId('input-upgrade-min-score-delta') as HTMLInputElement
     expect(input.value).toBe('10')
   })
 
-  it('calls updateConfig with auto_upgrade_threshold as number on change', () => {
+  it('calls updateConfig with upgrade_min_score_delta as number on change', () => {
     renderPage()
-    const input = screen.getByTestId('input-auto-upgrade-threshold')
+    const input = screen.getByTestId('input-upgrade-min-score-delta')
     fireEvent.change(input, { target: { value: '20' } })
-    expect(mockMutate).toHaveBeenCalledWith({ auto_upgrade_threshold: 20 })
+    expect(mockMutate).toHaveBeenCalledWith({ upgrade_min_score_delta: 20 })
   })
 
-  it('auto_upgrade_enabled toggle reflects config value (false)', () => {
+  it('upgrade_enabled toggle reflects config value (false)', () => {
     renderPage()
-    const formGroup = screen.getByTestId('form-group-auto-upgrade-enabled')
+    const formGroup = screen.getByTestId('form-group-upgrade-enabled')
     const toggle = formGroup.querySelector('[role="switch"]')
     expect(toggle).toHaveAttribute('aria-checked', 'false')
   })
 
-  it('calls updateConfig with auto_upgrade_enabled=true when toggle is clicked', () => {
+  it('calls updateConfig with upgrade_enabled=true when toggle is clicked', () => {
     renderPage()
-    const formGroup = screen.getByTestId('form-group-auto-upgrade-enabled')
+    const formGroup = screen.getByTestId('form-group-upgrade-enabled')
     const toggle = formGroup.querySelector('[role="switch"]') as HTMLElement
     fireEvent.click(toggle)
-    expect(mockMutate).toHaveBeenCalledWith({ auto_upgrade_enabled: true })
+    expect(mockMutate).toHaveBeenCalledWith({ upgrade_enabled: true })
   })
 
   // ── Processing Pipeline interactions ──────────────────────────────────────
 
-  it('auto_translate toggle reflects config value (false)', () => {
+  it('wanted_auto_translate toggle reflects config value (false)', () => {
     renderPage()
-    const formGroup = screen.getByTestId('form-group-auto-translate')
+    const formGroup = screen.getByTestId('form-group-wanted-auto-translate')
     const toggle = formGroup.querySelector('[role="switch"]')
     expect(toggle).toHaveAttribute('aria-checked', 'false')
   })
 
-  it('calls updateConfig with auto_translate=true when toggle is clicked', () => {
+  it('calls updateConfig with wanted_auto_translate=true when toggle is clicked', () => {
     renderPage()
-    const formGroup = screen.getByTestId('form-group-auto-translate')
+    const formGroup = screen.getByTestId('form-group-wanted-auto-translate')
     const toggle = formGroup.querySelector('[role="switch"]') as HTMLElement
     fireEvent.click(toggle)
-    expect(mockMutate).toHaveBeenCalledWith({ auto_translate: true })
+    expect(mockMutate).toHaveBeenCalledWith({ wanted_auto_translate: true })
   })
 
-  it('calls updateConfig with auto_sync=true when toggle is clicked', () => {
+  it('calls updateConfig with auto_sync_after_download=true when toggle is clicked', () => {
     renderPage()
-    const formGroup = screen.getByTestId('form-group-auto-sync')
+    const formGroup = screen.getByTestId('form-group-auto-sync-after-download')
     const toggle = formGroup.querySelector('[role="switch"]') as HTMLElement
     fireEvent.click(toggle)
-    expect(mockMutate).toHaveBeenCalledWith({ auto_sync: true })
+    expect(mockMutate).toHaveBeenCalledWith({ auto_sync_after_download: true })
   })
 
-  it('calls updateConfig with auto_cleanup=true when toggle is clicked', () => {
+  it('calls updateConfig with auto_cleanup_after_extract=true when toggle is clicked', () => {
     renderPage()
-    const formGroup = screen.getByTestId('form-group-auto-cleanup')
+    const formGroup = screen.getByTestId('form-group-auto-cleanup-after-extract')
     const toggle = formGroup.querySelector('[role="switch"]') as HTMLElement
     fireEvent.click(toggle)
-    expect(mockMutate).toHaveBeenCalledWith({ auto_cleanup: true })
-  })
-
-  // ── Sidecar & Cleanup interactions ────────────────────────────────────────
-
-  it('keep_original_subs toggle reflects config value (true)', () => {
-    renderPage()
-    const formGroup = screen.getByTestId('form-group-keep-original-subs')
-    const toggle = formGroup.querySelector('[role="switch"]')
-    expect(toggle).toHaveAttribute('aria-checked', 'true')
-  })
-
-  it('calls updateConfig with keep_original_subs=false when toggle is clicked', () => {
-    renderPage()
-    const formGroup = screen.getByTestId('form-group-keep-original-subs')
-    const toggle = formGroup.querySelector('[role="switch"]') as HTMLElement
-    fireEvent.click(toggle)
-    expect(mockMutate).toHaveBeenCalledWith({ keep_original_subs: false })
-  })
-
-  it('displays sidecar_format value from config', () => {
-    renderPage()
-    const input = screen.getByTestId('input-sidecar-format') as HTMLInputElement
-    expect(input.value).toBe('srt')
-  })
-
-  it('calls updateConfig with sidecar_format on change', () => {
-    renderPage()
-    const input = screen.getByTestId('input-sidecar-format')
-    fireEvent.change(input, { target: { value: 'ass' } })
-    expect(mockMutate).toHaveBeenCalledWith({ sidecar_format: 'ass' })
+    expect(mockMutate).toHaveBeenCalledWith({ auto_cleanup_after_extract: true })
   })
 })

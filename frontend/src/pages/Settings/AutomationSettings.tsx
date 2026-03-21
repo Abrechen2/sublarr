@@ -11,7 +11,7 @@
  */
 import { lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Search, ArrowUpCircle, BarChart3, Workflow, FileX, Clock } from 'lucide-react'
+import { Search, ArrowUpCircle, BarChart3, Workflow, Clock } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
@@ -83,24 +83,24 @@ function SearchScanContent() {
   return (
     <div data-testid="search-scan-content">
       <FormGroup
-        label={t('settings.automation.searchScan.frequency', 'Wanted Search Frequency (min)')}
+        label={t('settings.automation.searchScan.interval', 'Wanted Search Interval (hours)')}
         hint={t(
-          'settings.automation.searchScan.frequencyHint',
-          'How often (in minutes) Sublarr searches for missing subtitles.',
+          'settings.automation.searchScan.intervalHint',
+          'How often (in hours) Sublarr searches for missing subtitles.',
         )}
-        htmlFor="wanted-search-frequency"
-        data-testid="form-group-wanted-search-frequency"
+        htmlFor="wanted-search-interval-hours"
+        data-testid="form-group-wanted-search-interval-hours"
       >
         <input
-          id="wanted-search-frequency"
+          id="wanted-search-interval-hours"
           type="number"
-          data-testid="input-wanted-search-frequency"
+          data-testid="input-wanted-search-interval-hours"
           style={{ ...inputStyle, maxWidth: '120px' }}
-          value={strVal(config, 'wanted_search_frequency', '60')}
-          onChange={(e) => save({ wanted_search_frequency: e.target.value })}
+          value={strVal(config, 'wanted_search_interval_hours', '6')}
+          onChange={(e) => save({ wanted_search_interval_hours: Number(e.target.value) })}
           disabled={updateConfig.isPending}
           min={1}
-          placeholder="60"
+          placeholder="6"
         />
       </FormGroup>
 
@@ -110,26 +110,26 @@ function SearchScanContent() {
           'settings.automation.searchScan.autoSearchOnDownloadHint',
           'Automatically trigger a subtitle search after a new download is detected.',
         )}
-        data-testid="form-group-auto-search-on-download"
+        data-testid="form-group-webhook-auto-search"
       >
         <Toggle
-          checked={boolVal(config, 'auto_search_on_download', true)}
-          onChange={(v) => save({ auto_search_on_download: v })}
+          checked={boolVal(config, 'webhook_auto_search', true)}
+          onChange={(v) => save({ webhook_auto_search: v })}
           disabled={updateConfig.isPending}
         />
       </FormGroup>
 
       <FormGroup
-        label={t('settings.automation.searchScan.scanOnStart', 'Scan on Start')}
+        label={t('settings.automation.searchScan.searchOnStartup', 'Search on Startup')}
         hint={t(
-          'settings.automation.searchScan.scanOnStartHint',
-          'Run a full library scan every time Sublarr starts.',
+          'settings.automation.searchScan.searchOnStartupHint',
+          'Run a wanted search every time Sublarr starts.',
         )}
-        data-testid="form-group-scan-on-start"
+        data-testid="form-group-wanted-search-on-startup"
       >
         <Toggle
-          checked={boolVal(config, 'scan_on_start', false)}
-          onChange={(v) => save({ scan_on_start: v })}
+          checked={boolVal(config, 'wanted_search_on_startup', false)}
+          onChange={(v) => save({ wanted_search_on_startup: v })}
           disabled={updateConfig.isPending}
         />
       </FormGroup>
@@ -156,31 +156,31 @@ function UpgradeRulesContent() {
           'settings.automation.upgradeRules.enabledHint',
           'Automatically replace existing subtitles when a higher-scoring one is found.',
         )}
-        data-testid="form-group-auto-upgrade-enabled"
+        data-testid="form-group-upgrade-enabled"
       >
         <Toggle
-          checked={boolVal(config, 'auto_upgrade_enabled', false)}
-          onChange={(v) => save({ auto_upgrade_enabled: v })}
+          checked={boolVal(config, 'upgrade_enabled', false)}
+          onChange={(v) => save({ upgrade_enabled: v })}
           disabled={updateConfig.isPending}
         />
       </FormGroup>
 
       <FormGroup
-        label={t('settings.automation.upgradeRules.threshold', 'Upgrade Score Threshold')}
+        label={t('settings.automation.upgradeRules.threshold', 'Minimum Score Delta')}
         hint={t(
           'settings.automation.upgradeRules.thresholdHint',
           'Minimum score improvement required before replacing an existing subtitle.',
         )}
-        htmlFor="auto-upgrade-threshold"
-        data-testid="form-group-auto-upgrade-threshold"
+        htmlFor="upgrade-min-score-delta"
+        data-testid="form-group-upgrade-min-score-delta"
       >
         <input
-          id="auto-upgrade-threshold"
+          id="upgrade-min-score-delta"
           type="number"
-          data-testid="input-auto-upgrade-threshold"
+          data-testid="input-upgrade-min-score-delta"
           style={{ ...inputStyle, maxWidth: '120px' }}
-          value={strVal(config, 'auto_upgrade_threshold', '10')}
-          onChange={(e) => save({ auto_upgrade_threshold: Number(e.target.value) })}
+          value={strVal(config, 'upgrade_min_score_delta', '10')}
+          onChange={(e) => save({ upgrade_min_score_delta: Number(e.target.value) })}
           disabled={updateConfig.isPending}
           min={0}
           placeholder="10"
@@ -188,24 +188,24 @@ function UpgradeRulesContent() {
       </FormGroup>
 
       <FormGroup
-        label={t('settings.automation.upgradeRules.checkFrequency', 'Upgrade Check Frequency (min)')}
+        label={t('settings.automation.upgradeRules.checkInterval', 'Upgrade Scan Interval (hours)')}
         hint={t(
-          'settings.automation.upgradeRules.checkFrequencyHint',
-          'How often (in minutes) existing subtitles are checked for upgrade candidates.',
+          'settings.automation.upgradeRules.checkIntervalHint',
+          'How often (in hours) existing subtitles are checked for upgrade candidates.',
         )}
-        htmlFor="upgrade-check-frequency"
-        data-testid="form-group-upgrade-check-frequency"
+        htmlFor="upgrade-scan-interval-hours"
+        data-testid="form-group-upgrade-scan-interval-hours"
       >
         <input
-          id="upgrade-check-frequency"
+          id="upgrade-scan-interval-hours"
           type="number"
-          data-testid="input-upgrade-check-frequency"
+          data-testid="input-upgrade-scan-interval-hours"
           style={{ ...inputStyle, maxWidth: '120px' }}
-          value={strVal(config, 'upgrade_check_frequency', '360')}
-          onChange={(e) => save({ upgrade_check_frequency: e.target.value })}
+          value={strVal(config, 'upgrade_scan_interval_hours', '24')}
+          onChange={(e) => save({ upgrade_scan_interval_hours: Number(e.target.value) })}
           disabled={updateConfig.isPending}
           min={1}
-          placeholder="360"
+          placeholder="24"
         />
       </FormGroup>
     </div>
@@ -231,11 +231,11 @@ function ProcessingPipelineContent() {
           'settings.automation.pipeline.autoTranslateHint',
           'Automatically translate downloaded subtitles to the target language.',
         )}
-        data-testid="form-group-auto-translate"
+        data-testid="form-group-wanted-auto-translate"
       >
         <Toggle
-          checked={boolVal(config, 'auto_translate', false)}
-          onChange={(v) => save({ auto_translate: v })}
+          checked={boolVal(config, 'wanted_auto_translate', false)}
+          onChange={(v) => save({ wanted_auto_translate: v })}
           disabled={updateConfig.isPending}
         />
       </FormGroup>
@@ -246,11 +246,11 @@ function ProcessingPipelineContent() {
           'settings.automation.pipeline.autoSyncHint',
           'Automatically synchronise subtitles to video timing after download.',
         )}
-        data-testid="form-group-auto-sync"
+        data-testid="form-group-auto-sync-after-download"
       >
         <Toggle
-          checked={boolVal(config, 'auto_sync', false)}
-          onChange={(v) => save({ auto_sync: v })}
+          checked={boolVal(config, 'auto_sync_after_download', false)}
+          onChange={(v) => save({ auto_sync_after_download: v })}
           disabled={updateConfig.isPending}
         />
       </FormGroup>
@@ -259,66 +259,14 @@ function ProcessingPipelineContent() {
         label={t('settings.automation.pipeline.autoCleanup', 'Auto-Cleanup')}
         hint={t(
           'settings.automation.pipeline.autoCleanupHint',
-          'Remove duplicate and redundant subtitle files automatically after processing.',
+          'Remove duplicate and redundant subtitle files automatically after extract.',
         )}
-        data-testid="form-group-auto-cleanup"
+        data-testid="form-group-auto-cleanup-after-extract"
       >
         <Toggle
-          checked={boolVal(config, 'auto_cleanup', false)}
-          onChange={(v) => save({ auto_cleanup: v })}
+          checked={boolVal(config, 'auto_cleanup_after_extract', false)}
+          onChange={(v) => save({ auto_cleanup_after_extract: v })}
           disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-    </div>
-  )
-}
-
-// ─── Sidecar & Cleanup Section ────────────────────────────────────────────────
-
-function SidecarCleanupContent() {
-  const { t } = useTranslation('common')
-  const { data: config, isLoading } = useConfig()
-  const updateConfig = useUpdateConfig()
-
-  const save = (patch: Record<string, unknown>) => updateConfig.mutate(patch)
-
-  if (isLoading) return <SectionSkeleton />
-
-  return (
-    <div data-testid="sidecar-cleanup-content">
-      <FormGroup
-        label={t('settings.automation.sidecar.keepOriginal', 'Keep Original Subtitles')}
-        hint={t(
-          'settings.automation.sidecar.keepOriginalHint',
-          'Preserve the original subtitle file alongside the processed one.',
-        )}
-        data-testid="form-group-keep-original-subs"
-      >
-        <Toggle
-          checked={boolVal(config, 'keep_original_subs', true)}
-          onChange={(v) => save({ keep_original_subs: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={t('settings.automation.sidecar.format', 'Sidecar Format')}
-        hint={t(
-          'settings.automation.sidecar.formatHint',
-          'File format used for sidecar subtitle files (e.g. srt, ass).',
-        )}
-        htmlFor="sidecar-format"
-        data-testid="form-group-sidecar-format"
-      >
-        <input
-          id="sidecar-format"
-          type="text"
-          data-testid="input-sidecar-format"
-          style={{ ...inputStyle, maxWidth: '160px' }}
-          value={strVal(config, 'sidecar_format', 'srt')}
-          onChange={(e) => save({ sidecar_format: e.target.value })}
-          disabled={updateConfig.isPending}
-          placeholder="srt"
         />
       </FormGroup>
     </div>
@@ -415,21 +363,7 @@ export function AutomationSettings() {
         </SettingsSection>
       </div>
 
-      {/* 5. Sidecar & Cleanup */}
-      <div data-testid="section-sidecar-cleanup">
-        <SettingsSection
-          title={t('settings.automation.sidecar.title', 'Sidecar & Cleanup')}
-          description={t(
-            'settings.automation.sidecar.description',
-            'Configure how sidecar subtitle files are stored and which originals are kept.',
-          )}
-          icon={<FileX size={16} style={{ color: 'var(--accent)' }} />}
-        >
-          <SidecarCleanupContent />
-        </SettingsSection>
-      </div>
-
-      {/* 6. Scheduled Tasks (advanced — collapsed by default) */}
+      {/* 5. Scheduled Tasks (advanced — collapsed by default) */}
       <div data-testid="section-scheduled-tasks">
         <SettingsSection
           title={t('settings.automation.scheduledTasks.title', 'Scheduled Tasks')}
