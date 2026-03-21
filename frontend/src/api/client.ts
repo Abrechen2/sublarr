@@ -404,6 +404,25 @@ export async function getProviderHealth(): Promise<Record<string, { healthy: boo
   return data
 }
 
+// ─── ffprobe cache ───────────────────────────────────────────────────────────
+
+export async function getFfprobeStats(): Promise<{ count: number; oldest?: string; newest?: string }> {
+  const { data } = await api.get('/cache/ffprobe/stats')
+  return data
+}
+
+export async function triggerFfprobeCleanup(): Promise<{ removed: number }> {
+  const { data } = await api.post('/cache/ffprobe/cleanup')
+  return data
+}
+
+// ─── Database vacuum ─────────────────────────────────────────────────────────
+
+export async function triggerDbVacuum(): Promise<{ status: string; message: string; duration_ms?: number }> {
+  const { data } = await api.post('/database/vacuum')
+  return data
+}
+
 export async function clearProviderCache(providerName?: string) {
   const body = providerName ? { provider_name: providerName } : {}
   const { data } = await api.post('/providers/cache/clear', body)

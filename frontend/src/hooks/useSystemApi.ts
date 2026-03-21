@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { toast } from '@/components/shared/Toast'
 import {
   getHealth, getUpdateInfo, getStats, getJobs,
   getBatchStatus, getConfig, updateConfig,
@@ -27,6 +28,7 @@ import {
   getCleanupHistory, getCleanupPreview,
   getSupportedLanguages,
   testSonarrInstance, testRadarrInstance,
+  getFfprobeStats, triggerFfprobeCleanup, triggerDbVacuum,
 } from '@/api/client'
 import type {
   LogRotationConfig, FilterScope,
@@ -708,5 +710,33 @@ export function useCleanupHistory(page = 1) {
 export function useCleanupPreview() {
   return useMutation({
     mutationFn: (ruleId?: number) => getCleanupPreview(ruleId),
+  })
+}
+
+// ─── ffprobe Cache ────────────────────────────────────────────────────────────
+
+export function useFfprobeStats() {
+  return useQuery({ queryKey: ['ffprobe-stats'], queryFn: getFfprobeStats })
+}
+
+export function useFfprobeCleanup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: triggerFfprobeCleanup,
+    onSuccess: (r) => {
+      toast(`Removed ${r.removed} stale ffprobe cache entries`)
+      void qc.invalidateQueries({ queryKey: ['ffprobe-stats'] })
+    },
+    onError: () => toast('Cleanup failed', 'error'),
+  })
+}
+
+// ─── Database Vacuum ─────────────────────────────────────────────────────────
+
+export function useDbVacuum() {
+  return useMutation({
+    mutationFn: triggerDbVacuum,
+    onSuccess: (r) => toast(r.message ?? 'Database vacuumed'),
+    onError: () => toast('Vacuum failed', 'error'),
   })
 }

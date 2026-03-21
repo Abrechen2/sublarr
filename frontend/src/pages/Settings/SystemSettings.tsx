@@ -52,6 +52,9 @@ const StandaloneSettingsTab = lazy(() =>
 const ConfigExportImportTab = lazy(() =>
   import('./ConfigExportImportTab').then((m) => ({ default: m.ConfigExportImportTab })),
 )
+const CacheTab = lazy(() =>
+  import('./CacheTab').then((m) => ({ default: m.CacheTab })),
+)
 
 // ─── Config value helpers ─────────────────────────────────────────────────────
 
@@ -455,7 +458,20 @@ export function SystemSettings() {
         </SettingsSection>
       </div>
 
-      {/* 12. Settings Export / Import */}
+      {/* 12. Cache Management */}
+      <div data-testid="section-cache-management">
+        <SettingsSection
+          title="Cache Management"
+          description="Manage application caches and database maintenance."
+          icon={<Database size={16} style={{ color: 'var(--accent)' }} />}
+        >
+          <Suspense fallback={<SectionSkeleton />}>
+            <CacheTab />
+          </Suspense>
+        </SettingsSection>
+      </div>
+
+      {/* 13. Settings Export / Import */}
       <div data-testid="section-config-export-import">
         <SettingsSection
           title={t('settings.system.configExportImport.title', 'Settings Export / Import')}
