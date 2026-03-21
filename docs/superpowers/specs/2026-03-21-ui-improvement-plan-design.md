@@ -86,8 +86,11 @@ Alle Werte werden aktuell verworfen. Neu schreiben mit korrekten Keys + Settings
 ### Schritt 3 — GeneralSettings › Interface-Section
 **Datei:** `GeneralSettings.tsx` — Section `section-interface`
 
-Bestehende Felder: Port, API-Key-Anzeige, Sprache — Design auf SettingsSection-Standard bringen.
-Keine neuen Felder in dieser Section.
+Bestehende Felder: Port, API-Key-Anzeige, `source_language`, `target_language` — Design auf SettingsSection-Standard bringen.
+Wichtig bei Sprach-Dropdowns: Wenn `source_language` oder `target_language` geändert wird, müssen **beide** Companion-Felder mitgespeichert werden:
+- `source_language_name` — Anzeigename der Quellsprache (aus Select-Label ableiten, z.B. `"English"`)
+- `target_language_name` — Anzeigename der Zielsprache (aus Select-Label ableiten, z.B. `"German"`)
+Diese Felder existieren in `config.py` und werden via `PATCH /api/v1/config` mitgesendet.
 
 **Commit:** `feat: align GeneralSettings interface section to design standard`
 
@@ -122,16 +125,23 @@ Fehlende Felder ergänzen:
 **Datei:** `AutomationSettings.tsx` — Section `section-search-scan`
 
 Bestehende (korrigierte) Felder: `wanted_search_interval_hours`, `wanted_search_on_startup`, `wanted_auto_translate`.
-Fehlende Felder ergänzen:
+Fehlende Felder ergänzen — **zwei visuelle Untergruppen** innerhalb der Section:
+
+**Untergruppe "Bibliotheks-Scan"** (File-Watcher-Subsystem):
+- `wanted_scan_interval_hours` — Number (0 = event-driven/deaktiviert)
+- `wanted_scan_on_startup` — Toggle
+
+**Untergruppe "Untertitel-Suche"** (Subtitle-Search-Subsystem):
 - `wanted_search_max_items_per_run` — Number
 - `wanted_max_search_attempts` — Number
 - `wanted_auto_extract` — Toggle
 - `wanted_anime_only` — Toggle
 - `wanted_anime_movies_only` — Toggle
 - `wanted_adaptive_backoff_enabled` — Toggle
-- `wanted_backoff_base_hours` — Number (nur sichtbar wenn Backoff aktiv)
-- `wanted_backoff_cap_hours` — Number (nur sichtbar wenn Backoff aktiv)
-- `wanted_skip_srt_on_no_ass` — Toggle
+- `wanted_backoff_base_hours` — Number (conditional: nur sichtbar wenn Backoff aktiv)
+- `wanted_backoff_cap_hours` — Number (conditional: nur sichtbar wenn Backoff aktiv)
+
+> `wanted_skip_srt_on_no_ass` gehört zu SubtitlesSettings (Schritt 11) — nicht hier.
 
 **Commit:** `feat: complete AutomationSettings wanted section`
 
@@ -171,7 +181,9 @@ Fehlende Felder ergänzen:
 - `auto_process_hi_removal` — Toggle
 - `auto_process_credit_removal` — Toggle
 - `auto_process_sync_threshold` — Number
+- `auto_process_sync_fallback_engine` — Select: `ffsubsync` | `alass`
 - `auto_nfo_export` — Toggle
+- `streaming_enabled` — Toggle (Web-Player Streaming-Endpunkt)
 - `jellyfin_play_translate_enabled` — Toggle
 
 **Commit:** `feat: complete AutomationSettings processing pipeline section`
@@ -241,6 +253,7 @@ Design auf Standard bringen. Keine neuen Felder bekannt.
 
 Bestehende Felder: Provider-Grid, Prioritäten, Credentials pro Provider.
 Fehlende Felder ergänzen:
+- `providers_hidden` — Text-Input (kommagetrennte Provider-IDs; Provider aus der UI ausblenden)
 - `dedup_on_download` — Toggle
 - `provider_auto_prioritize` — Toggle
 - `provider_rate_limit_enabled` — Toggle
@@ -252,12 +265,14 @@ Fehlende Felder ergänzen:
 
 ---
 
-### Schritt 16 — ProvidersSettings › Marketplace-Section
+### Schritt 16 — ProvidersSettings › Marketplace-Section + Plugin-Infrastruktur
 **Datei:** `ProvidersSettings.tsx` — Section `providers-marketplace-section`
 
 Bestehende Felder: Plugin-Marketplace.
 Fehlende Felder ergänzen:
 - `github_token` — Password-Input (höhere Rate-Limits beim Marketplace)
+- `plugins_dir` — Pfad-Input (Plugin-Verzeichnis, read-only wenn kein custom path)
+- `plugin_hot_reload` — Toggle (Live-Reload bei Dateiänderungen)
 
 Design auf Standard bringen.
 
@@ -360,15 +375,18 @@ Design auf Standard bringen.
 
 ---
 
-### Schritt 24 — NotificationsSettings › Quiet-Hours-Section (neu)
+### Schritt 24 — NotificationsSettings › Quiet-Hours-Section (Stub)
 **Datei:** `NotificationsSettings.tsx` — neue Section
 
-Neue Section mit eigener API (nicht `PATCH /config`):
-- Toggle "Quiet Hours aktivieren" → `POST /api/v1/notifications/quiet-hours` bei An, `DELETE /<id>` bei Aus
-- Time-Input "Von" (HH:MM) + "Bis" (HH:MM) → `PUT /api/v1/notifications/quiet-hours/<id>`
-- Laden: `GET /api/v1/notifications/quiet-hours`
+> **Wichtig:** Dieser Schritt baut nur den UI-Stub mit deaktivierten Controls und einem Info-Banner "Backend-Felder werden in Schritt 39 ergänzt". Keine API-Calls. Verwendet `PATCH /api/v1/config` (nicht eigene Route) — das ist konsistent mit allen anderen Settings.
 
-**Commit:** `feat: add quiet hours section to NotificationsSettings`
+Stub-Felder (disabled, Werte aus Config sobald Schritt 39 deployed):
+- Toggle "Quiet Hours aktivieren" (`quiet_hours_enabled`)
+- Time-Input "Von" (HH:MM) (`quiet_hours_start`)
+- Time-Input "Bis" (HH:MM) (`quiet_hours_end`)
+- Select Zeitzone (`quiet_hours_timezone`)
+
+**Commit:** `feat: add quiet hours UI stub to NotificationsSettings (backend fields in Step 39)`
 
 ---
 
@@ -465,13 +483,15 @@ Fehlende Felder (alle in `config.py`):
 
 ---
 
-### Schritt 32 — Re-scan Series
-**Dateien:** `SeriesHero.tsx` (Button verdrahten) + `backend/routes/library.py` (neue Route)
+### Schritt 32 — Re-scan Series + NFO Export Button
+**Dateien:** `SeriesHero.tsx` (Buttons verdrahten) + `backend/routes/library.py` (Re-scan-Route)
 
-- `POST /api/v1/series/<id>/scan` implementieren
-- Button: Loading-Spinner → Toast bei Erfolg/Fehler
+- `POST /api/v1/series/<id>/scan` implementieren (Re-scan)
+- Re-scan-Button: Loading-Spinner → Toast bei Erfolg/Fehler
+- NFO Export Button verdrahten → `POST /api/v1/subtitles/export-nfo` mit `series_id` Parameter (Route existiert bereits)
+- Analoger Button in zukünftiger MovieDetailPage (Schritt 36) — gleiche Route
 
-**Commit:** `feat: wire re-scan series button to new backend route`
+**Commit:** `feat: wire re-scan series and NFO export buttons`
 
 ---
 
@@ -532,15 +552,397 @@ Route: `/movies/<id>` in `App.tsx`
 
 ---
 
+## Phase 4 — Konzeptionell fehlende Backend-Felder + UI
+
+> Diese Schritte erfordern neue Felder in `backend/config.py` (Pydantic Settings) UND neue UI. Keine DB-Migration nötig — neue Pydantic-Felder werden beim ersten PATCH automatisch persistiert.
+>
+> **Deploy-Reihenfolge:** Backend-Code MUSS vor dem Frontend deployed sein. Das Pydantic-Feld muss in `Settings.model_fields` existieren, bevor der PATCH-Endpoint es akzeptiert. Im Dev-Modus (`npm run dev`) gilt das automatisch durch gleichzeitigen Neustart.
+
+---
+
+### Schritt 37 — GeneralSettings › Interface-Einstellungen (B3)
+**Dateien:** `backend/config.py` + `GeneralSettings.tsx`
+
+Neue `config.py`-Felder:
+- `interface_language: str = "en"` — Sprachauswahl (en/de)
+- `items_per_page: int = 25` — Einträge pro Seite (25/50/100)
+- `default_library_view: str = "grid"` — Standard-Bibliotheksansicht (grid/table)
+- `default_library_sort: str = "alpha"` — Standard-Sortierung (alpha/missing/recent)
+- `datetime_format: str = "relative"` — Datum-/Zeitformat (iso/local/relative)
+
+**Commit:** `feat: add interface settings fields (language, pagination, view defaults)`
+
+---
+
+### Schritt 38 — SubtitlesSettings › Untertitel-Benennung (B1)
+**Dateien:** `backend/config.py` + `SubtitlesSettings.tsx`
+
+Neue `config.py`-Felder:
+- `subtitle_language_code_format: str = "iso_639_1"` — Sprachcode-Format (iso_639_1/iso_639_2b/iso_639_2t)
+- `subtitle_suffix_separator: str = "dot"` — Trennzeichen (dot/underscore)
+- `subtitle_hi_suffix: str = "hi"` — HI-Suffix (z.B. `de.hi.ass`)
+- `subtitle_forced_suffix: str = "forced"` — Forced-Suffix
+
+**Commit:** `feat: add subtitle file naming configuration fields`
+
+---
+
+### Schritt 39 — NotificationsSettings › Ruhezeiten-Backend (B2)
+**Dateien:** `backend/config.py` + `NotificationsSettings.tsx` (Schritt 24 ergänzt)
+
+Neue `config.py`-Felder:
+- `quiet_hours_enabled: bool = False`
+- `quiet_hours_start: str = "23:00"`
+- `quiet_hours_end: str = "07:00"`
+- `quiet_hours_timezone: str = "UTC"`
+
+> Schritt 24 hat die UI bereits als Stub — diese Felder ermöglichen nun `PATCH /api/v1/config` statt eigener Route.
+
+**Commit:** `feat: add quiet hours backend config fields and wire to NotificationsSettings UI`
+
+---
+
+### Schritt 40 — SystemSettings › Automatische Backups (B4)
+**Dateien:** `backend/config.py` + `SystemSettings.tsx`
+
+Neue `config.py`-Felder:
+- `backup_auto_enabled: bool = False`
+- `backup_auto_interval_hours: int = 24`
+- `backup_auto_on_startup: bool = False`
+- `backup_notify_on_failure: bool = True`
+
+**Commit:** `feat: add auto backup schedule fields to config and SystemSettings`
+
+---
+
+### Schritt 41 — SystemSettings › Speicherplatz-Überwachung (B5)
+**Dateien:** `backend/config.py` + `SystemSettings.tsx`
+
+Neue `config.py`-Felder:
+- `disk_warning_threshold_percent: int = 90`
+- `disk_warning_notify: bool = True`
+
+**Commit:** `feat: add disk space monitoring config fields and UI`
+
+---
+
+### Schritt 42 — SubtitlesSettings › Scan Ignore-Patterns (B6)
+**Dateien:** `backend/config.py` + `SubtitlesSettings.tsx`
+
+Neue `config.py`-Felder:
+- `scan_ignore_patterns: str = "[]"` — JSON-Array von Glob-Patterns
+- `scan_min_file_size_mb: float = 0.0` — Min. Dateigröße
+- `scan_ignore_languages: str = "[]"` — JSON-Array von Sprachcodes
+
+**Commit:** `feat: add scan ignore patterns and filters to config and SubtitlesSettings`
+
+---
+
+### Schritt 43 — SubtitlesSettings › Pro-Sprache Score-Schwellenwerte (B7)
+**Dateien:** `backend/config.py` + `SubtitlesSettings.tsx`
+
+Neue `config.py`-Felder:
+- `score_threshold_per_language: str = "{}"` — JSON-Map (`{"de": 60, "en": 40}`)
+
+UI: JSON-Editor oder Sprache+Score-Zeilen mit Add/Remove.
+
+**Commit:** `feat: add per-language score threshold config and UI`
+
+---
+
+### Schritt 44 — ProvidersSettings › Download-Limits (B8)
+**Dateien:** `backend/config.py` + `ProvidersSettings.tsx`
+
+Neue `config.py`-Felder:
+- `max_concurrent_provider_searches: int = 3`
+- `max_subtitle_file_size_kb: int = 2048`
+- `download_delay_between_providers_ms: int = 0`
+
+**Commit:** `feat: add download limits and rate controls to config and ProvidersSettings`
+
+---
+
+### Schritt 45 — TranslationSettings › Übersetzungskontext (B9)
+**Dateien:** `backend/config.py` + `TranslationTab.tsx`
+
+Neue `config.py`-Felder:
+- `translation_use_episode_context: bool = False`
+- `translation_context_episodes: int = 1`
+- `translation_series_glossary_auto: bool = False`
+
+**Commit:** `feat: add translation context settings to config and TranslationSettings`
+
+---
+
+### Schritt 46 — SystemSettings › Erweiterte Sicherheit (B10)
+**Dateien:** `backend/config.py` + `SecurityTab.tsx`
+
+Neue `config.py`-Felder:
+- `session_timeout_minutes: int = 0` — 0 = kein Auto-Logout
+- `max_login_attempts: int = 20` — Standardwert matcht `_FAIL_LIMIT = 20` in `auth.py`
+- `lockout_duration_minutes: int = 60`
+- `allowed_ip_ranges: str = ""` — kommagetrennte CIDR-Ranges
+
+**Backend-Änderung erforderlich:** `backend/auth.py` muss angepasst werden, um `max_login_attempts` und `lockout_duration_minutes` aus Settings zu lesen. Das aktuelle Sliding-Window-System (`_FAIL_WINDOW = 60s`) muss zu einem konfigurierbaren Hard-Lockout geändert werden. Die config.py-Felder allein reichen nicht — `auth.py` muss die Werte aktiv einlesen.
+
+**Commit:** `feat: add extended security settings to config + wire to auth.py`
+
+---
+
+## Phase 5 — Fehlende UI für vorhandene Backend-Features
+
+> Diese Schritte benötigen keine neuen Backend-Felder — die Routen existieren bereits.
+
+---
+
+### Schritt 47 — SystemSettings › Einstellungen Export/Import (A8)
+**Datei:** `SystemSettings.tsx` — neue Section
+
+- Export → `GET /api/v1/config/export` → Browser-Download
+- Import → File-Upload → `POST /api/v1/config/import` → Bestätigungs-Dialog
+
+**Commit:** `feat: add settings export/import UI to SystemSettings`
+
+---
+
+### Schritt 48 — TranslationSettings › Translation Memory & Ollama Pull (A6)
+**Datei:** `TranslationTab.tsx` — neue Section
+
+- Stats → `GET /api/v1/translation-memory/stats` → Anzeige (Einträge, Größe)
+- Cache leeren → `DELETE /api/v1/translation-memory/cache` → Bestätigungs-Dialog
+- Ollama-Modell herunterladen → Eingabefeld + Button → `POST /api/v1/backends/ollama/pull` → Progress (SocketIO oder Polling)
+
+**Commit:** `feat: add translation memory management and Ollama model pull to TranslationSettings`
+
+---
+
+### Schritt 49 — NotificationsSettings › Benachrichtigungsverlauf (A5)
+**Datei:** `NotificationsSettings.tsx` — neue Section oder Tab
+
+- Liste → `GET /api/v1/notifications/history` — Tabelle (Zeit, Event, Status)
+- Erneut senden → `POST /api/v1/notifications/history/<id>/resend`
+
+**Commit:** `feat: add notification history section to NotificationsSettings`
+
+---
+
+### Schritt 50 — Hook Manager (A4)
+**Neue Datei:** `frontend/src/pages/Hooks.tsx`
+
+CRUD + Test + Logs:
+- Liste → `GET /api/v1/hooks`
+- Neu/Bearbeiten → Modal → `POST`/`PUT /api/v1/hooks/<id>`
+- Löschen → Dialog → `DELETE /api/v1/hooks/<id>`
+- Testen → Button → `POST /api/v1/hooks/<id>/test` → Toast
+- Logs → Panel → `GET /api/v1/hooks/logs` + `DELETE /api/v1/hooks/logs`
+
+Route: `/settings/hooks` in `App.tsx`
+
+**Commit:** `feat: add Hook Manager page with CRUD, test, and logs`
+
+---
+
+### Schritt 51 — Subtitle Editor › Format-Tools (A7)
+**Dateien:** Subtitle-Editor-Komponente (bestehend)
+
+Toolbar-Erweiterungen:
+- Zeilen aufteilen → `POST /api/v1/split-lines`
+- Timing normalisieren → `POST /api/v1/timing-normalize`
+- Format konvertieren → Dropdown + Button → `POST /api/v1/convert`
+
+**Commit:** `feat: add split-lines, timing-normalize and format-convert tools to subtitle editor`
+
+---
+
+## Phase 6 — Vollständige Feature-Abdeckung (bisher nicht abgedeckte Gap-Items)
+
+> Alle restlichen Punkte aus `UI_GAP_ANALYSIS.md` A1–A9 und B1–B7. Backend-Routen existieren bereits.
+
+---
+
+### Schritt 52 — Library › Saison-Batch-Aktionen (B1)
+**Dateien:** `SeriesDetail.tsx` + `backend/routes/library.py` (neue Route)
+
+- Neue Backend-Route: `POST /api/v1/series/<id>/seasons/<n>/search` implementieren (existiert noch nicht)
+- Button "Alle fehlenden suchen" pro Season-Tab, Loading-State, Toast bei Erfolg/Fehler
+
+**Commit:** `feat: add season-level batch search route and UI action`
+
+---
+
+### Schritt 53 — Dashboard › Update-Check & Changelog (B4)
+**Datei:** Neue Komponente in Dashboard oder `SystemSettings.tsx`
+
+- Update-Check → `GET /api/v1/update` → Badge/Banner "Neue Version verfügbar"
+- Changelog-Modal oder Inline-Anzeige
+- Auto-Check beim App-Start (einmal pro Session)
+
+**Commit:** `feat: add update check and changelog display to dashboard`
+
+---
+
+### Schritt 54 — Library › Provider Rate-Limit-Status (B4)
+**Datei:** Dashboard oder neue StatusPanel-Komponente
+
+- Verbleibende Quota pro Provider (aus Provider-Antworten)
+- Route: Erweiterung von `GET /api/v1/providers/status` oder eigene Route
+- Anzeige als kleine Badges im Provider-Grid
+
+**Commit:** `feat: add provider rate limit and circuit breaker status display`
+
+---
+
+### Schritt 55 — System › ffprobe-Cache-Verwaltung (B4)
+**Datei:** `SystemSettings.tsx` — neue Subsection unter "System"
+
+- Stats → `GET /api/v1/cache/ffprobe/stats` — Einträge, Größe, Hit-Rate
+- Cleanup → Button → `POST /api/v1/cache/ffprobe/cleanup` → Bestätigungs-Dialog
+
+**Commit:** `feat: add ffprobe cache stats and cleanup to SystemSettings`
+
+---
+
+### Schritt 56 — Wanted › Batch-Übersetzen (A6)
+**Datei:** Wanted-Seite (bestehend)
+
+- "Alle übersetzen" Schaltfläche → `POST /api/v1/wanted/batch-translate`
+- Progress-Anzeige via SocketIO oder Polling
+- Filter: nur untranslatete Items
+
+**Commit:** `feat: add batch translate action to Wanted page`
+
+---
+
+### Schritt 57 — Wanted › Cleanup & Refresh (A8)
+**Datei:** Wanted-Seite (bestehend)
+
+- "Aufräumen" → `POST /api/v1/wanted/cleanup` — verwaiste Wanted-Einträge löschen
+- "Aktualisieren" → `POST /api/v1/wanted/refresh` — Wanted-Liste neu aufbauen
+- Buttons als Secondary-Actions in der Wanted-Toolbar
+
+**Commit:** `feat: add cleanup and refresh actions to Wanted page`
+
+---
+
+### Schritt 58 — Translation › Backend-Statistiken (B4)
+**Datei:** `TranslationTab.tsx` — neue Stats-Section
+
+- Stats → `GET /api/v1/backends/stats` — Erfolgsquote, Latenz, Token-Verbrauch pro Backend
+- Anzeige als Karten/Tabelle
+
+**Commit:** `feat: add translation backend stats section to TranslationSettings`
+
+---
+
+### Schritt 59 — Library › Kompatibilitäts-Check (A1)
+**Datei:** `SeriesDetail.tsx` und `MovieDetail.tsx`
+
+- Check-Button → `POST /api/v1/compat-check` (Serien) / `POST /api/v1/compat-check/single` (Film)
+- Ergebnis-Modal: Kompatibilität der gefundenen Untertitel mit dem Player
+
+**Commit:** `feat: add compatibility check button to series and movie detail pages`
+
+---
+
+### Schritt 60 — Import › Bazarr-Import-Wizard (B6)
+**Neue Datei:** `frontend/src/pages/BazarrImport.tsx`
+
+- Step 1: Pfad-Eingabe für Bazarr-Datenbank
+- Step 2: Vorschau (wie viele Items werden importiert)
+- Step 3: Import starten → `POST /api/v1/import/bazarr` → Progress
+- Route: `/import/bazarr`
+
+**Commit:** `feat: add Bazarr import wizard page`
+
+---
+
+### Schritt 61 — System › Datenbank-Vacuum (A8)
+**Datei:** `SystemSettings.tsx` — Section "Datenbank"
+
+- "Datenbank optimieren" → `POST /api/v1/database/vacuum` → Toast
+- Info-Text: "Reduziert die Datenbankgröße und verbessert die Performance"
+
+**Commit:** `feat: add database vacuum action to SystemSettings`
+
+---
+
+### Schritt 62 — SeriesDetail/MovieDetail › Whisper Transkription (B7)
+**Dateien:** `SeriesDetail.tsx` / `MovieDetail.tsx`
+
+- "Audio → Untertitel" Button bei Episode → `POST /api/v1/transcribe` mit `episode_id`
+- Modell-Auswahl (Whisper-Größe) im Dialog
+- Progress via SocketIO
+
+**Commit:** `feat: add Whisper transcription action to episode detail`
+
+---
+
+### Schritt 63 — SeriesDetail › OP/ED-Erkennung (B7)
+**Datei:** `SeriesDetail.tsx` — Episode-Aktionen
+
+- "OP/ED erkennen" Button → `POST /api/v1/detect-opening-ending` mit `episode_id`
+- Ergebnis-Anzeige: erkannte Zeitfenster
+- Option: "Erkannte Fenster aus Untertiteln ausschließen"
+
+**Commit:** `feat: add OP/ED detection action to episode detail`
+
+---
+
+### Schritt 64 — System › AniDB-Mapping-Verwaltung (B7)
+**Datei:** `SystemSettings.tsx` — AniDB-Section (aus Schritt 29) erweitern
+
+- Cache-Einträge → `GET /api/v1/anidb/mappings` (Route prüfen in `backend/routes/` — ggf. neu anlegen)
+- Manuell überschreiben → `PUT /api/v1/anidb/mappings/<anidb_id>` → ID-Mapping-Tabelle
+- Cache leeren → `DELETE /api/v1/anidb/cache`
+
+> Falls diese Routen noch nicht existieren: in `backend/routes/anidb.py` anlegen (analog zu anderen Management-Routen).
+
+**Commit:** `feat: add AniDB mapping cache viewer and management to SystemSettings`
+
+---
+
+### Schritt 65 — Settings › Eingehende Webhooks konfigurieren (A1)
+**Neue Datei:** `frontend/src/pages/WebhooksSettings.tsx` (oder neue Section in `ConnectionsSettings.tsx`)
+
+> Separate Feature von Hook Manager (Schritt 50). Eingehende Webhooks = Sonarr/Radarr/externe Systeme rufen Sublarr an. Hook Manager = Sublarr ruft externe Systeme an.
+
+- Liste → `GET /api/v1/webhooks`
+- Neu/Bearbeiten → Modal → `POST`/`PUT /api/v1/webhooks/<id>`
+- Löschen → Dialog → `DELETE /api/v1/webhooks/<id>`
+- Jeder Webhook: Name, Event-Typ, Secret, Aktiviert-Toggle
+- Anzeige der Webhook-URL die Sonarr/Radarr konfigurieren muss
+
+Route: `/settings/webhooks` in `App.tsx`
+
+**Commit:** `feat: add incoming webhook configuration page`
+
+---
+
+### Schritt 66 — System › Remux-UI (B7)
+**Datei:** `SeriesDetail.tsx` / `MovieDetail.tsx`
+
+Routen aus `backend/routes/remux.py` (bereits vorhanden — Routen prüfen):
+- Remux starten → `POST /api/v1/remux` mit `{ media_id, media_type }` — Konfigurations-Dialog vor Start
+- Status abfragen → `GET /api/v1/remux/status/<job_id>` (oder SocketIO-Event)
+- Ergebnis-Toast: Erfolg / Fehler mit Backup-Pfad
+- Einstellungen (remux_trash_dir, remux_backup_retention_days, etc.) kommen aus Schritt 30
+
+> Implementierungshinweis: Routen aus `backend/routes/remux.py` lesen bevor UI gebaut wird — tatsächliche Endpoint-Namen verifizieren.
+
+**Commit:** `feat: add Remux action UI to series and movie detail pages`
+
+---
+
 ## Qualitätssicherung nach jedem Schritt
 
-1. `docs/PROTECTED.md` aktualisieren (nach User-Bestätigung)
+1. `docs/PROTECTED.md` aktualisieren (nach User-Bestätigung oder bei autonomem Batch)
 2. `cd frontend && npm run lint && npx tsc --noEmit`
 3. Backend (wenn verändert): `cd backend && ruff check . && ruff format --check .`
 
 ---
 
-*Spec-Status: Zur User-Freigabe bereit*
-*36 Schritte — Phase 1: 2 | Phase 2: 29 | Phase 3: 5*
+*Spec-Status: Vollständig — alle Gap-Analysis-Punkte abgedeckt (2026-03-21)*
+*66 Schritte — Phase 1: 2 | Phase 2: 29 | Phase 3: 5 | Phase 4: 10 | Phase 5: 5 | Phase 6: 15*
+*Korrekturen: wanted_scan_interval_hours + wanted_scan_on_startup (Step 6), auto_process_sync_fallback_engine + streaming_enabled (Step 9), NFO-Export-Button (Step 32), Quiet Hours Stub statt eigene API (Step 24), wanted_skip_srt_on_no_ass nur in Step 11, providers_hidden (Step 15), source_language_name (Step 3), auth.py Hinweis (Step 46)*
 *Referenz: `mockups/concept-final.html`, `mockups/concept-drilldown.html`*
 *Gap-Analyse: `docs/SETTINGS_GAP_ANALYSIS.md`, `docs/UI_GAP_ANALYSIS.md`*
