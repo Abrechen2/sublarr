@@ -531,6 +531,10 @@ export interface StandaloneMovie {
   updated_at: string
 }
 
+export interface MovieDetail extends StandaloneMovie {
+  wanted_count?: number
+}
+
 export interface StandaloneStatus {
   enabled: boolean
   watcher_running: boolean

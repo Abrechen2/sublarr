@@ -494,6 +494,55 @@ def list_movies():
         return jsonify({"error": "Failed to list standalone movies"}), 500
 
 
+@bp.route("/movies/<int:movie_id>", methods=["GET"])
+def get_movie(movie_id):
+    """Get a single standalone movie by ID.
+    ---
+    get:
+      tags:
+        - Standalone
+      summary: Get standalone movie
+      description: Returns a single standalone movie by ID with wanted count.
+      parameters:
+        - in: path
+          name: movie_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Movie found
+          content:
+            application/json:
+              schema:
+                type: object
+        404:
+          description: Movie not found
+        500:
+          description: Server error
+    """
+    from db import get_db
+    from db.standalone import get_standalone_movies
+
+    movie = get_standalone_movies(movie_id)
+    if not movie:
+        return jsonify({"error": "Movie not found"}), 404
+
+    try:
+        db = get_db()
+        row = db.execute(
+            text(
+                "SELECT COUNT(*) FROM wanted_items WHERE standalone_movie_id=:mid AND status='wanted'"
+            ),
+            {"mid": movie_id},
+        ).fetchone()
+        movie["wanted_count"] = row[0] if row else 0
+        return jsonify(movie)
+    except Exception as e:
+        logger.error("Failed to get movie %d: %s", movie_id, e)
+        return jsonify({"error": "Failed to get movie"}), 500
+
+
 @bp.route("/movies/<int:movie_id>/poster", methods=["GET"])
 def movie_poster(movie_id):
     """Serve the local poster image for a standalone movie."""

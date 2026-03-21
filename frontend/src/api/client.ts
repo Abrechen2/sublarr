@@ -7,7 +7,7 @@ import type {
   PaginatedBlacklist, PaginatedHistory, HistoryStats,
   TranslationBackendInfo, BackendConfig, BackendHealthResult, BackendStats,
   MediaServerType, MediaServerInstance, MediaServerTestResult, MediaServerHealthResult,
-  WatchedFolder, StandaloneSeries, StandaloneMovie, StandaloneStatus,
+  WatchedFolder, StandaloneSeries, StandaloneMovie, StandaloneStatus, MovieDetail,
   HookConfig, WebhookConfig,
   StatisticsData, FullBackupInfo, SubtitleToolResult, LogRotationConfig,
   TasksResponse,
@@ -874,6 +874,11 @@ export async function getStandaloneSeries(): Promise<StandaloneSeries[]> {
 
 export async function getStandaloneMovies(): Promise<StandaloneMovie[]> {
   const { data } = await api.get('/standalone/movies')
+  return data
+}
+
+export async function getMovieDetail(movieId: number): Promise<MovieDetail> {
+  const { data } = await api.get(`/standalone/movies/${movieId}`)
   return data
 }
 

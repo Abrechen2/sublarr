@@ -14,6 +14,7 @@ import {
   getSeriesFansubPrefs, setSeriesFansubPrefs, deleteSeriesFansubPrefs,
   updateSeriesSettings,
   rescanSeries,
+  getMovieDetail,
 } from '@/api/client'
 import type { BatchAction } from '@/lib/types'
 
@@ -317,5 +318,13 @@ export function useRescanSeries() {
       void qc.invalidateQueries({ queryKey: ['series', seriesId] })
       void qc.invalidateQueries({ queryKey: ['library'] })
     },
+  })
+}
+
+export function useMovieDetail(movieId: number | null) {
+  return useQuery({
+    queryKey: ['movie', movieId],
+    queryFn: () => (movieId != null ? getMovieDetail(movieId) : Promise.resolve(null)),
+    enabled: movieId != null,
   })
 }
