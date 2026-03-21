@@ -1,9 +1,7 @@
-import { Globe, HardDrive, FileText, Languages } from 'lucide-react'
+import { Globe, HardDrive, FileText } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
-import { FeatureAddon } from '@/components/settings/FeatureAddon'
-import { Toggle } from '@/components/shared/Toggle'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 
 // ─── Config value helpers ─────────────────────────────────────────────────────
@@ -12,13 +10,6 @@ function strVal(config: unknown, key: string, fallback = ''): string {
   if (!config || typeof config !== 'object') return fallback
   const v = (config as Record<string, unknown>)[key]
   return v !== undefined && v !== null ? String(v) : fallback
-}
-
-function boolVal(config: unknown, key: string, fallback = false): boolean {
-  if (!config || typeof config !== 'object') return fallback
-  const v = (config as Record<string, unknown>)[key]
-  if (v === undefined || v === null) return fallback
-  return v === true || v === 'true' || v === 1
 }
 
 // ─── Shared input style ───────────────────────────────────────────────────────
@@ -189,18 +180,37 @@ export function GeneralSettings() {
             advanced={
               <>
                 <FormGroup
-                  label="Workers"
-                  hint="Number of worker threads for the backend server"
-                  htmlFor="workers"
-                  data-testid="form-group-workers"
+                  label="Translation Workers"
+                  hint="Parallel threads for subtitle translation jobs"
+                  htmlFor="translation-max-workers"
+                  data-testid="form-group-translation-max-workers"
                 >
                   <input
-                    id="workers"
+                    id="translation-max-workers"
                     type="number"
-                    data-testid="input-workers"
+                    data-testid="input-translation-max-workers"
                     style={{ ...inputStyle, maxWidth: '120px' }}
-                    value={strVal(config, 'workers', '4')}
-                    onChange={(e) => save({ workers: Number(e.target.value) })}
+                    value={strVal(config, 'translation_max_workers', '2')}
+                    onChange={(e) => save({ translation_max_workers: Number(e.target.value) })}
+                    disabled={isPending}
+                    min={1}
+                    max={32}
+                  />
+                </FormGroup>
+
+                <FormGroup
+                  label="Metadata Scan Workers"
+                  hint="Parallel threads for metadata scanning"
+                  htmlFor="scan-metadata-max-workers"
+                  data-testid="form-group-scan-metadata-max-workers"
+                >
+                  <input
+                    id="scan-metadata-max-workers"
+                    type="number"
+                    data-testid="input-scan-metadata-max-workers"
+                    style={{ ...inputStyle, maxWidth: '120px' }}
+                    value={strVal(config, 'scan_metadata_max_workers', '2')}
+                    onChange={(e) => save({ scan_metadata_max_workers: Number(e.target.value) })}
                     disabled={isPending}
                     min={1}
                     max={32}
@@ -314,29 +324,25 @@ export function GeneralSettings() {
             </FormGroup>
 
             <FormGroup
-              label="Log to File"
-              hint="Write log output to a file in addition to stdout"
-              data-testid="form-group-log-to-file"
+              label="Log File Path"
+              hint="Write logs to this file path, e.g. /config/sublarr.log. Leave empty to disable."
+              htmlFor="log-file"
+              data-testid="form-group-log-file"
             >
-              <Toggle
-                checked={boolVal(config, 'log_to_file', false)}
-                onChange={(v) => save({ log_to_file: v })}
+              <input
+                id="log-file"
+                type="text"
+                data-testid="input-log-file"
+                style={inputStyle}
+                value={strVal(config, 'log_file', '')}
+                onChange={(e) => save({ log_file: e.target.value })}
                 disabled={isPending}
+                placeholder="/config/sublarr.log"
               />
             </FormGroup>
           </SettingsSection>
         </div>
 
-        {/* ── Translation feature addon ─────────────────────────────────── */}
-        <div data-testid="section-translation-addon">
-          <FeatureAddon
-            icon={Languages}
-            title="Translation"
-            description="Enable AI-powered subtitle translation between languages"
-            isEnabled={boolVal(config, 'translation_enabled', false)}
-            onToggle={(v) => save({ translation_enabled: v })}
-          />
-        </div>
       </div>
     </SettingsDetailLayout>
   )

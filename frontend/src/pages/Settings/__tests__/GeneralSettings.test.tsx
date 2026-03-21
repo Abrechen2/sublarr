@@ -21,12 +21,12 @@ const mockConfig: Record<string, unknown> = {
   forced_preference: 'include',
   media_path: '/media',
   port: 5765,
-  workers: 4,
+  translation_max_workers: 2,
+  scan_metadata_max_workers: 2,
   base_url: '',
   db_path: '/config/sublarr.db',
   log_level: 'INFO',
-  log_to_file: false,
-  translation_enabled: false,
+  log_file: '',
 }
 
 const mockMutate = vi.fn()
@@ -186,7 +186,43 @@ describe('GeneralSettings', () => {
     fireEvent.click(advancedToggle)
     expect(screen.getByTestId('input-db-path')).toBeInTheDocument()
     expect(screen.getByTestId('input-base-url')).toBeInTheDocument()
-    expect(screen.getByTestId('input-workers')).toBeInTheDocument()
+    expect(screen.getByTestId('input-translation-max-workers')).toBeInTheDocument()
+    expect(screen.getByTestId('input-scan-metadata-max-workers')).toBeInTheDocument()
+  })
+
+  it('shows translation_max_workers and scan_metadata_max_workers in advanced section', () => {
+    renderWithProviders(<GeneralSettings />)
+    const pathsSection = screen.getByTestId('section-paths')
+    const advancedToggle = pathsSection.querySelector(
+      '[data-testid="settings-section-advanced-toggle"]',
+    ) as HTMLElement
+    fireEvent.click(advancedToggle)
+    expect(screen.getByTestId('input-translation-max-workers')).toBeInTheDocument()
+    expect(screen.getByTestId('input-scan-metadata-max-workers')).toBeInTheDocument()
+  })
+
+  it('calls updateConfig with translation_max_workers on change', () => {
+    renderWithProviders(<GeneralSettings />)
+    const pathsSection = screen.getByTestId('section-paths')
+    const advancedToggle = pathsSection.querySelector(
+      '[data-testid="settings-section-advanced-toggle"]',
+    ) as HTMLElement
+    fireEvent.click(advancedToggle)
+    const input = screen.getByTestId('input-translation-max-workers')
+    fireEvent.change(input, { target: { value: '4' } })
+    expect(mockMutate).toHaveBeenCalledWith({ translation_max_workers: 4 })
+  })
+
+  it('calls updateConfig with scan_metadata_max_workers on change', () => {
+    renderWithProviders(<GeneralSettings />)
+    const pathsSection = screen.getByTestId('section-paths')
+    const advancedToggle = pathsSection.querySelector(
+      '[data-testid="settings-section-advanced-toggle"]',
+    ) as HTMLElement
+    fireEvent.click(advancedToggle)
+    const input = screen.getByTestId('input-scan-metadata-max-workers')
+    fireEvent.change(input, { target: { value: '3' } })
+    expect(mockMutate).toHaveBeenCalledWith({ scan_metadata_max_workers: 3 })
   })
 
   it('calls updateConfig with db_path when advanced field changes', () => {
@@ -229,58 +265,23 @@ describe('GeneralSettings', () => {
     expect(mockMutate).toHaveBeenCalledWith({ log_level: 'DEBUG' })
   })
 
-  it('renders log_to_file as a Toggle (role="switch")', () => {
+  it('renders log_file as a text input (not a toggle)', () => {
     renderWithProviders(<GeneralSettings />)
-    const formGroup = screen.getByTestId('form-group-log-to-file')
-    const toggle = formGroup.querySelector('[role="switch"]')
-    expect(toggle).not.toBeNull()
+    expect(screen.getByTestId('input-log-file')).toBeInTheDocument()
+    expect(screen.queryByTestId('form-group-log-to-file')).toBeNull()
   })
 
-  it('Toggle reflects log_to_file=false from config', () => {
+  it('displays the log_file value from config', () => {
     renderWithProviders(<GeneralSettings />)
-    const formGroup = screen.getByTestId('form-group-log-to-file')
-    const toggle = formGroup.querySelector('[role="switch"]') as HTMLElement
-    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    const input = screen.getByTestId('input-log-file') as HTMLInputElement
+    expect(input.value).toBe('')
   })
 
-  it('calls updateConfig with log_to_file=true when toggle is clicked', () => {
+  it('calls updateConfig with log_file string on change', () => {
     renderWithProviders(<GeneralSettings />)
-    const formGroup = screen.getByTestId('form-group-log-to-file')
-    const toggle = formGroup.querySelector('[role="switch"]') as HTMLElement
-    fireEvent.click(toggle)
-    expect(mockMutate).toHaveBeenCalledWith({ log_to_file: true })
-  })
-
-  // ── Translation feature addon ────────────────────────────────────────────
-
-  it('renders the Translation feature addon section', () => {
-    renderWithProviders(<GeneralSettings />)
-    expect(screen.getByTestId('section-translation-addon')).toBeInTheDocument()
-  })
-
-  it('renders the FeatureAddon card', () => {
-    renderWithProviders(<GeneralSettings />)
-    expect(screen.getByTestId('feature-addon')).toBeInTheDocument()
-  })
-
-  it('shows "Translation" as addon title', () => {
-    renderWithProviders(<GeneralSettings />)
-    expect(screen.getByTestId('feature-addon-title')).toHaveTextContent('Translation')
-  })
-
-  it('addon toggle reflects translation_enabled=false', () => {
-    renderWithProviders(<GeneralSettings />)
-    const addonToggle = screen.getByTestId('feature-addon-status').querySelector('[role="switch"]')
-    expect(addonToggle).toHaveAttribute('aria-checked', 'false')
-  })
-
-  it('calls updateConfig with translation_enabled=true when addon toggle is clicked', () => {
-    renderWithProviders(<GeneralSettings />)
-    const addonToggle = screen.getByTestId('feature-addon-status').querySelector(
-      '[role="switch"]',
-    ) as HTMLElement
-    fireEvent.click(addonToggle)
-    expect(mockMutate).toHaveBeenCalledWith({ translation_enabled: true })
+    const input = screen.getByTestId('input-log-file')
+    fireEvent.change(input, { target: { value: '/config/sublarr.log' } })
+    expect(mockMutate).toHaveBeenCalledWith({ log_file: '/config/sublarr.log' })
   })
 
   // ── Default value fallbacks ──────────────────────────────────────────────
