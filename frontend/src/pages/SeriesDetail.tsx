@@ -5,13 +5,10 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { SeasonSummaryBar } from '@/components/library/SeasonSummaryBar'
-import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useStartWantedBatch, useUpdateSeriesSettings, useAnidbMappingStatus, useRefreshAnidbMapping, useStreamingEnabled, useSeriesFansubPrefs } from '@/hooks/useApi'
+import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useStartWantedBatch, useUpdateSeriesSettings, useRefreshAnidbMapping, useStreamingEnabled, useSeriesFansubPrefs } from '@/hooks/useApi'
 import {
   ArrowLeft, Loader2,
-  Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search,
-  X, BookOpen, Trash2,
-  Database, RefreshCw,
-  Layers, Sparkles, Trash,
+  X, Trash2,
 } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
@@ -25,13 +22,14 @@ import { ComparisonSelector } from '@/components/comparison/ComparisonSelector'
 import { SubtitleCleanupModal } from '@/components/shared/SubtitleCleanupModal'
 import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry, SidecarSubtitle } from '@/lib/types'
 import { FansubOverrideModal } from '@/components/series/FansubOverrideModal'
-import { SeriesAudioTrackPicker } from '@/components/series/SeriesAudioTrackPicker'
 import { deriveSubtitlePath } from '@/components/series/seriesUtils'
-import { SeriesProcessingOverride } from '@/components/processing/SeriesProcessingOverride'
 
 import { GlossaryPanel } from '@/components/series/GlossaryPanel'
 import { SeasonGroup } from '@/components/series/SeasonGroup'
 import { EpisodeGridHeader } from '@/components/series/EpisodeGrid'
+import { SeriesHero } from '@/components/series/SeriesHero'
+import { SeriesSettingsPanel } from '@/components/series/SeriesSettingsPanel'
+import { SeasonTabs } from '@/components/series/SeasonTabs'
 
 const SubtitleComparison = lazy(() => import('@/components/comparison/SubtitleComparison').then(m => ({ default: m.SubtitleComparison })))
 const SyncControls = lazy(() => import('@/components/sync/SyncControls').then(m => ({ default: m.SyncControls })))
@@ -143,7 +141,6 @@ export function SeriesDetailPage() {
 
   // AniDB absolute order
   const updateSeriesSettingsMutation = useUpdateSeriesSettings()
-  const { data: anidbStatus } = useAnidbMappingStatus()
   const refreshAnidbMappingMutation = useRefreshAnidbMapping()
 
   const handleToggleAbsoluteOrder = useCallback((enabled: boolean) => {
@@ -315,8 +312,16 @@ export function SeriesDetailPage() {
       groups.get(ep.season)!.push(ep)
     }
     return Array.from(groups.entries())
-      .sort((a, b) => b[0] - a[0]) // Latest season first
+      .sort((a, b) => a[0] - b[0]) // Ascending order for tabs
   }, [series?.episodes])
+
+  const [activeSeason, setActiveSeason] = useState<number | null>(null)
+  const [showSeriesSettings, setShowSeriesSettings] = useState(false)
+
+  // Default to the first season (lowest number)
+  const defaultSeason = seasonGroups[0]?.[0] ?? null
+  const currentSeason = activeSeason ?? defaultSeason
+  const currentEpisodes = seasonGroups.find(([s]) => s === currentSeason)?.[1] ?? []
 
   // Count missing subs — align with Library's definition:
   // only episodes where existing_sub is '' or null/undefined (no subtitle at all).
@@ -336,6 +341,33 @@ export function SeriesDetailPage() {
     }
     return count
   }, [series])
+
+  const withSubsCount = useMemo(() => {
+    if (!series?.episodes) return 0
+    return series.episodes.filter(
+      (ep) => ep.has_file && series.target_languages.some(
+        (lang) => { const f = ep.subtitles[lang]; return f != null && f !== '' }
+      )
+    ).length
+  }, [series])
+
+  const LOW_SCORE_THRESHOLD = 60
+  const lowScoreCount = useMemo(() => {
+    if (!series?.episodes) return 0
+    return series.episodes.filter((ep) => {
+      if (!ep.has_file) return false
+      return series.target_languages.some((lang) => {
+        const score = ep.subtitle_scores?.[lang] ?? null
+        const fmt = ep.subtitles[lang]
+        return fmt != null && fmt !== '' && score !== null && score < LOW_SCORE_THRESHOLD
+      })
+    }).length
+  }, [series])
+
+  const handleRescan = useCallback(() => {
+    // TODO: implement proper rescan endpoint (POST /api/v1/library/series/{id}/rescan)
+    toast('Re-scan: coming soon', 'info')
+  }, [])
 
   if (isLoading) {
     return (
@@ -383,386 +415,39 @@ export function SeriesDetailPage() {
         </button>
       </div>
 
-      {/* Hero Header — like Bazarr */}
-      <div
-        className="rounded-lg overflow-hidden relative"
-        style={{ border: '1px solid var(--border)' }}
-      >
-        {/* Fanart background */}
-        {series.fanart && (
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: `url(${series.fanart})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              opacity: 0.15,
-              filter: 'blur(2px)',
-            }}
-          />
-        )}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(135deg, rgba(23,25,35,0.95) 0%, rgba(30,33,48,0.85) 100%)',
-          }}
+      {/* Hero Header */}
+      <SeriesHero
+        series={series}
+        missingCount={missingCount}
+        withSubsCount={withSubsCount}
+        lowScoreCount={lowScoreCount}
+        isMissingSearchPending={startSeriesSearch.isPending}
+        missingSearchStarted={seriesSearchStarted}
+        onSearchAllMissing={handleSearchAllEpisodes}
+        onRescan={handleRescan}
+        onSeriesSettings={() => setShowSeriesSettings((v) => !v)}
+      />
+
+      {/* Series Settings Panel (collapsible) */}
+      {showSeriesSettings && seriesId !== null && (
+        <SeriesSettingsPanel
+          series={series}
+          seriesId={seriesId}
+          showGlossary={showGlossary}
+          hasFansubOverride={hasFansubOverride}
+          isExtracting={extractProgress !== null}
+          extractProgress={extractProgress}
+          onToggleGlossary={() => setShowGlossary((v) => !v)}
+          onToggleAbsoluteOrder={handleToggleAbsoluteOrder}
+          onRefreshAnidb={handleRefreshAnidbMapping}
+          onExtract={handleExtract}
+          onCleanup={() => setShowCleanupModal(true)}
+          onFansub={() => setFansubOpen(true)}
+          exportUrl={getSeriesSubtitleExportUrl(series.id)}
+          updatePending={updateSeriesSettingsMutation.isPending}
+          refreshPending={refreshAnidbMappingMutation.isPending}
         />
-
-        <div className="relative flex gap-6 p-5">
-          {/* Poster */}
-          <div
-            className="flex-shrink-0 rounded-lg overflow-hidden shadow-lg relative"
-            style={{ width: '180px', minWidth: '180px', aspectRatio: '2/3', border: '1px solid var(--border)' }}
-          >
-            {series.poster ? (
-              <img
-                src={series.poster}
-                alt={series.title}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div
-                className="w-full h-full flex items-center justify-center"
-                style={{ backgroundColor: 'var(--bg-surface)' }}
-              >
-                <FileVideo size={32} style={{ color: 'var(--text-muted)' }} />
-              </div>
-            )}
-            {/* Score overlay gradient */}
-            <div
-              className="absolute bottom-0 left-0 right-0"
-              style={{ height: '60%', background: 'linear-gradient(to top, rgba(19,21,25,0.9), transparent)' }}
-            />
-          </div>
-
-          {/* Info */}
-          <div className="flex-1 min-w-0 flex flex-col gap-3">
-            <div className="flex items-center gap-2.5">
-              <h1 data-testid="series-title" style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.5px' }}>{series.title}</h1>
-              {series.year && (
-                <span className="text-sm" style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{series.year}</span>
-              )}
-            </div>
-
-            {/* Stat boxes */}
-            {(() => {
-              const withSubs = series.episodes?.filter(
-                (ep) => ep.has_file && series.target_languages.some(
-                  (lang) => { const f = ep.subtitles[lang]; return f != null && f !== '' }
-                )
-              ).length ?? 0
-              const totalEps = series.episode_file_count
-              return (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
-                  {[
-                    { label: 'Episodes', value: totalEps, color: 'var(--accent)' },
-                    { label: 'With Subs', value: withSubs, color: 'var(--success)' },
-                    { label: 'Missing', value: missingCount, color: missingCount > 0 ? 'var(--error)' : 'var(--success)' },
-                    { label: 'Low Score', value: 0, color: 'var(--upgrade)' },
-                  ].map(({ label, value, color }) => (
-                    <div
-                      key={label}
-                      className="flex flex-col items-center text-center"
-                      style={{
-                        backgroundColor: 'var(--bg-surface)',
-                        border: '1px solid var(--border)',
-                        borderRadius: 'var(--radius-md)',
-                        padding: '10px 14px',
-                      }}
-                    >
-                      <span style={{ fontSize: '20px', fontWeight: 700, color, fontFamily: 'var(--font-mono)' }} className="tabular-nums">
-                        {value}
-                      </span>
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.3px', marginTop: '2px' }}>
-                        {label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )
-            })()}
-
-            {/* Meta tags — pill-shaped with bg-elevated */}
-            <div className="flex flex-wrap gap-1.5" style={{ marginBottom: '4px' }}>
-              <span
-                className="inline-flex items-center gap-1.5"
-                style={{ padding: '3px 10px', borderRadius: '6px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary)' }}
-              >
-                <Folder size={11} />
-                {series.path}
-              </span>
-              <span
-                className="inline-flex items-center gap-1.5"
-                style={{ padding: '3px 10px', borderRadius: '6px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary)' }}
-              >
-                <FileVideo size={11} />
-                {t('series_detail.files', { count: series.episode_file_count })}
-              </span>
-              <span
-                className="inline-flex items-center gap-1.5"
-                style={{
-                  padding: '3px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 500,
-                  backgroundColor: missingCount > 0 ? 'var(--warning-bg)' : 'var(--success-bg)',
-                  color: missingCount > 0 ? 'var(--warning)' : 'var(--success)',
-                  border: '1px solid transparent',
-                }}
-              >
-                <AlertTriangle size={11} />
-                {t('series_detail.missing_subtitles', { count: missingCount })}
-              </span>
-              <span
-                className="inline-flex items-center gap-1.5"
-                style={{ padding: '3px 10px', borderRadius: '6px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary)' }}
-              >
-                <Play size={11} />
-                {series.status === 'continuing' ? t('series_detail.continuing') : series.status === 'ended' ? t('series_detail.ended') : series.status}
-              </span>
-              {series.tags.length > 0 && (
-                <span
-                  className="inline-flex items-center gap-1.5"
-                  style={{ padding: '3px 10px', borderRadius: '6px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', fontSize: '11px', fontWeight: 500, color: 'var(--text-secondary)' }}
-                >
-                  <Tag size={11} />
-                  {series.tags.join(' | ')}
-                </span>
-              )}
-            </div>
-
-            {/* Language info */}
-            <div className="flex flex-wrap gap-2 text-xs">
-              <span
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
-                style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
-              >
-                <Globe size={11} />
-                {series.profile_name}
-              </span>
-              {series.target_language_names.map((name, i) => (
-                <span
-                  key={i}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded font-medium"
-                  style={{
-                    backgroundColor: 'var(--accent-subtle)',
-                    color: 'var(--accent)',
-                    border: '1px solid var(--accent-dim)',
-                  }}
-                >
-                  {name}
-                </span>
-              ))}
-              <span
-                className="inline-flex items-center gap-1 px-2 py-1 rounded"
-                style={{ backgroundColor: 'rgba(99,102,241,0.1)', color: '#818cf8' }}
-              >
-                {series.source_language_name}
-              </span>
-              <button
-                onClick={() => setShowGlossary(!showGlossary)}
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded transition-colors"
-                style={{
-                  backgroundColor: showGlossary ? 'var(--accent-bg)' : 'rgba(255,255,255,0.06)',
-                  color: showGlossary ? 'var(--accent)' : 'var(--text-secondary)',
-                }}
-                onMouseEnter={(e) => {
-                  if (!showGlossary) {
-                    e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!showGlossary) {
-                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'
-                  }
-                }}
-              >
-                <BookOpen size={11} />
-                {t('series_detail.glossary')}
-              </button>
-
-              {/* Absolute Order toggle */}
-              <button
-                onClick={() => handleToggleAbsoluteOrder(!(series.absolute_order ?? false))}
-                disabled={updateSeriesSettingsMutation.isPending}
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded transition-colors"
-                style={{
-                  backgroundColor: series.absolute_order ? 'var(--accent-bg)' : 'rgba(255,255,255,0.06)',
-                  color: series.absolute_order ? 'var(--accent)' : 'var(--text-secondary)',
-                  opacity: updateSeriesSettingsMutation.isPending ? 0.6 : 1,
-                  cursor: updateSeriesSettingsMutation.isPending ? 'default' : 'pointer',
-                }}
-                title="Use AniDB absolute episode numbers for subtitle search (anime)"
-                onMouseEnter={(e) => {
-                  if (!updateSeriesSettingsMutation.isPending && !series.absolute_order) {
-                    e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!series.absolute_order) {
-                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'
-                  }
-                }}
-              >
-                {updateSeriesSettingsMutation.isPending
-                  ? <Loader2 size={11} className="animate-spin" />
-                  : <Database size={11} />
-                }
-                Absolute order
-              </button>
-
-              {/* AniDB refresh button — shown only when absolute order is active */}
-              {seriesId != null && (
-                <SeriesAudioTrackPicker
-                  seriesId={seriesId}
-                  episodes={series.episodes ?? []}
-                />
-              )}
-
-              {series.absolute_order && (
-                <button
-                  onClick={handleRefreshAnidbMapping}
-                  disabled={refreshAnidbMappingMutation.isPending}
-                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded transition-colors"
-                  style={{
-                    backgroundColor: 'rgba(255,255,255,0.06)',
-                    color: 'var(--text-secondary)',
-                    opacity: refreshAnidbMappingMutation.isPending ? 0.6 : 1,
-                    cursor: refreshAnidbMappingMutation.isPending ? 'default' : 'pointer',
-                  }}
-                  title={anidbStatus?.last_sync
-                    ? `Last sync: ${new Date(anidbStatus.last_sync).toLocaleString()} · ${anidbStatus.entry_count ?? 0} entries`
-                    : 'Refresh AniDB mapping database'}
-                  onMouseEnter={(e) => {
-                    if (!refreshAnidbMappingMutation.isPending) {
-                      e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'
-                  }}
-                >
-                  {refreshAnidbMappingMutation.isPending
-                    ? <Loader2 size={11} className="animate-spin" />
-                    : <RefreshCw size={11} />
-                  }
-                  Refresh AniDB
-                </button>
-              )}
-
-            </div>
-
-            {/* Series-level action toolbar */}
-            <div className="flex flex-wrap gap-2 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-              {/* Extract all embedded tracks */}
-              <button
-                onClick={() => handleExtract()}
-                disabled={extractProgress !== null}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
-                style={{
-                  backgroundColor: extractProgress ? 'var(--accent-bg)' : 'rgba(255,255,255,0.06)',
-                  color: extractProgress ? 'var(--accent)' : 'var(--text-secondary)',
-                  border: `1px solid ${extractProgress ? 'var(--accent-dim)' : 'transparent'}`,
-                  cursor: extractProgress ? 'default' : 'pointer',
-                }}
-                onMouseEnter={(e) => { if (!extractProgress) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
-                onMouseLeave={(e) => { if (!extractProgress) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)' }}
-                title="Alle eingebetteten Subtitle-Tracks der Serie extrahieren"
-              >
-                {extractProgress
-                  ? <><Loader2 size={11} className="animate-spin" /> Extrahiere {extractProgress.current}/{extractProgress.total}…</>
-                  : <><Layers size={11} /> Tracks extrahieren</>
-                }
-              </button>
-
-              {/* Sidecar cleanup modal */}
-              <button
-                onClick={() => setShowCleanupModal(true)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
-                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)', cursor: 'pointer' }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)' }}
-                title="Sidecar-Untertitel bereinigen (nach Sprache/Format filtern)"
-              >
-                <Trash size={11} />
-                Bereinigen
-              </button>
-
-              {/* Fansub override button */}
-              {seriesId !== null && (
-                <button
-                  onClick={() => setFansubOpen(true)}
-                  title="Fansub Preferences"
-                  style={{
-                    background: 'transparent',
-                    border: `1px solid ${hasFansubOverride ? 'var(--accent)' : 'var(--border)'}`,
-                    color: hasFansubOverride ? 'var(--accent)' : 'var(--text-muted)',
-                    borderRadius: 4, padding: '4px 10px', fontSize: 12, cursor: 'pointer',
-                    fontWeight: hasFansubOverride ? 600 : 400,
-                  }}
-                >
-                  Fansub
-                </button>
-              )}
-
-              {/* Export ZIP */}
-              <a
-                href={getSeriesSubtitleExportUrl(series.id)}
-                download
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded bg-neutral-700 hover:bg-neutral-600 text-neutral-200 transition-colors"
-                title="Download all subtitles for this series as ZIP"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                Export ZIP
-              </a>
-
-              {/* Search all missing */}
-              {missingCount > 0 && (
-                <button
-                  onClick={handleSearchAllEpisodes}
-                  disabled={startSeriesSearch.isPending || seriesSearchStarted}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
-                  style={{
-                    backgroundColor: seriesSearchStarted ? 'var(--success-bg)' : 'var(--accent-bg)',
-                    color: seriesSearchStarted ? 'var(--success)' : 'var(--accent)',
-                    opacity: startSeriesSearch.isPending ? 0.7 : 1,
-                    cursor: startSeriesSearch.isPending || seriesSearchStarted ? 'default' : 'pointer',
-                    border: '1px solid transparent',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!startSeriesSearch.isPending && !seriesSearchStarted)
-                      e.currentTarget.style.opacity = '0.85'
-                  }}
-                  onMouseLeave={(e) => { e.currentTarget.style.opacity = startSeriesSearch.isPending ? '0.7' : '1' }}
-                  title={`${missingCount} fehlende Untertitel bei Providern suchen`}
-                >
-                  {startSeriesSearch.isPending
-                    ? <Loader2 size={11} className="animate-spin" />
-                    : seriesSearchStarted ? <Sparkles size={11} /> : <Search size={11} />
-                  }
-                  {seriesSearchStarted ? 'Suche läuft…' : `${missingCount} fehlende suchen`}
-                </button>
-              )}
-            </div>
-
-            {/* Overview */}
-            {series.overview && (
-              <p className="text-xs leading-relaxed line-clamp-3" style={{ color: 'var(--text-secondary)' }}>
-                {series.overview}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Glossary Panel */}
       {showGlossary && (
@@ -774,101 +459,60 @@ export function SeriesDetailPage() {
         </div>
       )}
 
-      {/* Processing Override Panel */}
-      {seriesId !== null && (
-        <SeriesProcessingOverride
-          seriesId={seriesId}
-          initialConfig={(series as { processing_config?: Record<string, boolean | null> })?.processing_config ?? {}}
+      {/* Extraction Progress Banner */}
+      {extractProgress && (
+        <div
+          className="px-4 py-3 rounded-lg"
+          style={{ backgroundColor: 'var(--accent-bg)', border: '1px solid var(--accent-dim)' }}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Loader2 size={13} className="animate-spin flex-shrink-0" style={{ color: 'var(--accent)' }} />
+            <span className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
+              {extractProgress.total === 0
+                ? 'Extraktion wird gestartet…'
+                : `Extrahiere Tracks — ${extractProgress.current} / ${extractProgress.total} Episoden`}
+            </span>
+            {extractProgress.filename && (
+              <span
+                className="text-xs truncate"
+                style={{ color: 'var(--text-muted)', maxWidth: '340px' }}
+                title={extractProgress.filename}
+              >
+                · {extractProgress.filename}
+              </span>
+            )}
+          </div>
+          <ProgressBar value={extractProgress.total === 0 ? 0 : extractProgress.current} max={extractProgress.total === 0 ? 100 : extractProgress.total} showLabel={false} />
+        </div>
+      )}
+
+      {/* Season tabs */}
+      {seasonGroups.length > 0 && (
+        <SeasonTabs
+          seasons={seasonGroups.map(([s]) => s)}
+          activeSeason={currentSeason ?? 0}
+          onSeasonChange={setActiveSeason}
         />
       )}
 
-      {/* Episode Table */}
-      <div
-        className="rounded-lg overflow-hidden"
-        style={{ border: '1px solid var(--border)' }}
-      >
-        {/* Table Header */}
-        <div
-          className="flex items-center px-4"
-          style={{
-            backgroundColor: 'var(--bg-elevated)',
-            borderBottom: '1px solid var(--border)',
-            padding: '6px 14px',
-          }}
-        >
-          <div className="w-6 flex-shrink-0" />
-          <div className="w-5 flex-shrink-0" />
-          <div
-            className="w-12 flex-shrink-0"
-            style={{ color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}
-          >
-            {t('series_detail.ep')}
-          </div>
-          <div
-            className="flex-1"
-            style={{ color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}
-          >
-            {t('series_detail.title_col')}
-          </div>
-          <div
-            className="w-24 flex-shrink-0"
-            style={{ color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}
-          >
-            {t('series_detail.audio')}
-          </div>
-          <div
-            className="flex-1 min-w-[200px]"
-            style={{ color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}
-          >
-            {t('series_detail.subtitles')}
-          </div>
-          <div
-            className="w-64 flex-shrink-0 text-right"
-            style={{ color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}
-          >
-            {t('series_detail.actions')}
-          </div>
-        </div>
+      {/* Season summary bar */}
+      {currentSeason !== null && (
+        <SeasonSummaryBar
+          season={currentSeason}
+          episodes={currentEpisodes}
+          targetLanguages={series.target_languages}
+        />
+      )}
 
-        {/* Extraction Progress Banner */}
-        {extractProgress && (
-          <div
-            className="px-4 py-3"
-            style={{ backgroundColor: 'var(--accent-bg)', borderBottom: '1px solid var(--accent-dim)' }}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <Loader2 size={13} className="animate-spin flex-shrink-0" style={{ color: 'var(--accent)' }} />
-              <span className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
-                {extractProgress.total === 0
-                  ? 'Extraktion wird gestartet…'
-                  : `Extrahiere Tracks — ${extractProgress.current} / ${extractProgress.total} Episoden`}
-              </span>
-              {extractProgress.filename && (
-                <span
-                  className="text-xs truncate"
-                  style={{ color: 'var(--text-muted)', maxWidth: '340px' }}
-                  title={extractProgress.filename}
-                >
-                  · {extractProgress.filename}
-                </span>
-              )}
-            </div>
-            <ProgressBar value={extractProgress.total === 0 ? 0 : extractProgress.current} max={extractProgress.total === 0 ? 100 : extractProgress.total} showLabel={false} />
-          </div>
-        )}
+      {/* Column header row */}
+      <EpisodeGridHeader />
 
-        {/* Episode grid header + Season Groups */}
-        <EpisodeGridHeader />
-        {seasonGroups.map(([season, episodes]) => (
-          <div key={season}>
-            <SeasonSummaryBar
-              season={season}
-              episodes={episodes}
-              targetLanguages={series.target_languages}
-            />
+      {/* Episode list — individual cards matching mockup */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {currentSeason !== null && currentEpisodes.length > 0 ? (
           <SeasonGroup
-            season={season}
-            episodes={episodes}
+            season={currentSeason}
+            episodes={currentEpisodes}
             targetLanguages={series.target_languages}
             seriesId={seriesId}
             isExtracting={extractProgress !== null}
@@ -901,14 +545,11 @@ export function SeriesDetailPage() {
             onRefreshSidecars={() => queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })}
             t={t}
           />
-          </div>
-        ))}
-
-        {seasonGroups.length === 0 && (
+        ) : seasonGroups.length === 0 ? (
           <div className="p-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
             {t('series_detail.no_episodes')}
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Sidecar Cleanup Modal */}
