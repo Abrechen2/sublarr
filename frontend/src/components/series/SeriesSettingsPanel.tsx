@@ -1,3 +1,4 @@
+import type React from 'react'
 import type { SeriesDetail } from '@/lib/types'
 
 interface SeriesSettingsPanelProps {
@@ -82,9 +83,9 @@ export function SeriesSettingsPanel({
               {series.profile_name}
             </span>
           )}
-          {series.target_language_names?.map((name: string, i: number) => (
+          {series.target_language_names?.map((name: string) => (
             <span
-              key={i}
+              key={name}
               style={{
                 padding: '3px 8px',
                 borderRadius: '4px',

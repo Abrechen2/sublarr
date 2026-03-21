@@ -83,7 +83,7 @@ export function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seri
       {expanded && (
         <div>
           {episodes
-            .sort((a, b) => b.episode - a.episode)
+            .sort((a, b) => a.episode - b.episode)
             .map((ep) => {
               const isExpanded = expandedEp?.id === ep.id
               const mode = expandedEp?.mode
