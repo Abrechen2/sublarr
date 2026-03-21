@@ -42,6 +42,18 @@ vi.mock('../ApiKeysTab', () => ({
   ApiKeysTab: () => <div data-testid="api-keys-tab">ApiKeysTab</div>,
 }))
 
+vi.mock('../AnidbTab', () => ({
+  AnidbTab: () => <div data-testid="anidb-tab">AnidbTab</div>,
+}))
+
+vi.mock('../RemuxTab', () => ({
+  RemuxTab: () => <div data-testid="remux-tab">RemuxTab</div>,
+}))
+
+vi.mock('../StandaloneSettingsTab', () => ({
+  StandaloneSettingsTab: () => <div data-testid="standalone-settings-tab">StandaloneSettingsTab</div>,
+}))
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function renderPage() {
@@ -115,10 +127,10 @@ describe('SystemSettings', () => {
 
   // ── All 7 sections ────────────────────────────────────────────────────────
 
-  it('renders exactly 7 settings sections', () => {
+  it('renders exactly 10 settings sections', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections).toHaveLength(7)
+    expect(sections).toHaveLength(10)
   })
 
   // ── Section titles ────────────────────────────────────────────────────────
@@ -287,6 +299,44 @@ describe('SystemSettings', () => {
   it('Events & Hooks link text says "Notifications settings"', () => {
     renderPage()
     expect(screen.getByTestId('events-hooks-link')).toHaveTextContent('Notifications settings')
+  })
+
+  // ── New sections (Steps 29–31) ────────────────────────────────────────────
+
+  it('renders the AniDB section', () => {
+    renderPage()
+    expect(screen.getByTestId('section-anidb')).toBeInTheDocument()
+  })
+
+  it('shows "AniDB" section title', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-anidb')
+    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
+    expect(title).toHaveTextContent('AniDB')
+  })
+
+  it('renders the Remux section', () => {
+    renderPage()
+    expect(screen.getByTestId('section-remux')).toBeInTheDocument()
+  })
+
+  it('shows "Remux" section title', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-remux')
+    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
+    expect(title).toHaveTextContent('Remux')
+  })
+
+  it('renders the Standalone Mode section', () => {
+    renderPage()
+    expect(screen.getByTestId('section-standalone')).toBeInTheDocument()
+  })
+
+  it('shows "Standalone Mode" section title', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-standalone')
+    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
+    expect(title).toHaveTextContent('Standalone Mode')
   })
 
   // ── Summary text for advanced sections ───────────────────────────────────
