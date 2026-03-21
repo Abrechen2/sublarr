@@ -50,6 +50,30 @@ function SectionSkeleton() {
 
 // ─── Embedded Extraction Section ─────────────────────────────────────────────
 
+// ─── Shared input style ───────────────────────────────────────────────────────
+
+const inputStyle: React.CSSProperties = {
+  background: 'var(--bg-elevated)',
+  border: '1px solid var(--border)',
+  color: 'var(--text-primary)',
+  borderRadius: '6px',
+  padding: '7px 12px',
+  fontSize: '13px',
+  fontFamily: 'var(--font-body)',
+  width: '120px',
+  outline: 'none',
+}
+
+// ─── Config value helpers ─────────────────────────────────────────────────────
+
+function numVal(config: unknown, key: string, fallback = 0): number {
+  if (!config || typeof config !== 'object') return fallback
+  const v = (config as Record<string, unknown>)[key]
+  if (v === undefined || v === null) return fallback
+  const n = Number(v)
+  return isNaN(n) ? fallback : n
+}
+
 function boolVal(config: unknown, key: string, fallback = false): boolean {
   if (!config || typeof config !== 'object') return fallback
   const v = (config as Record<string, unknown>)[key]
@@ -141,15 +165,63 @@ function EmbeddedExtractionContent() {
 
 function FansubPreferencesContent() {
   const { t } = useTranslation('common')
+  const { data: config, isLoading } = useConfig()
+  const { mutate: updateConfig, isPending } = useUpdateConfig()
+
+  const save = (patch: Record<string, unknown>) => updateConfig(patch)
+
+  if (isLoading) return <SectionSkeleton />
 
   return (
     <div data-testid="fansub-preferences-content">
-      <p className="text-[12px] text-[var(--text-muted)] py-3">
+      <p className="text-[12px] text-[var(--text-muted)] pb-3">
         {t(
           'settings.subtitles.fansubPreferences.hint',
           'Global fansub group preferences apply to all library items. Per-series overrides can be set on each series detail page.',
         )}
       </p>
+
+      <FormGroup
+        label={t('settings.subtitles.fansubPreferences.creditThreshold', 'Credit Threshold (seconds)')}
+        hint={t(
+          'settings.subtitles.fansubPreferences.creditThresholdHint',
+          'Duration in seconds used to detect credit/OP/ED segments during subtitle processing.',
+        )}
+        data-testid="form-group-credit-threshold-sec"
+      >
+        <input
+          id="credit-threshold-sec"
+          type="number"
+          data-testid="input-credit-threshold-sec"
+          style={inputStyle}
+          value={numVal(config, 'credit_threshold_sec', 90)}
+          onChange={(e) => save({ credit_threshold_sec: Number(e.target.value) })}
+          disabled={isPending}
+          min={0}
+          max={600}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label={t('settings.subtitles.fansubPreferences.opWindow', 'OP/ED Window (seconds)')}
+        hint={t(
+          'settings.subtitles.fansubPreferences.opWindowHint',
+          'Seconds from the start/end of the file considered as the opening/ending window.',
+        )}
+        data-testid="form-group-op-window-sec"
+      >
+        <input
+          id="op-window-sec"
+          type="number"
+          data-testid="input-op-window-sec"
+          style={inputStyle}
+          value={numVal(config, 'op_window_sec', 300)}
+          onChange={(e) => save({ op_window_sec: Number(e.target.value) })}
+          disabled={isPending}
+          min={0}
+          max={3600}
+        />
+      </FormGroup>
     </div>
   )
 }

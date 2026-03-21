@@ -39,6 +39,8 @@ vi.mock('@/hooks/useApi', () => ({
       use_embedded_subs: 'true',
       hi_removal_enabled: 'false',
       wanted_skip_srt_on_no_ass: 'true',
+      credit_threshold_sec: 90,
+      op_window_sec: 300,
     },
     isLoading: false,
   }),
@@ -290,6 +292,24 @@ describe('SubtitlesSettings', () => {
     const toggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
     fireEvent.click(toggle)
     expect(screen.getByTestId('form-group-wanted-skip-srt-on-no-ass')).toBeInTheDocument()
+  })
+
+  // ── Fansub Preferences field presence ────────────────────────────────────
+
+  it('shows credit_threshold_sec input in Fansub Preferences advanced section', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-fansub-preferences')
+    const toggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('input-credit-threshold-sec')).toBeInTheDocument()
+  })
+
+  it('shows op_window_sec input in Fansub Preferences advanced section', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-fansub-preferences')
+    const toggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('input-op-window-sec')).toBeInTheDocument()
   })
 
   // ── Summary text for advanced sections ───────────────────────────────────
