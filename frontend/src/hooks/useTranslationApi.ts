@@ -13,6 +13,7 @@ import {
   getBackendTemplates,
   batchTranslate,
   ollamaPullModel,
+  convertSubtitle,
 } from '@/api/client'
 import type { BackendConfig } from '@/lib/types'
 import type { DownloadSpecificPayload } from '@/api/client'
@@ -376,5 +377,14 @@ export function useBatchTranslate() {
 export function useOllamaPullModel() {
   return useMutation({
     mutationFn: (model: string) => ollamaPullModel(model),
+  })
+}
+
+// ─── Convert Subtitle Format ─────────────────────────────────────────────────
+
+export function useConvertSubtitleFormat() {
+  return useMutation({
+    mutationFn: ({ filePath, targetFormat }: { filePath: string; targetFormat: 'ass' | 'srt' | 'vtt' }) =>
+      convertSubtitle({ file_path: filePath, target_format: targetFormat }),
   })
 }
