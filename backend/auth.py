@@ -8,6 +8,7 @@ Health endpoint is exempt.
 import functools
 import hmac
 import logging
+import re
 import threading
 import time
 from collections import defaultdict
@@ -105,6 +106,11 @@ def init_auth(app):
         # Skip auth for UI auth endpoints (login, setup, status, logout)
         # These handle their own authentication logic
         if path.startswith("/api/v1/auth/"):
+            return None
+
+        # Skip auth for standalone poster endpoints — posters are public metadata
+        # (is_safe_path() in the route prevents directory traversal)
+        if re.match(r"^/api/v1/standalone/(series|movies)/\d+/poster$", path):
             return None
 
         ip = request.remote_addr or "unknown"

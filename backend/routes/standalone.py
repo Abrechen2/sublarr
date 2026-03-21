@@ -8,7 +8,7 @@ import logging
 import os
 import threading
 
-from flask import Blueprint, current_app, jsonify, request, send_file
+from flask import Blueprint, current_app, jsonify, redirect, request, send_file
 from sqlalchemy import text
 
 bp = Blueprint("standalone", __name__, url_prefix="/api/v1/standalone")
@@ -364,7 +364,14 @@ def series_poster(series_id):
         return jsonify({"error": "Series not found"}), 404
 
     poster_path = series.get("poster_url", "")
-    if not poster_path or not os.path.isfile(poster_path):
+    if not poster_path:
+        return jsonify({"error": "No local poster available"}), 404
+
+    # Remote URL from MetadataResolver — redirect the browser directly
+    if poster_path.startswith(("http://", "https://")):
+        return redirect(poster_path)
+
+    if not os.path.isfile(poster_path):
         return jsonify({"error": "No local poster available"}), 404
 
     # Security: poster must reside inside the series folder or its parent
@@ -498,7 +505,14 @@ def movie_poster(movie_id):
         return jsonify({"error": "Movie not found"}), 404
 
     poster_path = movie.get("poster_url", "")
-    if not poster_path or not os.path.isfile(poster_path):
+    if not poster_path:
+        return jsonify({"error": "No local poster available"}), 404
+
+    # Remote URL from MetadataResolver — redirect the browser directly
+    if poster_path.startswith(("http://", "https://")):
+        return redirect(poster_path)
+
+    if not os.path.isfile(poster_path):
         return jsonify({"error": "No local poster available"}), 404
 
     # Security: poster must reside inside the movie folder or its parent
