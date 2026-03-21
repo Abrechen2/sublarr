@@ -103,7 +103,7 @@ export function AboutSettings() {
               {/* Donate */}
               <a
                 data-testid="link-donate"
-                href="https://ko-fi.com/sublarr"
+                href="https://www.paypal.com/donate?hosted_button_id=GLXYTD3FV9Y78"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
