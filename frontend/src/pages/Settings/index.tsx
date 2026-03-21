@@ -10,6 +10,7 @@
  * /settings/translation → TranslationSettings
  * /settings/notifications → NotificationsSettings
  * /settings/system    → SystemSettings
+ * /settings/webhooks  → WebhooksPage
  */
 import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
@@ -53,6 +54,9 @@ const AboutSettings = lazy(() =>
 const HooksPage = lazy(() =>
   import('./HooksPage').then((m) => ({ default: m.HooksPage })),
 )
+const WebhooksPage = lazy(() =>
+  import('./WebhooksPage').then((m) => ({ default: m.WebhooksPage })),
+)
 
 export function SettingsPage() {
   return (
@@ -69,6 +73,7 @@ export function SettingsPage() {
         <Route path="system" element={<SystemSettings />} />
         <Route path="about" element={<AboutSettings />} />
         <Route path="hooks" element={<HooksPage />} />
+        <Route path="webhooks" element={<WebhooksPage />} />
       </Routes>
     </Suspense>
   )
