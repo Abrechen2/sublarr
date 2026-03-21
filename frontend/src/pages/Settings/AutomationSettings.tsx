@@ -544,6 +544,29 @@ function ProcessingPipelineContent() {
       </FormGroup>
 
       <FormGroup
+        label="Sync Fallback Engine"
+        hint="Synchronisation engine used when the primary sync attempt fails. ffsubsync is audio-based; alass is AI-based."
+        htmlFor="auto-process-sync-fallback-engine"
+        data-testid="form-group-auto-process-sync-fallback-engine"
+      >
+        <select
+          id="auto-process-sync-fallback-engine"
+          data-testid="select-auto-process-sync-fallback-engine"
+          style={{
+            ...inputStyle,
+            maxWidth: '160px',
+            cursor: 'pointer',
+          }}
+          value={strVal(config, 'auto_process_sync_fallback_engine', 'ffsubsync')}
+          onChange={(e) => save({ auto_process_sync_fallback_engine: e.target.value })}
+          disabled={updateConfig.isPending}
+        >
+          <option value="ffsubsync">ffsubsync</option>
+          <option value="alass">alass</option>
+        </select>
+      </FormGroup>
+
+      <FormGroup
         label="Export NFO Sidecar"
         hint="Write an NFO metadata sidecar file alongside each downloaded subtitle."
         data-testid="form-group-auto-nfo-export"
@@ -563,6 +586,18 @@ function ProcessingPipelineContent() {
         <Toggle
           checked={boolVal(config, 'jellyfin_play_translate_enabled', false)}
           onChange={(v) => save({ jellyfin_play_translate_enabled: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Streaming aktiviert"
+        hint="Subtitle-Streaming-Modus aktivieren (experimentell). Erlaubt Live-Übertragung von Untertiteln an kompatible Player."
+        data-testid="form-group-streaming-enabled"
+      >
+        <Toggle
+          checked={boolVal(config, 'streaming_enabled', false)}
+          onChange={(v) => save({ streaming_enabled: v })}
           disabled={updateConfig.isPending}
         />
       </FormGroup>

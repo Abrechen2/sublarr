@@ -59,7 +59,9 @@ vi.mock('@/hooks/useApi', () => ({
       auto_process_hi_removal: 'false',
       auto_process_credit_removal: 'false',
       auto_process_sync_threshold: '80',
+      auto_process_sync_fallback_engine: 'ffsubsync',
       auto_nfo_export: 'false',
+      streaming_enabled: 'false',
       jellyfin_play_translate_enabled: 'false',
       auto_cleanup_after_extract: 'false',
       auto_cleanup_keep_languages: 'de,en',
@@ -649,6 +651,83 @@ describe('AutomationSettings', () => {
       await user.clear(input)
       await user.type(input, '0')
       expect(mockMutate).toHaveBeenCalledWith({ wanted_scan_interval_hours: 0 })
+    })
+  })
+
+  // ── Processing Pipeline — sync fallback engine ────────────────────────────
+
+  describe('Processing Pipeline — sync fallback engine', () => {
+    it('renders form-group for auto_process_sync_fallback_engine', () => {
+      renderPage()
+      expect(screen.getByTestId('form-group-auto-process-sync-fallback-engine')).toBeInTheDocument()
+    })
+
+    it('renders a <select> for auto_process_sync_fallback_engine', () => {
+      renderPage()
+      expect(screen.getByTestId('select-auto-process-sync-fallback-engine')).toBeInTheDocument()
+    })
+
+    it('select contains options "ffsubsync" and "alass"', () => {
+      renderPage()
+      const select = screen.getByTestId('select-auto-process-sync-fallback-engine') as HTMLSelectElement
+      const options = Array.from(select.options).map((o) => o.value)
+      expect(options).toContain('ffsubsync')
+      expect(options).toContain('alass')
+    })
+
+    it('select shows the config value (ffsubsync)', () => {
+      renderPage()
+      const select = screen.getByTestId('select-auto-process-sync-fallback-engine') as HTMLSelectElement
+      expect(select.value).toBe('ffsubsync')
+    })
+
+    it('calls updateConfig with auto_process_sync_fallback_engine on change', () => {
+      renderPage()
+      const select = screen.getByTestId('select-auto-process-sync-fallback-engine')
+      fireEvent.change(select, { target: { value: 'alass' } })
+      expect(mockMutate).toHaveBeenCalledWith({ auto_process_sync_fallback_engine: 'alass' })
+    })
+
+    it('select appears after input-auto-process-sync-threshold in the DOM', () => {
+      renderPage()
+      const section = screen.getByTestId('section-processing-pipeline')
+      const threshold = section.querySelector('[data-testid="input-auto-process-sync-threshold"]')!
+      const select = section.querySelector('[data-testid="select-auto-process-sync-fallback-engine"]')!
+      expect(threshold.compareDocumentPosition(select) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+  })
+
+  // ── Processing Pipeline — streaming ───────────────────────────────────────
+
+  describe('Processing Pipeline — streaming', () => {
+    it('renders form-group for streaming_enabled', () => {
+      renderPage()
+      expect(screen.getByTestId('form-group-streaming-enabled')).toBeInTheDocument()
+    })
+
+    it('streaming_enabled toggle reflects config value (false)', () => {
+      renderPage()
+      const fg = screen.getByTestId('form-group-streaming-enabled')
+      const toggle = fg.querySelector('[role="switch"]')
+      expect(toggle).toHaveAttribute('aria-checked', 'false')
+    })
+
+    it('calls updateConfig with streaming_enabled=true when toggled', () => {
+      renderPage()
+      const fg = screen.getByTestId('form-group-streaming-enabled')
+      const toggle = fg.querySelector('[role="switch"]') as HTMLElement
+      fireEvent.click(toggle)
+      expect(mockMutate).toHaveBeenCalledWith({ streaming_enabled: true })
+    })
+
+    it('streaming_enabled form-group is the last element inside processing-pipeline-content', () => {
+      renderPage()
+      const content = screen.getByTestId('processing-pipeline-content')
+      const formGroups = content.querySelectorAll(
+        '[data-testid^="form-group-"]:not([data-testid="form-group-control"]):not([data-testid="form-group-label"]):not([data-testid="form-group-hint"])',
+      )
+      const last = formGroups[formGroups.length - 1]
+      expect(last).toHaveAttribute('data-testid', 'form-group-streaming-enabled')
     })
   })
 
