@@ -579,6 +579,76 @@ function WebhookContent() {
   )
 }
 
+// ─── Cleanup Section ──────────────────────────────────────────────────────────
+
+function CleanupContent() {
+  const { data: config, isLoading } = useConfig()
+  const updateConfig = useUpdateConfig()
+
+  const save = (patch: Record<string, unknown>) => updateConfig.mutate(patch)
+
+  if (isLoading) return <SectionSkeleton />
+
+  return (
+    <div data-testid="cleanup-content">
+      <FormGroup
+        label="Keep Languages"
+        hint="Comma-separated language codes to keep when cleaning up duplicates (e.g. de,en)."
+        htmlFor="auto-cleanup-keep-languages"
+        data-testid="form-group-auto-cleanup-keep-languages"
+      >
+        <input
+          id="auto-cleanup-keep-languages"
+          type="text"
+          data-testid="input-auto-cleanup-keep-languages"
+          style={inputStyle}
+          value={strVal(config, 'auto_cleanup_keep_languages', '')}
+          onChange={(e) => save({ auto_cleanup_keep_languages: e.target.value })}
+          disabled={updateConfig.isPending}
+          placeholder="de,en"
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Keep Formats"
+        hint="Comma-separated subtitle formats to keep during cleanup (e.g. ass,srt)."
+        htmlFor="auto-cleanup-keep-formats"
+        data-testid="form-group-auto-cleanup-keep-formats"
+      >
+        <input
+          id="auto-cleanup-keep-formats"
+          type="text"
+          data-testid="input-auto-cleanup-keep-formats"
+          style={inputStyle}
+          value={strVal(config, 'auto_cleanup_keep_formats', '')}
+          onChange={(e) => save({ auto_cleanup_keep_formats: e.target.value })}
+          disabled={updateConfig.isPending}
+          placeholder="ass,srt"
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Trash Retention (days)"
+        hint="Keep deleted subtitles in trash for this many days before permanent removal."
+        htmlFor="subtitle-trash-retention-days"
+        data-testid="form-group-subtitle-trash-retention-days"
+      >
+        <input
+          id="subtitle-trash-retention-days"
+          type="number"
+          data-testid="input-subtitle-trash-retention-days"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={strVal(config, 'subtitle_trash_retention_days', '7')}
+          onChange={(e) => save({ subtitle_trash_retention_days: Number(e.target.value) })}
+          disabled={updateConfig.isPending}
+          min={0}
+          placeholder="7"
+        />
+      </FormGroup>
+    </div>
+  )
+}
+
 // ─── Scheduled Tasks Section (advanced placeholder) ───────────────────────────
 
 function ScheduledTasksContent() {
@@ -680,7 +750,18 @@ export function AutomationSettings() {
         </SettingsSection>
       </div>
 
-      {/* 5. Scheduled Tasks (advanced — collapsed by default) */}
+      {/* 5. Cleanup */}
+      <div data-testid="section-cleanup">
+        <SettingsSection
+          title="Subtitle Cleanup"
+          description="Control which subtitles are kept during cleanup and how long deleted files are retained."
+          icon={<Workflow size={16} style={{ color: 'var(--accent)' }} />}
+        >
+          <CleanupContent />
+        </SettingsSection>
+      </div>
+
+      {/* 6. Scheduled Tasks (advanced — collapsed by default) */}
       <div data-testid="section-scheduled-tasks">
         <SettingsSection
           title={t('settings.automation.scheduledTasks.title', 'Scheduled Tasks')}

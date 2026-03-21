@@ -59,6 +59,9 @@ vi.mock('@/hooks/useApi', () => ({
       auto_nfo_export: 'false',
       jellyfin_play_translate_enabled: 'false',
       auto_cleanup_after_extract: 'false',
+      auto_cleanup_keep_languages: 'de,en',
+      auto_cleanup_keep_formats: 'ass,srt',
+      subtitle_trash_retention_days: '7',
     },
     isLoading: false,
   }),
@@ -115,10 +118,10 @@ describe('AutomationSettings', () => {
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
   })
 
-  it('renders exactly 6 settings sections', () => {
+  it('renders exactly 7 settings sections', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections).toHaveLength(6)
+    expect(sections).toHaveLength(7)
   })
 
   // ── Section presence ─────────────────────────────────────────────────────
@@ -146,6 +149,11 @@ describe('AutomationSettings', () => {
   it('renders the Processing Pipeline section', () => {
     renderPage()
     expect(screen.getByTestId('section-processing-pipeline')).toBeInTheDocument()
+  })
+
+  it('renders the Cleanup section', () => {
+    renderPage()
+    expect(screen.getByTestId('section-cleanup')).toBeInTheDocument()
   })
 
   it('renders the Scheduled Tasks section', () => {
@@ -521,5 +529,46 @@ describe('AutomationSettings', () => {
     const toggle = fg.querySelector('[role="switch"]') as HTMLElement
     fireEvent.click(toggle)
     expect(mockMutate).toHaveBeenCalledWith({ jellyfin_play_translate_enabled: true })
+  })
+
+  // ── Cleanup interactions ───────────────────────────────────────────────────
+
+  it('displays auto_cleanup_keep_languages value from config', () => {
+    renderPage()
+    const input = screen.getByTestId('input-auto-cleanup-keep-languages') as HTMLInputElement
+    expect(input.value).toBe('de,en')
+  })
+
+  it('calls updateConfig with auto_cleanup_keep_languages on change', () => {
+    renderPage()
+    const input = screen.getByTestId('input-auto-cleanup-keep-languages')
+    fireEvent.change(input, { target: { value: 'de' } })
+    expect(mockMutate).toHaveBeenCalledWith({ auto_cleanup_keep_languages: 'de' })
+  })
+
+  it('displays auto_cleanup_keep_formats value from config', () => {
+    renderPage()
+    const input = screen.getByTestId('input-auto-cleanup-keep-formats') as HTMLInputElement
+    expect(input.value).toBe('ass,srt')
+  })
+
+  it('calls updateConfig with auto_cleanup_keep_formats on change', () => {
+    renderPage()
+    const input = screen.getByTestId('input-auto-cleanup-keep-formats')
+    fireEvent.change(input, { target: { value: 'ass' } })
+    expect(mockMutate).toHaveBeenCalledWith({ auto_cleanup_keep_formats: 'ass' })
+  })
+
+  it('displays subtitle_trash_retention_days value from config', () => {
+    renderPage()
+    const input = screen.getByTestId('input-subtitle-trash-retention-days') as HTMLInputElement
+    expect(input.value).toBe('7')
+  })
+
+  it('calls updateConfig with subtitle_trash_retention_days as number on change', () => {
+    renderPage()
+    const input = screen.getByTestId('input-subtitle-trash-retention-days')
+    fireEvent.change(input, { target: { value: '14' } })
+    expect(mockMutate).toHaveBeenCalledWith({ subtitle_trash_retention_days: 14 })
   })
 })
