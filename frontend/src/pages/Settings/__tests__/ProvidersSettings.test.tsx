@@ -42,6 +42,10 @@ vi.mock('@/hooks/useApi', () => ({
       provider_dynamic_timeout_max_secs: 60,
       circuit_breaker_failure_threshold: 5,
       circuit_breaker_cooldown_seconds: 300,
+      // Download Limits (Step 44)
+      max_concurrent_provider_searches: '3',
+      max_subtitle_file_size_kb: '2048',
+      download_delay_between_providers_ms: '0',
     },
     isLoading: false,
   }),
@@ -380,5 +384,43 @@ describe('ProvidersSettings', () => {
       })
       expect(mockUpdateConfig).toHaveBeenCalledWith({ circuit_breaker_cooldown_seconds: 600 })
     })
+  })
+})
+
+// ─── Download Limits section (Step 44) ───────────────────────────────────────
+
+describe('Download Limits section', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('renders heading "Download Limits"', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-download-limits')
+    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
+    expect(title).toHaveTextContent('Download Limits')
+  })
+
+  it('input-max-concurrent-provider-searches renders with value 3', () => {
+    renderPage()
+    const input = screen.getByTestId('input-max-concurrent-provider-searches') as HTMLInputElement
+    expect(Number(input.value)).toBe(3)
+  })
+
+  it('input-max-subtitle-file-size-kb renders with value 2048', () => {
+    renderPage()
+    const input = screen.getByTestId('input-max-subtitle-file-size-kb') as HTMLInputElement
+    expect(Number(input.value)).toBe(2048)
+  })
+
+  it('input-download-delay-between-providers-ms renders with value 0', () => {
+    renderPage()
+    const input = screen.getByTestId('input-download-delay-between-providers-ms') as HTMLInputElement
+    expect(Number(input.value)).toBe(0)
+  })
+
+  it('changing concurrent searches calls updateConfig with max_concurrent_provider_searches: "5"', () => {
+    renderPage()
+    const input = screen.getByTestId('input-max-concurrent-provider-searches')
+    fireEvent.change(input, { target: { value: '5' } })
+    expect(mockUpdateConfig).toHaveBeenCalledWith({ max_concurrent_provider_searches: '5' })
   })
 })

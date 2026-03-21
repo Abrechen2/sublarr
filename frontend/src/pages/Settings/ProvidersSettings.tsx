@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Globe, Store, ShieldAlert, Trash2, Settings2 } from 'lucide-react'
+import { Globe, Store, ShieldAlert, Trash2, Settings2, Download } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
@@ -9,6 +9,11 @@ import { useClearProviderCache } from '@/hooks/useApi'
 import { toast } from '@/components/shared/Toast'
 import { ProvidersTab } from './ProvidersTab'
 import { MarketplaceTab } from './providers/MarketplaceTab'
+
+function numVal(v: string | undefined, fallback: number): number {
+  const n = Number(v)
+  return isNaN(n) ? fallback : n
+}
 
 function strVal(config: unknown, key: string, fallback = ''): string {
   if (!config || typeof config !== 'object') return fallback
@@ -353,6 +358,89 @@ export function ProvidersSettings() {
           </button>
         </div>
       </SettingsSection>
+
+      {/* Download Limits (Step 44) */}
+      <div data-testid="section-download-limits">
+        <SettingsSection
+          title={t('settings.providers.downloadLimits.title', 'Download Limits')}
+          description={t(
+            'settings.providers.downloadLimits.description',
+            'Concurrency and size limits for subtitle provider downloads.',
+          )}
+          icon={<Download size={16} style={{ color: 'var(--accent)' }} />}
+        >
+          <div className="py-4 space-y-0" data-testid="download-limits-content">
+            <FormGroup
+              label="Concurrent Provider Searches"
+              hint="Maximum number of providers searched simultaneously"
+              htmlFor="max-concurrent-provider-searches"
+              data-testid="form-group-max-concurrent-provider-searches"
+            >
+              <input
+                id="max-concurrent-provider-searches"
+                type="number"
+                data-testid="input-max-concurrent-provider-searches"
+                style={{ ...inputStyle, maxWidth: '100px' }}
+                value={numVal(values['max_concurrent_provider_searches'], 3)}
+                onChange={(e) =>
+                  handleFieldChange(
+                    'max_concurrent_provider_searches',
+                    String(Number(e.target.value)),
+                  )
+                }
+                min={1}
+                max={10}
+              />
+            </FormGroup>
+
+            <FormGroup
+              label="Max Subtitle File Size (KB)"
+              hint="Reject subtitle files larger than this size"
+              htmlFor="max-subtitle-file-size-kb"
+              data-testid="form-group-max-subtitle-file-size-kb"
+            >
+              <input
+                id="max-subtitle-file-size-kb"
+                type="number"
+                data-testid="input-max-subtitle-file-size-kb"
+                style={{ ...inputStyle, maxWidth: '120px' }}
+                value={numVal(values['max_subtitle_file_size_kb'], 2048)}
+                onChange={(e) =>
+                  handleFieldChange(
+                    'max_subtitle_file_size_kb',
+                    String(Number(e.target.value)),
+                  )
+                }
+                min={100}
+                max={10240}
+              />
+            </FormGroup>
+
+            <FormGroup
+              label="Delay Between Providers (ms)"
+              hint="Milliseconds to wait between each provider request"
+              htmlFor="download-delay-between-providers-ms"
+              data-testid="form-group-download-delay-between-providers-ms"
+            >
+              <input
+                id="download-delay-between-providers-ms"
+                type="number"
+                data-testid="input-download-delay-between-providers-ms"
+                style={{ ...inputStyle, maxWidth: '120px' }}
+                value={numVal(values['download_delay_between_providers_ms'], 0)}
+                onChange={(e) =>
+                  handleFieldChange(
+                    'download_delay_between_providers_ms',
+                    String(Number(e.target.value)),
+                  )
+                }
+                min={0}
+                max={5000}
+              />
+            </FormGroup>
+          </div>
+        </SettingsSection>
+      </div>
 
       {/* Advanced — Provider Engine */}
       <div data-testid="providers-advanced-section">
