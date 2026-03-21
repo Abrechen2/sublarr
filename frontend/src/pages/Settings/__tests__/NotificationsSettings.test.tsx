@@ -163,7 +163,7 @@ describe('NotificationsSettings', () => {
 
   // ── Expanding advanced section ─────────────────────────────────────────────
 
-  it('Quiet Hours expands and shows content after clicking toggle', () => {
+  it('Quiet Hours expands and shows the config stub after clicking toggle', () => {
     renderPage()
     const wrapper = screen.getByTestId('section-quiet-hours')
     const toggle = wrapper.querySelector(
@@ -173,6 +173,7 @@ describe('NotificationsSettings', () => {
     expect(
       wrapper.querySelector('[data-testid="settings-section-advanced-content"]'),
     ).toBeInTheDocument()
+    expect(screen.getByTestId('quiet-hours-config-stub')).toBeInTheDocument()
   })
 })
 
