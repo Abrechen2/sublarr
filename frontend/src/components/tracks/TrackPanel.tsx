@@ -258,6 +258,7 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
                   }}
                   title={confirmRemove ? 'Klicke erneut zur Bestätigung' : 'Stream aus Container entfernen (erstellt .bak Backup)'}
                   onBlur={() => setConfirmRemove(false)}
+                  data-testid={`remux-remove-track-${track.index}`}
                 >
                   <Trash2 size={10} />
                   {confirmRemove ? 'Sicher?' : 'Entfernen'}

@@ -15,7 +15,9 @@ import {
   updateSeriesSettings,
   rescanSeries,
   getMovieDetail,
+  removeTrackFromContainer,
 } from '@/api/client'
+import { toast } from '@/components/shared/Toast'
 import type { BatchAction } from '@/lib/types'
 
 // ─── Library ─────────────────────────────────────────────────────────────────
@@ -326,5 +328,19 @@ export function useMovieDetail(movieId: number | null) {
     queryKey: ['movie', movieId],
     queryFn: () => (movieId != null ? getMovieDetail(movieId) : Promise.resolve(null)),
     enabled: movieId != null,
+  })
+}
+
+// ─── Remux ────────────────────────────────────────────────────────────────────
+
+export function useRemoveTrackFromContainer() {
+  return useMutation({
+    mutationFn: ({ epId, trackIndex, subtitleTrackIndex }: {
+      epId: number
+      trackIndex: number
+      subtitleTrackIndex?: number
+    }) => removeTrackFromContainer(epId, trackIndex, subtitleTrackIndex),
+    onSuccess: (r) => toast(`Remux job started: ${r.job_id}`),
+    onError: () => toast('Failed to start remux job', 'error'),
   })
 }
