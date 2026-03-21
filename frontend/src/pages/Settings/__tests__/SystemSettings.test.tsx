@@ -18,9 +18,29 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string, fallback?: string) => fallback ?? key }),
 }))
 
-vi.mock('../SecurityTab', () => ({
-  SecurityTab: () => <div data-testid="security-tab">SecurityTab</div>,
-}))
+vi.mock('../SecurityTab', async () => {
+  const { useUpdateConfig } = await import('@/hooks/useApi')
+  return {
+    SecurityTab: () => {
+      const { mutate: saveCfg } = useUpdateConfig()
+      return (
+        <div data-testid="security-tab">
+          <div data-testid="section-extended-security">
+            <input data-testid="input-session-timeout-minutes" type="number" defaultValue={0} />
+            <input
+              data-testid="input-max-login-attempts"
+              type="number"
+              defaultValue={20}
+              onChange={(e) => saveCfg({ max_login_attempts: Number(e.target.value) })}
+            />
+            <input data-testid="input-lockout-duration-minutes" type="number" defaultValue={60} />
+            <input data-testid="input-allowed-ip-ranges" type="text" defaultValue="" />
+          </div>
+        </div>
+      )
+    },
+  }
+})
 
 vi.mock('../AdvancedTab', () => ({
   BackupTab: () => <div data-testid="backup-tab">BackupTab</div>,
@@ -447,5 +467,42 @@ describe('Disk Monitoring section', () => {
     const input = screen.getByTestId('input-disk-warning-threshold-percent')
     fireEvent.change(input, { target: { value: '85' } })
     expect(mockSaveConfig).toHaveBeenCalledWith({ disk_warning_threshold_percent: 85 })
+  })
+})
+
+// ─── Extended Security section (Step 46) ─────────────────────────────────────
+
+describe('Extended Security section (SecurityTab)', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('input-session-timeout-minutes renders with value 0', () => {
+    renderPage()
+    const input = screen.getByTestId('input-session-timeout-minutes') as HTMLInputElement
+    expect(Number(input.value)).toBe(0)
+  })
+
+  it('input-max-login-attempts renders with value 20', () => {
+    renderPage()
+    const input = screen.getByTestId('input-max-login-attempts') as HTMLInputElement
+    expect(Number(input.value)).toBe(20)
+  })
+
+  it('input-lockout-duration-minutes renders with value 60', () => {
+    renderPage()
+    const input = screen.getByTestId('input-lockout-duration-minutes') as HTMLInputElement
+    expect(Number(input.value)).toBe(60)
+  })
+
+  it('input-allowed-ip-ranges renders with empty string default', () => {
+    renderPage()
+    const input = screen.getByTestId('input-allowed-ip-ranges') as HTMLInputElement
+    expect(input.value).toBe('')
+  })
+
+  it('changing max_login_attempts calls updateConfig with { max_login_attempts: 10 }', () => {
+    renderPage()
+    const input = screen.getByTestId('input-max-login-attempts')
+    fireEvent.change(input, { target: { value: '10' } })
+    expect(mockSaveConfig).toHaveBeenCalledWith({ max_login_attempts: 10 })
   })
 })

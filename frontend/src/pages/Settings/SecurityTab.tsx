@@ -6,10 +6,30 @@ import { toast } from '@/components/shared/Toast'
 import { SettingsCard } from '@/components/shared/SettingsCard'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
+import { FormGroup } from '@/components/settings/FormGroup'
+import { useConfig, useUpdateConfig } from '@/hooks/useApi'
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function numVal(config: unknown, key: string, fallback = 0): number {
+  if (!config || typeof config !== 'object') return fallback
+  const v = (config as Record<string, unknown>)[key]
+  const n = Number(v)
+  return isNaN(n) ? fallback : n
+}
+
+function strVal(config: unknown, key: string, fallback = ''): string {
+  if (!config || typeof config !== 'object') return fallback
+  const v = (config as Record<string, unknown>)[key]
+  return v !== undefined && v !== null ? String(v) : fallback
+}
 
 export function SecurityTab() {
   const queryClient = useQueryClient()
   const { data: auth } = useQuery({ queryKey: ['auth-status'], queryFn: getAuthStatus })
+  const { data: config } = useConfig()
+  const { mutate: saveConfig } = useUpdateConfig()
+  const save = (patch: Record<string, unknown>) => saveConfig(patch)
   const [currentPw, setCurrentPw] = useState('')
   const [newPw, setNewPw] = useState('')
   const [confirmPw, setConfirmPw] = useState('')
@@ -49,6 +69,18 @@ export function SecurityTab() {
     backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)',
     color: 'var(--text-primary)', borderRadius: '0.5rem',
     padding: '0.375rem 0.75rem', fontSize: '0.875rem', width: '100%', outline: 'none',
+  }
+
+  const numInputStyle = {
+    backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)',
+    color: 'var(--text-primary)', borderRadius: '0.375rem',
+    padding: '0.375rem 0.75rem', fontSize: '0.8125rem', outline: 'none', width: '120px',
+  }
+
+  const wideInputStyle = {
+    backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)',
+    color: 'var(--text-primary)', borderRadius: '0.375rem',
+    padding: '0.375rem 0.75rem', fontSize: '0.8125rem', outline: 'none', width: '300px',
   }
 
   return (
@@ -92,6 +124,72 @@ export function SecurityTab() {
           </form>
         </SettingsCard>
       )}
+
+      {/* Rate Limiting & Session (Step 46) */}
+      <div data-testid="section-extended-security">
+        <SettingsCard title="Rate Limiting & Session" icon={Shield}>
+          <div className="space-y-4 pt-1">
+            <FormGroup
+              label="Session Timeout (minutes)"
+              hint="0 = sessions never expire"
+              data-testid="form-group-session-timeout-minutes"
+            >
+              <input
+                data-testid="input-session-timeout-minutes"
+                type="number"
+                min={0}
+                value={numVal(config, 'session_timeout_minutes', 0)}
+                onChange={(e) => save({ session_timeout_minutes: Number(e.target.value) })}
+                style={numInputStyle}
+              />
+            </FormGroup>
+            <FormGroup
+              label="Max Login Attempts"
+              hint="Maximum failed login attempts before lockout"
+              data-testid="form-group-max-login-attempts"
+            >
+              <input
+                data-testid="input-max-login-attempts"
+                type="number"
+                min={1}
+                max={100}
+                value={numVal(config, 'max_login_attempts', 20)}
+                onChange={(e) => save({ max_login_attempts: Number(e.target.value) })}
+                style={numInputStyle}
+              />
+            </FormGroup>
+            <FormGroup
+              label="Lockout Duration (minutes)"
+              hint="Duration of account lockout after exceeding max attempts"
+              data-testid="form-group-lockout-duration-minutes"
+            >
+              <input
+                data-testid="input-lockout-duration-minutes"
+                type="number"
+                min={1}
+                max={1440}
+                value={numVal(config, 'lockout_duration_minutes', 60)}
+                onChange={(e) => save({ lockout_duration_minutes: Number(e.target.value) })}
+                style={numInputStyle}
+              />
+            </FormGroup>
+            <FormGroup
+              label="Allowed IP Ranges"
+              hint="Comma-separated CIDR ranges. Empty = allow all."
+              data-testid="form-group-allowed-ip-ranges"
+            >
+              <input
+                data-testid="input-allowed-ip-ranges"
+                type="text"
+                placeholder="192.168.1.0/24, 10.0.0.0/8"
+                value={strVal(config, 'allowed_ip_ranges', '')}
+                onChange={(e) => save({ allowed_ip_ranges: e.target.value })}
+                style={wideInputStyle}
+              />
+            </FormGroup>
+          </div>
+        </SettingsCard>
+      </div>
     </div>
   )
 }
