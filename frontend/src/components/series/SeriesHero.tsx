@@ -1,4 +1,4 @@
-import { FileVideo, RefreshCw, Settings, Loader2, Sparkles } from 'lucide-react'
+import { FileVideo, RefreshCw, Settings, Loader2, Sparkles, FileText } from 'lucide-react'
 import type { SeriesDetail } from '@/lib/types'
 
 interface SeriesHeroProps {
@@ -10,6 +10,8 @@ interface SeriesHeroProps {
   readonly missingSearchStarted: boolean
   readonly onSearchAllMissing: () => void
   readonly onRescan: () => void
+  readonly isRescanning?: boolean
+  readonly onNfoExport?: () => void
   readonly onSeriesSettings: () => void
 }
 
@@ -42,6 +44,8 @@ export function SeriesHero({
   missingSearchStarted,
   onSearchAllMissing,
   onRescan,
+  isRescanning = false,
+  onNfoExport,
   onSeriesSettings,
 }: SeriesHeroProps) {
   const totalEps = series.episode_file_count ?? 0
@@ -227,6 +231,7 @@ export function SeriesHero({
 
             <button
               onClick={onRescan}
+              disabled={isRescanning}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -238,12 +243,39 @@ export function SeriesHero({
                 backgroundColor: 'var(--bg-elevated)',
                 color: 'var(--text-secondary)',
                 border: '1px solid var(--border)',
-                cursor: 'pointer',
+                cursor: isRescanning ? 'not-allowed' : 'pointer',
+                opacity: isRescanning ? 0.6 : 1,
               }}
             >
-              <RefreshCw size={13} />
+              {isRescanning ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <RefreshCw size={13} />
+              )}
               Re-scan Series
             </button>
+
+            {onNfoExport && (
+              <button
+                onClick={onNfoExport}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 14px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  backgroundColor: 'var(--bg-elevated)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border)',
+                  cursor: 'pointer',
+                }}
+              >
+                <FileText size={13} />
+                NFO Export
+              </button>
+            )}
 
             <button
               onClick={onSeriesSettings}

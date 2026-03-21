@@ -5,7 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { SeasonSummaryBar } from '@/components/library/SeasonSummaryBar'
-import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useStartWantedBatch, useUpdateSeriesSettings, useRefreshAnidbMapping, useStreamingEnabled, useSeriesFansubPrefs } from '@/hooks/useApi'
+import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useStartWantedBatch, useUpdateSeriesSettings, useRefreshAnidbMapping, useStreamingEnabled, useSeriesFansubPrefs, useRescanSeries } from '@/hooks/useApi'
 import {
   ArrowLeft, Loader2,
   X, Trash2,
@@ -14,7 +14,7 @@ import { toast } from '@/components/shared/Toast'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { PlayerModal } from '@/components/player/PlayerModal'
 import type { PlayerSubtitleTrack } from '@/lib/types'
-import { autoSyncFile, batchExtractAllTracks, listSeriesSubtitles, deleteSubtitles, getSeriesSubtitleExportUrl } from '@/api/client'
+import { autoSyncFile, batchExtractAllTracks, listSeriesSubtitles, deleteSubtitles, getSeriesSubtitleExportUrl, exportSeriesNfo } from '@/api/client'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
@@ -141,6 +141,10 @@ export function SeriesDetailPage() {
 
   // AniDB absolute order
   const updateSeriesSettingsMutation = useUpdateSeriesSettings()
+
+  // Re-scan series
+  const [isRescanning, setIsRescanning] = useState(false)
+  const rescanSeriesMutation = useRescanSeries()
   const refreshAnidbMappingMutation = useRefreshAnidbMapping()
 
   const handleToggleAbsoluteOrder = useCallback((enabled: boolean) => {
@@ -365,9 +369,35 @@ export function SeriesDetailPage() {
   }, [series])
 
   const handleRescan = useCallback(() => {
-    // TODO: implement proper rescan endpoint (POST /api/v1/library/series/{id}/rescan)
-    toast('Re-scan: coming soon', 'info')
-  }, [])
+    if (!seriesId) return
+    setIsRescanning(true)
+    rescanSeriesMutation.mutate(seriesId, {
+      onSuccess: () => {
+        toast('Re-scan started', 'success')
+        setIsRescanning(false)
+      },
+      onError: () => {
+        toast('Re-scan failed', 'error')
+        setIsRescanning(false)
+      },
+    })
+  }, [seriesId, rescanSeriesMutation])
+
+  const handleNfoExport = useCallback(async () => {
+    if (!seriesId) return
+    try {
+      const blob = await exportSeriesNfo(seriesId)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `series-${seriesId}-nfo.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast('NFO exported', 'success')
+    } catch {
+      toast('NFO export failed', 'error')
+    }
+  }, [seriesId])
 
   if (isLoading) {
     return (
@@ -425,6 +455,8 @@ export function SeriesDetailPage() {
         missingSearchStarted={seriesSearchStarted}
         onSearchAllMissing={handleSearchAllEpisodes}
         onRescan={handleRescan}
+        isRescanning={isRescanning}
+        onNfoExport={handleNfoExport}
         onSeriesSettings={() => setShowSeriesSettings((v) => !v)}
       />
 

@@ -13,6 +13,7 @@ import {
   batchAction,
   getSeriesFansubPrefs, setSeriesFansubPrefs, deleteSeriesFansubPrefs,
   updateSeriesSettings,
+  rescanSeries,
 } from '@/api/client'
 import type { BatchAction } from '@/lib/types'
 
@@ -304,6 +305,17 @@ export function useUpdateSeriesSettings() {
       updateSeriesSettings(seriesId, settings),
     onSuccess: (_, { seriesId }) => {
       queryClient.invalidateQueries({ queryKey: ['series', seriesId] })
+    },
+  })
+}
+
+export function useRescanSeries() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (seriesId: number) => rescanSeries(seriesId),
+    onSuccess: (_data, seriesId) => {
+      void qc.invalidateQueries({ queryKey: ['series', seriesId] })
+      void qc.invalidateQueries({ queryKey: ['library'] })
     },
   })
 }

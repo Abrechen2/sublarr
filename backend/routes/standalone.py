@@ -728,6 +728,79 @@ def get_status():
 
 
 # ---------------------------------------------------------------------------
+# Series Scan
+# ---------------------------------------------------------------------------
+
+
+@bp.route("/series/<int:series_id>/scan", methods=["POST"])
+def scan_series(series_id):
+    """Trigger a re-scan of a single standalone series.
+    ---
+    post:
+      tags:
+        - Standalone
+      summary: Re-scan standalone series
+      description: Triggers a re-scan of file contents for a single standalone series.
+      parameters:
+        - in: path
+          name: series_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Scan started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  series_id:
+                    type: integer
+        404:
+          description: Series not found
+        500:
+          description: Scan failed
+    """
+    from db.standalone import get_standalone_series
+
+    series = get_standalone_series(series_id)
+    if not series:
+        return jsonify({"error": "Series not found"}), 404
+
+    try:
+        # Try standalone manager first
+        try:
+            from standalone import get_standalone_manager
+
+            manager = get_standalone_manager()
+            if hasattr(manager, "scan_series"):
+                manager.scan_series(series_id)
+                return jsonify({"message": "Scan started", "series_id": series_id})
+        except (ImportError, AttributeError):
+            pass
+
+        # Fallback: refresh wanted items for this series
+        from db import get_db
+
+        db = get_db()
+        db.execute(
+            text(
+                "UPDATE wanted_items SET status='wanted' WHERE standalone_series_id=:sid"
+                " AND status NOT IN ('downloaded','blacklisted')"
+            ),
+            {"sid": series_id},
+        )
+        db.commit()
+        return jsonify({"message": "Scan started", "series_id": series_id})
+    except Exception as e:
+        logger.error("Failed to scan series %d: %s", series_id, e)
+        return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
 # Metadata
 # ---------------------------------------------------------------------------
 

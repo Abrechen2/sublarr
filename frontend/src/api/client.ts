@@ -887,6 +887,16 @@ export async function getStandaloneStatus(): Promise<StandaloneStatus> {
   return data
 }
 
+export async function rescanSeries(seriesId: number): Promise<{ message: string; series_id: number }> {
+  const { data } = await api.post(`/standalone/series/${seriesId}/scan`)
+  return data
+}
+
+export async function exportSeriesNfo(seriesId: number): Promise<Blob> {
+  const { data } = await api.post('/subtitles/export-nfo', { series_id: seriesId }, { responseType: 'blob' })
+  return data
+}
+
 export async function refreshSeriesMetadata(seriesId: number): Promise<void> {
   await api.post(`/standalone/series/${seriesId}/refresh-metadata`)
 }
