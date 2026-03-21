@@ -348,6 +348,37 @@ function UpgradeRulesContent() {
           placeholder="24"
         />
       </FormGroup>
+
+      <FormGroup
+        label="Upgrade Window (days)"
+        hint="Only upgrade subtitles downloaded within this many days."
+        htmlFor="upgrade-window-days"
+        data-testid="form-group-upgrade-window-days"
+      >
+        <input
+          id="upgrade-window-days"
+          type="number"
+          data-testid="input-upgrade-window-days"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={strVal(config, 'upgrade_window_days', '30')}
+          onChange={(e) => save({ upgrade_window_days: Number(e.target.value) })}
+          disabled={updateConfig.isPending}
+          min={1}
+          placeholder="30"
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Prefer ASS over SRT"
+        hint="Always upgrade from SRT to ASS format when a better ASS subtitle is available."
+        data-testid="form-group-upgrade-prefer-ass"
+      >
+        <Toggle
+          checked={boolVal(config, 'upgrade_prefer_ass', false)}
+          onChange={(v) => save({ upgrade_prefer_ass: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
     </div>
   )
 }

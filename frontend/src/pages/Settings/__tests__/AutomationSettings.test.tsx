@@ -45,6 +45,8 @@ vi.mock('@/hooks/useApi', () => ({
       upgrade_enabled: 'false',
       upgrade_min_score_delta: '10',
       upgrade_scan_interval_hours: '24',
+      upgrade_window_days: '30',
+      upgrade_prefer_ass: 'false',
       wanted_auto_translate: 'false',
       auto_sync_after_download: 'false',
       auto_cleanup_after_extract: 'false',
@@ -367,6 +369,27 @@ describe('AutomationSettings', () => {
     const toggle = formGroup.querySelector('[role="switch"]') as HTMLElement
     fireEvent.click(toggle)
     expect(mockMutate).toHaveBeenCalledWith({ upgrade_enabled: true })
+  })
+
+  it('displays upgrade_window_days value from config', () => {
+    renderPage()
+    const input = screen.getByTestId('input-upgrade-window-days') as HTMLInputElement
+    expect(input.value).toBe('30')
+  })
+
+  it('calls updateConfig with upgrade_window_days as number on change', () => {
+    renderPage()
+    const input = screen.getByTestId('input-upgrade-window-days')
+    fireEvent.change(input, { target: { value: '14' } })
+    expect(mockMutate).toHaveBeenCalledWith({ upgrade_window_days: 14 })
+  })
+
+  it('calls updateConfig with upgrade_prefer_ass=true when toggled', () => {
+    renderPage()
+    const fg = screen.getByTestId('form-group-upgrade-prefer-ass')
+    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(mockMutate).toHaveBeenCalledWith({ upgrade_prefer_ass: true })
   })
 
   // ── Processing Pipeline interactions ──────────────────────────────────────
