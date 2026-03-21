@@ -29,6 +29,12 @@ const mockConfig: Record<string, unknown> = {
   log_file: '',
   log_format: 'text',
   scan_metadata_engine: 'auto',
+  // Interface Preferences (Step 37)
+  interface_language: 'en',
+  items_per_page: 25,
+  default_library_view: 'grid',
+  default_library_sort: 'alpha',
+  datetime_format: 'relative',
 }
 
 const mockMutate = vi.fn()
@@ -338,6 +344,60 @@ describe('GeneralSettings', () => {
     const input = screen.getByTestId('input-source-language')
     // mockConfig has source_language = 'en' — confirms the value flows through correctly.
     expect(input).toHaveValue('en')
+  })
+})
+
+// ─── Interface Preferences section (Step 37) ─────────────────────────────────
+
+describe('Interface Preferences section', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('renders the section heading "Interface Preferences"', () => {
+    renderWithProviders(<GeneralSettings />)
+    expect(screen.getByTestId('section-interface-preferences')).toBeInTheDocument()
+    const title = screen
+      .getByTestId('section-interface-preferences')
+      .querySelector('[data-testid="settings-section-title"]')
+    expect(title).toHaveTextContent('Interface Preferences')
+  })
+
+  it('select-interface-language renders with value from config (default "en")', () => {
+    renderWithProviders(<GeneralSettings />)
+    const sel = screen.getByTestId('select-interface-language') as HTMLSelectElement
+    expect(sel.value).toBe('en')
+  })
+
+  it('input-items-per-page renders with value from config (default 25)', () => {
+    renderWithProviders(<GeneralSettings />)
+    const input = screen.getByTestId('input-items-per-page') as HTMLInputElement
+    expect(Number(input.value)).toBe(25)
+  })
+
+  it('select-default-library-view renders with value from config (default "grid")', () => {
+    renderWithProviders(<GeneralSettings />)
+    const sel = screen.getByTestId('select-default-library-view') as HTMLSelectElement
+    expect(sel.value).toBe('grid')
+  })
+
+  it('select-default-library-sort renders with value from config (default "alpha")', () => {
+    renderWithProviders(<GeneralSettings />)
+    const sel = screen.getByTestId('select-default-library-sort') as HTMLSelectElement
+    expect(sel.value).toBe('alpha')
+  })
+
+  it('select-datetime-format renders with value from config (default "relative")', () => {
+    renderWithProviders(<GeneralSettings />)
+    const sel = screen.getByTestId('select-datetime-format') as HTMLSelectElement
+    expect(sel.value).toBe('relative')
+  })
+
+  it('changing select-interface-language calls updateConfig with { interface_language: "de" }', () => {
+    renderWithProviders(<GeneralSettings />)
+    const sel = screen.getByTestId('select-interface-language')
+    fireEvent.change(sel, { target: { value: 'de' } })
+    expect(mockMutate).toHaveBeenCalledWith({ interface_language: 'de' })
   })
 })
 

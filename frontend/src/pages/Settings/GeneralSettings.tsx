@@ -1,4 +1,4 @@
-import { Globe, HardDrive, FileText } from 'lucide-react'
+import { Globe, HardDrive, FileText, Monitor } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
@@ -31,6 +31,22 @@ const inputStyle: React.CSSProperties = {
 const LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR'] as const
 const LOG_FORMATS = ['text', 'json'] as const
 const SCAN_ENGINES = ['auto', 'ffprobe', 'mediainfo'] as const
+
+const LANGUAGE_OPTIONS = [
+  { value: 'en', label: 'English' },
+  { value: 'de', label: 'Deutsch' },
+] as const
+
+const LIBRARY_VIEWS = ['grid', 'list'] as const
+const LIBRARY_SORTS = [
+  { value: 'alpha', label: 'Alphabetical' },
+  { value: 'date', label: 'Date Added' },
+  { value: 'score', label: 'Score' },
+] as const
+const DATETIME_FORMATS = [
+  { value: 'relative', label: 'Relative (2 hours ago)' },
+  { value: 'absolute', label: 'Absolute (2026-03-21 14:00)' },
+] as const
 
 const HI_OPTIONS = [
   { value: 'include', label: 'Include (no preference)' },
@@ -164,6 +180,122 @@ export function GeneralSettings() {
                 disabled={isPending}
               >
                 {FORCED_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </FormGroup>
+          </SettingsSection>
+        </div>
+
+        {/* ── Interface Preferences ─────────────────────────────────────── */}
+        <div data-testid="section-interface-preferences">
+          <SettingsSection
+            title="Interface Preferences"
+            description="Pagination, library layout, sorting, and date display defaults."
+            icon={<Monitor size={16} style={{ color: 'var(--accent)' }} />}
+          >
+            <FormGroup
+              label="Interface Language"
+              hint="UI display language"
+              htmlFor="interface-language"
+              data-testid="form-group-interface-language"
+            >
+              <select
+                id="interface-language"
+                data-testid="select-interface-language"
+                style={inputStyle}
+                value={strVal(config, 'interface_language', 'en')}
+                onChange={(e) => save({ interface_language: e.target.value })}
+                disabled={isPending}
+              >
+                {LANGUAGE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </FormGroup>
+
+            <FormGroup
+              label="Items per Page"
+              hint="Number of items shown per page in library lists"
+              htmlFor="items-per-page"
+              data-testid="form-group-items-per-page"
+            >
+              <input
+                id="items-per-page"
+                type="number"
+                data-testid="input-items-per-page"
+                style={{ ...inputStyle, maxWidth: '120px' }}
+                value={Number(strVal(config, 'items_per_page', '25'))}
+                onChange={(e) => save({ items_per_page: Number(e.target.value) })}
+                disabled={isPending}
+                min={10}
+                max={200}
+              />
+            </FormGroup>
+
+            <FormGroup
+              label="Default Library View"
+              hint="Default view mode for the library (grid or list)"
+              htmlFor="default-library-view"
+              data-testid="form-group-default-library-view"
+            >
+              <select
+                id="default-library-view"
+                data-testid="select-default-library-view"
+                style={inputStyle}
+                value={strVal(config, 'default_library_view', 'grid')}
+                onChange={(e) => save({ default_library_view: e.target.value })}
+                disabled={isPending}
+              >
+                {LIBRARY_VIEWS.map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </FormGroup>
+
+            <FormGroup
+              label="Default Library Sort"
+              hint="Default sort order for library listings"
+              htmlFor="default-library-sort"
+              data-testid="form-group-default-library-sort"
+            >
+              <select
+                id="default-library-sort"
+                data-testid="select-default-library-sort"
+                style={inputStyle}
+                value={strVal(config, 'default_library_sort', 'alpha')}
+                onChange={(e) => save({ default_library_sort: e.target.value })}
+                disabled={isPending}
+              >
+                {LIBRARY_SORTS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </FormGroup>
+
+            <FormGroup
+              label="Date/Time Format"
+              hint="How dates and times are displayed throughout the UI"
+              htmlFor="datetime-format"
+              data-testid="form-group-datetime-format"
+            >
+              <select
+                id="datetime-format"
+                data-testid="select-datetime-format"
+                style={inputStyle}
+                value={strVal(config, 'datetime_format', 'relative')}
+                onChange={(e) => save({ datetime_format: e.target.value })}
+                disabled={isPending}
+              >
+                {DATETIME_FORMATS.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
