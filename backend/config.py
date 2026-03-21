@@ -297,6 +297,59 @@ class Settings(BaseSettings):
     redis_cache_enabled: bool = True  # Use Redis for provider cache (when redis_url set)
     redis_queue_enabled: bool = True  # Use Redis+RQ for job queue (when redis_url set)
 
+    # Interface Preferences (Step 37)
+    interface_language: str = "en"
+    items_per_page: int = 25
+    default_library_view: str = "grid"  # "grid" | "list"
+    default_library_sort: str = "alpha"  # "alpha" | "date" | "score"
+    datetime_format: str = "relative"  # "relative" | "absolute"
+
+    # Subtitle Naming (Step 38)
+    subtitle_language_code_format: str = "iso_639_1"  # "iso_639_1" | "iso_639_2"
+    subtitle_suffix_separator: str = "dot"  # "dot" | "dash" | "underscore"
+    subtitle_hi_suffix: str = "hi"
+    subtitle_forced_suffix: str = "forced"
+
+    # Quiet Hours (Step 39)
+    quiet_hours_enabled: bool = False
+    quiet_hours_start: str = "23:00"
+    quiet_hours_end: str = "07:00"
+    quiet_hours_timezone: str = "UTC"
+
+    # Auto Backup (Step 40)
+    backup_auto_enabled: bool = False
+    backup_auto_interval_hours: int = 24
+    backup_auto_on_startup: bool = False
+    backup_notify_on_failure: bool = True
+
+    # Disk Monitoring (Step 41)
+    disk_warning_threshold_percent: int = 90
+    disk_warning_notify: bool = True
+
+    # Scan Ignore Patterns (Step 42)
+    scan_ignore_patterns: str = "[]"  # JSON array of glob patterns
+    scan_min_file_size_mb: float = 0.0
+    scan_ignore_languages: str = "[]"  # JSON array of ISO-639-1 codes
+
+    # Per-Language Score Thresholds (Step 43)
+    score_threshold_per_language: str = "{}"  # JSON object: {"de": 80, "fr": 70}
+
+    # Download Limits (Step 44)
+    max_concurrent_provider_searches: int = 3
+    max_subtitle_file_size_kb: int = 2048
+    download_delay_between_providers_ms: int = 0
+
+    # Translation Context (Step 45)
+    translation_use_episode_context: bool = False
+    translation_context_episodes: int = 1
+    translation_series_glossary_auto: bool = False
+
+    # Extended Security (Step 46)
+    session_timeout_minutes: int = 0  # 0 = no timeout
+    max_login_attempts: int = 20
+    lockout_duration_minutes: int = 60
+    allowed_ip_ranges: str = ""  # Comma-separated CIDR ranges; empty = allow all
+
     model_config = {
         "env_prefix": "SUBLARR_",
         "env_file": ".env",
