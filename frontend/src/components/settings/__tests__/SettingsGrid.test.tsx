@@ -29,18 +29,18 @@ function renderWithRouter(ui: React.ReactElement) {
 }
 
 describe('SettingsGrid', () => {
-  it('renders all 8 category cards', () => {
+  it('renders all 9 category cards', () => {
     renderWithRouter(<SettingsGrid />)
     const cards = screen.getAllByRole('button').filter(
       (el) => el.getAttribute('data-testid')?.match(/^settings-card-[^-]+$/)
     )
-    expect(cards).toHaveLength(8)
+    expect(cards).toHaveLength(9)
   })
 
   it('renders each card with an icon box', () => {
     renderWithRouter(<SettingsGrid />)
     const iconBoxes = screen.getAllByTestId(/^settings-card-icon-/)
-    expect(iconBoxes).toHaveLength(8)
+    expect(iconBoxes).toHaveLength(9)
   })
 
   it('renders the General card with title and description', () => {
@@ -88,7 +88,12 @@ describe('SettingsGrid', () => {
   it('renders a count or tag element on each card', () => {
     renderWithRouter(<SettingsGrid />)
     const badges = screen.getAllByTestId(/^settings-card-badge-/)
-    expect(badges).toHaveLength(8)
+    expect(badges).toHaveLength(9)
+  })
+
+  it('renders the About card', () => {
+    renderWithRouter(<SettingsGrid />)
+    expect(screen.getByTestId('settings-card-about')).toBeInTheDocument()
   })
 
   it('navigates to /settings/general when General card is clicked', async () => {

@@ -47,6 +47,9 @@ const NotificationsSettings = lazy(() =>
 const SystemSettings = lazy(() =>
   import('./SystemSettings').then((m) => ({ default: m.SystemSettings })),
 )
+const AboutSettings = lazy(() =>
+  import('./AboutSettings').then((m) => ({ default: m.AboutSettings })),
+)
 
 export function SettingsPage() {
   return (
@@ -61,6 +64,7 @@ export function SettingsPage() {
         <Route path="translation" element={<TranslationSettings />} />
         <Route path="notifications" element={<NotificationsSettings />} />
         <Route path="system" element={<SystemSettings />} />
+        <Route path="about" element={<AboutSettings />} />
       </Routes>
     </Suspense>
   )

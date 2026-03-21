@@ -9,6 +9,7 @@ import {
   Languages,
   Bell,
   Shield,
+  Heart,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -79,6 +80,13 @@ const CATEGORIES: readonly SettingsCategory[] = [
     descKey: 'settings.categories.system.description',
     badge: 'System',
   },
+  {
+    id: 'about',
+    icon: Heart,
+    titleKey: 'settings.categories.about.title',
+    descKey: 'settings.categories.about.description',
+    badge: 'About',
+  },
 ]
 
 const CATEGORY_FALLBACKS: Record<string, { title: string; description: string }> = {
@@ -90,6 +98,7 @@ const CATEGORY_FALLBACKS: Record<string, { title: string; description: string }>
   translation: { title: 'Translation', description: 'AI translation backends' },
   notifications: { title: 'Notifications', description: 'Channels, templates' },
   system: { title: 'System', description: 'Security, backup, logs' },
+  about: { title: 'About', description: 'Version, GitHub, donate' },
 }
 
 interface SettingsGridProps {
