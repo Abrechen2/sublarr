@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type React from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, Mic, Tv2 } from 'lucide-react'
 import { getRowStatus } from '@/components/library/EpisodeRow'
 import { EpisodeSearchPanel } from './EpisodeSearchPanel'
 import { EpisodeHistoryPanel } from './EpisodeHistoryPanel'
@@ -8,6 +8,7 @@ import { TrackPanel } from '@/components/tracks/TrackPanel'
 import { episodeGridRowStyle, FormatBadge, ScoreCell, ProviderCell, EpisodeInlineActions } from './EpisodeGrid'
 import { deriveSubtitlePath } from './seriesUtils'
 import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry, SidecarSubtitle } from '@/lib/types'
+import { useTranscribeEpisode, useDetectOpeningEnding } from '@/hooks/useTranslationApi'
 
 export interface SeasonGroupProps {
   readonly season: number
@@ -47,6 +48,8 @@ export interface SeasonGroupProps {
 
 export function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, isExtracting: _isExtracting, onExtract: _onExtract, expandedEp, onSearch, onInteractiveSearch, onHistory: _onHistory, onTracks: _onTracks, onClose: _onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub: _onPreviewSub, onEditSub: _onEditSub, onCompare: _onCompare, onSync: _onSync, onAutoSync, onVideoSync: _onVideoSync, onHealthCheck: _onHealthCheck, healthScores: _healthScores, onOpenEditor, sidecarMap: _sidecarMap, onDeleteSidecar, onOpenCleanupModal: _onOpenCleanupModal, onPreview: _onPreview, streamingEnabled: _streamingEnabled, onRefreshSidecars: _onRefreshSidecars, t }: SeasonGroupProps) {
   const [expanded, setExpanded] = useState(true)
+  const transcribe = useTranscribeEpisode()
+  const detectOpEd = useDetectOpeningEnding()
 
   return (
     <div>
@@ -175,6 +178,35 @@ export function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seri
                       }}
                       onMore={() => onInteractiveSearch(ep)}
                     />
+                    {/* Transcribe + OP/ED detect buttons (only when episode has a file) */}
+                    {ep.has_file && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          className="p-1 rounded transition-colors"
+                          title="Transcribe audio to subtitles via Whisper"
+                          onClick={() => transcribe.mutate({ filePath: ep.file_path })}
+                          disabled={transcribe.isPending}
+                          data-testid={`transcribe-btn-${ep.id}`}
+                          style={{ color: 'var(--text-muted)' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                        >
+                          <Mic size={13} />
+                        </button>
+                        <button
+                          className="p-1 rounded transition-colors"
+                          title="Detect OP/ED segments"
+                          onClick={() => detectOpEd.mutate(ep.file_path)}
+                          disabled={detectOpEd.isPending}
+                          data-testid={`detect-oped-btn-${ep.id}`}
+                          style={{ color: 'var(--text-muted)' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                        >
+                          <Tv2 size={13} />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Expanded panel */}
