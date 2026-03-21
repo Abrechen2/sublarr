@@ -1,15 +1,14 @@
 /**
- * ScoringTab — Scoring weights, provider modifiers, release group filter,
- * and MT detection settings.
+ * ScoringTab — Redesigned for approachability.
  *
- * Redesigned for clarity:
- * - Visual sliders for all weight/modifier controls
- * - Human-readable labels with contextual hints
- * - Single explicit Save per section
- * - Consistent SettingsSection + FormGroup pattern
+ * UX hierarchy:
+ * 1. Preset buttons — one-click "good default" profiles
+ * 2. What Matters Most — plain-language toggles for the things users actually care about
+ * 3. Release Group Filter — visible by default (most commonly configured)
+ * 4. Advanced — full weight sliders + provider modifiers, collapsed by default
  */
 import { useState, useEffect, useMemo } from 'react'
-import { Save, Loader2, RotateCcw, Download, Plus, X } from 'lucide-react'
+import { Save, Loader2, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
 import {
   useScoringWeights, useUpdateScoringWeights, useResetScoringWeights,
   useProviderModifiers, useUpdateProviderModifiers,
@@ -17,38 +16,11 @@ import {
   useProviders,
   useConfig, useUpdateConfig,
 } from '@/hooks/useApi'
-import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
+import { SettingsSection } from '@/components/settings/SettingsSection'
+import { Toggle } from '@/components/shared/Toggle'
 import { toast } from '@/components/shared/Toast'
 import type { ScoringWeights, ScoringPreset } from '@/lib/types'
-
-// ─── Weight metadata ──────────────────────────────────────────────────────────
-
-interface WeightMeta {
-  label: string
-  hint: string
-}
-
-const WEIGHT_META: Record<string, WeightMeta> = {
-  words:           { label: 'Word Count',       hint: 'Score based on subtitle word count similarity to the expected length.' },
-  season:          { label: 'Season Match',     hint: 'Bonus when the subtitle season number matches the episode.' },
-  episode:         { label: 'Episode Match',    hint: 'Bonus when the subtitle episode number matches exactly.' },
-  year:            { label: 'Year Match',       hint: 'Bonus for matching the release year of the content.' },
-  resolution:      { label: 'Resolution',       hint: 'Bonus when the subtitle source resolution matches (e.g. 1080p).' },
-  source:          { label: 'Source',           hint: 'Bonus for matching the media source (BluRay, WEB-DL, HDTV, etc.).' },
-  audio_codec:     { label: 'Audio Codec',      hint: 'Bonus for matching the audio codec (DTS, AAC, FLAC, etc.).' },
-  video_codec:     { label: 'Video Codec',      hint: 'Bonus for matching the video codec (x264, x265, AV1, etc.).' },
-  release_group:   { label: 'Release Group',    hint: 'Bonus when the subtitle release group matches the media release group.' },
-  hearing_impaired:{ label: 'Hearing Impaired', hint: 'Score adjustment for subtitles tagged as hearing-impaired.' },
-  format_bonus:    { label: 'ASS Format Bonus', hint: 'Extra score awarded to ASS/SSA subtitles over plain SRT.' },
-}
-
-function weightLabel(key: string): WeightMeta {
-  return WEIGHT_META[key] ?? {
-    label: key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-    hint: '',
-  }
-}
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
@@ -63,27 +35,58 @@ const inputStyle: React.CSSProperties = {
   outline: 'none',
 }
 
-// ─── WeightRow ────────────────────────────────────────────────────────────────
+// ─── Weight display names ─────────────────────────────────────────────────────
 
-interface WeightRowProps {
+const WEIGHT_LABELS: Record<string, string> = {
+  words:            'Word Count',
+  season:           'Season Match',
+  episode:          'Episode Match',
+  year:             'Year Match',
+  resolution:       'Resolution',
+  source:           'Source',
+  audio_codec:      'Audio Codec',
+  video_codec:      'Video Codec',
+  release_group:    'Release Group',
+  hearing_impaired: 'Hearing Impaired',
+  format_bonus:     'ASS Format Bonus',
+}
+
+const WEIGHT_HINTS: Record<string, string> = {
+  words:            'Score based on subtitle word count similarity.',
+  season:           'Bonus when the subtitle season number matches.',
+  episode:          'Bonus when the subtitle episode number matches exactly.',
+  year:             'Bonus for matching the release year.',
+  resolution:       'Bonus for matching video resolution (e.g. 1080p).',
+  source:           'Bonus for matching the media source (BluRay, WEB-DL, etc.).',
+  audio_codec:      'Bonus for matching the audio codec.',
+  video_codec:      'Bonus for matching the video codec.',
+  release_group:    'Bonus when the subtitle release group matches.',
+  hearing_impaired: 'Score adjustment for HI-tagged subtitles.',
+  format_bonus:     'Extra points for ASS/SSA over plain SRT.',
+}
+
+function wLabel(key: string) {
+  return WEIGHT_LABELS[key] ?? key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+// ─── WeightSliderRow ──────────────────────────────────────────────────────────
+
+interface WeightSliderRowProps {
   weightKey: string
   value: number
   defaultValue?: number
   onChange: (v: number) => void
 }
 
-function WeightRow({ weightKey, value, defaultValue, onChange }: WeightRowProps) {
-  const { label, hint } = weightLabel(weightKey)
-  const color =
-    value > 0 ? 'var(--success)' : value < 0 ? 'var(--error)' : 'var(--text-muted)'
-
+function WeightSliderRow({ weightKey, value, defaultValue, onChange }: WeightSliderRowProps) {
+  const color = value > 0 ? 'var(--success)' : value < 0 ? 'var(--error)' : 'var(--text-muted)'
   return (
     <FormGroup
-      label={label}
-      hint={hint}
+      label={wLabel(weightKey)}
+      hint={WEIGHT_HINTS[weightKey] ?? ''}
       data-testid={`form-group-weight-${weightKey}`}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <input
           type="range"
           min={-200}
@@ -91,8 +94,8 @@ function WeightRow({ weightKey, value, defaultValue, onChange }: WeightRowProps)
           step={5}
           value={value}
           data-testid={`slider-weight-${weightKey}`}
-          onChange={(e) => onChange(parseInt(e.target.value))}
-          style={{ width: 140, accentColor: 'var(--accent)' }}
+          onChange={(e) => onChange(Number(e.target.value))}
+          style={{ width: 130, accentColor: 'var(--accent)' }}
         />
         <input
           type="number"
@@ -101,110 +104,15 @@ function WeightRow({ weightKey, value, defaultValue, onChange }: WeightRowProps)
           value={value}
           data-testid={`input-weight-${weightKey}`}
           onChange={(e) => onChange(parseInt(e.target.value) || 0)}
-          style={{ ...inputStyle, width: 64, textAlign: 'right', fontFamily: 'var(--font-mono, monospace)', color }}
+          style={{ ...inputStyle, width: 62, textAlign: 'right', fontFamily: 'var(--font-mono, monospace)', color }}
         />
         {defaultValue !== undefined && defaultValue !== value && (
-          <span
-            title={`Default: ${defaultValue}`}
-            style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}
-          >
-            (def: {defaultValue})
+          <span style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+            def: {defaultValue}
           </span>
         )}
       </div>
     </FormGroup>
-  )
-}
-
-// ─── ModifierRow ──────────────────────────────────────────────────────────────
-
-interface ModifierRowProps {
-  name: string
-  value: number
-  onChange: (v: number) => void
-}
-
-function ModifierRow({ name, value, onChange }: ModifierRowProps) {
-  const color =
-    value > 0 ? 'var(--success)' : value < 0 ? 'var(--error)' : 'var(--text-muted)'
-
-  return (
-    <FormGroup
-      label={name}
-      hint={`Add a bonus (positive) or penalty (negative) to every result from ${name}.`}
-      data-testid={`form-group-modifier-${name}`}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <input
-          type="range"
-          min={-100}
-          max={100}
-          step={5}
-          value={value}
-          data-testid={`slider-modifier-${name}`}
-          onChange={(e) => onChange(parseInt(e.target.value))}
-          style={{ width: 140, accentColor: 'var(--accent)' }}
-        />
-        <span
-          data-testid={`value-modifier-${name}`}
-          style={{
-            width: 40,
-            textAlign: 'right',
-            fontSize: 13,
-            fontWeight: 600,
-            fontFamily: 'var(--font-mono, monospace)',
-            color,
-          }}
-        >
-          {value > 0 ? `+${value}` : value}
-        </span>
-      </div>
-    </FormGroup>
-  )
-}
-
-// ─── SectionSaveBar ───────────────────────────────────────────────────────────
-
-interface SectionSaveBarProps {
-  onSave: () => void
-  onReset?: () => void
-  isPending: boolean
-  isResetPending?: boolean
-}
-
-function SectionSaveBar({ onSave, onReset, isPending, isResetPending }: SectionSaveBarProps) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 4 }}>
-      {onReset && (
-        <button
-          onClick={onReset}
-          disabled={isResetPending}
-          data-testid="btn-reset-weights"
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500,
-            border: '1px solid var(--border)', color: 'var(--text-muted)',
-            background: 'transparent', cursor: 'pointer', opacity: isResetPending ? 0.5 : 1,
-          }}
-        >
-          <RotateCcw size={11} /> Reset to Defaults
-        </button>
-      )}
-      <button
-        onClick={onSave}
-        disabled={isPending}
-        data-testid="btn-save-weights"
-        style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 500,
-          background: 'var(--accent)', color: '#fff',
-          border: 'none', cursor: 'pointer', opacity: isPending ? 0.6 : 1,
-        }}
-      >
-        {isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-        Save
-      </button>
-    </div>
   )
 }
 
@@ -222,10 +130,13 @@ export function ScoringTab() {
   const importPreset = useImportScoringPreset()
   const updateConfig = useUpdateConfig()
 
+  // Weight state
   const [episodeWeights, setEpisodeWeights] = useState<Record<string, number>>({})
   const [movieWeights, setMovieWeights] = useState<Record<string, number>>({})
-  const [providerMods, setProviderMods] = useState<Record<string, number>>({})
   const [weightsInit, setWeightsInit] = useState(false)
+
+  // Provider modifier state
+  const [providerMods, setProviderMods] = useState<Record<string, number>>({})
   const [modsInit, setModsInit] = useState(false)
 
   // Release group state
@@ -239,10 +150,11 @@ export function ScoringTab() {
   const [mtThreshold, setMtThreshold] = useState(50)
   const [mtInit, setMtInit] = useState(false)
 
-  // Preset state
-  const [selectedPreset, setSelectedPreset] = useState('')
-  const [customPresetJson, setCustomPresetJson] = useState('')
-  const [showCustomImport, setShowCustomImport] = useState(false)
+  // Advanced panel
+  const [showAdvanced, setShowAdvanced] = useState(false)
+
+  // Applying preset
+  const [applyingPreset, setApplyingPreset] = useState<string | null>(null)
 
   const weights: ScoringWeights | undefined = scoringData
   const providerList = useMemo(() => providers?.providers ?? [], [providers])
@@ -288,267 +200,198 @@ export function ScoringTab() {
     }
   }, [configData, mtInit])
 
-  const handleSaveWeights = () => {
+  // ── Derived "what matters" values ──────────────────────────────────────────
+
+  const preferAssFormat = (episodeWeights['format_bonus'] ?? 0) > 0
+  const penalizeMt = mtPenalty < 0
+  const hasRgPrefer = rgPrefer.trim().length > 0
+
+  const togglePreferAss = (v: boolean) => {
+    const val = v ? 30 : 0
+    setEpisodeWeights((w) => ({ ...w, format_bonus: val }))
+    setMovieWeights((w) => ({ ...w, format_bonus: val }))
     updateWeights.mutate(
-      { episode: episodeWeights, movie: movieWeights },
-      {
-        onSuccess: () => toast('Scoring weights saved'),
-        onError: () => toast('Failed to save weights', 'error'),
-      },
+      { episode: { ...episodeWeights, format_bonus: val }, movie: { ...movieWeights, format_bonus: val } },
+      { onSuccess: () => toast('ASS format preference saved') },
     )
   }
 
-  const handleResetWeights = () => {
-    if (!confirm('Reset all scoring weights to defaults?')) return
-    resetWeights.mutate(undefined, {
-      onSuccess: () => { setWeightsInit(false); toast('Scoring weights reset to defaults') },
-      onError: () => toast('Failed to reset weights', 'error'),
+  const togglePenalizeMt = (v: boolean) => {
+    const penalty = v ? -30 : 0
+    setMtPenalty(penalty)
+    updateConfig.mutate(
+      { 'providers.mt_penalty': penalty },
+      { onSuccess: () => toast('MT penalty updated') },
+    )
+  }
+
+  // ── Preset apply ───────────────────────────────────────────────────────────
+
+  const handleApplyPreset = (preset: ScoringPreset) => {
+    setApplyingPreset(preset.name)
+    importPreset.mutate(preset as unknown as Record<string, unknown>, {
+      onSuccess: () => {
+        setWeightsInit(false)
+        setModsInit(false)
+        setApplyingPreset(null)
+        toast(`Preset "${preset.name}" applied`)
+      },
+      onError: () => { setApplyingPreset(null); toast('Failed to apply preset', 'error') },
     })
   }
 
-  const handleSaveModifiers = () => {
+  const handlePresetClick = (presetMeta: { name: string }) => {
+    import('@/api/client').then(({ getScoringPreset }) =>
+      getScoringPreset(presetMeta.name).then(handleApplyPreset)
+    )
+  }
+
+  // ── Save helpers ───────────────────────────────────────────────────────────
+
+  const saveWeights = () => {
+    updateWeights.mutate(
+      { episode: episodeWeights, movie: movieWeights },
+      { onSuccess: () => toast('Scoring weights saved'), onError: () => toast('Failed to save', 'error') },
+    )
+  }
+
+  const resetAllWeights = () => {
+    if (!confirm('Reset all scoring weights to factory defaults?')) return
+    resetWeights.mutate(undefined, {
+      onSuccess: () => { setWeightsInit(false); toast('Weights reset to defaults') },
+      onError: () => toast('Failed to reset', 'error'),
+    })
+  }
+
+  const saveModifiers = () => {
     const toSave: Record<string, number> = {}
     for (const [name, mod] of Object.entries(providerMods)) {
       if (mod !== 0) toSave[name] = mod
     }
     updateModifiers.mutate(toSave, {
       onSuccess: () => toast('Provider modifiers saved'),
-      onError: () => toast('Failed to save modifiers', 'error'),
+      onError: () => toast('Failed to save', 'error'),
     })
   }
 
-  const handleApplyPreset = (preset: ScoringPreset) => {
-    if (!confirm(`Apply preset "${preset.name}"? This will overwrite the current scoring weights.`)) return
-    importPreset.mutate(preset as unknown as Record<string, unknown>, {
-      onSuccess: () => {
-        setWeightsInit(false)
-        setModsInit(false)
-        setSelectedPreset('')
-        toast(`Preset "${preset.name}" applied`)
-      },
-      onError: () => toast('Failed to apply preset', 'error'),
-    })
-  }
-
-  const handleImportCustom = () => {
-    let parsed: ScoringPreset
-    try {
-      parsed = JSON.parse(customPresetJson)
-    } catch {
-      toast('Invalid JSON', 'error')
-      return
-    }
-    handleApplyPreset(parsed)
-    setCustomPresetJson('')
-    setShowCustomImport(false)
-  }
-
-  const handleSaveReleaseGroup = () => {
+  const saveReleaseGroup = () => {
     updateConfig.mutate(
       { release_group_prefer: rgPrefer, release_group_exclude: rgExclude, release_group_prefer_bonus: rgBonus },
-      {
-        onSuccess: () => toast('Release group settings saved'),
-        onError: () => toast('Failed to save', 'error'),
-      },
+      { onSuccess: () => toast('Release group settings saved'), onError: () => toast('Failed to save', 'error') },
     )
   }
 
-  const handleSaveMt = () => {
+  const saveMt = () => {
     updateConfig.mutate(
       { 'providers.mt_penalty': mtPenalty, 'providers.mt_confidence_threshold': mtThreshold },
-      {
-        onSuccess: () => toast('MT detection settings saved'),
-        onError: () => toast('Failed to save', 'error'),
-      },
+      { onSuccess: () => toast('MT settings saved'), onError: () => toast('Failed to save', 'error') },
     )
   }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div data-testid="scoring-tab" className="space-y-4">
 
-      {/* ── Load Preset ──────────────────────────────────────────────────── */}
-      <SettingsSection
-        title="Load Preset"
-        description="Apply a bundled scoring profile to quickly adjust all weights at once."
-      >
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 8 }}>
-          <select
-            data-testid="select-preset"
-            value={selectedPreset}
-            onChange={(e) => setSelectedPreset(e.target.value)}
-            style={{ ...inputStyle, flex: '1 1 180px' }}
-          >
-            <option value="">Select a preset…</option>
-            {(presets ?? []).map((p: { name: string; description: string }) => (
-              <option key={p.name} value={p.name}>{p.name} — {p.description}</option>
-            ))}
-          </select>
-          <button
-            data-testid="btn-apply-preset"
-            disabled={!selectedPreset || importPreset.isPending}
-            onClick={() => {
-              const preset = (presets ?? []).find((p: { name: string }) => p.name === selectedPreset)
-              if (preset) {
-                import('@/api/client').then(({ getScoringPreset }) =>
-                  getScoringPreset(preset.name).then(handleApplyPreset)
-                )
-              }
-            }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '7px 16px', borderRadius: 6, fontSize: 13, fontWeight: 500,
-              background: 'var(--accent)', color: '#fff',
-              border: 'none', cursor: 'pointer', opacity: (!selectedPreset || importPreset.isPending) ? 0.5 : 1,
-            }}
-          >
-            {importPreset.isPending ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-            Apply
-          </button>
-          <button
-            data-testid="btn-toggle-custom-import"
-            onClick={() => setShowCustomImport((v) => !v)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '7px 14px', borderRadius: 6, fontSize: 13,
-              border: '1px solid var(--border)', color: 'var(--text-muted)',
-              background: 'transparent', cursor: 'pointer',
-            }}
-          >
-            {showCustomImport ? <X size={13} /> : <Plus size={13} />}
-            Custom JSON
-          </button>
-        </div>
-        {showCustomImport && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-            <textarea
-              data-testid="textarea-custom-preset"
-              value={customPresetJson}
-              onChange={(e) => setCustomPresetJson(e.target.value)}
-              placeholder='{"name":"My Preset","weights":{"episode":{...},"movie":{...}},"provider_modifiers":{}}'
-              rows={4}
-              style={{
-                ...inputStyle,
-                width: '100%',
-                resize: 'vertical',
-                fontFamily: 'var(--font-mono, monospace)',
-                fontSize: 12,
-              }}
-            />
-            <button
-              data-testid="btn-import-custom-preset"
-              onClick={handleImportCustom}
-              disabled={!customPresetJson.trim() || importPreset.isPending}
-              style={{
-                alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: 6,
-                padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 500,
-                background: 'var(--accent)', color: '#fff',
-                border: 'none', cursor: 'pointer', opacity: (!customPresetJson.trim() || importPreset.isPending) ? 0.5 : 1,
-              }}
-            >
-              <Download size={12} /> Import & Apply
-            </button>
-          </div>
-        )}
-      </SettingsSection>
-
-      {/* ── Scoring Weights ───────────────────────────────────────────────── */}
-      <SettingsSection
-        title="Scoring Weights"
-        description="Higher value = more important criteria. Sliders range from −200 (strong penalty) to +200 (strong bonus). Grey shows the factory default."
-      >
-        <SectionSaveBar
-          onSave={handleSaveWeights}
-          onReset={handleResetWeights}
-          isPending={updateWeights.isPending}
-          isResetPending={resetWeights.isPending}
-        />
-
-        <div
-          data-testid="weight-tables"
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}
+      {/* ── 1. Presets ─────────────────────────────────────────────────── */}
+      {(presets ?? []).length > 0 && (
+        <SettingsSection
+          title="Quick Start: Apply a Preset"
+          description="One click to apply a tuned scoring profile. Your current weights will be replaced."
         >
-          {/* Episode Weights */}
-          <div data-testid="episode-weights">
-            <h4
-              style={{
-                fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8,
-              }}
-            >
-              Episode
-            </h4>
-            {Object.entries(episodeWeights).map(([key, val]) => (
-              <WeightRow
-                key={key}
-                weightKey={key}
-                value={val}
-                defaultValue={weights?.defaults?.episode?.[key]}
-                onChange={(v) => setEpisodeWeights({ ...episodeWeights, [key]: v })}
-              />
-            ))}
+          <div
+            data-testid="preset-buttons"
+            style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}
+          >
+            {(presets ?? []).map((p: { name: string; description: string }) => {
+              const isBusy = applyingPreset === p.name
+              return (
+                <button
+                  key={p.name}
+                  data-testid={`btn-preset-${p.name.toLowerCase().replace(/\s+/g, '-')}`}
+                  onClick={() => handlePresetClick(p)}
+                  disabled={importPreset.isPending}
+                  title={p.description}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                    gap: 2, padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+                    border: '1px solid var(--border)', background: 'var(--bg-elevated)',
+                    minWidth: 120, opacity: importPreset.isPending ? 0.6 : 1,
+                    transition: 'border-color 0.15s',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)' }}
+                >
+                  {isBusy ? (
+                    <Loader2 size={13} className="animate-spin" style={{ color: 'var(--accent)' }} />
+                  ) : (
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {p.name}
+                    </span>
+                  )}
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.description}</span>
+                </button>
+              )
+            })}
           </div>
+        </SettingsSection>
+      )}
 
-          {/* Movie Weights */}
-          <div data-testid="movie-weights">
-            <h4
-              style={{
-                fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8,
-              }}
-            >
-              Movie
-            </h4>
-            {Object.entries(movieWeights).map(([key, val]) => (
-              <WeightRow
-                key={key}
-                weightKey={key}
-                value={val}
-                defaultValue={weights?.defaults?.movie?.[key]}
-                onChange={(v) => setMovieWeights({ ...movieWeights, [key]: v })}
-              />
-            ))}
-          </div>
-        </div>
+      {/* ── 2. What Matters Most ───────────────────────────────────────── */}
+      <SettingsSection
+        title="What Matters Most"
+        description="The most impactful settings for subtitle quality. Change these first."
+      >
+        <FormGroup
+          label="Prefer ASS/SSA format"
+          hint="Gives a +30 score bonus to ASS and SSA subtitles over plain SRT. Recommended for anime."
+          data-testid="form-group-prefer-ass"
+        >
+          <Toggle
+            checked={preferAssFormat}
+            onChange={togglePreferAss}
+            disabled={updateWeights.isPending}
+          />
+        </FormGroup>
+
+        <FormGroup
+          label="Penalize machine-translated subtitles"
+          hint="Applies a −30 score penalty to subtitles flagged as machine-translated."
+          data-testid="form-group-penalize-mt"
+        >
+          <Toggle
+            checked={penalizeMt}
+            onChange={togglePenalizeMt}
+            disabled={updateConfig.isPending}
+          />
+        </FormGroup>
       </SettingsSection>
 
-      {/* ── Provider Score Modifiers ──────────────────────────────────────── */}
+      {/* ── 3. Release Group ──────────────────────────────────────────── */}
       <SettingsSection
-        title="Provider Modifiers"
-        description="Adjust the score of every result from a specific provider. Use this to favour or downrank individual providers."
+        title="Release Group Preferences"
+        description="Prefer subtitles from specific groups (score bonus) or block groups you dislike."
       >
-        <SectionSaveBar
-          onSave={handleSaveModifiers}
-          isPending={updateModifiers.isPending}
-        />
-        <div data-testid="provider-modifiers">
-          {Object.entries(providerMods)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([name, mod]) => (
-              <ModifierRow
-                key={name}
-                name={name}
-                value={mod}
-                onChange={(v) => setProviderMods({ ...providerMods, [name]: v })}
-              />
-            ))}
-          {Object.keys(providerMods).length === 0 && (
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0' }}>
-              No providers configured.
-            </p>
-          )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+          <button
+            data-testid="btn-save-release-group"
+            onClick={saveReleaseGroup}
+            disabled={updateConfig.isPending}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 500,
+              background: 'var(--accent)', color: '#fff',
+              border: 'none', cursor: 'pointer', opacity: updateConfig.isPending ? 0.6 : 1,
+            }}
+          >
+            {updateConfig.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+            Save
+          </button>
         </div>
-      </SettingsSection>
-
-      {/* ── Release Group Filter ──────────────────────────────────────────── */}
-      <SettingsSection
-        title="Release Group Filter"
-        description="Prefer or block specific release groups. Preferred groups receive a score bonus; blocked groups are excluded entirely."
-      >
-        <SectionSaveBar onSave={handleSaveReleaseGroup} isPending={updateConfig.isPending} />
 
         <FormGroup
           label="Preferred Groups"
-          hint="Comma-separated release groups that receive a score bonus (e.g. SubsPlease,Erai-raws). Leave empty to disable."
+          hint={`Comma-separated release groups that receive a +${rgBonus} score bonus (e.g. SubsPlease, Erai-raws). Leave empty to disable.`}
           data-testid="form-group-rg-prefer"
         >
           <input
@@ -558,13 +401,13 @@ export function ScoringTab() {
             value={rgPrefer}
             onChange={(e) => setRgPrefer(e.target.value)}
             placeholder="SubsPlease,Erai-raws"
-            style={{ ...inputStyle, width: 220 }}
+            style={{ ...inputStyle, width: 240 }}
           />
         </FormGroup>
 
         <FormGroup
           label="Blocked Groups"
-          hint="Comma-separated release groups to exclude from all search results."
+          hint="Comma-separated groups to exclude from all results entirely."
           data-testid="form-group-rg-exclude"
         >
           <input
@@ -573,97 +416,294 @@ export function ScoringTab() {
             data-testid="input-rg-exclude"
             value={rgExclude}
             onChange={(e) => setRgExclude(e.target.value)}
-            placeholder="HorribleSubs,CoalGirls"
-            style={{ ...inputStyle, width: 220 }}
+            placeholder="HorribleSubs"
+            style={{ ...inputStyle, width: 240 }}
           />
         </FormGroup>
 
-        <FormGroup
-          label="Prefer Bonus (score pts)"
-          hint="Extra score points awarded to subtitles matching a preferred release group."
-          data-testid="form-group-rg-bonus"
-        >
-          <input
-            id="rg-bonus"
-            type="number"
-            data-testid="input-rg-bonus"
-            min={0}
-            max={999}
-            value={rgBonus}
-            onChange={(e) => setRgBonus(Math.max(0, Math.min(999, parseInt(e.target.value) || 0)))}
-            style={{ ...inputStyle, width: 90 }}
-          />
-        </FormGroup>
+        {hasRgPrefer && (
+          <FormGroup
+            label="Prefer Bonus (score pts)"
+            hint="Extra score points for subtitles matching a preferred group."
+            data-testid="form-group-rg-bonus"
+          >
+            <input
+              id="rg-bonus"
+              type="number"
+              data-testid="input-rg-bonus"
+              min={0}
+              max={999}
+              value={rgBonus}
+              onChange={(e) => setRgBonus(Math.max(0, Math.min(999, parseInt(e.target.value) || 0)))}
+              style={{ ...inputStyle, width: 90 }}
+            />
+          </FormGroup>
+        )}
       </SettingsSection>
 
-      {/* ── MT Detection (advanced) ───────────────────────────────────────── */}
-      <SettingsSection
-        title="Machine Translation Detection"
-        description="Subtitles detected as machine-translated receive a score penalty."
-        advanced={
-          <div data-testid="mt-detection-advanced">
-            <SectionSaveBar onSave={handleSaveMt} isPending={updateConfig.isPending} />
-            <FormGroup
-              label="MT Score Penalty"
-              hint="Score penalty applied to machine-translated subtitles. Set to 0 to disable. Range: −50 to 0."
-              data-testid="form-group-mt-penalty"
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input
-                  type="range"
-                  min={-50}
-                  max={0}
-                  step={1}
-                  value={mtPenalty}
-                  data-testid="slider-mt-penalty"
-                  onChange={(e) => setMtPenalty(parseInt(e.target.value))}
-                  style={{ width: 140, accentColor: 'var(--accent)' }}
-                />
-                <input
-                  type="number"
-                  min={-50}
-                  max={0}
-                  value={mtPenalty}
-                  data-testid="input-mt-penalty"
-                  onChange={(e) => setMtPenalty(Math.max(-50, Math.min(0, parseInt(e.target.value) || 0)))}
-                  style={{ ...inputStyle, width: 64, textAlign: 'right', fontFamily: 'var(--font-mono, monospace)' }}
-                />
-              </div>
-            </FormGroup>
-            <FormGroup
-              label="MT Confidence Threshold"
-              hint="Minimum confidence percentage (0–100) required to flag a subtitle as machine-translated."
-              data-testid="form-group-mt-threshold"
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={mtThreshold}
-                  data-testid="slider-mt-threshold"
-                  onChange={(e) => setMtThreshold(parseInt(e.target.value))}
-                  style={{ width: 140, accentColor: 'var(--accent)' }}
-                />
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={mtThreshold}
-                  data-testid="input-mt-threshold"
-                  onChange={(e) => setMtThreshold(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
-                  style={{ ...inputStyle, width: 64, textAlign: 'right', fontFamily: 'var(--font-mono, monospace)' }}
-                />
-              </div>
-            </FormGroup>
-          </div>
-        }
+      {/* ── 4. Advanced ────────────────────────────────────────────────── */}
+      <div
+        data-testid="advanced-scoring"
+        style={{
+          border: '1px solid var(--border)',
+          borderRadius: 10,
+          overflow: 'hidden',
+        }}
       >
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', padding: '4px 0' }}>
-          When enabled, results flagged as machine-translated (above the confidence threshold) receive a score penalty before ranking.
-        </p>
-      </SettingsSection>
+        {/* Toggle header */}
+        <button
+          data-testid="btn-toggle-advanced"
+          onClick={() => setShowAdvanced((v) => !v)}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 16px', background: 'var(--bg-surface)',
+            border: 'none', cursor: 'pointer',
+          }}
+        >
+          <div style={{ textAlign: 'left' }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+              Advanced: Fine-tune Weights
+            </span>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+              Adjust individual scoring criteria for episodes and movies
+            </p>
+          </div>
+          {showAdvanced
+            ? <ChevronUp size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+            : <ChevronDown size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />}
+        </button>
+
+        {showAdvanced && (
+          <div
+            data-testid="advanced-scoring-content"
+            style={{ padding: '16px', borderTop: '1px solid var(--border)', background: 'var(--bg-elevated)' }}
+          >
+
+            {/* Weight controls */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
+              <button
+                data-testid="btn-reset-weights"
+                onClick={resetAllWeights}
+                disabled={resetWeights.isPending}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500,
+                  border: '1px solid var(--border)', color: 'var(--text-muted)',
+                  background: 'transparent', cursor: 'pointer', opacity: resetWeights.isPending ? 0.5 : 1,
+                }}
+              >
+                <RotateCcw size={11} /> Reset to Defaults
+              </button>
+              <button
+                data-testid="btn-save-weights"
+                onClick={saveWeights}
+                disabled={updateWeights.isPending}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 500,
+                  background: 'var(--accent)', color: '#fff',
+                  border: 'none', cursor: 'pointer', opacity: updateWeights.isPending ? 0.6 : 1,
+                }}
+              >
+                {updateWeights.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                Save Weights
+              </button>
+            </div>
+
+            <div
+              data-testid="weight-tables"
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}
+            >
+              <div data-testid="episode-weights">
+                <h4 style={{
+                  fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                  letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8,
+                }}>
+                  Episode Weights
+                </h4>
+                {Object.entries(episodeWeights).map(([key, val]) => (
+                  <WeightSliderRow
+                    key={key}
+                    weightKey={key}
+                    value={val}
+                    defaultValue={weights?.defaults?.episode?.[key]}
+                    onChange={(v) => setEpisodeWeights((w) => ({ ...w, [key]: v }))}
+                  />
+                ))}
+              </div>
+
+              <div data-testid="movie-weights">
+                <h4 style={{
+                  fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                  letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8,
+                }}>
+                  Movie Weights
+                </h4>
+                {Object.entries(movieWeights).map(([key, val]) => (
+                  <WeightSliderRow
+                    key={key}
+                    weightKey={key}
+                    value={val}
+                    defaultValue={weights?.defaults?.movie?.[key]}
+                    onChange={(v) => setMovieWeights((w) => ({ ...w, [key]: v }))}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Provider modifiers */}
+            <div style={{ marginTop: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div>
+                  <h4 style={{
+                    fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                    letterSpacing: '0.08em', color: 'var(--text-muted)',
+                  }}>
+                    Provider Modifiers
+                  </h4>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                    Bonus or penalty applied to every result from a specific provider.
+                  </p>
+                </div>
+                <button
+                  data-testid="btn-save-modifiers"
+                  onClick={saveModifiers}
+                  disabled={updateModifiers.isPending}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 500,
+                    background: 'var(--accent)', color: '#fff',
+                    border: 'none', cursor: 'pointer', opacity: updateModifiers.isPending ? 0.6 : 1,
+                    flexShrink: 0,
+                  }}
+                >
+                  {updateModifiers.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                  Save
+                </button>
+              </div>
+
+              <div data-testid="provider-modifiers">
+                {Object.entries(providerMods)
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([name, mod]) => {
+                    const color = mod > 0 ? 'var(--success)' : mod < 0 ? 'var(--error)' : 'var(--text-muted)'
+                    return (
+                      <FormGroup
+                        key={name}
+                        label={name}
+                        hint={`Score modifier for all ${name} results.`}
+                        data-testid={`form-group-modifier-${name}`}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <input
+                            type="range"
+                            min={-100}
+                            max={100}
+                            step={5}
+                            value={mod}
+                            data-testid={`slider-modifier-${name}`}
+                            onChange={(e) => setProviderMods((m) => ({ ...m, [name]: parseInt(e.target.value) }))}
+                            style={{ width: 130, accentColor: 'var(--accent)' }}
+                          />
+                          <span
+                            data-testid={`value-modifier-${name}`}
+                            style={{ width: 36, textAlign: 'right', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-mono, monospace)', color }}
+                          >
+                            {mod > 0 ? `+${mod}` : mod}
+                          </span>
+                        </div>
+                      </FormGroup>
+                    )
+                  })}
+                {Object.keys(providerMods).length === 0 && (
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>
+                    No providers configured.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* MT Detection */}
+            <div style={{ marginTop: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div>
+                  <h4 style={{
+                    fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                    letterSpacing: '0.08em', color: 'var(--text-muted)',
+                  }}>
+                    MT Detection Thresholds
+                  </h4>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                    Fine-tune the penalty and confidence threshold for machine-translation detection.
+                  </p>
+                </div>
+                <button
+                  data-testid="btn-save-mt"
+                  onClick={saveMt}
+                  disabled={updateConfig.isPending}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 500,
+                    background: 'var(--accent)', color: '#fff',
+                    border: 'none', cursor: 'pointer', opacity: updateConfig.isPending ? 0.6 : 1,
+                    flexShrink: 0,
+                  }}
+                >
+                  {updateConfig.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                  Save
+                </button>
+              </div>
+              <div data-testid="mt-detection-controls">
+                <FormGroup
+                  label="MT Score Penalty"
+                  hint="Penalty applied to machine-translated subtitles (−50 to 0; 0 = disabled)."
+                  data-testid="form-group-mt-penalty"
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="range" min={-50} max={0} step={1}
+                      value={mtPenalty}
+                      data-testid="slider-mt-penalty"
+                      onChange={(e) => setMtPenalty(parseInt(e.target.value))}
+                      style={{ width: 130, accentColor: 'var(--accent)' }}
+                    />
+                    <input
+                      type="number" min={-50} max={0}
+                      value={mtPenalty}
+                      data-testid="input-mt-penalty"
+                      onChange={(e) => setMtPenalty(Math.max(-50, Math.min(0, parseInt(e.target.value) || 0)))}
+                      style={{ ...inputStyle, width: 62, textAlign: 'right', fontFamily: 'var(--font-mono, monospace)' }}
+                    />
+                  </div>
+                </FormGroup>
+                <FormGroup
+                  label="MT Confidence Threshold"
+                  hint="Minimum confidence % (0–100) to flag a subtitle as machine-translated."
+                  data-testid="form-group-mt-threshold"
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="range" min={0} max={100} step={1}
+                      value={mtThreshold}
+                      data-testid="slider-mt-threshold"
+                      onChange={(e) => setMtThreshold(parseInt(e.target.value))}
+                      style={{ width: 130, accentColor: 'var(--accent)' }}
+                    />
+                    <input
+                      type="number" min={0} max={100}
+                      value={mtThreshold}
+                      data-testid="input-mt-threshold"
+                      onChange={(e) => setMtThreshold(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+                      style={{ ...inputStyle, width: 62, textAlign: 'right', fontFamily: 'var(--font-mono, monospace)' }}
+                    />
+                  </div>
+                </FormGroup>
+              </div>
+            </div>
+
+          </div>
+        )}
+      </div>
 
     </div>
   )

@@ -20,11 +20,11 @@ const mockImportPreset = vi.fn()
 const mockUpdateConfig = vi.fn()
 
 const mockScoringWeights = {
-  episode: { words: 50, season: 50, episode: 50, resolution: 40, source: 40 },
-  movie: { words: 50, year: 40, resolution: 40, source: 40 },
+  episode: { words: 50, season: 50, episode: 50, resolution: 40, format_bonus: 30 },
+  movie: { words: 50, year: 40, resolution: 40, format_bonus: 30 },
   defaults: {
-    episode: { words: 50, season: 50, episode: 50, resolution: 40, source: 40 },
-    movie: { words: 50, year: 40, resolution: 40, source: 40 },
+    episode: { words: 50, season: 50, episode: 50, resolution: 40, format_bonus: 0 },
+    movie: { words: 50, year: 40, resolution: 40, format_bonus: 0 },
   },
 }
 
@@ -34,7 +34,12 @@ vi.mock('@/hooks/useApi', () => ({
   useResetScoringWeights: () => ({ mutate: mockResetWeights, isPending: false }),
   useProviderModifiers: () => ({ data: { OpenSubtitles: 0, Subscene: 10 } }),
   useUpdateProviderModifiers: () => ({ mutate: mockUpdateModifiers, isPending: false }),
-  useScoringPresets: () => ({ data: [{ name: 'Anime', description: 'Optimised for anime' }] }),
+  useScoringPresets: () => ({
+    data: [
+      { name: 'Anime', description: 'Optimised for anime' },
+      { name: 'General', description: 'Balanced for any content' },
+    ],
+  }),
   useImportScoringPreset: () => ({ mutate: mockImportPreset, isPending: false }),
   useProviders: () => ({ data: { providers: [{ name: 'OpenSubtitles' }, { name: 'Subscene' }] } }),
   useConfig: () => ({
@@ -69,96 +74,53 @@ function renderTab() {
 describe('ScoringTab', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  // ── Root container ───────────────────────────────────────────────────────
+  // ── Root ──────────────────────────────────────────────────────────────────
 
   it('renders the scoring-tab root container', () => {
     renderTab()
     expect(screen.getByTestId('scoring-tab')).toBeInTheDocument()
   })
 
-  // ── Preset section ───────────────────────────────────────────────────────
+  // ── Presets ───────────────────────────────────────────────────────────────
 
-  it('renders the preset select', () => {
+  it('renders preset buttons', () => {
     renderTab()
-    expect(screen.getByTestId('select-preset')).toBeInTheDocument()
+    expect(screen.getByTestId('preset-buttons')).toBeInTheDocument()
   })
 
-  it('renders the Apply preset button', () => {
+  it('renders a button for each preset', () => {
     renderTab()
-    expect(screen.getByTestId('btn-apply-preset')).toBeInTheDocument()
+    expect(screen.getByTestId('btn-preset-anime')).toBeInTheDocument()
+    expect(screen.getByTestId('btn-preset-general')).toBeInTheDocument()
   })
 
-  it('renders the Custom JSON toggle button', () => {
+  // ── What Matters Most ─────────────────────────────────────────────────────
+
+  it('renders the prefer-ass toggle', () => {
     renderTab()
-    expect(screen.getByTestId('btn-toggle-custom-import')).toBeInTheDocument()
+    expect(screen.getByTestId('form-group-prefer-ass')).toBeInTheDocument()
   })
 
-  it('shows custom JSON textarea after clicking the Custom JSON button', () => {
+  it('renders the penalize-mt toggle', () => {
     renderTab()
-    fireEvent.click(screen.getByTestId('btn-toggle-custom-import'))
-    expect(screen.getByTestId('textarea-custom-preset')).toBeInTheDocument()
+    expect(screen.getByTestId('form-group-penalize-mt')).toBeInTheDocument()
   })
 
-  // ── Scoring weights ──────────────────────────────────────────────────────
-
-  it('renders the weight-tables container', () => {
+  it('prefer-ass toggle reflects current weight value (format_bonus > 0 = checked)', () => {
     renderTab()
-    expect(screen.getByTestId('weight-tables')).toBeInTheDocument()
+    // format_bonus = 30 in mock → toggle should be ON
+    const toggle = screen.getByTestId('form-group-prefer-ass').querySelector('[role="switch"]') as HTMLElement
+    expect(toggle?.getAttribute('aria-checked')).toBe('true')
   })
 
-  it('renders the episode-weights group', () => {
+  it('penalize-mt toggle reflects mt_penalty < 0 (= checked)', () => {
     renderTab()
-    expect(screen.getByTestId('episode-weights')).toBeInTheDocument()
+    // mt_penalty = -30 → checked
+    const toggle = screen.getByTestId('form-group-penalize-mt').querySelector('[role="switch"]') as HTMLElement
+    expect(toggle?.getAttribute('aria-checked')).toBe('true')
   })
 
-  it('renders the movie-weights group', () => {
-    renderTab()
-    expect(screen.getByTestId('movie-weights')).toBeInTheDocument()
-  })
-
-  it('renders sliders for each episode weight', () => {
-    renderTab()
-    for (const key of Object.keys(mockScoringWeights.episode)) {
-      expect(screen.getAllByTestId(`slider-weight-${key}`).length).toBeGreaterThanOrEqual(1)
-    }
-  })
-
-  it('renders number inputs for each episode weight', () => {
-    renderTab()
-    for (const key of Object.keys(mockScoringWeights.episode)) {
-      expect(screen.getAllByTestId(`input-weight-${key}`).length).toBeGreaterThanOrEqual(1)
-    }
-  })
-
-  it('renders at least one Save button', () => {
-    renderTab()
-    expect(screen.getAllByTestId('btn-save-weights').length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('renders the Reset to Defaults button', () => {
-    renderTab()
-    expect(screen.getByTestId('btn-reset-weights')).toBeInTheDocument()
-  })
-
-  // ── Provider modifiers ───────────────────────────────────────────────────
-
-  it('renders the provider-modifiers container', () => {
-    renderTab()
-    expect(screen.getByTestId('provider-modifiers')).toBeInTheDocument()
-  })
-
-  it('renders a slider for each provider modifier', () => {
-    renderTab()
-    expect(screen.getByTestId('slider-modifier-OpenSubtitles')).toBeInTheDocument()
-    expect(screen.getByTestId('slider-modifier-Subscene')).toBeInTheDocument()
-  })
-
-  it('renders multiple Save buttons (one per section)', () => {
-    renderTab()
-    expect(screen.getAllByTestId('btn-save-weights').length).toBeGreaterThanOrEqual(2)
-  })
-
-  // ── Release group filter ─────────────────────────────────────────────────
+  // ── Release Group ─────────────────────────────────────────────────────────
 
   it('renders the preferred groups input with loaded value', () => {
     renderTab()
@@ -171,35 +133,74 @@ describe('ScoringTab', () => {
     expect(screen.getByTestId('input-rg-exclude')).toBeInTheDocument()
   })
 
-  it('renders the prefer bonus input with loaded value', () => {
+  it('shows prefer bonus input when preferred groups are set', () => {
     renderTab()
-    const input = screen.getByTestId('input-rg-bonus') as HTMLInputElement
-    expect(input.value).toBe('20')
+    // rgPrefer = 'SubsPlease' → bonus field visible
+    expect(screen.getByTestId('input-rg-bonus')).toBeInTheDocument()
   })
 
-  // ── MT Detection (advanced section) ─────────────────────────────────────
-
-  it('MT detection advanced content is collapsed by default', () => {
+  it('renders the release group Save button', () => {
     renderTab()
-    // advanced content panel not shown until toggle clicked
-    expect(screen.queryByTestId('mt-detection-advanced')).toBeNull()
+    expect(screen.getByTestId('btn-save-release-group')).toBeInTheDocument()
   })
 
-  it('MT detection shows controls after expanding the advanced toggle', () => {
+  // ── Advanced (collapsed by default) ──────────────────────────────────────
+
+  it('advanced content is hidden by default', () => {
     renderTab()
-    // Find the MT Detection section by its known section title
-    const allSections = document.querySelectorAll('[data-testid="settings-section"]')
-    // Last section is MT Detection
-    const mtSection = Array.from(allSections).find(
-      (el) => el.querySelector('[data-testid="settings-section-title"]')?.textContent === 'Machine Translation Detection',
-    ) as HTMLElement
-    expect(mtSection).toBeTruthy()
-    const toggle = mtSection.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
-    expect(toggle).toBeTruthy()
-    fireEvent.click(toggle)
+    expect(screen.queryByTestId('advanced-scoring-content')).toBeNull()
+  })
+
+  it('shows the advanced toggle button', () => {
+    renderTab()
+    expect(screen.getByTestId('btn-toggle-advanced')).toBeInTheDocument()
+  })
+
+  it('expands advanced section after clicking toggle', () => {
+    renderTab()
+    fireEvent.click(screen.getByTestId('btn-toggle-advanced'))
+    expect(screen.getByTestId('advanced-scoring-content')).toBeInTheDocument()
+  })
+
+  it('shows episode-weights after expanding advanced', () => {
+    renderTab()
+    fireEvent.click(screen.getByTestId('btn-toggle-advanced'))
+    expect(screen.getByTestId('episode-weights')).toBeInTheDocument()
+  })
+
+  it('shows movie-weights after expanding advanced', () => {
+    renderTab()
+    fireEvent.click(screen.getByTestId('btn-toggle-advanced'))
+    expect(screen.getByTestId('movie-weights')).toBeInTheDocument()
+  })
+
+  it('shows weight sliders for each episode weight after expanding', () => {
+    renderTab()
+    fireEvent.click(screen.getByTestId('btn-toggle-advanced'))
+    for (const key of Object.keys(mockScoringWeights.episode)) {
+      expect(screen.getAllByTestId(`slider-weight-${key}`).length).toBeGreaterThanOrEqual(1)
+    }
+  })
+
+  it('shows provider modifiers sliders after expanding', () => {
+    renderTab()
+    fireEvent.click(screen.getByTestId('btn-toggle-advanced'))
+    expect(screen.getByTestId('provider-modifiers')).toBeInTheDocument()
+    expect(screen.getByTestId('slider-modifier-OpenSubtitles')).toBeInTheDocument()
+    expect(screen.getByTestId('slider-modifier-Subscene')).toBeInTheDocument()
+  })
+
+  it('shows MT detection controls after expanding', () => {
+    renderTab()
+    fireEvent.click(screen.getByTestId('btn-toggle-advanced'))
     expect(screen.getByTestId('slider-mt-penalty')).toBeInTheDocument()
     expect(screen.getByTestId('slider-mt-threshold')).toBeInTheDocument()
-    expect(screen.getByTestId('input-mt-penalty')).toBeInTheDocument()
-    expect(screen.getByTestId('input-mt-threshold')).toBeInTheDocument()
+  })
+
+  it('shows Save Weights and Reset buttons after expanding', () => {
+    renderTab()
+    fireEvent.click(screen.getByTestId('btn-toggle-advanced'))
+    expect(screen.getByTestId('btn-save-weights')).toBeInTheDocument()
+    expect(screen.getByTestId('btn-reset-weights')).toBeInTheDocument()
   })
 })
