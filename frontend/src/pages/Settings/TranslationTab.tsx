@@ -8,6 +8,7 @@ import {
   useTranslationMemoryStats, useClearTranslationMemoryCache,
   useBackendTemplates,
 } from '@/hooks/useApi'
+import { useOllamaPullModel } from '@/hooks/useTranslationApi'
 import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Plus, Edit2, X, Check, Activity, Eye, EyeOff, BookOpen, Search, Database, Wand2, Download } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import { SettingRow } from '@/components/shared/SettingRow'
@@ -280,6 +281,72 @@ function BackendCard({
         </div>
       )}
     </div>
+  )
+}
+
+// ─── Ollama Pull Section ──────────────────────────────────────────────────────
+
+function OllamaPullSection() {
+  const [modelName, setModelName] = useState('')
+  const [pulling, setPulling] = useState(false)
+  const pullMut = useOllamaPullModel()
+
+  const handlePull = () => {
+    if (!modelName.trim()) return
+    setPulling(true)
+    pullMut.mutate(modelName.trim(), {
+      onSuccess: (r) => {
+        toast(r.message ?? `Pulling ${modelName}…`)
+        setPulling(false)
+      },
+      onError: () => {
+        toast('Pull failed', 'error')
+        setPulling(false)
+      },
+    })
+  }
+
+  return (
+    <SettingRow label="Pull Ollama model" description="Download or update a model from the Ollama registry.">
+      <div className="flex gap-2 items-center">
+        <input
+          type="text"
+          className="input-base"
+          placeholder="e.g. gemma2:27b"
+          value={modelName}
+          onChange={(e) => setModelName(e.target.value)}
+          data-testid="ollama-model-input"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-primary)',
+            borderRadius: '6px',
+            padding: '6px 10px',
+            fontSize: '13px',
+            minWidth: '180px',
+          }}
+        />
+        <button
+          className="btn-primary flex items-center gap-1"
+          onClick={handlePull}
+          disabled={pulling || !modelName.trim()}
+          data-testid="ollama-pull-btn"
+          style={{
+            backgroundColor: 'var(--accent)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            padding: '6px 12px',
+            fontSize: '13px',
+            cursor: pulling || !modelName.trim() ? 'not-allowed' : 'pointer',
+            opacity: pulling || !modelName.trim() ? 0.5 : 1,
+          }}
+        >
+          {pulling && <Loader2 size={14} className="animate-spin" />}
+          Pull
+        </button>
+      </div>
+    </SettingRow>
   )
 }
 
@@ -781,6 +848,14 @@ export function TranslationBackendsTab() {
           No translation backends registered. Install backend packages (e.g. deepl, openai, google-cloud-translate) to enable them.
         </div>
       )}
+
+      {/* Ollama Pull */}
+      <div
+        className="rounded-lg p-5"
+        style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      >
+        <OllamaPullSection />
+      </div>
 
       {/* Global LLM request settings */}
       <div

@@ -12,6 +12,7 @@ import {
   getTranslationMemoryStats, clearTranslationMemoryCache,
   getBackendTemplates,
   batchTranslate,
+  ollamaPullModel,
 } from '@/api/client'
 import type { BackendConfig } from '@/lib/types'
 import type { DownloadSpecificPayload } from '@/api/client'
@@ -367,5 +368,13 @@ export function useBatchTranslate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wanted'] })
     },
+  })
+}
+
+// ─── Ollama Pull Model ───────────────────────────────────────────────────────
+
+export function useOllamaPullModel() {
+  return useMutation({
+    mutationFn: (model: string) => ollamaPullModel(model),
   })
 }

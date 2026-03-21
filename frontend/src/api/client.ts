@@ -793,6 +793,11 @@ export async function getBackendStats(): Promise<{ stats: BackendStats[] }> {
   return data
 }
 
+export async function ollamaPullModel(model: string): Promise<{ status: string; message?: string }> {
+  const { data } = await api.post('/backends/ollama/pull', { model })
+  return data
+}
+
 // ─── Media Servers ──────────────────────────────────────────────────────────
 
 export async function getMediaServerTypes(): Promise<MediaServerType[]> {
