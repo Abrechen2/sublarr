@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import {
   useProviders, useTestProvider, useProviderStats, useClearProviderCache,
 } from '@/hooks/useApi'
+import { useProviderHealth } from '@/hooks/useProvidersApi'
 import { Loader2, Trash2, Plus, GripVertical } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import type { ProviderInfo } from '@/lib/types'
@@ -32,6 +33,7 @@ export function ProvidersTab({
 }) {
   const { data: providersData, isLoading: providersLoading } = useProviders()
   const { data: statsData } = useProviderStats()
+  const { data: healthData } = useProviderHealth()
   const testProviderMut = useTestProvider()
   const clearCacheMut = useClearProviderCache()
   const [testResults, setTestResults] = useState<Record<string, { healthy: boolean; message: string } | 'testing'>>({})
@@ -279,6 +281,26 @@ export function ProvidersTab({
               onToggle={() => handleToggle(provider.name, provider.enabled)}
               onRemove={() => handleHide(provider.name)}
             />
+            {/* Health status indicator */}
+            {healthData?.[provider.name] && (() => {
+              const health = healthData[provider.name]
+              return (
+                <div
+                  className="flex gap-2 text-xs mt-1 px-1"
+                  data-testid={`provider-health-${provider.name}`}
+                >
+                  <span style={{ color: health.healthy ? 'var(--success)' : 'var(--error)' }}>
+                    {health.healthy ? 'Healthy' : 'Unhealthy'}
+                  </span>
+                  {health.circuit_state !== 'closed' && (
+                    <span style={{ color: 'var(--warning)' }}>Circuit: {health.circuit_state}</span>
+                  )}
+                  {health.rate_limited && (
+                    <span style={{ color: 'var(--warning)' }}>Rate limited</span>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         ))}
 

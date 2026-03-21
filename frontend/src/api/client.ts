@@ -399,6 +399,11 @@ export async function getProviderStats(): Promise<ProviderStats> {
   return data
 }
 
+export async function getProviderHealth(): Promise<Record<string, { healthy: boolean; circuit_state: string; rate_limited: boolean; last_error?: string }>> {
+  const { data } = await api.get('/providers/health')
+  return data
+}
+
 export async function clearProviderCache(providerName?: string) {
   const body = providerName ? { provider_name: providerName } : {}
   const { data } = await api.post('/providers/cache/clear', body)
