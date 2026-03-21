@@ -47,6 +47,9 @@ vi.mock('@/hooks/useApi', () => ({
       upgrade_scan_interval_hours: '24',
       upgrade_window_days: '30',
       upgrade_prefer_ass: 'false',
+      webhook_delay_minutes: '5',
+      webhook_auto_scan: 'false',
+      webhook_auto_translate: 'false',
       wanted_auto_translate: 'false',
       auto_sync_after_download: 'false',
       auto_cleanup_after_extract: 'false',
@@ -106,10 +109,10 @@ describe('AutomationSettings', () => {
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
   })
 
-  it('renders exactly 5 settings sections', () => {
+  it('renders exactly 6 settings sections', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections).toHaveLength(5)
+    expect(sections).toHaveLength(6)
   })
 
   // ── Section presence ─────────────────────────────────────────────────────
@@ -122,6 +125,11 @@ describe('AutomationSettings', () => {
   it('renders the Upgrade Rules section', () => {
     renderPage()
     expect(screen.getByTestId('section-upgrade-rules')).toBeInTheDocument()
+  })
+
+  it('renders the Webhook section', () => {
+    renderPage()
+    expect(screen.getByTestId('section-webhook')).toBeInTheDocument()
   })
 
   it('renders the Provider Re-ranking section', () => {
@@ -390,6 +398,37 @@ describe('AutomationSettings', () => {
     const toggle = fg.querySelector('[role="switch"]') as HTMLElement
     fireEvent.click(toggle)
     expect(mockMutate).toHaveBeenCalledWith({ upgrade_prefer_ass: true })
+  })
+
+  // ── Webhook interactions ───────────────────────────────────────────────────
+
+  it('displays webhook_delay_minutes value from config', () => {
+    renderPage()
+    const input = screen.getByTestId('input-webhook-delay-minutes') as HTMLInputElement
+    expect(input.value).toBe('5')
+  })
+
+  it('calls updateConfig with webhook_delay_minutes as number on change', () => {
+    renderPage()
+    const input = screen.getByTestId('input-webhook-delay-minutes')
+    fireEvent.change(input, { target: { value: '10' } })
+    expect(mockMutate).toHaveBeenCalledWith({ webhook_delay_minutes: 10 })
+  })
+
+  it('calls updateConfig with webhook_auto_scan=true when toggled', () => {
+    renderPage()
+    const fg = screen.getByTestId('form-group-webhook-auto-scan')
+    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(mockMutate).toHaveBeenCalledWith({ webhook_auto_scan: true })
+  })
+
+  it('calls updateConfig with webhook_auto_translate=true when toggled', () => {
+    renderPage()
+    const fg = screen.getByTestId('form-group-webhook-auto-translate')
+    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(mockMutate).toHaveBeenCalledWith({ webhook_auto_translate: true })
   })
 
   // ── Processing Pipeline interactions ──────────────────────────────────────

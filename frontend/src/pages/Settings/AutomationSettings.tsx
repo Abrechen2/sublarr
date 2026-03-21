@@ -11,7 +11,7 @@
  */
 import { lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Search, ArrowUpCircle, BarChart3, Workflow, Clock } from 'lucide-react'
+import { Search, ArrowUpCircle, BarChart3, Workflow, Clock, Zap } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
@@ -101,21 +101,6 @@ function SearchScanContent() {
           disabled={updateConfig.isPending}
           min={1}
           placeholder="6"
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={t('settings.automation.searchScan.autoSearchOnDownload', 'Auto-Search on Download')}
-        hint={t(
-          'settings.automation.searchScan.autoSearchOnDownloadHint',
-          'Automatically trigger a subtitle search after a new download is detected.',
-        )}
-        data-testid="form-group-webhook-auto-search"
-      >
-        <Toggle
-          checked={boolVal(config, 'webhook_auto_search', true)}
-          onChange={(v) => save({ webhook_auto_search: v })}
-          disabled={updateConfig.isPending}
         />
       </FormGroup>
 
@@ -444,6 +429,76 @@ function ProcessingPipelineContent() {
   )
 }
 
+// ─── Webhook Section ──────────────────────────────────────────────────────────
+
+function WebhookContent() {
+  const { data: config, isLoading } = useConfig()
+  const updateConfig = useUpdateConfig()
+
+  const save = (patch: Record<string, unknown>) => updateConfig.mutate(patch)
+
+  if (isLoading) return <SectionSkeleton />
+
+  return (
+    <div data-testid="webhook-content">
+      <FormGroup
+        label="Webhook Delay (minutes)"
+        hint="Wait this many minutes after a Sonarr/Radarr webhook before searching. Allows time for the file to appear."
+        htmlFor="webhook-delay-minutes"
+        data-testid="form-group-webhook-delay-minutes"
+      >
+        <input
+          id="webhook-delay-minutes"
+          type="number"
+          data-testid="input-webhook-delay-minutes"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={strVal(config, 'webhook_delay_minutes', '5')}
+          onChange={(e) => save({ webhook_delay_minutes: Number(e.target.value) })}
+          disabled={updateConfig.isPending}
+          min={0}
+          placeholder="5"
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Auto-Scan on Webhook"
+        hint="Trigger a library scan automatically when a Sonarr/Radarr webhook is received."
+        data-testid="form-group-webhook-auto-scan"
+      >
+        <Toggle
+          checked={boolVal(config, 'webhook_auto_scan', false)}
+          onChange={(v) => save({ webhook_auto_scan: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Auto-Search on Webhook"
+        hint="Trigger a subtitle search automatically when a download webhook is received."
+        data-testid="form-group-webhook-auto-search"
+      >
+        <Toggle
+          checked={boolVal(config, 'webhook_auto_search', true)}
+          onChange={(v) => save({ webhook_auto_search: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Auto-Translate on Webhook"
+        hint="Automatically translate subtitles found via a webhook-triggered search."
+        data-testid="form-group-webhook-auto-translate"
+      >
+        <Toggle
+          checked={boolVal(config, 'webhook_auto_translate', false)}
+          onChange={(v) => save({ webhook_auto_translate: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+    </div>
+  )
+}
+
 // ─── Scheduled Tasks Section (advanced placeholder) ───────────────────────────
 
 function ScheduledTasksContent() {
@@ -502,7 +557,18 @@ export function AutomationSettings() {
         </SettingsSection>
       </div>
 
-      {/* 3. Provider Re-ranking */}
+      {/* 3. Webhook */}
+      <div data-testid="section-webhook">
+        <SettingsSection
+          title="Webhook"
+          description="Control what happens automatically when Sonarr/Radarr sends a download notification."
+          icon={<Zap size={16} style={{ color: 'var(--accent)' }} />}
+        >
+          <WebhookContent />
+        </SettingsSection>
+      </div>
+
+      {/* 4. Provider Re-ranking */}
       <div data-testid="section-provider-reranking">
         <SettingsSection
           title={t('settings.automation.providerReranking.title', 'Provider Re-ranking')}
