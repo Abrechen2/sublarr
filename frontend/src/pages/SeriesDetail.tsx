@@ -527,13 +527,38 @@ export function SeriesDetailPage() {
         />
       )}
 
-      {/* Season summary bar */}
+      {/* Season summary bar + search button */}
       {currentSeason !== null && (
-        <SeasonSummaryBar
-          season={currentSeason}
-          episodes={currentEpisodes}
-          targetLanguages={series.target_languages}
-        />
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <SeasonSummaryBar
+              season={currentSeason}
+              episodes={currentEpisodes}
+              targetLanguages={series.target_languages}
+            />
+          </div>
+          <button
+            className="flex-shrink-0 text-xs px-3 py-1.5 rounded"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-secondary)',
+              cursor: startSeriesSearch.isPending ? 'not-allowed' : 'pointer',
+              opacity: startSeriesSearch.isPending ? 0.5 : 1,
+            }}
+            disabled={startSeriesSearch.isPending}
+            onClick={() => startSeriesSearch.mutate(
+              { seriesId: seriesId ?? undefined },
+              {
+                onSuccess: () => toast('Season search started'),
+                onError: () => toast('Search failed', 'error'),
+              }
+            )}
+            data-testid={`search-season-${currentSeason}`}
+          >
+            Search Season {currentSeason}
+          </button>
+        </div>
       )}
 
       {/* Column header row */}
