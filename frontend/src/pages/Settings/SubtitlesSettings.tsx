@@ -11,7 +11,7 @@
  */
 import { lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Star, FileType, Trash2, Film, Users, Heart } from 'lucide-react'
+import { Star, FileType, Trash2, Film, Users, Heart, Tag, Filter, Sliders } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
@@ -66,6 +66,12 @@ const inputStyle: React.CSSProperties = {
 
 // ─── Config value helpers ─────────────────────────────────────────────────────
 
+function strVal(config: unknown, key: string, fallback = ''): string {
+  if (!config || typeof config !== 'object') return fallback
+  const v = (config as Record<string, unknown>)[key]
+  return v !== undefined && v !== null ? String(v) : fallback
+}
+
 function numVal(config: unknown, key: string, fallback = 0): number {
   if (!config || typeof config !== 'object') return fallback
   const v = (config as Record<string, unknown>)[key]
@@ -79,6 +85,238 @@ function boolVal(config: unknown, key: string, fallback = false): boolean {
   const v = (config as Record<string, unknown>)[key]
   if (v === undefined || v === null) return fallback
   return String(v) === 'true'
+}
+
+// ─── Subtitle Naming Constants ────────────────────────────────────────────────
+
+const LANG_CODE_FORMATS = [
+  { value: 'iso_639_1', label: 'ISO 639-1 (2-letter: de, en)' },
+  { value: 'iso_639_2', label: 'ISO 639-2 (3-letter: deu, eng)' },
+] as const
+const SUFFIX_SEPARATORS = [
+  { value: 'dot', label: 'Dot  (movie.de.ass)' },
+  { value: 'dash', label: 'Dash  (movie-de.ass)' },
+  { value: 'underscore', label: 'Underscore  (movie_de.ass)' },
+] as const
+
+// ─── Subtitle Naming Section ──────────────────────────────────────────────────
+
+function SubtitleNamingContent() {
+  const { data: config, isLoading } = useConfig()
+  const { mutate: updateConfig, isPending } = useUpdateConfig()
+  const save = (patch: Record<string, unknown>) => updateConfig(patch)
+
+  if (isLoading) return <SectionSkeleton />
+
+  return (
+    <div data-testid="subtitle-naming-content">
+      <FormGroup
+        label="Language Code Format"
+        hint="Format used for the language suffix in subtitle filenames"
+        htmlFor="subtitle-language-code-format"
+        data-testid="form-group-subtitle-language-code-format"
+      >
+        <select
+          id="subtitle-language-code-format"
+          data-testid="select-subtitle-language-code-format"
+          style={inputStyle}
+          value={strVal(config, 'subtitle_language_code_format', 'iso_639_1')}
+          onChange={(e) => save({ subtitle_language_code_format: e.target.value })}
+          disabled={isPending}
+        >
+          {LANG_CODE_FORMATS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </FormGroup>
+
+      <FormGroup
+        label="Suffix Separator"
+        hint="Character between the base filename and the language suffix"
+        htmlFor="subtitle-suffix-separator"
+        data-testid="form-group-subtitle-suffix-separator"
+      >
+        <select
+          id="subtitle-suffix-separator"
+          data-testid="select-subtitle-suffix-separator"
+          style={inputStyle}
+          value={strVal(config, 'subtitle_suffix_separator', 'dot')}
+          onChange={(e) => save({ subtitle_suffix_separator: e.target.value })}
+          disabled={isPending}
+        >
+          {SUFFIX_SEPARATORS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </FormGroup>
+
+      <FormGroup
+        label="HI Subtitle Suffix"
+        hint="Suffix appended to hearing-impaired subtitle filenames"
+        htmlFor="subtitle-hi-suffix"
+        data-testid="form-group-subtitle-hi-suffix"
+      >
+        <input
+          id="subtitle-hi-suffix"
+          type="text"
+          data-testid="input-subtitle-hi-suffix"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={strVal(config, 'subtitle_hi_suffix', 'hi')}
+          onChange={(e) => save({ subtitle_hi_suffix: e.target.value })}
+          disabled={isPending}
+          placeholder="hi"
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Forced Subtitle Suffix"
+        hint="Suffix appended to forced subtitle filenames"
+        htmlFor="subtitle-forced-suffix"
+        data-testid="form-group-subtitle-forced-suffix"
+      >
+        <input
+          id="subtitle-forced-suffix"
+          type="text"
+          data-testid="input-subtitle-forced-suffix"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={strVal(config, 'subtitle_forced_suffix', 'forced')}
+          onChange={(e) => save({ subtitle_forced_suffix: e.target.value })}
+          disabled={isPending}
+          placeholder="forced"
+        />
+      </FormGroup>
+    </div>
+  )
+}
+
+// ─── Scan Filters Section ─────────────────────────────────────────────────────
+
+function ScanFiltersContent() {
+  const { data: config, isLoading } = useConfig()
+  const { mutate: updateConfig, isPending } = useUpdateConfig()
+  const save = (patch: Record<string, unknown>) => updateConfig(patch)
+
+  if (isLoading) return <SectionSkeleton />
+
+  const textareaStyle: React.CSSProperties = {
+    background: 'var(--bg-elevated)',
+    border: '1px solid var(--border)',
+    color: 'var(--text-primary)',
+    borderRadius: '6px',
+    padding: '7px 12px',
+    fontSize: '13px',
+    fontFamily: 'var(--font-body)',
+    width: '100%',
+    outline: 'none',
+    resize: 'vertical',
+  }
+
+  return (
+    <div data-testid="scan-filters-content">
+      <FormGroup
+        label="Ignore Patterns"
+        hint='JSON array of glob patterns to skip during scan'
+        data-testid="form-group-scan-ignore-patterns"
+      >
+        <textarea
+          data-testid="textarea-scan-ignore-patterns"
+          style={textareaStyle}
+          rows={3}
+          defaultValue={strVal(config, 'scan_ignore_patterns', '[]')}
+          onBlur={(e) => save({ scan_ignore_patterns: e.target.value })}
+          disabled={isPending}
+          placeholder='["*.sample.*", "*.extras.*"]'
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Minimum File Size (MB)"
+        hint="Skip media files smaller than this size during scan"
+        htmlFor="scan-min-file-size-mb"
+        data-testid="form-group-scan-min-file-size-mb"
+      >
+        <input
+          id="scan-min-file-size-mb"
+          type="number"
+          data-testid="input-scan-min-file-size-mb"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={numVal(config, 'scan_min_file_size_mb', 0)}
+          onChange={(e) => save({ scan_min_file_size_mb: Number(e.target.value) })}
+          disabled={isPending}
+          min={0}
+          step={0.1}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Ignore Languages"
+        hint='JSON array of ISO-639-1 codes to exclude from scan'
+        data-testid="form-group-scan-ignore-languages"
+      >
+        <textarea
+          data-testid="textarea-scan-ignore-languages"
+          style={textareaStyle}
+          rows={2}
+          defaultValue={strVal(config, 'scan_ignore_languages', '[]')}
+          onBlur={(e) => save({ scan_ignore_languages: e.target.value })}
+          disabled={isPending}
+          placeholder='["fr", "es"]'
+        />
+      </FormGroup>
+    </div>
+  )
+}
+
+// ─── Per-Language Score Thresholds Section ────────────────────────────────────
+
+function PerLanguageScoresContent() {
+  const { data: config, isLoading } = useConfig()
+  const { mutate: updateConfig, isPending } = useUpdateConfig()
+  const save = (patch: Record<string, unknown>) => updateConfig(patch)
+
+  if (isLoading) return <SectionSkeleton />
+
+  const textareaStyle: React.CSSProperties = {
+    background: 'var(--bg-elevated)',
+    border: '1px solid var(--border)',
+    color: 'var(--text-primary)',
+    borderRadius: '6px',
+    padding: '7px 12px',
+    fontSize: '13px',
+    fontFamily: 'var(--font-body)',
+    width: '100%',
+    outline: 'none',
+    resize: 'vertical',
+  }
+
+  return (
+    <div data-testid="per-language-scores-content">
+      <FormGroup
+        label="Score Thresholds (JSON)"
+        hint='JSON object mapping ISO-639-1 code to minimum score. Empty object uses global threshold for all languages.'
+        data-testid="form-group-score-threshold-per-language"
+      >
+        <textarea
+          data-testid="textarea-score-threshold-per-language"
+          style={textareaStyle}
+          rows={4}
+          defaultValue={strVal(config, 'score_threshold_per_language', '{}')}
+          onBlur={(e) => save({ score_threshold_per_language: e.target.value })}
+          disabled={isPending}
+          placeholder='{"de": 80, "fr": 70}'
+        />
+      </FormGroup>
+      <p style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '6px' }}>
+        {`Example: {"de": 80, "fr": 70} — German subtitles require score ≥ 80, French ≥ 70.`}
+        <br />
+        Leave as {'{}'} to use the global threshold for all languages.
+      </p>
+    </div>
+  )
 }
 
 function EmbeddedExtractionContent() {
@@ -363,6 +601,39 @@ export function SubtitlesSettings() {
               'Preferred and excluded fansub groups for subtitle selection. Per-series overrides take priority.',
             )}
           </p>
+        </SettingsSection>
+      </div>
+
+      {/* 7. Subtitle Naming (Step 38) */}
+      <div data-testid="section-subtitle-naming">
+        <SettingsSection
+          title="Subtitle Naming"
+          description="Language code format and suffix conventions for saved subtitle files."
+          icon={<Tag size={16} style={{ color: 'var(--accent)' }} />}
+        >
+          <SubtitleNamingContent />
+        </SettingsSection>
+      </div>
+
+      {/* 8. Scan Filters (Step 42) */}
+      <div data-testid="section-scan-filters">
+        <SettingsSection
+          title="Scan Filters"
+          description="Exclude files and languages from subtitle scans."
+          icon={<Filter size={16} style={{ color: 'var(--accent)' }} />}
+        >
+          <ScanFiltersContent />
+        </SettingsSection>
+      </div>
+
+      {/* 9. Per-Language Score Thresholds (Step 43) */}
+      <div data-testid="section-per-language-scores">
+        <SettingsSection
+          title="Per-Language Score Thresholds"
+          description="Override the global minimum score for specific languages."
+          icon={<Sliders size={16} style={{ color: 'var(--accent)' }} />}
+        >
+          <PerLanguageScoresContent />
         </SettingsSection>
       </div>
     </SettingsDetailLayout>

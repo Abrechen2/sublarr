@@ -32,6 +32,8 @@ vi.mock('@/pages/Settings/CleanupTab', () => ({
   CleanupTab: () => <div data-testid="mock-cleanup-tab">Cleanup Tab</div>,
 }))
 
+const mockMutate = vi.fn()
+
 vi.mock('@/hooks/useApi', () => ({
   useConfig: () => ({
     data: {
@@ -41,11 +43,22 @@ vi.mock('@/hooks/useApi', () => ({
       wanted_skip_srt_on_no_ass: 'true',
       credit_threshold_sec: 90,
       op_window_sec: 300,
+      // Subtitle Naming (Step 38)
+      subtitle_language_code_format: 'iso_639_1',
+      subtitle_suffix_separator: 'dot',
+      subtitle_hi_suffix: 'hi',
+      subtitle_forced_suffix: 'forced',
+      // Scan Filters (Step 42)
+      scan_ignore_patterns: '[]',
+      scan_min_file_size_mb: 0,
+      scan_ignore_languages: '[]',
+      // Per-Language Score Thresholds (Step 43)
+      score_threshold_per_language: '{}',
     },
     isLoading: false,
   }),
   useUpdateConfig: () => ({
-    mutate: vi.fn(),
+    mutate: mockMutate,
     isPending: false,
   }),
   useScoringWeights: () => ({ data: undefined }),
@@ -329,11 +342,119 @@ describe('SubtitlesSettings', () => {
     expect(screen.getByTestId('fansub-preferences-summary')).toBeInTheDocument()
   })
 
-  // ── All 6 sections exist ──────────────────────────────────────────────────
+  // ── All sections exist ────────────────────────────────────────────────────
 
-  it('renders exactly 6 settings sections', () => {
+  it('renders exactly 9 settings sections', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections).toHaveLength(6)
+    expect(sections).toHaveLength(9)
+  })
+})
+
+// ─── Subtitle Naming section (Step 38) ───────────────────────────────────────
+
+describe('Subtitle Naming section', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('renders heading "Subtitle Naming"', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-subtitle-naming')
+    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
+    expect(title).toHaveTextContent('Subtitle Naming')
+  })
+
+  it('select-subtitle-language-code-format defaults to "iso_639_1"', () => {
+    renderPage()
+    const sel = screen.getByTestId('select-subtitle-language-code-format') as HTMLSelectElement
+    expect(sel.value).toBe('iso_639_1')
+  })
+
+  it('select-subtitle-suffix-separator defaults to "dot"', () => {
+    renderPage()
+    const sel = screen.getByTestId('select-subtitle-suffix-separator') as HTMLSelectElement
+    expect(sel.value).toBe('dot')
+  })
+
+  it('input-subtitle-hi-suffix defaults to "hi"', () => {
+    renderPage()
+    const input = screen.getByTestId('input-subtitle-hi-suffix') as HTMLInputElement
+    expect(input.value).toBe('hi')
+  })
+
+  it('input-subtitle-forced-suffix defaults to "forced"', () => {
+    renderPage()
+    const input = screen.getByTestId('input-subtitle-forced-suffix') as HTMLInputElement
+    expect(input.value).toBe('forced')
+  })
+
+  it('changing separator calls updateConfig with { subtitle_suffix_separator: "dash" }', () => {
+    renderPage()
+    const sel = screen.getByTestId('select-subtitle-suffix-separator')
+    fireEvent.change(sel, { target: { value: 'dash' } })
+    expect(mockMutate).toHaveBeenCalledWith({ subtitle_suffix_separator: 'dash' })
+  })
+})
+
+// ─── Scan Filters section (Step 42) ──────────────────────────────────────────
+
+describe('Scan Filters section', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('renders heading "Scan Filters"', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-scan-filters')
+    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
+    expect(title).toHaveTextContent('Scan Filters')
+  })
+
+  it('textarea-scan-ignore-patterns renders with default value "[]"', () => {
+    renderPage()
+    const ta = screen.getByTestId('textarea-scan-ignore-patterns') as HTMLTextAreaElement
+    expect(ta.value).toBe('[]')
+  })
+
+  it('input-scan-min-file-size-mb renders with value 0', () => {
+    renderPage()
+    const input = screen.getByTestId('input-scan-min-file-size-mb') as HTMLInputElement
+    expect(Number(input.value)).toBe(0)
+  })
+
+  it('textarea-scan-ignore-languages renders with default value "[]"', () => {
+    renderPage()
+    const ta = screen.getByTestId('textarea-scan-ignore-languages') as HTMLTextAreaElement
+    expect(ta.value).toBe('[]')
+  })
+
+  it('blurring textarea-scan-ignore-patterns calls updateConfig with { scan_ignore_patterns: \'["*.sample.*"]\' }', () => {
+    renderPage()
+    const ta = screen.getByTestId('textarea-scan-ignore-patterns')
+    fireEvent.blur(ta, { target: { value: '["*.sample.*"]' } })
+    expect(mockMutate).toHaveBeenCalledWith({ scan_ignore_patterns: '["*.sample.*"]' })
+  })
+})
+
+// ─── Per-Language Score Thresholds section (Step 43) ─────────────────────────
+
+describe('Per-Language Score Thresholds section', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('renders heading "Per-Language Score Thresholds"', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-per-language-scores')
+    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
+    expect(title).toHaveTextContent('Per-Language Score Thresholds')
+  })
+
+  it('textarea-score-threshold-per-language renders with default value "{}"', () => {
+    renderPage()
+    const ta = screen.getByTestId('textarea-score-threshold-per-language') as HTMLTextAreaElement
+    expect(ta.value).toBe('{}')
+  })
+
+  it('blurring it calls updateConfig with { score_threshold_per_language: \'{"de":80}\' }', () => {
+    renderPage()
+    const ta = screen.getByTestId('textarea-score-threshold-per-language')
+    fireEvent.blur(ta, { target: { value: '{"de":80}' } })
+    expect(mockMutate).toHaveBeenCalledWith({ score_threshold_per_language: '{"de":80}' })
   })
 })
