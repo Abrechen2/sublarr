@@ -18,7 +18,31 @@ const mockClearCache = vi.fn()
 
 vi.mock('@/hooks/useApi', () => ({
   useConfig: () => ({
-    data: { anti_captcha_provider: '', anti_captcha_api_key: '' },
+    data: {
+      anti_captcha_provider: '',
+      anti_captcha_api_key: '',
+      providers_hidden: '',
+      dedup_on_download: false,
+      provider_auto_prioritize: false,
+      provider_rate_limit_enabled: false,
+      provider_search_timeout: 30,
+      provider_cache_ttl_minutes: 60,
+      provider_auto_disable_cooldown_minutes: 30,
+      github_token: '',
+      plugins_dir: '',
+      plugin_hot_reload: false,
+      provider_reranking_enabled: false,
+      provider_reranking_min_downloads: 10,
+      provider_reranking_max_modifier: 0.3,
+      provider_dynamic_timeout_enabled: false,
+      provider_dynamic_timeout_min_samples: 5,
+      provider_dynamic_timeout_multiplier: 1.5,
+      provider_dynamic_timeout_buffer_secs: 2,
+      provider_dynamic_timeout_min_secs: 5,
+      provider_dynamic_timeout_max_secs: 60,
+      circuit_breaker_failure_threshold: 5,
+      circuit_breaker_cooldown_seconds: 300,
+    },
     isLoading: false,
   }),
   useUpdateConfig: () => ({
@@ -203,5 +227,158 @@ describe('ProvidersSettings', () => {
     expect(screen.getByTestId('providers-marketplace-content')).toBeInTheDocument()
     expect(screen.getByTestId('providers-anticaptcha-content')).toBeInTheDocument()
     expect(screen.getByTestId('providers-cache-content')).toBeInTheDocument()
+  })
+
+  describe('Step 15 — installed section fields', () => {
+    it('renders providers_hidden text input', () => {
+      renderPage()
+      expect(screen.getByTestId('input-providers-hidden')).toBeInTheDocument()
+    })
+
+    it('renders dedup_on_download toggle', () => {
+      renderPage()
+      expect(screen.getByTestId('toggle-dedup-on-download')).toBeInTheDocument()
+    })
+
+    it('renders provider_auto_prioritize toggle', () => {
+      renderPage()
+      expect(screen.getByTestId('toggle-provider-auto-prioritize')).toBeInTheDocument()
+    })
+
+    it('renders provider_rate_limit_enabled toggle', () => {
+      renderPage()
+      expect(screen.getByTestId('toggle-provider-rate-limit-enabled')).toBeInTheDocument()
+    })
+
+    it('renders provider_search_timeout number input', () => {
+      renderPage()
+      expect(screen.getByTestId('input-provider-search-timeout')).toBeInTheDocument()
+    })
+
+    it('renders provider_cache_ttl_minutes number input', () => {
+      renderPage()
+      expect(screen.getByTestId('input-provider-cache-ttl-minutes')).toBeInTheDocument()
+    })
+
+    it('renders provider_auto_disable_cooldown_minutes number input', () => {
+      renderPage()
+      expect(screen.getByTestId('input-provider-auto-disable-cooldown-minutes')).toBeInTheDocument()
+    })
+
+    it('calls updateConfig when providers_hidden changes', () => {
+      renderPage()
+      fireEvent.change(screen.getByTestId('input-providers-hidden'), {
+        target: { value: 'opensubtitles' },
+      })
+      expect(mockUpdateConfig).toHaveBeenCalledWith({ providers_hidden: 'opensubtitles' })
+    })
+
+    it('calls updateConfig when dedup_on_download toggle is clicked', () => {
+      renderPage()
+      const wrapper = screen.getByTestId('toggle-dedup-on-download')
+      const btn = wrapper.querySelector('[role="switch"]') as HTMLElement
+      fireEvent.click(btn)
+      expect(mockUpdateConfig).toHaveBeenCalledWith({ dedup_on_download: true })
+    })
+
+    it('calls updateConfig when provider_search_timeout changes', () => {
+      renderPage()
+      fireEvent.change(screen.getByTestId('input-provider-search-timeout'), {
+        target: { value: '45' },
+      })
+      expect(mockUpdateConfig).toHaveBeenCalledWith({ provider_search_timeout: 45 })
+    })
+  })
+
+  describe('Step 16 — marketplace section fields', () => {
+    it('renders github_token password input', () => {
+      renderPage()
+      expect(screen.getByTestId('input-github-token')).toBeInTheDocument()
+    })
+
+    it('github_token is type="password"', () => {
+      renderPage()
+      expect(screen.getByTestId('input-github-token')).toHaveAttribute('type', 'password')
+    })
+
+    it('renders plugins_dir text input', () => {
+      renderPage()
+      expect(screen.getByTestId('input-plugins-dir')).toBeInTheDocument()
+    })
+
+    it('renders plugin_hot_reload toggle', () => {
+      renderPage()
+      expect(screen.getByTestId('toggle-plugin-hot-reload')).toBeInTheDocument()
+    })
+
+    it('calls updateConfig when github_token changes', () => {
+      renderPage()
+      fireEvent.change(screen.getByTestId('input-github-token'), {
+        target: { value: 'ghp_abc123' },
+      })
+      expect(mockUpdateConfig).toHaveBeenCalledWith({ github_token: 'ghp_abc123' })
+    })
+  })
+
+  describe('Step 17 — anti-captcha design alignment', () => {
+    it('anti-captcha backend select is wrapped in a FormGroup', () => {
+      renderPage()
+      expect(screen.getByTestId('form-group-anti-captcha-backend')).toBeInTheDocument()
+    })
+  })
+
+  describe('Step 18 — advanced section', () => {
+    it('renders the advanced settings section', () => {
+      renderPage()
+      expect(screen.getByTestId('providers-advanced-section')).toBeInTheDocument()
+    })
+
+    it('advanced section has an Advanced toggle button', () => {
+      renderPage()
+      expect(screen.getByTestId('settings-section-advanced-toggle')).toBeInTheDocument()
+    })
+
+    it('advanced content is hidden by default (collapsed)', () => {
+      renderPage()
+      expect(screen.queryByTestId('settings-section-advanced-content')).not.toBeInTheDocument()
+    })
+
+    it('clicking Advanced toggle reveals the advanced content', () => {
+      renderPage()
+      fireEvent.click(screen.getByTestId('settings-section-advanced-toggle'))
+      expect(screen.getByTestId('settings-section-advanced-content')).toBeInTheDocument()
+    })
+
+    it('advanced content contains provider_reranking_enabled toggle after expand', () => {
+      renderPage()
+      fireEvent.click(screen.getByTestId('settings-section-advanced-toggle'))
+      expect(screen.getByTestId('toggle-provider-reranking-enabled')).toBeInTheDocument()
+    })
+
+    it('advanced content contains circuit_breaker_failure_threshold input after expand', () => {
+      renderPage()
+      fireEvent.click(screen.getByTestId('settings-section-advanced-toggle'))
+      expect(
+        screen.getByTestId('input-circuit-breaker-failure-threshold'),
+      ).toBeInTheDocument()
+    })
+
+    it('calls updateConfig when provider_reranking_enabled is toggled', () => {
+      renderPage()
+      fireEvent.click(screen.getByTestId('settings-section-advanced-toggle'))
+      const wrapper = screen.getByTestId('toggle-provider-reranking-enabled')
+      const btn = wrapper.querySelector('[role="switch"]') as HTMLElement
+      fireEvent.click(btn)
+      expect(mockUpdateConfig).toHaveBeenCalledWith({ provider_reranking_enabled: true })
+    })
+
+    it('calls updateConfig when circuit_breaker_cooldown_seconds changes', () => {
+      renderPage()
+      fireEvent.click(screen.getByTestId('settings-section-advanced-toggle'))
+      fireEvent.change(screen.getByTestId('input-circuit-breaker-cooldown-seconds'), {
+        target: { value: '600' },
+      })
+      expect(mockUpdateConfig).toHaveBeenCalledWith({ circuit_breaker_cooldown_seconds: 600 })
+    })
   })
 })
