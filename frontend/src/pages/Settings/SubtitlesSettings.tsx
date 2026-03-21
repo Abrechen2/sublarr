@@ -50,24 +50,24 @@ function SectionSkeleton() {
 
 // ─── Embedded Extraction Section ─────────────────────────────────────────────
 
+function boolVal(config: unknown, key: string, fallback = false): boolean {
+  if (!config || typeof config !== 'object') return fallback
+  const v = (config as Record<string, unknown>)[key]
+  if (v === undefined || v === null) return fallback
+  return String(v) === 'true'
+}
+
 function EmbeddedExtractionContent() {
   const { t } = useTranslation('common')
   const { data: config, isLoading } = useConfig()
-  const updateConfig = useUpdateConfig()
+  const { mutate: updateConfig, isPending } = useUpdateConfig()
 
-  const autoScan = config
-    ? String((config as Record<string, unknown>)['webhook_auto_scan'] ?? 'false') === 'true'
-    : false
-
-  const handleToggle = (enabled: boolean) => {
-    updateConfig.mutate(
-      { webhook_auto_scan: String(enabled) },
-      {
-        onSuccess: () => toast(t('settings.subtitles.embeddedExtraction.saved', 'Setting saved')),
-        onError: () =>
-          toast(t('settings.subtitles.embeddedExtraction.saveFailed', 'Failed to save'), 'error'),
-      },
-    )
+  const save = (patch: Record<string, unknown>) => {
+    updateConfig(patch, {
+      onSuccess: () => toast(t('settings.subtitles.embeddedExtraction.saved', 'Setting saved')),
+      onError: () =>
+        toast(t('settings.subtitles.embeddedExtraction.saveFailed', 'Failed to save'), 'error'),
+    })
   }
 
   if (isLoading) return <SectionSkeleton />
@@ -75,17 +75,62 @@ function EmbeddedExtractionContent() {
   return (
     <div data-testid="embedded-extraction-content">
       <FormGroup
-        label={t('settings.subtitles.embeddedExtraction.autoScan', 'Auto-Scan for Embedded Subtitles')}
+        label={t('settings.subtitles.embeddedExtraction.autoExtract', 'Auto-Extract Embedded Subtitles')}
         hint={t(
-          'settings.subtitles.embeddedExtraction.autoScanHint',
-          'Automatically scan for embedded subtitle tracks after a Sonarr/Radarr download.',
+          'settings.subtitles.embeddedExtraction.autoExtractHint',
+          'Automatically extract embedded subtitle tracks during the wanted scan.',
         )}
-        data-testid="form-group-auto-scan"
+        data-testid="form-group-wanted-auto-extract"
       >
         <Toggle
-          checked={autoScan}
-          onChange={handleToggle}
-          disabled={updateConfig.isPending}
+          checked={boolVal(config, 'wanted_auto_extract')}
+          onChange={(v) => save({ wanted_auto_extract: String(v) })}
+          disabled={isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label={t('settings.subtitles.embeddedExtraction.useEmbeddedSubs', 'Use Embedded Subtitles')}
+        hint={t(
+          'settings.subtitles.embeddedExtraction.useEmbeddedSubsHint',
+          'Check for embedded subtitle streams in MKV files before searching providers.',
+        )}
+        data-testid="form-group-use-embedded-subs"
+      >
+        <Toggle
+          checked={boolVal(config, 'use_embedded_subs', true)}
+          onChange={(v) => save({ use_embedded_subs: String(v) })}
+          disabled={isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label={t('settings.subtitles.embeddedExtraction.hiRemoval', 'HI Removal on Extraction')}
+        hint={t(
+          'settings.subtitles.embeddedExtraction.hiRemovalHint',
+          'Strip hearing-impaired tags from extracted subtitle tracks.',
+        )}
+        data-testid="form-group-hi-removal-enabled"
+      >
+        <Toggle
+          checked={boolVal(config, 'hi_removal_enabled')}
+          onChange={(v) => save({ hi_removal_enabled: String(v) })}
+          disabled={isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label={t('settings.subtitles.embeddedExtraction.skipSrtOnNoAss', 'Skip SRT if No ASS Found')}
+        hint={t(
+          'settings.subtitles.embeddedExtraction.skipSrtOnNoAssHint',
+          'Skip SRT extraction steps if no ASS/SSA track was found in the first two steps.',
+        )}
+        data-testid="form-group-wanted-skip-srt-on-no-ass"
+      >
+        <Toggle
+          checked={boolVal(config, 'wanted_skip_srt_on_no_ass', true)}
+          onChange={(v) => save({ wanted_skip_srt_on_no_ass: String(v) })}
+          disabled={isPending}
         />
       </FormGroup>
     </div>

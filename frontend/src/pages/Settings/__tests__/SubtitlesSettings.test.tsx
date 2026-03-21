@@ -34,7 +34,12 @@ vi.mock('@/pages/Settings/CleanupTab', () => ({
 
 vi.mock('@/hooks/useApi', () => ({
   useConfig: () => ({
-    data: { webhook_auto_scan: 'false' },
+    data: {
+      wanted_auto_extract: 'false',
+      use_embedded_subs: 'true',
+      hi_removal_enabled: 'false',
+      wanted_skip_srt_on_no_ass: 'true',
+    },
     isLoading: false,
   }),
   useUpdateConfig: () => ({
@@ -251,6 +256,40 @@ describe('SubtitlesSettings', () => {
       wrapper.querySelector('[data-testid="settings-section-advanced-content"]'),
     ).toBeInTheDocument()
     expect(screen.getByTestId('fansub-preferences-content')).toBeInTheDocument()
+  })
+
+  // ── Embedded Extraction field presence ───────────────────────────────────
+
+  it('shows wanted_auto_extract toggle in Embedded Extraction advanced section', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-embedded-extraction')
+    const toggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('form-group-wanted-auto-extract')).toBeInTheDocument()
+  })
+
+  it('shows use_embedded_subs toggle in Embedded Extraction advanced section', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-embedded-extraction')
+    const toggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('form-group-use-embedded-subs')).toBeInTheDocument()
+  })
+
+  it('shows hi_removal_enabled toggle in Embedded Extraction advanced section', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-embedded-extraction')
+    const toggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('form-group-hi-removal-enabled')).toBeInTheDocument()
+  })
+
+  it('shows wanted_skip_srt_on_no_ass toggle in Embedded Extraction advanced section', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-embedded-extraction')
+    const toggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('form-group-wanted-skip-srt-on-no-ass')).toBeInTheDocument()
   })
 
   // ── Summary text for advanced sections ───────────────────────────────────
