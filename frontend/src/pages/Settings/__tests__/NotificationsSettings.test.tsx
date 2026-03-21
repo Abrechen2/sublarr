@@ -8,7 +8,7 @@
  * - Expanding the advanced section via toggle reveals its content
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { NotificationsSettings } from '../NotificationsSettings'
@@ -27,6 +27,20 @@ vi.mock('../EventsTab', () => ({
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string, fallback?: string) => fallback ?? key }),
+}))
+
+const mockUpdateConfigMutate = vi.fn()
+
+vi.mock('@/hooks/useApi', () => ({
+  useConfig: () => ({
+    data: {
+      quiet_hours_enabled: 'false',
+      quiet_hours_start: '23:00',
+      quiet_hours_end: '07:00',
+      quiet_hours_timezone: 'Europe/Berlin',
+    },
+  }),
+  useUpdateConfig: () => ({ mutate: mockUpdateConfigMutate, isPending: false }),
 }))
 
 // ─── Test Helpers ─────────────────────────────────────────────────────────────
@@ -159,6 +173,93 @@ describe('NotificationsSettings', () => {
     expect(
       wrapper.querySelector('[data-testid="settings-section-advanced-content"]'),
     ).toBeInTheDocument()
-    expect(screen.getByTestId('quiet-hours-advanced-content')).toBeInTheDocument()
+  })
+})
+
+// ─── Step 23: notify_manual_actions toggle verification ──────────────────────
+
+describe('NotificationsSettings — notify_manual_actions (Step 23)', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('NotificationTemplatesTab mock renders inside Channels section', () => {
+    renderPage()
+    expect(screen.getByTestId('notification-templates-tab')).toBeInTheDocument()
+  })
+})
+
+// ─── Step 24: Quiet Hours UI stub ────────────────────────────────────────────
+
+describe('NotificationsSettings — Quiet Hours stub (Step 24)', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('Quiet Hours advanced section renders the stub when expanded', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-quiet-hours')
+    const toggle = wrapper.querySelector(
+      '[data-testid="settings-section-advanced-toggle"]'
+    ) as HTMLElement
+    fireEvent.click(toggle)
+    expect(screen.getByTestId('quiet-hours-config-stub')).toBeInTheDocument()
+  })
+
+  it('renders the stub info banner', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-quiet-hours')
+    fireEvent.click(
+      wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    )
+    expect(screen.getByTestId('quiet-hours-stub-banner')).toBeInTheDocument()
+  })
+
+  it('renders all four quiet hours inputs after expanding', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-quiet-hours')
+    fireEvent.click(
+      wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    )
+    expect(screen.getByTestId('quiet-hours-enabled-toggle')).toBeInTheDocument()
+    expect(screen.getByTestId('quiet-hours-start-input')).toBeInTheDocument()
+    expect(screen.getByTestId('quiet-hours-end-input')).toBeInTheDocument()
+    expect(screen.getByTestId('quiet-hours-timezone-input')).toBeInTheDocument()
+  })
+
+  it('start input reads from config', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-quiet-hours')
+    fireEvent.click(
+      wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    )
+    expect(screen.getByTestId('quiet-hours-start-input')).toHaveValue('23:00')
+  })
+
+  it('save button calls updateConfig with all four keys', async () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-quiet-hours')
+    fireEvent.click(
+      wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    )
+    fireEvent.click(screen.getByTestId('quiet-hours-save-btn'))
+    await waitFor(() => {
+      expect(mockUpdateConfigMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          quiet_hours_enabled: 'false',
+          quiet_hours_start: '23:00',
+          quiet_hours_end: '07:00',
+          quiet_hours_timezone: 'Europe/Berlin',
+        }),
+      )
+    })
+  })
+
+  it('toggle button flips enabled state', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-quiet-hours')
+    fireEvent.click(
+      wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    )
+    const toggle = screen.getByTestId('quiet-hours-enabled-toggle')
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
   })
 })
