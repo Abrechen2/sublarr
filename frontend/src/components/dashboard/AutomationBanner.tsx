@@ -61,7 +61,7 @@ function StatCell({ value, label, testId, valueColor }: StatCellProps) {
 // ─── AutomationBanner ─────────────────────────────────────────────────────────
 
 export function AutomationBanner() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation(['dashboard', 'common'])
   const { data: scannerStatus } = useScannerStatus()
   const { data: stats } = useStats()
   const { data: wantedSummary } = useWantedSummary()
@@ -69,8 +69,12 @@ export function AutomationBanner() {
 
   const isActive = Boolean(scannerStatus?.is_scanning || scannerStatus?.is_searching)
 
-  const successRate = stats?.success_rate ?? 0
-  const downloadsToday = stats?.downloads_today ?? 0
+  // Extended fields not yet in Stats type definition
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const extStats = stats as any
+
+  const successRate = extStats?.success_rate ?? 0
+  const downloadsToday = extStats?.downloads_today ?? 0
   const needsAttention = wantedSummary?.total ?? 0
 
   return (
@@ -175,7 +179,7 @@ export function AutomationBanner() {
 
         <button
           data-testid="btn-run-now"
-          onClick={() => refreshWanted.mutate()}
+          onClick={() => refreshWanted.mutate(undefined)}
           disabled={refreshWanted.isPending}
           style={{
             padding: '5px 11px',

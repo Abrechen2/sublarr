@@ -152,7 +152,7 @@ function HeroStatCard({
 // ─── HeroStats ────────────────────────────────────────────────────────────────
 
 export function HeroStats() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation(['dashboard', 'common'])
   const { data: stats } = useStats()
   const { data: wantedSummary } = useWantedSummary()
 

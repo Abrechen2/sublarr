@@ -28,6 +28,29 @@
   "wanted_summary": {
     "searching": "Searching"
   },
+  "automation": {
+    "title": "Automation Running",
+    "successRate": "Success Rate",
+    "today": "Today",
+    "needsAttention": "Need Attention",
+    "pause": "Pause",
+    "runNow": "Run Now"
+  },
+  "heroStats": {
+    "subtitlesTotal": "Subtitles",
+    "today": "Today",
+    "subtitlesTotalSub": "Total managed",
+    "missing": "Missing",
+    "pending": "pending searches",
+    "allGood": "All good",
+    "missingSub": "Automation searching",
+    "qualityAvg": "Quality",
+    "qualityAvgDelta": "avg score",
+    "qualityAvgSub": "Average score",
+    "lowScore": "Low Score",
+    "lowScoreUpgrade": "Need upgrade",
+    "lowScoreSub": "Below threshold (60)"
+  },
   "total_stats": {
     "title": "Total Stats",
     "translated": "Translated",
