@@ -120,6 +120,8 @@ export interface EpisodeInfo {
   has_file: boolean
   file_path: string
   subtitles: Record<string, string>  // lang -> "ass"|"srt"|""
+  subtitle_scores?: Record<string, number | null>    // lang -> download score (0-100) or null
+  subtitle_providers?: Record<string, string | null> // lang -> provider name or null
   audio_languages: string[]
   monitored: boolean
 }
