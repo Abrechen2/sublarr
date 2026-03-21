@@ -1,21 +1,33 @@
 import type { ReactNode } from 'react'
 import type { EpisodeInfo } from '@/lib/types'
 
-export type EpisodeRowStatus = 'ok' | 'missing' | 'no-file'
+export type EpisodeRowStatus = 'ok' | 'missing' | 'low-score' | 'no-file'
 
 /** Derive a row status from an episode and its target languages. */
-export function getRowStatus(ep: EpisodeInfo, targetLanguages: string[]): EpisodeRowStatus {
+export function getRowStatus(
+  ep: EpisodeInfo,
+  targetLanguages: string[],
+  lowScoreThreshold = 60,
+): EpisodeRowStatus {
   if (!ep.has_file) return 'no-file'
   if (targetLanguages.length === 0) return 'ok'
   const hasMissing = targetLanguages.some((lang) => {
     const fmt = ep.subtitles[lang]
     return fmt == null || fmt === ''
   })
-  return hasMissing ? 'missing' : 'ok'
+  if (hasMissing) return 'missing'
+  // Check lowest score among target languages
+  const scores = targetLanguages
+    .map((lang) => ep.subtitle_scores?.[lang] ?? null)
+    .filter((s): s is number => s !== null)
+  // If all scores are null (not yet recorded), treat as ok
+  if (scores.length > 0 && Math.min(...scores) < lowScoreThreshold) return 'low-score'
+  return 'ok'
 }
 
 const STATUS_BORDER: Record<EpisodeRowStatus, string> = {
-  ok: 'var(--success)',
+  ok: 'transparent',          // mockup: no left border for ok rows
+  'low-score': 'var(--warning)',
   missing: 'var(--error)',
   'no-file': 'var(--border)',
 }
