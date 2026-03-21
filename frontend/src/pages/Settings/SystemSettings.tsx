@@ -13,7 +13,7 @@
 import { lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Shield, Archive, Webhook, FileText, Puzzle, Database, Key } from 'lucide-react'
+import { Shield, Archive, Webhook, FileText, Puzzle, Database, Key, Tv2, HardDrive, ScanLine } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 
@@ -36,6 +36,15 @@ const MigrationTab = lazy(() =>
 )
 const ApiKeysTab = lazy(() =>
   import('./ApiKeysTab').then((m) => ({ default: m.ApiKeysTab })),
+)
+const AnidbTab = lazy(() =>
+  import('./AnidbTab').then((m) => ({ default: m.AnidbTab })),
+)
+const RemuxTab = lazy(() =>
+  import('./RemuxTab').then((m) => ({ default: m.RemuxTab })),
+)
+const StandaloneSettingsTab = lazy(() =>
+  import('./StandaloneSettingsTab').then((m) => ({ default: m.StandaloneSettingsTab })),
 )
 
 // ─── SectionSkeleton ─────────────────────────────────────────────────────────
@@ -229,6 +238,59 @@ export function SystemSettings() {
               'Create and revoke API keys used by external tools and scripts to access the Sublarr API.',
             )}
           </p>
+        </SettingsSection>
+      </div>
+      {/* 8. AniDB */}
+      <div data-testid="section-anidb">
+        <SettingsSection
+          title={t('settings.system.anidb.title', 'AniDB')}
+          description={t(
+            'settings.system.anidb.description',
+            'AniDB integration for anime metadata and mapping.',
+          )}
+          icon={<Tv2 size={16} style={{ color: 'var(--accent)' }} />}
+        >
+          <div data-testid="anidb-content">
+            <Suspense fallback={<SectionSkeleton />}>
+              <AnidbTab />
+            </Suspense>
+          </div>
+        </SettingsSection>
+      </div>
+
+      {/* 9. Remux */}
+      <div data-testid="section-remux">
+        <SettingsSection
+          title={t('settings.system.remux.title', 'Remux')}
+          description={t(
+            'settings.system.remux.description',
+            'Settings for remux operations and backup retention.',
+          )}
+          icon={<HardDrive size={16} style={{ color: 'var(--accent)' }} />}
+        >
+          <div data-testid="remux-content">
+            <Suspense fallback={<SectionSkeleton />}>
+              <RemuxTab />
+            </Suspense>
+          </div>
+        </SettingsSection>
+      </div>
+
+      {/* 10. Standalone Mode */}
+      <div data-testid="section-standalone">
+        <SettingsSection
+          title={t('settings.system.standalone.title', 'Standalone Mode')}
+          description={t(
+            'settings.system.standalone.description',
+            'Configure the standalone file watcher and scan behaviour.',
+          )}
+          icon={<ScanLine size={16} style={{ color: 'var(--accent)' }} />}
+        >
+          <div data-testid="standalone-content">
+            <Suspense fallback={<SectionSkeleton />}>
+              <StandaloneSettingsTab />
+            </Suspense>
+          </div>
         </SettingsSection>
       </div>
     </SettingsDetailLayout>
