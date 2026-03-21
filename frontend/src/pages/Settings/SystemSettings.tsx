@@ -13,7 +13,7 @@
 import { lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Shield, Archive, Webhook, FileText, Puzzle, Database, Key, Tv2, HardDrive, ScanLine } from 'lucide-react'
+import { Shield, Archive, Webhook, FileText, Puzzle, Database, Key, Tv2, HardDrive, ScanLine, Download } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
@@ -48,6 +48,9 @@ const RemuxTab = lazy(() =>
 )
 const StandaloneSettingsTab = lazy(() =>
   import('./StandaloneSettingsTab').then((m) => ({ default: m.StandaloneSettingsTab })),
+)
+const ConfigExportImportTab = lazy(() =>
+  import('./ConfigExportImportTab').then((m) => ({ default: m.ConfigExportImportTab })),
 )
 
 // ─── Config value helpers ─────────────────────────────────────────────────────
@@ -449,6 +452,22 @@ export function SystemSettings() {
           icon={<HardDrive size={16} style={{ color: 'var(--accent)' }} />}
         >
           <DiskMonitoringControls />
+        </SettingsSection>
+      </div>
+
+      {/* 12. Settings Export / Import */}
+      <div data-testid="section-config-export-import">
+        <SettingsSection
+          title={t('settings.system.configExportImport.title', 'Settings Export / Import')}
+          description={t(
+            'settings.system.configExportImport.description',
+            'Export all settings as JSON or import from a backup file.',
+          )}
+          icon={<Download size={16} style={{ color: 'var(--accent)' }} />}
+        >
+          <Suspense fallback={<SectionSkeleton />}>
+            <ConfigExportImportTab />
+          </Suspense>
         </SettingsSection>
       </div>
     </SettingsDetailLayout>
