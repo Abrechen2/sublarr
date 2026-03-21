@@ -1,0 +1,247 @@
+import type { SeriesDetail } from '@/lib/types'
+
+interface SeriesSettingsPanelProps {
+  readonly series: SeriesDetail
+  readonly seriesId: number
+  readonly showGlossary: boolean
+  readonly hasFansubOverride: boolean
+  readonly isExtracting: boolean
+  readonly extractProgress: { current: number; total: number; filename: string } | null
+  readonly onToggleGlossary: () => void
+  readonly onToggleAbsoluteOrder: (enabled: boolean) => void
+  readonly onRefreshAnidb: () => void
+  readonly onExtract: () => void
+  readonly onCleanup: () => void
+  readonly onFansub: () => void
+  readonly exportUrl: string
+  readonly updatePending: boolean
+  readonly refreshPending: boolean
+}
+
+const sectionLabelStyle: React.CSSProperties = {
+  fontSize: '10px',
+  fontWeight: 600,
+  color: 'var(--text-muted)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.5px',
+  marginBottom: '8px',
+}
+
+const buttonBaseStyle: React.CSSProperties = {
+  fontSize: '11px',
+  padding: '4px 10px',
+  borderRadius: '4px',
+  cursor: 'pointer',
+}
+
+export function SeriesSettingsPanel({
+  series,
+  showGlossary,
+  hasFansubOverride,
+  isExtracting,
+  extractProgress,
+  onToggleGlossary,
+  onToggleAbsoluteOrder,
+  onRefreshAnidb,
+  onExtract,
+  onCleanup,
+  onFansub,
+  exportUrl,
+  updatePending,
+  refreshPending,
+}: SeriesSettingsPanelProps) {
+  return (
+    <div
+      style={{
+        backgroundColor: 'var(--bg-surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-md)',
+        padding: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px',
+        marginBottom: '16px',
+      }}
+    >
+      {/* Language section */}
+      <div>
+        <div style={sectionLabelStyle}>Language</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+          {series.profile_name && (
+            <span
+              style={{
+                padding: '3px 8px',
+                borderRadius: '4px',
+                fontSize: '11px',
+                backgroundColor: 'var(--accent-bg)',
+                color: 'var(--accent)',
+                border: '1px solid var(--accent)',
+                fontWeight: 600,
+              }}
+            >
+              {series.profile_name}
+            </span>
+          )}
+          {series.target_language_names?.map((name: string, i: number) => (
+            <span
+              key={i}
+              style={{
+                padding: '3px 8px',
+                borderRadius: '4px',
+                fontSize: '11px',
+                backgroundColor: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              {name}
+            </span>
+          ))}
+          {series.source_language_name && (
+            <span
+              style={{
+                padding: '3px 8px',
+                borderRadius: '4px',
+                fontSize: '11px',
+                backgroundColor: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-muted)',
+                fontStyle: 'italic',
+              }}
+            >
+              src: {series.source_language_name}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Subtitles section */}
+      <div>
+        <div style={sectionLabelStyle}>Subtitles</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+          {/* Glossary toggle */}
+          <button
+            onClick={onToggleGlossary}
+            style={{
+              ...buttonBaseStyle,
+              backgroundColor: showGlossary ? 'var(--accent-bg)' : 'var(--bg-elevated)',
+              color: showGlossary ? 'var(--accent)' : 'var(--text-secondary)',
+              border: showGlossary ? '1px solid var(--accent)' : '1px solid var(--border)',
+            }}
+          >
+            📖 Glossary
+          </button>
+
+          {/* Absolute order toggle — field is `absolute_order` on SeriesDetail */}
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '11px',
+              color: 'var(--text-secondary)',
+              cursor: updatePending ? 'default' : 'pointer',
+              opacity: updatePending ? 0.6 : 1,
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={series.absolute_order ?? false}
+              disabled={updatePending}
+              onChange={(e) => onToggleAbsoluteOrder(e.target.checked)}
+            />
+            Absolute Order
+          </label>
+
+          {/* AniDB refresh — only shown when absolute order is enabled */}
+          {series.absolute_order && (
+            <button
+              onClick={onRefreshAnidb}
+              disabled={refreshPending}
+              style={{
+                ...buttonBaseStyle,
+                backgroundColor: 'var(--bg-elevated)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+                opacity: refreshPending ? 0.6 : 1,
+                cursor: refreshPending ? 'default' : 'pointer',
+              }}
+            >
+              🔄 AniDB Refresh
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Tools section */}
+      <div>
+        <div style={sectionLabelStyle}>Tools</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+          {/* Export ZIP */}
+          <a
+            href={exportUrl}
+            download
+            style={{
+              ...buttonBaseStyle,
+              backgroundColor: 'var(--bg-elevated)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border)',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            📦 Export ZIP
+          </a>
+
+          {/* Extract Tracks */}
+          <button
+            onClick={onExtract}
+            disabled={isExtracting}
+            style={{
+              ...buttonBaseStyle,
+              backgroundColor: isExtracting ? 'var(--accent-bg)' : 'var(--bg-elevated)',
+              color: isExtracting ? 'var(--accent)' : 'var(--text-secondary)',
+              border: isExtracting ? '1px solid var(--accent-dim)' : '1px solid var(--border)',
+              opacity: isExtracting ? 0.6 : 1,
+              cursor: isExtracting ? 'default' : 'pointer',
+            }}
+          >
+            {isExtracting
+              ? `Extracting… ${extractProgress ? `${extractProgress.current}/${extractProgress.total}` : ''}`
+              : '🎵 Extract Tracks'
+            }
+          </button>
+
+          {/* Cleanup / Bereinigen */}
+          <button
+            onClick={onCleanup}
+            style={{
+              ...buttonBaseStyle,
+              backgroundColor: 'var(--bg-elevated)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            🧹 Bereinigen
+          </button>
+
+          {/* Fansub override */}
+          <button
+            onClick={onFansub}
+            style={{
+              ...buttonBaseStyle,
+              backgroundColor: hasFansubOverride ? 'var(--accent-bg)' : 'var(--bg-elevated)',
+              color: hasFansubOverride ? 'var(--accent)' : 'var(--text-secondary)',
+              border: hasFansubOverride ? '1px solid var(--accent)' : '1px solid var(--border)',
+              fontWeight: hasFansubOverride ? 600 : 400,
+            }}
+          >
+            🎭 Fansub{hasFansubOverride ? ' (Override)' : ''}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
