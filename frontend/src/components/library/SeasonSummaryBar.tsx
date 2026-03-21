@@ -6,16 +6,28 @@ interface SeasonSummaryBarProps {
   targetLanguages: string[]
 }
 
-type EpisodeStatus = 'ok' | 'missing'
+const LOW_SCORE_THRESHOLD = 60
+
+type EpisodeStatus = 'ok' | 'low' | 'missing'
 
 function getEpisodeStatus(ep: EpisodeInfo, targetLanguages: string[]): EpisodeStatus {
   if (!ep.has_file) return 'ok' // no file → not applicable, don't count as missing
   if (targetLanguages.length === 0) return 'ok'
+
   const hasMissing = targetLanguages.some((lang) => {
     const fmt = ep.subtitles[lang]
     return fmt == null || fmt === ''
   })
-  return hasMissing ? 'missing' : 'ok'
+  if (hasMissing) return 'missing'
+
+  // Has subtitles — check if any target language has a low score
+  const hasLowScore = targetLanguages.some((lang) => {
+    const score = ep.subtitle_scores?.[lang]
+    // null score treated as ok (no score recorded)
+    return score !== undefined && score !== null && score < LOW_SCORE_THRESHOLD
+  })
+
+  return hasLowScore ? 'low' : 'ok'
 }
 
 export function SeasonSummaryBar({ season, episodes, targetLanguages }: SeasonSummaryBarProps) {
@@ -24,13 +36,14 @@ export function SeasonSummaryBar({ season, episodes, targetLanguages }: SeasonSu
 
   if (total === 0) return null
 
-  const missing = fileEpisodes.filter(
-    (ep) => getEpisodeStatus(ep, targetLanguages) === 'missing'
-  ).length
-  const ok = total - missing
+  const statuses = fileEpisodes.map((ep) => getEpisodeStatus(ep, targetLanguages))
+  const okCount = statuses.filter((s) => s === 'ok').length
+  const lowCount = statuses.filter((s) => s === 'low').length
+  const missCount = statuses.filter((s) => s === 'missing').length
 
-  const okPct = total > 0 ? (ok / total) * 100 : 0
-  const missingPct = total > 0 ? (missing / total) * 100 : 0
+  const okPercent = total > 0 ? (okCount / total) * 100 : 0
+  const lowPercent = total > 0 ? (lowCount / total) * 100 : 0
+  const missPercent = total > 0 ? (missCount / total) * 100 : 0
 
   return (
     <div
@@ -53,42 +66,41 @@ export function SeasonSummaryBar({ season, episodes, targetLanguages }: SeasonSu
         Season {season} &mdash; {total} episodes
       </span>
 
-      {/* Segmented progress bar */}
+      {/* 3-segment progress bar */}
       <div
-        className="flex-1 flex overflow-hidden"
         style={{
+          flex: 1,
           height: '6px',
+          background: 'rgba(255,255,255,0.05)',
           borderRadius: '3px',
-          backgroundColor: 'rgba(255,255,255,0.05)',
+          overflow: 'hidden',
+          display: 'flex',
         }}
-        title={`${ok} ok, ${missing} missing`}
+        title={`${okCount} ok, ${lowCount} low, ${missCount} missing`}
       >
-        {ok > 0 && (
-          <div
-            className="transition-all duration-500"
-            style={{ width: `${okPct}%`, height: '100%', backgroundColor: 'var(--success)' }}
-          />
-        )}
-        {missing > 0 && (
-          <div
-            className="transition-all duration-500"
-            style={{ width: `${missingPct}%`, height: '100%', backgroundColor: 'var(--error)', opacity: 0.7 }}
-          />
-        )}
+        <div style={{ height: '100%', width: `${okPercent}%`, background: 'var(--success)' }} />
+        <div style={{ height: '100%', width: `${lowPercent}%`, background: 'var(--warning)' }} />
+        <div style={{ height: '100%', width: `${missPercent}%`, background: 'var(--error)', opacity: 0.7 }} />
       </div>
 
       {/* Legend dots + counts */}
-      <div className="flex items-center flex-shrink-0" style={{ gap: '12px', fontSize: '11px' }}>
-        {ok > 0 && (
-          <span className="flex items-center" style={{ gap: '4px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)', display: 'inline-block' }} />
-            {ok} OK
+      <div style={{ display: 'flex', gap: '12px', fontSize: '11px' }} className="flex-shrink-0">
+        {okCount > 0 && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} />
+            {okCount} OK
           </span>
         )}
-        {missing > 0 && (
-          <span className="flex items-center" style={{ gap: '4px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--error)', display: 'inline-block' }} />
-            {missing} Missing
+        {lowCount > 0 && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--warning)', display: 'inline-block' }} />
+            {lowCount} Low
+          </span>
+        )}
+        {missCount > 0 && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--error)', display: 'inline-block' }} />
+            {missCount} Missing
           </span>
         )}
       </div>
