@@ -52,6 +52,12 @@ vi.mock('@/hooks/useApi', () => ({
       webhook_auto_translate: 'false',
       wanted_auto_translate: 'false',
       auto_sync_after_download: 'false',
+      auto_process_common_fixes: 'false',
+      auto_process_hi_removal: 'false',
+      auto_process_credit_removal: 'false',
+      auto_process_sync_threshold: '80',
+      auto_nfo_export: 'false',
+      jellyfin_play_translate_enabled: 'false',
       auto_cleanup_after_extract: 'false',
     },
     isLoading: false,
@@ -462,5 +468,58 @@ describe('AutomationSettings', () => {
     const toggle = formGroup.querySelector('[role="switch"]') as HTMLElement
     fireEvent.click(toggle)
     expect(mockMutate).toHaveBeenCalledWith({ auto_cleanup_after_extract: true })
+  })
+
+  it('calls updateConfig with auto_process_common_fixes=true when toggled', () => {
+    renderPage()
+    const fg = screen.getByTestId('form-group-auto-process-common-fixes')
+    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(mockMutate).toHaveBeenCalledWith({ auto_process_common_fixes: true })
+  })
+
+  it('calls updateConfig with auto_process_hi_removal=true when toggled', () => {
+    renderPage()
+    const fg = screen.getByTestId('form-group-auto-process-hi-removal')
+    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(mockMutate).toHaveBeenCalledWith({ auto_process_hi_removal: true })
+  })
+
+  it('calls updateConfig with auto_process_credit_removal=true when toggled', () => {
+    renderPage()
+    const fg = screen.getByTestId('form-group-auto-process-credit-removal')
+    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(mockMutate).toHaveBeenCalledWith({ auto_process_credit_removal: true })
+  })
+
+  it('displays auto_process_sync_threshold value from config', () => {
+    renderPage()
+    const input = screen.getByTestId('input-auto-process-sync-threshold') as HTMLInputElement
+    expect(input.value).toBe('80')
+  })
+
+  it('calls updateConfig with auto_process_sync_threshold as number on change', () => {
+    renderPage()
+    const input = screen.getByTestId('input-auto-process-sync-threshold')
+    fireEvent.change(input, { target: { value: '90' } })
+    expect(mockMutate).toHaveBeenCalledWith({ auto_process_sync_threshold: 90 })
+  })
+
+  it('calls updateConfig with auto_nfo_export=true when toggled', () => {
+    renderPage()
+    const fg = screen.getByTestId('form-group-auto-nfo-export')
+    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(mockMutate).toHaveBeenCalledWith({ auto_nfo_export: true })
+  })
+
+  it('calls updateConfig with jellyfin_play_translate_enabled=true when toggled', () => {
+    renderPage()
+    const fg = screen.getByTestId('form-group-jellyfin-play-translate-enabled')
+    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(mockMutate).toHaveBeenCalledWith({ jellyfin_play_translate_enabled: true })
   })
 })

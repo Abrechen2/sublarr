@@ -425,6 +425,86 @@ function ProcessingPipelineContent() {
           disabled={updateConfig.isPending}
         />
       </FormGroup>
+
+      <FormGroup
+        label="Auto Common Fixes"
+        hint="Apply common subtitle formatting fixes automatically after download."
+        data-testid="form-group-auto-process-common-fixes"
+      >
+        <Toggle
+          checked={boolVal(config, 'auto_process_common_fixes', false)}
+          onChange={(v) => save({ auto_process_common_fixes: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Auto HI Removal"
+        hint="Remove hearing-impaired tags from subtitles automatically after download."
+        data-testid="form-group-auto-process-hi-removal"
+      >
+        <Toggle
+          checked={boolVal(config, 'auto_process_hi_removal', false)}
+          onChange={(v) => save({ auto_process_hi_removal: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Auto Credit Removal"
+        hint="Remove credit lines (translator notes, group ads) from subtitles automatically."
+        data-testid="form-group-auto-process-credit-removal"
+      >
+        <Toggle
+          checked={boolVal(config, 'auto_process_credit_removal', false)}
+          onChange={(v) => save({ auto_process_credit_removal: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Auto-Sync Score Threshold"
+        hint="Minimum subtitle score required to trigger auto-sync after download."
+        htmlFor="auto-process-sync-threshold"
+        data-testid="form-group-auto-process-sync-threshold"
+      >
+        <input
+          id="auto-process-sync-threshold"
+          type="number"
+          data-testid="input-auto-process-sync-threshold"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={strVal(config, 'auto_process_sync_threshold', '80')}
+          onChange={(e) => save({ auto_process_sync_threshold: Number(e.target.value) })}
+          disabled={updateConfig.isPending}
+          min={0}
+          max={100}
+          placeholder="80"
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Export NFO Sidecar"
+        hint="Write an NFO metadata sidecar file alongside each downloaded subtitle."
+        data-testid="form-group-auto-nfo-export"
+      >
+        <Toggle
+          checked={boolVal(config, 'auto_nfo_export', false)}
+          onChange={(v) => save({ auto_nfo_export: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Translate on Jellyfin Playback"
+        hint="Automatically translate subtitles when Jellyfin starts playback of a new episode."
+        data-testid="form-group-jellyfin-play-translate-enabled"
+      >
+        <Toggle
+          checked={boolVal(config, 'jellyfin_play_translate_enabled', false)}
+          onChange={(v) => save({ jellyfin_play_translate_enabled: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
     </div>
   )
 }
