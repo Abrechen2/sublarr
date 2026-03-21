@@ -97,12 +97,12 @@ describe('NotificationsSettings', () => {
     expect(screen.getByTestId('section-quiet-hours')).toBeInTheDocument()
   })
 
-  // ── All 3 sections ────────────────────────────────────────────────────────
+  // ── All sections ──────────────────────────────────────────────────────────
 
-  it('renders exactly 3 settings sections', () => {
+  it('renders exactly 4 settings sections', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections).toHaveLength(3)
+    expect(sections).toHaveLength(4)
   })
 
   // ── Section titles ────────────────────────────────────────────────────────

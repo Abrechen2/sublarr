@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react'
+import { Suspense } from 'react'
 import { Webhook, History } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
@@ -10,7 +10,6 @@ import {
 import { useState } from 'react'
 import { toast } from '@/components/shared/Toast'
 import { Loader2, Plus, Edit2, Trash2, TestTube, X } from 'lucide-react'
-import { Toggle } from '@/components/shared/Toggle'
 import type { HookConfig } from '@/lib/types'
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────

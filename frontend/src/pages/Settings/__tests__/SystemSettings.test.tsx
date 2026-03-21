@@ -169,10 +169,10 @@ describe('SystemSettings', () => {
 
   // ── All sections ──────────────────────────────────────────────────────────
 
-  it('renders exactly 11 settings sections', () => {
+  it('renders exactly 13 settings sections', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections).toHaveLength(11)
+    expect(sections).toHaveLength(13)
   })
 
   // ── Section titles ────────────────────────────────────────────────────────
