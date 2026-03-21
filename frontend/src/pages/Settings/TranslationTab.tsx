@@ -3,11 +3,12 @@ import {
   useBackends, useTestBackend, useBackendConfig, useSaveBackendConfig, useBackendStats,
   usePromptPresets, useCreatePromptPreset, useUpdatePromptPreset, useDeletePromptPreset,
   useGlobalGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry,
+  useExportGlossaryTsv,
   useContextWindowSize, useConfig, useUpdateConfig,
   useTranslationMemoryStats, useClearTranslationMemoryCache,
   useBackendTemplates,
 } from '@/hooks/useApi'
-import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Plus, Edit2, X, Check, Activity, Eye, EyeOff, BookOpen, Search, Database, Wand2 } from 'lucide-react'
+import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Plus, Edit2, X, Check, Activity, Eye, EyeOff, BookOpen, Search, Database, Wand2, Download } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
@@ -1422,6 +1423,7 @@ export function GlobalGlossaryPanel() {
   const createEntry = useCreateGlossaryEntry()
   const updateEntry = useUpdateGlossaryEntry()
   const deleteEntry = useDeleteGlossaryEntry()
+  const exportTsv = useExportGlossaryTsv()
   const { data: config } = useConfig()
   const updateConfig = useUpdateConfig()
   const [showAdd, setShowAdd] = useState(false)
@@ -1550,17 +1552,40 @@ export function GlobalGlossaryPanel() {
             {entries.length}
           </span>
         </div>
-        <button
-          onClick={() => {
-            resetForm()
-            setShowAdd(true)
-          }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-white"
-          style={{ backgroundColor: 'var(--accent)' }}
-        >
-          <Plus size={12} />
-          Add Entry
-        </button>
+        <div className="flex items-center gap-2">
+          {entries.length > 0 && (
+            <button
+              onClick={() => exportTsv.mutate({ seriesId: null })}
+              disabled={exportTsv.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium"
+              style={{
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
+                backgroundColor: 'var(--bg-primary)',
+              }}
+              data-testid="glossary-export-btn"
+            >
+              {exportTsv.isPending ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Download size={12} />
+              )}
+              Export TSV
+            </button>
+          )}
+          <button
+            onClick={() => {
+              resetForm()
+              setShowAdd(true)
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-white"
+            style={{ backgroundColor: 'var(--accent)' }}
+            data-testid="glossary-add-btn"
+          >
+            <Plus size={12} />
+            Add Entry
+          </button>
+        </div>
       </div>
 
       {/* Glossary Settings */}

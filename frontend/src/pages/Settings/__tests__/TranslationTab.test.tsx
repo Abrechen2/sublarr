@@ -51,6 +51,7 @@ vi.mock('@/hooks/useApi', () => ({
   useCreateGlossaryEntry: () => ({ mutate: vi.fn() }),
   useUpdateGlossaryEntry: () => ({ mutate: vi.fn() }),
   useDeleteGlossaryEntry: () => ({ mutate: vi.fn() }),
+  useExportGlossaryTsv: () => ({ mutate: vi.fn(), isPending: false }),
   useContextWindowSize: () => ({ value: 3, save: vi.fn(), isPending: false }),
   useConfig: () => ({
     data: {
@@ -251,5 +252,23 @@ describe('AutoSyncSection', () => {
   it('auto-sync toggle is unchecked when config says false', () => {
     renderComponent(<AutoSyncSection />)
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false')
+  })
+})
+
+// ─── GlobalGlossaryPanel — CRUD and Export buttons ─────────────────────────
+
+describe('GlobalGlossaryPanel — CRUD and Export', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('renders the Add Entry button', () => {
+    renderComponent(<GlobalGlossaryPanel />)
+    expect(screen.getByTestId('glossary-add-btn')).toBeInTheDocument()
+  })
+
+  it('Add Entry button has correct label', () => {
+    renderComponent(<GlobalGlossaryPanel />)
+    expect(screen.getByTestId('glossary-add-btn')).toHaveTextContent('Add Entry')
   })
 })
