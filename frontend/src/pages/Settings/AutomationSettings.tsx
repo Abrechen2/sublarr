@@ -82,6 +82,67 @@ function SearchScanContent() {
 
   return (
     <div data-testid="search-scan-content">
+      {/* ─── Bibliotheks-Scan sub-group ─── */}
+      <p
+        data-testid="search-scan-subheading-scan"
+        style={{
+          fontSize: '11px',
+          fontWeight: 600,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+          margin: '4px 0 10px',
+        }}
+      >
+        Bibliotheks-Scan
+      </p>
+
+      <FormGroup
+        label="Scan-Intervall (Stunden)"
+        hint="Wie oft (in Stunden) Sublarr die Bibliothek auf neue Dateien scannt. 0 = nur event-gesteuert."
+        htmlFor="wanted-scan-interval-hours"
+        data-testid="form-group-wanted-scan-interval-hours"
+      >
+        <input
+          id="wanted-scan-interval-hours"
+          type="number"
+          data-testid="input-wanted-scan-interval-hours"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={strVal(config, 'wanted_scan_interval_hours', '0')}
+          onChange={(e) => save({ wanted_scan_interval_hours: Number(e.target.value) })}
+          disabled={updateConfig.isPending}
+          min={0}
+          placeholder="0"
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Scan beim Start"
+        hint="Bibliothek beim Start von Sublarr automatisch scannen."
+        data-testid="form-group-wanted-scan-on-startup"
+      >
+        <Toggle
+          checked={boolVal(config, 'wanted_scan_on_startup', false)}
+          onChange={(v) => save({ wanted_scan_on_startup: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      {/* ─── Untertitel-Suche sub-group ─── */}
+      <p
+        data-testid="search-scan-subheading-search"
+        style={{
+          fontSize: '11px',
+          fontWeight: 600,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+          margin: '16px 0 10px',
+        }}
+      >
+        Untertitel-Suche
+      </p>
+
       <FormGroup
         label={t('settings.automation.searchScan.interval', 'Wanted Search Interval (hours)')}
         hint={t(

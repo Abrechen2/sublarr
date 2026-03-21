@@ -11,6 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AutomationSettings } from '../AutomationSettings'
@@ -33,6 +34,8 @@ vi.mock('@/hooks/useApi', () => ({
       wanted_search_interval_hours: '6',
       webhook_auto_search: 'true',
       wanted_search_on_startup: 'false',
+      wanted_scan_interval_hours: '0',
+      wanted_scan_on_startup: 'false',
       wanted_search_max_items_per_run: '50',
       wanted_max_search_attempts: '3',
       wanted_auto_extract: 'false',
@@ -570,5 +573,106 @@ describe('AutomationSettings', () => {
     const input = screen.getByTestId('input-subtitle-trash-retention-days')
     fireEvent.change(input, { target: { value: '14' } })
     expect(mockMutate).toHaveBeenCalledWith({ subtitle_trash_retention_days: 14 })
+  })
+
+  // ── Search & Scan — sub-group headings ────────────────────────────────────
+
+  describe('Search & Scan — sub-group headings', () => {
+    it('renders "Bibliotheks-Scan" sub-group heading inside section-search-scan', () => {
+      renderPage()
+      const section = screen.getByTestId('section-search-scan')
+      expect(section).toHaveTextContent('Bibliotheks-Scan')
+    })
+
+    it('renders "Untertitel-Suche" sub-group heading inside section-search-scan', () => {
+      renderPage()
+      const section = screen.getByTestId('section-search-scan')
+      expect(section).toHaveTextContent('Untertitel-Suche')
+    })
+
+    it('"Bibliotheks-Scan" heading appears before "Untertitel-Suche" heading in the DOM', () => {
+      renderPage()
+      const section = screen.getByTestId('section-search-scan')
+      const headings = section.querySelectorAll('[data-testid^="search-scan-subheading-"]')
+      expect(headings).toHaveLength(2)
+      expect(headings[0]).toHaveAttribute('data-testid', 'search-scan-subheading-scan')
+      expect(headings[1]).toHaveAttribute('data-testid', 'search-scan-subheading-search')
+    })
+
+    it('wanted_scan_interval_hours input appears before wanted_search_interval_hours input in the DOM', () => {
+      renderPage()
+      const section = screen.getByTestId('section-search-scan')
+      const allInputs = section.querySelectorAll('input[type="number"]')
+      const ids = Array.from(allInputs).map((el) => el.getAttribute('data-testid'))
+      const scanIdx = ids.indexOf('input-wanted-scan-interval-hours')
+      const searchIdx = ids.indexOf('input-wanted-search-interval-hours')
+      expect(scanIdx).toBeGreaterThanOrEqual(0)
+      expect(searchIdx).toBeGreaterThanOrEqual(0)
+      expect(scanIdx).toBeLessThan(searchIdx)
+    })
+  })
+
+  // ── Search & Scan — scan interval ─────────────────────────────────────────
+
+  describe('Search & Scan — scan interval', () => {
+    it('renders form-group for wanted_scan_interval_hours', () => {
+      renderPage()
+      expect(screen.getByTestId('form-group-wanted-scan-interval-hours')).toBeInTheDocument()
+    })
+
+    it('displays wanted_scan_interval_hours value from config', () => {
+      renderPage()
+      const input = screen.getByTestId('input-wanted-scan-interval-hours') as HTMLInputElement
+      expect(input.value).toBe('0')
+    })
+
+    it('input has min="0" attribute (0 = disabled)', () => {
+      renderPage()
+      const input = screen.getByTestId('input-wanted-scan-interval-hours') as HTMLInputElement
+      expect(input).toHaveAttribute('min', '0')
+    })
+
+    it('calls updateConfig with wanted_scan_interval_hours as number on change', () => {
+      renderPage()
+      const input = screen.getByTestId('input-wanted-scan-interval-hours')
+      fireEvent.change(input, { target: { value: '4' } })
+      expect(mockMutate).toHaveBeenCalledWith({ wanted_scan_interval_hours: 4 })
+    })
+
+    it('calls updateConfig with 0 when input value is "0"', async () => {
+      // The mock config starts with '0'. Use userEvent.clear + type to bypass
+      // React 19 controlled-input deduplication (fireEvent.change is suppressed
+      // when the target value matches the current React prop value).
+      const user = userEvent.setup()
+      renderPage()
+      const input = screen.getByTestId('input-wanted-scan-interval-hours')
+      await user.clear(input)
+      await user.type(input, '0')
+      expect(mockMutate).toHaveBeenCalledWith({ wanted_scan_interval_hours: 0 })
+    })
+  })
+
+  // ── Search & Scan — scan on startup ───────────────────────────────────────
+
+  describe('Search & Scan — scan on startup', () => {
+    it('renders form-group for wanted_scan_on_startup', () => {
+      renderPage()
+      expect(screen.getByTestId('form-group-wanted-scan-on-startup')).toBeInTheDocument()
+    })
+
+    it('wanted_scan_on_startup toggle reflects config value (false)', () => {
+      renderPage()
+      const fg = screen.getByTestId('form-group-wanted-scan-on-startup')
+      const toggle = fg.querySelector('[role="switch"]')
+      expect(toggle).toHaveAttribute('aria-checked', 'false')
+    })
+
+    it('calls updateConfig with wanted_scan_on_startup=true when toggled', () => {
+      renderPage()
+      const fg = screen.getByTestId('form-group-wanted-scan-on-startup')
+      const toggle = fg.querySelector('[role="switch"]') as HTMLElement
+      fireEvent.click(toggle)
+      expect(mockMutate).toHaveBeenCalledWith({ wanted_scan_on_startup: true })
+    })
   })
 })
