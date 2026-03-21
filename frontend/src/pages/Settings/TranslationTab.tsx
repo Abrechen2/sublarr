@@ -544,8 +544,43 @@ export function TranslationBackendsTab() {
   const { data: statsData } = useBackendStats()
   const testBackendMut = useTestBackend()
   const saveConfigMut = useSaveBackendConfig()
+  const { data: config } = useConfig()
+  const updateConfig = useUpdateConfig()
   const [testResults, setTestResults] = useState<Record<string, BackendHealthResult | 'testing'>>({})
   const [showTemplatePicker, setShowTemplatePicker] = useState(false)
+
+  const requestTimeout = config ? Number((config as Record<string, unknown>)['request_timeout'] ?? 90) : 90
+  const backoffBase = config ? Number((config as Record<string, unknown>)['backoff_base'] ?? 5) : 5
+  const [localRequestTimeout, setLocalRequestTimeout] = useState<number>(requestTimeout)
+  const [localBackoffBase, setLocalBackoffBase] = useState<number>(backoffBase)
+  useEffect(() => { setLocalRequestTimeout(requestTimeout) }, [requestTimeout])
+  useEffect(() => { setLocalBackoffBase(backoffBase) }, [backoffBase])
+
+  const handleRequestTimeoutBlur = () => {
+    const clamped = Math.max(10, Math.min(600, Math.round(localRequestTimeout)))
+    if (String(clamped) !== String(requestTimeout)) {
+      updateConfig.mutate(
+        { request_timeout: String(clamped) },
+        {
+          onSuccess: () => toast('Request timeout saved'),
+          onError: () => toast('Failed to save request timeout', 'error'),
+        },
+      )
+    }
+  }
+
+  const handleBackoffBaseBlur = () => {
+    const clamped = Math.max(1, Math.min(60, Math.round(localBackoffBase)))
+    if (String(clamped) !== String(backoffBase)) {
+      updateConfig.mutate(
+        { backoff_base: String(clamped) },
+        {
+          onSuccess: () => toast('Backoff base saved'),
+          onError: () => toast('Failed to save backoff base', 'error'),
+        },
+      )
+    }
+  }
 
   const backends = backendsData?.backends ?? []
   const statsMap = new Map<string, BackendStats>()
@@ -646,6 +681,71 @@ export function TranslationBackendsTab() {
           No translation backends registered. Install backend packages (e.g. deepl, openai, google-cloud-translate) to enable them.
         </div>
       )}
+
+      {/* Global LLM request settings */}
+      <div
+        className="rounded-lg p-5 space-y-4"
+        style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      >
+        <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Global LLM Request Settings
+        </h2>
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          Applied to all translation backends that use the Ollama/LLM pipeline.
+        </p>
+        <SettingRow
+          label="Request timeout (seconds)"
+          helpText="Timeout for each LLM API request. Increase for slow or large models. Default: 90."
+        >
+          <input
+            data-testid="input-request_timeout"
+            type="number"
+            min={10}
+            max={600}
+            step={10}
+            value={localRequestTimeout}
+            disabled={updateConfig.isPending}
+            onChange={(e) => {
+              const parsed = parseInt(e.target.value, 10)
+              if (!isNaN(parsed)) setLocalRequestTimeout(parsed)
+            }}
+            onBlur={handleRequestTimeoutBlur}
+            className="w-24 px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+            }}
+          />
+        </SettingRow>
+        <SettingRow
+          label="Backoff base (seconds)"
+          helpText="Base interval for exponential backoff on retries. Default: 5."
+        >
+          <input
+            data-testid="input-backoff_base"
+            type="number"
+            min={1}
+            max={60}
+            step={1}
+            value={localBackoffBase}
+            disabled={updateConfig.isPending}
+            onChange={(e) => {
+              const parsed = parseInt(e.target.value, 10)
+              if (!isNaN(parsed)) setLocalBackoffBase(parsed)
+            }}
+            onBlur={handleBackoffBaseBlur}
+            className="w-24 px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+            }}
+          />
+        </SettingRow>
+      </div>
     </div>
   )
 }
@@ -1097,11 +1197,23 @@ export function TranslationQualitySection() {
     ? Number((config as Record<string, unknown>)['translation_quality_max_retries'] ?? 2)
     : 2
 
+  const temperature = config
+    ? Number((config as Record<string, unknown>)['temperature'] ?? 0.3)
+    : 0.3
+
+  const batchSize = config
+    ? Number((config as Record<string, unknown>)['batch_size'] ?? 15)
+    : 15
+
   const [localThreshold, setLocalThreshold] = useState<number>(threshold)
   const [localMaxRetries, setLocalMaxRetries] = useState<number>(maxRetries)
+  const [localTemperature, setLocalTemperature] = useState<number>(temperature)
+  const [localBatchSize, setLocalBatchSize] = useState<number>(batchSize)
 
   useEffect(() => { setLocalThreshold(threshold) }, [threshold])
   useEffect(() => { setLocalMaxRetries(maxRetries) }, [maxRetries])
+  useEffect(() => { setLocalTemperature(temperature) }, [temperature])
+  useEffect(() => { setLocalBatchSize(batchSize) }, [batchSize])
 
   const handleEnabledChange = (value: boolean) => {
     updateConfig.mutate(
@@ -1134,6 +1246,32 @@ export function TranslationQualitySection() {
         {
           onSuccess: () => toast('Max retries saved'),
           onError: () => toast('Failed to save max retries', 'error'),
+        },
+      )
+    }
+  }
+
+  const handleTemperatureBlur = () => {
+    const clamped = Math.max(0, Math.min(1, Math.round(localTemperature * 10) / 10))
+    if (String(clamped) !== String(temperature)) {
+      updateConfig.mutate(
+        { temperature: String(clamped) },
+        {
+          onSuccess: () => toast('Temperature saved'),
+          onError: () => toast('Failed to save temperature', 'error'),
+        },
+      )
+    }
+  }
+
+  const handleBatchSizeBlur = () => {
+    const clamped = Math.max(1, Math.min(100, Math.round(localBatchSize)))
+    if (String(clamped) !== String(batchSize)) {
+      updateConfig.mutate(
+        { batch_size: String(clamped) },
+        {
+          onSuccess: () => toast('Batch size saved'),
+          onError: () => toast('Failed to save batch size', 'error'),
         },
       )
     }
@@ -1216,6 +1354,60 @@ export function TranslationQualitySection() {
             color: 'var(--text-primary)',
             fontSize: '13px',
             opacity: enabled ? 1 : 0.5,
+          }}
+        />
+      </SettingRow>
+
+      <SettingRow
+        label="Temperature (0.0–1.0)"
+        helpText="LLM sampling temperature. Lower values are more deterministic; 0.1–0.3 recommended for translation. Default: 0.3."
+      >
+        <input
+          data-testid="input-temperature"
+          type="number"
+          min={0}
+          max={1}
+          step={0.1}
+          value={localTemperature}
+          disabled={updateConfig.isPending}
+          onChange={(e) => {
+            const parsed = parseFloat(e.target.value)
+            if (!isNaN(parsed)) setLocalTemperature(parsed)
+          }}
+          onBlur={handleTemperatureBlur}
+          className="w-24 px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-primary)',
+            fontSize: '13px',
+          }}
+        />
+      </SettingRow>
+
+      <SettingRow
+        label="Batch size (lines)"
+        helpText="Number of subtitle lines sent to the LLM per request. Smaller batches are slower but use less context. Default: 15."
+      >
+        <input
+          data-testid="input-batch_size"
+          type="number"
+          min={1}
+          max={100}
+          step={1}
+          value={localBatchSize}
+          disabled={updateConfig.isPending}
+          onChange={(e) => {
+            const parsed = parseInt(e.target.value, 10)
+            if (!isNaN(parsed)) setLocalBatchSize(parsed)
+          }}
+          onBlur={handleBatchSizeBlur}
+          className="w-24 px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-primary)',
+            fontSize: '13px',
           }}
         />
       </SettingRow>
@@ -1392,6 +1584,7 @@ export function GlobalGlossaryPanel() {
           advanced
         >
           <input
+            data-testid="input-glossary_max_terms"
             type="number"
             min={1}
             max={200}
