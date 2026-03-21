@@ -29,6 +29,8 @@ const inputStyle: React.CSSProperties = {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR'] as const
+const LOG_FORMATS = ['text', 'json'] as const
+const SCAN_ENGINES = ['auto', 'ffprobe', 'mediainfo'] as const
 
 const HI_OPTIONS = [
   { value: 'include', label: 'Include (no preference)' },
@@ -179,6 +181,28 @@ export function GeneralSettings() {
             icon={<HardDrive size={16} style={{ color: 'var(--accent)' }} />}
             advanced={
               <>
+                <FormGroup
+                  label="Metadata Scan Engine"
+                  hint="Tool used to read media metadata. 'auto' prefers mediainfo when available."
+                  htmlFor="scan-metadata-engine"
+                  data-testid="form-group-scan-metadata-engine"
+                >
+                  <select
+                    id="scan-metadata-engine"
+                    data-testid="select-scan-metadata-engine"
+                    style={{ ...inputStyle, maxWidth: '160px' }}
+                    value={strVal(config, 'scan_metadata_engine', 'auto')}
+                    onChange={(e) => save({ scan_metadata_engine: e.target.value })}
+                    disabled={isPending}
+                  >
+                    {SCAN_ENGINES.map((e) => (
+                      <option key={e} value={e}>
+                        {e}
+                      </option>
+                    ))}
+                  </select>
+                </FormGroup>
+
                 <FormGroup
                   label="Translation Workers"
                   hint="Parallel threads for subtitle translation jobs"
@@ -339,6 +363,28 @@ export function GeneralSettings() {
                 disabled={isPending}
                 placeholder="/config/sublarr.log"
               />
+            </FormGroup>
+
+            <FormGroup
+              label="Log Format"
+              hint="Output format for log entries. Use 'json' for log aggregation tools."
+              htmlFor="log-format"
+              data-testid="form-group-log-format"
+            >
+              <select
+                id="log-format"
+                data-testid="select-log-format"
+                style={{ ...inputStyle, maxWidth: '160px' }}
+                value={strVal(config, 'log_format', 'text')}
+                onChange={(e) => save({ log_format: e.target.value })}
+                disabled={isPending}
+              >
+                {LOG_FORMATS.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
             </FormGroup>
           </SettingsSection>
         </div>

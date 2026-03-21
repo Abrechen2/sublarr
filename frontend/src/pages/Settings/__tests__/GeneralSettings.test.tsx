@@ -27,6 +27,8 @@ const mockConfig: Record<string, unknown> = {
   db_path: '/config/sublarr.db',
   log_level: 'INFO',
   log_file: '',
+  log_format: 'text',
+  scan_metadata_engine: 'auto',
 }
 
 const mockMutate = vi.fn()
@@ -225,6 +227,28 @@ describe('GeneralSettings', () => {
     expect(mockMutate).toHaveBeenCalledWith({ scan_metadata_max_workers: 3 })
   })
 
+  it('shows select-scan-metadata-engine in advanced section', () => {
+    renderWithProviders(<GeneralSettings />)
+    const pathsSection = screen.getByTestId('section-paths')
+    const advancedToggle = pathsSection.querySelector(
+      '[data-testid="settings-section-advanced-toggle"]',
+    ) as HTMLElement
+    fireEvent.click(advancedToggle)
+    expect(screen.getByTestId('select-scan-metadata-engine')).toBeInTheDocument()
+  })
+
+  it('calls updateConfig with scan_metadata_engine on change', () => {
+    renderWithProviders(<GeneralSettings />)
+    const pathsSection = screen.getByTestId('section-paths')
+    const advancedToggle = pathsSection.querySelector(
+      '[data-testid="settings-section-advanced-toggle"]',
+    ) as HTMLElement
+    fireEvent.click(advancedToggle)
+    const sel = screen.getByTestId('select-scan-metadata-engine')
+    fireEvent.change(sel, { target: { value: 'mediainfo' } })
+    expect(mockMutate).toHaveBeenCalledWith({ scan_metadata_engine: 'mediainfo' })
+  })
+
   it('calls updateConfig with db_path when advanced field changes', () => {
     renderWithProviders(<GeneralSettings />)
     const pathsSection = screen.getByTestId('section-paths')
@@ -282,6 +306,26 @@ describe('GeneralSettings', () => {
     const input = screen.getByTestId('input-log-file')
     fireEvent.change(input, { target: { value: '/config/sublarr.log' } })
     expect(mockMutate).toHaveBeenCalledWith({ log_file: '/config/sublarr.log' })
+  })
+
+  it('renders log_format select with current config value', () => {
+    renderWithProviders(<GeneralSettings />)
+    const sel = screen.getByTestId('select-log-format') as HTMLSelectElement
+    expect(sel.value).toBe('text')
+  })
+
+  it('renders log_format options: text and json', () => {
+    renderWithProviders(<GeneralSettings />)
+    const sel = screen.getByTestId('select-log-format')
+    const values = Array.from(sel.querySelectorAll('option')).map((o) => (o as HTMLOptionElement).value)
+    expect(values).toEqual(['text', 'json'])
+  })
+
+  it('calls updateConfig with log_format on change', () => {
+    renderWithProviders(<GeneralSettings />)
+    const sel = screen.getByTestId('select-log-format')
+    fireEvent.change(sel, { target: { value: 'json' } })
+    expect(mockMutate).toHaveBeenCalledWith({ log_format: 'json' })
   })
 
   // ── Default value fallbacks ──────────────────────────────────────────────
