@@ -133,6 +133,146 @@ function SearchScanContent() {
           disabled={updateConfig.isPending}
         />
       </FormGroup>
+
+      <FormGroup
+        label="Max Items per Run"
+        hint="Maximum number of wanted items processed in a single search run."
+        htmlFor="wanted-search-max-items-per-run"
+        data-testid="form-group-wanted-search-max-items-per-run"
+      >
+        <input
+          id="wanted-search-max-items-per-run"
+          type="number"
+          data-testid="input-wanted-search-max-items-per-run"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={strVal(config, 'wanted_search_max_items_per_run', '50')}
+          onChange={(e) => save({ wanted_search_max_items_per_run: Number(e.target.value) })}
+          disabled={updateConfig.isPending}
+          min={1}
+          placeholder="50"
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Max Search Attempts"
+        hint="How many times Sublarr retries a failed subtitle search before giving up."
+        htmlFor="wanted-max-search-attempts"
+        data-testid="form-group-wanted-max-search-attempts"
+      >
+        <input
+          id="wanted-max-search-attempts"
+          type="number"
+          data-testid="input-wanted-max-search-attempts"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={strVal(config, 'wanted_max_search_attempts', '3')}
+          onChange={(e) => save({ wanted_max_search_attempts: Number(e.target.value) })}
+          disabled={updateConfig.isPending}
+          min={1}
+          placeholder="3"
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Auto-Extract Embedded"
+        hint="Automatically extract embedded subtitles during wanted scans."
+        data-testid="form-group-wanted-auto-extract"
+      >
+        <Toggle
+          checked={boolVal(config, 'wanted_auto_extract', false)}
+          onChange={(v) => save({ wanted_auto_extract: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Anime Series Only"
+        hint="Only search subtitles for anime series (skip live-action)."
+        data-testid="form-group-wanted-anime-only"
+      >
+        <Toggle
+          checked={boolVal(config, 'wanted_anime_only', false)}
+          onChange={(v) => save({ wanted_anime_only: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Anime Movies Only"
+        hint="Only search subtitles for anime movies."
+        data-testid="form-group-wanted-anime-movies-only"
+      >
+        <Toggle
+          checked={boolVal(config, 'wanted_anime_movies_only', false)}
+          onChange={(v) => save({ wanted_anime_movies_only: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Skip SRT When No ASS Found"
+        hint="Skip SRT subtitle downloads if no ASS subtitle was found for the episode."
+        data-testid="form-group-wanted-skip-srt-on-no-ass"
+      >
+        <Toggle
+          checked={boolVal(config, 'wanted_skip_srt_on_no_ass', false)}
+          onChange={(v) => save({ wanted_skip_srt_on_no_ass: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Adaptive Backoff"
+        hint="Increase retry delay exponentially for items that repeatedly fail."
+        data-testid="form-group-wanted-adaptive-backoff-enabled"
+      >
+        <Toggle
+          checked={boolVal(config, 'wanted_adaptive_backoff_enabled', false)}
+          onChange={(v) => save({ wanted_adaptive_backoff_enabled: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      {boolVal(config, 'wanted_adaptive_backoff_enabled', false) && (
+        <>
+          <FormGroup
+            label="Backoff Base (hours)"
+            hint="Initial retry delay in hours when backoff is active."
+            htmlFor="wanted-backoff-base-hours"
+            data-testid="form-group-wanted-backoff-base-hours"
+          >
+            <input
+              id="wanted-backoff-base-hours"
+              type="number"
+              data-testid="input-wanted-backoff-base-hours"
+              style={{ ...inputStyle, maxWidth: '120px' }}
+              value={strVal(config, 'wanted_backoff_base_hours', '1')}
+              onChange={(e) => save({ wanted_backoff_base_hours: Number(e.target.value) })}
+              disabled={updateConfig.isPending}
+              min={1}
+              placeholder="1"
+            />
+          </FormGroup>
+
+          <FormGroup
+            label="Backoff Cap (hours)"
+            hint="Maximum retry delay in hours. Delay will not exceed this value."
+            htmlFor="wanted-backoff-cap-hours"
+            data-testid="form-group-wanted-backoff-cap-hours"
+          >
+            <input
+              id="wanted-backoff-cap-hours"
+              type="number"
+              data-testid="input-wanted-backoff-cap-hours"
+              style={{ ...inputStyle, maxWidth: '120px' }}
+              value={strVal(config, 'wanted_backoff_cap_hours', '24')}
+              onChange={(e) => save({ wanted_backoff_cap_hours: Number(e.target.value) })}
+              disabled={updateConfig.isPending}
+              min={1}
+              placeholder="24"
+            />
+          </FormGroup>
+        </>
+      )}
     </div>
   )
 }

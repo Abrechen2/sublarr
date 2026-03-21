@@ -33,6 +33,15 @@ vi.mock('@/hooks/useApi', () => ({
       wanted_search_interval_hours: '6',
       webhook_auto_search: 'true',
       wanted_search_on_startup: 'false',
+      wanted_search_max_items_per_run: '50',
+      wanted_max_search_attempts: '3',
+      wanted_auto_extract: 'false',
+      wanted_anime_only: 'false',
+      wanted_anime_movies_only: 'false',
+      wanted_adaptive_backoff_enabled: 'false',
+      wanted_backoff_base_hours: '1',
+      wanted_backoff_cap_hours: '24',
+      wanted_skip_srt_on_no_ass: 'false',
       upgrade_enabled: 'false',
       upgrade_min_score_delta: '10',
       upgrade_scan_interval_hours: '24',
@@ -256,6 +265,78 @@ describe('AutomationSettings', () => {
     const toggle = formGroup.querySelector('[role="switch"]') as HTMLElement
     fireEvent.click(toggle)
     expect(mockMutate).toHaveBeenCalledWith({ wanted_search_on_startup: true })
+  })
+
+  it('displays wanted_search_max_items_per_run value from config', () => {
+    renderPage()
+    const input = screen.getByTestId('input-wanted-search-max-items-per-run') as HTMLInputElement
+    expect(input.value).toBe('50')
+  })
+
+  it('calls updateConfig with wanted_search_max_items_per_run as number on change', () => {
+    renderPage()
+    const input = screen.getByTestId('input-wanted-search-max-items-per-run')
+    fireEvent.change(input, { target: { value: '100' } })
+    expect(mockMutate).toHaveBeenCalledWith({ wanted_search_max_items_per_run: 100 })
+  })
+
+  it('displays wanted_max_search_attempts value from config', () => {
+    renderPage()
+    const input = screen.getByTestId('input-wanted-max-search-attempts') as HTMLInputElement
+    expect(input.value).toBe('3')
+  })
+
+  it('calls updateConfig with wanted_max_search_attempts as number on change', () => {
+    renderPage()
+    const input = screen.getByTestId('input-wanted-max-search-attempts')
+    fireEvent.change(input, { target: { value: '5' } })
+    expect(mockMutate).toHaveBeenCalledWith({ wanted_max_search_attempts: 5 })
+  })
+
+  it('calls updateConfig with wanted_auto_extract=true when toggled', () => {
+    renderPage()
+    const fg = screen.getByTestId('form-group-wanted-auto-extract')
+    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(mockMutate).toHaveBeenCalledWith({ wanted_auto_extract: true })
+  })
+
+  it('calls updateConfig with wanted_anime_only=true when toggled', () => {
+    renderPage()
+    const fg = screen.getByTestId('form-group-wanted-anime-only')
+    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(mockMutate).toHaveBeenCalledWith({ wanted_anime_only: true })
+  })
+
+  it('calls updateConfig with wanted_anime_movies_only=true when toggled', () => {
+    renderPage()
+    const fg = screen.getByTestId('form-group-wanted-anime-movies-only')
+    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(mockMutate).toHaveBeenCalledWith({ wanted_anime_movies_only: true })
+  })
+
+  it('calls updateConfig with wanted_skip_srt_on_no_ass=true when toggled', () => {
+    renderPage()
+    const fg = screen.getByTestId('form-group-wanted-skip-srt-on-no-ass')
+    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(mockMutate).toHaveBeenCalledWith({ wanted_skip_srt_on_no_ass: true })
+  })
+
+  it('calls updateConfig with wanted_adaptive_backoff_enabled=true when toggled', () => {
+    renderPage()
+    const fg = screen.getByTestId('form-group-wanted-adaptive-backoff-enabled')
+    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
+    fireEvent.click(toggle)
+    expect(mockMutate).toHaveBeenCalledWith({ wanted_adaptive_backoff_enabled: true })
+  })
+
+  it('backoff hour fields are hidden when wanted_adaptive_backoff_enabled is false', () => {
+    renderPage()
+    expect(screen.queryByTestId('input-wanted-backoff-base-hours')).toBeNull()
+    expect(screen.queryByTestId('input-wanted-backoff-cap-hours')).toBeNull()
   })
 
   // ── Upgrade Rules interactions ─────────────────────────────────────────────
