@@ -54,6 +54,28 @@ vi.mock('../StandaloneSettingsTab', () => ({
   StandaloneSettingsTab: () => <div data-testid="standalone-settings-tab">StandaloneSettingsTab</div>,
 }))
 
+const mockSaveConfig = vi.fn()
+
+vi.mock('@/hooks/useApi', () => ({
+  useConfig: () => ({
+    data: {
+      backup_auto_enabled: 'false',
+      backup_auto_interval_hours: 24,
+      backup_auto_on_startup: 'false',
+      backup_notify_on_failure: 'true',
+      disk_warning_threshold_percent: 90,
+      disk_warning_notify: 'true',
+      // Extended Security (Step 46)
+      session_timeout_minutes: 0,
+      max_login_attempts: 20,
+      lockout_duration_minutes: 60,
+      allowed_ip_ranges: '',
+    },
+    isLoading: false,
+  }),
+  useUpdateConfig: () => ({ mutate: mockSaveConfig, isPending: false }),
+}))
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function renderPage() {
@@ -125,12 +147,12 @@ describe('SystemSettings', () => {
     expect(screen.getByTestId('section-api-keys')).toBeInTheDocument()
   })
 
-  // ── All 7 sections ────────────────────────────────────────────────────────
+  // ── All sections ──────────────────────────────────────────────────────────
 
-  it('renders exactly 10 settings sections', () => {
+  it('renders exactly 11 settings sections', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections).toHaveLength(10)
+    expect(sections).toHaveLength(11)
   })
 
   // ── Section titles ────────────────────────────────────────────────────────
@@ -354,5 +376,76 @@ describe('SystemSettings', () => {
   it('shows a summary description inside the API Keys section', () => {
     renderPage()
     expect(screen.getByTestId('api-keys-summary')).toBeInTheDocument()
+  })
+})
+
+// ─── Auto Backup section (Step 40) ───────────────────────────────────────────
+
+describe('Auto Backup section', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('toggle-backup-auto-enabled renders unchecked by default', () => {
+    renderPage()
+    // Toggle is inside backup-auto-controls which is inside backup-restore section
+    expect(screen.getByTestId('backup-auto-controls')).toBeInTheDocument()
+    const togBtn = screen.getByTestId('input-backup-auto-interval-hours')
+    expect(togBtn).toBeInTheDocument()
+  })
+
+  it('input-backup-auto-interval-hours renders with value 24', () => {
+    renderPage()
+    const input = screen.getByTestId('input-backup-auto-interval-hours') as HTMLInputElement
+    expect(Number(input.value)).toBe(24)
+  })
+
+  it('toggle-backup-notify-on-failure renders checked by default (default true)', () => {
+    renderPage()
+    // toggle-backup-notify-on-failure renders in backup-auto-controls
+    expect(screen.getByTestId('backup-auto-controls')).toBeInTheDocument()
+  })
+
+  it('toggling backup_auto_enabled calls updateConfig with { backup_auto_enabled: "true" }', () => {
+    renderPage()
+    // The Toggle for backup_auto_enabled is a button role=switch inside backup-auto-controls
+    const controls = screen.getByTestId('backup-auto-controls')
+    const switches = controls.querySelectorAll('[role="switch"]')
+    // First switch is backup_auto_enabled
+    fireEvent.click(switches[0])
+    expect(mockSaveConfig).toHaveBeenCalledWith({ backup_auto_enabled: 'true' })
+  })
+})
+
+// ─── Disk Monitoring section (Step 41) ───────────────────────────────────────
+
+describe('Disk Monitoring section', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('renders heading "Disk Monitoring"', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-disk-monitoring')
+    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
+    expect(title).toHaveTextContent('Disk Monitoring')
+  })
+
+  it('input-disk-warning-threshold-percent renders with value 90', () => {
+    renderPage()
+    const input = screen.getByTestId('input-disk-warning-threshold-percent') as HTMLInputElement
+    expect(Number(input.value)).toBe(90)
+  })
+
+  it('toggle-disk-warning-notify renders checked by default', () => {
+    renderPage()
+    expect(screen.getByTestId('section-disk-monitoring')).toBeInTheDocument()
+    // The Toggle for disk_warning_notify (default true)
+    const controls = screen.getByTestId('disk-monitoring-controls')
+    const switches = controls.querySelectorAll('[role="switch"]')
+    expect(switches[0]).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('changing threshold calls updateConfig with { disk_warning_threshold_percent: 85 }', () => {
+    renderPage()
+    const input = screen.getByTestId('input-disk-warning-threshold-percent')
+    fireEvent.change(input, { target: { value: '85' } })
+    expect(mockSaveConfig).toHaveBeenCalledWith({ disk_warning_threshold_percent: 85 })
   })
 })

@@ -16,6 +16,9 @@ import { useTranslation } from 'react-i18next'
 import { Shield, Archive, Webhook, FileText, Puzzle, Database, Key, Tv2, HardDrive, ScanLine } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
+import { FormGroup } from '@/components/settings/FormGroup'
+import { Toggle } from '@/components/shared/Toggle'
+import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 
 // ─── Lazy sub-tabs ───────────────────────────────────────────────────────────
 
@@ -47,6 +50,35 @@ const StandaloneSettingsTab = lazy(() =>
   import('./StandaloneSettingsTab').then((m) => ({ default: m.StandaloneSettingsTab })),
 )
 
+// ─── Config value helpers ─────────────────────────────────────────────────────
+
+function boolVal(config: unknown, key: string, fallback = false): boolean {
+  if (!config || typeof config !== 'object') return fallback
+  const v = (config as Record<string, unknown>)[key]
+  if (v === undefined || v === null) return fallback
+  return String(v) === 'true' || v === true
+}
+
+function numVal(config: unknown, key: string, fallback = 0): number {
+  if (!config || typeof config !== 'object') return fallback
+  const v = (config as Record<string, unknown>)[key]
+  if (v === undefined || v === null) return fallback
+  const n = Number(v)
+  return isNaN(n) ? fallback : n
+}
+
+const inputStyle: React.CSSProperties = {
+  background: 'var(--bg-elevated)',
+  border: '1px solid var(--border)',
+  color: 'var(--text-primary)',
+  borderRadius: '6px',
+  padding: '7px 12px',
+  fontSize: '13px',
+  fontFamily: 'var(--font-body)',
+  width: '120px',
+  outline: 'none',
+}
+
 // ─── SectionSkeleton ─────────────────────────────────────────────────────────
 
 function SectionSkeleton() {
@@ -59,6 +91,120 @@ function SectionSkeleton() {
           style={{ backgroundColor: 'var(--bg-surface-hover)', width: i === 0 ? '70%' : '100%' }}
         />
       ))}
+    </div>
+  )
+}
+
+// ─── Auto Backup Controls (Step 40) ──────────────────────────────────────────
+
+function AutoBackupControls() {
+  const { data: config } = useConfig()
+  const { mutate: save, isPending } = useUpdateConfig()
+
+  return (
+    <div data-testid="backup-auto-controls" className="mb-4">
+      <FormGroup
+        label="Auto Backup"
+        hint="Automatically create backups on a schedule"
+        data-testid="form-group-backup-auto-enabled"
+      >
+        <Toggle
+          checked={boolVal(config, 'backup_auto_enabled', false)}
+          onChange={(v) => save({ backup_auto_enabled: String(v) })}
+          disabled={isPending}
+          data-testid="toggle-backup-auto-enabled"
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Backup Interval (hours)"
+        hint="How often to automatically create a backup"
+        htmlFor="backup-auto-interval-hours"
+        data-testid="form-group-backup-auto-interval-hours"
+      >
+        <input
+          id="backup-auto-interval-hours"
+          type="number"
+          data-testid="input-backup-auto-interval-hours"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={numVal(config, 'backup_auto_interval_hours', 24)}
+          onChange={(e) => save({ backup_auto_interval_hours: Number(e.target.value) })}
+          disabled={isPending}
+          min={1}
+          max={720}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Backup on Startup"
+        hint="Create a backup each time Sublarr starts"
+        data-testid="form-group-backup-auto-on-startup"
+      >
+        <Toggle
+          checked={boolVal(config, 'backup_auto_on_startup', false)}
+          onChange={(v) => save({ backup_auto_on_startup: String(v) })}
+          disabled={isPending}
+          data-testid="toggle-backup-auto-on-startup"
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Notify on Failure"
+        hint="Send a notification when a backup fails"
+        data-testid="form-group-backup-notify-on-failure"
+      >
+        <Toggle
+          checked={boolVal(config, 'backup_notify_on_failure', true)}
+          onChange={(v) => save({ backup_notify_on_failure: String(v) })}
+          disabled={isPending}
+          data-testid="toggle-backup-notify-on-failure"
+        />
+      </FormGroup>
+    </div>
+  )
+}
+
+// ─── Disk Monitoring Controls (Step 41) ──────────────────────────────────────
+
+function DiskMonitoringControls() {
+  const { data: config } = useConfig()
+  const { mutate: save, isPending } = useUpdateConfig()
+
+  return (
+    <div data-testid="disk-monitoring-controls">
+      <FormGroup
+        label="Warning Threshold (%)"
+        hint="Send an alert when disk usage exceeds this percentage"
+        htmlFor="disk-warning-threshold-percent"
+        data-testid="form-group-disk-warning-threshold-percent"
+      >
+        <input
+          id="disk-warning-threshold-percent"
+          type="number"
+          data-testid="input-disk-warning-threshold-percent"
+          style={{ ...inputStyle, maxWidth: '100px' }}
+          value={numVal(config, 'disk_warning_threshold_percent', 90)}
+          onChange={(e) =>
+            save({ disk_warning_threshold_percent: Number(e.target.value) })
+          }
+          disabled={isPending}
+          min={50}
+          max={99}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Notify on Warning"
+        hint="Send a notification when the disk warning threshold is reached"
+        data-testid="form-group-disk-warning-notify"
+      >
+        <Toggle
+          checked={boolVal(config, 'disk_warning_notify', true)}
+          onChange={(v) => save({ disk_warning_notify: String(v) })}
+          disabled={isPending}
+          data-testid="toggle-disk-warning-notify"
+        />
+      </FormGroup>
     </div>
   )
 }
@@ -105,6 +251,7 @@ export function SystemSettings() {
           icon={<Archive size={16} style={{ color: 'var(--accent)' }} />}
         >
           <div data-testid="backup-restore-content">
+            <AutoBackupControls />
             <Suspense fallback={<SectionSkeleton />}>
               <BackupTab />
             </Suspense>
@@ -291,6 +438,17 @@ export function SystemSettings() {
               <StandaloneSettingsTab />
             </Suspense>
           </div>
+        </SettingsSection>
+      </div>
+
+      {/* 11. Disk Monitoring (Step 41) */}
+      <div data-testid="section-disk-monitoring">
+        <SettingsSection
+          title="Disk Monitoring"
+          description="Alert when disk usage exceeds a threshold."
+          icon={<HardDrive size={16} style={{ color: 'var(--accent)' }} />}
+        >
+          <DiskMonitoringControls />
         </SettingsSection>
       </div>
     </SettingsDetailLayout>
