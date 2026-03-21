@@ -8,7 +8,7 @@
  */
 import { lazy, Suspense, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Bell, Webhook, Moon } from 'lucide-react'
+import { Bell, Webhook, Moon, History } from 'lucide-react'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
@@ -22,6 +22,10 @@ const NotificationTemplatesTab = lazy(() =>
 
 const EventsHooksTab = lazy(() =>
   import('./EventsTab').then((m) => ({ default: m.EventsHooksTab })),
+)
+
+const NotificationHistoryTab = lazy(() =>
+  import('./NotificationHistoryTab').then((m) => ({ default: m.NotificationHistoryTab })),
 )
 
 // ─── Skeleton ────────────────────────────────────────────────────────────────
@@ -253,7 +257,25 @@ export function NotificationsSettings() {
         </SettingsSection>
       </div>
 
-      {/* 3. Quiet Hours (advanced — collapsed by default) */}
+      {/* 3. Notification History */}
+      <div data-testid="section-notification-history">
+        <SettingsSection
+          title={t('settings.notifications.history.title', 'Notification History')}
+          description={t(
+            'settings.notifications.history.description',
+            'Recent notifications sent, with resend capability.',
+          )}
+          icon={<History size={16} style={{ color: 'var(--accent)' }} />}
+        >
+          <div data-testid="notification-history-content">
+            <Suspense fallback={<SectionSkeleton />}>
+              <NotificationHistoryTab />
+            </Suspense>
+          </div>
+        </SettingsSection>
+      </div>
+
+      {/* 4. Quiet Hours (advanced — collapsed by default) */}
       <div data-testid="section-quiet-hours">
         <SettingsSection
           title={t('settings.notifications.quietHours.title', 'Quiet Hours')}
