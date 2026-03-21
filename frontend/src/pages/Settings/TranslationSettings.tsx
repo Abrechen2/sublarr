@@ -11,9 +11,10 @@
  */
 import { lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Server, MessageSquare, BookOpen, Settings2, RefreshCw, Mic } from 'lucide-react'
+import { Server, MessageSquare, BookOpen, Settings2, RefreshCw, Mic, Layers } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
+import { EpisodeContextSection } from './TranslationTab'
 
 // ─── Lazy sub-tabs ───────────────────────────────────────────────────────────
 
@@ -209,6 +210,21 @@ export function TranslationSettings() {
               'Generate subtitles directly from audio tracks using the OpenAI Whisper speech recognition model.',
             )}
           </p>
+        </SettingsSection>
+      </div>
+      {/* 7. Episode Context (Step 45) */}
+      <div data-testid="section-translation-context-wrapper">
+        <SettingsSection
+          title={t('settings.translation.episodeContext.title', 'Episode Context')}
+          description={t(
+            'settings.translation.episodeContext.description',
+            'Use prior episode subtitles as translation context and build per-series glossaries.',
+          )}
+          icon={<Layers size={16} style={{ color: 'var(--accent)' }} />}
+        >
+          <div data-testid="episode-context-content">
+            <EpisodeContextSection />
+          </div>
         </SettingsSection>
       </div>
     </SettingsDetailLayout>

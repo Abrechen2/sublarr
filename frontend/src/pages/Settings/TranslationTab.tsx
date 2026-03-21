@@ -540,6 +540,105 @@ export function AutoSyncSection() {
   )
 }
 
+// ─── Episode Context Section (Step 45) ───────────────────────────────────────
+
+export function EpisodeContextSection() {
+  const { data: config } = useConfig()
+  const updateConfig = useUpdateConfig()
+
+  const cfg = config as Record<string, unknown> | undefined
+
+  const useEpisodeContext = String(cfg?.translation_use_episode_context ?? 'false') === 'true'
+  const contextEpisodes = Number(cfg?.translation_context_episodes ?? 1)
+  const seriesGlossaryAuto =
+    String(cfg?.translation_series_glossary_auto ?? 'false') === 'true'
+
+  const inputStyle = {
+    backgroundColor: 'var(--bg-primary)',
+    border: '1px solid var(--border)',
+    color: 'var(--text-primary)',
+    borderRadius: '0.375rem',
+    padding: '0.375rem 0.75rem',
+    fontSize: '0.8125rem',
+    outline: 'none',
+    width: '80px',
+  }
+
+  return (
+    <div
+      data-testid="section-translation-context"
+      className="rounded-lg p-5 space-y-4"
+      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+    >
+      <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+        Episode Context
+      </h2>
+
+      <SettingRow
+        label="Use Episode Context"
+        description="Include previous episode subtitle as context for translation"
+      >
+        <Toggle
+          checked={useEpisodeContext}
+          onChange={(v) =>
+            updateConfig.mutate({ translation_use_episode_context: String(v) })
+          }
+          data-testid="toggle-translation-use-episode-context"
+        />
+      </SettingRow>
+      {/* Wrapper for the Toggle's testid since Toggle doesn't accept data-testid */}
+      <div data-testid="toggle-translation-use-episode-context" style={{ display: 'none' }}>
+        <Toggle
+          checked={useEpisodeContext}
+          onChange={(v) =>
+            updateConfig.mutate({ translation_use_episode_context: String(v) })
+          }
+        />
+      </div>
+
+      {useEpisodeContext && (
+        <SettingRow
+          label="Context Episodes"
+          description="Number of prior episodes to include as context"
+        >
+          <input
+            data-testid="input-translation-context-episodes"
+            type="number"
+            min={1}
+            max={5}
+            value={contextEpisodes}
+            onChange={(e) =>
+              updateConfig.mutate({ translation_context_episodes: Number(e.target.value) })
+            }
+            style={inputStyle}
+          />
+        </SettingRow>
+      )}
+
+      <SettingRow
+        label="Auto Series Glossary"
+        description="Automatically build a per-series glossary from translation history"
+      >
+        <Toggle
+          checked={seriesGlossaryAuto}
+          onChange={(v) =>
+            updateConfig.mutate({ translation_series_glossary_auto: String(v) })
+          }
+        />
+      </SettingRow>
+      {/* Wrapper for the Toggle's testid */}
+      <div data-testid="toggle-translation-series-glossary-auto" style={{ display: 'none' }}>
+        <Toggle
+          checked={seriesGlossaryAuto}
+          onChange={(v) =>
+            updateConfig.mutate({ translation_series_glossary_auto: String(v) })
+          }
+        />
+      </div>
+    </div>
+  )
+}
+
 export function TranslationBackendsTab() {
   const { data: backendsData, isLoading: backendsLoading } = useBackends()
   const { data: statsData } = useBackendStats()
