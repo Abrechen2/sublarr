@@ -9,6 +9,7 @@ const mockDetectMutate = vi.fn()
 vi.mock('@/hooks/useTranslationApi', () => ({
   useTranscribeEpisode: () => ({ mutate: mockTranscribeMutate, isPending: false }),
   useDetectOpeningEnding: () => ({ mutate: mockDetectMutate, isPending: false }),
+  useBatchTranslate: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
 vi.mock('@/components/library/EpisodeRow', () => ({
@@ -28,16 +29,34 @@ vi.mock('@/components/tracks/TrackPanel', () => ({
 }))
 
 vi.mock('./EpisodeGrid', () => ({
-  episodeGridRowStyle: () => ({ display: 'grid' }),
-  FormatBadge: () => null,
-  ScoreCell: () => null,
-  ProviderCell: () => null,
-  EpisodeInlineActions: () => null,
-  EPISODE_GRID_COLUMNS: '50px 1fr 80px 90px 70px 140px',
+  EPISODE_GRID_COLUMNS: '28px 50px 1fr 90px minmax(180px,1.5fr) 170px',
 }))
 
 vi.mock('./seriesUtils', () => ({
   deriveSubtitlePath: () => null,
+  normLang: (code: string) => code,
+}))
+
+vi.mock('@/components/health/HealthBadge', () => ({
+  HealthBadge: () => null,
+}))
+
+vi.mock('@/components/episodes/EpisodeActionMenu', () => ({
+  EpisodeActionMenu: () => null,
+}))
+
+vi.mock('@/components/processing/SubtitleActionsMenu', () => ({
+  SubtitleActionsMenu: () => null,
+}))
+
+vi.mock('@/api/client', () => ({
+  startWantedBatchSearch: vi.fn(),
+  exportSubtitleNfo: vi.fn(),
+  getSubtitleDownloadUrl: vi.fn(() => ''),
+}))
+
+vi.mock('@/components/shared/Toast', () => ({
+  toast: vi.fn(),
 }))
 
 vi.mock('react-i18next', () => ({

@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { SeasonSummaryBar } from '@/components/library/SeasonSummaryBar'
 import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useStartWantedBatch, useUpdateSeriesSettings, useRefreshAnidbMapping, useStreamingEnabled, useSeriesFansubPrefs, useRescanSeries } from '@/hooks/useApi'
+import { useWantedItems, useUpdateWantedStatus } from '@/hooks/useWantedApi'
 import {
   ArrowLeft, Loader2,
   X, Trash2,
@@ -45,6 +46,23 @@ export function SeriesDetailPage() {
   // Fix 5: guard against malformed route parameter producing NaN
   const seriesId = id && !isNaN(Number(id)) ? Number(id) : null
   const { data: series, isLoading, error } = useSeriesDetail(seriesId)
+
+  // Plan 4: fetch wanted items for skip/accept wiring
+  const { data: seriesWanted } = useWantedItems(
+    1, 9999, 'episode', undefined, undefined, true
+  )
+  const updateWantedStatus = useUpdateWantedStatus()
+
+  const episodeWantedMap = useMemo((): Map<number, number> => {
+    const map = new Map<number, number>()
+    if (!seriesWanted?.data || seriesId == null) return map
+    for (const item of seriesWanted.data) {
+      if (item.sonarr_series_id === seriesId && item.sonarr_episode_id != null) {
+        map.set(item.sonarr_episode_id, item.id)
+      }
+    }
+    return map
+  }, [seriesWanted?.data, seriesId])
 
   // Episode action state
   const [expandedEp, setExpandedEp] = useState<{ id: number; mode: 'search' | 'history' | 'glossary' | 'tracks' } | null>(null)
@@ -601,6 +619,15 @@ export function SeriesDetailPage() {
             streamingEnabled={streamingEnabled ?? false}
             onRefreshSidecars={() => queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })}
             t={t}
+            episodeWantedMap={episodeWantedMap}
+            onSkipEpisode={(episodeId) => {
+              const wantedId = episodeWantedMap.get(episodeId)
+              if (wantedId != null) updateWantedStatus.mutate({ itemId: wantedId, status: 'ignored' })
+            }}
+            onAcceptEpisode={(episodeId) => {
+              const wantedId = episodeWantedMap.get(episodeId)
+              if (wantedId != null) updateWantedStatus.mutate({ itemId: wantedId, status: 'ignored' })
+            }}
           />
         ) : seasonGroups.length === 0 ? (
           <div className="p-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>

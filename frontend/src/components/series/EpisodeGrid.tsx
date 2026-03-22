@@ -2,7 +2,7 @@ import type React from 'react'
 import type { EpisodeRowStatus } from '@/components/library/EpisodeRow'
 
 /** CSS grid template matching the mockup exactly */
-export const EPISODE_GRID_COLUMNS = '50px 1fr 80px 90px 70px 140px'
+export const EPISODE_GRID_COLUMNS = '28px 50px 1fr 90px minmax(180px,1.5fr) 170px'
 
 /** Episode header row — column labels */
 export function EpisodeGridHeader() {
@@ -21,11 +21,11 @@ export function EpisodeGridHeader() {
         gap: '10px',
       }}
     >
+      <span /> {/* checkbox placeholder */}
       <span>#</span>
       <span>Episode</span>
-      <span>Format</span>
-      <span>Provider</span>
-      <span>Score</span>
+      <span>Audio</span>
+      <span>Subtitles</span>
       <span style={{ textAlign: 'right' }}>Actions</span>
     </div>
   )

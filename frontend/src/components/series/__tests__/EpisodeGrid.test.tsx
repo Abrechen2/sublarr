@@ -15,9 +15,8 @@ describe('EpisodeGridHeader', () => {
     render(<EpisodeGridHeader />)
     expect(screen.getByText('#')).toBeInTheDocument()
     expect(screen.getByText('Episode')).toBeInTheDocument()
-    expect(screen.getByText('Format')).toBeInTheDocument()
-    expect(screen.getByText('Provider')).toBeInTheDocument()
-    expect(screen.getByText('Score')).toBeInTheDocument()
+    expect(screen.getByText('Audio')).toBeInTheDocument()
+    expect(screen.getByText('Subtitles')).toBeInTheDocument()
     expect(screen.getByText('Actions')).toBeInTheDocument()
   })
 
@@ -25,7 +24,7 @@ describe('EpisodeGridHeader', () => {
     const { container } = render(<EpisodeGridHeader />)
     const header = container.firstChild as HTMLElement
     expect(header.style.display).toBe('grid')
-    expect(header.style.gridTemplateColumns).toBe('50px 1fr 80px 90px 70px 140px')
+    expect(header.style.gridTemplateColumns).toBe(EPISODE_GRID_COLUMNS)
   })
 })
 
