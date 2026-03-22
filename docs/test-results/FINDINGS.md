@@ -19,7 +19,8 @@
 | ✅ Positiv (Lücken geschlossen) | 7 |
 | **Neu entdeckt (Settings-QA)** | 11 (10 behoben, 1 offen) |
 | **Neu entdeckt (Full-QA v0.34.0-beta)** | 1 (1 behoben) |
-| **Gesamt** | **34** (27 behoben, 1 offen) |
+| **Neu entdeckt (Post-QA User-Meldung)** | 3 (3 behoben) |
+| **Gesamt** | **37** (30 behoben, 1 offen) |
 
 ---
 
@@ -562,5 +563,51 @@ Laut früherer Analyse fehlten diese Seiten. Sie sind als **Tabs in der Activity
 ### Offene Punkte nach Full-QA
 
 - **FINDING-027** — Marketplace Registry GitHub-Repo nicht erstellt (Community-Task)
+
+---
+
+### FINDING-029 — 🟠 Hoch: `updateApiKey` sendet falsches Request-Body-Format
+
+**Datum:** 2026-03-22
+**Typ:** Frontend-Bug / API-Client
+**Schwere:** Hoch — API-Key "Set"-Button funktioniert nicht (kein Fehler sichtbar, aber Key wird nicht gespeichert)
+
+**Beschreibung:**
+`client.ts:updateApiKey` sendete `{ key_name: keyName, value }` als Body.
+Das Backend iteriert über `entry["keys"]` und prüft `if key_name in data` — erwartet also `{ "api_key": "xxx" }` (den Config-Key als Objekt-Key), nicht `key_name` als String-Feld.
+
+**Fix:** `{ [keyName]: value }` statt `{ key_name: keyName, value }`
+**Status:** ✅ Behoben in `frontend/src/api/client.ts`
+
+---
+
+### FINDING-030 — 🟡 Mittel: TMDB/TVDB-Keys doppelt auf Connections-Seite
+
+**Datum:** 2026-03-22
+**Typ:** UX-Duplikat
+**Schwere:** Mittel — Verwirrend für Benutzer
+
+**Beschreibung:**
+`ApiKeysTab` zeigte alle Dienste aus dem Registry inklusive `tmdb`/`tvdb`.
+Die `MetadataApiKeysSection` zeigt diese bereits separat (inkl. TheTVDB PIN, Cache TTL, FFmpeg Timeout).
+→ TMDB API Key und TheTVDB API Key erschienen doppelt auf `/settings/connections`.
+
+**Fix:** `ApiKeysTab` erhält neues Prop `excludeServices`; ConnectionsSettings übergibt `excludeServices={['tmdb', 'tvdb']}`.
+**Status:** ✅ Behoben
+
+---
+
+### FINDING-031 — 🟡 Mittel: System-Tab zeigt alle API-Keys statt nur Sublarr-eigenen Key
+
+**Datum:** 2026-03-22
+**Typ:** UX-Duplikat / falsche Sektion
+**Schwere:** Mittel — System-Tab zeigt Provider-Keys, die in Connections gehören
+
+**Beschreibung:**
+`SystemSettings` lädt `ApiKeysTab` in der "API Keys"-Advanced-Sektion.
+Der Kontext ist "Sublarr-eigener API-Key für externe Zugriffe" — aber der Tab zeigte alle 10 Provider-Services.
+
+**Fix:** `ApiKeysTab` erhält zusätzliches Prop `includeOnly`; SystemSettings übergibt `includeOnly={['sublarr']}`.
+**Status:** ✅ Behoben
 
 *Stand: 2026-03-22 — Full-QA gegen http://192.168.178.194:5765 (v0.34.0-beta)*
