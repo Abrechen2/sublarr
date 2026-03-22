@@ -1,28 +1,20 @@
 /**
  * AutomationSettings — Settings page for automation-related configuration.
  *
- * Six sections:
+ * Five sections:
  * 1. Search & Scan          – wanted search intervals and scan settings
  * 2. Upgrade Rules          – auto-upgrade thresholds and frequency
- * 3. Provider Re-ranking    – wraps ScoringTab (lazy) for scoring weights/modifiers
+ * 3. Webhook                – auto-trigger on Sonarr/Radarr download notifications
  * 4. Processing Pipeline    – post-download pipeline (translate, sync, cleanup)
- * 5. Sidecar & Cleanup      – sidecar file handling
- * 6. Scheduled Tasks (adv.) – read-only placeholder linking to Tasks page
+ * 5. Scheduled Tasks (adv.) – read-only placeholder linking to Tasks page
  */
-import { lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Search, ArrowUpCircle, BarChart3, Workflow, Clock, Zap } from 'lucide-react'
+import { Search, ArrowUpCircle, Workflow, Clock, Zap } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
 import { Toggle } from '@/components/shared/Toggle'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
-
-// ─── Lazy sub-tabs ───────────────────────────────────────────────────────────
-
-const ScoringTab = lazy(() =>
-  import('./EventsTab').then((m) => ({ default: m.ScoringTab })),
-)
 
 // ─── Config value helpers ─────────────────────────────────────────────────────
 
@@ -811,24 +803,6 @@ export function AutomationSettings() {
           icon={<Zap size={16} style={{ color: 'var(--accent)' }} />}
         >
           <WebhookContent />
-        </SettingsSection>
-      </div>
-
-      {/* 4. Provider Re-ranking */}
-      <div data-testid="section-provider-reranking">
-        <SettingsSection
-          title={t('settings.automation.providerReranking.title', 'Provider Re-ranking')}
-          description={t(
-            'settings.automation.providerReranking.description',
-            'Tune scoring weights and per-provider modifiers used to rank subtitle results.',
-          )}
-          icon={<BarChart3 size={16} style={{ color: 'var(--accent)' }} />}
-        >
-          <div data-testid="provider-reranking-content">
-            <Suspense fallback={<SectionSkeleton />}>
-              <ScoringTab />
-            </Suspense>
-          </div>
         </SettingsSection>
       </div>
 
