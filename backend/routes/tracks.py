@@ -255,25 +255,59 @@ def batch_extract_series_tracks(series_id):
 
         with app.app_context():
             client = get_sonarr_client()
-            if client is None:
-                logger.error("[batch-extract-tracks] Sonarr not configured")
-                emit_event(
-                    "batch_extract_completed",
-                    {"series_id": series_id, "total": 0, "succeeded": 0, "failed": 0, "skipped": 0},
-                )
-                return
 
-            try:
-                episode_files = client.get_episode_files_by_series(series_id)
-            except Exception as exc:
-                logger.error("[batch-extract-tracks] Sonarr error for series %d: %s", series_id, exc)
-                emit_event(
-                    "batch_extract_completed",
-                    {"series_id": series_id, "total": 0, "succeeded": 0, "failed": 0, "skipped": 0},
+            # Collect video file paths — from Sonarr or standalone DB
+            if client is not None:
+                try:
+                    episode_files = client.get_episode_files_by_series(series_id)
+                except Exception as exc:
+                    logger.error(
+                        "[batch-extract-tracks] Sonarr error for series %d: %s", series_id, exc
+                    )
+                    emit_event(
+                        "batch_extract_completed",
+                        {
+                            "series_id": series_id,
+                            "total": 0,
+                            "succeeded": 0,
+                            "failed": 0,
+                            "skipped": 0,
+                        },
+                    )
+                    return
+                video_paths = (
+                    [
+                        map_path(fi.get("path", ""))
+                        for fi in episode_files.values()
+                        if fi.get("path")
+                    ]
+                    if episode_files
+                    else []
                 )
-                return
-            if not episode_files:
-                logger.info("[batch-extract-tracks] no episode files for series %d", series_id)
+            else:
+                # Standalone fallback: read file paths directly from wanted_items table
+                from sqlalchemy import text as _text
+
+                from db import get_db
+
+                db = get_db()
+                rows = db.execute(
+                    _text(
+                        "SELECT DISTINCT file_path FROM wanted_items"
+                        " WHERE standalone_series_id=:sid AND file_path != ''"
+                        " ORDER BY file_path"
+                    ),
+                    {"sid": series_id},
+                ).fetchall()
+                video_paths = [r[0] for r in rows if r[0]]
+                logger.info(
+                    "[batch-extract-tracks] standalone mode: %d files for series %d",
+                    len(video_paths),
+                    series_id,
+                )
+
+            if not video_paths:
+                logger.info("[batch-extract-tracks] no files found for series %d", series_id)
                 emit_event(
                     "batch_extract_completed",
                     {"series_id": series_id, "total": 0, "succeeded": 0, "failed": 0, "skipped": 0},
@@ -284,8 +318,7 @@ def batch_extract_series_tracks(series_id):
             failed = 0
             skipped = 0
 
-            episode_files_list = list(episode_files.values())
-            total_files = len(episode_files_list)
+            total_files = len(video_paths)
 
             # Create an activity job so the extraction is visible on the Activity page
             _job_id = None
@@ -294,9 +327,10 @@ def batch_extract_series_tracks(series_id):
 
                 _series_title = f"Serie {series_id}"
                 try:
-                    _series_info = client.get_series_by_id(series_id)
-                    if isinstance(_series_info, dict) and _series_info.get("title"):
-                        _series_title = _series_info["title"]
+                    if client is not None:
+                        _series_info = client.get_series_by_id(series_id)
+                        if isinstance(_series_info, dict) and _series_info.get("title"):
+                            _series_title = _series_info["title"]
                 except Exception:
                     pass
 
@@ -308,22 +342,7 @@ def batch_extract_series_tracks(series_id):
             except Exception:
                 logger.debug("[batch-extract-tracks] could not create activity job")
 
-            for file_idx, file_info in enumerate(episode_files_list):
-                raw_path = file_info.get("path")
-                if not raw_path:
-                    skipped += 1
-                    emit_event(
-                        "batch_extract_progress",
-                        {
-                            "series_id": series_id,
-                            "current": file_idx + 1,
-                            "total": total_files,
-                            "filename": "",
-                            "status": "skipped",
-                        },
-                    )
-                    continue
-                video_path = map_path(raw_path)
+            for file_idx, video_path in enumerate(video_paths):
                 fname = os.path.basename(video_path)
                 if not os.path.exists(video_path):
                     logger.debug("[batch-extract-tracks] file not found: %s", video_path)
@@ -450,7 +469,9 @@ def batch_extract_series_tracks(series_id):
                 if _keep_raw:
                     _keep_langs = {l.strip() for l in _keep_raw.split(",") if l.strip()}
                     _keep_fmt = getattr(_settings, "auto_cleanup_keep_formats", "any").lower()
-                    _cleaned = _cleanup_series_sidecars(episode_files, _keep_langs, _keep_fmt)
+                    # _cleanup_series_sidecars expects {id: {path: ...}} — build from video_paths
+                    _pseudo_files = {i: {"path": p} for i, p in enumerate(video_paths)}
+                    _cleaned = _cleanup_series_sidecars(_pseudo_files, _keep_langs, _keep_fmt)
                     logger.info(
                         "[batch-extract-tracks] auto-cleanup: removed %d sidecar(s)", _cleaned
                     )
