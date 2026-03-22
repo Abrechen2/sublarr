@@ -114,6 +114,12 @@ def create_webhook():
     if not url or not (url.startswith("http://") or url.startswith("https://")):
         return jsonify({"error": "url is required and must start with http:// or https://"}), 400
 
+    from security_utils import validate_service_url
+
+    url_ok, url_reason = validate_service_url(url)
+    if not url_ok:
+        return jsonify({"error": f"Invalid webhook URL: {url_reason}"}), 400
+
     webhook = create_webhook_config(name, event_name, url, secret, retry_count, timeout_seconds)
     return jsonify(_mask_webhook_secret(webhook)), 201
 
@@ -217,6 +223,16 @@ def update_webhook(webhook_id):
 
     if "enabled" in updates:
         updates["enabled"] = 1 if updates["enabled"] else 0
+
+    if "url" in updates:
+        new_url = updates["url"]
+        if not (new_url.startswith("http://") or new_url.startswith("https://")):
+            return jsonify({"error": "url must start with http:// or https://"}), 400
+        from security_utils import validate_service_url
+
+        url_ok, url_reason = validate_service_url(new_url)
+        if not url_ok:
+            return jsonify({"error": f"Invalid webhook URL: {url_reason}"}), 400
 
     if updates:
         update_webhook_config(webhook_id, **updates)
