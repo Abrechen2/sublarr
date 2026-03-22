@@ -226,16 +226,12 @@ const MAX_ITEMS = 5
 
 export function NeedsAttentionCard() {
   const { t } = useTranslation('common')
-  const { data } = useWantedItems(1, MAX_ITEMS)
+  // Fetch only failed items — these are truly stuck and need manual action
+  const { data } = useWantedItems(1, MAX_ITEMS, undefined, 'failed')
   const searchMutation = useSearchWantedItem()
   const statusMutation = useUpdateWantedStatus()
 
-  // Filter to items that need attention: failed status or low score
-  const allItems: WantedItem[] = data?.items ?? []
-  const attentionItems = allItems
-    .filter(item => item.status === 'failed' || (item.score !== null && item.score < 50))
-    .slice(0, MAX_ITEMS)
-
+  const attentionItems: WantedItem[] = (data?.items ?? []).slice(0, MAX_ITEMS)
   const total: number = data?.total ?? 0
 
   const handleSearch = (id: number) => searchMutation.mutate(id)

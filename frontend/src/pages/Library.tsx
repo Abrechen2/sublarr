@@ -438,6 +438,8 @@ export function LibraryPage() {
   const handleRowClick = (id: number) => {
     if (activeTab === 'series') {
       navigate(`/library/series/${id}`)
+    } else {
+      navigate(`/movies/${id}`)
     }
   }
 

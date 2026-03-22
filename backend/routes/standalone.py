@@ -526,6 +526,35 @@ def get_movie(movie_id):
 
     movie = get_standalone_movies(movie_id)
     if not movie:
+        # Fallback: try Radarr for library movies
+        try:
+            from radarr_client import get_radarr_client
+
+            radarr = get_radarr_client()
+            if radarr:
+                radarr_movie = radarr.get_movie_by_id(movie_id)
+                if radarr_movie:
+                    poster = next(
+                        (
+                            img.get("remoteUrl", "")
+                            for img in radarr_movie.get("images", [])
+                            if img.get("coverType") == "poster"
+                        ),
+                        "",
+                    )
+                    return jsonify(
+                        {
+                            "id": radarr_movie.get("id"),
+                            "title": radarr_movie.get("title"),
+                            "year": radarr_movie.get("year"),
+                            "poster_url": poster,
+                            "file_path": radarr_movie.get("path", ""),
+                            "wanted_count": 0,
+                            "source": "radarr",
+                        }
+                    )
+        except Exception as e:
+            logger.debug("Radarr fallback failed for movie %d: %s", movie_id, e)
         return jsonify({"error": "Movie not found"}), 404
 
     try:
