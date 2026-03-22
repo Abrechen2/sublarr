@@ -9,9 +9,15 @@ import { MovieDetailPage } from '../MovieDetail'
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
 const mockUseMovieDetail = vi.fn()
+const mockUseWantedItems = vi.fn()
+const mockUseSearchWantedItem = vi.fn()
+const mockUseUpdateWantedStatus = vi.fn()
 
 vi.mock('@/hooks/useApi', () => ({
   useMovieDetail: (id: number | null) => mockUseMovieDetail(id),
+  useWantedItems: (...args: unknown[]) => mockUseWantedItems(...args),
+  useSearchWantedItem: () => mockUseSearchWantedItem(),
+  useUpdateWantedStatus: () => mockUseUpdateWantedStatus(),
 }))
 
 vi.mock('@/components/shared/Breadcrumb', () => ({
@@ -37,6 +43,10 @@ function renderPage(id = '42') {
 describe('MovieDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Default mock for wanted items (empty list)
+    mockUseWantedItems.mockReturnValue({ data: { data: [], total: 0, page: 1, per_page: 50 }, isLoading: false })
+    mockUseSearchWantedItem.mockReturnValue({ mutate: vi.fn(), isPending: false })
+    mockUseUpdateWantedStatus.mockReturnValue({ mutate: vi.fn(), isPending: false })
   })
 
   it('shows loading spinner while data is loading', () => {
