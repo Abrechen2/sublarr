@@ -18,7 +18,8 @@
 | 💅 UX | 2 |
 | ✅ Positiv (Lücken geschlossen) | 7 |
 | **Neu entdeckt (Settings-QA)** | 11 (10 behoben, 1 offen) |
-| **Gesamt** | **33** (16 behoben) |
+| **Neu entdeckt (Full-QA v0.34.0-beta)** | 1 (1 behoben) |
+| **Gesamt** | **34** (27 behoben, 1 offen) |
 
 ---
 
@@ -503,4 +504,63 @@ Laut früherer Analyse fehlten diese Seiten. Sie sind als **Tabs in der Activity
 
 ---
 
-*Stand: 2026-03-22 — Tests gegen http://192.168.178.194:5765 (v0.33.0-beta), Settings-QA am 2026-03-22*
+---
+
+### FINDING-028 — ✅ Behoben: AutomationSettings Tests — Veraltete Tests nach Entfernen der Provider Re-ranking Sektion
+
+**Typ:** Test / Regressionslücke
+**Schwere:** Niedrig — Frontend-Tests schlugen fehl nach FINDING-025-Fix
+
+**Beschreibung:** Nach dem Entfernen der "Provider Re-ranking" Sektion aus `AutomationSettings.tsx` (FINDING-025) waren 3 Tests in `AutomationSettings.test.tsx` nicht aktualisiert worden:
+- `renders exactly 7 settings sections` — erwartete 7, tatsächlich 6
+- `renders the Provider Re-ranking section` — testet auf nicht existierendes `section-provider-reranking`
+- `shows "Provider Re-ranking" section title` — testet auf nicht existierendes `section-provider-reranking`
+
+**Fix:** Sektions-Zählung von 7 auf 6 angepasst; beide Provider Re-ranking Tests entfernt.
+
+**Verifiziert:** 797/797 Frontend-Tests grün.
+
+---
+
+## Full-QA Session — v0.34.0-beta (2026-03-22)
+
+### Getestete Bereiche
+
+| Bereich | Seiten / Endpunkte | Status |
+|---------|-------------------|--------|
+| **Dashboard** | `/` | ✅ OK |
+| **Library** | `/library` (Serien + Filme), `/movies/:id` | ✅ OK |
+| **Activity** | `/activity` (alle 5 Tabs) | ✅ OK |
+| **Settings Overview** | `/settings` | ✅ OK |
+| **Settings General** | `/settings/general` | ✅ OK |
+| **Settings Connections** | `/settings/connections` | ✅ Fix verifiziert (FINDING-017) |
+| **Settings Subtitles** | `/settings/subtitles` | ✅ OK |
+| **Settings Providers** | `/settings/providers` | ✅ Fix verifiziert (FINDING-021, 022) |
+| **Settings Automation** | `/settings/automation` | ✅ Fix verifiziert (FINDING-025) |
+| **Settings Translation** | `/settings/translation` | ✅ OK (XSS-Test-Daten korrekt escaped) |
+| **Settings Notifications** | `/settings/notifications` | ✅ Fix verifiziert (FINDING-020) |
+| **Settings System** | `/settings/system` | ✅ OK |
+| **Settings About** | `/settings/about` | ✅ OK |
+| **Settings Hooks** | `/settings/hooks` | ✅ OK |
+| **Settings Webhooks** | `/settings/webhooks` | ✅ Fix verifiziert (FINDING-024) |
+| **Language Profiles** | `/settings/language-profiles` | ✅ OK |
+| **API: Health** | `GET /api/v1/health` | ✅ 200 + korrekte Struktur |
+| **API: Config** | `GET /api/v1/config` | ✅ 200, Secrets masked |
+| **API: Providers** | `GET /api/v1/providers` | ✅ 200 + vollständige Provider-Liste |
+| **API: Wanted** | `GET /api/v1/wanted` | ✅ 200 + Pagination |
+| **API: History** | `GET /api/v1/history` | ✅ 200 + Pagination |
+| **API: Library** | `GET /api/v1/library` | ✅ 200 + movies/series keys |
+| **API: Provider Stats** | `GET /api/v1/providers/stats` | ✅ 200 |
+| **API: Provider Health** | `GET /api/v1/providers/health` | ✅ 200 |
+| **API: Notifications** | `GET /api/v1/notifications/history` | ✅ 200 + Pagination |
+| **API: Tasks** | `GET /api/v1/tasks` | ✅ 200 |
+| **API: opensubtitles/test** | `POST /api/v1/api-keys/opensubtitles/test` | ✅ Fix verifiziert (FINDING-019) |
+| **API: sonarr/test** | `POST /api/v1/api-keys/sonarr/test` | ✅ Fix verifiziert (FINDING-018) |
+| **Backend Tests** | `pytest` (911 Tests) | ✅ 911 passed, 0 failed |
+| **Frontend Tests** | `vitest` (797 Tests) | ✅ 797 passed, 0 failed |
+
+### Offene Punkte nach Full-QA
+
+- **FINDING-027** — Marketplace Registry GitHub-Repo nicht erstellt (Community-Task)
+
+*Stand: 2026-03-22 — Full-QA gegen http://192.168.178.194:5765 (v0.34.0-beta)*

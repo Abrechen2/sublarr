@@ -123,10 +123,10 @@ describe('AutomationSettings', () => {
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
   })
 
-  it('renders exactly 7 settings sections', () => {
+  it('renders exactly 6 settings sections', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections).toHaveLength(7)
+    expect(sections).toHaveLength(6)
   })
 
   // ── Section presence ─────────────────────────────────────────────────────
@@ -144,11 +144,6 @@ describe('AutomationSettings', () => {
   it('renders the Webhook section', () => {
     renderPage()
     expect(screen.getByTestId('section-webhook')).toBeInTheDocument()
-  })
-
-  it('renders the Provider Re-ranking section', () => {
-    renderPage()
-    expect(screen.getByTestId('section-provider-reranking')).toBeInTheDocument()
   })
 
   it('renders the Processing Pipeline section', () => {
@@ -180,13 +175,6 @@ describe('AutomationSettings', () => {
     const wrapper = screen.getByTestId('section-upgrade-rules')
     const title = wrapper.querySelector('[data-testid="settings-section-title"]')
     expect(title).toHaveTextContent('Upgrade Rules')
-  })
-
-  it('shows "Provider Re-ranking" section title', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('section-provider-reranking')
-    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
-    expect(title).toHaveTextContent('Provider Re-ranking')
   })
 
   it('shows "Processing Pipeline" section title', () => {
