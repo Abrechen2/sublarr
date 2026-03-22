@@ -104,6 +104,7 @@ def list_wanted():
     item_type = request.args.get("item_type")
     status_filter = request.args.get("status")
     series_id = request.args.get("series_id", type=int)
+    movie_id = request.args.get("movie_id", type=int)
     subtitle_type = request.args.get("subtitle_type")
     sort_by = request.args.get("sort_by", "added_at")
     sort_dir = request.args.get("sort_dir", "desc")
@@ -122,6 +123,7 @@ def list_wanted():
         item_type=item_type,
         status=status_filter,
         series_id=series_id,
+        movie_id=movie_id,
         subtitle_type=subtitle_type,
         sort_by=sort_by,
         sort_dir=sort_dir,
