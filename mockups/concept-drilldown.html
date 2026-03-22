@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sublarr — Drill-Down Views: Settings Detail + Series Detail</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --accent: #1DB8D4;
+    --accent-hover: #19a5bf;
+    --accent-dim: #116d7e;
+    --accent-subtle: rgba(29, 184, 212, 0.08);
+    --accent-bg: rgba(29, 184, 212, 0.10);
+    --accent-glow: rgba(29, 184, 212, 0.25);
+
+    --bg-deep: #131519;
+    --bg-primary: #1a1d23;
+    --bg-surface: #1f2228;
+    --bg-surface-hover: #252830;
+    --bg-elevated: #282c35;
+
+    --text-primary: #e0e4ec;
+    --text-secondary: #848b9e;
+    --text-muted: #4a5168;
+
+    --border: #2a2e38;
+    --border-hover: #3a3f4d;
+
+    --success: #2ed573;
+    --success-bg: rgba(46, 213, 115, 0.10);
+    --error: #f43f5e;
+    --error-bg: rgba(244, 63, 94, 0.10);
+    --warning: #f59e0b;
+    --warning-bg: rgba(245, 158, 11, 0.10);
+    --upgrade: #a78bfa;
+    --upgrade-bg: rgba(167, 139, 250, 0.10);
+
+    --radius-sm: 8px;
+    --radius-md: 10px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+  }
+
+  .concept-badge {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 1000;
+    background: linear-gradient(135deg, var(--accent), #0f9bb5);
+    color: #000;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    width: 60px;
+    height: 100vh;
+    position: fixed;
+    left: 0; top: 0;
+    background: var(--bg-primary);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px 0;
+    z-index: 100;
+    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+  }
+  .sidebar:hover {
+    width: 220px;
+    box-shadow: 4px 0 32px rgba(0,0,0,0.35);
+  }
+  .sidebar-logo {
+    width: 36px; height: 36px; min-width: 36px;
+    background: linear-gradient(135deg, var(--accent), #0f9bb5);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: #fff; font-weight: 800;
+    margin-bottom: 6px; flex-shrink: 0;
+  }
+  .sidebar-version {
+    font-size: 10px; color: var(--text-muted);
+    margin-bottom: 18px; white-space: nowrap;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .sidebar:hover .sidebar-version { opacity: 1; }
+  .sidebar-sep {
+    width: 28px; height: 1px; background: var(--border);
+    margin: 6px 0; transition: width 0.2s;
+  }
+  .sidebar:hover .sidebar-sep { width: 80%; }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; padding: 9px 18px;
+    cursor: pointer; transition: all 0.15s ease;
+    white-space: nowrap; color: var(--text-secondary); position: relative;
+  }
+  .sidebar-item:hover { color: var(--text-primary); background: var(--bg-surface-hover); }
+  .sidebar-item.active { color: var(--accent); }
+  .sidebar-item.active::before {
+    content: ''; position: absolute; left: 0; top: 7px; bottom: 7px;
+    width: 3px; background: var(--accent); border-radius: 0 2px 2px 0;
+  }
+  .sidebar-icon {
+    width: 24px; height: 24px; min-width: 24px;
+    display: flex; align-items: center; justify-content: center; font-size: 17px;
+  }
+  .sidebar-label {
+    font-size: 13px; font-weight: 500;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .sidebar:hover .sidebar-label { opacity: 1; }
+  .sidebar-bottom { margin-top: auto; width: 100%; }
+
+  /* ===== MAIN ===== */
+  .main {
+    margin-left: 60px;
+    flex: 1;
+    padding: 24px 32px 60px;
+    max-width: 1380px;
+  }
+
+  /* ===== BREADCRUMB ===== */
+  .breadcrumb {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+  .breadcrumb a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .breadcrumb a:hover { color: var(--accent); }
+  .breadcrumb .sep { color: var(--text-muted); }
+  .breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+
+  /* ===== PAGE HEADER ===== */
+  .page-header {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .page-title {
+    font-size: 20px; font-weight: 700; letter-spacing: -0.5px;
+  }
+  .page-subtitle {
+    font-size: 12px; color: var(--text-muted); margin-top: 2px;
+  }
+  .page-actions { display: flex; gap: 8px; align-items: center; }
+
+  /* ===== BUTTONS ===== */
+  .btn {
+    padding: 5px 11px; border-radius: 6px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text-secondary); font-size: 11px;
+    cursor: pointer; transition: all 0.15s; font-family: var(--font);
+  }
+  .btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
+  .btn.primary:hover { background: var(--accent-hover); }
+  .btn.sm { padding: 3px 8px; font-size: 10px; }
+  .btn.icon-btn { padding: 6px 8px; }
+  .btn.danger { border-color: var(--error); color: var(--error); }
+  .btn.danger:hover { background: var(--error-bg); }
+
+  /* ===== SETTINGS DETAIL ===== */
+  .settings-detail {
+    max-width: 780px;
+  }
+
+  .settings-section {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 22px 24px;
+    margin-bottom: 14px;
+  }
+
+  .settings-section-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--accent-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; flex-shrink: 0;
+  }
+
+  .section-title-group { flex: 1; }
+  .section-title { font-size: 14px; font-weight: 600; }
+  .section-desc { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+  /* Form fields */
+  .form-group {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(42, 46, 56, 0.5);
+  }
+  .form-group:last-child { border-bottom: none; padding-bottom: 0; }
+  .form-group:first-of-type { padding-top: 0; }
+
+  .form-label-group { flex: 1; max-width: 320px; }
+  .form-label {
+    font-size: 13px; font-weight: 500; margin-bottom: 2px;
+  }
+  .form-hint {
+    font-size: 11px; color: var(--text-muted); line-height: 1.4;
+  }
+
+  .form-control-group {
+    display: flex; align-items: center; gap: 8px;
+    min-width: 260px;
+    justify-content: flex-end;
+  }
+
+  .input-field {
+    padding: 7px 12px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: var(--font);
+    outline: none;
+    transition: border-color 0.15s;
+    width: 220px;
+  }
+  .input-field:focus { border-color: var(--accent); }
+
+  .select-field {
+    padding: 7px 12px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: var(--font);
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+    width: 220px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23848b9e' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+    transition: border-color 0.15s;
+  }
+  .select-field:focus { border-color: var(--accent); }
+
+  /* Toggle switch */
+  .toggle {
+    width: 40px; height: 22px; border-radius: 11px;
+    background: var(--border); cursor: pointer;
+    position: relative; transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #fff; transition: transform 0.2s;
+  }
+  .toggle.on::after { transform: translateX(18px); }
+
+  /* Mini toggle */
+  .mini-toggle {
+    width: 34px; height: 18px; border-radius: 9px;
+    background: var(--border); cursor: pointer;
+    position: relative; transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .mini-toggle.on { background: var(--accent); }
+  .mini-toggle::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; transition: transform 0.2s;
+  }
+  .mini-toggle.on::after { transform: translateX(16px); }
+
+  /* Advanced section */
+  .advanced-trigger {
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 0 0;
+    font-size: 12px; font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color 0.15s;
+    user-select: none;
+  }
+  .advanced-trigger:hover { color: var(--accent); }
+  .advanced-trigger .arrow {
+    transition: transform 0.2s;
+    font-size: 10px;
+  }
+  .advanced-trigger.open .arrow { transform: rotate(90deg); }
+
+  .advanced-content {
+    display: none;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border);
+    margin-top: 10px;
+  }
+  .advanced-content.show { display: block; }
+
+  /* Feature addon card */
+  .feature-addon {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 24px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: border-color 0.2s;
+  }
+  .feature-addon:hover { border-color: var(--border-hover); }
+  .feature-addon.enabled { border-color: rgba(29, 184, 212, 0.3); }
+
+  .feature-addon-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: var(--upgrade-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+
+  .feature-addon-info { flex: 1; }
+  .feature-addon-title { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+  .feature-addon-desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+
+  .feature-addon-status {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .feature-addon-badge {
+    font-size: 10px; font-weight: 600;
+    padding: 3px 9px; border-radius: 999px;
+  }
+  .feature-addon-badge.off { background: var(--bg-elevated); color: var(--text-muted); }
+  .feature-addon-badge.on { background: var(--success-bg); color: var(--success); }
+
+  /* Saved toast */
+  .save-toast {
+    position: fixed; bottom: 50px; right: 24px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--success);
+    border-radius: var(--radius-md);
+    padding: 10px 16px;
+    display: none; align-items: center; gap: 8px;
+    font-size: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    z-index: 200;
+    animation: slideUp 0.3s ease;
+  }
+  .save-toast.visible { display: flex; }
+  .save-toast .check { color: var(--success); font-size: 14px; }
+  .save-toast .undo-link { color: var(--accent); cursor: pointer; margin-left: 8px; font-weight: 500; }
+
+  @keyframes slideUp {
+    from { transform: translateY(10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  /* ===== SERIES DETAIL ===== */
+  .series-hero {
+    display: flex; gap: 24px;
+    margin-bottom: 20px;
+  }
+
+  .series-poster {
+    width: 180px; min-width: 180px;
+    aspect-ratio: 2/3;
+    background: linear-gradient(135deg, #1e2130, #282c3a);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .series-poster .poster-gradient {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 60%;
+    background: linear-gradient(to top, rgba(19,21,25,0.9), transparent);
+  }
+
+  .series-poster .score-big {
+    position: absolute; bottom: 12px; left: 12px;
+    font-size: 20px; font-weight: 800; z-index: 1;
+  }
+
+  .series-info { flex: 1; }
+
+  .series-title-row {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 4px;
+  }
+
+  .series-detail-title {
+    font-size: 24px; font-weight: 700; letter-spacing: -0.5px;
+  }
+
+  .series-year {
+    font-size: 13px; color: var(--text-muted); font-weight: 400;
+  }
+
+  .series-meta-tags {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+
+  .meta-tag {
+    padding: 3px 10px; border-radius: 6px;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    font-size: 11px; font-weight: 500; color: var(--text-secondary);
+  }
+
+  .series-stats-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .series-stat-box {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    text-align: center;
+  }
+  .series-stat-value { font-size: 20px; font-weight: 700; }
+  .series-stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 2px; }
+
+  .series-actions-row {
+    display: flex; gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  /* Season selector */
+  .season-tabs {
+    display: flex; gap: 2px;
+    background: var(--bg-surface); border-radius: var(--radius-md);
+    padding: 3px; width: fit-content; margin-bottom: 14px;
+  }
+  .season-tab {
+    padding: 6px 16px; font-size: 12px; font-weight: 500;
+    color: var(--text-secondary); cursor: pointer;
+    border-radius: 7px; transition: all 0.15s;
+  }
+  .season-tab:hover { color: var(--text-primary); }
+  .season-tab.active {
+    background: var(--bg-elevated); color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  /* Episode list */
+  .episode-list {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+
+  .episode-row {
+    display: grid;
+    grid-template-columns: 50px 1fr 80px 90px 70px 140px;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    transition: all 0.15s;
+    gap: 10px;
+  }
+  .episode-row:hover {
+    border-color: var(--border-hover);
+    background: var(--bg-surface-hover);
+  }
+
+  .ep-number {
+    font-size: 13px; font-weight: 600; color: var(--text-secondary);
+  }
+
+  .ep-title-group {}
+  .ep-title { font-size: 13px; font-weight: 500; }
+  .ep-file { font-size: 10px; color: var(--text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 350px; }
+
+  .ep-format {
+    font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 4px;
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    width: fit-content;
+  }
+
+  .ep-provider {
+    font-size: 11px; color: var(--text-muted);
+  }
+
+  .ep-score {
+    font-size: 12px; font-weight: 700;
+    padding: 3px 10px; border-radius: 6px;
+    text-align: center; width: fit-content;
+  }
+  .ep-score.high { background: var(--success-bg); color: var(--success); }
+  .ep-score.medium { background: var(--accent-bg); color: var(--accent); }
+  .ep-score.low { background: var(--warning-bg); color: var(--warning); }
+  .ep-score.missing { background: var(--error-bg); color: var(--error); }
+
+  .ep-actions {
+    display: flex; gap: 4px; justify-content: flex-end;
+  }
+
+  /* Status pills */
+  .pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 9px; border-radius: 6px; font-size: 10px; font-weight: 600;
+  }
+  .pill.miss { background: var(--warning-bg); color: var(--warning); }
+  .pill.done { background: var(--success-bg); color: var(--success); }
+  .pill.search { background: var(--accent-bg); color: var(--accent); }
+  .pill.low-score { background: var(--upgrade-bg); color: var(--upgrade); }
+
+  /* Episode header */
+  .episode-header {
+    display: grid;
+    grid-template-columns: 50px 1fr 80px 90px 70px 140px;
+    padding: 6px 14px;
+    font-size: 10px; font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    gap: 10px;
+  }
+
+  /* Summary bar */
+  .season-summary {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 16px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    margin-bottom: 10px;
+    font-size: 12px;
+  }
+  .summary-label { color: var(--text-muted); }
+  .summary-bar-track {
+    flex: 1; height: 6px; background: rgba(255,255,255,0.05);
+    border-radius: 3px; overflow: hidden;
+    display: flex;
+  }
+  .summary-bar-seg { height: 100%; }
+  .summary-bar-seg.done { background: var(--success); }
+  .summary-bar-seg.low { background: var(--warning); }
+  .summary-bar-seg.miss { background: var(--error); opacity: 0.7; }
+  .summary-stats { display: flex; gap: 12px; font-size: 11px; }
+  .summary-stat { display: flex; align-items: center; gap: 4px; }
+  .summary-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  /* ===== STATUS BAR ===== */
+  .status-bar {
+    position: fixed; bottom: 0; left: 60px; right: 0;
+    height: 26px; background: var(--bg-primary);
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 14px; font-size: 10px; color: var(--text-muted);
+    gap: 14px; z-index: 50;
+  }
+  .status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--success); margin-right: 2px; display: inline-block; }
+
+  /* Tabs */
+  .view-tabs {
+    display: flex; gap: 0;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .view-tab {
+    padding: 10px 20px; font-size: 13px; font-weight: 500;
+    color: var(--text-secondary); cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    margin-bottom: -1px;
+  }
+  .view-tab:hover { color: var(--text-primary); }
+  .view-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* ===== PAGE SECTION ===== */
+  .page-section { display: none; }
+  .page-section.active { display: block; }
+
+  /* Info tooltip */
+  .info-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--bg-elevated);
+    font-size: 10px; color: var(--text-muted);
+    cursor: help; margin-left: 4px; flex-shrink: 0;
+    position: relative;
+  }
+  .info-icon:hover { color: var(--accent); }
+
+  /* Number input */
+  .input-number {
+    width: 80px;
+    text-align: center;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 16px; }
+    .series-hero { flex-direction: column; }
+    .series-poster { width: 120px; min-width: 120px; }
+    .series-stats-row { grid-template-columns: repeat(2, 1fr); }
+    .episode-row { grid-template-columns: 40px 1fr auto; }
+    .episode-row .ep-format, .episode-row .ep-provider, .episode-header span:nth-child(3), .episode-header span:nth-child(4) { display: none; }
+    .status-bar { left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="concept-badge">DRILL-DOWN: Settings Detail + Series Detail</div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">S</div>
+  <div class="sidebar-version">v0.33.0-beta</div>
+
+  <div class="sidebar-item" onclick="showPage('settings',this)">
+    <div class="sidebar-icon">&#9776;</div>
+    <span class="sidebar-label">Dashboard</span>
+  </div>
+  <div class="sidebar-item" onclick="showPage('series',this)">
+    <div class="sidebar-icon">&#128218;</div>
+    <span class="sidebar-label">Library</span>
+  </div>
+  <div class="sidebar-item">
+    <div class="sidebar-icon">&#128276;</div>
+    <span class="sidebar-label">Activity</span>
+  </div>
+
+  <div class="sidebar-sep"></div>
+
+  <div class="sidebar-bottom">
+    <div class="sidebar-item active" onclick="showPage('settings',this)">
+      <div class="sidebar-icon">&#9881;</div>
+      <span class="sidebar-label">Settings</span>
+    </div>
+    <div class="sidebar-item">
+      <div class="sidebar-icon">&#9790;</div>
+      <span class="sidebar-label">Dark Mode</span>
+    </div>
+  </div>
+</nav>
+
+<main class="main">
+
+  <!-- ====================================================================== -->
+  <!-- VIEW SWITCHER -->
+  <!-- ====================================================================== -->
+  <div class="view-tabs">
+    <div class="view-tab active" onclick="showPage('settings',this)">Settings &rarr; General</div>
+    <div class="view-tab" onclick="showPage('series',this)">Library &rarr; Frieren</div>
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- SETTINGS DETAIL: General -->
+  <!-- ====================================================================== -->
+  <section class="page-section active" id="page-settings">
+
+    <div class="breadcrumb">
+      <a>Settings</a>
+      <span class="sep">/</span>
+      <span class="current">General</span>
+    </div>
+
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">General</h1>
+        <div class="page-subtitle">Language, paths, logging, and optional features</div>
+      </div>
+      <div class="page-actions">
+        <button class="btn" onclick="showSaveToast()">Reset to Defaults</button>
+      </div>
+    </div>
+
+    <div class="settings-detail">
+
+      <!-- Section: Interface -->
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <div class="section-icon">&#127760;</div>
+          <div class="section-title-group">
+            <div class="section-title">Interface</div>
+            <div class="section-desc">Display language and appearance</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label-group">
+            <div class="form-label">Language</div>
+            <div class="form-hint">Application display language</div>
+          </div>
+          <div class="form-control-group">
+            <select class="select-field" onchange="showSaveToast()">
+              <option>German (Deutsch)</option>
+              <option>English</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label-group">
+            <div class="form-label">Source Language</div>
+            <div class="form-hint">Original subtitle language to search for</div>
+          </div>
+          <div class="form-control-group">
+            <select class="select-field" onchange="showSaveToast()">
+              <option>Japanese</option>
+              <option>English</option>
+              <option>Chinese</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label-group">
+            <div class="form-label">Target Language</div>
+            <div class="form-hint">Desired subtitle language</div>
+          </div>
+          <div class="form-control-group">
+            <select class="select-field" onchange="showSaveToast()">
+              <option>German</option>
+              <option>English</option>
+              <option>French</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Paths & Server -->
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <div class="section-icon">&#128193;</div>
+          <div class="section-title-group">
+            <div class="section-title">Paths &amp; Server</div>
+            <div class="section-desc">Media location and network settings</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label-group">
+            <div class="form-label">Media Path</div>
+            <div class="form-hint">Root directory for your media library</div>
+          </div>
+          <div class="form-control-group">
+            <input type="text" class="input-field" value="/media" onchange="showSaveToast()">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label-group">
+            <div class="form-label">Port</div>
+            <div class="form-hint">Sublarr web interface port</div>
+          </div>
+          <div class="form-control-group">
+            <input type="text" class="input-field input-number" value="5765" onchange="showSaveToast()">
+          </div>
+        </div>
+
+        <div class="advanced-trigger" onclick="toggleAdvanced(this)">
+          <span class="arrow">&#9654;</span> Advanced Server Options
+        </div>
+        <div class="advanced-content">
+          <div class="form-group">
+            <div class="form-label-group">
+              <div class="form-label">Workers</div>
+              <div class="form-hint">Number of background task workers</div>
+            </div>
+            <div class="form-control-group">
+              <input type="text" class="input-field input-number" value="4" onchange="showSaveToast()">
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="form-label-group">
+              <div class="form-label">Base URL</div>
+              <div class="form-hint">External access URL (reverse proxy)</div>
+            </div>
+            <div class="form-control-group">
+              <input type="text" class="input-field" placeholder="http://localhost:5765" onchange="showSaveToast()">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Logging -->
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <div class="section-icon">&#128196;</div>
+          <div class="section-title-group">
+            <div class="section-title">Logging</div>
+            <div class="section-desc">Log level and diagnostics</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label-group">
+            <div class="form-label">Log Level</div>
+            <div class="form-hint">Controls verbosity of application logs</div>
+          </div>
+          <div class="form-control-group">
+            <select class="select-field" onchange="showSaveToast()">
+              <option>INFO</option>
+              <option>DEBUG</option>
+              <option>WARNING</option>
+              <option>ERROR</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label-group">
+            <div class="form-label">Log to File</div>
+            <div class="form-hint">Save logs to disk for debugging</div>
+          </div>
+          <div class="form-control-group">
+            <div class="toggle on" onclick="this.classList.toggle('on'); showSaveToast()"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FEATURE ADD-ON: Translation (inside General!) -->
+      <div class="feature-addon" id="translation-addon">
+        <div class="feature-addon-icon">&#127760;</div>
+        <div class="feature-addon-info">
+          <div class="feature-addon-title">Translation</div>
+          <div class="feature-addon-desc">
+            Enable EN&rarr;DE subtitle translation via Ollama/LLM. When enabled, a dedicated Translation settings tile appears for backend, model, and prompt configuration.
+          </div>
+        </div>
+        <div class="feature-addon-status">
+          <span class="feature-addon-badge off" id="translation-badge">Disabled</span>
+          <div class="toggle" id="translation-toggle" onclick="toggleTranslationFeature()"></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ====================================================================== -->
+  <!-- SERIES DETAIL: Frieren -->
+  <!-- ====================================================================== -->
+  <section class="page-section" id="page-series">
+
+    <div class="breadcrumb">
+      <a>Library</a>
+      <span class="sep">/</span>
+      <span class="current">Frieren: Beyond Journey's End</span>
+    </div>
+
+    <!-- Hero -->
+    <div class="series-hero">
+      <div class="series-poster">
+        &#127860;
+        <div class="poster-gradient"></div>
+        <div class="score-big" style="color:var(--accent)">82</div>
+      </div>
+      <div class="series-info">
+        <div class="series-title-row">
+          <div class="series-detail-title">Frieren: Beyond Journey's End</div>
+          <span class="series-year">2023</span>
+        </div>
+        <div class="series-meta-tags">
+          <span class="meta-tag">Anime</span>
+          <span class="meta-tag">Fantasy</span>
+          <span class="meta-tag">Sonarr</span>
+          <span class="meta-tag">2 Seasons</span>
+          <span class="meta-tag">ASS preferred</span>
+        </div>
+
+        <div class="series-stats-row">
+          <div class="series-stat-box">
+            <div class="series-stat-value" style="color:var(--accent)">52</div>
+            <div class="series-stat-label">Episodes</div>
+          </div>
+          <div class="series-stat-box">
+            <div class="series-stat-value" style="color:var(--success)">46</div>
+            <div class="series-stat-label">With Subs</div>
+          </div>
+          <div class="series-stat-box">
+            <div class="series-stat-value" style="color:var(--warning)">3</div>
+            <div class="series-stat-label">Missing</div>
+          </div>
+          <div class="series-stat-box">
+            <div class="series-stat-value" style="color:var(--upgrade)">2</div>
+            <div class="series-stat-label">Low Score</div>
+          </div>
+        </div>
+
+        <div class="series-actions-row">
+          <button class="btn primary">&#9889; Search All Missing</button>
+          <button class="btn">&#8635; Re-scan Series</button>
+          <button class="btn">&#9881; Series Settings</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Season selector -->
+    <div class="season-tabs">
+      <div class="season-tab" onclick="switchSeason(this)">Season 1</div>
+      <div class="season-tab active" onclick="switchSeason(this)">Season 2</div>
+    </div>
+
+    <!-- Season summary bar -->
+    <div class="season-summary">
+      <span class="summary-label">Season 2 &mdash; 24 episodes</span>
+      <div class="summary-bar-track">
+        <div class="summary-bar-seg done" style="width:79%"></div>
+        <div class="summary-bar-seg low" style="width:8%"></div>
+        <div class="summary-bar-seg miss" style="width:13%"></div>
+      </div>
+      <div class="summary-stats">
+        <div class="summary-stat"><div class="summary-dot" style="background:var(--success)"></div> 19 OK</div>
+        <div class="summary-stat"><div class="summary-dot" style="background:var(--warning)"></div> 2 Low</div>
+        <div class="summary-stat"><div class="summary-dot" style="background:var(--error)"></div> 3 Missing</div>
+      </div>
+    </div>
+
+    <!-- Episode header -->
+    <div class="episode-header">
+      <span>#</span>
+      <span>Episode</span>
+      <span>Format</span>
+      <span>Provider</span>
+      <span>Score</span>
+      <span style="text-align:right">Actions</span>
+    </div>
+
+    <!-- Episode list -->
+    <div class="episode-list">
+
+      <div class="episode-row">
+        <div class="ep-number">E01</div>
+        <div class="ep-title-group">
+          <div class="ep-title">A New Journey Begins</div>
+          <div class="ep-file">[SubsPlease] Frieren - 25 [1080p].ass</div>
+        </div>
+        <div class="ep-format">ASS</div>
+        <div class="ep-provider">Jimaku</div>
+        <div class="ep-score high">94</div>
+        <div class="ep-actions">
+          <button class="btn sm">&#8635;</button>
+          <button class="btn sm">&#128269;</button>
+        </div>
+      </div>
+
+      <div class="episode-row">
+        <div class="ep-number">E02</div>
+        <div class="ep-title-group">
+          <div class="ep-title">The Demon King's Legacy</div>
+          <div class="ep-file">[SubsPlease] Frieren - 26 [1080p].ass</div>
+        </div>
+        <div class="ep-format">ASS</div>
+        <div class="ep-provider">Jimaku</div>
+        <div class="ep-score high">91</div>
+        <div class="ep-actions">
+          <button class="btn sm">&#8635;</button>
+          <button class="btn sm">&#128269;</button>
+        </div>
+      </div>
+
+      <div class="episode-row" style="border-color:var(--error); border-left: 2px solid var(--error);">
+        <div class="ep-number" style="color:var(--error)">E03</div>
+        <div class="ep-title-group">
+          <div class="ep-title">The Land of the Dead</div>
+          <div class="ep-file" style="color:var(--error)">No subtitle found</div>
+        </div>
+        <div class="ep-format">&mdash;</div>
+        <div class="ep-provider">&mdash;</div>
+        <div class="ep-score missing">Missing</div>
+        <div class="ep-actions">
+          <button class="btn sm primary">Search</button>
+          <button class="btn sm">Skip</button>
+        </div>
+      </div>
+
+      <div class="episode-row">
+        <div class="ep-number">E04</div>
+        <div class="ep-title-group">
+          <div class="ep-title">The Mage's Exam</div>
+          <div class="ep-file">[Erai-raws] Frieren - 28 [1080p].srt</div>
+        </div>
+        <div class="ep-format">SRT</div>
+        <div class="ep-provider">OpenSubs</div>
+        <div class="ep-score medium">76</div>
+        <div class="ep-actions">
+          <button class="btn sm">&#8635;</button>
+          <button class="btn sm">&#128269;</button>
+        </div>
+      </div>
+
+      <div class="episode-row" style="border-color:var(--warning); border-left: 2px solid var(--warning);">
+        <div class="ep-number" style="color:var(--warning)">E05</div>
+        <div class="ep-title-group">
+          <div class="ep-title">Scattered Memories</div>
+          <div class="ep-file">[SubGroup] Frieren - 29 [720p].srt</div>
+        </div>
+        <div class="ep-format">SRT</div>
+        <div class="ep-provider">Subdl</div>
+        <div class="ep-score low">48</div>
+        <div class="ep-actions">
+          <button class="btn sm primary">Find Better</button>
+          <button class="btn sm">Accept</button>
+        </div>
+      </div>
+
+      <div class="episode-row">
+        <div class="ep-number">E06</div>
+        <div class="ep-title-group">
+          <div class="ep-title">The Battle at the Gorge</div>
+          <div class="ep-file">[SubsPlease] Frieren - 30 [1080p].ass</div>
+        </div>
+        <div class="ep-format">ASS</div>
+        <div class="ep-provider">Jimaku</div>
+        <div class="ep-score high">89</div>
+        <div class="ep-actions">
+          <button class="btn sm">&#8635;</button>
+          <button class="btn sm">&#128269;</button>
+        </div>
+      </div>
+
+      <div class="episode-row">
+        <div class="ep-number">E07</div>
+        <div class="ep-title-group">
+          <div class="ep-title">Frieren's Past</div>
+          <div class="ep-file">[SubsPlease] Frieren - 31 [1080p].ass</div>
+        </div>
+        <div class="ep-format">ASS</div>
+        <div class="ep-provider">Jimaku</div>
+        <div class="ep-score high">92</div>
+        <div class="ep-actions">
+          <button class="btn sm">&#8635;</button>
+          <button class="btn sm">&#128269;</button>
+        </div>
+      </div>
+
+      <div class="episode-row" style="border-color:var(--warning); border-left: 2px solid var(--warning);">
+        <div class="ep-number" style="color:var(--warning)">E08</div>
+        <div class="ep-title-group">
+          <div class="ep-title">A Promise Renewed</div>
+          <div class="ep-file">[Unknown] Frieren - 32 [480p].srt</div>
+        </div>
+        <div class="ep-format">SRT</div>
+        <div class="ep-provider">OpenSubs</div>
+        <div class="ep-score low">38</div>
+        <div class="ep-actions">
+          <button class="btn sm primary">Find Better</button>
+          <button class="btn sm">Accept</button>
+        </div>
+      </div>
+
+      <div class="episode-row" style="border-color:var(--error); border-left: 2px solid var(--error);">
+        <div class="ep-number" style="color:var(--error)">E09</div>
+        <div class="ep-title-group">
+          <div class="ep-title">The Silver Lake</div>
+          <div class="ep-file" style="color:var(--error)">No subtitle found</div>
+        </div>
+        <div class="ep-format">&mdash;</div>
+        <div class="ep-provider">&mdash;</div>
+        <div class="ep-score missing">Missing</div>
+        <div class="ep-actions">
+          <button class="btn sm primary">Search</button>
+          <button class="btn sm">Skip</button>
+        </div>
+      </div>
+
+      <div class="episode-row">
+        <div class="ep-number">E10</div>
+        <div class="ep-title-group">
+          <div class="ep-title">The First-Class Mage</div>
+          <div class="ep-file">[SubsPlease] Frieren - 34 [1080p].ass</div>
+        </div>
+        <div class="ep-format">ASS</div>
+        <div class="ep-provider">Jimaku</div>
+        <div class="ep-score high">87</div>
+        <div class="ep-actions">
+          <button class="btn sm">&#8635;</button>
+          <button class="btn sm">&#128269;</button>
+        </div>
+      </div>
+
+      <div class="episode-row" style="border-color:var(--error); border-left: 2px solid var(--error);">
+        <div class="ep-number" style="color:var(--error)">E11</div>
+        <div class="ep-title-group">
+          <div class="ep-title">Beyond the Horizon</div>
+          <div class="ep-file" style="color:var(--error)">Searching... (attempt 2)</div>
+        </div>
+        <div class="ep-format">&mdash;</div>
+        <div class="ep-provider">&mdash;</div>
+        <div class="ep-score" style="background:var(--accent-bg);color:var(--accent)">&#8987;</div>
+        <div class="ep-actions">
+          <button class="btn sm" disabled style="opacity:0.4">Searching...</button>
+        </div>
+      </div>
+
+      <div class="episode-row">
+        <div class="ep-number">E12</div>
+        <div class="ep-title-group">
+          <div class="ep-title">Fern's Resolve</div>
+          <div class="ep-file">[SubsPlease] Frieren - 36 [1080p].ass</div>
+        </div>
+        <div class="ep-format">ASS</div>
+        <div class="ep-provider">Jimaku</div>
+        <div class="ep-score high">95</div>
+        <div class="ep-actions">
+          <button class="btn sm">&#8635;</button>
+          <button class="btn sm">&#128269;</button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <span><span class="status-dot"></span> All systems operational</span>
+  <span>Automation: active</span>
+  <span>v0.33.0-beta</span>
+  <span style="margin-left:auto;">Next auto-scan: 23 min</span>
+</div>
+
+<!-- SAVE TOAST -->
+<div class="save-toast" id="saveToast">
+  <span class="check">&#10003;</span>
+  <span>Setting saved</span>
+  <span class="undo-link" onclick="hideSaveToast()">Undo</span>
+</div>
+
+<script>
+function showPage(page, el) {
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+  if (el) {
+    // Find the matching tab
+    document.querySelectorAll('.view-tab').forEach(t => {
+      if ((page === 'settings' && t.textContent.includes('Settings')) ||
+          (page === 'series' && t.textContent.includes('Library'))) {
+        t.classList.add('active');
+      }
+    });
+  }
+  // Update sidebar
+  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+}
+
+function switchSeason(el) {
+  el.parentElement.querySelectorAll('.season-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function toggleAdvanced(el) {
+  el.classList.toggle('open');
+  const content = el.nextElementSibling;
+  content.classList.toggle('show');
+}
+
+let saveTimeout;
+function showSaveToast() {
+  const toast = document.getElementById('saveToast');
+  toast.classList.add('visible');
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => toast.classList.remove('visible'), 3000);
+}
+function hideSaveToast() {
+  document.getElementById('saveToast').classList.remove('visible');
+}
+
+function toggleTranslationFeature() {
+  const toggle = document.getElementById('translation-toggle');
+  const badge = document.getElementById('translation-badge');
+  const addon = document.getElementById('translation-addon');
+  toggle.classList.toggle('on');
+  if (toggle.classList.contains('on')) {
+    badge.textContent = 'Enabled';
+    badge.className = 'feature-addon-badge on';
+    addon.classList.add('enabled');
+  } else {
+    badge.textContent = 'Disabled';
+    badge.className = 'feature-addon-badge off';
+    addon.classList.remove('enabled');
+  }
+  showSaveToast();
+}
+</script>
+</body>
+</html>

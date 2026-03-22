@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   useLanguageProfiles, useCreateProfile, useUpdateProfile, useDeleteProfile,
   useBackends,
@@ -6,13 +6,14 @@ import {
   useTriggerStandaloneScan, useStandaloneStatus,
   useFullBackups, useCreateFullBackup, useRestoreFullBackup,
   useSubtitleTool, usePreviewSubtitle,
+  useConfig, useUpdateConfig,
 } from '@/hooks/useApi'
 import { Loader2, Trash2, Plus, Edit2, X, Check, Globe, Upload, Download, Eye, FolderOpen, RefreshCw, RotateCcw, HardDrive, AlertTriangle, Wrench } from 'lucide-react'
 import { ChevronUp, ChevronDown } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import { downloadFullBackupUrl } from '@/api/client'
 import type { LanguageProfile, WatchedFolder, FullBackupInfo } from '@/lib/types'
-import type { FieldConfig } from './index'
+import type { FieldConfig } from './LegacySettings'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
 
@@ -835,6 +836,32 @@ export function BackupTab() {
   const [restoreFile, setRestoreFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Retention policy fields
+  const { data: config } = useConfig()
+  const updateConfig = useUpdateConfig()
+  const cfg = (config ?? {}) as Record<string, unknown>
+  const [localBackupDir, setLocalBackupDir] = useState<string>('')
+  const [localRetentionDaily, setLocalRetentionDaily] = useState<string>('')
+  const [localRetentionWeekly, setLocalRetentionWeekly] = useState<string>('')
+  const [localRetentionMonthly, setLocalRetentionMonthly] = useState<string>('')
+
+  useEffect(() => {
+    setLocalBackupDir(String(cfg['backup_dir'] ?? ''))
+    setLocalRetentionDaily(String(cfg['backup_retention_daily'] ?? '7'))
+    setLocalRetentionWeekly(String(cfg['backup_retention_weekly'] ?? '4'))
+    setLocalRetentionMonthly(String(cfg['backup_retention_monthly'] ?? '3'))
+  }, [config]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveField = (key: string, value: string) => {
+    updateConfig.mutate(
+      { [key]: value },
+      {
+        onSuccess: () => toast('Setting saved'),
+        onError: () => toast('Failed to save setting', 'error'),
+      },
+    )
+  }
+
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -998,15 +1025,78 @@ export function BackupTab() {
         </div>
       </div>
 
-      {/* Auto-Backup Info */}
-      <div className="rounded-lg p-5" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-        <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-          Automatic Backups
+      {/* Retention Policy */}
+      <div className="rounded-lg p-5 space-y-3" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Retention Policy
         </h3>
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          The built-in database backup scheduler runs daily and manages retention automatically.
-          Configure retention settings in General tab (backup_retention_daily, backup_retention_weekly, backup_retention_monthly).
+          The built-in scheduler runs daily and prunes backups according to the retention counts below.
         </p>
+        <SettingRow label="Backup Directory" description="Absolute path for backup storage">
+          <input
+            type="text"
+            value={localBackupDir}
+            onChange={(e) => setLocalBackupDir(e.target.value)}
+            onBlur={() => saveField('backup_dir', localBackupDir)}
+            className="w-full px-3 py-2 rounded-md text-sm"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '13px',
+            }}
+          />
+        </SettingRow>
+        <SettingRow label="Daily Backups" description="Number of daily backups to keep">
+          <input
+            type="number"
+            min={0}
+            value={localRetentionDaily}
+            onChange={(e) => setLocalRetentionDaily(e.target.value)}
+            onBlur={() => saveField('backup_retention_daily', localRetentionDaily)}
+            className="w-24 px-3 py-2 rounded-md text-sm"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+            }}
+          />
+        </SettingRow>
+        <SettingRow label="Weekly Backups" description="Number of weekly backups to keep">
+          <input
+            type="number"
+            min={0}
+            value={localRetentionWeekly}
+            onChange={(e) => setLocalRetentionWeekly(e.target.value)}
+            onBlur={() => saveField('backup_retention_weekly', localRetentionWeekly)}
+            className="w-24 px-3 py-2 rounded-md text-sm"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+            }}
+          />
+        </SettingRow>
+        <SettingRow label="Monthly Backups" description="Number of monthly backups to keep">
+          <input
+            type="number"
+            min={0}
+            value={localRetentionMonthly}
+            onChange={(e) => setLocalRetentionMonthly(e.target.value)}
+            onBlur={() => saveField('backup_retention_monthly', localRetentionMonthly)}
+            className="w-24 px-3 py-2 rounded-md text-sm"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+            }}
+          />
+        </SettingRow>
       </div>
     </div>
   )

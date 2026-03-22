@@ -12,6 +12,7 @@ import { Loader2, X, Eye, Pencil, GitCompare, RefreshCw, Activity } from 'lucide
 import { useQueryClient } from '@tanstack/react-query'
 import { useSubtitleContent } from '@/hooks/useApi'
 import { autoSyncFile, overlapFix, timingNormalize, mergeLines, splitLines, spellCheck, removeCredits, detectOpeningEnding } from '@/api/client'
+import { useConvertSubtitleFormat } from '@/hooks/useTranslationApi'
 import { toast } from '@/components/shared/Toast'
 
 // Lazy-loaded editor components -- CodeMirror stays in separate chunks
@@ -60,6 +61,8 @@ export default function SubtitleEditorModal({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [syncLoading, setSyncLoading] = useState(false)
   const overlayRef = useRef<HTMLDivElement>(null)
+  const [convertTarget, setConvertTarget] = useState<'ass' | 'srt' | 'vtt'>('srt')
+  const convertMut = useConvertSubtitleFormat()
 
   // Reset state when filePath or initialMode changes — "adjust during render" pattern
   // avoids a double-render cycle that useEffect would cause for prop-derived state
@@ -308,6 +311,53 @@ export default function SubtitleEditorModal({
                 {label}
               </button>
             ))}
+
+            {/* Format convert — edit mode + filePath only */}
+            {filePath && (
+              <div className="flex items-center gap-1 border-l pl-2 ml-1" style={{ borderColor: 'var(--border)' }}>
+                <select
+                  value={convertTarget}
+                  onChange={(e) => setConvertTarget(e.target.value as 'ass' | 'srt' | 'vtt')}
+                  className="text-[10px] py-0.5 px-1 rounded"
+                  style={{
+                    backgroundColor: 'var(--bg-surface)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-secondary)',
+                  }}
+                  data-testid="convert-format-select"
+                >
+                  <option value="srt">SRT</option>
+                  <option value="ass">ASS</option>
+                  <option value="vtt">VTT</option>
+                </select>
+                <button
+                  className="flex items-center gap-0.5 px-2 py-0.5 rounded text-[10px] font-medium"
+                  style={{
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-secondary)',
+                    border: '1px solid var(--border)',
+                    opacity: convertMut.isPending ? 0.5 : 1,
+                  }}
+                  onClick={() =>
+                    convertMut.mutate(
+                      { filePath, targetFormat: convertTarget },
+                      {
+                        onSuccess: () => {
+                          toast(`Converted to ${convertTarget.toUpperCase()}`)
+                          void queryClient.invalidateQueries({ queryKey: ['subtitle-content', filePath] })
+                        },
+                        onError: () => toast('Convert failed', 'error'),
+                      },
+                    )
+                  }
+                  disabled={convertMut.isPending}
+                  data-testid="convert-format-btn"
+                >
+                  {convertMut.isPending && <Loader2 size={9} className="animate-spin" />}
+                  Convert
+                </button>
+              </div>
+            )}
           </div>
         )}
 

@@ -8,6 +8,7 @@ Health endpoint is exempt.
 import functools
 import hmac
 import logging
+import re
 import threading
 import time
 from collections import defaultdict
@@ -22,17 +23,20 @@ logger = logging.getLogger(__name__)
 # Tracks timestamps of failures; entries older than _WINDOW are discarded.
 _failed_lock = threading.Lock()
 _failed_attempts: dict[str, list[float]] = defaultdict(list)
-_FAIL_LIMIT = 20  # max failed attempts per window
-_FAIL_WINDOW = 60  # seconds
+# lockout_duration_minutes from settings applies to UI session lockout (future);
+# this window is for API key brute-force protection.
+_FAIL_WINDOW = 60  # seconds — fixed sliding window
 
 
 def _is_rate_limited(ip: str) -> bool:
     """Return True if ip has exceeded the failed-auth rate limit."""
+    settings = get_settings()
+    fail_limit = getattr(settings, "max_login_attempts", 20)
     now = time.monotonic()
     with _failed_lock:
         cutoff = now - _FAIL_WINDOW
         _failed_attempts[ip] = [t for t in _failed_attempts[ip] if t > cutoff]
-        return len(_failed_attempts[ip]) >= _FAIL_LIMIT
+        return len(_failed_attempts[ip]) >= fail_limit
 
 
 def _record_failure(ip: str) -> None:
@@ -105,6 +109,11 @@ def init_auth(app):
         # Skip auth for UI auth endpoints (login, setup, status, logout)
         # These handle their own authentication logic
         if path.startswith("/api/v1/auth/"):
+            return None
+
+        # Skip auth for standalone poster endpoints — posters are public metadata
+        # (is_safe_path() in the route prevents directory traversal)
+        if re.match(r"^/api/v1/standalone/(series|movies)/\d+/poster$", path):
             return None
 
         ip = request.remote_addr or "unknown"

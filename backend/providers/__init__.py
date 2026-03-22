@@ -1323,6 +1323,10 @@ class ProviderManager:
 
         return output_path
 
+    def get_provider(self, name: str) -> "SubtitleProvider | None":
+        """Return an active provider instance by name, or None if not found."""
+        return self._providers.get(name)
+
     def get_provider_status(self) -> list[dict]:
         """Get status of all providers (for API/UI) with priority, downloads, config_fields, and stats."""
         from db.providers import get_provider_download_stats, get_provider_stats

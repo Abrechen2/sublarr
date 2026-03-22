@@ -7,7 +7,7 @@ import type {
   PaginatedBlacklist, PaginatedHistory, HistoryStats,
   TranslationBackendInfo, BackendConfig, BackendHealthResult, BackendStats,
   MediaServerType, MediaServerInstance, MediaServerTestResult, MediaServerHealthResult,
-  WatchedFolder, StandaloneSeries, StandaloneMovie, StandaloneStatus,
+  WatchedFolder, StandaloneSeries, StandaloneMovie, StandaloneStatus, MovieDetail,
   HookConfig, WebhookConfig,
   StatisticsData, FullBackupInfo, SubtitleToolResult, LogRotationConfig,
   TasksResponse,
@@ -42,6 +42,75 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // If we're in development and the backend is unreachable/not set up, return robust mock data
+    // to match the visual mockups during UI development.
+    if (import.meta.env.DEV && (error.code === 'ERR_NETWORK' || [404, 500, 502, 503, 504].includes(error.response?.status))) {
+      const url = error.config.url || ''
+      console.log(`[MOCK] Returning mock data for failed request: ${url}`)
+
+      if (url.includes('/auth/bootstrap')) return Promise.resolve({ data: { api_key: 'mock-key' } })
+      if (url.includes('/auth/setup')) return Promise.resolve({ data: { status: 'success' } })
+      if (url.includes('/auth/status')) return Promise.resolve({ data: { setup_required: false, configured: true } })
+      if (url.includes('/onboarding/status')) {
+        return Promise.resolve({ data: {
+          completed: true, has_sonarr: true, has_radarr: true, has_ollama: true, has_providers: true
+        } })
+      }
+
+      if (url.includes('/config')) {
+        return Promise.resolve({ data: {
+          source_language: 'en', target_language: 'de', media_path: '/media', port: 5765, log_level: 'INFO'
+        } })
+      }
+      if (url.includes('/providers')) {
+        return Promise.resolve({ data: {
+          providers: [
+            { name: 'Jimaku', enabled: true, healthy: true, stats: { success_rate: 89 } },
+            { name: 'OpenSubs', enabled: true, healthy: true, stats: { success_rate: 76 } },
+            { name: 'Subdl', enabled: true, healthy: true, stats: { success_rate: 65 } },
+            { name: 'Animetosho', enabled: true, healthy: true, stats: { success_rate: 42 } },
+          ]
+        } })
+      }
+      if (url.includes('/health')) {
+        return Promise.resolve({ data: {
+          services: {
+            sonarr: 'Connected',
+            radarr: 'Connected',
+            automation: 'Running',
+            translation: 'Off'
+          }
+        } })
+      }
+      if (url.includes('/stats')) {
+        return Promise.resolve({ data: {
+          total_subtitles: 12,
+          downloads_today: 2,
+          average_score: 92.4,
+          low_score_count: 1
+        } })
+      }
+      if (url.includes('/wanted/summary')) {
+        return Promise.resolve({ data: { total: 1 } })
+      }
+      if (url.includes('/wanted')) {
+        return Promise.resolve({ data: { items: [], total: 0 } })
+      }
+      if (url.includes('/jobs')) {
+        return Promise.resolve({ data: {
+          data: [
+            { id: '1', status: 'completed', file_path: '/media/Anime/Solo Leveling/S01E01.mkv', created_at: new Date().toISOString() },
+            { id: '2', status: 'completed', file_path: '/media/Anime/Jujutsu Kaisen/S02E05.mkv', created_at: new Date(Date.now()-60000).toISOString() },
+            { id: '3', status: 'completed', file_path: '/media/Anime/Mushoku Tensei/S02E11.mkv', created_at: new Date(Date.now()-120000).toISOString() },
+          ],
+          total: 3
+        } })
+      }
+      
+      // Fallback empty object for other fails
+      return Promise.resolve({ data: {} })
+    }
+
     if (error.response?.status === 401 && !error.config.url?.includes('/auth/')) {
       window.location.reload()
     }
@@ -138,12 +207,14 @@ export async function updateConfig(values: Record<string, unknown>) {
 // ─── Wanted ─────────────────────────────────────────────────────────────
 
 export async function getWantedItems(
-  page = 1, perPage = 50, itemType?: string, status?: string, subtitleType?: string
+  page = 1, perPage = 50, itemType?: string, status?: string,
+  subtitleType?: string, movieId?: number
 ): Promise<PaginatedWanted> {
   const params: Record<string, unknown> = { page, per_page: perPage }
   if (itemType) params.item_type = itemType
   if (status) params.status = status
   if (subtitleType) params.subtitle_type = subtitleType
+  if (movieId != null) params.movie_id = movieId
   const { data } = await api.get('/wanted', { params })
   return data
 }
@@ -327,6 +398,30 @@ export async function testProvider(name: string): Promise<{ provider: string; he
 
 export async function getProviderStats(): Promise<ProviderStats> {
   const { data } = await api.get('/providers/stats')
+  return data
+}
+
+export async function getProviderHealth(): Promise<Record<string, { healthy: boolean; circuit_state: string; rate_limited: boolean; last_error?: string }>> {
+  const { data } = await api.get('/providers/health')
+  return data
+}
+
+// ─── ffprobe cache ───────────────────────────────────────────────────────────
+
+export async function getFfprobeStats(): Promise<{ count: number; oldest?: string; newest?: string }> {
+  const { data } = await api.get('/cache/ffprobe/stats')
+  return data
+}
+
+export async function triggerFfprobeCleanup(): Promise<{ removed: number }> {
+  const { data } = await api.post('/cache/ffprobe/cleanup')
+  return data
+}
+
+// ─── Database vacuum ─────────────────────────────────────────────────────────
+
+export async function triggerDbVacuum(): Promise<{ status: string; message: string; duration_ms?: number }> {
+  const { data } = await api.post('/database/vacuum')
   return data
 }
 
@@ -724,6 +819,11 @@ export async function getBackendStats(): Promise<{ stats: BackendStats[] }> {
   return data
 }
 
+export async function ollamaPullModel(model: string): Promise<{ status: string; message?: string }> {
+  const { data } = await api.post('/backends/ollama/pull', { model })
+  return data
+}
+
 // ─── Media Servers ──────────────────────────────────────────────────────────
 
 export async function getMediaServerTypes(): Promise<MediaServerType[]> {
@@ -808,6 +908,11 @@ export async function getStandaloneMovies(): Promise<StandaloneMovie[]> {
   return data
 }
 
+export async function getMovieDetail(movieId: number): Promise<MovieDetail> {
+  const { data } = await api.get(`/standalone/movies/${movieId}`)
+  return data
+}
+
 export async function triggerStandaloneScan(): Promise<{ message: string }> {
   const { data } = await api.post('/standalone/scan')
   return data
@@ -815,6 +920,16 @@ export async function triggerStandaloneScan(): Promise<{ message: string }> {
 
 export async function getStandaloneStatus(): Promise<StandaloneStatus> {
   const { data } = await api.get('/standalone/status')
+  return data
+}
+
+export async function rescanSeries(seriesId: number): Promise<{ message: string; series_id: number }> {
+  const { data } = await api.post(`/standalone/series/${seriesId}/scan`)
+  return data
+}
+
+export async function exportSeriesNfo(seriesId: number): Promise<Blob> {
+  const { data } = await api.post('/subtitles/export-nfo', { series_id: seriesId }, { responseType: 'blob' })
   return data
 }
 
@@ -1082,7 +1197,7 @@ export async function getApiKeyService(service: string): Promise<ApiKeyService> 
 }
 
 export async function updateApiKey(service: string, keyName: string, value: string): Promise<{ status: string }> {
-  const { data } = await api.put(`/api-keys/${service}`, { key_name: keyName, value })
+  const { data } = await api.put(`/api-keys/${service}`, { [keyName]: value })
   return data
 }
 

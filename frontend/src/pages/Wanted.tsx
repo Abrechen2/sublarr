@@ -7,6 +7,7 @@ import {
   useRetranslateSingle, useAddToBlacklist, useExtractEmbeddedSub,
   useCleanupSidecars,
 } from '@/hooks/useApi'
+import { useBatchTranslate } from '@/hooks/useTranslationApi'
 import { StatusBadge, SubtitleTypeBadge } from '@/components/shared/StatusBadge'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
@@ -14,7 +15,7 @@ import type { WantedSearchResponse, FilterCondition } from '@/lib/types'
 import {
   RefreshCw, Search, Film, Tv,
   ArrowUpCircle, EyeOff, Eye, Play, Loader2, ChevronUp, Ban,
-  CheckSquare, Square, MinusSquare, Download, ArrowUp, ArrowDown, ScanSearch,
+  CheckSquare, Square, MinusSquare, Download, ArrowUp, ArrowDown, ScanSearch, Languages,
 } from 'lucide-react'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
@@ -307,6 +308,7 @@ export function WantedPage() {
   const { data: probeStatus } = useWantedBatchProbeStatus()
   const startProbe = useStartBatchProbe()
   const cleanupSidecars = useCleanupSidecars()
+  const batchTranslate = useBatchTranslate()
   const [showCleanupConfirm, setShowCleanupConfirm] = useState(false)
   const queryClient = useQueryClient()
 
@@ -619,6 +621,7 @@ export function WantedPage() {
             disabled={cleanupSidecars.isPending}
             className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium hover:opacity-90"
             title={t('wanted.cleanup')}
+            data-testid="wanted-cleanup-btn"
             style={{
               backgroundColor: 'var(--bg-surface)',
               color: 'var(--text-primary)',
@@ -627,6 +630,21 @@ export function WantedPage() {
           >
             <Download size={14} />
             {t('wanted.cleanup')}
+          </button>
+          <button
+            onClick={() => batchTranslate.mutate([])}
+            disabled={batchTranslate.isPending}
+            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium hover:opacity-90"
+            title="Batch translate downloaded subtitles"
+            data-testid="batch-translate-btn"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <Languages size={14} />
+            Batch Translate
           </button>
           <button
             onClick={handleBatchSearch}
@@ -645,6 +663,7 @@ export function WantedPage() {
             onClick={() => refreshWanted.mutate(undefined)}
             disabled={refreshWanted.isPending || summary?.scan_running}
             className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90"
+            data-testid="wanted-refresh-btn"
             style={{ backgroundColor: 'var(--accent)' }}
           >
             <RefreshCw

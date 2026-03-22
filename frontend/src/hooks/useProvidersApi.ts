@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  getProviders, testProvider, getProviderStats, clearProviderCache,
+  getProviders, testProvider, getProviderStats, clearProviderCache, getProviderHealth,
   getScoringWeights, updateScoringWeights, resetScoringWeights,
   getProviderModifiers, updateProviderModifiers,
   getScoringPresets, importScoringPreset,
@@ -37,6 +37,14 @@ export function useProviderStats() {
   return useQuery({
     queryKey: ['provider-stats'],
     queryFn: getProviderStats,
+  })
+}
+
+export function useProviderHealth() {
+  return useQuery({
+    queryKey: ['provider-health'],
+    queryFn: getProviderHealth,
+    refetchInterval: 30_000,
   })
 }
 

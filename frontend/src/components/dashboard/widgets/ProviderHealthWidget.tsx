@@ -1,8 +1,7 @@
 /**
- * ProviderHealthWidget -- Subtitle provider health status list.
+ * ProviderHealthWidget -- Subtitle provider health with progress bars.
  *
- * Self-contained: fetches own data via useProviders.
- * Shows provider name, colored status dot, and health text.
+ * Mockup-aligned: name | bar track | percentage
  */
 import { useTranslation } from 'react-i18next'
 import { useProviders } from '@/hooks/useApi'
@@ -15,9 +14,9 @@ export default function ProviderHealthWidget() {
 
   if (isLoading) {
     return (
-      <div className="space-y-1.5">
+      <div className="space-y-2.5">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="skeleton h-8 rounded-md" />
+          <div key={i} className="skeleton h-5 rounded-md" />
         ))}
       </div>
     )
@@ -32,39 +31,55 @@ export default function ProviderHealthWidget() {
   }
 
   return (
-    <div className="space-y-1.5">
-      {providers.map((p) => {
-        const statusColor = !p.enabled
-          ? 'var(--text-muted)'
-          : p.healthy
-            ? 'var(--success)'
-            : 'var(--error)'
-        return (
-          <div
-            key={p.name}
-            className="flex items-center justify-between px-2.5 py-1.5 rounded-md"
-            style={{ backgroundColor: 'var(--bg-primary)' }}
-          >
-            <div className="flex items-center gap-2">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      {providers
+        .filter((p) => p.enabled)
+        .map((p) => {
+          const pct = Math.round(p.stats?.success_rate ?? (p.healthy ? 100 : 0))
+          return (
+            <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  minWidth: '85px',
+                }}
+              >
+                {p.name}
+              </span>
               <div
-                className="w-1.5 h-1.5 rounded-full shrink-0"
-                style={{ backgroundColor: statusColor }}
-              />
-              <span className="text-xs capitalize truncate">{p.name}</span>
+                style={{
+                  flex: 1,
+                  height: '4px',
+                  background: 'rgba(255,255,255,0.05)',
+                  borderRadius: '2px',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${pct}%`,
+                    borderRadius: '2px',
+                    background: 'var(--accent)',
+                    transition: 'width 0.3s ease',
+                  }}
+                />
+              </div>
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: 'var(--text-secondary)',
+                  minWidth: '32px',
+                  textAlign: 'right' as const,
+                }}
+              >
+                {pct}%
+              </span>
             </div>
-            <span
-              className="text-[10px] font-medium"
-              style={{ color: statusColor }}
-            >
-              {!p.enabled
-                ? t('providers.disabled')
-                : p.healthy
-                  ? t('providers.healthy')
-                  : t('providers.error')}
-            </span>
-          </div>
-        )
-      })}
+          )
+        })}
     </div>
   )
 }

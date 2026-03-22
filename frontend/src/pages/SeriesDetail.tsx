@@ -3,1210 +3,39 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry, useStartWantedBatch, useUpdateSeriesSettings, useAnidbMappingStatus, useRefreshAnidbMapping, useBatchTranslate, useSuggestGlossaryTerms, useExportGlossaryTsv, useStreamingEnabled, useSeriesFansubPrefs } from '@/hooks/useApi'
+import { Breadcrumb } from '@/components/shared/Breadcrumb'
+import { SeasonSummaryBar } from '@/components/library/SeasonSummaryBar'
+import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useStartWantedBatch, useUpdateSeriesSettings, useRefreshAnidbMapping, useStreamingEnabled, useSeriesFansubPrefs, useRescanSeries } from '@/hooks/useApi'
+import { useWantedItems, useUpdateWantedStatus } from '@/hooks/useWantedApi'
 import {
-  ArrowLeft, Loader2, ChevronDown, ChevronRight,
-  Folder, FileVideo, AlertTriangle, Play, Tag, Globe, Search,
-  Download, X, BookOpen, Plus, Edit2, Trash2, Check,
-  Eye, Pencil, Database, RefreshCw,
-  Layers, Sparkles, Trash, FileCode, Wand2,
+  ArrowLeft, Loader2,
+  X, Trash2,
 } from 'lucide-react'
-import { formatRelativeTime } from '@/lib/utils'
 import { toast } from '@/components/shared/Toast'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { PlayerModal } from '@/components/player/PlayerModal'
 import type { PlayerSubtitleTrack } from '@/lib/types'
-import { TrackPanel } from '@/components/tracks/TrackPanel'
-import { autoSyncFile, startWantedBatchSearch, batchExtractAllTracks, listSeriesSubtitles, deleteSubtitles, getSubtitleDownloadUrl, getSeriesSubtitleExportUrl, exportSubtitleNfo } from '@/api/client'
-import type { GlossaryCandidate } from '@/api/client'
+import { autoSyncFile, batchExtractAllTracks, listSeriesSubtitles, deleteSubtitles, getSeriesSubtitleExportUrl, exportSeriesNfo } from '@/api/client'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
 import { ComparisonSelector } from '@/components/comparison/ComparisonSelector'
-import { HealthBadge } from '@/components/health/HealthBadge'
 import { SubtitleCleanupModal } from '@/components/shared/SubtitleCleanupModal'
 import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry, SidecarSubtitle } from '@/lib/types'
-import { EpisodeActionMenu } from '@/components/episodes/EpisodeActionMenu'
 import { FansubOverrideModal } from '@/components/series/FansubOverrideModal'
-import { SeriesAudioTrackPicker } from '@/components/series/SeriesAudioTrackPicker'
-import { SubtitleActionsMenu } from '@/components/processing/SubtitleActionsMenu'
-import { SeriesProcessingOverride } from '@/components/processing/SeriesProcessingOverride'
+import { deriveSubtitlePath } from '@/components/series/seriesUtils'
+
+import { GlossaryPanel } from '@/components/series/GlossaryPanel'
+import { SeasonGroup } from '@/components/series/SeasonGroup'
+import { EpisodeGridHeader } from '@/components/series/EpisodeGrid'
+import { SeriesHero } from '@/components/series/SeriesHero'
+import { SeriesSettingsPanel } from '@/components/series/SeriesSettingsPanel'
+import { SeasonTabs } from '@/components/series/SeasonTabs'
 
 const SubtitleComparison = lazy(() => import('@/components/comparison/SubtitleComparison').then(m => ({ default: m.SubtitleComparison })))
 const SyncControls = lazy(() => import('@/components/sync/SyncControls').then(m => ({ default: m.SyncControls })))
 const SyncModal = lazy(() => import('@/components/sync/SyncModal').then(m => ({ default: m.SyncModal })))
 const HealthCheckPanel = lazy(() => import('@/components/health/HealthCheckPanel').then(m => ({ default: m.HealthCheckPanel })))
-
-// ─── Language normalisation ─────────────────────────────────────────────────
-// MKV/ffprobe stores ISO 639-2 three-letter codes (ger, eng, jpn…). Target
-// languages in Sublarr use ISO 639-1 two-letter codes (de, en, ja…).
-// normLang() maps 3→2 so that badge de-duplication works across both systems.
-
-const ISO6392_TO_1: Record<string, string> = {
-  ger: 'de', deu: 'de',
-  eng: 'en',
-  dut: 'nl', nld: 'nl',
-  swe: 'sv',
-  dan: 'da',
-  nor: 'no', nob: 'no', nno: 'no',
-  fre: 'fr', fra: 'fr',
-  spa: 'es',
-  ita: 'it',
-  por: 'pt',
-  ron: 'ro', rum: 'ro',
-  pol: 'pl',
-  rus: 'ru',
-  ces: 'cs', cze: 'cs',
-  slk: 'sk', slo: 'sk',
-  hrv: 'hr',
-  srp: 'sr',
-  bul: 'bg',
-  ukr: 'uk',
-  jpn: 'ja',
-  chi: 'zh', zho: 'zh',
-  kor: 'ko',
-  tha: 'th',
-  vie: 'vi',
-  ind: 'id',
-  ara: 'ar',
-  tur: 'tr',
-  hun: 'hu',
-  fin: 'fi',
-  heb: 'he',
-}
-
-function normLang(code: string): string {
-  const lower = code.toLowerCase()
-  return ISO6392_TO_1[lower] ?? lower
-}
-
-/** Derive subtitle file path from media path + language + format. */
-function deriveSubtitlePath(mediaPath: string, lang: string, format: string): string {
-  const lastDot = mediaPath.lastIndexOf('.')
-  const base = lastDot > 0 ? mediaPath.substring(0, lastDot) : mediaPath
-  return `${base}.${lang}.${format}`
-}
-
-function SubBadge({ lang, format }: { lang: string; format: string }) {
-  // Three visual states:
-  //  teal   = optimal   (ass / embedded_ass)
-  //  amber  = upgradeable (srt / embedded_srt — present but not best format)
-  //  orange = missing   (no subtitle file at all)
-  const isOptimal = format === 'ass' || format === 'embedded_ass'
-  const isUpgradeable = format === 'srt' || format === 'embedded_srt'
-  const isEmbedded = format === 'embedded_ass' || format === 'embedded_srt'
-  const hasFile = isOptimal || isUpgradeable
-
-  const bg = isOptimal ? 'var(--accent-bg)' : isUpgradeable ? 'var(--upgrade-bg)' : 'var(--warning-bg)'
-  const color = isOptimal ? 'var(--accent)' : isUpgradeable ? 'var(--upgrade)' : 'var(--warning)'
-  const border = isOptimal
-    ? '1px solid var(--accent-dim)'
-    : isUpgradeable
-      ? '1px solid rgba(167,139,250,0.4)'
-      : '1px solid rgba(245,158,11,0.3)'
-
-  const label = isEmbedded ? format.replace('embedded_', '') + '⊕' : format
-  const title = hasFile
-    ? `${lang.toUpperCase()} (${format.toUpperCase()}${isEmbedded ? ' — eingebettet' : ''}${isUpgradeable ? ' — upgradeable zu ASS' : ''})`
-    : `${lang.toUpperCase()} fehlt`
-
-  return (
-    <span
-      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide"
-      style={{ backgroundColor: bg, color, border }}
-      title={title}
-    >
-      {lang.toUpperCase()}
-      {hasFile && (
-        <span style={{ opacity: 0.6, fontSize: '9px' }}>{label}</span>
-      )}
-    </span>
-  )
-}
-
-function ScoreBadge({ score }: { score: number }) {
-  const color = score >= 300 ? 'var(--success)' : score >= 200 ? 'var(--warning)' : 'var(--text-muted)'
-  return (
-    <span
-      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums"
-      style={{ backgroundColor: `${color}18`, color, fontFamily: 'var(--font-mono)' }}
-    >
-      {score}
-    </span>
-  )
-}
-
-// ─── Search Results Panel ──────────────────────────────────────────────────
-
-function EpisodeSearchPanel({ results, isLoading, onProcess }: {
-  results: WantedSearchResponse | null
-  isLoading: boolean
-  onProcess: (wantedId: number) => void
-}) {
-  const { t } = useTranslation('library')
-  if (isLoading) {
-    return (
-      <div
-        className="px-6 py-4 flex items-center gap-2 text-sm"
-        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}
-      >
-        <Loader2 size={14} className="animate-spin" />
-        {t('series_detail.searching_providers')}
-      </div>
-    )
-  }
-
-  if (!results) return null
-
-  const allResults = [
-    ...results.target_results.map((r) => ({ ...r, _type: 'target' as const })),
-    ...results.source_results.map((r) => ({ ...r, _type: 'source' as const })),
-  ]
-
-  if (allResults.length === 0) {
-    return (
-      <div
-        className="px-6 py-4 text-sm"
-        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-muted)' }}
-      >
-        {t('series_detail.no_search_results')}
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ backgroundColor: 'var(--bg-primary)' }} className="px-4 py-3">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-          {t('series_detail.search_results', { count: allResults.length })}
-        </span>
-        <button
-          onClick={() => onProcess(results.wanted_id)}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-white hover:opacity-90"
-          style={{ backgroundColor: 'var(--accent)' }}
-        >
-          <Download size={11} />
-          {t('series_detail.download_best')}
-        </button>
-      </div>
-      <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-        <table className="w-full">
-          <thead>
-            <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Provider</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Type</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Format</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Score</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Release</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Lang</th>
-            </tr>
-          </thead>
-          <tbody>
-            {allResults.map((r, i) => (
-              <tr
-                key={`${r.provider}-${r.subtitle_id}-${i}`}
-                style={{ borderBottom: i < allResults.length - 1 ? '1px solid var(--border)' : undefined }}
-              >
-                <td className="px-3 py-1.5 text-xs" style={{ fontFamily: 'var(--font-mono)' }}>
-                  {r.provider}
-                </td>
-                <td className="px-3 py-1.5">
-                  <span
-                    className="text-[10px] px-1.5 py-0.5 rounded uppercase font-medium"
-                    style={{
-                      backgroundColor: r._type === 'target' ? 'rgba(16,185,129,0.1)' : 'rgba(29,184,212,0.1)',
-                      color: r._type === 'target' ? 'var(--success)' : 'var(--accent)',
-                    }}
-                  >
-                    {r._type === 'target' ? 'Target' : 'Source'}
-                  </span>
-                </td>
-                <td className="px-3 py-1.5">
-                  <span
-                    className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold"
-                    style={{
-                      backgroundColor: r.format === 'ass' ? 'rgba(16,185,129,0.1)' : 'var(--bg-surface)',
-                      color: r.format === 'ass' ? 'var(--success)' : 'var(--text-secondary)',
-                      fontFamily: 'var(--font-mono)',
-                    }}
-                  >
-                    {r.format}
-                  </span>
-                </td>
-                <td className="px-3 py-1.5">
-                  <ScoreBadge score={r.score} />
-                </td>
-                <td className="px-3 py-1.5 text-xs truncate max-w-[200px]" title={r.release_info || r.filename} style={{ color: 'var(--text-secondary)' }}>
-                  {r.release_info || r.filename || '-'}
-                </td>
-                <td className="px-3 py-1.5 text-xs uppercase" style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-                  {r.language}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-
-// ─── Glossary Panel ────────────────────────────────────────────────────────
-
-const TERM_TYPE_COLORS: Record<string, string> = {
-  character: 'var(--accent)',
-  place: '#3b82f6',
-  other: 'var(--text-muted)',
-}
-
-function TermTypeBadge({ type }: { type: string }) {
-  return (
-    <span
-      className="px-1.5 py-0.5 rounded text-[10px] font-medium"
-      style={{
-        backgroundColor: 'var(--bg-surface)',
-        border: `1px solid ${TERM_TYPE_COLORS[type] ?? 'var(--border)'}`,
-        color: TERM_TYPE_COLORS[type] ?? 'var(--text-muted)',
-      }}
-    >
-      {type}
-    </span>
-  )
-}
-
-function GlossaryPanel({ seriesId }: { seriesId: number }) {
-  const { t } = useTranslation('library')
-  const { data, isLoading } = useGlossaryEntries(seriesId)
-  const createEntry = useCreateGlossaryEntry()
-  const updateEntry = useUpdateGlossaryEntry()
-  const deleteEntry = useDeleteGlossaryEntry()
-  const suggestTerms = useSuggestGlossaryTerms()
-  const exportTsv = useExportGlossaryTsv()
-  const [showAdd, setShowAdd] = useState(false)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [formData, setFormData] = useState({ source_term: '', target_term: '', notes: '' })
-  const [showCandidates, setShowCandidates] = useState<boolean>(false)
-  const [candidates, setCandidates] = useState<GlossaryCandidate[]>([])
-
-  const entries = data?.entries || []
-  const filteredEntries = searchQuery
-    ? entries.filter((e) =>
-        e.source_term.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.target_term.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : entries
-
-  const resetForm = () => {
-    setShowAdd(false)
-    setEditingId(null)
-    setFormData({ source_term: '', target_term: '', notes: '' })
-  }
-
-  const startEdit = (entry: { id: number; source_term: string; target_term: string; notes: string }) => {
-    setEditingId(entry.id)
-    setFormData({
-      source_term: entry.source_term,
-      target_term: entry.target_term,
-      notes: entry.notes || '',
-    })
-    setShowAdd(false)
-  }
-
-  const handleSave = () => {
-    if (!formData.source_term.trim() || !formData.target_term.trim()) {
-      toast('Source and target terms are required', 'error')
-      return
-    }
-
-    if (editingId) {
-      updateEntry.mutate(
-        { entryId: editingId, series_id: seriesId, ...formData },
-        {
-          onSuccess: () => {
-            toast('Glossary entry updated')
-            resetForm()
-          },
-          onError: () => toast('Failed to update entry', 'error'),
-        }
-      )
-    } else {
-      createEntry.mutate(
-        { series_id: seriesId, ...formData },
-        {
-          onSuccess: () => {
-            toast('Glossary entry created')
-            resetForm()
-          },
-          onError: () => toast('Failed to create entry', 'error'),
-        }
-      )
-    }
-  }
-
-  const handleDelete = (id: number) => {
-    if (!confirm('Delete this glossary entry?')) return
-    deleteEntry.mutate(
-      { entryId: id, seriesId },
-      {
-        onSuccess: () => toast('Entry deleted'),
-        onError: () => toast('Failed to delete entry', 'error'),
-      }
-    )
-  }
-
-  const handleSuggest = () => {
-    suggestTerms.mutate(
-      { seriesId, options: { source_lang: 'en', min_freq: 3 } },
-      {
-        onSuccess: (data) => {
-          setCandidates(data.candidates)
-          setShowCandidates(true)
-          if (data.candidates.length === 0) toast('No new candidates found', 'info')
-        },
-        onError: () => toast('Failed to fetch suggestions', 'error'),
-      }
-    )
-  }
-
-  if (isLoading) {
-    return (
-      <div
-        className="px-6 py-4 flex items-center gap-2 text-sm"
-        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}
-      >
-        <Loader2 size={14} className="animate-spin" />
-        {t('series_detail.loading_glossary')}
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ backgroundColor: 'var(--bg-primary)' }} className="px-4 py-3 space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-          {t('series_detail.glossary')} ({entries.length})
-        </span>
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => {
-              resetForm()
-              setShowAdd(true)
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-white hover:opacity-90"
-            style={{ backgroundColor: 'var(--accent)' }}
-          >
-            <Plus size={11} />
-            {t('series_detail.add_entry')}
-          </button>
-          <button
-            onClick={handleSuggest}
-            disabled={suggestTerms.isPending}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium hover:opacity-90"
-            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-          >
-            {suggestTerms.isPending ? <Loader2 size={11} className="animate-spin" /> : <Wand2 size={11} />}
-            Suggest
-          </button>
-          <button
-            onClick={() => exportTsv.mutate({ seriesId })}
-            disabled={exportTsv.isPending}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium hover:opacity-90"
-            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-          >
-            <Download size={11} />
-            TSV
-          </button>
-        </div>
-      </div>
-
-      {entries.length > 0 && (
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          Series-specific entries override global entries with the same source term.
-        </p>
-      )}
-
-      {/* Search */}
-      <input
-        type="text"
-        placeholder={t('series_detail.search_glossary')}
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full px-3 py-1.5 rounded text-xs"
-        style={{
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px solid var(--border)',
-          color: 'var(--text-primary)',
-        }}
-      />
-
-      {/* Add/Edit Form */}
-      {(showAdd || editingId !== null) && (
-        <div
-          className="rounded-lg p-3 space-y-2"
-          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--accent-dim)' }}
-        >
-          <div className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {editingId ? t('series_detail.edit_entry') : t('series_detail.new_entry')}
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              type="text"
-              placeholder={t('series_detail.source_term')}
-              value={formData.source_term}
-              onChange={(e) => setFormData((f) => ({ ...f, source_term: e.target.value }))}
-              className="px-2 py-1.5 rounded text-xs"
-              style={{
-                backgroundColor: 'var(--bg-primary)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-              }}
-            />
-            <input
-              type="text"
-              placeholder={t('series_detail.target_term')}
-              value={formData.target_term}
-              onChange={(e) => setFormData((f) => ({ ...f, target_term: e.target.value }))}
-              className="px-2 py-1.5 rounded text-xs"
-              style={{
-                backgroundColor: 'var(--bg-primary)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-              }}
-            />
-          </div>
-          <input
-            type="text"
-            placeholder={t('series_detail.notes_optional')}
-            value={formData.notes}
-            onChange={(e) => setFormData((f) => ({ ...f, notes: e.target.value }))}
-            className="w-full px-2 py-1.5 rounded text-xs"
-            style={{
-              backgroundColor: 'var(--bg-primary)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-primary)',
-            }}
-          />
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleSave}
-              disabled={createEntry.isPending || updateEntry.isPending}
-              className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-white"
-              style={{ backgroundColor: 'var(--accent)' }}
-            >
-              {(createEntry.isPending || updateEntry.isPending) ? (
-                <Loader2 size={10} className="animate-spin" />
-              ) : (
-                <Check size={10} />
-              )}
-              {t('series_detail.save')}
-            </button>
-            <button onClick={resetForm} className="flex items-center gap-1 px-2.5 py-1 rounded text-xs" style={{ color: 'var(--text-muted)' }}>
-              <X size={10} /> {t('series_detail.cancel')}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Candidates */}
-      {showCandidates && candidates.length > 0 && (
-        <div
-          className="rounded-lg p-3 space-y-2"
-          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--accent-dim)' }}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-              {candidates.length} Suggestions
-            </span>
-            <button onClick={() => setShowCandidates(false)} style={{ color: 'var(--text-muted)' }}>
-              <X size={12} />
-            </button>
-          </div>
-          <div className="space-y-1 max-h-48 overflow-y-auto">
-            {candidates.map((c) => (
-              <div
-                key={c.source_term}
-                className="flex items-center gap-2 px-2 py-1 rounded text-xs"
-                style={{ backgroundColor: 'var(--bg-primary)' }}
-              >
-                <span className="font-medium flex-1" style={{ color: 'var(--text-primary)' }}>
-                  {c.source_term}
-                </span>
-                <TermTypeBadge type={c.term_type} />
-                <span style={{ color: 'var(--text-muted)' }}>{Math.round(c.confidence * 100)}%</span>
-                <button
-                  onClick={() => {
-                    setFormData({ source_term: c.source_term, target_term: '', notes: '' })
-                    setShowAdd(true)
-                    setShowCandidates(false)
-                  }}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium text-white"
-                  style={{ backgroundColor: 'var(--accent)' }}
-                >
-                  <Plus size={10} /> Add
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Entries List */}
-      {filteredEntries.length === 0 ? (
-        <div className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>
-          {searchQuery ? t('series_detail.no_glossary_match') : t('series_detail.no_glossary_entries')}
-        </div>
-      ) : (
-        <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-          <table className="w-full">
-            <thead>
-              <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Source</th>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Target</th>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Notes</th>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Type</th>
-                <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredEntries.map((entry, i) => (
-                <tr
-                  key={entry.id}
-                  style={{ borderBottom: i < filteredEntries.length - 1 ? '1px solid var(--border)' : undefined }}
-                >
-                  <td className="px-3 py-1.5 text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
-                    {entry.source_term}
-                  </td>
-                  <td className="px-3 py-1.5 text-xs font-medium" style={{ color: 'var(--accent)' }}>
-                    {entry.target_term}
-                  </td>
-                  <td className="px-3 py-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    {entry.notes || '-'}
-                  </td>
-                  <td className="px-3 py-1.5">
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <TermTypeBadge type={entry.term_type ?? 'other'} />
-                      {entry.approved === 0 && (
-                        <span className="text-[10px] px-1 rounded" style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
-                          pending
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-3 py-1.5">
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => startEdit(entry)}
-                        className="p-1 rounded transition-colors"
-                        style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-surface)' }}
-                        title="Edit"
-                      >
-                        <Edit2 size={10} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(entry.id)}
-                        disabled={deleteEntry.isPending}
-                        className="p-1 rounded transition-colors"
-                        style={{ color: 'var(--error)', backgroundColor: 'var(--bg-surface)' }}
-                        title="Delete"
-                      >
-                        <Trash2 size={10} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── History Panel ─────────────────────────────────────────────────────────
-
-function EpisodeHistoryPanel({ entries, isLoading }: {
-  entries: EpisodeHistoryEntry[]
-  isLoading: boolean
-}) {
-  const { t } = useTranslation('library')
-  if (isLoading) {
-    return (
-      <div
-        className="px-6 py-4 flex items-center gap-2 text-sm"
-        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}
-      >
-        <Loader2 size={14} className="animate-spin" />
-        {t('series_detail.loading_history')}
-      </div>
-    )
-  }
-
-  if (entries.length === 0) {
-    return (
-      <div
-        className="px-6 py-4 text-sm"
-        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-muted)' }}
-      >
-        {t('series_detail.no_history')}
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ backgroundColor: 'var(--bg-primary)' }} className="px-4 py-3">
-      <span className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--text-muted)' }}>
-        {t('series_detail.history_count', { count: entries.length })}
-      </span>
-      <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-        <table className="w-full">
-          <thead>
-            <tr style={{ backgroundColor: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Date</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Action</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Provider</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Format</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Score</th>
-              <th className="text-left text-[10px] font-semibold uppercase tracking-wider px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((entry, i) => (
-              <tr
-                key={i}
-                style={{ borderBottom: i < entries.length - 1 ? '1px solid var(--border)' : undefined }}
-              >
-                <td className="px-3 py-1.5 text-xs tabular-nums" style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-                  {entry.date ? formatRelativeTime(entry.date) : '-'}
-                </td>
-                <td className="px-3 py-1.5">
-                  <span
-                    className="text-[10px] px-1.5 py-0.5 rounded uppercase font-medium"
-                    style={{
-                      backgroundColor: entry.action === 'download' ? 'rgba(29,184,212,0.1)' : 'rgba(16,185,129,0.1)',
-                      color: entry.action === 'download' ? 'var(--accent)' : 'var(--success)',
-                    }}
-                  >
-                    {entry.action}
-                  </span>
-                </td>
-                <td className="px-3 py-1.5 text-xs" style={{ fontFamily: 'var(--font-mono)' }}>
-                  {entry.provider_name || '-'}
-                </td>
-                <td className="px-3 py-1.5">
-                  <span
-                    className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold"
-                    style={{
-                      backgroundColor: entry.format === 'ass' ? 'rgba(16,185,129,0.1)' : 'var(--bg-surface)',
-                      color: entry.format === 'ass' ? 'var(--success)' : 'var(--text-secondary)',
-                      fontFamily: 'var(--font-mono)',
-                    }}
-                  >
-                    {entry.format || '-'}
-                  </span>
-                </td>
-                <td className="px-3 py-1.5">
-                  {entry.score > 0 ? <ScoreBadge score={entry.score} /> : <span className="text-xs" style={{ color: 'var(--text-muted)' }}>-</span>}
-                </td>
-                <td className="px-3 py-1.5 text-xs" style={{ color: entry.status === 'completed' || entry.status === 'downloaded' ? 'var(--success)' : entry.error ? 'var(--error)' : 'var(--text-secondary)' }}>
-                  {entry.error || entry.status || '-'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-
-// ─── Season Group ──────────────────────────────────────────────────────────
-
-function SeasonGroup({ season, episodes, targetLanguages, seriesId: _seriesId, isExtracting, onExtract, expandedEp, onSearch, onInteractiveSearch, onHistory, onTracks, onClose, searchResults, searchLoading, historyEntries, historyLoading, onProcess, onPreviewSub, onEditSub, onCompare, onSync, onAutoSync, onVideoSync, onHealthCheck, healthScores, onOpenEditor, sidecarMap, onDeleteSidecar, onOpenCleanupModal, onPreview, streamingEnabled, onRefreshSidecars, t }: {
-  season: number
-  episodes: EpisodeInfo[]
-  targetLanguages: string[]
-  seriesId: number | null
-  isExtracting?: boolean
-  onExtract?: () => void
-  expandedEp: { id: number; mode: 'search' | 'history' | 'glossary' | 'tracks' } | null
-  onSearch: (ep: EpisodeInfo) => void
-  onInteractiveSearch: (ep: EpisodeInfo) => void
-  onHistory: (ep: EpisodeInfo) => void
-  onTracks: (ep: EpisodeInfo) => void
-  onClose: () => void
-  searchResults: WantedSearchResponse | null
-  searchLoading: boolean
-  historyEntries: EpisodeHistoryEntry[]
-  historyLoading: boolean
-  onProcess: (wantedId: number) => void
-  onPreviewSub: (filePath: string) => void
-  onEditSub: (filePath: string) => void
-  onCompare: (ep: EpisodeInfo) => void
-  onSync: (filePath: string) => void
-  onAutoSync: (subtitlePath: string, videoPath: string) => void
-  onVideoSync: (ep: EpisodeInfo, subtitlePath: string) => void
-  onHealthCheck: (filePath: string) => void
-  healthScores: Record<string, number | null>
-  onOpenEditor: (filePath: string) => void
-  sidecarMap: Record<string, SidecarSubtitle[]>
-  onDeleteSidecar: (path: string) => Promise<void>
-  onOpenCleanupModal: () => void
-  onPreview: (ep: EpisodeInfo) => void
-  streamingEnabled: boolean
-  onRefreshSidecars?: () => void
-  t: (key: string, opts?: Record<string, unknown>) => string
-}) {
-  const [expanded, setExpanded] = useState(true)
-  const [selectedEpisodes, setSelectedEpisodes] = useState<Set<number>>(new Set())
-
-  const allSelectableIds = useMemo(
-    () => episodes.map(e => e.id).filter((id): id is number => id != null),
-    [episodes]
-  )
-
-  const toggleEpisode = useCallback((id: number) => {
-    setSelectedEpisodes(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }, [])
-
-  const selectAll = useCallback(() => setSelectedEpisodes(new Set(allSelectableIds)), [allSelectableIds])
-  const clearAll = useCallback(() => setSelectedEpisodes(new Set()), [])
-  const batchTranslateMutation = useBatchTranslate()
-
-  return (
-    <div>
-      {/* Season Header */}
-      <div
-        className="flex items-center"
-        style={{
-          backgroundColor: 'var(--bg-elevated)',
-          borderBottom: expanded ? '1px solid var(--border)' : 'none',
-        }}
-      >
-        <button
-          data-testid="season-group"
-          onClick={() => setExpanded(!expanded)}
-          className="flex-1 flex items-center gap-2 px-4 py-2.5 text-left transition-colors"
-        >
-          {expanded ? (
-            <ChevronDown size={14} style={{ color: 'var(--accent)' }} />
-          ) : (
-            <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
-          )}
-          <span className="text-sm font-semibold">
-            {t('series_detail.season', { number: season })}
-          </span>
-          <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>
-            ({t('series_detail.episodes_count', { count: episodes.length })})
-          </span>
-        </button>
-        {expanded && (
-          <div className="pr-4 flex items-center gap-1.5">
-            <input
-              type="checkbox"
-              checked={allSelectableIds.length > 0 && selectedEpisodes.size === allSelectableIds.length}
-              onChange={() => selectedEpisodes.size === allSelectableIds.length ? clearAll() : selectAll()}
-              className="rounded"
-              style={{ accentColor: 'var(--accent)' }}
-              title="Select all episodes in this season"
-            />
-            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>All</span>
-          </div>
-        )}
-      </div>
-
-      {/* Episodes */}
-      {expanded && (
-        <div>
-          {episodes
-            .sort((a, b) => b.episode - a.episode)
-            .map((ep) => {
-              const isExpanded = expandedEp?.id === ep.id
-              const mode = expandedEp?.mode
-
-              return (
-                <div key={ep.id} data-testid="episode-row">
-                  <div
-                    className="flex items-start px-4 py-2 transition-colors"
-                    style={{
-                      borderBottom: isExpanded ? 'none' : '1px solid var(--border)',
-                      backgroundColor: isExpanded ? 'var(--bg-surface-hover)' : '',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isExpanded) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isExpanded) e.currentTarget.style.backgroundColor = ''
-                    }}
-                  >
-                    {/* Selection checkbox */}
-                    <div className="w-6 flex-shrink-0 flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedEpisodes.has(ep.id)}
-                        onChange={() => toggleEpisode(ep.id)}
-                        className="rounded"
-                        style={{ accentColor: 'var(--accent)' }}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-
-                    {/* Monitored indicator */}
-                    <div className="w-5 flex-shrink-0">
-                      {ep.has_file ? (
-                        <div
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: 'var(--success)' }}
-                          title={t('series_detail.has_file')}
-                        />
-                      ) : (
-                        <div
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: 'var(--text-muted)' }}
-                          title={t('series_detail.no_file')}
-                        />
-                      )}
-                    </div>
-
-                    {/* Episode number */}
-                    <div
-                      className="w-12 flex-shrink-0 text-sm font-medium"
-                      style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}
-                    >
-                      {ep.episode}
-                    </div>
-
-                    {/* Title */}
-                    <div className="flex-1 min-w-0 text-sm truncate" title={ep.title}>
-                      {ep.title || t('series_detail.tba')}
-                    </div>
-
-                    {/* Audio */}
-                    <div className="w-24 flex-shrink-0 flex gap-1">
-                      {ep.audio_languages.length > 0 ? (
-                        ep.audio_languages.map((lang, i) => (
-                          <span
-                            key={i}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-medium uppercase"
-                            style={{
-                              backgroundColor: 'rgba(99, 102, 241, 0.12)',
-                              color: '#818cf8',
-                            }}
-                          >
-                            {lang}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>&mdash;</span>
-                      )}
-                    </div>
-
-                    {/* Subtitles */}
-                    <div className="flex-1 min-w-[200px] flex gap-1 flex-wrap items-center">
-                      {ep.has_file ? (
-                        <>
-                          {/* Target language badges: teal=ass, amber=srt, orange=missing */}
-                          {targetLanguages.length > 0 ? targetLanguages.map((lang) => {
-                            const subFormat = ep.subtitles[lang] || ''
-                            const epSidecars = sidecarMap[String(ep.id)] ?? []
-                            // Find matching sidecar on disk (handles ISO 639-2 ↔ 639-1 mismatch)
-                            const matchingSidecar = (subFormat === 'ass' || subFormat === 'srt')
-                              ? epSidecars.find(s => normLang(s.language) === normLang(lang) && s.format === subFormat)
-                              : null
-                            return (
-                              <span key={lang} className="inline-flex items-center gap-0.5">
-                                <SubBadge lang={lang} format={subFormat} />
-                                {matchingSidecar && (
-                                  <>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); void onDeleteSidecar(matchingSidecar.path) }}
-                                      className="p-0.5 rounded hover:opacity-80"
-                                      style={{ color: 'var(--error)', lineHeight: 1 }}
-                                      title={`Löschen: ${matchingSidecar.path}`}
-                                    >
-                                      <X size={9} />
-                                    </button>
-                                    <a
-                                      href={getSubtitleDownloadUrl(matchingSidecar.path)}
-                                      download
-                                      title={`Download ${matchingSidecar.language} ${matchingSidecar.format}`}
-                                      className="ml-1 text-neutral-400 hover:text-teal-400 transition-colors"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-3.5 w-3.5 inline"
-                                        viewBox="0 0 20 20"
-                                        fill="currentColor"
-                                        aria-hidden="true"
-                                      >
-                                        <path
-                                          fillRule="evenodd"
-                                          d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                                          clipRule="evenodd"
-                                        />
-                                      </svg>
-                                    </a>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); exportSubtitleNfo(matchingSidecar.path).then(() => toast('NFO exported', 'success')).catch(() => toast('NFO export failed', 'error')) }}
-                                      className="p-0.5 rounded transition-colors"
-                                      style={{ color: 'var(--text-muted)', lineHeight: 1 }}
-                                      title="Export NFO sidecar"
-                                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
-                                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
-                                    >
-                                      <FileCode size={11} />
-                                    </button>
-                                    <SubtitleActionsMenu
-                                      subtitlePath={matchingSidecar.path}
-                                      onRefresh={onRefreshSidecars}
-                                    />
-                                  </>
-                                )}
-                                {(subFormat === 'ass' || subFormat === 'srt') && (
-                                  <>
-                                    <HealthBadge score={healthScores[deriveSubtitlePath(ep.file_path, lang, subFormat)] ?? null} size="sm" />
-                                    <button
-                                      onClick={() => onPreviewSub(deriveSubtitlePath(ep.file_path, lang, subFormat))}
-                                      className="p-0.5 rounded transition-colors"
-                                      style={{ color: 'var(--text-muted)' }}
-                                      title="Preview subtitle"
-                                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
-                                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
-                                    >
-                                      <Eye size={12} />
-                                    </button>
-                                    <button
-                                      onClick={() => onEditSub(deriveSubtitlePath(ep.file_path, lang, subFormat))}
-                                      className="p-0.5 rounded transition-colors"
-                                      style={{ color: 'var(--text-muted)' }}
-                                      title="Edit subtitle"
-                                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)' }}
-                                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
-                                    >
-                                      <Pencil size={12} />
-                                    </button>
-                                  </>
-                                )}
-                              </span>
-                            )
-                          }) : (
-                            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>&#x2014;</span>
-                          )}
-
-                          {/* Extra sidecar badges: non-target languages, deduped via normLang */}
-                          {(() => {
-                            const epSidecars = sidecarMap[String(ep.id)] ?? []
-                            const extraSidecars = epSidecars.filter(
-                              s => !targetLanguages.some(tl => normLang(tl) === normLang(s.language))
-                            )
-                            if (extraSidecars.length === 0) return null
-                            return extraSidecars.map((s) => (
-                              <span
-                                key={s.path}
-                                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase"
-                                style={{
-                                  backgroundColor: 'var(--bg-surface)',
-                                  color: 'var(--text-muted)',
-                                  border: '1px solid var(--border)',
-                                }}
-                                title={`${s.language.toUpperCase()} ${s.format.toUpperCase()} — extra sidecar`}
-                              >
-                                {s.language.toUpperCase()}
-                                <span style={{ opacity: 0.6, fontSize: '9px' }}>{s.format}</span>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); void onDeleteSidecar(s.path) }}
-                                  className="ml-0.5 rounded hover:opacity-80"
-                                  style={{ color: 'var(--error)', lineHeight: 1 }}
-                                  title={`Löschen: ${s.path}`}
-                                >
-                                  <X size={9} />
-                                </button>
-                                <a
-                                  href={getSubtitleDownloadUrl(s.path)}
-                                  download
-                                  title={`Download ${s.language} ${s.format}`}
-                                  className="ml-1 text-neutral-400 hover:text-teal-400 transition-colors"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-3.5 w-3.5 inline"
-                                    viewBox="0 0 20 20"
-                                    fill="currentColor"
-                                    aria-hidden="true"
-                                  >
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                </a>
-                                <SubtitleActionsMenu
-                                  subtitlePath={s.path}
-                                  onRefresh={onRefreshSidecars}
-                                />
-                              </span>
-                            ))
-                          })()}
-                        </>
-                      ) : (
-                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>No file</span>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-                    <div className="w-64 flex-shrink-0 flex gap-0.5 justify-end">
-                      {streamingEnabled && ep.has_file && ep.file_path && (
-                        <button
-                          onClick={() => onPreview(ep)}
-                          className="hover-surface p-1 rounded text-[var(--text-muted)] hover:text-[var(--teal-accent)]"
-                          title="Preview in player"
-                          aria-label={`Preview episode ${ep.episode}`}
-                        >
-                          <Play size={14} />
-                        </button>
-                      )}
-                      {(() => {
-                        const firstLang = ep.has_file
-                          ? Object.entries(ep.subtitles).find(([, f]) => f === 'ass' || f === 'srt')
-                          : null
-                        const firstSubPath = firstLang
-                          ? deriveSubtitlePath(ep.file_path, firstLang[0], firstLang[1])
-                          : null
-                        const hasMultipleSubs = ep.has_file
-                          ? Object.values(ep.subtitles).filter(f => f === 'ass' || f === 'srt').length >= 2
-                          : false
-                        return (
-                          <EpisodeActionMenu
-                            ep={ep}
-                            isExpanded={isExpanded}
-                            mode={mode}
-                            searchLoading={searchLoading}
-                            historyLoading={historyLoading}
-                            firstSubPath={firstSubPath}
-                            hasMultipleSubs={hasMultipleSubs}
-                            onSearch={() => onSearch(ep)}
-                            onEditSub={onEditSub}
-                            onPreviewSub={onPreviewSub}
-                            onCompare={() => onCompare(ep)}
-                            onSync={onSync}
-                            onAutoSync={onAutoSync}
-                            onVideoSync={(subtitlePath) => onVideoSync(ep, subtitlePath)}
-                            onHealthCheck={onHealthCheck}
-                            onTracks={() => onTracks(ep)}
-                            onInteractiveSearch={() => onInteractiveSearch(ep)}
-                            onHistory={() => onHistory(ep)}
-                            onClose={onClose}
-                          />
-                        )
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* Expanded panel */}
-                  {isExpanded && (
-                    <div style={{ borderBottom: '1px solid var(--border)' }}>
-                      {mode === 'search' && (
-                        <EpisodeSearchPanel
-                          results={searchResults}
-                          isLoading={searchLoading}
-                          onProcess={onProcess}
-                        />
-                      )}
-                      {mode === 'history' && (
-                        <EpisodeHistoryPanel
-                          entries={historyEntries}
-                          isLoading={historyLoading}
-                        />
-                      )}
-                      {mode === 'tracks' && (
-                        <TrackPanel
-                          episodeId={ep.id}
-                          onOpenEditor={onOpenEditor}
-                        />
-                      )}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-
-          {/* Batch toolbar — shown when any episodes are selected */}
-          {selectedEpisodes.size > 0 && (
-            <div
-              data-testid="episode-batch-toolbar"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg mt-2 mx-2 mb-2"
-              style={{
-                backgroundColor: 'var(--bg-elevated)',
-                border: '1px solid var(--accent-dim)',
-              }}
-            >
-              <span className="text-xs font-medium mr-1" style={{ color: 'var(--accent)' }}>
-                {selectedEpisodes.size} selected
-              </span>
-              <button
-                onClick={() => { void startWantedBatchSearch([...selectedEpisodes]); clearAll() }}
-                className="px-3 py-1 rounded text-xs font-medium"
-                style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-dim)' }}
-              >
-                Search
-              </button>
-              <button
-                onClick={() => { onExtract?.(); clearAll() }}
-                disabled={isExtracting}
-                className="px-3 py-1 rounded text-xs font-medium inline-flex items-center gap-1.5"
-                style={{
-                  backgroundColor: isExtracting ? 'var(--accent-bg)' : 'var(--bg-surface)',
-                  color: isExtracting ? 'var(--accent)' : 'var(--text-secondary)',
-                  border: `1px solid ${isExtracting ? 'var(--accent-dim)' : 'var(--border)'}`,
-                  opacity: isExtracting ? 0.8 : 1,
-                  cursor: isExtracting ? 'default' : 'pointer',
-                }}
-              >
-                {isExtracting
-                  ? <><Loader2 size={11} className="animate-spin" /> Extrahiere...</>
-                  : 'Extract'}
-              </button>
-              <button
-                onClick={() => { void batchTranslateMutation.mutate([...selectedEpisodes]); clearAll() }}
-                disabled={batchTranslateMutation.isPending}
-                className="px-3 py-1 rounded text-xs font-medium"
-                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-              >
-                Translate
-              </button>
-              <button
-                onClick={() => { onOpenCleanupModal(); clearAll() }}
-                className="px-3 py-1 rounded text-xs font-medium"
-                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-              >
-                Bereinigen
-              </button>
-              <button
-                onClick={clearAll}
-                className="ml-auto px-2 py-1 rounded text-xs"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                Clear
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
@@ -1217,6 +46,23 @@ export function SeriesDetailPage() {
   // Fix 5: guard against malformed route parameter producing NaN
   const seriesId = id && !isNaN(Number(id)) ? Number(id) : null
   const { data: series, isLoading, error } = useSeriesDetail(seriesId)
+
+  // Plan 4: fetch wanted items for skip/accept wiring
+  const { data: seriesWanted } = useWantedItems(
+    1, 9999, 'episode', undefined, undefined, true
+  )
+  const updateWantedStatus = useUpdateWantedStatus()
+
+  const episodeWantedMap = useMemo((): Map<number, number> => {
+    const map = new Map<number, number>()
+    if (!seriesWanted?.data || seriesId == null) return map
+    for (const item of seriesWanted.data) {
+      if (item.sonarr_series_id === seriesId && item.sonarr_episode_id != null) {
+        map.set(item.sonarr_episode_id, item.id)
+      }
+    }
+    return map
+  }, [seriesWanted?.data, seriesId])
 
   // Episode action state
   const [expandedEp, setExpandedEp] = useState<{ id: number; mode: 'search' | 'history' | 'glossary' | 'tracks' } | null>(null)
@@ -1313,7 +159,10 @@ export function SeriesDetailPage() {
 
   // AniDB absolute order
   const updateSeriesSettingsMutation = useUpdateSeriesSettings()
-  const { data: anidbStatus } = useAnidbMappingStatus()
+
+  // Re-scan series
+  const [isRescanning, setIsRescanning] = useState(false)
+  const rescanSeriesMutation = useRescanSeries()
   const refreshAnidbMappingMutation = useRefreshAnidbMapping()
 
   const handleToggleAbsoluteOrder = useCallback((enabled: boolean) => {
@@ -1485,8 +334,16 @@ export function SeriesDetailPage() {
       groups.get(ep.season)!.push(ep)
     }
     return Array.from(groups.entries())
-      .sort((a, b) => b[0] - a[0]) // Latest season first
+      .sort((a, b) => a[0] - b[0]) // Ascending order for tabs
   }, [series?.episodes])
+
+  const [activeSeason, setActiveSeason] = useState<number | null>(null)
+  const [showSeriesSettings, setShowSeriesSettings] = useState(false)
+
+  // Default to the first season (lowest number)
+  const defaultSeason = seasonGroups[0]?.[0] ?? null
+  const currentSeason = activeSeason ?? defaultSeason
+  const currentEpisodes = seasonGroups.find(([s]) => s === currentSeason)?.[1] ?? []
 
   // Count missing subs — align with Library's definition:
   // only episodes where existing_sub is '' or null/undefined (no subtitle at all).
@@ -1506,6 +363,59 @@ export function SeriesDetailPage() {
     }
     return count
   }, [series])
+
+  const withSubsCount = useMemo(() => {
+    if (!series?.episodes) return 0
+    return series.episodes.filter(
+      (ep) => ep.has_file && series.target_languages.some(
+        (lang) => { const f = ep.subtitles[lang]; return f != null && f !== '' }
+      )
+    ).length
+  }, [series])
+
+  const LOW_SCORE_THRESHOLD = 60
+  const lowScoreCount = useMemo(() => {
+    if (!series?.episodes) return 0
+    return series.episodes.filter((ep) => {
+      if (!ep.has_file) return false
+      return series.target_languages.some((lang) => {
+        const score = ep.subtitle_scores?.[lang] ?? null
+        const fmt = ep.subtitles[lang]
+        return fmt != null && fmt !== '' && score !== null && score < LOW_SCORE_THRESHOLD
+      })
+    }).length
+  }, [series])
+
+  const handleRescan = useCallback(() => {
+    if (!seriesId) return
+    setIsRescanning(true)
+    rescanSeriesMutation.mutate(seriesId, {
+      onSuccess: () => {
+        toast('Re-scan started', 'success')
+        setIsRescanning(false)
+      },
+      onError: () => {
+        toast('Re-scan failed', 'error')
+        setIsRescanning(false)
+      },
+    })
+  }, [seriesId, rescanSeriesMutation])
+
+  const handleNfoExport = useCallback(async () => {
+    if (!seriesId) return
+    try {
+      const blob = await exportSeriesNfo(seriesId)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `series-${seriesId}-nfo.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast('NFO exported', 'success')
+    } catch {
+      toast('NFO export failed', 'error')
+    }
+  }, [seriesId])
 
   if (isLoading) {
     return (
@@ -1538,347 +448,56 @@ export function SeriesDetailPage() {
 
   return (
     <div className="space-y-4 animate-in">
-      {/* Back button */}
-      <button
-        data-testid="series-back-btn"
-        onClick={() => navigate('/library')}
-        className="flex items-center gap-2 text-sm transition-colors hover:opacity-80"
-        style={{ color: 'var(--text-secondary)' }}
-      >
-        <ArrowLeft size={14} />
-        Back to Library
-      </button>
-
-      {/* Hero Header — like Bazarr */}
-      <div
-        className="rounded-lg overflow-hidden relative"
-        style={{ border: '1px solid var(--border)' }}
-      >
-        {/* Fanart background */}
-        {series.fanart && (
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: `url(${series.fanart})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              opacity: 0.15,
-              filter: 'blur(2px)',
-            }}
-          />
-        )}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(135deg, rgba(23,25,35,0.95) 0%, rgba(30,33,48,0.85) 100%)',
-          }}
-        />
-
-        <div className="relative flex gap-5 p-5">
-          {/* Poster */}
-          <div
-            className="flex-shrink-0 w-[150px] rounded-lg overflow-hidden shadow-lg"
-            style={{ border: '1px solid var(--border)' }}
-          >
-            {series.poster ? (
-              <img
-                src={series.poster}
-                alt={series.title}
-                className="w-full h-auto"
-              />
-            ) : (
-              <div
-                className="w-full aspect-[2/3] flex items-center justify-center"
-                style={{ backgroundColor: 'var(--bg-surface)' }}
-              >
-                <FileVideo size={32} style={{ color: 'var(--text-muted)' }} />
-              </div>
-            )}
-          </div>
-
-          {/* Info */}
-          <div className="flex-1 min-w-0 flex flex-col gap-3">
-            <h1 data-testid="series-title" className="text-xl font-bold leading-tight">{series.title}</h1>
-
-            {/* Metadata chips */}
-            <div className="flex flex-wrap gap-2 text-xs">
-              <span
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
-                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
-              >
-                <Folder size={11} />
-                {series.path}
-              </span>
-              <span
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
-                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
-              >
-                <FileVideo size={11} />
-                {t('series_detail.files', { count: series.episode_file_count })}
-              </span>
-              <span
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
-                style={{
-                  backgroundColor: missingCount > 0 ? 'var(--warning-bg)' : 'var(--success-bg)',
-                  color: missingCount > 0 ? 'var(--warning)' : 'var(--success)',
-                }}
-              >
-                <AlertTriangle size={11} />
-                {t('series_detail.missing_subtitles', { count: missingCount })}
-              </span>
-              <span
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
-                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
-              >
-                <Play size={11} />
-                {series.status === 'continuing' ? t('series_detail.continuing') : series.status === 'ended' ? t('series_detail.ended') : series.status}
-              </span>
-              {series.tags.length > 0 && (
-                <span
-                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}
-                >
-                  <Tag size={11} />
-                  {series.tags.join(' | ')}
-                </span>
-              )}
-            </div>
-
-            {/* Language info */}
-            <div className="flex flex-wrap gap-2 text-xs">
-              <span
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded"
-                style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
-              >
-                <Globe size={11} />
-                {series.profile_name}
-              </span>
-              {series.target_language_names.map((name, i) => (
-                <span
-                  key={i}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded font-medium"
-                  style={{
-                    backgroundColor: 'var(--accent-subtle)',
-                    color: 'var(--accent)',
-                    border: '1px solid var(--accent-dim)',
-                  }}
-                >
-                  {name}
-                </span>
-              ))}
-              <span
-                className="inline-flex items-center gap-1 px-2 py-1 rounded"
-                style={{ backgroundColor: 'rgba(99,102,241,0.1)', color: '#818cf8' }}
-              >
-                {series.source_language_name}
-              </span>
-              <button
-                onClick={() => setShowGlossary(!showGlossary)}
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded transition-colors"
-                style={{
-                  backgroundColor: showGlossary ? 'var(--accent-bg)' : 'rgba(255,255,255,0.06)',
-                  color: showGlossary ? 'var(--accent)' : 'var(--text-secondary)',
-                }}
-                onMouseEnter={(e) => {
-                  if (!showGlossary) {
-                    e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!showGlossary) {
-                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'
-                  }
-                }}
-              >
-                <BookOpen size={11} />
-                {t('series_detail.glossary')}
-              </button>
-
-              {/* Absolute Order toggle */}
-              <button
-                onClick={() => handleToggleAbsoluteOrder(!(series.absolute_order ?? false))}
-                disabled={updateSeriesSettingsMutation.isPending}
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded transition-colors"
-                style={{
-                  backgroundColor: series.absolute_order ? 'var(--accent-bg)' : 'rgba(255,255,255,0.06)',
-                  color: series.absolute_order ? 'var(--accent)' : 'var(--text-secondary)',
-                  opacity: updateSeriesSettingsMutation.isPending ? 0.6 : 1,
-                  cursor: updateSeriesSettingsMutation.isPending ? 'default' : 'pointer',
-                }}
-                title="Use AniDB absolute episode numbers for subtitle search (anime)"
-                onMouseEnter={(e) => {
-                  if (!updateSeriesSettingsMutation.isPending && !series.absolute_order) {
-                    e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!series.absolute_order) {
-                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'
-                  }
-                }}
-              >
-                {updateSeriesSettingsMutation.isPending
-                  ? <Loader2 size={11} className="animate-spin" />
-                  : <Database size={11} />
-                }
-                Absolute order
-              </button>
-
-              {/* AniDB refresh button — shown only when absolute order is active */}
-              {seriesId != null && (
-                <SeriesAudioTrackPicker
-                  seriesId={seriesId}
-                  episodes={series.episodes ?? []}
-                />
-              )}
-
-              {series.absolute_order && (
-                <button
-                  onClick={handleRefreshAnidbMapping}
-                  disabled={refreshAnidbMappingMutation.isPending}
-                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded transition-colors"
-                  style={{
-                    backgroundColor: 'rgba(255,255,255,0.06)',
-                    color: 'var(--text-secondary)',
-                    opacity: refreshAnidbMappingMutation.isPending ? 0.6 : 1,
-                    cursor: refreshAnidbMappingMutation.isPending ? 'default' : 'pointer',
-                  }}
-                  title={anidbStatus?.last_sync
-                    ? `Last sync: ${new Date(anidbStatus.last_sync).toLocaleString()} · ${anidbStatus.entry_count ?? 0} entries`
-                    : 'Refresh AniDB mapping database'}
-                  onMouseEnter={(e) => {
-                    if (!refreshAnidbMappingMutation.isPending) {
-                      e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'
-                  }}
-                >
-                  {refreshAnidbMappingMutation.isPending
-                    ? <Loader2 size={11} className="animate-spin" />
-                    : <RefreshCw size={11} />
-                  }
-                  Refresh AniDB
-                </button>
-              )}
-
-            </div>
-
-            {/* Series-level action toolbar */}
-            <div className="flex flex-wrap gap-2 pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-              {/* Extract all embedded tracks */}
-              <button
-                onClick={() => handleExtract()}
-                disabled={extractProgress !== null}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
-                style={{
-                  backgroundColor: extractProgress ? 'var(--accent-bg)' : 'rgba(255,255,255,0.06)',
-                  color: extractProgress ? 'var(--accent)' : 'var(--text-secondary)',
-                  border: `1px solid ${extractProgress ? 'var(--accent-dim)' : 'transparent'}`,
-                  cursor: extractProgress ? 'default' : 'pointer',
-                }}
-                onMouseEnter={(e) => { if (!extractProgress) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
-                onMouseLeave={(e) => { if (!extractProgress) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)' }}
-                title="Alle eingebetteten Subtitle-Tracks der Serie extrahieren"
-              >
-                {extractProgress
-                  ? <><Loader2 size={11} className="animate-spin" /> Extrahiere {extractProgress.current}/{extractProgress.total}…</>
-                  : <><Layers size={11} /> Tracks extrahieren</>
-                }
-              </button>
-
-              {/* Sidecar cleanup modal */}
-              <button
-                onClick={() => setShowCleanupModal(true)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
-                style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)', cursor: 'pointer' }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)' }}
-                title="Sidecar-Untertitel bereinigen (nach Sprache/Format filtern)"
-              >
-                <Trash size={11} />
-                Bereinigen
-              </button>
-
-              {/* Fansub override button */}
-              {seriesId !== null && (
-                <button
-                  onClick={() => setFansubOpen(true)}
-                  title="Fansub Preferences"
-                  style={{
-                    background: 'transparent',
-                    border: `1px solid ${hasFansubOverride ? 'var(--accent)' : 'var(--border)'}`,
-                    color: hasFansubOverride ? 'var(--accent)' : 'var(--text-muted)',
-                    borderRadius: 4, padding: '4px 10px', fontSize: 12, cursor: 'pointer',
-                    fontWeight: hasFansubOverride ? 600 : 400,
-                  }}
-                >
-                  Fansub
-                </button>
-              )}
-
-              {/* Export ZIP */}
-              <a
-                href={getSeriesSubtitleExportUrl(series.id)}
-                download
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded bg-neutral-700 hover:bg-neutral-600 text-neutral-200 transition-colors"
-                title="Download all subtitles for this series as ZIP"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                Export ZIP
-              </a>
-
-              {/* Search all missing */}
-              {missingCount > 0 && (
-                <button
-                  onClick={handleSearchAllEpisodes}
-                  disabled={startSeriesSearch.isPending || seriesSearchStarted}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
-                  style={{
-                    backgroundColor: seriesSearchStarted ? 'var(--success-bg)' : 'var(--accent-bg)',
-                    color: seriesSearchStarted ? 'var(--success)' : 'var(--accent)',
-                    opacity: startSeriesSearch.isPending ? 0.7 : 1,
-                    cursor: startSeriesSearch.isPending || seriesSearchStarted ? 'default' : 'pointer',
-                    border: '1px solid transparent',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!startSeriesSearch.isPending && !seriesSearchStarted)
-                      e.currentTarget.style.opacity = '0.85'
-                  }}
-                  onMouseLeave={(e) => { e.currentTarget.style.opacity = startSeriesSearch.isPending ? '0.7' : '1' }}
-                  title={`${missingCount} fehlende Untertitel bei Providern suchen`}
-                >
-                  {startSeriesSearch.isPending
-                    ? <Loader2 size={11} className="animate-spin" />
-                    : seriesSearchStarted ? <Sparkles size={11} /> : <Search size={11} />
-                  }
-                  {seriesSearchStarted ? 'Suche läuft…' : `${missingCount} fehlende suchen`}
-                </button>
-              )}
-            </div>
-
-            {/* Overview */}
-            {series.overview && (
-              <p className="text-xs leading-relaxed line-clamp-3" style={{ color: 'var(--text-secondary)' }}>
-                {series.overview}
-              </p>
-            )}
-          </div>
-        </div>
+      {/* Breadcrumb navigation */}
+      <div className="flex items-center justify-between">
+        <Breadcrumb items={[{ label: 'Library', href: '/library' }, { label: series.title }]} />
+        {/* Hidden back button for tests */}
+        <button
+          data-testid="series-back-btn"
+          onClick={() => navigate('/library')}
+          className="sr-only"
+          aria-hidden="true"
+        >
+          <ArrowLeft size={14} />
+          Back to Library
+        </button>
       </div>
+
+      {/* Hero Header */}
+      <SeriesHero
+        series={series}
+        missingCount={missingCount}
+        withSubsCount={withSubsCount}
+        lowScoreCount={lowScoreCount}
+        isMissingSearchPending={startSeriesSearch.isPending}
+        missingSearchStarted={seriesSearchStarted}
+        onSearchAllMissing={handleSearchAllEpisodes}
+        onRescan={handleRescan}
+        isRescanning={isRescanning}
+        onNfoExport={handleNfoExport}
+        onSeriesSettings={() => setShowSeriesSettings((v) => !v)}
+      />
+
+      {/* Series Settings Panel (collapsible) */}
+      {showSeriesSettings && seriesId !== null && (
+        <SeriesSettingsPanel
+          series={series}
+          seriesId={seriesId}
+          showGlossary={showGlossary}
+          hasFansubOverride={hasFansubOverride}
+          isExtracting={extractProgress !== null}
+          extractProgress={extractProgress}
+          onToggleGlossary={() => setShowGlossary((v) => !v)}
+          onToggleAbsoluteOrder={handleToggleAbsoluteOrder}
+          onRefreshAnidb={handleRefreshAnidbMapping}
+          onExtract={handleExtract}
+          onCleanup={() => setShowCleanupModal(true)}
+          onFansub={() => setFansubOpen(true)}
+          exportUrl={getSeriesSubtitleExportUrl(series.id)}
+          updatePending={updateSeriesSettingsMutation.isPending}
+          refreshPending={refreshAnidbMappingMutation.isPending}
+        />
+      )}
 
       {/* Glossary Panel */}
       {showGlossary && (
@@ -1890,94 +509,85 @@ export function SeriesDetailPage() {
         </div>
       )}
 
-      {/* Processing Override Panel */}
-      {seriesId !== null && (
-        <SeriesProcessingOverride
-          seriesId={seriesId}
-          initialConfig={(series as { processing_config?: Record<string, boolean | null> })?.processing_config ?? {}}
+      {/* Extraction Progress Banner */}
+      {extractProgress && (
+        <div
+          className="px-4 py-3 rounded-lg"
+          style={{ backgroundColor: 'var(--accent-bg)', border: '1px solid var(--accent-dim)' }}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Loader2 size={13} className="animate-spin flex-shrink-0" style={{ color: 'var(--accent)' }} />
+            <span className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
+              {extractProgress.total === 0
+                ? 'Extraktion wird gestartet…'
+                : `Extrahiere Tracks — ${extractProgress.current} / ${extractProgress.total} Episoden`}
+            </span>
+            {extractProgress.filename && (
+              <span
+                className="text-xs truncate"
+                style={{ color: 'var(--text-muted)', maxWidth: '340px' }}
+                title={extractProgress.filename}
+              >
+                · {extractProgress.filename}
+              </span>
+            )}
+          </div>
+          <ProgressBar value={extractProgress.total === 0 ? 0 : extractProgress.current} max={extractProgress.total === 0 ? 100 : extractProgress.total} showLabel={false} />
+        </div>
+      )}
+
+      {/* Season tabs */}
+      {seasonGroups.length > 0 && (
+        <SeasonTabs
+          seasons={seasonGroups.map(([s]) => s)}
+          activeSeason={currentSeason ?? 0}
+          onSeasonChange={setActiveSeason}
         />
       )}
 
-      {/* Episode Table */}
-      <div
-        className="rounded-lg overflow-hidden"
-        style={{ border: '1px solid var(--border)' }}
-      >
-        {/* Table Header */}
-        <div
-          className="flex items-center px-4 py-2"
-          style={{
-            backgroundColor: 'var(--bg-elevated)',
-            borderBottom: '1px solid var(--border)',
-          }}
-        >
-          <div className="w-6 flex-shrink-0" />
-          <div className="w-5 flex-shrink-0" />
-          <div
-            className="w-12 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            {t('series_detail.ep')}
+      {/* Season summary bar + search button */}
+      {currentSeason !== null && (
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <SeasonSummaryBar
+              season={currentSeason}
+              episodes={currentEpisodes}
+              targetLanguages={series.target_languages}
+            />
           </div>
-          <div
-            className="flex-1 text-[11px] font-semibold uppercase tracking-wider"
-            style={{ color: 'var(--text-secondary)' }}
+          <button
+            className="flex-shrink-0 text-xs px-3 py-1.5 rounded"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-secondary)',
+              cursor: startSeriesSearch.isPending ? 'not-allowed' : 'pointer',
+              opacity: startSeriesSearch.isPending ? 0.5 : 1,
+            }}
+            disabled={startSeriesSearch.isPending}
+            onClick={() => startSeriesSearch.mutate(
+              { seriesId: seriesId ?? undefined },
+              {
+                onSuccess: () => toast('Season search started'),
+                onError: () => toast('Search failed', 'error'),
+              }
+            )}
+            data-testid={`search-season-${currentSeason}`}
           >
-            {t('series_detail.title_col')}
-          </div>
-          <div
-            className="w-24 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            {t('series_detail.audio')}
-          </div>
-          <div
-            className="flex-1 min-w-[200px] text-[11px] font-semibold uppercase tracking-wider"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            {t('series_detail.subtitles')}
-          </div>
-          <div
-            className="w-64 flex-shrink-0 text-[11px] font-semibold uppercase tracking-wider text-right"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            {t('series_detail.actions')}
-          </div>
+            Search Season {currentSeason}
+          </button>
         </div>
+      )}
 
-        {/* Extraction Progress Banner */}
-        {extractProgress && (
-          <div
-            className="px-4 py-3"
-            style={{ backgroundColor: 'var(--accent-bg)', borderBottom: '1px solid var(--accent-dim)' }}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <Loader2 size={13} className="animate-spin flex-shrink-0" style={{ color: 'var(--accent)' }} />
-              <span className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
-                {extractProgress.total === 0
-                  ? 'Extraktion wird gestartet…'
-                  : `Extrahiere Tracks — ${extractProgress.current} / ${extractProgress.total} Episoden`}
-              </span>
-              {extractProgress.filename && (
-                <span
-                  className="text-xs truncate"
-                  style={{ color: 'var(--text-muted)', maxWidth: '340px' }}
-                  title={extractProgress.filename}
-                >
-                  · {extractProgress.filename}
-                </span>
-              )}
-            </div>
-            <ProgressBar value={extractProgress.total === 0 ? 0 : extractProgress.current} max={extractProgress.total === 0 ? 100 : extractProgress.total} showLabel={false} />
-          </div>
-        )}
+      {/* Column header row */}
+      <EpisodeGridHeader />
 
-        {/* Season Groups */}
-        {seasonGroups.map(([season, episodes]) => (
+      {/* Episode list — individual cards matching mockup */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {currentSeason !== null && currentEpisodes.length > 0 ? (
           <SeasonGroup
-            key={season}
-            season={season}
-            episodes={episodes}
+            season={currentSeason}
+            episodes={currentEpisodes}
             targetLanguages={series.target_languages}
             seriesId={seriesId}
             isExtracting={extractProgress !== null}
@@ -2009,14 +619,21 @@ export function SeriesDetailPage() {
             streamingEnabled={streamingEnabled ?? false}
             onRefreshSidecars={() => queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })}
             t={t}
+            episodeWantedMap={episodeWantedMap}
+            onSkipEpisode={(episodeId) => {
+              const wantedId = episodeWantedMap.get(episodeId)
+              if (wantedId != null) updateWantedStatus.mutate({ itemId: wantedId, status: 'ignored' })
+            }}
+            onAcceptEpisode={(episodeId) => {
+              const wantedId = episodeWantedMap.get(episodeId)
+              if (wantedId != null) updateWantedStatus.mutate({ itemId: wantedId, status: 'ignored' })
+            }}
           />
-        ))}
-
-        {seasonGroups.length === 0 && (
+        ) : seasonGroups.length === 0 ? (
           <div className="p-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
             {t('series_detail.no_episodes')}
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Sidecar Cleanup Modal */}

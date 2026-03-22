@@ -13,7 +13,11 @@ import {
   batchAction,
   getSeriesFansubPrefs, setSeriesFansubPrefs, deleteSeriesFansubPrefs,
   updateSeriesSettings,
+  rescanSeries,
+  getMovieDetail,
+  removeTrackFromContainer,
 } from '@/api/client'
+import { toast } from '@/components/shared/Toast'
 import type { BatchAction } from '@/lib/types'
 
 // ─── Library ─────────────────────────────────────────────────────────────────
@@ -305,5 +309,38 @@ export function useUpdateSeriesSettings() {
     onSuccess: (_, { seriesId }) => {
       queryClient.invalidateQueries({ queryKey: ['series', seriesId] })
     },
+  })
+}
+
+export function useRescanSeries() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (seriesId: number) => rescanSeries(seriesId),
+    onSuccess: (_data, seriesId) => {
+      void qc.invalidateQueries({ queryKey: ['series', seriesId] })
+      void qc.invalidateQueries({ queryKey: ['library'] })
+    },
+  })
+}
+
+export function useMovieDetail(movieId: number | null) {
+  return useQuery({
+    queryKey: ['movie', movieId],
+    queryFn: () => (movieId != null ? getMovieDetail(movieId) : Promise.resolve(null)),
+    enabled: movieId != null,
+  })
+}
+
+// ─── Remux ────────────────────────────────────────────────────────────────────
+
+export function useRemoveTrackFromContainer() {
+  return useMutation({
+    mutationFn: ({ epId, trackIndex, subtitleTrackIndex }: {
+      epId: number
+      trackIndex: number
+      subtitleTrackIndex?: number
+    }) => removeTrackFromContainer(epId, trackIndex, subtitleTrackIndex),
+    onSuccess: (r) => toast(`Remux job started: ${r.job_id}`),
+    onError: () => toast('Failed to start remux job', 'error'),
   })
 }

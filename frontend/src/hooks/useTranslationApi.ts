@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from '@/components/shared/Toast'
 import {
   translateFile, startBatch,
   getRetranslateStatus, retranslateSingle, retranslateBatch,
@@ -12,6 +13,10 @@ import {
   getTranslationMemoryStats, clearTranslationMemoryCache,
   getBackendTemplates,
   batchTranslate,
+  ollamaPullModel,
+  convertSubtitle,
+  submitWhisperJob,
+  detectOpeningEnding,
 } from '@/api/client'
 import type { BackendConfig } from '@/lib/types'
 import type { DownloadSpecificPayload } from '@/api/client'
@@ -367,5 +372,49 @@ export function useBatchTranslate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wanted'] })
     },
+  })
+}
+
+// ─── Ollama Pull Model ───────────────────────────────────────────────────────
+
+export function useOllamaPullModel() {
+  return useMutation({
+    mutationFn: (model: string) => ollamaPullModel(model),
+  })
+}
+
+// ─── Convert Subtitle Format ─────────────────────────────────────────────────
+
+export function useConvertSubtitleFormat() {
+  return useMutation({
+    mutationFn: ({ filePath, targetFormat }: { filePath: string; targetFormat: 'ass' | 'srt' | 'vtt' }) =>
+      convertSubtitle({ file_path: filePath, target_format: targetFormat }),
+  })
+}
+
+// ─── Transcribe Episode (Whisper) ─────────────────────────────────────────────
+
+export function useTranscribeEpisode() {
+  return useMutation({
+    mutationFn: ({ filePath, language }: { filePath: string; language?: string; backend?: string }) =>
+      submitWhisperJob({ file_path: filePath, language }),
+    onSuccess: () => toast('Transcription started'),
+    onError: () => toast('Transcription failed', 'error'),
+  })
+}
+
+// ─── Detect OP/ED segments ────────────────────────────────────────────────────
+
+export function useDetectOpeningEnding() {
+  return useMutation({
+    mutationFn: (filePath: string) => detectOpeningEnding(filePath),
+    onSuccess: (r) => {
+      if (r.detected?.length > 0) {
+        toast(`${r.detected.length} OP/ED segment(s) detected`)
+      } else {
+        toast('No OP/ED segments detected')
+      }
+    },
+    onError: () => toast('Detection failed', 'error'),
   })
 }

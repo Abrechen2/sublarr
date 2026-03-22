@@ -44,6 +44,31 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
     ).fetchall()
     wanted_items = [dict(r._mapping) for r in rows]
 
+    # Load subtitle_downloads score/provider for all file paths in this series
+    standalone_scores: dict = {}  # fp -> {lang: (score, provider_name)}
+    file_paths_all = list(
+        {item.get("file_path", "") for item in wanted_items if item.get("file_path")}
+    )
+    if file_paths_all:
+        try:
+            placeholders_sa = ",".join("?" * len(file_paths_all))
+            rows_sa = db.execute(
+                f"SELECT file_path, language, format, score, provider_name FROM subtitle_downloads "
+                f"WHERE file_path IN ({placeholders_sa}) AND format != '' "
+                f"ORDER BY downloaded_at DESC",
+                file_paths_all,
+            ).fetchall()
+            for row in rows_sa:
+                sa_path, sa_lang, sa_fmt = row[0], row[1], row[2]
+                sa_score, sa_provider = row[3], row[4]
+                if sa_fmt:
+                    if sa_path not in standalone_scores:
+                        standalone_scores[sa_path] = {}
+                    if sa_lang not in standalone_scores[sa_path]:
+                        standalone_scores[sa_path][sa_lang] = (sa_score, sa_provider)
+        except Exception as exc:
+            logger.debug("subtitle_downloads score query failed: %s", exc)
+
     episodes = []
     seen: set = set()
     for item in wanted_items:
@@ -64,6 +89,7 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
                 subtitles[lang] = result or ""
             except Exception:
                 subtitles[lang] = ""
+        ep_scores_sa = standalone_scores.get(fp, {})
         episodes.append(
             {
                 "id": item.get("id"),
@@ -73,6 +99,12 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
                 "has_file": True,
                 "file_path": fp,
                 "subtitles": subtitles,
+                "subtitle_scores": {
+                    lang: ep_scores_sa.get(lang, (None, None))[0] for lang in subtitles
+                },
+                "subtitle_providers": {
+                    lang: ep_scores_sa.get(lang, (None, None))[1] for lang in subtitles
+                },
                 "audio_languages": [],
                 "monitored": True,
             }
@@ -231,6 +263,7 @@ def get_series_detail(series_id):
     # Most recent download per (file_path, language) wins.
     ep_id_to_mapped: dict = {}  # ep_id -> local mapped path (used in response + DB lookup)
     history_fallback: dict = {}  # ep_id -> {lang: format}
+    history_scores: dict = {}  # ep_id -> {lang: (score, provider_name)}
     if ep_id_to_file:
         try:
             ep_id_to_mapped = {
@@ -241,22 +274,27 @@ def get_series_detail(series_id):
             conn = get_db()
             placeholders = ",".join("?" * len(paths))
             rows = conn.execute(
-                f"SELECT file_path, language, format FROM subtitle_downloads "
+                f"SELECT file_path, language, format, score, provider_name FROM subtitle_downloads "
                 f"WHERE file_path IN ({placeholders}) AND format != '' "
                 f"ORDER BY downloaded_at DESC",
                 paths,
             ).fetchall()
             for row in rows:
                 path, lang, fmt = row[0], row[1], row[2]
+                score, provider_name = row[3], row[4]
                 ep_id = mapped_to_ep_id.get(path)
                 if ep_id and fmt:
                     if ep_id not in history_fallback:
                         history_fallback[ep_id] = {}
+                    if ep_id not in history_scores:
+                        history_scores[ep_id] = {}
                     # First row per lang = most recent (ORDER BY downloaded_at DESC)
                     if lang not in history_fallback[ep_id]:
                         history_fallback[ep_id][lang] = fmt
-        except Exception:
-            pass  # best-effort; filesystem detection still primary
+                    if lang not in history_scores[ep_id]:
+                        history_scores[ep_id][lang] = (score, provider_name)
+        except Exception as exc:
+            logger.debug("subtitle_downloads score query failed: %s", exc)
 
     # Fallback 2: wanted_items.existing_sub — covers embedded_srt/embedded_ass
     # detected by the scanner but not findable via filesystem check.
@@ -309,6 +347,7 @@ def get_series_detail(series_id):
             if audio_lang:
                 audio_languages = [a.strip() for a in audio_lang.split("/") if a.strip()]
 
+        ep_scores = history_scores.get(ep_id, {})
         episodes.append(
             {
                 "id": ep.get("id"),
@@ -318,6 +357,12 @@ def get_series_detail(series_id):
                 "has_file": has_file,
                 "file_path": file_path or "",
                 "subtitles": subtitles,
+                "subtitle_scores": {
+                    lang: ep_scores.get(lang, (None, None))[0] for lang in subtitles
+                },
+                "subtitle_providers": {
+                    lang: ep_scores.get(lang, (None, None))[1] for lang in subtitles
+                },
                 "audio_languages": audio_languages,
                 "monitored": ep.get("monitored", False),
             }

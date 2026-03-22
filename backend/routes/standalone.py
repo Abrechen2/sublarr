@@ -8,7 +8,7 @@ import logging
 import os
 import threading
 
-from flask import Blueprint, current_app, jsonify, request, send_file
+from flask import Blueprint, current_app, jsonify, redirect, request, send_file
 from sqlalchemy import text
 
 bp = Blueprint("standalone", __name__, url_prefix="/api/v1/standalone")
@@ -364,7 +364,14 @@ def series_poster(series_id):
         return jsonify({"error": "Series not found"}), 404
 
     poster_path = series.get("poster_url", "")
-    if not poster_path or not os.path.isfile(poster_path):
+    if not poster_path:
+        return jsonify({"error": "No local poster available"}), 404
+
+    # Remote URL from MetadataResolver — redirect the browser directly
+    if poster_path.startswith(("http://", "https://")):
+        return redirect(poster_path)
+
+    if not os.path.isfile(poster_path):
         return jsonify({"error": "No local poster available"}), 404
 
     # Security: poster must reside inside the series folder or its parent
@@ -487,6 +494,84 @@ def list_movies():
         return jsonify({"error": "Failed to list standalone movies"}), 500
 
 
+@bp.route("/movies/<int:movie_id>", methods=["GET"])
+def get_movie(movie_id):
+    """Get a single standalone movie by ID.
+    ---
+    get:
+      tags:
+        - Standalone
+      summary: Get standalone movie
+      description: Returns a single standalone movie by ID with wanted count.
+      parameters:
+        - in: path
+          name: movie_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Movie found
+          content:
+            application/json:
+              schema:
+                type: object
+        404:
+          description: Movie not found
+        500:
+          description: Server error
+    """
+    from db import get_db
+    from db.standalone import get_standalone_movies
+
+    movie = get_standalone_movies(movie_id)
+    if not movie:
+        # Fallback: try Radarr for library movies
+        try:
+            from radarr_client import get_radarr_client
+
+            radarr = get_radarr_client()
+            if radarr:
+                radarr_movie = radarr.get_movie_by_id(movie_id)
+                if radarr_movie:
+                    poster = next(
+                        (
+                            img.get("remoteUrl", "")
+                            for img in radarr_movie.get("images", [])
+                            if img.get("coverType") == "poster"
+                        ),
+                        "",
+                    )
+                    return jsonify(
+                        {
+                            "id": radarr_movie.get("id"),
+                            "title": radarr_movie.get("title"),
+                            "year": radarr_movie.get("year"),
+                            "poster_url": poster,
+                            "file_path": radarr_movie.get("path", ""),
+                            "wanted_count": 0,
+                            "source": "radarr",
+                        }
+                    )
+        except Exception as e:
+            logger.debug("Radarr fallback failed for movie %d: %s", movie_id, e)
+        return jsonify({"error": "Movie not found"}), 404
+
+    try:
+        db = get_db()
+        row = db.execute(
+            text(
+                "SELECT COUNT(*) FROM wanted_items WHERE standalone_movie_id=:mid AND status='wanted'"
+            ),
+            {"mid": movie_id},
+        ).fetchone()
+        movie["wanted_count"] = row[0] if row else 0
+        return jsonify(movie)
+    except Exception as e:
+        logger.error("Failed to get movie %d: %s", movie_id, e)
+        return jsonify({"error": "Failed to get movie"}), 500
+
+
 @bp.route("/movies/<int:movie_id>/poster", methods=["GET"])
 def movie_poster(movie_id):
     """Serve the local poster image for a standalone movie."""
@@ -498,7 +583,14 @@ def movie_poster(movie_id):
         return jsonify({"error": "Movie not found"}), 404
 
     poster_path = movie.get("poster_url", "")
-    if not poster_path or not os.path.isfile(poster_path):
+    if not poster_path:
+        return jsonify({"error": "No local poster available"}), 404
+
+    # Remote URL from MetadataResolver — redirect the browser directly
+    if poster_path.startswith(("http://", "https://")):
+        return redirect(poster_path)
+
+    if not os.path.isfile(poster_path):
         return jsonify({"error": "No local poster available"}), 404
 
     # Security: poster must reside inside the movie folder or its parent
@@ -711,6 +803,79 @@ def get_status():
     except Exception as e:
         logger.error("Failed to get standalone status: %s", e)
         return jsonify({"error": "Failed to get standalone status"}), 500
+
+
+# ---------------------------------------------------------------------------
+# Series Scan
+# ---------------------------------------------------------------------------
+
+
+@bp.route("/series/<int:series_id>/scan", methods=["POST"])
+def scan_series(series_id):
+    """Trigger a re-scan of a single standalone series.
+    ---
+    post:
+      tags:
+        - Standalone
+      summary: Re-scan standalone series
+      description: Triggers a re-scan of file contents for a single standalone series.
+      parameters:
+        - in: path
+          name: series_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Scan started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  series_id:
+                    type: integer
+        404:
+          description: Series not found
+        500:
+          description: Scan failed
+    """
+    from db.standalone import get_standalone_series
+
+    series = get_standalone_series(series_id)
+    if not series:
+        return jsonify({"error": "Series not found"}), 404
+
+    try:
+        # Try standalone manager first
+        try:
+            from standalone import get_standalone_manager
+
+            manager = get_standalone_manager()
+            if hasattr(manager, "scan_series"):
+                manager.scan_series(series_id)
+                return jsonify({"message": "Scan started", "series_id": series_id})
+        except (ImportError, AttributeError):
+            pass
+
+        # Fallback: refresh wanted items for this series
+        from db import get_db
+
+        db = get_db()
+        db.execute(
+            text(
+                "UPDATE wanted_items SET status='wanted' WHERE standalone_series_id=:sid"
+                " AND status NOT IN ('downloaded','blacklisted')"
+            ),
+            {"sid": series_id},
+        )
+        db.commit()
+        return jsonify({"message": "Scan started", "series_id": series_id})
+    except Exception as e:
+        logger.error("Failed to scan series %d: %s", series_id, e)
+        return jsonify({"error": str(e)}), 500
 
 
 # ---------------------------------------------------------------------------

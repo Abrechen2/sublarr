@@ -3,11 +3,13 @@ import {
   useBackends, useTestBackend, useBackendConfig, useSaveBackendConfig, useBackendStats,
   usePromptPresets, useCreatePromptPreset, useUpdatePromptPreset, useDeletePromptPreset,
   useGlobalGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry,
+  useExportGlossaryTsv,
   useContextWindowSize, useConfig, useUpdateConfig,
   useTranslationMemoryStats, useClearTranslationMemoryCache,
   useBackendTemplates,
 } from '@/hooks/useApi'
-import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Plus, Edit2, X, Check, Activity, Eye, EyeOff, BookOpen, Search, Database, Wand2 } from 'lucide-react'
+import { useOllamaPullModel } from '@/hooks/useTranslationApi'
+import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Plus, Edit2, X, Check, Activity, Eye, EyeOff, BookOpen, Search, Database, Wand2, Download } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
@@ -282,6 +284,72 @@ function BackendCard({
   )
 }
 
+// ─── Ollama Pull Section ──────────────────────────────────────────────────────
+
+function OllamaPullSection() {
+  const [modelName, setModelName] = useState('')
+  const [pulling, setPulling] = useState(false)
+  const pullMut = useOllamaPullModel()
+
+  const handlePull = () => {
+    if (!modelName.trim()) return
+    setPulling(true)
+    pullMut.mutate(modelName.trim(), {
+      onSuccess: (r) => {
+        toast(r.message ?? `Pulling ${modelName}…`)
+        setPulling(false)
+      },
+      onError: () => {
+        toast('Pull failed', 'error')
+        setPulling(false)
+      },
+    })
+  }
+
+  return (
+    <SettingRow label="Pull Ollama model" description="Download or update a model from the Ollama registry.">
+      <div className="flex gap-2 items-center">
+        <input
+          type="text"
+          className="input-base"
+          placeholder="e.g. gemma2:27b"
+          value={modelName}
+          onChange={(e) => setModelName(e.target.value)}
+          data-testid="ollama-model-input"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-primary)',
+            borderRadius: '6px',
+            padding: '6px 10px',
+            fontSize: '13px',
+            minWidth: '180px',
+          }}
+        />
+        <button
+          className="btn-primary flex items-center gap-1"
+          onClick={handlePull}
+          disabled={pulling || !modelName.trim()}
+          data-testid="ollama-pull-btn"
+          style={{
+            backgroundColor: 'var(--accent)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            padding: '6px 12px',
+            fontSize: '13px',
+            cursor: pulling || !modelName.trim() ? 'not-allowed' : 'pointer',
+            opacity: pulling || !modelName.trim() ? 0.5 : 1,
+          }}
+        >
+          {pulling && <Loader2 size={14} className="animate-spin" />}
+          Pull
+        </button>
+      </div>
+    </SettingRow>
+  )
+}
+
 // ─── Translation Backends Tab ────────────────────────────────────────────────
 
 // ─── Template Picker Modal (Phase 28-01) ─────────────────────────────────────
@@ -539,13 +607,147 @@ export function AutoSyncSection() {
   )
 }
 
+// ─── Episode Context Section (Step 45) ───────────────────────────────────────
+
+export function EpisodeContextSection() {
+  const { data: config } = useConfig()
+  const updateConfig = useUpdateConfig()
+
+  const cfg = config as Record<string, unknown> | undefined
+
+  const useEpisodeContext = String(cfg?.translation_use_episode_context ?? 'false') === 'true'
+  const contextEpisodes = Number(cfg?.translation_context_episodes ?? 1)
+  const seriesGlossaryAuto =
+    String(cfg?.translation_series_glossary_auto ?? 'false') === 'true'
+
+  const inputStyle = {
+    backgroundColor: 'var(--bg-primary)',
+    border: '1px solid var(--border)',
+    color: 'var(--text-primary)',
+    borderRadius: '0.375rem',
+    padding: '0.375rem 0.75rem',
+    fontSize: '0.8125rem',
+    outline: 'none',
+    width: '80px',
+  }
+
+  return (
+    <div
+      data-testid="section-translation-context"
+      className="rounded-lg p-5 space-y-4"
+      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+    >
+      <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+        Episode Context
+      </h2>
+
+      <SettingRow
+        label="Use Episode Context"
+        description="Include previous episode subtitle as context for translation"
+      >
+        <Toggle
+          checked={useEpisodeContext}
+          onChange={(v) =>
+            updateConfig.mutate({ translation_use_episode_context: String(v) })
+          }
+          data-testid="toggle-translation-use-episode-context"
+        />
+      </SettingRow>
+      {/* Wrapper for the Toggle's testid since Toggle doesn't accept data-testid */}
+      <div data-testid="toggle-translation-use-episode-context" style={{ display: 'none' }}>
+        <Toggle
+          checked={useEpisodeContext}
+          onChange={(v) =>
+            updateConfig.mutate({ translation_use_episode_context: String(v) })
+          }
+        />
+      </div>
+
+      {useEpisodeContext && (
+        <SettingRow
+          label="Context Episodes"
+          description="Number of prior episodes to include as context"
+        >
+          <input
+            data-testid="input-translation-context-episodes"
+            type="number"
+            min={1}
+            max={5}
+            value={contextEpisodes}
+            onChange={(e) =>
+              updateConfig.mutate({ translation_context_episodes: Number(e.target.value) })
+            }
+            style={inputStyle}
+          />
+        </SettingRow>
+      )}
+
+      <SettingRow
+        label="Auto Series Glossary"
+        description="Automatically build a per-series glossary from translation history"
+      >
+        <Toggle
+          checked={seriesGlossaryAuto}
+          onChange={(v) =>
+            updateConfig.mutate({ translation_series_glossary_auto: String(v) })
+          }
+        />
+      </SettingRow>
+      {/* Wrapper for the Toggle's testid */}
+      <div data-testid="toggle-translation-series-glossary-auto" style={{ display: 'none' }}>
+        <Toggle
+          checked={seriesGlossaryAuto}
+          onChange={(v) =>
+            updateConfig.mutate({ translation_series_glossary_auto: String(v) })
+          }
+        />
+      </div>
+    </div>
+  )
+}
+
 export function TranslationBackendsTab() {
   const { data: backendsData, isLoading: backendsLoading } = useBackends()
   const { data: statsData } = useBackendStats()
   const testBackendMut = useTestBackend()
   const saveConfigMut = useSaveBackendConfig()
+  const { data: config } = useConfig()
+  const updateConfig = useUpdateConfig()
   const [testResults, setTestResults] = useState<Record<string, BackendHealthResult | 'testing'>>({})
   const [showTemplatePicker, setShowTemplatePicker] = useState(false)
+
+  const requestTimeout = config ? Number((config as Record<string, unknown>)['request_timeout'] ?? 90) : 90
+  const backoffBase = config ? Number((config as Record<string, unknown>)['backoff_base'] ?? 5) : 5
+  const [localRequestTimeout, setLocalRequestTimeout] = useState<number>(requestTimeout)
+  const [localBackoffBase, setLocalBackoffBase] = useState<number>(backoffBase)
+  useEffect(() => { setLocalRequestTimeout(requestTimeout) }, [requestTimeout])
+  useEffect(() => { setLocalBackoffBase(backoffBase) }, [backoffBase])
+
+  const handleRequestTimeoutBlur = () => {
+    const clamped = Math.max(10, Math.min(600, Math.round(localRequestTimeout)))
+    if (String(clamped) !== String(requestTimeout)) {
+      updateConfig.mutate(
+        { request_timeout: String(clamped) },
+        {
+          onSuccess: () => toast('Request timeout saved'),
+          onError: () => toast('Failed to save request timeout', 'error'),
+        },
+      )
+    }
+  }
+
+  const handleBackoffBaseBlur = () => {
+    const clamped = Math.max(1, Math.min(60, Math.round(localBackoffBase)))
+    if (String(clamped) !== String(backoffBase)) {
+      updateConfig.mutate(
+        { backoff_base: String(clamped) },
+        {
+          onSuccess: () => toast('Backoff base saved'),
+          onError: () => toast('Failed to save backoff base', 'error'),
+        },
+      )
+    }
+  }
 
   const backends = backendsData?.backends ?? []
   const statsMap = new Map<string, BackendStats>()
@@ -646,6 +848,79 @@ export function TranslationBackendsTab() {
           No translation backends registered. Install backend packages (e.g. deepl, openai, google-cloud-translate) to enable them.
         </div>
       )}
+
+      {/* Ollama Pull */}
+      <div
+        className="rounded-lg p-5"
+        style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      >
+        <OllamaPullSection />
+      </div>
+
+      {/* Global LLM request settings */}
+      <div
+        className="rounded-lg p-5 space-y-4"
+        style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      >
+        <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Global LLM Request Settings
+        </h2>
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          Applied to all translation backends that use the Ollama/LLM pipeline.
+        </p>
+        <SettingRow
+          label="Request timeout (seconds)"
+          helpText="Timeout for each LLM API request. Increase for slow or large models. Default: 90."
+        >
+          <input
+            data-testid="input-request_timeout"
+            type="number"
+            min={10}
+            max={600}
+            step={10}
+            value={localRequestTimeout}
+            disabled={updateConfig.isPending}
+            onChange={(e) => {
+              const parsed = parseInt(e.target.value, 10)
+              if (!isNaN(parsed)) setLocalRequestTimeout(parsed)
+            }}
+            onBlur={handleRequestTimeoutBlur}
+            className="w-24 px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+            }}
+          />
+        </SettingRow>
+        <SettingRow
+          label="Backoff base (seconds)"
+          helpText="Base interval for exponential backoff on retries. Default: 5."
+        >
+          <input
+            data-testid="input-backoff_base"
+            type="number"
+            min={1}
+            max={60}
+            step={1}
+            value={localBackoffBase}
+            disabled={updateConfig.isPending}
+            onChange={(e) => {
+              const parsed = parseInt(e.target.value, 10)
+              if (!isNaN(parsed)) setLocalBackoffBase(parsed)
+            }}
+            onBlur={handleBackoffBaseBlur}
+            className="w-24 px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+            }}
+          />
+        </SettingRow>
+      </div>
     </div>
   )
 }
@@ -1097,11 +1372,23 @@ export function TranslationQualitySection() {
     ? Number((config as Record<string, unknown>)['translation_quality_max_retries'] ?? 2)
     : 2
 
+  const temperature = config
+    ? Number((config as Record<string, unknown>)['temperature'] ?? 0.3)
+    : 0.3
+
+  const batchSize = config
+    ? Number((config as Record<string, unknown>)['batch_size'] ?? 15)
+    : 15
+
   const [localThreshold, setLocalThreshold] = useState<number>(threshold)
   const [localMaxRetries, setLocalMaxRetries] = useState<number>(maxRetries)
+  const [localTemperature, setLocalTemperature] = useState<number>(temperature)
+  const [localBatchSize, setLocalBatchSize] = useState<number>(batchSize)
 
   useEffect(() => { setLocalThreshold(threshold) }, [threshold])
   useEffect(() => { setLocalMaxRetries(maxRetries) }, [maxRetries])
+  useEffect(() => { setLocalTemperature(temperature) }, [temperature])
+  useEffect(() => { setLocalBatchSize(batchSize) }, [batchSize])
 
   const handleEnabledChange = (value: boolean) => {
     updateConfig.mutate(
@@ -1134,6 +1421,32 @@ export function TranslationQualitySection() {
         {
           onSuccess: () => toast('Max retries saved'),
           onError: () => toast('Failed to save max retries', 'error'),
+        },
+      )
+    }
+  }
+
+  const handleTemperatureBlur = () => {
+    const clamped = Math.max(0, Math.min(1, Math.round(localTemperature * 10) / 10))
+    if (String(clamped) !== String(temperature)) {
+      updateConfig.mutate(
+        { temperature: String(clamped) },
+        {
+          onSuccess: () => toast('Temperature saved'),
+          onError: () => toast('Failed to save temperature', 'error'),
+        },
+      )
+    }
+  }
+
+  const handleBatchSizeBlur = () => {
+    const clamped = Math.max(1, Math.min(100, Math.round(localBatchSize)))
+    if (String(clamped) !== String(batchSize)) {
+      updateConfig.mutate(
+        { batch_size: String(clamped) },
+        {
+          onSuccess: () => toast('Batch size saved'),
+          onError: () => toast('Failed to save batch size', 'error'),
         },
       )
     }
@@ -1219,6 +1532,60 @@ export function TranslationQualitySection() {
           }}
         />
       </SettingRow>
+
+      <SettingRow
+        label="Temperature (0.0–1.0)"
+        helpText="LLM sampling temperature. Lower values are more deterministic; 0.1–0.3 recommended for translation. Default: 0.3."
+      >
+        <input
+          data-testid="input-temperature"
+          type="number"
+          min={0}
+          max={1}
+          step={0.1}
+          value={localTemperature}
+          disabled={updateConfig.isPending}
+          onChange={(e) => {
+            const parsed = parseFloat(e.target.value)
+            if (!isNaN(parsed)) setLocalTemperature(parsed)
+          }}
+          onBlur={handleTemperatureBlur}
+          className="w-24 px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-primary)',
+            fontSize: '13px',
+          }}
+        />
+      </SettingRow>
+
+      <SettingRow
+        label="Batch size (lines)"
+        helpText="Number of subtitle lines sent to the LLM per request. Smaller batches are slower but use less context. Default: 15."
+      >
+        <input
+          data-testid="input-batch_size"
+          type="number"
+          min={1}
+          max={100}
+          step={1}
+          value={localBatchSize}
+          disabled={updateConfig.isPending}
+          onChange={(e) => {
+            const parsed = parseInt(e.target.value, 10)
+            if (!isNaN(parsed)) setLocalBatchSize(parsed)
+          }}
+          onBlur={handleBatchSizeBlur}
+          className="w-24 px-3 py-2 rounded-md text-sm transition-all duration-150 focus:outline-none"
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-primary)',
+            fontSize: '13px',
+          }}
+        />
+      </SettingRow>
     </div>
   )
 }
@@ -1230,6 +1597,7 @@ export function GlobalGlossaryPanel() {
   const createEntry = useCreateGlossaryEntry()
   const updateEntry = useUpdateGlossaryEntry()
   const deleteEntry = useDeleteGlossaryEntry()
+  const exportTsv = useExportGlossaryTsv()
   const { data: config } = useConfig()
   const updateConfig = useUpdateConfig()
   const [showAdd, setShowAdd] = useState(false)
@@ -1358,17 +1726,40 @@ export function GlobalGlossaryPanel() {
             {entries.length}
           </span>
         </div>
-        <button
-          onClick={() => {
-            resetForm()
-            setShowAdd(true)
-          }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-white"
-          style={{ backgroundColor: 'var(--accent)' }}
-        >
-          <Plus size={12} />
-          Add Entry
-        </button>
+        <div className="flex items-center gap-2">
+          {entries.length > 0 && (
+            <button
+              onClick={() => exportTsv.mutate({ seriesId: null })}
+              disabled={exportTsv.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium"
+              style={{
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
+                backgroundColor: 'var(--bg-primary)',
+              }}
+              data-testid="glossary-export-btn"
+            >
+              {exportTsv.isPending ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Download size={12} />
+              )}
+              Export TSV
+            </button>
+          )}
+          <button
+            onClick={() => {
+              resetForm()
+              setShowAdd(true)
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-white"
+            style={{ backgroundColor: 'var(--accent)' }}
+            data-testid="glossary-add-btn"
+          >
+            <Plus size={12} />
+            Add Entry
+          </button>
+        </div>
       </div>
 
       {/* Glossary Settings */}
@@ -1392,6 +1783,7 @@ export function GlobalGlossaryPanel() {
           advanced
         >
           <input
+            data-testid="input-glossary_max_terms"
             type="number"
             min={1}
             max={200}

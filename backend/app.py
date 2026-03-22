@@ -202,6 +202,23 @@ def create_app(testing=False):
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "same-origin")
+        # CSP: allow self + inline styles/scripts (SPA requirement) + ws/wss for SocketIO
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline'; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data: https:; "
+                "connect-src 'self' ws: wss:; "
+                "font-src 'self' data:; "
+                "frame-ancestors 'none'"
+            ),
+        )
+        response.headers.setdefault(
+            "Permissions-Policy",
+            "camera=(), microphone=(), geolocation=(), payment=()",
+        )
         return response
 
     # Initialize rate limiter (in-memory; swap storage_uri for Redis in multi-worker setups)
@@ -375,6 +392,19 @@ def create_app(testing=False):
             save_config_entry("api_key", _generated_key)
             settings = reload_settings(get_all_config_entries())
             logger.info("API key auto-generated on first start (64 hex chars)")
+
+        # Warn when both auth mechanisms are disabled — all API endpoints are public.
+        # This is intentional for trusted-LAN / reverse-proxy deployments, but operators
+        # should be aware of the exposure. See PENTEST_FINDINGS.md F-17.
+        import ui_auth as _ui_auth
+
+        _ui_auth_enabled = _ui_auth.is_ui_auth_enabled()
+        if not settings.api_key and not _ui_auth_enabled:
+            logger.warning(
+                "SECURITY WARNING: No authentication is configured (api_key is empty and "
+                "UI auth is disabled). All API endpoints are publicly accessible. "
+                "Set SUBLARR_API_KEY or enable UI auth if this is not intentional."
+            )
 
         # Initialize plugin system
         plugins_dir = getattr(settings, "plugins_dir", "")

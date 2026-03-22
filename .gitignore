@@ -44,6 +44,8 @@ NDH6SA~*
 dev.log
 dev-pids.txt
 log/
+backend/venv/
+dev-media/
 
 # Test data
 test-media/

@@ -270,7 +270,13 @@ function BazarrPreviewModal({
 
 // ─── Main ApiKeysTab Component ───────────────────────────────────────────────
 
-export function ApiKeysTab() {
+export function ApiKeysTab({
+  excludeServices = [],
+  includeOnly,
+}: {
+  excludeServices?: string[]
+  includeOnly?: string[]
+}) {
   const { t } = useTranslation('settings')
   const { data, isLoading } = useApiKeys()
   const updateKey = useUpdateApiKey()
@@ -362,7 +368,10 @@ export function ApiKeysTab() {
     )
   }
 
-  const services = data?.services ?? []
+  const services = (data?.services ?? []).filter((s: ApiKeyService) => {
+    if (includeOnly) return includeOnly.includes(s.service)
+    return !excludeServices.includes(s.service)
+  })
 
   return (
     <div className="space-y-5">

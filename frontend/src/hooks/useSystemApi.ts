@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { toast } from '@/components/shared/Toast'
 import {
   getHealth, getUpdateInfo, getStats, getJobs,
   getBatchStatus, getConfig, updateConfig,
@@ -26,6 +27,8 @@ import {
   getCleanupRules, createCleanupRule, updateCleanupRule, deleteCleanupRule, runCleanupRule,
   getCleanupHistory, getCleanupPreview,
   getSupportedLanguages,
+  testSonarrInstance, testRadarrInstance,
+  getFfprobeStats, triggerFfprobeCleanup, triggerDbVacuum,
 } from '@/api/client'
 import type {
   LogRotationConfig, FilterScope,
@@ -150,6 +153,20 @@ export function useRetryJob() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
     },
+  })
+}
+
+// ─── Sonarr / Radarr Test ────────────────────────────────────────────────────
+
+export function useTestSonarrInstance() {
+  return useMutation({
+    mutationFn: (config: { url: string; api_key: string }) => testSonarrInstance(config),
+  })
+}
+
+export function useTestRadarrInstance() {
+  return useMutation({
+    mutationFn: (config: { url: string; api_key: string }) => testRadarrInstance(config),
   })
 }
 
@@ -693,5 +710,33 @@ export function useCleanupHistory(page = 1) {
 export function useCleanupPreview() {
   return useMutation({
     mutationFn: (ruleId?: number) => getCleanupPreview(ruleId),
+  })
+}
+
+// ─── ffprobe Cache ────────────────────────────────────────────────────────────
+
+export function useFfprobeStats() {
+  return useQuery({ queryKey: ['ffprobe-stats'], queryFn: getFfprobeStats })
+}
+
+export function useFfprobeCleanup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: triggerFfprobeCleanup,
+    onSuccess: (r) => {
+      toast(`Removed ${r.removed} stale ffprobe cache entries`)
+      void qc.invalidateQueries({ queryKey: ['ffprobe-stats'] })
+    },
+    onError: () => toast('Cleanup failed', 'error'),
+  })
+}
+
+// ─── Database Vacuum ─────────────────────────────────────────────────────────
+
+export function useDbVacuum() {
+  return useMutation({
+    mutationFn: triggerDbVacuum,
+    onSuccess: (r) => toast(r.message ?? 'Database vacuumed'),
+    onError: () => toast('Vacuum failed', 'error'),
   })
 }

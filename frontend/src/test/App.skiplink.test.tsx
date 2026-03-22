@@ -10,9 +10,15 @@ vi.mock('@/hooks/useWebSocket', () => ({
   useWebSocket: () => ({}),
 }))
 
-// Mock the Sidebar so we don't pull in all nav dependencies
-vi.mock('@/components/layout/Sidebar', () => ({
-  Sidebar: () => <nav data-testid="sidebar" />,
+// Mock the layout components so we don't pull in all nav dependencies
+vi.mock('@/components/layout/IconSidebar', () => ({
+  IconSidebar: () => <nav data-testid="icon-sidebar" />,
+}))
+vi.mock('@/components/layout/BottomNav', () => ({
+  BottomNav: () => null,
+}))
+vi.mock('@/components/layout/StatusBar', () => ({
+  StatusBar: () => null,
 }))
 
 // Mock global modals / FABs
@@ -43,18 +49,10 @@ vi.mock('react-i18next', () => ({
 
 // Mock all lazy-loaded pages to avoid dynamic import issues in tests
 vi.mock('@/pages/Dashboard', () => ({ Dashboard: () => <div>Dashboard</div> }))
-vi.mock('@/pages/Activity', () => ({ ActivityPage: () => <div>Activity</div> }))
-vi.mock('@/pages/Wanted', () => ({ WantedPage: () => <div>Wanted</div> }))
-vi.mock('@/pages/Queue', () => ({ QueuePage: () => <div>Queue</div> }))
+vi.mock('@/pages/ActivityPage', () => ({ ActivityPage: () => <div>Activity</div> }))
 vi.mock('@/pages/Settings', () => ({ SettingsPage: () => <div>Settings</div> }))
-vi.mock('@/pages/Logs', () => ({ LogsPage: () => <div>Logs</div> }))
-vi.mock('@/pages/Statistics', () => ({ StatisticsPage: () => <div>Statistics</div> }))
 vi.mock('@/pages/Library', () => ({ LibraryPage: () => <div>Library</div> }))
 vi.mock('@/pages/SeriesDetail', () => ({ SeriesDetailPage: () => <div>SeriesDetail</div> }))
-vi.mock('@/pages/History', () => ({ HistoryPage: () => <div>History</div> }))
-vi.mock('@/pages/Blacklist', () => ({ BlacklistPage: () => <div>Blacklist</div> }))
-vi.mock('@/pages/Tasks', () => ({ TasksPage: () => <div>Tasks</div> }))
-vi.mock('@/pages/Plugins', () => ({ PluginsPage: () => <div>Plugins</div> }))
 vi.mock('@/pages/NotFound', () => ({ NotFoundPage: () => <div>NotFound</div> }))
 vi.mock('@/pages/Onboarding', () => ({ default: () => <div>Onboarding</div> }))
 
@@ -82,7 +80,7 @@ describe('Skip link', () => {
     const { container } = render(<App />)
 
     const skipLink = container.querySelector('a[href="#main-content"]')
-    const sidebar = container.querySelector('[data-testid="sidebar"]')
+    const sidebar = container.querySelector('[data-testid="icon-sidebar"]')
     expect(skipLink).toBeInTheDocument()
     expect(sidebar).toBeInTheDocument()
 

@@ -168,6 +168,7 @@ class WantedRepository(BaseRepository):
         item_type: str = None,
         status: str = None,
         series_id: int = None,
+        movie_id: int = None,
         subtitle_type: str = None,
         sort_by: str = "added_at",
         sort_dir: str = "desc",
@@ -184,6 +185,8 @@ class WantedRepository(BaseRepository):
             conditions.append(WantedItem.status == status)
         if series_id is not None:
             conditions.append(WantedItem.sonarr_series_id == series_id)
+        if movie_id is not None:
+            conditions.append(WantedItem.standalone_movie_id == movie_id)
         if subtitle_type:
             conditions.append(WantedItem.subtitle_type == subtitle_type)
 
