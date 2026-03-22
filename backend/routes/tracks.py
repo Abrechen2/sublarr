@@ -257,11 +257,27 @@ def batch_extract_series_tracks(series_id):
             client = get_sonarr_client()
             if client is None:
                 logger.error("[batch-extract-tracks] Sonarr not configured")
+                emit_event(
+                    "batch_extract_completed",
+                    {"series_id": series_id, "total": 0, "succeeded": 0, "failed": 0, "skipped": 0},
+                )
                 return
 
-            episode_files = client.get_episode_files_by_series(series_id)
+            try:
+                episode_files = client.get_episode_files_by_series(series_id)
+            except Exception as exc:
+                logger.error("[batch-extract-tracks] Sonarr error for series %d: %s", series_id, exc)
+                emit_event(
+                    "batch_extract_completed",
+                    {"series_id": series_id, "total": 0, "succeeded": 0, "failed": 0, "skipped": 0},
+                )
+                return
             if not episode_files:
                 logger.info("[batch-extract-tracks] no episode files for series %d", series_id)
+                emit_event(
+                    "batch_extract_completed",
+                    {"series_id": series_id, "total": 0, "succeeded": 0, "failed": 0, "skipped": 0},
+                )
                 return
 
             succeeded = 0
