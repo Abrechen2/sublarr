@@ -21,7 +21,10 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const apikey = localStorage.getItem('sublarr_api_key') ?? undefined
     socketRef.current = io(window.location.origin, {
-      transports: ['websocket', 'polling'],
+      // Werkzeug dev server doesn't support WebSocket upgrades — attempting the
+      // upgrade corrupts the polling session (POST 400). Force polling-only in
+      // development; production (gunicorn/eventlet) supports the full upgrade path.
+      transports: import.meta.env.DEV ? ['polling'] : ['websocket', 'polling'],
       auth: apikey ? { apikey } : undefined,
     })
     setSocket(socketRef.current)
