@@ -1,13 +1,12 @@
 /**
  * MovieDetailPage — Detail view for a standalone movie.
- * Shows poster, metadata, and subtitle information.
- * No season/episode hierarchy — flat layout.
+ * Shows poster, metadata, and subtitle wanted items.
  */
 import { useParams, useNavigate } from 'react-router-dom'
-import { Loader2, FileVideo, ArrowLeft, Film } from 'lucide-react'
-import { useMovieDetail } from '@/hooks/useApi'
+import { Loader2, FileVideo, ArrowLeft, Film, Search, SkipForward, RotateCcw } from 'lucide-react'
+import { useMovieDetail, useWantedItems, useSearchWantedItem, useUpdateWantedStatus } from '@/hooks/useApi'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
-import type { MovieDetail } from '@/lib/types'
+import type { MovieDetail, WantedItem } from '@/lib/types'
 
 // ─── MovieHero ────────────────────────────────────────────────────────────────
 
@@ -70,6 +69,122 @@ function MovieHero({ movie }: { movie: MovieDetail }) {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ─── MovieWantedSection ───────────────────────────────────────────────────────
+
+function MovieWantedSection({ movieId }: { movieId: number }) {
+  const { data: wanted, isLoading } = useWantedItems(
+    1, 50, 'movie', undefined, undefined, false, movieId
+  )
+  const search = useSearchWantedItem()
+  const updateStatus = useUpdateWantedStatus()
+
+  const items = wanted?.data ?? []
+
+  if (isLoading) {
+    return (
+      <div
+        className="rounded-lg p-5"
+        style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+        data-testid="movie-wanted-section"
+      >
+        <Loader2 size={16} className="animate-spin" style={{ color: 'var(--accent)' }} />
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="rounded-lg p-5"
+      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      data-testid="movie-wanted-section"
+    >
+      <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+        Subtitles
+      </h2>
+
+      {items.length === 0 ? (
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          No missing subtitles
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {items.map((item: WantedItem) => (
+            <div
+              key={item.id}
+              className="flex items-center justify-between gap-3 py-2 px-3 rounded-md"
+              style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)' }}
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-xs font-semibold px-2 py-0.5 rounded"
+                  style={{
+                    backgroundColor: item.status === 'wanted' ? 'rgba(239,68,68,0.15)' : 'var(--bg-elevated)',
+                    color: item.status === 'wanted' ? 'var(--error)' : 'var(--text-secondary)',
+                  }}
+                >
+                  {item.target_language.toUpperCase()}
+                </span>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  {item.status}
+                  {item.search_count > 0 && ` · ${item.search_count} searches`}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {item.status === 'wanted' && (
+                  <>
+                    <button
+                      onClick={() => search.mutate(item.id)}
+                      disabled={search.isPending}
+                      style={{
+                        fontSize: '11px', fontWeight: 600, padding: '3px 10px',
+                        borderRadius: '4px', backgroundColor: 'var(--accent)',
+                        color: '#fff', border: 'none', cursor: 'pointer',
+                        opacity: search.isPending ? 0.6 : 1,
+                        display: 'flex', alignItems: 'center', gap: '4px',
+                      }}
+                    >
+                      <Search size={10} />
+                      Search
+                    </button>
+                    <button
+                      onClick={() => updateStatus.mutate({ itemId: item.id, status: 'ignored' })}
+                      disabled={updateStatus.isPending}
+                      style={{
+                        fontSize: '11px', padding: '3px 10px', borderRadius: '4px',
+                        backgroundColor: 'transparent', color: 'var(--text-secondary)',
+                        border: '1px solid var(--border)', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '4px',
+                      }}
+                    >
+                      <SkipForward size={10} />
+                      Skip
+                    </button>
+                  </>
+                )}
+                {item.status === 'ignored' && (
+                  <button
+                    onClick={() => updateStatus.mutate({ itemId: item.id, status: 'wanted' })}
+                    disabled={updateStatus.isPending}
+                    style={{
+                      fontSize: '11px', padding: '3px 10px', borderRadius: '4px',
+                      backgroundColor: 'transparent', color: 'var(--text-muted)',
+                      border: '1px solid var(--border)', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: '4px',
+                    }}
+                  >
+                    <RotateCcw size={10} />
+                    Re-enable
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -162,6 +277,9 @@ export function MovieDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Subtitle Management */}
+      <MovieWantedSection movieId={movie.id} />
     </div>
   )
 }
