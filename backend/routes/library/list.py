@@ -49,7 +49,7 @@ def get_library():
 
         sonarr = get_sonarr_client()
         if sonarr:
-            series_list = sonarr.get_library_info()
+            series_list = sonarr.get_library_info(anime_only=False)
             # Enrich with profile assignments and missing counts
             profile_map = get_series_profile_map()
             missing_map = get_series_missing_counts()
@@ -76,7 +76,7 @@ def get_library():
 
         radarr = get_radarr_client()
         if radarr:
-            result["movies"] = radarr.get_library_info()
+            result["movies"] = radarr.get_library_info(anime_only=False)
     except Exception as e:
         logger.warning("Failed to get Radarr library: %s", e)
 
