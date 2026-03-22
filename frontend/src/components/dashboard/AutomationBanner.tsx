@@ -6,7 +6,7 @@
  * Right:  "Pause" / "Run Now" buttons
  */
 import { useTranslation } from 'react-i18next'
-import { cn } from '@/lib/utils'
+import { cn, formatRelativeTime } from '@/lib/utils'
 import { useScannerStatus, useWantedSummary, useRefreshWanted } from '@/hooks/useWantedApi'
 import { useStats } from '@/hooks/useSystemApi'
 
@@ -77,6 +77,11 @@ export function AutomationBanner() {
   const downloadsToday = extStats?.downloads_today ?? 0
   const needsAttention = wantedSummary?.total ?? 0
 
+  const lastActivity = scannerStatus?.last_scan_at ?? scannerStatus?.last_search_at ?? null
+  const bannerSubtitle = lastActivity
+    ? `Last completed: ${formatRelativeTime(lastActivity)}`
+    : 'Never scanned'
+
   return (
     <div
       data-testid="automation-banner"
@@ -117,13 +122,14 @@ export function AutomationBanner() {
           </span>
         </div>
         <span
+          data-testid="banner-subtitle"
           style={{
             fontSize: '11px',
             color: 'var(--text-muted)',
             marginLeft: '20px',
           }}
         >
-          Next scan in 23 min · Last completed: 7 min ago
+          {bannerSubtitle}
         </span>
       </div>
 
