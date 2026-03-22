@@ -9,9 +9,6 @@ import type { ProviderInfo } from '@/lib/types'
 import { ProviderTile } from './providers/ProviderTile'
 import { ProviderEditModal } from './providers/ProviderEditModal'
 import { AddProviderModal } from './providers/AddProviderModal'
-import { MarketplaceTab } from './providers/MarketplaceTab'
-
-type ProviderTabId = 'configured' | 'marketplace'
 
 /** Reorder a provider priority list — returns a new array (immutable). */
 export function reorderProviders(items: string[], fromIndex: number, toIndex: number): string[] {
@@ -38,7 +35,6 @@ export function ProvidersTab({
   const clearCacheMut = useClearProviderCache()
   const [testResults, setTestResults] = useState<Record<string, { healthy: boolean; message: string } | 'testing'>>({})
   const [localPriority, setLocalPriority] = useState<string[] | null>(null)
-  const [activeTab, setActiveTab] = useState<ProviderTabId>('configured')
   const [editingProvider, setEditingProvider] = useState<string | null>(null)
   const [isNewProvider, setIsNewProvider] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -191,36 +187,10 @@ export function ProvidersTab({
     ? shownProviders.indexOf(editingProviderData)
     : -1
 
-  const TAB_LABELS: { id: ProviderTabId; label: string }[] = [
-    { id: 'configured', label: 'Configured' },
-    { id: 'marketplace', label: 'Marketplace' },
-  ]
-
   return (
     <div className="space-y-4">
-      {/* Tab bar */}
-      <div className="flex gap-1 border-b" style={{ borderColor: 'var(--border)' }}>
-        {TAB_LABELS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className="px-4 py-2 text-sm font-medium transition-colors"
-            style={{
-              color: activeTab === tab.id ? 'var(--accent)' : 'var(--text-secondary)',
-              borderBottom: activeTab === tab.id ? '2px solid var(--accent)' : '2px solid transparent',
-              marginBottom: '-1px',
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Marketplace tab */}
-      {activeTab === 'marketplace' && <MarketplaceTab />}
-
-      {/* Configured tab */}
-      {activeTab === 'configured' && <>
+      {/* Configured providers */}
+      {<>
       {/* Header */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
@@ -336,54 +306,6 @@ export function ProvidersTab({
             <Plus size={22} />
             <span className="text-[11px] font-medium">Provider hinzufügen</span>
           </button>
-        )}
-      </div>
-
-      {/* Anti-Captcha Section */}
-      <div
-        className="rounded-lg p-4 space-y-3"
-        style={{ border: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}
-      >
-        <div>
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Anti-Captcha</h3>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            Automatically solve captcha challenges from providers like Kitsunekko.
-            Supports Anti-Captcha.com and CapMonster.
-          </p>
-        </div>
-        <div className="grid grid-cols-[160px_1fr] items-center gap-3">
-          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Backend</label>
-          <select
-            value={values['anti_captcha_provider'] ?? ''}
-            onChange={(e) => onFieldChange('anti_captcha_provider', e.target.value)}
-            className="px-2 py-1.5 rounded text-xs"
-            style={{
-              border: '1px solid var(--border)',
-              backgroundColor: 'var(--bg-primary)',
-              color: 'var(--text-primary)',
-            }}
-          >
-            <option value="">Disabled</option>
-            <option value="anticaptcha">Anti-Captcha.com</option>
-            <option value="capmonster">CapMonster</option>
-          </select>
-        </div>
-        {values['anti_captcha_provider'] && (
-          <div className="grid grid-cols-[160px_1fr] items-center gap-3">
-            <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>API Key</label>
-            <input
-              type="password"
-              value={values['anti_captcha_api_key'] ?? ''}
-              onChange={(e) => onFieldChange('anti_captcha_api_key', e.target.value)}
-              placeholder="Your API key"
-              className="px-2 py-1.5 rounded text-xs"
-              style={{
-                border: '1px solid var(--border)',
-                backgroundColor: 'var(--bg-primary)',
-                color: 'var(--text-primary)',
-              }}
-            />
-          </div>
         )}
       </div>
 

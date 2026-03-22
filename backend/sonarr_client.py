@@ -187,6 +187,11 @@ class SonarrClient:
             return True, "OK"
         return False, f"Cannot connect to Sonarr at {self.url}"
 
+    def test_connection(self) -> dict:
+        """Test Sonarr connection and return a result dict."""
+        healthy, message = self.health_check()
+        return {"success": healthy, "message": message}
+
     def get_series(self):
         """Get all series.
 

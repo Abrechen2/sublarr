@@ -12,12 +12,13 @@
 | Schwere | Anzahl |
 |---------|--------|
 | 🔴 Kritisch | 2 (1 bereits behoben, 1 offen) |
-| 🟠 Hoch | 3 (2 behoben in v0.33.0-beta) |
-| 🟡 Mittel | 5 (1 bereits behoben) |
+| 🟠 Hoch | 3 (alle 3 behoben) |
+| 🟡 Mittel | 5 (2 behoben) |
 | 🔵 Niedrig | 3 (2 bereits behoben) |
 | 💅 UX | 2 |
 | ✅ Positiv (Lücken geschlossen) | 7 |
-| **Gesamt** | **22** (5 behoben) |
+| **Neu entdeckt (Settings-QA)** | 11 (8 behoben, 3 offen) |
+| **Gesamt** | **33** (14 behoben) |
 
 ---
 
@@ -375,4 +376,131 @@ Laut früherer Analyse fehlten diese Seiten. Sie sind als **Tabs in der Activity
 
 ---
 
-*Stand: 2026-03-22 — Tests gegen http://192.168.178.194:5765 (v0.33.0-beta)*
+---
+
+## Neu entdeckte Findings (Settings-QA 2026-03-22)
+
+---
+
+### FINDING-017 — ✅ Behoben: Connections — `crypto.randomUUID` nicht verfügbar auf HTTP
+
+**Typ:** Runtime-Fehler
+**Schwere:** Hoch — "Add Sonarr/Radarr Instance" funktioniert nicht
+
+**Beschreibung:** `crypto.randomUUID()` ist nur in Secure Context (HTTPS/localhost) verfügbar. Bei HTTP-Zugriff (192.168.178.194) wirft der Aufruf beim Hinzufügen einer Instanz einen TypeError.
+
+**Fix:** `generateId()` Hilfsfunktion in `ConnectionsSettings.tsx` — fällt auf `Math.random() + Date.now()` zurück wenn Web Crypto API nicht verfügbar.
+
+---
+
+### FINDING-018 — ✅ Behoben: Connections — `SonarrClient` / `RadarrClient` hat keine `test_connection`-Methode
+
+**Typ:** Backend AttributeError
+**Schwere:** Hoch — "Test" Button auf Sonarr/Radarr-Konfiguration schlägt fehl
+
+**Beschreibung:** `routes/api_keys.py` ruft `client.test_connection()` auf `SonarrClient` und `RadarrClient` auf. Beide Klassen besaßen diese Methode nicht → AttributeError bei Klick auf "Test".
+
+**Fix:** `test_connection()` zu `SonarrClient` und `RadarrClient` hinzugefügt — delegiert an `health_check()` und gibt `{"success": bool, "message": str}` zurück.
+
+---
+
+### FINDING-019 — ✅ Behoben: Providers — `ProviderManager.get_provider` fehlte
+
+**Typ:** Backend AttributeError
+**Schwere:** Hoch — Provider-Test ("Test" Button) schlägt mit AttributeError fehl
+
+**Beschreibung:** `routes/api_keys.py::_test_provider()` ruft `manager.get_provider(service_name)` auf. Die Methode existierte nicht in `ProviderManager` → AttributeError.
+
+**Fix:** `get_provider(name: str) -> SubtitleProvider | None` zu `ProviderManager` in `providers/__init__.py` hinzugefügt — gibt `self._providers.get(name)` zurück.
+
+---
+
+### FINDING-020 — ✅ Behoben: Notifications — Doppelte Darstellung von Quiet Hours + History
+
+**Typ:** Doppel-Rendering
+**Schwere:** Mittel — Quiet Hours und Notification History werden zweimal gerendert
+
+**Beschreibung:** `NotificationTemplatesTab` renderte intern `<QuietHoursSection>` und `<HistorySection>`, die außerdem als eigenständige Sektionen in `NotificationsSettings` vorhanden waren (Section 3: `NotificationHistoryTab`, Section 4: `QuietHoursConfigStub`).
+
+**Fix:** `QuietHoursSection` und `HistorySection` aus `NotificationTemplatesTab` entfernt sowie zugehörige Importe bereinigt.
+
+---
+
+### FINDING-021 — ✅ Behoben: Providers — Anti-Captcha doppelt gerendert
+
+**Typ:** Doppel-Rendering
+**Schwere:** Mittel — Anti-Captcha Config erscheint zweimal auf der Providers-Seite
+
+**Beschreibung:** `ProvidersTab.tsx` enthielt einen eingebetteten Anti-Captcha Block (lines 342–388). `ProvidersSettings.tsx` hat zusätzlich eine eigene dedizierte Anti-Captcha `SettingsSection`. → Zwei identische Anti-Captcha Formulare auf derselben Seite.
+
+**Fix:** Anti-Captcha Block aus `ProvidersTab.tsx` entfernt.
+
+---
+
+### FINDING-022 — ✅ Behoben: Providers — Marketplace als interner Sub-Tab doppelt zu dedizierter Sektion
+
+**Typ:** Doppel-Rendering / UX-Widerspruch
+**Schwere:** Mittel — Marketplace-Tab im ProvidersTab und separate Marketplace-Sektion erscheinen beide
+
+**Beschreibung:** `ProvidersTab` hatte ein internes Tab-UI mit "Configured" und "Marketplace" Tabs. `ProvidersSettings` hat eine eigene "Marketplace" SettingsSection. → Switching auf "Marketplace" im ProvidersTab zeigte scheinbar "persistenten" Marketplace-Inhalt (er kam von der separaten Sektion).
+
+**Fix:** Tab-Bar und Marketplace-Sub-Tab aus `ProvidersTab.tsx` entfernt. ProvidersTab zeigt jetzt nur noch konfigurierte Provider. Marketplace wird ausschließlich als dedizierte `SettingsSection` gerendert.
+
+---
+
+### FINDING-023 — ✅ Behoben: Scoring Weights — Slider/Spinbutton desynchronisiert
+
+**Typ:** UI-Logik
+**Schwere:** Mittel — Eingabe von Werten via Zahlenfeld setzt Slider auf 0
+
+**Beschreibung:** `onChange` des Zahlenfelds in `WeightSliderRow` verwendete `parseInt(e.target.value) || 0`. Bei leerem Feld oder Intermediate-Zustand (z.B. "-") wurde 0 an den State übergeben, Slider snappte auf 0 während Nutzer tippte.
+
+**Fix:** `|| 0` entfernt — `onChange` wird nur aufgerufen wenn `parseInt()` eine gültige Zahl (nicht NaN) liefert. Gleiches Fix für MT Penalty/Threshold Felder.
+
+---
+
+### FINDING-024 — ✅ Behoben: Webhooks — `navigator.clipboard` nicht verfügbar auf HTTP
+
+**Typ:** Runtime-Fehler
+**Schwere:** Niedrig — "Copy URL" Button schlägt mit TypeError fehl
+
+**Beschreibung:** `navigator.clipboard.writeText()` erfordert Secure Context (HTTPS). Bei HTTP-Zugriff ist `navigator.clipboard` undefined → TypeError beim Klick auf Copy URL in `WebhooksPage.tsx`.
+
+**Fix:** Clipboard API-Check mit `document.execCommand('copy')` Fallback.
+
+---
+
+### FINDING-025 — 🟡 Offen: AutomationSettings — Scoring Weights Sektion dupliziert aus SubtitlesSettings
+
+**Typ:** Doppel-Rendering / Architektur
+**Schwere:** Mittel — ScoringTab erscheint auf `/settings/automation` UND `/settings/subtitles`
+
+**Beschreibung:** `AutomationSettings.tsx` rendert `ScoringTab` als letzte Sektion ("Provider Re-ranking"). Dasselbe `ScoringTab` ist auch in `SubtitlesSettings` eingebettet. Beide Instanzen haben unabhängige State → Änderung auf einer Seite reflektiert sich nicht automatisch auf der anderen.
+
+**Status:** Offen — bewusst oder architectural overlap; Entscheidung über Konsolidierung erforderlich.
+
+---
+
+### FINDING-026 — 🟡 Offen: ffprobe Cache Cleanup — Endpoint lieferte 404/500 bei Tests
+
+**Typ:** Backend
+**Schwere:** Niedrig — Cache Cleanup Button in SystemSettings → CacheTab funktioniert nicht
+
+**Beschreibung:** `POST /api/v1/cache/ffprobe/cleanup` gab bei Tests 404/500 zurück. Backend-Code (`routes/system/logs.py:672`, `db/repositories/cache.py:95`) existiert und sieht korrekt aus. Möglicherweise war das Deployment alt; nach Neudeployment erneut verifizieren.
+
+**Status:** Offen — erneut testen nach nächstem Deployment.
+
+---
+
+### FINDING-027 — 🟡 Offen: Marketplace Registry — GitHub-Repo `sublarr-community/plugins` existiert nicht
+
+**Typ:** Konfiguration
+**Schwere:** Niedrig — Marketplace zeigt "No plugins found" (graceful behandelt)
+
+**Beschreibung:** Die Standard-Registry-URL in `services/marketplace.py` zeigt auf `https://raw.githubusercontent.com/sublarr-community/plugins/main/registry.json`, das noch nicht existiert. Backend gibt gracefully leere Liste zurück (kein Fehler). Die Seite zeigt "No plugins found."
+
+**Status:** Offen — Community-Registry muss noch erstellt werden.
+
+---
+
+*Stand: 2026-03-22 — Tests gegen http://192.168.178.194:5765 (v0.33.0-beta), Settings-QA am 2026-03-22*

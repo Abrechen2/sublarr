@@ -103,7 +103,10 @@ function WeightSliderRow({ weightKey, value, defaultValue, onChange }: WeightSli
           max={200}
           value={value}
           data-testid={`input-weight-${weightKey}`}
-          onChange={(e) => onChange(parseInt(e.target.value) || 0)}
+          onChange={(e) => {
+            const n = parseInt(e.target.value, 10)
+            if (!isNaN(n)) onChange(n)
+          }}
           style={{ ...inputStyle, width: 62, textAlign: 'right', fontFamily: 'var(--font-mono, monospace)', color }}
         />
         {defaultValue !== undefined && defaultValue !== value && (
@@ -671,7 +674,7 @@ export function ScoringTab() {
                       type="number" min={-50} max={0}
                       value={mtPenalty}
                       data-testid="input-mt-penalty"
-                      onChange={(e) => setMtPenalty(Math.max(-50, Math.min(0, parseInt(e.target.value) || 0)))}
+                      onChange={(e) => { const n = parseInt(e.target.value, 10); if (!isNaN(n)) setMtPenalty(Math.max(-50, Math.min(0, n))) }}
                       style={{ ...inputStyle, width: 62, textAlign: 'right', fontFamily: 'var(--font-mono, monospace)' }}
                     />
                   </div>
@@ -693,7 +696,7 @@ export function ScoringTab() {
                       type="number" min={0} max={100}
                       value={mtThreshold}
                       data-testid="input-mt-threshold"
-                      onChange={(e) => setMtThreshold(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+                      onChange={(e) => { const n = parseInt(e.target.value, 10); if (!isNaN(n)) setMtThreshold(Math.max(0, Math.min(100, n))) }}
                       style={{ ...inputStyle, width: 62, textAlign: 'right', fontFamily: 'var(--font-mono, monospace)' }}
                     />
                   </div>

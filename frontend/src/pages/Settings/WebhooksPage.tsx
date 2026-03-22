@@ -50,7 +50,16 @@ export function WebhooksPage() {
                     <span data-testid={`webhook-url-${w.service.toLowerCase()}`}>{fullUrl}</span>
                     <button
                       onClick={() => {
-                        void navigator.clipboard.writeText(fullUrl)
+                        if (navigator.clipboard) {
+                          void navigator.clipboard.writeText(fullUrl)
+                        } else {
+                          const el = document.createElement('textarea')
+                          el.value = fullUrl
+                          document.body.appendChild(el)
+                          el.select()
+                          document.execCommand('copy')
+                          document.body.removeChild(el)
+                        }
                         toast('Copied!')
                       }}
                       className="p-1 rounded transition-colors hover:opacity-80"

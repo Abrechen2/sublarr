@@ -187,6 +187,11 @@ class RadarrClient:
             return True, "OK"
         return False, f"Cannot connect to Radarr at {self.url}"
 
+    def test_connection(self) -> dict:
+        """Test Radarr connection and return a result dict."""
+        healthy, message = self.health_check()
+        return {"success": healthy, "message": message}
+
     def get_movies(self):
         """Get all movies.
 

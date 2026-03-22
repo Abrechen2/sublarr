@@ -9,6 +9,13 @@
  * 5. Metadata API Keys   — TMDB, TheTVDB, cache TTL, ffmpeg_timeout
  */
 import { useState, lazy, Suspense } from 'react'
+
+function generateId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return Math.random().toString(36).slice(2) + Date.now().toString(36)
+}
 import { useTranslation } from 'react-i18next'
 import { Link, PlugZap, Server, KeyRound, Loader2, Plus, Pencil, TestTube, Trash2, Eye, EyeOff, Database } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
@@ -281,7 +288,7 @@ function SonarrMultiInstanceSection() {
 
   const addInstance = () => {
     const newInst: ServiceInstance = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       name: `Sonarr ${instances.length + 1}`,
       url: '',
       api_key: '',
@@ -402,7 +409,7 @@ function RadarrMultiInstanceSection() {
 
   const addInstance = () => {
     const newInst: ServiceInstance = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       name: `Radarr ${instances.length + 1}`,
       url: '',
       api_key: '',
