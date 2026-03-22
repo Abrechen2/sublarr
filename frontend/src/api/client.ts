@@ -1195,7 +1195,7 @@ export async function getApiKeyService(service: string): Promise<ApiKeyService> 
 }
 
 export async function updateApiKey(service: string, keyName: string, value: string): Promise<{ status: string }> {
-  const { data } = await api.put(`/api-keys/${service}`, { key_name: keyName, value })
+  const { data } = await api.put(`/api-keys/${service}`, { [keyName]: value })
   return data
 }
 

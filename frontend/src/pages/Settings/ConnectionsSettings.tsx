@@ -854,7 +854,7 @@ export function ConnectionsSettings() {
       >
         <div className="py-3">
           <Suspense fallback={<TabSkeleton />}>
-            <ApiKeysTab />
+            <ApiKeysTab excludeServices={['tmdb', 'tvdb']} />
           </Suspense>
         </div>
       </SettingsSection>

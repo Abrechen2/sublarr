@@ -378,7 +378,7 @@ export function SystemSettings() {
           icon={<Key size={16} style={{ color: 'var(--accent)' }} />}
           advanced={
             <Suspense fallback={<SectionSkeleton />}>
-              <ApiKeysTab />
+              <ApiKeysTab includeOnly={['sublarr']} />
             </Suspense>
           }
         >
