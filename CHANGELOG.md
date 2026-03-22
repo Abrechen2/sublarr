@@ -5,6 +5,25 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.35.0-beta] - 2026-03-22
+
+### Added
+- **Movie Detail — Subtitle Management** — wanted items section below file info shows missing subtitles per language; inline Search / Skip / Re-enable buttons; wired to `/wanted?movie_id=` filter
+- **Backend — `/wanted` movie filter** — new `?movie_id=` query param filters wanted items by `standalone_movie_id`; enables movie detail subtitle management without loading the full wanted list
+
+### Changed
+- **Series Detail — Episode Grid** — restored full feature set: per-row checkboxes, SubBadge per subtitle language (teal = ASS optimal, purple = SRT upgradeable, orange = missing), audio-track badges, sidecar subtitle actions (delete, download, NFO export, subtitle menu, health badge, preview, edit), batch toolbar (Search / Extract / Translate / Cleanup), Skip / Accept inline actions wired to `useUpdateWantedStatus`
+- **Dashboard — AutomationBanner** — subtitle line now shows live "Last completed: X ago" derived from `scannerStatus.last_scan_at`; replaces hardcoded placeholder text
+- **Library** — fixed `anime_only=False` filter that was hiding non-anime content; all library entries now visible regardless of type
+
+### Fixed
+- **Settings — API Keys** — removed duplicate TMDB and TVDB entries; fixed `updateApiKey` request body format that was causing 400 errors on save
+- **Security — CSP / Permissions-Policy** — `Content-Security-Policy` and `Permissions-Policy` response headers added to all responses (F-23)
+- **Security — Webhook SSRF** — `validate_service_url()` applied to webhook create and update endpoints; blocks dangerous URL schemes (F-21)
+- **Security — Auth warning** — startup `SECURITY WARNING` log emitted when both API key and UI auth are disabled, alerting operators to the open-API exposure (F-17/F-18 root cause)
+
+---
+
 ## [0.33.0-beta] - 2026-03-20
 
 ### Added
