@@ -11,13 +11,13 @@
 
 | Schwere | Anzahl |
 |---------|--------|
-| 🔴 Kritisch | 2 |
-| 🟠 Hoch | 3 |
-| 🟡 Mittel | 5 |
-| 🔵 Niedrig | 3 |
+| 🔴 Kritisch | 2 (1 bereits behoben, 1 offen) |
+| 🟠 Hoch | 3 (2 behoben in v0.33.0-beta) |
+| 🟡 Mittel | 5 (1 bereits behoben) |
+| 🔵 Niedrig | 3 (2 bereits behoben) |
 | 💅 UX | 2 |
 | ✅ Positiv (Lücken geschlossen) | 7 |
-| **Gesamt** | **22** |
+| **Gesamt** | **22** (5 behoben) |
 
 ---
 
@@ -52,7 +52,7 @@ Betroffen sind alle Settings-Seiten, die `SettingRow`-Komponenten verwenden (`Se
 - `/settings/translation` (→ TranslationTab, WhisperTab)
 - Potenziell: alle Settings-Seiten die SettingRow verwenden
 
-**Fix:** `AdvancedSettingsProvider` um `<Routes>` in `Settings/index.tsx` wrappen — **bereits behoben**.
+**Fix:** `AdvancedSettingsProvider` um `<Routes>` in `Settings/index.tsx` wrappen — **bereits behoben in v0.33.0-beta**.
 
 **Screenshot:** 09-automation-settings.png (Vergleich: funktionierendes Automation)
 
@@ -106,7 +106,7 @@ Die App enthält aber auch `/activity?tab=wanted`, `/activity?tab=blacklist`, Sp
 
 ---
 
-### FINDING-004 — 🟠 Hoch: Dashboard — "Needs Attention"-Widget Widerspruch
+### FINDING-004 — ✅ Behoben: Dashboard — "Needs Attention"-Widget Widerspruch
 
 **Testfall:** TC-2.3
 **Typ:** Datenwiderspruch / UI-Logik
@@ -126,6 +126,8 @@ Diese direkte Widerspruch lässt den Benutzer im Unklaren ob wirklich Einträge 
 3. Klicke "Needs Attention" im Dashboard → "No items need attention"
 
 **Screenshot:** 04-dashboard-authenticated.png
+
+**Fix (v0.33.0-beta):** `NeedsAttentionCard` ruft jetzt die API mit `status=failed` Filter auf. Header-Badge und Body-Inhalt zeigen beide nur echte Fehler-Items (aktuell: 0). AutomationBanner zeigt weiterhin alle Wanted-Items (6091) separat — semantisch korrekt unterschiedlich.
 
 ---
 
@@ -272,7 +274,7 @@ Die untere Statusbar zeigt permanent "Automation: paused" aber es gibt keine UI-
 
 ---
 
-### FINDING-014 — 🟠 Hoch: Filme in Library-Grid nicht anklickbar (kein Movie Detail)
+### FINDING-014 — ✅ Behoben: Filme in Library-Grid nicht anklickbar (kein Movie Detail)
 
 **Testfall:** TC-3.5, TC-12.1
 **Typ:** Fehlende Navigation / unvollständige Funktion
@@ -293,6 +295,11 @@ Die `MovieDetailPage` existiert (`/movies/:id`) und ruft `/api/v1/standalone/mov
 **Empfehlung:** `handleRowClick` auf Filme erweitern; Movie Detail entweder die Library-Route (`/api/v1/library`) für Radarr-Filme nutzen oder ein dediziertes Movie-Detail-Backend für Radarr-IDs implementieren.
 
 **Screenshot:** 05-library.png (Filme sind zu sehen, aber nicht klickbar)
+
+**Fix (v0.33.0-beta):**
+- `Library.tsx handleRowClick`: navigiert jetzt zu `/movies/:id` für Filme
+- `standalone.py GET /movies/<id>`: fällt auf Radarr-Client zurück wenn standalone-Film nicht gefunden (Radarr-IDs wie 3800 funktionieren nun)
+- Verifiziert: Klick auf "Demon Slayer: Mugen Train" → `/movies/3801` lädt korrekt
 
 ---
 
