@@ -17,8 +17,8 @@
 | 🔵 Niedrig | 3 (2 bereits behoben) |
 | 💅 UX | 2 |
 | ✅ Positiv (Lücken geschlossen) | 7 |
-| **Neu entdeckt (Settings-QA)** | 11 (8 behoben, 3 offen) |
-| **Gesamt** | **33** (14 behoben) |
+| **Neu entdeckt (Settings-QA)** | 11 (10 behoben, 1 offen) |
+| **Gesamt** | **33** (16 behoben) |
 
 ---
 
@@ -470,25 +470,25 @@ Laut früherer Analyse fehlten diese Seiten. Sie sind als **Tabs in der Activity
 
 ---
 
-### FINDING-025 — 🟡 Offen: AutomationSettings — Scoring Weights Sektion dupliziert aus SubtitlesSettings
+### FINDING-025 — ✅ Behoben: AutomationSettings — Scoring Weights Sektion dupliziert aus SubtitlesSettings
 
 **Typ:** Doppel-Rendering / Architektur
 **Schwere:** Mittel — ScoringTab erscheint auf `/settings/automation` UND `/settings/subtitles`
 
-**Beschreibung:** `AutomationSettings.tsx` rendert `ScoringTab` als letzte Sektion ("Provider Re-ranking"). Dasselbe `ScoringTab` ist auch in `SubtitlesSettings` eingebettet. Beide Instanzen haben unabhängige State → Änderung auf einer Seite reflektiert sich nicht automatisch auf der anderen.
+**Beschreibung:** `AutomationSettings.tsx` renderte `ScoringTab` als "Provider Re-ranking" Sektion. Dasselbe `ScoringTab` ist auch in `SubtitlesSettings` eingebettet.
 
-**Status:** Offen — bewusst oder architectural overlap; Entscheidung über Konsolidierung erforderlich.
+**Fix:** Gesamte "Provider Re-ranking" Sektion (inkl. `ScoringTab` lazy import) aus `AutomationSettings.tsx` entfernt. Scoring Weights sind ausschließlich unter `/settings/subtitles` verfügbar.
 
 ---
 
-### FINDING-026 — 🟡 Offen: ffprobe Cache Cleanup — Endpoint lieferte 404/500 bei Tests
+### FINDING-026 — ✅ Behoben: ffprobe Cache Cleanup — Endpoint lieferte 404/500 bei Tests
 
 **Typ:** Backend
 **Schwere:** Niedrig — Cache Cleanup Button in SystemSettings → CacheTab funktioniert nicht
 
-**Beschreibung:** `POST /api/v1/cache/ffprobe/cleanup` gab bei Tests 404/500 zurück. Backend-Code (`routes/system/logs.py:672`, `db/repositories/cache.py:95`) existiert und sieht korrekt aus. Möglicherweise war das Deployment alt; nach Neudeployment erneut verifizieren.
+**Beschreibung:** `POST /api/v1/cache/ffprobe/cleanup` gab bei Tests 404/500 zurück. Backend-Code (`routes/system/logs.py:672`, `db/repositories/cache.py:95`) existiert und ist korrekt implementiert.
 
-**Status:** Offen — erneut testen nach nächstem Deployment.
+**Fix:** Nach Neudeployment (v0.34.0-beta) verifiziert — Endpoint gibt 200 mit korrekten Daten zurück. War ein Deployment-Problem mit der alten Version.
 
 ---
 
