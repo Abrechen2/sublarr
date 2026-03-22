@@ -3,7 +3,6 @@ import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { toast } from '@/components/shared/Toast'
-import { AdvancedSettingsProvider } from '@/contexts/AdvancedSettingsContext'
 
 // ─── WebhooksPage ──────────────────────────────────────────────────────────────
 
@@ -29,8 +28,7 @@ export function WebhooksPage() {
   const baseUrl = window.location.origin
 
   return (
-    <AdvancedSettingsProvider>
-      <SettingsDetailLayout
+    <SettingsDetailLayout
         title="Incoming Webhooks"
         subtitle="Copy these URLs into your media server webhook settings."
       >
@@ -69,6 +67,5 @@ export function WebhooksPage() {
           })}
         </div>
       </SettingsDetailLayout>
-    </AdvancedSettingsProvider>
   )
 }

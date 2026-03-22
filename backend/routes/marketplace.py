@@ -66,8 +66,9 @@ def list_marketplace_plugins():
 
         return jsonify({"plugins": plugins}), 200
     except Exception as e:
-        logger.exception("Failed to list marketplace plugins")
-        return jsonify({"error": str(e)}), 500
+        # Registry not available (e.g. URL does not exist yet) — return empty list
+        logger.warning("Marketplace registry unavailable: %s", e)
+        return jsonify({"plugins": [], "registry_unavailable": True}), 200
 
 
 @bp.route("/marketplace/plugins/<plugin_name>", methods=["GET"])

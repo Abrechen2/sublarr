@@ -15,6 +15,7 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { FormSkeleton } from '@/components/shared/PageSkeleton'
+import { AdvancedSettingsProvider } from '@/contexts/AdvancedSettingsContext'
 
 // Re-export legacy types/constants needed by other files
 export { NAV_GROUPS } from './LegacySettings'
@@ -60,6 +61,7 @@ const WebhooksPage = lazy(() =>
 
 export function SettingsPage() {
   return (
+    <AdvancedSettingsProvider>
     <Suspense fallback={<FormSkeleton />}>
       <Routes>
         <Route index element={<SettingsOverview />} />
@@ -76,5 +78,6 @@ export function SettingsPage() {
         <Route path="webhooks" element={<WebhooksPage />} />
       </Routes>
     </Suspense>
+    </AdvancedSettingsProvider>
   )
 }
