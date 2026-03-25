@@ -3,8 +3,9 @@
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import nullcontext as _nullcontext
 
-from flask import jsonify, request
+from flask import current_app, jsonify, request
 
 from routes.system import bp
 from version import __version__
@@ -43,13 +44,12 @@ def _health_check_ollama():
     return {"ollama": message}, healthy
 
 
-def _health_check_providers():
+def _health_check_providers(app=None):
     try:
-        from flask import current_app
-
         from providers import get_provider_manager
 
-        with current_app._get_current_object().app_context():
+        ctx = app.app_context() if app else _nullcontext()
+        with ctx:
             manager = get_provider_manager()
             provider_statuses = manager.get_provider_status()
             total = len(provider_statuses)
@@ -145,10 +145,11 @@ def health():
     healthy = True
     results_by_name = {}
 
+    _app = current_app._get_current_object()
     with ThreadPoolExecutor(max_workers=5) as executor:
         future_to_name = {
             executor.submit(_health_check_ollama): "ollama",
-            executor.submit(_health_check_providers): "providers",
+            executor.submit(_health_check_providers, _app): "providers",
             executor.submit(_health_check_sonarr): "sonarr",
             executor.submit(_health_check_radarr): "radarr",
             executor.submit(_health_check_media_servers): "media_servers",
