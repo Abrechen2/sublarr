@@ -88,6 +88,10 @@ class Settings(BaseSettings):
     # SubDL (Subscene successor)
     subdl_api_key: str = ""
 
+    # SubsDump (self-hosted Subscene archive)
+    subsdump_url: str = "http://192.168.178.195"
+    subsdump_api_key: str = ""
+
     # Sonarr (optional)
     sonarr_url: str = ""
     sonarr_api_key: str = ""

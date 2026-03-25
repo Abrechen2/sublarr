@@ -230,6 +230,10 @@ class ProviderManager:
         except ImportError as e:
             logger.debug("SubDL provider not available: %s", e)
         try:
+            from providers import subsdump  # noqa: F401
+        except ImportError as e:
+            logger.debug("SubsDump provider not available: %s", e)
+        try:
             from providers import gestdown  # noqa: F401
         except ImportError as e:
             logger.debug("Gestdown provider not available: %s", e)
