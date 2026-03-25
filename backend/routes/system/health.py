@@ -45,11 +45,14 @@ def _health_check_ollama():
 
 def _health_check_providers():
     try:
+        from flask import current_app
+
         from providers import get_provider_manager
 
-        manager = get_provider_manager()
-        provider_statuses = manager.get_provider_status()
-        total = len(provider_statuses)
+        with current_app._get_current_object().app_context():
+            manager = get_provider_manager()
+            provider_statuses = manager.get_provider_status()
+            total = len(provider_statuses)
         if total == 0:
             return {"providers": "healthy"}, None
         active_count = sum(1 for p in provider_statuses if p["healthy"])
