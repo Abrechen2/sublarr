@@ -246,6 +246,7 @@ class Settings(BaseSettings):
     provider_auto_disable_cooldown_minutes: int = (
         30  # Minutes before auto-disabled provider is re-enabled
     )
+    provider_rate_limit_throttle_minutes: int = 60  # Extended throttle on HTTP 429
 
     # Logging
     log_format: str = "text"  # "text" or "json" (structured JSON for log aggregation)
@@ -612,6 +613,7 @@ class ProviderSettings(_SettingsView):
             "circuit_breaker_failure_threshold",
             "circuit_breaker_cooldown_seconds",
             "provider_auto_disable_cooldown_minutes",
+            "provider_rate_limit_throttle_minutes",
             "addic7ed_username",
             "addic7ed_password",
             "turkcealtyazi_username",

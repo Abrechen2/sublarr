@@ -926,6 +926,15 @@ class ProviderManager:
                     cb = self._circuit_breakers.get(name)
                     if cb:
                         cb.record_failure()
+                        if cb.is_open:  # just transitioned to OPEN
+                            try:
+                                from db.providers import auto_disable_provider
+                                auto_disable_provider(
+                                    name,
+                                    cooldown_minutes=max(1, cb.cooldown_seconds // 60),
+                                )
+                            except Exception as _pe:
+                                logger.debug("CB persistence failed: %s", _pe)
                     update_provider_stats(name, success=False, score=0)
                     self._check_auto_disable(name)
                 except Exception as e:
@@ -933,6 +942,30 @@ class ProviderManager:
                     cb = self._circuit_breakers.get(name)
                     if cb:
                         cb.record_failure()
+                        if cb.is_open:  # just transitioned to OPEN
+                            try:
+                                from db.providers import auto_disable_provider
+                                auto_disable_provider(
+                                    name,
+                                    cooldown_minutes=max(1, cb.cooldown_seconds // 60),
+                                )
+                            except Exception as _pe:
+                                logger.debug("CB persistence failed: %s", _pe)
+                    # Rate-limit exception → extended throttle (Bazarr throttle_map parity)
+                    if isinstance(e, ProviderRateLimitError):
+                        throttle_min = getattr(
+                            self.settings, "provider_rate_limit_throttle_minutes", 60
+                        )
+                        try:
+                            from db.providers import auto_disable_provider
+                            auto_disable_provider(name, cooldown_minutes=throttle_min)
+                            logger.info(
+                                "Provider %s rate-limited: extended throttle for %d min",
+                                name,
+                                throttle_min,
+                            )
+                        except Exception as _te:
+                            logger.debug("Rate-limit throttle persistence failed: %s", _te)
                     update_provider_stats(name, success=False, score=0)
                     self._check_auto_disable(name)
 
