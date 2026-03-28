@@ -47,9 +47,9 @@ def alass_sync():
     try:
         from services.video_sync import SyncUnavailableError, sync_with_alass
 
-        sync_with_alass(subtitle_path, reference_path)
+        sync_result = sync_with_alass(subtitle_path, reference_path)
         logger.info("alass: synced %s using reference %s", subtitle_path, reference_path)
-        return jsonify({"status": "ok", "synced_path": subtitle_path}), 200
+        return jsonify({"status": "ok", **sync_result}), 200
 
     except Exception as e:
         try:

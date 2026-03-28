@@ -1,7 +1,7 @@
 """Tests for post_download.run_post_download_command."""
 
 
-def test_noop_when_empty():
+def test_run_post_download_command_noop_when_empty():
     from post_download import run_post_download_command
     # Should not raise
     run_post_download_command("", "/sub.ass", "de", "opensubtitles", 200, "/video.mkv")
@@ -12,7 +12,7 @@ def test_noop_when_whitespace():
     run_post_download_command("   ", "/sub.ass", "de", "opensubtitles", 200)
 
 
-def test_substitutes_variables(monkeypatch):
+def test_run_post_download_command_substitutes_variables(monkeypatch):
     import subprocess
     from post_download import run_post_download_command
 
@@ -31,7 +31,7 @@ def test_substitutes_variables(monkeypatch):
     assert "180" in calls[0]
 
 
-def test_handles_failure_gracefully(monkeypatch):
+def test_run_post_download_command_handles_failure_gracefully(monkeypatch):
     import subprocess
     from post_download import run_post_download_command
 
