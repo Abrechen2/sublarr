@@ -376,6 +376,15 @@ def process_wanted_item(item_id: int) -> dict:
                     upgrade_reason=f"SRT->ASS via {result.provider_name}",
                 )
 
+            # Resolve upgraded_from_id for upgrade chain audit trail
+            _upgraded_from_id: int | None = None
+            if is_upgrade:
+                try:
+                    from db.providers import get_latest_download_id
+                    _upgraded_from_id = get_latest_download_id(file_path)
+                except Exception as _uid_err:
+                    logger.debug("Could not resolve upgraded_from_id: %s", _uid_err)
+
             try:
                 manager.save_subtitle(result, output_path, series_id=item.get("sonarr_series_id"))
                 record_subtitle_download(
@@ -385,6 +394,7 @@ def process_wanted_item(item_id: int) -> dict:
                     result.format.value if result.format.value != "unknown" else "ass",
                     file_path,
                     result.score,
+                    upgraded_from_id=_upgraded_from_id,
                 )
                 logger.info(
                     "Wanted %d: Provider %s delivered target ASS directly",

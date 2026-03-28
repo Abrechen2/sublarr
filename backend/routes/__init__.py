@@ -40,6 +40,7 @@ def register_blueprints(app):
     from routes.tracks import bp as tracks_bp
     from routes.translate import bp as translate_bp
     from routes.video import bp as video_bp
+    from routes.sync import bp as sync_bp
     from routes.video_sync import bp as video_sync_bp
     from routes.wanted import bp as wanted_bp
     from routes.webhooks import bp as webhooks_bp
@@ -76,6 +77,7 @@ def register_blueprints(app):
         video_bp,
         anidb_mapping_bp,
         tracks_bp,
+        sync_bp,
         video_sync_bp,
         subtitles_bp,
         remux_bp,

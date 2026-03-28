@@ -196,6 +196,9 @@ class Settings(BaseSettings):
     # HI interjections list (newline-separated; empty = use backend/data/hi_interjections.txt)
     hi_interjections_list: str = ""
 
+    # Post-download shell command
+    post_download_command: str = ""  # Shell command to run after each subtitle download
+
     # NFO Export
     auto_nfo_export: bool = False  # Expert: write XML NFO sidecar after every download/translation
 

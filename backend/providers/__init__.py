@@ -1389,6 +1389,24 @@ class ProviderManager:
         except Exception as _exc:
             logger.warning("[pipeline] hook error: %s", _exc)
 
+        # Post-download shell command (user-configurable, Bazarr parity)
+        try:
+            from config import get_settings as _get_settings_pd
+            from post_download import run_post_download_command
+
+            _pd_settings = _get_settings_pd()
+            _pd_cmd = getattr(_pd_settings, "post_download_command", "")
+            if _pd_cmd:
+                run_post_download_command(
+                    _pd_cmd,
+                    subtitle_path=output_path,
+                    language=result.language or "",
+                    provider=result.provider_name or "",
+                    score=result.score or 0,
+                )
+        except Exception as _pd_err:
+            logger.warning("post_download_command hook failed: %s", _pd_err)
+
         return output_path
 
     def get_provider(self, name: str) -> "SubtitleProvider | None":
