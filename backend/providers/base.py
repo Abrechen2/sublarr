@@ -162,6 +162,7 @@ EPISODE_SCORES = {
     "source": 7,
     "audio_codec": 3,
     "resolution": 2,
+    "video_codec": 2,  # x264/x265/AV1 match
     "hearing_impaired": 1,
     "format_bonus": 50,  # ASS format bonus (Sublarr-specific)
 }
@@ -174,6 +175,7 @@ MOVIE_SCORES = {
     "source": 7,
     "audio_codec": 3,
     "resolution": 2,
+    "video_codec": 2,  # x264/x265/AV1 match
     "hearing_impaired": 1,
     "format_bonus": 50,
 }
