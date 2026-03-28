@@ -5,7 +5,7 @@ Variables available in the command string:
     {language}       — ISO 639-1 language code
     {provider}       — provider name (e.g. "jimaku")
     {score}          — integer match score
-    {video_path}     — absolute path to the source video file (may be empty)
+    {video_path}     — reserved for future use; currently always substituted as '' (empty string)
 """
 
 import logging

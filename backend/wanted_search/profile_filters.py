@@ -7,13 +7,13 @@ logger = logging.getLogger(__name__)
 
 
 def apply_must_contain(results: list, must_contain: list[str]) -> list:
-    """Keep only results whose release_info contains at least one must_contain term."""
+    """Keep only results whose release_info contains ALL must_contain terms (AND logic, Bazarr parity)."""
     if not must_contain:
         return results
     terms = [t.lower() for t in must_contain if t.strip()]
     if not terms:
         return results
-    filtered = [r for r in results if any(t in r.release_info.lower() for t in terms)]
+    filtered = [r for r in results if all(t in r.release_info.lower() for t in terms)]
     logger.debug("mustContain(%s): %d → %d results", terms, len(results), len(filtered))
     return filtered
 
