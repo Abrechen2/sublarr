@@ -79,14 +79,17 @@ def record_subtitle_download(
     file_path: str,
     score: int,
     source: str = "provider",
+    upgraded_from_id: int | None = None,
 ):
     """Record a subtitle download for history tracking.
 
     Args:
         source: Source type -- "provider" (default) or "whisper".
+        upgraded_from_id: DB id of the previous SubtitleDownload this one replaces.
     """
     result = _get_repo().record_subtitle_download(
-        provider_name, subtitle_id, language, fmt, file_path, score, source=source
+        provider_name, subtitle_id, language, fmt, file_path, score,
+        source=source, upgraded_from_id=upgraded_from_id,
     )
     # Also record in daily_stats so the Statistics page shows provider downloads
     try:
@@ -96,6 +99,11 @@ def record_subtitle_download(
     except Exception:
         logger.debug("Could not record download in daily_stats", exc_info=True)
     return result
+
+
+def get_latest_download_id(file_path: str) -> int | None:
+    """Return the DB id of the most recent download for this file path."""
+    return _get_repo().get_latest_download_id(file_path)
 
 
 # ---- Provider Statistics ----

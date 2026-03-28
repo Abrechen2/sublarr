@@ -138,6 +138,7 @@ class ProviderRepository(BaseRepository):
         file_path: str,
         score: int,
         source: str = "provider",
+        upgraded_from_id: int | None = None,
     ):
         """Record a subtitle download for history tracking.
 
@@ -149,6 +150,7 @@ class ProviderRepository(BaseRepository):
             file_path: Absolute path to the saved subtitle file.
             score: Provider score (0 for Whisper-generated).
             source: Source type -- "provider" (default) or "whisper".
+            upgraded_from_id: DB id of the previous SubtitleDownload this one replaces.
         """
         now = self._now()
         entry = SubtitleDownload(
@@ -160,9 +162,22 @@ class ProviderRepository(BaseRepository):
             score=score,
             source=source,
             downloaded_at=now,
+            upgraded_from_id=upgraded_from_id,
         )
         self.session.add(entry)
         self._commit()
+
+    def get_latest_download_id(self, file_path: str) -> int | None:
+        """Return the id of the most recent SubtitleDownload for this file, or None."""
+        from sqlalchemy import desc, select
+
+        stmt = (
+            select(SubtitleDownload.id)
+            .where(SubtitleDownload.file_path == file_path)
+            .order_by(desc(SubtitleDownload.downloaded_at))
+            .limit(1)
+        )
+        return self.session.execute(stmt).scalar_one_or_none()
 
     def get_provider_download_stats(self) -> dict:
         """Get download counts per provider, broken down by format."""
