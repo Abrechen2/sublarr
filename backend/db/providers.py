@@ -88,8 +88,14 @@ def record_subtitle_download(
         upgraded_from_id: DB id of the previous SubtitleDownload this one replaces.
     """
     result = _get_repo().record_subtitle_download(
-        provider_name, subtitle_id, language, fmt, file_path, score,
-        source=source, upgraded_from_id=upgraded_from_id,
+        provider_name,
+        subtitle_id,
+        language,
+        fmt,
+        file_path,
+        score,
+        source=source,
+        upgraded_from_id=upgraded_from_id,
     )
     # Also record in daily_stats so the Statistics page shows provider downloads
     try:

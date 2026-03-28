@@ -78,11 +78,13 @@ def _lang_to_api_name(lang_code: str) -> str | None:
 
 
 def _is_hi(item: dict) -> bool:
-    text = " ".join([
-        str(item.get("comment") or ""),
-        str(item.get("releases") or ""),
-        str(item.get("fileLink") or ""),
-    ]).lower()
+    text = " ".join(
+        [
+            str(item.get("comment") or ""),
+            str(item.get("releases") or ""),
+            str(item.get("fileLink") or ""),
+        ]
+    ).lower()
     non_hi = ["hi remove", "non hi", "non-hi", "non-sdh", "nonsdh", "sdh remove"]
     if any(t in text for t in non_hi):
         return False
@@ -91,10 +93,12 @@ def _is_hi(item: dict) -> bool:
 
 
 def _is_forced(item: dict) -> bool:
-    text = " ".join([
-        str(item.get("comment") or ""),
-        str(item.get("releases") or ""),
-    ]).lower()
+    text = " ".join(
+        [
+            str(item.get("comment") or ""),
+            str(item.get("releases") or ""),
+        ]
+    ).lower()
     return any(t in text for t in ("forced", "foreign"))
 
 
@@ -166,10 +170,7 @@ class SubsDumpProvider(SubtitleProvider):
             or getattr(settings, "subsdump_url", "")
             or "http://192.168.178.195"
         )
-        api_key = (
-            self.config.get("subsdump_api_key")
-            or getattr(settings, "subsdump_api_key", "")
-        )
+        api_key = self.config.get("subsdump_api_key") or getattr(settings, "subsdump_api_key", "")
 
         self._base = _normalize_url(url) + "/api/v1"
         self._session = create_session()
@@ -184,9 +185,7 @@ class SubsDumpProvider(SubtitleProvider):
 
     def health_check(self) -> tuple[bool, str]:
         try:
-            r = self._session.get(
-                self._base.replace("/api/v1", "/healthz"), timeout=5
-            )
+            r = self._session.get(self._base.replace("/api/v1", "/healthz"), timeout=5)
             r.raise_for_status()
             data = r.json()
             if data.get("ok"):
@@ -236,7 +235,9 @@ class SubsDumpProvider(SubtitleProvider):
             except Exception as exc:
                 logger.warning(
                     "subsdump: search failed imdb=%s lang=%s: %s",
-                    imdb, lang_name, exc,
+                    imdb,
+                    lang_name,
+                    exc,
                 )
                 continue
 

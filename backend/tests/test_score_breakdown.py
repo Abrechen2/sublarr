@@ -110,14 +110,16 @@ class TestScoreBreakdown:
 
     def test_video_codec_in_episode_scores(self):
         from providers.base import EPISODE_SCORES, MOVIE_SCORES
+
         assert "video_codec" in EPISODE_SCORES
         assert EPISODE_SCORES["video_codec"] == 2
         assert "video_codec" in MOVIE_SCORES
         assert MOVIE_SCORES["video_codec"] == 2
 
     def test_video_codec_match_adds_points(self):
-        from providers.base import SubtitleFormat, SubtitleResult, VideoQuery, compute_score
         from unittest.mock import patch
+
+        from providers.base import SubtitleFormat, SubtitleResult, VideoQuery, compute_score
 
         result = SubtitleResult(
             provider_name="test",
@@ -128,8 +130,9 @@ class TestScoreBreakdown:
         )
         query = VideoQuery(series_title="Test Show", season=1, episode=5, video_codec="x265")
         with (
-            patch("providers.base._get_cached_weights",
-                  return_value={"series": 180, "video_codec": 2}),
+            patch(
+                "providers.base._get_cached_weights", return_value={"series": 180, "video_codec": 2}
+            ),
             patch("providers.base._get_cached_modifier", return_value=0),
         ):
             score = compute_score(result, query)

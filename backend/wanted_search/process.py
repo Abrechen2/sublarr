@@ -381,6 +381,7 @@ def process_wanted_item(item_id: int) -> dict:
             if is_upgrade:
                 try:
                     from db.providers import get_latest_download_id
+
                     _upgraded_from_id = get_latest_download_id(file_path)
                 except Exception as _uid_err:
                     logger.debug("Could not resolve upgraded_from_id: %s", _uid_err)

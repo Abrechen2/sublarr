@@ -32,8 +32,7 @@ def run_post_download_command(
         return
 
     expanded = (
-        command
-        .replace("{subtitle_path}", shlex.quote(subtitle_path))
+        command.replace("{subtitle_path}", shlex.quote(subtitle_path))
         .replace("{language}", shlex.quote(language))
         .replace("{provider}", shlex.quote(provider))
         .replace("{score}", str(int(score)))

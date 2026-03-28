@@ -929,6 +929,7 @@ class ProviderManager:
                         if cb.is_open:  # just transitioned to OPEN
                             try:
                                 from db.providers import auto_disable_provider
+
                                 auto_disable_provider(
                                     name,
                                     cooldown_minutes=max(1, cb.cooldown_seconds // 60),
@@ -945,6 +946,7 @@ class ProviderManager:
                         if cb.is_open:  # just transitioned to OPEN
                             try:
                                 from db.providers import auto_disable_provider
+
                                 auto_disable_provider(
                                     name,
                                     cooldown_minutes=max(1, cb.cooldown_seconds // 60),
@@ -958,6 +960,7 @@ class ProviderManager:
                         )
                         try:
                             from db.providers import auto_disable_provider
+
                             auto_disable_provider(name, cooldown_minutes=throttle_min)
                             logger.info(
                                 "Provider %s rate-limited: extended throttle for %d min",

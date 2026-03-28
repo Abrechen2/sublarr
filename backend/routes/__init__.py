@@ -35,12 +35,12 @@ def register_blueprints(app):
     from routes.standalone import bp as standalone_bp
     from routes.subtitle_processor import bp as subtitle_processor_bp
     from routes.subtitles import bp as subtitles_bp
+    from routes.sync import bp as sync_bp
     from routes.system import bp as system_bp
     from routes.tools import bp as tools_bp
     from routes.tracks import bp as tracks_bp
     from routes.translate import bp as translate_bp
     from routes.video import bp as video_bp
-    from routes.sync import bp as sync_bp
     from routes.video_sync import bp as video_sync_bp
     from routes.wanted import bp as wanted_bp
     from routes.webhooks import bp as webhooks_bp

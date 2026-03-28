@@ -1,4 +1,5 @@
 """Tests for upgrade chain tracking (upgraded_from_id in subtitle_downloads)."""
+
 from unittest.mock import MagicMock, patch
 
 

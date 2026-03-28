@@ -9,9 +9,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute(
-        "ALTER TABLE subtitle_downloads ADD COLUMN upgraded_from_id INTEGER"
-    )
+    op.execute("ALTER TABLE subtitle_downloads ADD COLUMN upgraded_from_id INTEGER")
 
 
 def downgrade() -> None:

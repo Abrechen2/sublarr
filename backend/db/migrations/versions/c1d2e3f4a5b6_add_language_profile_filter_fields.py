@@ -10,17 +10,12 @@ depends_on = None
 
 def upgrade() -> None:
     op.execute(
-        "ALTER TABLE language_profiles ADD COLUMN "
-        "must_contain_json TEXT NOT NULL DEFAULT '[]'"
+        "ALTER TABLE language_profiles ADD COLUMN must_contain_json TEXT NOT NULL DEFAULT '[]'"
     )
     op.execute(
-        "ALTER TABLE language_profiles ADD COLUMN "
-        "must_not_contain_json TEXT NOT NULL DEFAULT '[]'"
+        "ALTER TABLE language_profiles ADD COLUMN must_not_contain_json TEXT NOT NULL DEFAULT '[]'"
     )
-    op.execute(
-        "ALTER TABLE language_profiles ADD COLUMN "
-        "cutoff_language TEXT NOT NULL DEFAULT ''"
-    )
+    op.execute("ALTER TABLE language_profiles ADD COLUMN cutoff_language TEXT NOT NULL DEFAULT ''")
     op.execute(
         "ALTER TABLE language_profiles ADD COLUMN "
         "audio_exclude_languages_json TEXT NOT NULL DEFAULT '[]'"
