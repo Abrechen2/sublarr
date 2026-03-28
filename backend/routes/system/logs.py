@@ -173,18 +173,24 @@ def _build_diagnostic() -> dict:
 
     # Wanted + translation stats from DB
     try:
+        from sqlalchemy import func, select
+
         from db import get_db
+        from db.models.core import WantedItem
         from db.repositories.config import ConfigRepository
         from db.repositories.translation import TranslationRepository
-        from db.repositories.wanted import WantedRepository
 
         db = get_db()
-        wr = WantedRepository(db)
+        rows = db.execute(
+            select(WantedItem.status, func.count().label("cnt")).group_by(WantedItem.status)
+        ).all()
+        counts_by_status = {row[0]: row[1] for row in rows}
+        total = sum(counts_by_status.values())
         diag["wanted"] = {
-            "total": wr.get_wanted_count(),
-            "pending": wr.get_wanted_count(status="wanted"),
-            "extracted": wr.get_wanted_count(status="extracted"),
-            "failed": wr.get_wanted_count(status="failed"),
+            "total": total,
+            "pending": counts_by_status.get("wanted", 0),
+            "extracted": counts_by_status.get("extracted", 0),
+            "failed": counts_by_status.get("failed", 0),
         }
         tr = TranslationRepository(db)
         rows = tr.get_backend_stats()
