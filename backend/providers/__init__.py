@@ -767,6 +767,8 @@ class ProviderManager:
         format_filter: SubtitleFormat | None = None,
         min_score: int = 0,
         early_exit: bool = True,
+        must_contain: list[str] | None = None,
+        must_not_contain: list[str] | None = None,
     ) -> list[SubtitleResult]:
         """Search all providers in parallel and return scored, sorted results.
 
@@ -775,6 +777,8 @@ class ProviderManager:
             format_filter: Only return results of this format (e.g. ASS)
             min_score: Minimum score threshold
             early_exit: If True, stop searching when a perfect match (score >= 400) is found
+            must_contain: Release title must contain all of these strings (case-insensitive)
+            must_not_contain: Release title must not contain any of these strings (case-insensitive)
 
         Returns:
             List of SubtitleResult sorted by score (highest first)
@@ -975,6 +979,16 @@ class ProviderManager:
 
         all_results = [r for r in all_results if not is_blacklisted(r.provider_name, r.subtitle_id)]
 
+        # mustContain / mustNotContain filtering (language profile)
+        if must_contain:
+            from wanted_search.profile_filters import apply_must_contain
+
+            all_results = apply_must_contain(all_results, must_contain)
+        if must_not_contain:
+            from wanted_search.profile_filters import apply_must_not_contain
+
+            all_results = apply_must_not_contain(all_results, must_not_contain)
+
         # Release group filtering: exclude blocked groups, boost preferred groups
         from config import get_settings
 
@@ -1052,6 +1066,8 @@ class ProviderManager:
         format_filter: SubtitleFormat | None = None,
         min_score: int = 0,
         early_exit: bool = True,
+        must_contain: list[str] | None = None,
+        must_not_contain: list[str] | None = None,
     ) -> list[SubtitleResult]:
         """Search providers with fallback to embedded subtitles.
 
@@ -1060,12 +1076,19 @@ class ProviderManager:
             format_filter: Only return results of this format (e.g. ASS)
             min_score: Minimum score threshold
             early_exit: If True, stop searching when a perfect match is found
+            must_contain: Release title must contain all of these strings (case-insensitive)
+            must_not_contain: Release title must not contain any of these strings (case-insensitive)
 
         Returns:
             List of SubtitleResult sorted by score (highest first)
         """
         return self.search(
-            query, format_filter=format_filter, min_score=min_score, early_exit=early_exit
+            query,
+            format_filter=format_filter,
+            min_score=min_score,
+            early_exit=early_exit,
+            must_contain=must_contain,
+            must_not_contain=must_not_contain,
         )
 
     def download(self, result: SubtitleResult) -> bytes | None:
@@ -1105,13 +1128,21 @@ class ProviderManager:
         query: VideoQuery,
         format_filter: SubtitleFormat | None = None,
         min_score: int = 0,
+        must_contain: list[str] | None = None,
+        must_not_contain: list[str] | None = None,
     ) -> SubtitleResult | None:
         """Convenience: search with fallback, pick best, download it.
 
         Returns:
             SubtitleResult with content populated, or None
         """
-        results = self.search_with_fallback(query, format_filter=format_filter, min_score=min_score)
+        results = self.search_with_fallback(
+            query,
+            format_filter=format_filter,
+            min_score=min_score,
+            must_contain=must_contain,
+            must_not_contain=must_not_contain,
+        )
         if not results:
             return None
 
