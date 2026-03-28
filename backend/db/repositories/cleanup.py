@@ -80,46 +80,36 @@ class CleanupRepository(BaseRepository):
         Returns:
             List of dicts: [{hash, count, files: [{path, size, format, language}]}]
         """
-        # Find content hashes with multiple files
-        dup_hashes_stmt = (
-            select(
-                SubtitleHash.content_hash,
-                func.count().label("cnt"),
-            )
+        # Single query: fetch all duplicate files using a subquery for the duplicate hashes
+        dup_hashes_subq = (
+            select(SubtitleHash.content_hash)
             .group_by(SubtitleHash.content_hash)
             .having(func.count() > 1)
+            .scalar_subquery()
         )
-        dup_rows = self.session.execute(dup_hashes_stmt).all()
-
-        groups = []
-        for row in dup_rows:
-            content_hash = row[0]
-            count = row[1]
-
-            files_stmt = (
+        all_dup_files = (
+            self.session.execute(
                 select(SubtitleHash)
-                .where(SubtitleHash.content_hash == content_hash)
-                .order_by(SubtitleHash.file_path)
+                .where(SubtitleHash.content_hash.in_(dup_hashes_subq))
+                .order_by(SubtitleHash.content_hash, SubtitleHash.file_path)
             )
-            files = self.session.execute(files_stmt).scalars().all()
+            .scalars()
+            .all()
+        )
 
-            groups.append(
+        # Group in Python — already ordered by content_hash
+        groups: dict[str, list] = {}
+        for f in all_dup_files:
+            groups.setdefault(f.content_hash, []).append(
                 {
-                    "hash": content_hash,
-                    "count": count,
-                    "files": [
-                        {
-                            "path": f.file_path,
-                            "size": f.file_size,
-                            "format": f.format,
-                            "language": f.language,
-                        }
-                        for f in files
-                    ],
+                    "path": f.file_path,
+                    "size": f.file_size,
+                    "format": f.format,
+                    "language": f.language,
                 }
             )
 
-        return groups
+        return [{"hash": h, "count": len(files), "files": files} for h, files in groups.items()]
 
     def find_by_content_hash(self, content_hash: str) -> list[dict]:
         """Find all subtitle hash records matching the given SHA-256 hash.
