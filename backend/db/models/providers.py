@@ -43,7 +43,10 @@ class SubtitleDownload(db.Model):
     source: Mapped[str | None] = mapped_column(Text, default="provider")  # "provider" | "whisper"
     downloaded_at: Mapped[str] = mapped_column(Text, nullable=False)
 
-    __table_args__ = (Index("idx_subtitle_downloads_path", "file_path"),)
+    __table_args__ = (
+        Index("idx_subtitle_downloads_path", "file_path"),
+        Index("idx_subtitle_downloads_downloaded_at", "downloaded_at"),
+    )
 
 
 class ProviderStats(db.Model):
