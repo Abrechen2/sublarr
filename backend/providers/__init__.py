@@ -1390,13 +1390,11 @@ class ProviderManager:
             logger.warning("[pipeline] hook error: %s", _exc)
 
         # Post-download shell command (user-configurable, Bazarr parity)
-        try:
-            from config import get_settings as _get_settings_pd
-            from post_download import run_post_download_command
+        from post_download import run_post_download_command
 
-            _pd_settings = _get_settings_pd()
-            _pd_cmd = getattr(_pd_settings, "post_download_command", "")
-            if _pd_cmd:
+        _pd_cmd = getattr(self.settings, "post_download_command", "")
+        if _pd_cmd:
+            try:
                 run_post_download_command(
                     _pd_cmd,
                     subtitle_path=output_path,
@@ -1404,8 +1402,8 @@ class ProviderManager:
                     provider=result.provider_name or "",
                     score=result.score or 0,
                 )
-        except Exception as _pd_err:
-            logger.warning("post_download_command hook failed: %s", _pd_err)
+            except Exception as _pd_err:
+                logger.warning("post_download_command hook failed: %s", _pd_err)
 
         return output_path
 

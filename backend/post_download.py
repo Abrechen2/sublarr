@@ -37,10 +37,12 @@ def run_post_download_command(
         .replace("{language}", shlex.quote(language))
         .replace("{provider}", shlex.quote(provider))
         .replace("{score}", str(int(score)))
-        .replace("{video_path}", shlex.quote(video_path) if video_path else "")
+        .replace("{video_path}", shlex.quote(video_path))
     )
     try:
         logger.info("Running post-download command: %s", expanded)
         subprocess.run(expanded, shell=True, timeout=60, check=False)
+    except subprocess.TimeoutExpired:
+        logger.warning("post_download_command timed out after 60 s")
     except Exception as exc:
         logger.warning("post_download_command failed: %s", exc)

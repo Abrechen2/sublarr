@@ -13,6 +13,12 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint("sync", __name__, url_prefix="/api/v1/sync")
 
+try:
+    from services.video_sync import SyncUnavailableError, sync_with_alass
+except ImportError:
+    SyncUnavailableError = None  # type: ignore[assignment,misc]
+    sync_with_alass = None  # type: ignore[assignment]
+
 
 @bp.route("/alass", methods=["POST"])
 @require_api_key
@@ -23,8 +29,12 @@ def alass_sync():
         subtitle_path (str): absolute path to subtitle to sync (modified in-place)
         reference_path (str): absolute path to reference subtitle (read-only)
 
-    Returns 200 on success, 400 on bad params, 403 on path traversal, 500 on error.
+    Returns 200 on success, 400 on bad params, 403 on path traversal, 503 if alass unavailable,
+    500 on error.
     """
+    if sync_with_alass is None:
+        return jsonify({"error": "alass sync unavailable — install alass"}), 503
+
     data = request.get_json(silent=True) or {}
     subtitle_path = data.get("subtitle_path", "").strip()
     reference_path = data.get("reference_path", "").strip()
@@ -45,20 +55,11 @@ def alass_sync():
         return jsonify({"error": f"reference_path not found: {reference_path}"}), 404
 
     try:
-        from services.video_sync import SyncUnavailableError, sync_with_alass
-
         sync_result = sync_with_alass(subtitle_path, reference_path)
         logger.info("alass: synced %s using reference %s", subtitle_path, reference_path)
         return jsonify({"status": "ok", **sync_result}), 200
-
     except Exception as e:
-        try:
-            from services.video_sync import SyncUnavailableError
-            if isinstance(e, SyncUnavailableError):
-                return jsonify({"error": f"alass unavailable: {e}"}), 503
-        except ImportError:
-            pass
-        if isinstance(e, ImportError):
-            return jsonify({"error": "alass is not installed on this system"}), 503
+        if SyncUnavailableError and isinstance(e, SyncUnavailableError):
+            return jsonify({"error": "alass sync unavailable — install alass"}), 503
         logger.error("alass sync failed: %s", e, exc_info=True)
-        return jsonify({"error": f"Sync failed: {e}"}), 500
+        return jsonify({"error": str(e)}), 500
