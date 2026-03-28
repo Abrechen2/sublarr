@@ -1395,7 +1395,10 @@ class ProviderManager:
         # Post-download shell command (user-configurable, Bazarr parity)
         from post_download import run_post_download_command
 
-        _pd_cmd = getattr(self.settings, "post_download_command", "")
+        _pd_settings = getattr(self, "settings", None)
+        _pd_cmd = (
+            getattr(_pd_settings, "post_download_command", "") if _pd_settings is not None else ""
+        )
         if _pd_cmd:
             try:
                 run_post_download_command(
