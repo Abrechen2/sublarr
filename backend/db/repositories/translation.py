@@ -21,6 +21,9 @@ from db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
 
+# Fuzzy scan performance guard: skip similarity scan if cache is too large
+_FUZZY_SCAN_LIMIT = 5_000
+
 
 class TranslationRepository(BaseRepository):
     """Repository for translation-related table operations."""
@@ -539,6 +542,27 @@ class TranslationRepository(BaseRepository):
             return None
 
         import difflib
+
+        # Guard: fuzzy scan is O(N) — skip if cache is too large
+        count = (
+            self.session.execute(
+                select(func.count())
+                .select_from(TranslationMemory)
+                .where(
+                    TranslationMemory.source_lang == source_lang,
+                    TranslationMemory.target_lang == target_lang,
+                )
+            ).scalar()
+            or 0
+        )
+        if count > _FUZZY_SCAN_LIMIT:
+            logger.warning(
+                "Translation memory too large for fuzzy scan (%d rows for %s→%s); skipping",
+                count,
+                source_lang,
+                target_lang,
+            )
+            return None
 
         candidates = self.session.execute(
             select(
