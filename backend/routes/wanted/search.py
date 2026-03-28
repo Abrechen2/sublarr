@@ -410,7 +410,8 @@ def wanted_batch_action():
         400:
           description: Invalid input
     """
-    from db.wanted import get_wanted_item, update_wanted_status
+    from db import get_db
+    from db.repositories.wanted import WantedRepository
 
     ALLOWED_ACTIONS = {"ignore", "unignore", "blacklist", "export"}
 
@@ -432,11 +433,8 @@ def wanted_batch_action():
 
     # Export action: return item data without DB changes
     if action == "export":
-        items = []
-        for item_id in item_ids:
-            item = get_wanted_item(item_id)
-            if item:
-                items.append(item)
+        items_map = WantedRepository(get_db()).get_wanted_items_by_ids(item_ids)
+        items = [items_map[i] for i in item_ids if i in items_map]
         return jsonify({"success": True, "action": "export", "data": items})
 
     # Process each item
@@ -444,39 +442,36 @@ def wanted_batch_action():
     warning = None
 
     if action == "ignore":
-        for item_id in item_ids:
-            if update_wanted_status(item_id, "ignored"):
-                affected += 1
+        affected = WantedRepository(get_db()).update_wanted_status_bulk(item_ids, "ignored")
 
     elif action == "unignore":
-        for item_id in item_ids:
-            item = get_wanted_item(item_id)
-            if item and item.get("status") == "ignored":
-                if update_wanted_status(item_id, "wanted"):
-                    affected += 1
+        wr = WantedRepository(get_db())
+        items_map = wr.get_wanted_items_by_ids(item_ids)
+        ignored_ids = [i for i in item_ids if items_map.get(i, {}).get("status") == "ignored"]
+        affected = wr.update_wanted_status_bulk(ignored_ids, "wanted") if ignored_ids else 0
 
     elif action == "blacklist":
         try:
             from db.blacklist import add_blacklist_entry
 
-            for item_id in item_ids:
-                item = get_wanted_item(item_id)
-                if item:
-                    add_blacklist_entry(
-                        provider_name="manual",
-                        subtitle_id=str(item_id),
-                        file_path=item.get("file_path", ""),
-                        title=item.get("title", ""),
-                        reason="batch_blacklist",
-                    )
-                    update_wanted_status(item_id, "ignored")
-                    affected += 1
+            wr = WantedRepository(get_db())
+            items_map = wr.get_wanted_items_by_ids(item_ids)
+            for item_id, item in items_map.items():
+                add_blacklist_entry(
+                    provider_name="manual",
+                    subtitle_id=str(item_id),
+                    file_path=item.get("file_path", ""),
+                    title=item.get("title", ""),
+                    reason="batch_blacklist",
+                )
+            ids_to_ignore = list(items_map.keys())
+            affected = (
+                wr.update_wanted_status_bulk(ids_to_ignore, "ignored") if ids_to_ignore else 0
+            )
         except ImportError:
             # Blacklist module not available -- fall back to ignore
             warning = "Blacklist module not available, items set to ignored instead"
-            for item_id in item_ids:
-                if update_wanted_status(item_id, "ignored"):
-                    affected += 1
+            affected = WantedRepository(get_db()).update_wanted_status_bulk(item_ids, "ignored")
 
     result = {
         "success": True,
