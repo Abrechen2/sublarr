@@ -100,13 +100,25 @@ def get_library():
 
                 db = get_db()
 
+                series_missing_rows = db.execute(
+                    text(
+                        "SELECT standalone_series_id, COUNT(*) FROM wanted_items "
+                        "WHERE standalone_series_id IS NOT NULL AND status='wanted' "
+                        "GROUP BY standalone_series_id"
+                    )
+                ).fetchall()
+                series_missing_map = {row[0]: row[1] for row in series_missing_rows}
+
+                movie_missing_rows = db.execute(
+                    text(
+                        "SELECT standalone_movie_id, COUNT(*) FROM wanted_items "
+                        "WHERE standalone_movie_id IS NOT NULL AND status='wanted' "
+                        "GROUP BY standalone_movie_id"
+                    )
+                ).fetchall()
+                movie_missing_map = {row[0]: row[1] for row in movie_missing_rows}
+
                 for s in get_standalone_series():
-                    row = db.execute(
-                        text(
-                            "SELECT COUNT(*) FROM wanted_items WHERE standalone_series_id=:sid AND status='wanted'"
-                        ),
-                        {"sid": s["id"]},
-                    ).fetchone()
                     # Use the API endpoint for local posters (browser can't load file:// URLs)
                     poster = (
                         f"/api/v1/standalone/series/{s['id']}/poster" if s.get("poster_url") else ""
@@ -124,7 +136,7 @@ def get_library():
                             "status": "continuing",
                             "profile_id": profile_id,
                             "profile_name": profile_name,
-                            "missing_count": row[0] if row else 0,
+                            "missing_count": series_missing_map.get(s["id"], 0),
                             "source": "standalone",
                         }
                     )
@@ -140,12 +152,6 @@ def get_library():
                         "sample",
                     ):
                         continue
-                    row = db.execute(
-                        text(
-                            "SELECT COUNT(*) FROM wanted_items WHERE standalone_movie_id=:mid AND status='wanted'"
-                        ),
-                        {"mid": m["id"]},
-                    ).fetchone()
                     movie_poster = (
                         f"/api/v1/standalone/movies/{m['id']}/poster" if m.get("poster_url") else ""
                     )
@@ -158,7 +164,7 @@ def get_library():
                             "path": m.get("file_path", ""),
                             "poster": movie_poster,
                             "status": "released",
-                            "missing_count": row[0] if row else 0,
+                            "missing_count": movie_missing_map.get(m["id"], 0),
                             "source": "standalone",
                         }
                     )
