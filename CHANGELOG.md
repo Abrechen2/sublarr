@@ -18,9 +18,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Download Quality — post-download command** — `post_download_command` config executes an arbitrary shell command after each successful download; supports `{subtitle_path}`, `{language}`, `{provider}`, `{score}` variable substitution
 - **Sync — manual alass endpoint** — `POST /api/v1/sync/alass` triggers alass subtitle synchronisation on demand
 
+### Added
+- **Standalone Mode — Auto-activation** — `is_standalone_mode()` helper auto-activates standalone mode when no *arr is configured; `StandaloneStatus` extended with `arr_configured` and `auto_activated` fields
+- **Connections — Standalone scan button** — manual scan button added to the Standalone section in Connection Settings
+
+### Changed
+- **Settings — Connections** — removed central API Keys section; API keys are now managed inline within each connection's own settings panel
+- **Translation — Beta marking** — Translation card on Settings overview now shows "BETA" pill; Translation Settings page shows a warning banner
+
 ### Fixed
 - **Language Profiles — mustContain AND logic** — corrected to require ALL terms instead of ANY term (Bazarr parity fix)
 - **Post-download hook** — guard added via `getattr(self, 'settings', None)` to prevent crash when settings are not available
+- **OpenSubtitles — Anime season-1 collapse** — fallback search now maps S02+ episodes to Season 1 with the original episode number (not absolute episode); `moviehash` stripped from fallback params to allow title-based lookup
+- **UI — WebSocket events** — corrected event names (`upgrade_complete`, `wanted_scan_complete`); added `wanted_item_searched` handler
+- **UI — Wanted page** — per-row independent loading state (shared `isPending` was spinning all rows simultaneously)
+- **UI — Episode Search Panel** — null-safety guards on `target_results` and `source_results`
 
 ---
 
