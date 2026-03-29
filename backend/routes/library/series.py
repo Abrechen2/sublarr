@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
     """Build a Sonarr-compatible series detail dict from standalone DB data."""
     import re
+    from concurrent.futures import ThreadPoolExecutor
 
     from sqlalchemy import text
 
@@ -69,6 +70,27 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
         except Exception as exc:
             logger.debug("subtitle_downloads score query failed: %s", exc)
 
+    # Collect unique file paths for parallel subtitle detection
+    unique_fps = list({item.get("file_path", "") for item in wanted_items if item.get("file_path")})
+
+    def _detect_subtitles(file_path: str) -> dict:
+        """Detect subtitles for a single file across all target languages."""
+        result = {}
+        for lang in target_languages:
+            try:
+                detected = detect_existing_target_for_lang(file_path, lang)
+                result[lang] = detected or ""
+            except Exception:
+                result[lang] = ""
+        return result
+
+    # Parallel filesystem I/O — 2x+ faster for series with many episodes
+    subtitle_map: dict = {}
+    if unique_fps:
+        with ThreadPoolExecutor(max_workers=min(8, len(unique_fps))) as executor:
+            futures = {fp: executor.submit(_detect_subtitles, fp) for fp in unique_fps}
+        subtitle_map = {fp: f.result() for fp, f in futures.items()}
+
     episodes = []
     seen: set = set()
     for item in wanted_items:
@@ -82,13 +104,7 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
             m = re.match(r"S(\d+)E(\d+)", se, re.IGNORECASE)
             if m:
                 season, episode = int(m.group(1)), int(m.group(2))
-        subtitles: dict = {}
-        for lang in target_languages:
-            try:
-                result = detect_existing_target_for_lang(fp, lang)
-                subtitles[lang] = result or ""
-            except Exception:
-                subtitles[lang] = ""
+        subtitles = subtitle_map.get(fp, {lang: "" for lang in target_languages})
         ep_scores_sa = standalone_scores.get(fp, {})
         episodes.append(
             {

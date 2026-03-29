@@ -35,6 +35,7 @@ def register_blueprints(app):
     from routes.standalone import bp as standalone_bp
     from routes.subtitle_processor import bp as subtitle_processor_bp
     from routes.subtitles import bp as subtitles_bp
+    from routes.sync import bp as sync_bp
     from routes.system import bp as system_bp
     from routes.tools import bp as tools_bp
     from routes.tracks import bp as tracks_bp
@@ -76,6 +77,7 @@ def register_blueprints(app):
         video_bp,
         anidb_mapping_bp,
         tracks_bp,
+        sync_bp,
         video_sync_bp,
         subtitles_bp,
         remux_bp,

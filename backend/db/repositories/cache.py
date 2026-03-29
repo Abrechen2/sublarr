@@ -18,6 +18,8 @@ from db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
 
+_FFPROBE_CLEANUP_BATCH = 500
+
 
 class CacheRepository(BaseRepository):
     """Repository for ffprobe_cache, episode history, and anidb_mappings operations."""
@@ -95,13 +97,30 @@ class CacheRepository(BaseRepository):
     def cleanup_stale_ffprobe_cache(self, dry_run: bool = False) -> dict:
         """Remove cache entries for files that no longer exist on disk.
 
+        Processes in batches of ``_FFPROBE_CLEANUP_BATCH`` to limit memory pressure.
+
         Returns:
-            Dict with ``removed`` (int) and ``paths`` (list of removed paths).
+            Dict with ``removed`` (int), ``paths`` (list of removed paths), and ``dry_run`` (bool).
         """
         import os
 
-        all_paths = self.session.execute(select(FfprobeCache.file_path)).scalars().all()
-        stale = [p for p in all_paths if not os.path.exists(p)]
+        stale: list[str] = []
+        offset = 0
+        while True:
+            batch = (
+                self.session.execute(
+                    select(FfprobeCache.file_path)
+                    .order_by(FfprobeCache.file_path)
+                    .limit(_FFPROBE_CLEANUP_BATCH)
+                    .offset(offset)
+                )
+                .scalars()
+                .all()
+            )
+            if not batch:
+                break
+            stale.extend(p for p in batch if not os.path.exists(p))
+            offset += _FFPROBE_CLEANUP_BATCH
 
         if not dry_run and stale:
             self.session.execute(delete(FfprobeCache).where(FfprobeCache.file_path.in_(stale)))

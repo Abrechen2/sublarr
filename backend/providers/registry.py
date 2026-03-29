@@ -16,4 +16,5 @@ PROVIDER_METADATA: dict[str, dict] = {
     "jimaku": {"rate_limit": (100, 60), "timeout": 12, "retries": 2},
     "animetosho": {"rate_limit": (50, 30), "timeout": 10, "retries": 2},
     "subdl": {"rate_limit": (30, 10), "timeout": 10, "retries": 2},
+    "subsdump": {"rate_limit": (0, 0), "timeout": 30, "retries": 2},
 }

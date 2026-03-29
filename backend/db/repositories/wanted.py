@@ -10,7 +10,7 @@ with conditional handling for empty/null target_language.
 import json
 import logging
 
-from sqlalchemy import asc, delete, desc, func, or_, select
+from sqlalchemy import asc, delete, desc, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
 from db.models.core import WantedItem
@@ -364,6 +364,27 @@ class WantedRepository(BaseRepository):
     def delete_wanted_by_file_path(self, file_path: str) -> int:
         """Delete wanted items by file path. Returns count deleted."""
         stmt = delete(WantedItem).where(WantedItem.file_path == file_path)
+        result = self.session.execute(stmt)
+        self._commit()
+        return result.rowcount
+
+    def get_wanted_items_by_ids(self, item_ids: list[int]) -> dict[int, dict]:
+        """Fetch multiple wanted items in one query. Returns a dict mapping id -> item dict."""
+        if not item_ids:
+            return {}
+        stmt = select(WantedItem).where(WantedItem.id.in_(item_ids))
+        rows = self.session.execute(stmt).scalars().all()
+        return {r.id: self._row_to_wanted(r) for r in rows}
+
+    def update_wanted_status_bulk(self, item_ids: list[int], status: str, error: str = "") -> int:
+        """Update status for multiple wanted items in one UPDATE. Returns count updated."""
+        if not item_ids:
+            return 0
+        stmt = (
+            update(WantedItem)
+            .where(WantedItem.id.in_(item_ids))
+            .values(status=status, error=error, updated_at=self._now())
+        )
         result = self.session.execute(stmt)
         self._commit()
         return result.rowcount

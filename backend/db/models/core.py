@@ -142,6 +142,11 @@ class LanguageProfile(db.Model):
     translation_backend: Mapped[str | None] = mapped_column(Text, default="ollama")
     fallback_chain_json: Mapped[str | None] = mapped_column(Text, default='["ollama"]')
     forced_preference: Mapped[str | None] = mapped_column(Text, default="disabled")
+    # Filter fields (Bazarr parity)
+    must_contain_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    must_not_contain_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    cutoff_language: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    audio_exclude_languages_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     created_at: Mapped[str] = mapped_column(Text, nullable=False)
     updated_at: Mapped[str] = mapped_column(Text, nullable=False)
 
