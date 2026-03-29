@@ -270,6 +270,20 @@ def update_config():
     invalidate_scanner()
     invalidate_response_cache()
 
+    # Restart scanner scheduler so the new scanner instance has the Flask app
+    # reference. Without this, search_all() fails with "Working outside of
+    # application context" because invalidate_scanner() resets _app to None.
+    try:
+        from extensions import socketio as _sock
+        from flask import current_app as _capp
+        from wanted_scanner import get_scanner as _get_scanner
+
+        _get_scanner().start_scheduler(
+            app=_capp._get_current_object(), socketio=_sock
+        )
+    except Exception as _exc:
+        logger.warning("Failed to restart scanner scheduler after config update: %s", _exc)
+
     # Reload media server instances with new config
     try:
         from mediaserver import get_media_server_manager
@@ -512,6 +526,18 @@ def import_config():
     _inv_media()
     _inv_providers()
     invalidate_scanner()
+
+    # Restart scanner scheduler so the new scanner instance has the Flask app reference
+    try:
+        from extensions import socketio as _sock
+        from flask import current_app as _capp
+        from wanted_scanner import get_scanner as _get_scanner
+
+        _get_scanner().start_scheduler(
+            app=_capp._get_current_object(), socketio=_sock
+        )
+    except Exception as _exc:
+        logger.warning("Failed to restart scanner scheduler after config import: %s", _exc)
 
     # Reload media server instances with new config
     try:
