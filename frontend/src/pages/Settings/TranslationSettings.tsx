@@ -11,7 +11,7 @@
  */
 import { lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Server, MessageSquare, BookOpen, Settings2, RefreshCw, Mic, Layers } from 'lucide-react'
+import { Server, MessageSquare, BookOpen, Settings2, RefreshCw, Mic, Layers, FlaskConical } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { EpisodeContextSection } from './TranslationTab'
@@ -75,6 +75,30 @@ export function TranslationSettings() {
         'Backends, prompts, glossary, quality, and sync settings',
       )}
     >
+      {/* Beta warning banner */}
+      <div
+        data-testid="translation-beta-banner"
+        style={{
+          display: 'flex',
+          gap: 12,
+          padding: '12px 16px',
+          borderRadius: 8,
+          backgroundColor: 'var(--warning-bg, rgba(245,158,11,0.1))',
+          border: '1px solid var(--warning, #f59e0b)',
+          marginBottom: 8,
+        }}
+      >
+        <FlaskConical size={18} style={{ color: 'var(--warning, #f59e0b)', flexShrink: 0, marginTop: 1 }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--warning, #f59e0b)' }}>
+            Beta Feature
+          </span>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            Die KI-Übersetzungsfunktion ist experimentell und funktioniert aktuell nicht zuverlässig genug für den produktiven Einsatz. Ergebnisse können stark variieren — abhängig von Modell, Prompt und Eingabequalität. Nutzung auf eigenes Risiko.
+          </span>
+        </div>
+      </div>
+
       {/* 1. Translation Backends */}
       <div data-testid="section-translation-backends">
         <SettingsSection

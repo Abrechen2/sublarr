@@ -166,19 +166,33 @@ function CategoryCard({
       {isTranslationCard ? (
         <div
           data-testid={`settings-card-badge-${category.id}`}
-          className="absolute"
-          style={{
-            top: 18,
-            right: 18,
-            fontSize: 9,
-            fontWeight: 600,
-            padding: '2px 7px',
-            borderRadius: 999,
-            backgroundColor: translationEnabled ? 'var(--success-bg)' : 'var(--accent-bg)',
-            color: translationEnabled ? 'var(--success)' : 'var(--accent)',
-          }}
+          className="absolute flex items-center gap-1"
+          style={{ top: 18, right: 18 }}
         >
-          {translationEnabled ? 'Enabled' : 'Requires Enable'}
+          <span
+            style={{
+              fontSize: 9,
+              fontWeight: 700,
+              padding: '2px 6px',
+              borderRadius: 999,
+              backgroundColor: 'var(--warning-bg, rgba(245,158,11,0.15))',
+              color: 'var(--warning, #f59e0b)',
+            }}
+          >
+            BETA
+          </span>
+          <span
+            style={{
+              fontSize: 9,
+              fontWeight: 600,
+              padding: '2px 7px',
+              borderRadius: 999,
+              backgroundColor: translationEnabled ? 'var(--success-bg)' : 'var(--accent-bg)',
+              color: translationEnabled ? 'var(--success)' : 'var(--accent)',
+            }}
+          >
+            {translationEnabled ? 'Enabled' : 'Requires Enable'}
+          </span>
         </div>
       ) : (
         <div
