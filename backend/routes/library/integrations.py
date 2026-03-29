@@ -122,6 +122,14 @@ def test_sonarr_instance():
     if not url or not api_key:
         return jsonify({"error": "url and api_key required"}), 400
 
+    # Resolve masked key — frontend receives "***configured***" from GET /config
+    if api_key == "***configured***":
+        from config import get_sonarr_instances
+
+        matched = next((i for i in get_sonarr_instances() if i.get("url") == url), None)
+        if matched:
+            api_key = matched.get("api_key", "")
+
     try:
         from sonarr_client import SonarrClient
 
@@ -180,6 +188,14 @@ def test_radarr_instance():
 
     if not url or not api_key:
         return jsonify({"error": "url and api_key required"}), 400
+
+    # Resolve masked key — frontend receives "***configured***" from GET /config
+    if api_key == "***configured***":
+        from config import get_radarr_instances
+
+        matched = next((i for i in get_radarr_instances() if i.get("url") == url), None)
+        if matched:
+            api_key = matched.get("api_key", "")
 
     try:
         from radarr_client import RadarrClient
