@@ -12,6 +12,14 @@ interface Props {
   activeTrack: PlayerSubtitleTrack | null
 }
 
+// Minimal valid ASS used to initialize the worker without a real subtitle.
+// The worker's onRuntimeInitialized always calls createTrack("/sub.ass"); passing
+// a valid placeholder avoids a crash (ass_read_file returning NULL on an empty FS).
+// The real track is loaded immediately after via setTrackByUrl(), which runs
+// post-initialization through the worker's message buffer.
+const WORKER_INIT_ASS =
+  '[Script Info]\r\nScriptType: v4.00+\r\n\r\n[Events]\r\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\r\n'
+
 export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(
   ({ src, activeTrack }, ref) => {
     const videoRef = useRef<HTMLVideoElement>(null)
@@ -28,9 +36,10 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(
 
     // Manage subtitle track changes without restarting the worker.
     //
-    // On first load: create instance with subContent so the worker starts hot.
+    // On first load: create instance with a placeholder ASS (so worker init succeeds),
+    //   then immediately queue setTrackByUrl() — processed after onRuntimeInitialized.
     // On toggle-off: freeTrack() — worker stays alive (~instant).
-    // On toggle-on: instance already exists → setTrack() — just the HTTP fetch (~100 ms).
+    // On toggle-on: instance already exists → setTrackByUrl() — worker fetches internally.
     // After onError clears the ref: fall through to create a fresh instance.
     useEffect(() => {
       if (!videoRef.current) return
@@ -41,34 +50,22 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(
       }
 
       const video = videoRef.current
-      let cancelled = false
+      const url = getMediaStreamUrl(activeTrack.path)
 
-      fetch(getMediaStreamUrl(activeTrack.path))
-        .then((r) => r.text())
-        .then((content) => {
-          if (cancelled) return
-
-          if (octopusRef.current) {
-            octopusRef.current.setTrack(content)
-          } else {
-            const instance = new SubtitleOctopus({
-              video,
-              subContent: content,
-              workerUrl: '/subtitles-octopus-worker.js',
-              legacyWorkerUrl: '/subtitles-octopus-worker-legacy.js',
-              onError: () => {
-                octopusRef.current = null
-              },
-            })
-            octopusRef.current = instance
-          }
+      if (octopusRef.current) {
+        octopusRef.current.setTrackByUrl(url)
+      } else {
+        const instance = new SubtitleOctopus({
+          video,
+          subContent: WORKER_INIT_ASS,
+          workerUrl: '/subtitles-octopus-worker.js',
+          legacyWorkerUrl: '/subtitles-octopus-worker-legacy.js',
+          onError: () => {
+            octopusRef.current = null
+          },
         })
-        .catch(() => {
-          // Subtitle fetch failed — player continues without subtitles
-        })
-
-      return () => {
-        cancelled = true
+        instance.setTrackByUrl(url)
+        octopusRef.current = instance
       }
     }, [activeTrack])
 
