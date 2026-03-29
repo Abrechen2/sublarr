@@ -43,12 +43,19 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(
         subUrl: getMediaStreamUrl(activeTrack.path),
         workerUrl: '/subtitles-octopus-worker.js',
         legacyWorkerUrl: '/subtitles-octopus-worker-legacy.js',
+        onError: () => {
+          // libass-wasm calls dispose() internally on error — clear ref so cleanup skips it
+          octopusRef.current = null
+        },
       })
       octopusRef.current = instance
 
       return () => {
-        instance.dispose()
-        octopusRef.current = null
+        // Guard: libass-wasm may have already disposed on worker error
+        if (octopusRef.current === instance) {
+          instance.dispose()
+          octopusRef.current = null
+        }
       }
     }, [activeTrack])
 
