@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.36.2-beta] - 2026-03-29
+
+### Fixed
+- **Preview Player — Firefox subtitle crash** — fixed `ass_read_file` returning NULL in the libass-wasm worker (Firefox); the worker's `onRuntimeInitialized` always calls `createTrack("/sub.ass")` — now initialised with a valid placeholder ASS so the init-time call succeeds; real subtitle is loaded post-init via `setTrackByUrl()` through the worker's message buffer; also fixes CSP `wasm-unsafe-eval` and fallback font (`default.woff2` via `fonts-liberation` in Docker)
+
 ## [0.36.1-beta] - 2026-03-29
 
 ### Fixed
