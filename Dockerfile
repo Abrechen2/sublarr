@@ -39,7 +39,8 @@ RUN apt-get update && \
         tesseract-ocr-eng \
         hunspell \
         hunspell-de-de \
-        hunspell-en-us && \
+        hunspell-en-us \
+        fonts-liberation && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -54,6 +55,12 @@ COPY backend/ .
 
 # Copy built frontend
 COPY --from=frontend /build/dist ./static
+
+# Provide fallback font for libass-wasm subtitle renderer.
+# Liberation Sans (metric-compatible Arial replacement, SIL OFL licence) is
+# installed via fonts-liberation above. The worker loads /default.woff2 at
+# startup; a 404 here crashes the worker before any subtitle renders.
+RUN cp /usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf ./static/default.woff2
 
 # Create non-root user with configurable UID/GID
 ARG PUID=1000
