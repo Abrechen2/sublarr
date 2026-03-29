@@ -17,7 +17,7 @@ function generateId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 import { useTranslation } from 'react-i18next'
-import { Link, PlugZap, Server, KeyRound, Loader2, Plus, Pencil, TestTube, Trash2, Eye, EyeOff, Database } from 'lucide-react'
+import { Link, PlugZap, Server, Loader2, Plus, Pencil, TestTube, Trash2, Eye, EyeOff, Database } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import {
   useConfig, useUpdateConfig,
@@ -28,7 +28,6 @@ import { SettingsSection } from '@/components/settings/SettingsSection'
 
 // ─── Lazy imports for heavier sub-tabs ───────────────────────────────────────
 const MediaServersTab = lazy(() => import('./MediaServersTab').then(m => ({ default: m.MediaServersTab })))
-const ApiKeysTab = lazy(() => import('./ApiKeysTab').then(m => ({ default: m.ApiKeysTab })))
 
 function TabSkeleton() {
   return (
@@ -841,20 +840,6 @@ export function ConnectionsSettings() {
         <div className="py-3">
           <Suspense fallback={<TabSkeleton />}>
             <MediaServersTab />
-          </Suspense>
-        </div>
-      </SettingsSection>
-
-      {/* API Keys */}
-      <SettingsSection
-        data-testid="api-keys-section"
-        title="API Keys"
-        description="Manage subtitle provider API keys, test connections, and rotate secrets"
-        icon={<KeyRound size={16} style={{ color: 'var(--accent)' }} />}
-      >
-        <div className="py-3">
-          <Suspense fallback={<TabSkeleton />}>
-            <ApiKeysTab excludeServices={['tmdb', 'tvdb']} />
           </Suspense>
         </div>
       </SettingsSection>
