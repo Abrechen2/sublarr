@@ -591,6 +591,7 @@ def _start_schedulers(settings, app=None):
 
     # Start standalone watcher if enabled
     from config import is_standalone_mode
+
     if is_standalone_mode():
         try:
             from standalone import get_standalone_manager

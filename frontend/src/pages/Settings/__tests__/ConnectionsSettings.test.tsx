@@ -22,8 +22,12 @@ vi.mock('../MediaServersTab', () => ({
   MediaServersTab: () => <div data-testid="mock-media-servers-tab">No media servers configured</div>,
 }))
 
-vi.mock('../ApiKeysTab', () => ({
-  ApiKeysTab: () => <div data-testid="mock-api-keys-tab">API Key Management</div>,
+const mockStandaloneScan = vi.fn()
+vi.mock('@/hooks/useSystemApi', () => ({
+  useStandaloneStatus: () => ({
+    data: { enabled: false, watcher_running: false, folders_count: 0, scanner_scanning: false, arr_configured: false, auto_activated: false },
+  }),
+  useTriggerStandaloneScan: () => ({ mutate: mockStandaloneScan, isPending: false }),
 }))
 
 const mockConfig: Record<string, unknown> = {
@@ -105,11 +109,12 @@ describe('ConnectionsSettings', () => {
     expect(screen.getByText(/No media servers configured/i)).toBeInTheDocument()
   })
 
-  // ── API Keys section ──
+  // ── Standalone section ──
 
-  it('renders the API Keys section', () => {
+  it('renders the Standalone-Modus section', () => {
     renderWithProviders(<ConnectionsSettings />)
-    expect(screen.getByText(/API Key Management/i)).toBeInTheDocument()
+    expect(screen.getByText('Standalone-Modus')).toBeInTheDocument()
+    expect(screen.getByText('Bibliothek jetzt scannen')).toBeInTheDocument()
   })
 })
 

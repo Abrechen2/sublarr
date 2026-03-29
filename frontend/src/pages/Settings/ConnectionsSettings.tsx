@@ -922,7 +922,6 @@ export function ConnectionsSettings() {
 
       {/* Standalone Mode */}
       <SettingsSection
-        data-testid="standalone-section"
         title="Standalone-Modus"
         description="Bibliothek ohne Sonarr/Radarr verwalten"
         icon={<ScanLine size={16} style={{ color: 'var(--accent)' }} />}

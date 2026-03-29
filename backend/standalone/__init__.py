@@ -67,10 +67,12 @@ class StandaloneManager:
         self._app = app
 
         try:
-            from config import is_standalone_mode
+            from config import get_settings, is_standalone_mode
 
             if not is_standalone_mode():
-                logger.info("Standalone mode is disabled (no arr configured and not explicitly enabled)")
+                logger.info(
+                    "Standalone mode is disabled (no arr configured and not explicitly enabled)"
+                )
                 return
 
             from db.standalone import get_watched_folders
@@ -80,6 +82,7 @@ class StandaloneManager:
                 logger.info("Standalone mode enabled but no watched folders configured")
                 return
 
+            settings = get_settings()
             folder_paths = [f["path"] for f in folders]
             debounce = getattr(settings, "standalone_debounce_seconds", 10)
 
@@ -131,7 +134,12 @@ class StandaloneManager:
         auto_activated = False
 
         try:
-            from config import get_settings, get_sonarr_instances, get_radarr_instances, is_standalone_mode
+            from config import (
+                get_radarr_instances,
+                get_settings,
+                get_sonarr_instances,
+                is_standalone_mode,
+            )
 
             enabled = is_standalone_mode()
             arr_configured = len(get_sonarr_instances()) > 0 or len(get_radarr_instances()) > 0
