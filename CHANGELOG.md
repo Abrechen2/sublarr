@@ -5,6 +5,12 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.36.1-beta] - 2026-03-29
+
+### Fixed
+- **Preview Player — subtitle rendering** — subtitles now render correctly in the preview player; fixed canvas overlay positioning (libass canvasParent inserted inside relative wrapper), worker auth (subContent instead of unauthenticated subUrl), and CJS constructor interop for libass-wasm
+- **Preview Player — subtitle toggle latency** — eliminated 10–20 s reappearance delay when toggling subtitles off/on; worker is now kept alive across track changes and reuses `setTrack()`/`freeTrack()` instead of a full WASM worker restart
+
 ## [0.36.0-beta] - 2026-03-29
 
 ### Added
