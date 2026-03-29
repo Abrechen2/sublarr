@@ -1,3 +1,6 @@
+# Fallback font for libass-wasm (Arial TTF used locally; not committed due to license)
+public/default.woff2
+
 # Logs
 logs
 *.log
