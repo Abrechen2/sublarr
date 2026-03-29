@@ -1039,6 +1039,22 @@ def get_radarr_instances() -> list[dict]:
     return []
 
 
+def is_standalone_mode() -> bool:
+    """Return True when standalone mode should be active.
+
+    Standalone activates when:
+    - ``standalone_enabled`` is explicitly True, OR
+    - No Sonarr AND no Radarr instances are configured (auto-activation).
+    """
+    settings = get_settings()
+
+    if getattr(settings, "standalone_enabled", False):
+        return True
+
+    # Auto-activate when no arr instances are configured
+    return len(get_sonarr_instances()) == 0 and len(get_radarr_instances()) == 0
+
+
 def get_media_server_instances() -> list[dict]:
     """Get media server instances from config, with fallback to legacy Jellyfin settings.
 
