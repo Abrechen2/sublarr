@@ -85,13 +85,12 @@ def get_library():
         try:
             from sqlalchemy import text
 
-            from config import get_settings
+            from config import is_standalone_mode
             from db import get_db
             from db.profiles import get_default_profile
             from db.standalone import get_standalone_movies, get_standalone_series
 
-            settings = get_settings()
-            if getattr(settings, "standalone_enabled", False):
+            if is_standalone_mode():
                 default_profile = get_default_profile()
                 profile_id = default_profile.get("id", 0) if default_profile else 0
                 profile_name = (

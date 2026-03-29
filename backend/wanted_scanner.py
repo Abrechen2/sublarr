@@ -234,9 +234,9 @@ class WantedScanner:
 
             # Scan standalone items (if standalone mode enabled)
             try:
-                from config import get_settings as _get_standalone_settings
+                from config import is_standalone_mode
 
-                if getattr(_get_standalone_settings(), "standalone_enabled", False):
+                if is_standalone_mode():
                     sa, su, sp = self._scan_standalone()
                     added += sa
                     updated += su
