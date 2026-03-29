@@ -72,3 +72,38 @@ class TestIsStandaloneMode:
         s = _make_settings(sonarr_json="not-valid-json")
         with patch("config.get_settings", return_value=s):
             assert is_standalone_mode() is True
+
+
+class TestStandaloneManagerStatus:
+    def test_status_includes_arr_configured_and_auto_activated(self):
+        """get_status() must return arr_configured and auto_activated fields."""
+        from standalone import StandaloneManager
+
+        mgr = StandaloneManager()
+        s = _make_settings(sonarr_json='[{"id":"x","url":"http://host:8989","api_key":"k"}]')
+        with (
+            patch("config.get_settings", return_value=s),
+            patch("config.is_standalone_mode", return_value=False),
+            patch("db.standalone.get_watched_folders", return_value=[]),
+        ):
+            status = mgr.get_status()
+
+        assert "arr_configured" in status
+        assert "auto_activated" in status
+        assert status["arr_configured"] is True
+        assert status["auto_activated"] is False
+
+    def test_status_auto_activated_when_no_arr(self):
+        from standalone import StandaloneManager
+
+        mgr = StandaloneManager()
+        s = _make_settings()
+        with (
+            patch("config.get_settings", return_value=s),
+            patch("config.is_standalone_mode", return_value=True),
+            patch("db.standalone.get_watched_folders", return_value=[]),
+        ):
+            status = mgr.get_status()
+
+        assert status["arr_configured"] is False
+        assert status["auto_activated"] is True

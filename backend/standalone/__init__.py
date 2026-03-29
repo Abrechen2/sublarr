@@ -122,15 +122,20 @@ class StandaloneManager:
         """Get current standalone mode status.
 
         Returns:
-            Dict with enabled, watcher_running, folders_count, scanner_scanning.
+            Dict with enabled, watcher_running, folders_count, scanner_scanning,
+            arr_configured, auto_activated.
         """
         enabled = False
         folders_count = 0
+        arr_configured = False
+        auto_activated = False
 
         try:
-            from config import is_standalone_mode
+            from config import get_settings, get_sonarr_instances, get_radarr_instances, is_standalone_mode
 
             enabled = is_standalone_mode()
+            arr_configured = len(get_sonarr_instances()) > 0 or len(get_radarr_instances()) > 0
+            auto_activated = enabled and not getattr(get_settings(), "standalone_enabled", False)
         except Exception:
             pass
 
@@ -146,6 +151,8 @@ class StandaloneManager:
             "watcher_running": self._watcher_running,
             "folders_count": folders_count,
             "scanner_scanning": self._scanner.is_scanning,
+            "arr_configured": arr_configured,
+            "auto_activated": auto_activated,
         }
 
     def _initial_scan(self) -> None:
