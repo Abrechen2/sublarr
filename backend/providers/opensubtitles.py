@@ -258,8 +258,8 @@ class OpenSubtitlesProvider(SubtitleProvider):
         # Fallback 1: Season-1 collapse — OpenSubtitles indexes many anime series as a
         # single season while Sonarr tracks them as multiple seasons.  The uploaded
         # episode number stays the same (e.g. Sonarr S02E15 → OS S01E15, NOT S01Eabs).
-        # If the primary search returned nothing and the episode is in season 2+, retry
-        # with season_number=1 and the same episode_number.
+        # The moviehash is stripped because the file hash never matches across seasons;
+        # if there is no IMDB ID, a title query is added so the request stays valid.
         if (
             not results
             and query.is_episode
@@ -267,7 +267,13 @@ class OpenSubtitlesProvider(SubtitleProvider):
             and query.season > 1
             and query.episode is not None
         ):
-            fallback_params = {**params, "season_number": 1, "episode_number": query.episode}
+            # Strip hash (wrong for multi-season anime), keep IMDB if present
+            fallback_params = {k: v for k, v in params.items() if k != "moviehash"}
+            fallback_params.update({"season_number": 1, "episode_number": query.episode})
+            # Ensure there is a search term when IMDB is also absent
+            if not fallback_params.get("imdb_id") and not fallback_params.get("query"):
+                if query.series_title:
+                    fallback_params["query"] = query.series_title
             logger.debug(
                 "OpenSubtitles: 0 results for S%02dE%02d — retrying with S01E%02d "
                 "(season-1 collapse; params: %s)",
