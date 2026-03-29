@@ -253,11 +253,90 @@ class OpenSubtitlesProvider(SubtitleProvider):
             return []
 
         logger.debug("OpenSubtitles: API request params: %s", params)
+        results = self._fetch_and_parse(params, query)
+
+        # Fallback 1: Season-1 collapse — OpenSubtitles indexes many anime series as a
+        # single season while Sonarr tracks them as multiple seasons.  The uploaded
+        # episode number stays the same (e.g. Sonarr S02E15 → OS S01E15, NOT S01Eabs).
+        # If the primary search returned nothing and the episode is in season 2+, retry
+        # with season_number=1 and the same episode_number.
+        if (
+            not results
+            and query.is_episode
+            and query.season is not None
+            and query.season > 1
+            and query.episode is not None
+        ):
+            fallback_params = {**params, "season_number": 1, "episode_number": query.episode}
+            logger.debug(
+                "OpenSubtitles: 0 results for S%02dE%02d — retrying with S01E%02d "
+                "(season-1 collapse; params: %s)",
+                query.season,
+                query.episode,
+                query.episode,
+                fallback_params,
+            )
+            results = self._fetch_and_parse(fallback_params, query)
+            if results:
+                logger.info(
+                    "OpenSubtitles: season-1 collapse found %d results for S01E%02d",
+                    len(results),
+                    query.episode,
+                )
+
+        # Fallback 2: Title search without IMDB — some uploaders do not link an IMDB ID.
+        # If the primary search was IMDB-based and the season-1 collapse also found
+        # nothing, retry with a pure title query (season=1, same episode) so that
+        # un-linked entries are reachable (e.g. 86 EIGHTY-SIX, Vinland Saga S2).
+        if (
+            not results
+            and query.is_episode
+            and query.season is not None
+            and query.season > 1
+            and query.episode is not None
+            and params.get("imdb_id")
+            and query.series_title
+        ):
+            title_params: dict = {
+                "query": query.series_title,
+                "season_number": 1,
+                "episode_number": query.episode,
+            }
+            if params.get("languages"):
+                title_params["languages"] = params["languages"]
+            logger.debug(
+                "OpenSubtitles: IMDB+season-1 found nothing — retrying with title '%s' S01E%02d",
+                query.series_title,
+                query.episode,
+            )
+            results = self._fetch_and_parse(title_params, query)
+            if results:
+                logger.info(
+                    "OpenSubtitles: title fallback found %d results for '%s' S01E%02d",
+                    len(results),
+                    query.series_title,
+                    query.episode,
+                )
+
+        logger.info("OpenSubtitles: found %d results", len(results))
+        if results:
+            logger.debug(
+                "OpenSubtitles: top result - %s (score: %d, format: %s, language: %s)",
+                results[0].filename,
+                results[0].score,
+                results[0].format.value,
+                results[0].language,
+            )
+        return results
+
+    def _fetch_and_parse(self, params: dict, query: VideoQuery) -> list[SubtitleResult]:
+        """Execute one OpenSubtitles /subtitles request and parse the response into results."""
+        results: list[SubtitleResult] = []
         try:
             resp = self.session.get(f"{API_BASE}/subtitles", params=params)
             logger.debug("OpenSubtitles: API response status: %d", resp.status_code)
 
-            if resp.status_code == 401 or resp.status_code == 403:
+            if resp.status_code in (401, 403):
                 error_msg = f"OpenSubtitles authentication failed: HTTP {resp.status_code}"
                 logger.error(error_msg)
                 raise ProviderAuthError(error_msg)
@@ -286,18 +365,12 @@ class OpenSubtitlesProvider(SubtitleProvider):
                 fps = attrs.get("fps", 0)
                 feature = attrs.get("feature_details", {})
 
-                # Extract uploader reputation
                 uploader_info = attrs.get("uploader", {}) or {}
                 uploader_name = uploader_info.get("name", "") or ""
                 uploader_rank = (uploader_info.get("rank", "") or "").lower()
                 uploader_trust = _UPLOADER_RANK_BONUS.get(uploader_rank, 0.0)
 
-                # Detect if this subtitle is forced (foreign parts only)
                 is_forced = bool(attrs.get("foreign_parts_only", False))
-
-                # Filter based on forced_only flag:
-                # - forced_only=True: skip non-forced results
-                # - forced_only=False: skip forced results (don't mix forced into full)
                 if query.forced_only and not is_forced:
                     continue
                 if not query.forced_only and is_forced:
@@ -307,9 +380,6 @@ class OpenSubtitlesProvider(SubtitleProvider):
                     file_id = f.get("file_id")
                     filename = f.get("file_name", "")
 
-                    # Detect format from filename extension, fall back to attributes.format.
-                    # Note: os.path.splitext may produce non-format extensions (e.g. ".Darkness"
-                    # from "Akame.ga.Kill.S01E01.Kill.the.Darkness") — only accept known exts.
                     fmt = SubtitleFormat.UNKNOWN
                     ext = os.path.splitext(filename)[1].lower().lstrip(".")
                     if ext in _FORMAT_MAP:
@@ -318,14 +388,23 @@ class OpenSubtitlesProvider(SubtitleProvider):
                         api_fmt = attrs.get("format", "").lower()
                         fmt = _FORMAT_MAP.get(api_fmt, SubtitleFormat.UNKNOWN)
 
-                    # Build matches
                     matches = set()
                     if params.get("moviehash") and attrs.get("moviehash_match"):
                         matches.add("hash")
                     if query.is_episode:
-                        if feature.get("season_number") == query.season:
+                        feat_season = feature.get("season_number")
+                        feat_episode = feature.get("episode_number")
+                        if feat_season == query.season:
                             matches.add("season")
-                        if feature.get("episode_number") == query.episode:
+                        if feat_episode == query.episode:
+                            matches.add("episode")
+                        # Season-1 collapse fallback: credit "episode" match when the
+                        # API response episode number equals our absolute episode (covers
+                        # edge cases where AniDB absolute happens to match OS episode).
+                        if (
+                            query.absolute_episode is not None
+                            and feat_episode == query.absolute_episode
+                        ):
                             matches.add("episode")
                         if (
                             query.series_title
@@ -344,35 +423,29 @@ class OpenSubtitlesProvider(SubtitleProvider):
                     if query.release_group and query.release_group.lower() in release.lower():
                         matches.add("release_group")
 
-                    result = SubtitleResult(
-                        provider_name=self.name,
-                        subtitle_id=str(file_id),
-                        language=lang,
-                        format=fmt,
-                        filename=filename,
-                        release_info=release,
-                        hearing_impaired=hi,
-                        forced=is_forced,
-                        fps=fps if fps else None,
-                        matches=matches,
-                        provider_data={"file_id": file_id, "foreign_parts_only": is_forced},
-                        uploader_name=uploader_name,
-                        uploader_trust=uploader_trust,
+                    results.append(
+                        SubtitleResult(
+                            provider_name=self.name,
+                            subtitle_id=str(file_id),
+                            language=lang,
+                            format=fmt,
+                            filename=filename,
+                            release_info=release,
+                            hearing_impaired=hi,
+                            forced=is_forced,
+                            fps=fps if fps else None,
+                            matches=matches,
+                            provider_data={"file_id": file_id, "foreign_parts_only": is_forced},
+                            uploader_name=uploader_name,
+                            uploader_trust=uploader_trust,
+                        )
                     )
-                    results.append(result)
 
+        except (ProviderAuthError, ProviderRateLimitError):
+            raise
         except Exception as e:
             logger.error("OpenSubtitles search error: %s", e, exc_info=True)
 
-        logger.info("OpenSubtitles: found %d results", len(results))
-        if results:
-            logger.debug(
-                "OpenSubtitles: top result - %s (score: %d, format: %s, language: %s)",
-                results[0].filename,
-                results[0].score,
-                results[0].format.value,
-                results[0].language,
-            )
         return results
 
     def download(self, result: SubtitleResult) -> bytes:
