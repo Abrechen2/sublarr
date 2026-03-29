@@ -26,39 +26,46 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(
       },
     }))
 
-    // Reinitialise SubtitleOctopus when activeTrack changes
+    // Create the SubtitleOctopus worker once per video src.
+    // The worker is kept alive so track switches use freeTrack()/setTrack()
+    // instead of a full worker restart (~10–20 s due to WASM init + font load).
     useEffect(() => {
       if (!videoRef.current) return
 
-      // Dispose previous instance
-      if (octopusRef.current) {
-        octopusRef.current.dispose()
+      const instance = new SubtitleOctopus({
+        video: videoRef.current,
+        workerUrl: '/subtitles-octopus-worker.js',
+        legacyWorkerUrl: '/subtitles-octopus-worker-legacy.js',
+        onError: () => {
+          octopusRef.current = null
+        },
+      })
+      octopusRef.current = instance
+
+      return () => {
+        instance.dispose()
         octopusRef.current = null
       }
+    }, [src])
 
-      if (!activeTrack) return
+    // Switch subtitle track without restarting the worker.
+    // Fetch content on the main thread (authenticated) then hand it to the worker.
+    useEffect(() => {
+      const octopus = octopusRef.current
+      if (!octopus) return
 
-      const video = videoRef.current
+      if (!activeTrack) {
+        octopus.freeTrack()
+        return
+      }
+
       let cancelled = false
 
-      // Fetch subtitle content via the API client (which includes auth headers/params).
-      // We pass subContent instead of subUrl so the libass-wasm worker never needs to
-      // make its own unauthenticated HTTP request.
       fetch(getMediaStreamUrl(activeTrack.path))
         .then((r) => r.text())
         .then((content) => {
-          if (cancelled || !video) return
-
-          const instance = new SubtitleOctopus({
-            video,
-            subContent: content,
-            workerUrl: '/subtitles-octopus-worker.js',
-            legacyWorkerUrl: '/subtitles-octopus-worker-legacy.js',
-            onError: () => {
-              octopusRef.current = null
-            },
-          })
-          octopusRef.current = instance
+          if (cancelled) return
+          octopusRef.current?.setTrack(content)
         })
         .catch(() => {
           // Subtitle fetch failed — player continues without subtitles
@@ -66,10 +73,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(
 
       return () => {
         cancelled = true
-        if (octopusRef.current) {
-          octopusRef.current.dispose()
-          octopusRef.current = null
-        }
       }
     }, [activeTrack])
 
