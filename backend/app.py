@@ -453,9 +453,9 @@ def create_app(testing=False):
 
         # Initialize standalone manager (folder watching + scanning)
         try:
-            from config import get_settings as _get_standalone_settings
+            from config import is_standalone_mode as _is_standalone_mode
 
-            if getattr(_get_standalone_settings(), "standalone_enabled", False):
+            if _is_standalone_mode():
                 from standalone import get_standalone_manager
 
                 get_standalone_manager()
@@ -590,7 +590,8 @@ def _start_schedulers(settings, app=None):
     )
 
     # Start standalone watcher if enabled
-    if getattr(settings, "standalone_enabled", False):
+    from config import is_standalone_mode
+    if is_standalone_mode():
         try:
             from standalone import get_standalone_manager
 

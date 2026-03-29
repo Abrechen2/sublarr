@@ -67,12 +67,10 @@ class StandaloneManager:
         self._app = app
 
         try:
-            from config import get_settings
+            from config import is_standalone_mode
 
-            settings = get_settings()
-
-            if not getattr(settings, "standalone_enabled", False):
-                logger.info("Standalone mode is disabled")
+            if not is_standalone_mode():
+                logger.info("Standalone mode is disabled (no arr configured and not explicitly enabled)")
                 return
 
             from db.standalone import get_watched_folders
@@ -130,9 +128,9 @@ class StandaloneManager:
         folders_count = 0
 
         try:
-            from config import get_settings
+            from config import is_standalone_mode
 
-            enabled = getattr(get_settings(), "standalone_enabled", False)
+            enabled = is_standalone_mode()
         except Exception:
             pass
 
