@@ -17,12 +17,13 @@ function generateId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 import { useTranslation } from 'react-i18next'
-import { Link, PlugZap, Server, Loader2, Plus, Pencil, TestTube, Trash2, Eye, EyeOff, Database } from 'lucide-react'
+import { Link, PlugZap, Server, Loader2, Plus, Pencil, TestTube, Trash2, Eye, EyeOff, Database, ScanLine } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import {
   useConfig, useUpdateConfig,
   useTestSonarrInstance, useTestRadarrInstance,
 } from '@/hooks/useApi'
+import { useStandaloneStatus, useTriggerStandaloneScan } from '@/hooks/useSystemApi'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 
@@ -792,6 +793,81 @@ function MetadataSectionWrapper() {
   )
 }
 
+// ─── Standalone Section ───────────────────────────────────────────────────────
+
+function StandaloneSection() {
+  const { data: status } = useStandaloneStatus()
+  const scan = useTriggerStandaloneScan()
+
+  const isActive = status?.enabled ?? false
+  const isAutoActivated = status?.auto_activated ?? false
+  const isScanning = status?.scanner_scanning ?? false
+  const foldersCount = status?.folders_count ?? 0
+
+  function handleScan() {
+    scan.mutate(undefined, {
+      onSuccess: () => {
+        toast.success('Scan gestartet')
+      },
+      onError: () => {
+        toast.error('Scan konnte nicht gestartet werden')
+      },
+    })
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span
+            className="text-sm font-medium px-2 py-0.5 rounded-full"
+            style={{
+              background: isActive
+                ? 'color-mix(in srgb, var(--accent) 15%, transparent)'
+                : 'color-mix(in srgb, var(--muted) 30%, transparent)',
+              color: isActive ? 'var(--accent)' : 'var(--muted-foreground)',
+            }}
+          >
+            {isAutoActivated ? 'Auto-aktiv' : isActive ? 'Aktiv' : 'Inaktiv'}
+          </span>
+          <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+            {foldersCount > 0
+              ? `${foldersCount} Ordner überwacht`
+              : 'Keine Ordner konfiguriert'}
+          </span>
+        </div>
+
+        <button
+          onClick={handleScan}
+          disabled={isScanning || scan.isPending}
+          className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors"
+          style={{
+            background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
+            color: 'var(--accent)',
+            cursor: isScanning || scan.isPending ? 'not-allowed' : 'pointer',
+            opacity: isScanning || scan.isPending ? 0.6 : 1,
+          }}
+        >
+          {isScanning || scan.isPending ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <ScanLine size={14} />
+          )}
+          {isScanning ? 'Scannt…' : 'Bibliothek jetzt scannen'}
+        </button>
+      </div>
+
+      <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+        {isAutoActivated
+          ? 'Kein Sonarr/Radarr konfiguriert — Standalone-Modus läuft automatisch. Watched Folders unter Einstellungen → Advanced → Library Sources konfigurieren.'
+          : isActive
+          ? 'Standalone-Modus ist manuell aktiviert.'
+          : 'Sonarr/Radarr konfiguriert — Standalone-Modus ist inaktiv. Kann unter Advanced → Library Sources manuell aktiviert werden.'}
+      </p>
+    </div>
+  )
+}
+
 // ─── Main ConnectionsSettings Page ───────────────────────────────────────────
 
 export function ConnectionsSettings() {
@@ -841,6 +917,18 @@ export function ConnectionsSettings() {
           <Suspense fallback={<TabSkeleton />}>
             <MediaServersTab />
           </Suspense>
+        </div>
+      </SettingsSection>
+
+      {/* Standalone Mode */}
+      <SettingsSection
+        data-testid="standalone-section"
+        title="Standalone-Modus"
+        description="Bibliothek ohne Sonarr/Radarr verwalten"
+        icon={<ScanLine size={16} style={{ color: 'var(--accent)' }} />}
+      >
+        <div className="py-3">
+          <StandaloneSection />
         </div>
       </SettingsSection>
 
