@@ -540,6 +540,8 @@ export interface StandaloneStatus {
   watcher_running: boolean
   folders_count: number
   scanner_scanning: boolean
+  arr_configured: boolean
+  auto_activated: boolean
 }
 
 export interface StandaloneScanResult {
