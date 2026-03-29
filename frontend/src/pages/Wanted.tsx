@@ -168,8 +168,8 @@ function SearchResultsRow({ results, isLoading, onBlacklist, t }: {
   if (!results) return null
 
   const allResults = [
-    ...results.target_results.map((r) => ({ ...r, _type: 'target' as const })),
-    ...results.source_results.map((r) => ({ ...r, _type: 'source' as const })),
+    ...(results.target_results ?? []).map((r) => ({ ...r, _type: 'target' as const })),
+    ...(results.source_results ?? []).map((r) => ({ ...r, _type: 'source' as const })),
   ]
 
   if (allResults.length === 0) {
@@ -270,6 +270,7 @@ export function WantedPage() {
   const [languageFilter, setLanguageFilter] = useState<string | undefined>()
   const [expandedItem, setExpandedItem] = useState<number | null>(null)
   const [searchResults, setSearchResults] = useState<Record<number, WantedSearchResponse>>({})
+  const [searchingItems, setSearchingItems] = useState<Set<number>>(new Set())
   const [previewFilePath, setPreviewFilePath] = useState<string | null>(null)
   const [interactiveItem, setInteractiveItem] = useState<{ id: number; title: string } | null>(null)
 
@@ -327,6 +328,11 @@ export function WantedPage() {
     onBatchProbeCompleted: () => {
       queryClient.invalidateQueries({ queryKey: ['wanted-batch-probe-status'] })
       queryClient.invalidateQueries({ queryKey: ['wanted'] })
+    },
+    onWantedItemSearched: (raw) => {
+      const data = raw as WantedSearchResponse
+      setSearchResults((prev) => ({ ...prev, [data.wanted_id]: data }))
+      setSearchingItems((prev) => { const next = new Set(prev); next.delete(data.wanted_id); return next })
     },
   })
 
@@ -438,9 +444,10 @@ export function WantedPage() {
       return
     }
     setExpandedItem(itemId)
+    setSearchingItems((prev) => { const next = new Set(prev); next.add(itemId); return next })
     searchItem.mutate(itemId, {
-      onSuccess: (data) => {
-        setSearchResults((prev) => ({ ...prev, [itemId]: data }))
+      onError: () => {
+        setSearchingItems((prev) => { const next = new Set(prev); next.delete(itemId); return next })
       },
     })
   }
@@ -1158,7 +1165,7 @@ export function WantedPage() {
                     {expandedItem === item.id && (
                       <SearchResultsRow
                         results={searchResults[item.id] ?? null}
-                        isLoading={searchItem.isPending}
+                        isLoading={searchingItems.has(item.id)}
                         t={t}
                         onBlacklist={(providerName, subtitleId, language) => {
                           addBlacklist.mutate({

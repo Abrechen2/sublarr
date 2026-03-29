@@ -25,6 +25,7 @@ interface UseWebSocketOptions {
   onSyncBatchComplete?: (data: SyncBatchComplete) => void
   onBatchProbeProgress?: (data: unknown) => void
   onBatchProbeCompleted?: (data: unknown) => void
+  onWantedItemSearched?: (data: unknown) => void
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
@@ -56,8 +57,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       ['log_entry', 'onLogEntry'],
       ['webhook_received', 'onWebhookReceived'],
       ['webhook_completed', 'onWebhookCompleted'],
-      ['upgrade_completed', 'onUpgradeCompleted'],
-      ['wanted_scan_completed', 'onWantedScanCompleted'],
+      ['upgrade_complete', 'onUpgradeCompleted'],
+      ['wanted_scan_complete', 'onWantedScanCompleted'],
       ['wanted_scan_progress', 'onWantedScanProgress'],
       ['wanted_search_progress', 'onWantedSearchProgress'],
       ['wanted_search_completed', 'onWantedSearchCompleted'],
@@ -72,6 +73,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       ['sync_batch_complete', 'onSyncBatchComplete'],
       ['batch_probe_progress', 'onBatchProbeProgress'],
       ['batch_probe_completed', 'onBatchProbeCompleted'],
+      ['wanted_item_searched', 'onWantedItemSearched'],
     ]
 
     // Store named handler references so only this hook's listeners are removed on cleanup

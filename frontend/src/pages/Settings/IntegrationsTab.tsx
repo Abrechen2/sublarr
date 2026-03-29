@@ -180,12 +180,12 @@ function BazarrMigrationSection() {
             >
               {tablesExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
               <span className="text-xs font-semibold">
-                {t('integrations.bazarr.tables')} ({report.tables_found.length})
+                {t('integrations.bazarr.tables')} ({(report.tables_found ?? []).length})
               </span>
             </button>
             {tablesExpanded && (
               <div className="px-3 pb-3 space-y-1">
-                {report.tables_found.map((table) => {
+                {(report.tables_found ?? []).map((table) => {
                   const detail = report.table_details[table]
                   return (
                     <div key={table} className="flex items-center justify-between text-xs py-1"
@@ -203,9 +203,9 @@ function BazarrMigrationSection() {
           </div>
 
           {/* Warnings */}
-          {report.warnings.length > 0 && (
+          {(report.warnings ?? []).length > 0 && (
             <div className="space-y-1">
-              {report.warnings.map((w, i) => (
+              {(report.warnings ?? []).map((w, i) => (
                 <div key={i} className="flex items-start gap-2 text-xs" style={{ color: 'var(--warning)' }}>
                   <AlertTriangle size={12} className="shrink-0 mt-0.5" />
                   <span>{w}</span>
