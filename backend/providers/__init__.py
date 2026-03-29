@@ -767,6 +767,8 @@ class ProviderManager:
         format_filter: SubtitleFormat | None = None,
         min_score: int = 0,
         early_exit: bool = True,
+        must_contain: list[str] | None = None,
+        must_not_contain: list[str] | None = None,
     ) -> list[SubtitleResult]:
         """Search all providers in parallel and return scored, sorted results.
 
@@ -775,6 +777,8 @@ class ProviderManager:
             format_filter: Only return results of this format (e.g. ASS)
             min_score: Minimum score threshold
             early_exit: If True, stop searching when a perfect match (score >= 400) is found
+            must_contain: Release title must contain all of these strings (case-insensitive)
+            must_not_contain: Release title must not contain any of these strings (case-insensitive)
 
         Returns:
             List of SubtitleResult sorted by score (highest first)
@@ -922,6 +926,16 @@ class ProviderManager:
                     cb = self._circuit_breakers.get(name)
                     if cb:
                         cb.record_failure()
+                        if cb.is_open:  # just transitioned to OPEN
+                            try:
+                                from db.providers import auto_disable_provider
+
+                                auto_disable_provider(
+                                    name,
+                                    cooldown_minutes=max(1, cb.cooldown_seconds // 60),
+                                )
+                            except Exception as _pe:
+                                logger.debug("CB persistence failed: %s", _pe)
                     update_provider_stats(name, success=False, score=0)
                     self._check_auto_disable(name)
                 except Exception as e:
@@ -929,6 +943,32 @@ class ProviderManager:
                     cb = self._circuit_breakers.get(name)
                     if cb:
                         cb.record_failure()
+                        if cb.is_open:  # just transitioned to OPEN
+                            try:
+                                from db.providers import auto_disable_provider
+
+                                auto_disable_provider(
+                                    name,
+                                    cooldown_minutes=max(1, cb.cooldown_seconds // 60),
+                                )
+                            except Exception as _pe:
+                                logger.debug("CB persistence failed: %s", _pe)
+                    # Rate-limit exception → extended throttle (Bazarr throttle_map parity)
+                    if isinstance(e, ProviderRateLimitError):
+                        throttle_min = getattr(
+                            self.settings, "provider_rate_limit_throttle_minutes", 60
+                        )
+                        try:
+                            from db.providers import auto_disable_provider
+
+                            auto_disable_provider(name, cooldown_minutes=throttle_min)
+                            logger.info(
+                                "Provider %s rate-limited: extended throttle for %d min",
+                                name,
+                                throttle_min,
+                            )
+                        except Exception as _te:
+                            logger.debug("Rate-limit throttle persistence failed: %s", _te)
                     update_provider_stats(name, success=False, score=0)
                     self._check_auto_disable(name)
 
@@ -974,6 +1014,16 @@ class ProviderManager:
         from db.blacklist import is_blacklisted
 
         all_results = [r for r in all_results if not is_blacklisted(r.provider_name, r.subtitle_id)]
+
+        # mustContain / mustNotContain filtering (language profile)
+        if must_contain:
+            from wanted_search.profile_filters import apply_must_contain
+
+            all_results = apply_must_contain(all_results, must_contain)
+        if must_not_contain:
+            from wanted_search.profile_filters import apply_must_not_contain
+
+            all_results = apply_must_not_contain(all_results, must_not_contain)
 
         # Release group filtering: exclude blocked groups, boost preferred groups
         from config import get_settings
@@ -1052,6 +1102,8 @@ class ProviderManager:
         format_filter: SubtitleFormat | None = None,
         min_score: int = 0,
         early_exit: bool = True,
+        must_contain: list[str] | None = None,
+        must_not_contain: list[str] | None = None,
     ) -> list[SubtitleResult]:
         """Search providers with fallback to embedded subtitles.
 
@@ -1060,12 +1112,19 @@ class ProviderManager:
             format_filter: Only return results of this format (e.g. ASS)
             min_score: Minimum score threshold
             early_exit: If True, stop searching when a perfect match is found
+            must_contain: Release title must contain all of these strings (case-insensitive)
+            must_not_contain: Release title must not contain any of these strings (case-insensitive)
 
         Returns:
             List of SubtitleResult sorted by score (highest first)
         """
         return self.search(
-            query, format_filter=format_filter, min_score=min_score, early_exit=early_exit
+            query,
+            format_filter=format_filter,
+            min_score=min_score,
+            early_exit=early_exit,
+            must_contain=must_contain,
+            must_not_contain=must_not_contain,
         )
 
     def download(self, result: SubtitleResult) -> bytes | None:
@@ -1105,13 +1164,21 @@ class ProviderManager:
         query: VideoQuery,
         format_filter: SubtitleFormat | None = None,
         min_score: int = 0,
+        must_contain: list[str] | None = None,
+        must_not_contain: list[str] | None = None,
     ) -> SubtitleResult | None:
         """Convenience: search with fallback, pick best, download it.
 
         Returns:
             SubtitleResult with content populated, or None
         """
-        results = self.search_with_fallback(query, format_filter=format_filter, min_score=min_score)
+        results = self.search_with_fallback(
+            query,
+            format_filter=format_filter,
+            min_score=min_score,
+            must_contain=must_contain,
+            must_not_contain=must_not_contain,
+        )
         if not results:
             return None
 
@@ -1324,6 +1391,25 @@ class ProviderManager:
             _run_pipeline_for_path(output_path, series_id=series_id)
         except Exception as _exc:
             logger.warning("[pipeline] hook error: %s", _exc)
+
+        # Post-download shell command (user-configurable, Bazarr parity)
+        from post_download import run_post_download_command
+
+        _pd_settings = getattr(self, "settings", None)
+        _pd_cmd = (
+            getattr(_pd_settings, "post_download_command", "") if _pd_settings is not None else ""
+        )
+        if _pd_cmd:
+            try:
+                run_post_download_command(
+                    _pd_cmd,
+                    subtitle_path=output_path,
+                    language=result.language or "",
+                    provider=result.provider_name or "",
+                    score=result.score or 0,
+                )
+            except Exception as _pd_err:
+                logger.warning("post_download_command hook failed: %s", _pd_err)
 
         return output_path
 

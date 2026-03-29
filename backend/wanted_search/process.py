@@ -217,6 +217,71 @@ def process_wanted_item(item_id: int) -> dict:
     settings = get_settings()
     item_lang = item.get("target_language") or settings.target_language
 
+    # ── Language profile filters ──────────────────────────────────────────────
+    from db.models.core import LanguageProfile, MovieLanguageProfile, SeriesLanguageProfile
+    from extensions import db as _db
+    from wanted_search.profile_filters import load_profile_filters
+
+    _profile_obj = None
+    try:
+        _sonarr_sid = item.get("sonarr_series_id")
+        _radarr_mid = item.get("radarr_movie_id")
+        if _sonarr_sid:
+            _slp = _db.session.get(SeriesLanguageProfile, int(_sonarr_sid))
+            if _slp:
+                _profile_obj = _db.session.get(LanguageProfile, _slp.profile_id)
+        elif _radarr_mid:
+            _mlp = _db.session.get(MovieLanguageProfile, int(_radarr_mid))
+            if _mlp:
+                _profile_obj = _db.session.get(LanguageProfile, _mlp.profile_id)
+    except Exception as _pe:
+        logger.debug("Could not load language profile for wanted %d: %s", item_id, _pe)
+    _pf = load_profile_filters(_profile_obj)
+
+    # Cutoff check: if cutoff_language subtitle already exists on disk, skip
+    _cutoff = _pf["cutoff_language"]
+    if _cutoff:
+        from translator import get_output_path_for_lang
+
+        for _ext in ("ass", "srt", "vtt"):
+            _cutoff_path = get_output_path_for_lang(item["file_path"], _ext, _cutoff)
+            if _cutoff_path and os.path.exists(_cutoff_path):
+                logger.info(
+                    "Wanted %d: cutoff language '%s' already present at %s, skipping",
+                    item_id,
+                    _cutoff,
+                    _cutoff_path,
+                )
+                update_wanted_status(item_id, "found")
+                return {
+                    "wanted_id": item_id,
+                    "status": "skipped",
+                    "reason": f"cutoff language '{_cutoff}' already present",
+                }
+
+    # Audio-exclude check: skip if video audio is already in target language
+    _audio_exclude = _pf["audio_exclude_languages"]
+    if _audio_exclude and item_lang in _audio_exclude:
+        try:
+            from ass_utils import has_target_language_audio, run_ffprobe
+
+            _ffprobe_data = run_ffprobe(item["file_path"])
+            if has_target_language_audio(_ffprobe_data, item_lang):
+                logger.info(
+                    "Wanted %d: audio already in '%s', skipping (audio_exclude)",
+                    item_id,
+                    item_lang,
+                )
+                update_wanted_status(item_id, "found")
+                return {
+                    "wanted_id": item_id,
+                    "status": "skipped",
+                    "reason": f"audio already in '{item_lang}'",
+                }
+        except Exception as _ae:
+            logger.debug("Audio-exclude check failed (non-fatal): %s", _ae)
+    # ── End language profile filters ─────────────────────────────────────────
+
     # Check max search attempts
     if item["search_count"] >= settings.wanted_max_search_attempts:
         update_wanted_status(item_id, "failed", error="Max search attempts reached")
@@ -256,7 +321,12 @@ def process_wanted_item(item_id: int) -> dict:
     query.languages = [item_lang]
 
     try:
-        result = manager.search_and_download_best(query, format_filter=SubtitleFormat.ASS)
+        result = manager.search_and_download_best(
+            query,
+            format_filter=SubtitleFormat.ASS,
+            must_contain=_pf["must_contain"] or None,
+            must_not_contain=_pf["must_not_contain"] or None,
+        )
         if result and result.content:
             _ass_had_results = True
             new_score = result.score
@@ -306,6 +376,16 @@ def process_wanted_item(item_id: int) -> dict:
                     upgrade_reason=f"SRT->ASS via {result.provider_name}",
                 )
 
+            # Resolve upgraded_from_id for upgrade chain audit trail
+            _upgraded_from_id: int | None = None
+            if is_upgrade:
+                try:
+                    from db.providers import get_latest_download_id
+
+                    _upgraded_from_id = get_latest_download_id(file_path)
+                except Exception as _uid_err:
+                    logger.debug("Could not resolve upgraded_from_id: %s", _uid_err)
+
             try:
                 manager.save_subtitle(result, output_path, series_id=item.get("sonarr_series_id"))
                 record_subtitle_download(
@@ -315,6 +395,7 @@ def process_wanted_item(item_id: int) -> dict:
                     result.format.value if result.format.value != "unknown" else "ass",
                     file_path,
                     result.score,
+                    upgraded_from_id=_upgraded_from_id,
                 )
                 logger.info(
                     "Wanted %d: Provider %s delivered target ASS directly",
@@ -371,7 +452,10 @@ def process_wanted_item(item_id: int) -> dict:
         source_query.languages = [settings.source_language]
         try:
             result = manager.search_and_download_best(
-                source_query, format_filter=SubtitleFormat.ASS
+                source_query,
+                format_filter=SubtitleFormat.ASS,
+                must_contain=_pf["must_contain"] or None,
+                must_not_contain=_pf["must_not_contain"] or None,
             )
             if result and result.content:
                 _ass_had_results = True
@@ -505,7 +589,12 @@ def process_wanted_item(item_id: int) -> dict:
     # Step 3: Try to find target language SRT directly (Priority 3)
     if not _skip_srt:
         try:
-            result = manager.search_and_download_best(query, format_filter=SubtitleFormat.SRT)
+            result = manager.search_and_download_best(
+                query,
+                format_filter=SubtitleFormat.SRT,
+                must_contain=_pf["must_contain"] or None,
+                must_not_contain=_pf["must_not_contain"] or None,
+            )
             if result and result.content:
                 from translator import get_output_path_for_lang
 
@@ -575,7 +664,10 @@ def process_wanted_item(item_id: int) -> dict:
     if not _skip_srt and auto_translate:
         try:
             result = manager.search_and_download_best(
-                source_query, format_filter=SubtitleFormat.SRT
+                source_query,
+                format_filter=SubtitleFormat.SRT,
+                must_contain=_pf["must_contain"] or None,
+                must_not_contain=_pf["must_not_contain"] or None,
             )
             if result and result.content:
                 # Download source SRT and translate it

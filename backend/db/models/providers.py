@@ -42,6 +42,7 @@ class SubtitleDownload(db.Model):
     subtitle_type: Mapped[str | None] = mapped_column(Text, default="full")
     source: Mapped[str | None] = mapped_column(Text, default="provider")  # "provider" | "whisper"
     downloaded_at: Mapped[str] = mapped_column(Text, nullable=False)
+    upgraded_from_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     __table_args__ = (
         Index("idx_subtitle_downloads_path", "file_path"),
