@@ -1,6 +1,7 @@
 import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import type { PlayerSubtitleTrack } from '@/lib/types'
 import { SubtitleOctopus, type ISubtitleOctopus } from '@/lib/subtitleOctopus'
+import { getMediaStreamUrl } from '@/api/client'
 
 export interface VideoPlayerHandle {
   seek: (seconds: number) => void
@@ -39,7 +40,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(
 
       const instance = new SubtitleOctopus({
         video: videoRef.current,
-        subUrl: `/api/v1/media/stream?path=${encodeURIComponent(activeTrack.path)}`,
+        subUrl: getMediaStreamUrl(activeTrack.path),
         workerUrl: '/subtitles-octopus-worker.js',
         legacyWorkerUrl: '/subtitles-octopus-worker-legacy.js',
       })

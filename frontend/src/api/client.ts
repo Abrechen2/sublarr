@@ -2020,10 +2020,14 @@ export async function toggleAuth(enabled: boolean): Promise<void> {
 
 // ── Web Player ────────────────────────────────────────────────────────────
 
-/** Returns the URL for streaming a media file. Not a fetch — just a URL builder. */
+/** Returns the URL for streaming a media file. Not a fetch — just a URL builder.
+ *  Appends the API key as a query param so browser-native requests (<video>, libass-wasm)
+ *  can authenticate without custom headers. */
 export function getMediaStreamUrl(filePath: string): string {
   const encoded = encodeURIComponent(filePath)
-  return `/api/v1/media/stream?path=${encoded}`
+  const apiKey = localStorage.getItem('sublarr_api_key')
+  const auth = apiKey ? `&apikey=${encodeURIComponent(apiKey)}` : ''
+  return `/api/v1/media/stream?path=${encoded}${auth}`
 }
 
 /** Fetch the streaming_enabled flag from config. */
