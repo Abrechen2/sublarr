@@ -1,6 +1,7 @@
 import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import type { PlayerSubtitleTrack } from '@/lib/types'
 import { SubtitleOctopus, type ISubtitleOctopus } from '@/lib/subtitleOctopus'
+import { getMediaStreamUrl } from '@/api/client'
 
 export interface VideoPlayerHandle {
   seek: (seconds: number) => void
@@ -25,41 +26,75 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(
       },
     }))
 
-    // Reinitialise SubtitleOctopus when activeTrack changes
+    // Manage subtitle track changes without restarting the worker.
+    //
+    // On first load: create instance with subContent so the worker starts hot.
+    // On toggle-off: freeTrack() — worker stays alive (~instant).
+    // On toggle-on: instance already exists → setTrack() — just the HTTP fetch (~100 ms).
+    // After onError clears the ref: fall through to create a fresh instance.
     useEffect(() => {
       if (!videoRef.current) return
 
-      // Dispose previous instance
-      if (octopusRef.current) {
-        octopusRef.current.dispose()
-        octopusRef.current = null
+      if (!activeTrack) {
+        octopusRef.current?.freeTrack()
+        return
       }
 
-      if (!activeTrack) return
+      const video = videoRef.current
+      let cancelled = false
 
-      const instance = new SubtitleOctopus({
-        video: videoRef.current,
-        subUrl: `/api/v1/media/stream?path=${encodeURIComponent(activeTrack.path)}`,
-        workerUrl: '/subtitles-octopus-worker.js',
-        legacyWorkerUrl: '/subtitles-octopus-worker-legacy.js',
-      })
-      octopusRef.current = instance
+      fetch(getMediaStreamUrl(activeTrack.path))
+        .then((r) => r.text())
+        .then((content) => {
+          if (cancelled) return
+
+          if (octopusRef.current) {
+            octopusRef.current.setTrack(content)
+          } else {
+            const instance = new SubtitleOctopus({
+              video,
+              subContent: content,
+              workerUrl: '/subtitles-octopus-worker.js',
+              legacyWorkerUrl: '/subtitles-octopus-worker-legacy.js',
+              onError: () => {
+                octopusRef.current = null
+              },
+            })
+            octopusRef.current = instance
+          }
+        })
+        .catch(() => {
+          // Subtitle fetch failed — player continues without subtitles
+        })
 
       return () => {
-        instance.dispose()
-        octopusRef.current = null
+        cancelled = true
       }
     }, [activeTrack])
 
+    // Dispose the worker when the video source changes or the component unmounts.
+    useEffect(() => {
+      return () => {
+        octopusRef.current?.dispose()
+        octopusRef.current = null
+      }
+    }, [src])
+
+    // The outer div must be `position: relative` so that libass-wasm inserts its
+    // canvasParent sibling inside this wrapper rather than directly in the
+    // PlayerModal's flex container. Without this, canvasParent becomes an extra
+    // flex item which misaligns the canvas overlay over the video.
     return (
-      <video
-        ref={videoRef}
-        src={src}
-        controls
-        className="w-full h-full object-contain bg-black"
-        style={{ maxHeight: '70vh' }}
-        preload="metadata"
-      />
+      <div className="relative w-full">
+        <video
+          ref={videoRef}
+          src={src}
+          controls
+          className="block w-full"
+          style={{ maxHeight: '70vh', objectFit: 'contain', backgroundColor: 'black' }}
+          preload="metadata"
+        />
+      </div>
     )
   },
 )

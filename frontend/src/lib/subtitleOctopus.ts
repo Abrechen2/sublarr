@@ -31,6 +31,7 @@ export interface SubtitleOctopusConstructor {
 }
 
 // libass-wasm is a CJS module with no TypeScript declarations.
-// We import it as a namespace (no esModuleInterop needed) and cast to our typed interface.
+// Vite wraps CJS modules as { default: ctor } — we extract the actual constructor.
 import * as _LibassWasm from 'libass-wasm'
-export const SubtitleOctopus = _LibassWasm as unknown as SubtitleOctopusConstructor
+const _ctor = (_LibassWasm as any).default ?? _LibassWasm
+export const SubtitleOctopus = _ctor as unknown as SubtitleOctopusConstructor

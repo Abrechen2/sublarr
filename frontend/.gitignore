@@ -1,3 +1,9 @@
+# Fallback font for libass-wasm (Arial TTF used locally; not committed due to license)
+public/default.woff2
+
+# Dev debug test page
+public/player_test.html
+
 # Logs
 logs
 *.log
