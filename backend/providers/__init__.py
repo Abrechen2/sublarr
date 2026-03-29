@@ -889,88 +889,103 @@ class ProviderManager:
                 )
                 + 3
             )
-            for future in as_completed(futures, timeout=max_timeout):
-                name = futures[future]
-                try:
-                    results, elapsed_ms = future.result()
-                    all_results.extend(results)
+            try:
+                for future in as_completed(futures, timeout=max_timeout):
+                    name = futures[future]
+                    try:
+                        results, elapsed_ms = future.result()
+                        all_results.extend(results)
 
-                    # Update circuit breaker and stats
-                    # NOTE: empty results are NOT a failure — the provider responded
-                    # correctly, it just found nothing for this query.
-                    cb = self._circuit_breakers.get(name)
-                    if cb:
-                        cb.record_success()
-                    update_provider_stats(name, success=True, score=0, response_time_ms=elapsed_ms)
+                        # Update circuit breaker and stats
+                        # NOTE: empty results are NOT a failure — the provider responded
+                        # correctly, it just found nothing for this query.
+                        cb = self._circuit_breakers.get(name)
+                        if cb:
+                            cb.record_success()
+                        update_provider_stats(
+                            name, success=True, score=0, response_time_ms=elapsed_ms
+                        )
 
-                    # Check for perfect match (early exit)
-                    if early_exit and results:
-                        # Score results immediately to check for perfect match
-                        for result in results:
-                            compute_score(result, query)
-                            if result.score >= 400:
-                                logger.info(
-                                    "Perfect match found (score=%d) from provider %s, stopping search",
-                                    result.score,
-                                    name,
-                                )
-                                perfect_match_found = True
+                        # Check for perfect match (early exit)
+                        if early_exit and results:
+                            # Score results immediately to check for perfect match
+                            for result in results:
+                                compute_score(result, query)
+                                if result.score >= 400:
+                                    logger.info(
+                                        "Perfect match found (score=%d) from provider %s, stopping search",
+                                        result.score,
+                                        name,
+                                    )
+                                    perfect_match_found = True
+                                    break
+
+                            if perfect_match_found:
+                                # Cancel remaining futures (they'll complete but we won't wait)
                                 break
 
-                        if perfect_match_found:
-                            # Cancel remaining futures (they'll complete but we won't wait)
-                            break
+                    except FutureTimeoutError:
+                        logger.warning("Provider %s search timed out", name)
+                        cb = self._circuit_breakers.get(name)
+                        if cb:
+                            cb.record_failure()
+                            if cb.is_open:  # just transitioned to OPEN
+                                try:
+                                    from db.providers import auto_disable_provider
 
-                except FutureTimeoutError:
-                    logger.warning("Provider %s search timed out", name)
-                    cb = self._circuit_breakers.get(name)
-                    if cb:
-                        cb.record_failure()
-                        if cb.is_open:  # just transitioned to OPEN
-                            try:
-                                from db.providers import auto_disable_provider
+                                    auto_disable_provider(
+                                        name,
+                                        cooldown_minutes=max(1, cb.cooldown_seconds // 60),
+                                    )
+                                except Exception as _pe:
+                                    logger.debug("CB persistence failed: %s", _pe)
+                        update_provider_stats(name, success=False, score=0)
+                        self._check_auto_disable(name)
+                    except Exception as e:
+                        logger.warning("Provider %s search failed: %s", name, e)
+                        cb = self._circuit_breakers.get(name)
+                        if cb:
+                            cb.record_failure()
+                            if cb.is_open:  # just transitioned to OPEN
+                                try:
+                                    from db.providers import auto_disable_provider
 
-                                auto_disable_provider(
-                                    name,
-                                    cooldown_minutes=max(1, cb.cooldown_seconds // 60),
-                                )
-                            except Exception as _pe:
-                                logger.debug("CB persistence failed: %s", _pe)
-                    update_provider_stats(name, success=False, score=0)
-                    self._check_auto_disable(name)
-                except Exception as e:
-                    logger.warning("Provider %s search failed: %s", name, e)
-                    cb = self._circuit_breakers.get(name)
-                    if cb:
-                        cb.record_failure()
-                        if cb.is_open:  # just transitioned to OPEN
-                            try:
-                                from db.providers import auto_disable_provider
-
-                                auto_disable_provider(
-                                    name,
-                                    cooldown_minutes=max(1, cb.cooldown_seconds // 60),
-                                )
-                            except Exception as _pe:
-                                logger.debug("CB persistence failed: %s", _pe)
-                    # Rate-limit exception → extended throttle (Bazarr throttle_map parity)
-                    if isinstance(e, ProviderRateLimitError):
-                        throttle_min = getattr(
-                            self.settings, "provider_rate_limit_throttle_minutes", 60
-                        )
-                        try:
-                            from db.providers import auto_disable_provider
-
-                            auto_disable_provider(name, cooldown_minutes=throttle_min)
-                            logger.info(
-                                "Provider %s rate-limited: extended throttle for %d min",
-                                name,
-                                throttle_min,
+                                    auto_disable_provider(
+                                        name,
+                                        cooldown_minutes=max(1, cb.cooldown_seconds // 60),
+                                    )
+                                except Exception as _pe:
+                                    logger.debug("CB persistence failed: %s", _pe)
+                        # Rate-limit exception → extended throttle (Bazarr throttle_map parity)
+                        if isinstance(e, ProviderRateLimitError):
+                            throttle_min = getattr(
+                                self.settings, "provider_rate_limit_throttle_minutes", 60
                             )
-                        except Exception as _te:
-                            logger.debug("Rate-limit throttle persistence failed: %s", _te)
-                    update_provider_stats(name, success=False, score=0)
-                    self._check_auto_disable(name)
+                            try:
+                                from db.providers import auto_disable_provider
+
+                                auto_disable_provider(name, cooldown_minutes=throttle_min)
+                                logger.info(
+                                    "Provider %s rate-limited: extended throttle for %d min",
+                                    name,
+                                    throttle_min,
+                                )
+                            except Exception as _te:
+                                logger.debug("Rate-limit throttle persistence failed: %s", _te)
+                        update_provider_stats(name, success=False, score=0)
+                        self._check_auto_disable(name)
+            except FutureTimeoutError:
+                # as_completed() overall timeout expired — some providers did not finish.
+                # Return the partial results already collected rather than raising.
+                unfinished = [futures[f] for f in futures if not f.done()]
+                logger.warning(
+                    "Search timed out after %ss: %d provider(s) still running (%s);"
+                    " returning %d partial results",
+                    max_timeout,
+                    len(unfinished),
+                    ", ".join(unfinished),
+                    len(all_results),
+                )
 
         # If early exit was triggered, we may have incomplete results, but that's OK
         # Score all results

@@ -45,7 +45,18 @@ def get_sonarr_client(instance_name=None):
                 client = SonarrClient(inst["url"], inst["api_key"])
                 _clients_cache[instance_name] = client
                 return client
-        logger.warning("Sonarr instance '%s' not found", instance_name)
+        # Name not found — fall back to first available instance
+        if instances:
+            logger.warning(
+                "Sonarr instance '%s' not found; falling back to first instance '%s'",
+                instance_name,
+                instances[0].get("name"),
+            )
+            inst = instances[0]
+            client = SonarrClient(inst["url"], inst["api_key"])
+            _clients_cache[instance_name] = client
+            return client
+        logger.warning("Sonarr instance '%s' not found and no instances configured", instance_name)
         return None
 
     # Legacy singleton behavior (for backward compatibility)
