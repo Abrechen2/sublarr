@@ -5,6 +5,25 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.36.0-beta] - 2026-03-29
+
+### Added
+- **Scoring — video_codec weight** — x264/x265/AV1 codec match adds +2 points to episode and movie scores (Bazarr parity)
+- **Language Profiles — mustContain / mustNotContain** — AND-logic filter: only accept subtitles matching ALL mustContain terms; any mustNotContain term rejects (Bazarr parity); new DB columns on `language_profiles`
+- **Language Profiles — cutoff** — stop searching for a language once a subtitle is already present on disk
+- **Language Profiles — audioExclude** — skip downloading a subtitle if the audio track is already in the target language
+- **Provider Infrastructure — CircuitBreaker persistence** — CB OPEN state written to `ProviderStats.disabled_until`; survives application restarts; `is_open` property added
+- **Provider Infrastructure — rate-limit throttle** — configurable extended throttle on `ProviderRateLimitError` via `provider_rate_limit_throttle_minutes`
+- **Download Quality — upgrade chain tracking** — `upgraded_from_id` foreign key on `subtitle_downloads` records which subtitle was replaced; enables full upgrade audit trail
+- **Download Quality — post-download command** — `post_download_command` config executes an arbitrary shell command after each successful download; supports `{subtitle_path}`, `{language}`, `{provider}`, `{score}` variable substitution
+- **Sync — manual alass endpoint** — `POST /api/v1/sync/alass` triggers alass subtitle synchronisation on demand
+
+### Fixed
+- **Language Profiles — mustContain AND logic** — corrected to require ALL terms instead of ANY term (Bazarr parity fix)
+- **Post-download hook** — guard added via `getattr(self, 'settings', None)` to prevent crash when settings are not available
+
+---
+
 ## [0.35.0-beta] - 2026-03-22
 
 ### Added
