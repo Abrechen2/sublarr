@@ -177,13 +177,12 @@ def webhook_sonarr():
     from config import get_settings, map_path
     from security_utils import is_safe_path
 
-    # Auth: if API key is configured, require it on webhook endpoints too
+    # Auth: always require API key on webhook endpoints
     _s = get_settings()
-    _api_key = getattr(_s, "api_key", None)
-    if _api_key:
-        _provided = request.headers.get("X-Api-Key", "")
-        if not hmac.compare_digest(_provided, _api_key):
-            return jsonify({"error": "Unauthorized"}), 401
+    _api_key = getattr(_s, "api_key", None) or ""
+    _provided = request.headers.get("X-Api-Key", "")
+    if not _api_key or not hmac.compare_digest(_provided, _api_key):
+        return jsonify({"error": "Unauthorized"}), 401
 
     data = request.get_json() or {}
     event_type = data.get("eventType", "")
@@ -295,13 +294,12 @@ def webhook_radarr():
     from config import get_settings, map_path
     from security_utils import is_safe_path
 
-    # Auth: if API key is configured, require it on webhook endpoints too
+    # Auth: always require API key on webhook endpoints
     _s = get_settings()
-    _api_key = getattr(_s, "api_key", None)
-    if _api_key:
-        _provided = request.headers.get("X-Api-Key", "")
-        if not hmac.compare_digest(_provided, _api_key):
-            return jsonify({"error": "Unauthorized"}), 401
+    _api_key = getattr(_s, "api_key", None) or ""
+    _provided = request.headers.get("X-Api-Key", "")
+    if not _api_key or not hmac.compare_digest(_provided, _api_key):
+        return jsonify({"error": "Unauthorized"}), 401
 
     data = request.get_json() or {}
     event_type = data.get("eventType", "")
@@ -421,16 +419,15 @@ def webhook_jellyfin():
 
     s = get_settings()
 
+    # Auth: always require API key on webhook endpoints (checked before feature gate)
+    _api_key = getattr(s, "api_key", None) or ""
+    _provided = request.headers.get("X-Api-Key", "")
+    if not _api_key or not hmac.compare_digest(_provided, _api_key):
+        return jsonify({"error": "Unauthorized"}), 401
+
     # Feature gate — disabled by default
     if not getattr(s, "jellyfin_play_translate_enabled", False):
         return jsonify({"status": "disabled"}), 200
-
-    # Auth: honour API key if configured
-    _api_key = getattr(s, "api_key", None)
-    if _api_key:
-        _provided = request.headers.get("X-Api-Key", "")
-        if not hmac.compare_digest(_provided, _api_key):
-            return jsonify({"error": "Unauthorized"}), 401
 
     data = request.get_json() or {}
     notification_type = data.get("NotificationType", "")

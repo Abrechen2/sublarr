@@ -136,16 +136,20 @@ def client(app):
 class TestJellyfinWebhookRoute:
     """Integration tests for the /webhook/jellyfin endpoint."""
 
+    _TEST_API_KEY = "test-webhook-key"
+    _AUTH_HEADERS = {"X-Api-Key": _TEST_API_KEY}
+
     def test_returns_disabled_when_feature_off(self, client):
         with patch("config.get_settings") as mock_settings:
             s = MagicMock()
             s.jellyfin_play_translate_enabled = False
-            s.api_key = ""
+            s.api_key = self._TEST_API_KEY
             mock_settings.return_value = s
 
             resp = client.post(
                 "/api/v1/webhook/jellyfin",
                 json={"NotificationType": "PlaybackStart", "ItemId": "abc"},
+                headers=self._AUTH_HEADERS,
             )
 
         assert resp.status_code == 200
@@ -155,12 +159,13 @@ class TestJellyfinWebhookRoute:
         with patch("config.get_settings") as mock_settings:
             s = MagicMock()
             s.jellyfin_play_translate_enabled = True
-            s.api_key = ""
+            s.api_key = self._TEST_API_KEY
             mock_settings.return_value = s
 
             resp = client.post(
                 "/api/v1/webhook/jellyfin",
                 json={"NotificationType": "Test"},
+                headers=self._AUTH_HEADERS,
             )
 
         assert resp.status_code == 200
@@ -170,12 +175,13 @@ class TestJellyfinWebhookRoute:
         with patch("config.get_settings") as mock_settings:
             s = MagicMock()
             s.jellyfin_play_translate_enabled = True
-            s.api_key = ""
+            s.api_key = self._TEST_API_KEY
             mock_settings.return_value = s
 
             resp = client.post(
                 "/api/v1/webhook/jellyfin",
                 json={"NotificationType": "PlaybackStop", "ItemId": "abc"},
+                headers=self._AUTH_HEADERS,
             )
 
         assert resp.status_code == 200
@@ -185,12 +191,13 @@ class TestJellyfinWebhookRoute:
         with patch("config.get_settings") as mock_settings:
             s = MagicMock()
             s.jellyfin_play_translate_enabled = True
-            s.api_key = ""
+            s.api_key = self._TEST_API_KEY
             mock_settings.return_value = s
 
             resp = client.post(
                 "/api/v1/webhook/jellyfin",
                 json={"NotificationType": "PlaybackStart"},
+                headers=self._AUTH_HEADERS,
             )
 
         assert resp.status_code == 400
@@ -202,7 +209,7 @@ class TestJellyfinWebhookRoute:
         ):
             s = MagicMock()
             s.jellyfin_play_translate_enabled = True
-            s.api_key = ""
+            s.api_key = self._TEST_API_KEY
             mock_settings.return_value = s
 
             mgr = MagicMock()
@@ -212,6 +219,7 @@ class TestJellyfinWebhookRoute:
             resp = client.post(
                 "/api/v1/webhook/jellyfin",
                 json={"NotificationType": "PlaybackStart", "ItemId": "abc123"},
+                headers=self._AUTH_HEADERS,
             )
 
         assert resp.status_code == 404
@@ -226,7 +234,7 @@ class TestJellyfinWebhookRoute:
         ):
             s = MagicMock()
             s.jellyfin_play_translate_enabled = True
-            s.api_key = ""
+            s.api_key = self._TEST_API_KEY
             s.media_path = "/media"
             mock_settings.return_value = s
 
@@ -244,6 +252,7 @@ class TestJellyfinWebhookRoute:
                     "Name": "Episode 1",
                     "SeriesName": "My Show",
                 },
+                headers=self._AUTH_HEADERS,
             )
 
         assert resp.status_code == 202
@@ -251,3 +260,33 @@ class TestJellyfinWebhookRoute:
         assert data["status"] == "queued"
         assert data["file_path"] == "/media/show/ep01.mkv"
         assert "My Show" in data["title"]
+
+    def test_rejects_request_without_api_key(self, client):
+        """Webhook must return 401 when no API key header is provided."""
+        with patch("config.get_settings") as mock_settings:
+            s = MagicMock()
+            s.jellyfin_play_translate_enabled = True
+            s.api_key = self._TEST_API_KEY
+            mock_settings.return_value = s
+
+            resp = client.post(
+                "/api/v1/webhook/jellyfin",
+                json={"NotificationType": "Test"},
+            )
+
+        assert resp.status_code == 401
+
+    def test_rejects_request_when_no_key_configured(self, client):
+        """Webhook must return 401 when api_key is not configured (empty)."""
+        with patch("config.get_settings") as mock_settings:
+            s = MagicMock()
+            s.jellyfin_play_translate_enabled = True
+            s.api_key = ""
+            mock_settings.return_value = s
+
+            resp = client.post(
+                "/api/v1/webhook/jellyfin",
+                json={"NotificationType": "Test"},
+            )
+
+        assert resp.status_code == 401
