@@ -202,6 +202,8 @@ def create_app(testing=False):
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "same-origin")
+        response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        response.headers.setdefault("Cross-Origin-Embedder-Policy", "credentialless")
         # CSP: allow self + inline styles/scripts (SPA requirement) + ws/wss for SocketIO
         response.headers.setdefault(
             "Content-Security-Policy",
