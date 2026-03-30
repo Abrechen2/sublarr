@@ -163,10 +163,8 @@ def health():
                 logger.debug("Health check %s failed: %s", name, exc)
                 results_by_name[name] = ({name: "error"}, False if name == "ollama" else None)
 
-    for name, (part, overall) in results_by_name.items():
+    for name, (part, _overall) in results_by_name.items():
         service_status.update(part)
-        if name == "ollama" and overall is False:
-            healthy = False
 
     status_code = 200 if healthy else 503
 

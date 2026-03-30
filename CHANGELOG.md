@@ -5,6 +5,13 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.36.4-beta] - 2026-03-30
+
+### Fixed
+- **Health status — Ollama no longer critical** — removed Ollama connectivity from the overall health flag; Ollama is an optional translation backend and its unavailability only affects translation, not core subtitle management; the status bar now correctly shows Online when Sublarr itself is reachable
+
+---
+
 ## [0.36.3-beta] - 2026-03-29
 
 ### Fixed
