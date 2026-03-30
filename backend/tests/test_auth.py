@@ -1,6 +1,7 @@
 """Tests for auth.py — API key authentication."""
 
 import os
+from unittest.mock import MagicMock, patch
 
 import pytest
 from flask import Flask
@@ -65,3 +66,64 @@ def test_require_api_key_decorator():
     finally:
         os.environ.pop("SUBLARR_API_KEY", None)
         reload_settings()
+
+
+def test_ip_allowlist_blocks_unlisted_ip():
+    """Requests from IPs outside allowed_ip_ranges must receive 403."""
+    app = Flask(__name__)
+
+    @app.route("/api/v1/health")
+    def health():
+        return {"status": "ok"}
+
+    init_auth(app)
+
+    settings_mock = MagicMock()
+    settings_mock.allowed_ip_ranges = "10.0.0.0/8"
+    settings_mock.api_key = ""
+
+    with patch("auth.get_settings", return_value=settings_mock):
+        with app.test_client() as client:
+            # Flask test client sends from 127.0.0.1 by default
+            resp = client.get("/api/v1/health")
+            assert resp.status_code == 403
+
+
+def test_ip_allowlist_allows_listed_ip():
+    """Requests from IPs inside allowed_ip_ranges must pass through."""
+    app = Flask(__name__)
+
+    @app.route("/api/v1/health")
+    def health():
+        return {"status": "ok"}
+
+    init_auth(app)
+
+    settings_mock = MagicMock()
+    settings_mock.allowed_ip_ranges = "127.0.0.1/32"
+    settings_mock.api_key = ""
+
+    with patch("auth.get_settings", return_value=settings_mock):
+        with app.test_client() as client:
+            resp = client.get("/api/v1/health")
+            assert resp.status_code != 403
+
+
+def test_ip_allowlist_empty_allows_all():
+    """Empty allowed_ip_ranges allows all IPs."""
+    app = Flask(__name__)
+
+    @app.route("/api/v1/health")
+    def health():
+        return {"status": "ok"}
+
+    init_auth(app)
+
+    settings_mock = MagicMock()
+    settings_mock.allowed_ip_ranges = ""
+    settings_mock.api_key = ""
+
+    with patch("auth.get_settings", return_value=settings_mock):
+        with app.test_client() as client:
+            resp = client.get("/api/v1/health")
+            assert resp.status_code != 403
