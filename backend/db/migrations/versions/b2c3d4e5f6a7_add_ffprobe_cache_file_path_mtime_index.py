@@ -1,6 +1,6 @@
 """Add composite index (file_path, mtime) on ffprobe_cache for lookup performance.
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: b2c3d4e5f6a7
 Revises: c7d8e9f0a1b2
 Create Date: 2026-02-21
 
@@ -10,7 +10,7 @@ speeds up these lookups compared to the existing mtime-only index.
 
 from alembic import op
 
-revision = "a1b2c3d4e5f6"
+revision = "b2c3d4e5f6a7"
 down_revision = "c7d8e9f0a1b2"
 branch_labels = None
 depends_on = None
