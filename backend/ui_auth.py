@@ -83,6 +83,7 @@ def init_ui_auth(app):
 
     # Enforce session_timeout_minutes from config; default to 8 hours instead of Flask's 31-day default
     from datetime import timedelta
+
     from config import get_settings
 
     try:

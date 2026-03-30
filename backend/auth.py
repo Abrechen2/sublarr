@@ -82,9 +82,7 @@ def _check_ip_allowlist() -> "tuple[dict, int] | None":
         return None  # empty = allow all
     try:
         networks = [
-            _ipaddress.ip_network(r.strip(), strict=False)
-            for r in allowed.split(",")
-            if r.strip()
+            _ipaddress.ip_network(r.strip(), strict=False) for r in allowed.split(",") if r.strip()
         ]
     except ValueError:
         logger.warning("allowed_ip_ranges contains invalid CIDR — skipping IP check")

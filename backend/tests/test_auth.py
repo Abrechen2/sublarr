@@ -82,11 +82,10 @@ def test_ip_allowlist_blocks_unlisted_ip():
     settings_mock.allowed_ip_ranges = "10.0.0.0/8"
     settings_mock.api_key = ""
 
-    with patch("auth.get_settings", return_value=settings_mock):
-        with app.test_client() as client:
-            # Flask test client sends from 127.0.0.1 by default
-            resp = client.get("/api/v1/health")
-            assert resp.status_code == 403
+    with patch("auth.get_settings", return_value=settings_mock), app.test_client() as client:
+        # Flask test client sends from 127.0.0.1 by default
+        resp = client.get("/api/v1/health")
+        assert resp.status_code == 403
 
 
 def test_ip_allowlist_allows_listed_ip():
@@ -103,10 +102,9 @@ def test_ip_allowlist_allows_listed_ip():
     settings_mock.allowed_ip_ranges = "127.0.0.1/32"
     settings_mock.api_key = ""
 
-    with patch("auth.get_settings", return_value=settings_mock):
-        with app.test_client() as client:
-            resp = client.get("/api/v1/health")
-            assert resp.status_code != 403
+    with patch("auth.get_settings", return_value=settings_mock), app.test_client() as client:
+        resp = client.get("/api/v1/health")
+        assert resp.status_code != 403
 
 
 def test_ip_allowlist_empty_allows_all():
@@ -123,7 +121,6 @@ def test_ip_allowlist_empty_allows_all():
     settings_mock.allowed_ip_ranges = ""
     settings_mock.api_key = ""
 
-    with patch("auth.get_settings", return_value=settings_mock):
-        with app.test_client() as client:
-            resp = client.get("/api/v1/health")
-            assert resp.status_code != 403
+    with patch("auth.get_settings", return_value=settings_mock), app.test_client() as client:
+        resp = client.get("/api/v1/health")
+        assert resp.status_code != 403

@@ -516,6 +516,7 @@ class TestIsSafePath:
         file.touch()
         # Use relative path from tmp_path
         import os
+
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
@@ -530,6 +531,7 @@ class TestIsSafePath:
         (tmp_path / "secret.txt").touch()
         # Attempt to use .. to escape
         import os
+
         old_cwd = os.getcwd()
         try:
             os.chdir(base)
