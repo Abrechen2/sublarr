@@ -27,7 +27,7 @@ from archive_utils import (
     extract_subtitles_from_zip,
 )
 from providers.base import SubtitleFormat
-from security_utils import validate_service_url
+from security_utils import is_safe_path, validate_service_url
 from subtitle_sanitizer import (
     _MAX_SUBTITLE_BYTES,
     sanitize_ass_content,
@@ -447,6 +447,107 @@ class TestValidateServiceUrl:
     def test_trailing_slash_accepted(self):
         ok, _ = validate_service_url("http://192.168.178.36:8989/")
         assert ok is True
+
+
+# ---------------------------------------------------------------------------
+# TestIsSafePath
+# ---------------------------------------------------------------------------
+
+
+class TestIsSafePath:
+    """is_safe_path validates that a file is within an allowed base directory."""
+
+    def test_file_inside_base_accepted(self, tmp_path):
+        """File inside base_dir should be accepted."""
+        base = tmp_path / "media"
+        base.mkdir()
+        file = base / "video.mkv"
+        file.touch()
+        assert is_safe_path(str(file), str(base)) is True
+
+    def test_file_outside_base_rejected(self, tmp_path):
+        """File outside base_dir should be rejected."""
+        base = tmp_path / "media"
+        base.mkdir()
+        outside = tmp_path / "secret.txt"
+        outside.touch()
+        assert is_safe_path(str(outside), str(base)) is False
+
+    def test_nested_file_inside_base_accepted(self, tmp_path):
+        """Deeply nested file inside base_dir should be accepted."""
+        base = tmp_path / "media"
+        base.mkdir()
+        nested = base / "season1" / "ep1" / "subtitle.ass"
+        nested.parent.mkdir(parents=True)
+        nested.touch()
+        assert is_safe_path(str(nested), str(base)) is True
+
+    def test_symlink_to_outside_file_rejected(self, tmp_path):
+        """Symlink pointing outside base_dir should be rejected."""
+        base = tmp_path / "media"
+        base.mkdir()
+        outside = tmp_path / "secret.txt"
+        outside.touch()
+        link = base / "link.txt"
+        try:
+            link.symlink_to(outside)
+        except OSError:
+            pytest.skip("Symlinks not supported on this platform")
+        assert is_safe_path(str(link), str(base)) is False
+
+    def test_symlink_to_inside_file_accepted(self, tmp_path):
+        """Symlink pointing inside base_dir should be accepted."""
+        base = tmp_path / "media"
+        base.mkdir()
+        target = base / "target.txt"
+        target.touch()
+        link = base / "link.txt"
+        try:
+            link.symlink_to(target)
+        except OSError:
+            pytest.skip("Symlinks not supported on this platform")
+        assert is_safe_path(str(link), str(base)) is True
+
+    def test_relative_path_inside_base_accepted(self, tmp_path):
+        """Relative path that resolves inside base_dir should be accepted."""
+        base = tmp_path / "media"
+        base.mkdir()
+        file = base / "subtitle.srt"
+        file.touch()
+        # Use relative path from tmp_path
+        import os
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            assert is_safe_path("media/subtitle.srt", "media") is True
+        finally:
+            os.chdir(old_cwd)
+
+    def test_parent_traversal_rejected(self, tmp_path):
+        """Path with .. that escapes base_dir should be rejected."""
+        base = tmp_path / "media"
+        base.mkdir()
+        (tmp_path / "secret.txt").touch()
+        # Attempt to use .. to escape
+        import os
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(base)
+            assert is_safe_path("../secret.txt", str(base)) is False
+        finally:
+            os.chdir(old_cwd)
+
+    def test_base_dir_itself_accepted(self, tmp_path):
+        """The base directory itself should be accepted."""
+        base = tmp_path / "media"
+        base.mkdir()
+        assert is_safe_path(str(base), str(base)) is True
+
+    def test_empty_string_path_rejected(self, tmp_path):
+        """Empty path should be rejected."""
+        base = tmp_path / "media"
+        base.mkdir()
+        assert is_safe_path("", str(base)) is False
 
 
 # ---------------------------------------------------------------------------

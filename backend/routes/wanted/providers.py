@@ -278,7 +278,7 @@ def cleanup_sidecars():
             pattern = f"{base}.*.{fmt}"
             for sidecar in _glob.glob(pattern):
                 # Security: ensure sidecar is within allowed media path
-                if not is_safe_path(media_path, sidecar):
+                if not is_safe_path(sidecar, media_path):
                     errors.append(f"Skipped (path traversal): {sidecar}")
                     continue
 
