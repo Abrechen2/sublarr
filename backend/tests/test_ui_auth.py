@@ -1,6 +1,7 @@
 """Tests for ui_auth.py — UI session authentication."""
 
 import pytest
+from datetime import timedelta
 from flask import Flask, session
 
 import ui_auth
@@ -147,3 +148,39 @@ def test_hook_allows_api_key_without_session(monkeypatch):
 
     os.environ.pop("SUBLARR_API_KEY", None)
     reload_settings()
+
+
+def test_session_lifetime_uses_configured_timeout(monkeypatch):
+    """PERMANENT_SESSION_LIFETIME must respect session_timeout_minutes when set."""
+    # Mock get_settings to return timeout of 60 minutes
+    import os
+    os.environ["SUBLARR_SESSION_TIMEOUT_MINUTES"] = "60"
+    from config import reload_settings
+    reload_settings()
+
+    app = Flask(__name__)
+    app.config["TESTING"] = True
+
+    init_ui_auth(app)
+
+    assert app.config["PERMANENT_SESSION_LIFETIME"] == timedelta(minutes=60)
+
+    # Cleanup
+    os.environ.pop("SUBLARR_SESSION_TIMEOUT_MINUTES", None)
+    reload_settings()
+
+
+def test_session_lifetime_defaults_to_8h_when_not_configured(monkeypatch):
+    """PERMANENT_SESSION_LIFETIME must default to 8 hours when session_timeout_minutes is 0."""
+    # Ensure timeout is 0
+    import os
+    os.environ.pop("SUBLARR_SESSION_TIMEOUT_MINUTES", None)
+    from config import reload_settings
+    reload_settings()
+
+    app = Flask(__name__)
+    app.config["TESTING"] = True
+
+    init_ui_auth(app)
+
+    assert app.config["PERMANENT_SESSION_LIFETIME"] == timedelta(hours=8)
