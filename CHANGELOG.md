@@ -5,6 +5,20 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.37.2-beta] - 2026-03-31
+
+### Added
+- **AniDB title dump resolver (Tier 4)** — offline `anime-titles.xml.gz` lookup (91 k+ entries, cached 36 h) resolves AniDB ID for standalone anime items even when TVDB/AniList IDs are unknown; enables AnimeTosho to find subtitles for series like "Date A Live" where no external ID is stored
+
+### Fixed
+- **AnimeTosho provider** — rewritten with correct two-step API flow (`?show=torrent&id=` to get subtitle attachment list); the old implementation read `files` from the search feed which is no longer included in the AnimeTosho API; result: 72 subtitle results for Date A Live S01E01, 10 for 86: Eighty Six S01E04 (was 0 for both)
+- **Provider cache key** — now includes `anidb_id` so a freshly resolved AniDB ID triggers a new provider search instead of returning a stale cache entry
+- **Provider search** — fixed occasional hang when a provider thread exceeded its timeout; `ThreadPoolExecutor` is now shut down with `cancel_futures=True` so pending threads do not block the Flask response
+- **Vite 8 blank page** — `BUNDLED_DEV` environment variable was not being replaced at build time; switched `manualChunks` from object to function form for rolldown/Vite 8 compatibility
+- **Alembic migrations on PostgreSQL** — `env.py` now uses `engine.begin()` to wrap all migration DDL in an explicit transaction; `ALTER COLUMN` for `DateTime` columns now emits `USING` cast clause on PostgreSQL
+
+---
+
 ## [0.37.0-beta] - 2026-03-31
 
 ### BREAKING CHANGE — Database Migration Required
