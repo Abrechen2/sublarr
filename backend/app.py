@@ -524,7 +524,7 @@ def create_app(testing=False):
 
         # Register singletons in app.extensions for lifecycle visibility and test injection
         from providers import get_provider_manager as _gpm
-        from wanted_scanner import get_scanner as _gs
+        from services.wanted_scanner import get_scanner as _gs
 
         app.extensions["wanted_scanner"] = _gs()
         app.extensions["provider_manager"] = _gpm()
@@ -579,7 +579,7 @@ def _register_app_routes(app):
 
 def _start_schedulers(settings, app=None):
     """Start background schedulers (wanted scanner, database backup, standalone watcher, cleanup)."""  # noqa: D200
-    from wanted_scanner import get_scanner
+    from services.wanted_scanner import get_scanner
 
     scanner = get_scanner()
     scanner.start_scheduler(socketio=socketio, app=app)

@@ -128,7 +128,7 @@ def list_tasks():
                           type: boolean
     """
     from config import get_settings
-    from wanted_scanner import get_scanner
+    from services.wanted_scanner import get_scanner
 
     s = get_settings()
     tasks = []
@@ -346,7 +346,7 @@ def cancel_task(name):
         409:
           description: Task not currently running
     """
-    from wanted_scanner import get_scanner
+    from services.wanted_scanner import get_scanner
 
     scanner = get_scanner()
     if name == "wanted_search":

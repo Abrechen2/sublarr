@@ -165,7 +165,7 @@ def reset_wanted_scanner():
     state from leaking between tests.
     Post-test uses invalidate_scanner() to stop the scheduler thread cleanly.
     """
-    import wanted_scanner as _ws_module
+    import services.wanted_scanner as _ws_module
 
     _ws_module._scanner = None
     # Clear from extensions if an app context is already active

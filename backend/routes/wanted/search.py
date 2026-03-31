@@ -344,7 +344,7 @@ def wanted_search_all():
         409:
           description: Search already running
     """
-    from wanted_scanner import get_scanner
+    from services.wanted_scanner import get_scanner
 
     scanner = get_scanner()
     if scanner.is_searching:

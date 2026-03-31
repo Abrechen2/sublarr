@@ -8,7 +8,7 @@ def test_extensions_populated_after_create_app(app_ctx):
     from flask import current_app
 
     from providers import ProviderManager
-    from wanted_scanner import WantedScanner
+    from services.wanted_scanner import WantedScanner
 
     assert isinstance(current_app.extensions["wanted_scanner"], WantedScanner)
     assert isinstance(current_app.extensions["provider_manager"], ProviderManager)
@@ -18,7 +18,7 @@ def test_get_scanner_returns_extension_value(app_ctx):
     """get_scanner() must return the app.extensions value when inside an app context."""
     from flask import current_app
 
-    from wanted_scanner import get_scanner
+    from services.wanted_scanner import get_scanner
 
     mock = MagicMock()
     current_app.extensions["wanted_scanner"] = mock
@@ -40,7 +40,7 @@ def test_invalidate_scanner_clears_extensions(app_ctx):
     """invalidate_scanner() must remove the entry from app.extensions."""
     from flask import current_app
 
-    from wanted_scanner import invalidate_scanner
+    from services.wanted_scanner import invalidate_scanner
 
     current_app.extensions["wanted_scanner"] = MagicMock()
     invalidate_scanner()
@@ -62,7 +62,7 @@ def test_get_scanner_self_heals_after_invalidation(app_ctx):
     """After invalidation, next get_scanner() call must re-populate app.extensions."""
     from flask import current_app
 
-    from wanted_scanner import get_scanner, invalidate_scanner
+    from services.wanted_scanner import get_scanner, invalidate_scanner
 
     invalidate_scanner()
     assert "wanted_scanner" not in current_app.extensions

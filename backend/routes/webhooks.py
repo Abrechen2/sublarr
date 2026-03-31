@@ -24,7 +24,7 @@ def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None, mo
 
     # Import _run_job from translate module for direct translation fallback
     from routes.translate import _run_job
-    from wanted_scanner import get_scanner
+    from services.wanted_scanner import get_scanner
 
     s = get_settings()
     delay = s.webhook_delay_minutes * 60

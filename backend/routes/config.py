@@ -151,7 +151,7 @@ def update_config():
     """
     from config import Settings, reload_settings
     from db.config import get_all_config_entries, save_config_entry
-    from wanted_scanner import invalidate_scanner
+    from services.wanted_scanner import invalidate_scanner
 
     data = request.get_json() or {}
     if not data:
@@ -277,7 +277,7 @@ def update_config():
         from flask import current_app as _capp
 
         from extensions import socketio as _sock
-        from wanted_scanner import get_scanner as _get_scanner
+        from services.wanted_scanner import get_scanner as _get_scanner
 
         _get_scanner().start_scheduler(app=_capp._get_current_object(), socketio=_sock)
     except Exception as _exc:
@@ -465,7 +465,7 @@ def import_config():
     """
     from config import Settings, reload_settings
     from db.config import get_all_config_entries, save_config_entry
-    from wanted_scanner import invalidate_scanner
+    from services.wanted_scanner import invalidate_scanner
 
     data = request.get_json() or {}
     if not data:
@@ -531,7 +531,7 @@ def import_config():
         from flask import current_app as _capp
 
         from extensions import socketio as _sock
-        from wanted_scanner import get_scanner as _get_scanner
+        from services.wanted_scanner import get_scanner as _get_scanner
 
         _get_scanner().start_scheduler(app=_capp._get_current_object(), socketio=_sock)
     except Exception as _exc:

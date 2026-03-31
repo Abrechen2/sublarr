@@ -168,7 +168,7 @@ def wanted_summary():
                       type: integer
     """
     from db.wanted import get_wanted_by_subtitle_type, get_wanted_summary
-    from wanted_scanner import get_scanner
+    from services.wanted_scanner import get_scanner
 
     scanner = get_scanner()
     summary = get_wanted_summary()
@@ -215,7 +215,7 @@ def refresh_wanted():
         409:
           description: Scan already running
     """
-    from wanted_scanner import get_scanner
+    from services.wanted_scanner import get_scanner
 
     scanner = get_scanner()
     if scanner.is_scanning:

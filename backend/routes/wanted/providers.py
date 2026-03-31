@@ -37,7 +37,7 @@ def _sidecar_lang_codes(lang: str) -> set[str]:
 @bp.route("/wanted/scanner/status", methods=["GET"])
 def scanner_status():
     """Live status of the Wanted scanner (scanning + searching state, progress, timestamps)."""
-    from wanted_scanner import get_scanner  # noqa: I001
+    from services.wanted_scanner import get_scanner  # noqa: I001
 
     scanner = get_scanner()
     return jsonify(

@@ -566,7 +566,7 @@ def health_detailed():
 
     # Scheduler Status
     try:
-        from wanted_scanner import get_scanner
+        from services.wanted_scanner import get_scanner
 
         scanner = get_scanner()
         tasks = []
