@@ -72,7 +72,6 @@ def stamp_existing_db_if_needed(connection):
             text("INSERT INTO alembic_version (version_num) VALUES (:rev)"),
             {"rev": _STAMP_REVISION},
         )
-        connection.commit()
         logger.info("Database stamped at 'head' successfully.")
 
 
@@ -112,7 +111,11 @@ def run_migrations_online():
 
     connectable = current_app.extensions["migrate"].db.engine
 
-    with connectable.connect() as connection:
+    # Use engine.begin() so SQLAlchemy 2.0 auto-commits on successful exit.
+    # engine.connect() uses autobegin: the outer transaction is rolled back when
+    # the context manager exits unless connection.commit() is called explicitly,
+    # which would undo any migration changes (including alembic_version updates).
+    with connectable.begin() as connection:
         # Stamp existing databases before running migrations
         stamp_existing_db_if_needed(connection)
 
@@ -123,8 +126,7 @@ def run_migrations_online():
             process_revision_directives=process_revision_directives,
         )
 
-        with context.begin_transaction():
-            context.run_migrations()
+        context.run_migrations()
 
 
 if context.is_offline_mode():
