@@ -852,7 +852,15 @@ class ProviderManager:
         if not self._providers:
             return all_results
 
-        with ThreadPoolExecutor(max_workers=len(self._providers)) as executor:
+        # Use manual executor management (no context manager) so that a provider
+        # timeout does NOT block the Flask request waiting for slow/hung threads.
+        # ThreadPoolExecutor.__exit__ calls shutdown(wait=True) which would stall
+        # until every provider thread returns — even if as_completed() already timed
+        # out.  Instead we call shutdown(wait=False, cancel_futures=True) in a
+        # finally block so pending futures are cancelled and running ones finish as
+        # daemon threads without blocking the response.
+        executor = ThreadPoolExecutor(max_workers=max(1, len(self._providers)))
+        try:
             futures = {}
             for name, provider in self._providers.items():
                 # Check auto-disable status
@@ -986,6 +994,11 @@ class ProviderManager:
                     ", ".join(unfinished),
                     len(all_results),
                 )
+        finally:
+            # cancel_futures=True cancels any queued-but-not-started futures immediately.
+            # Already-running threads are released as daemon threads — we do NOT wait
+            # for them (wait=False), so slow/hung providers never block the response.
+            executor.shutdown(wait=False, cancel_futures=True)
 
         # If early exit was triggered, we may have incomplete results, but that's OK
         # Score all results
