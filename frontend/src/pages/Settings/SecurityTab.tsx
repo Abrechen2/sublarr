@@ -8,21 +8,7 @@ import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
 import { FormGroup } from '@/components/settings/FormGroup'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function numVal(config: unknown, key: string, fallback = 0): number {
-  if (!config || typeof config !== 'object') return fallback
-  const v = (config as Record<string, unknown>)[key]
-  const n = Number(v)
-  return isNaN(n) ? fallback : n
-}
-
-function strVal(config: unknown, key: string, fallback = ''): string {
-  if (!config || typeof config !== 'object') return fallback
-  const v = (config as Record<string, unknown>)[key]
-  return v !== undefined && v !== null ? String(v) : fallback
-}
+import { numVal, strVal } from '@/lib/configUtils'
 
 export function SecurityTab() {
   const queryClient = useQueryClient()

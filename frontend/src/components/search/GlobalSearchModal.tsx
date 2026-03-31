@@ -6,7 +6,8 @@
  * - Debounce: TanStack Query enabled only when query.length >= 2
  * - Navigation: Enter on series navigates to /library/:id, episodes to /wanted, subtitles to /history
  */
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
+import { useDebounce } from '@/hooks/useDebounce'
 import { Command } from 'cmdk'
 import { useNavigate } from 'react-router-dom'
 import { Search, Tv, Film, FileText, Loader2 } from 'lucide-react'
@@ -19,13 +20,8 @@ interface Props {
 
 export function GlobalSearchModal({ open, onOpenChange }: Props) {
   const [query, setQuery] = useState('')
-  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const debouncedQuery = useDebounce(query, 300)
   const navigate = useNavigate()
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query), 300)
-    return () => clearTimeout(timer)
-  }, [query])
 
   const { data, isFetching } = useGlobalSearch(debouncedQuery)
 

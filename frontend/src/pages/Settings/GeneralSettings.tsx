@@ -3,14 +3,7 @@ import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
-
-// ─── Config value helpers ─────────────────────────────────────────────────────
-
-function strVal(config: unknown, key: string, fallback = ''): string {
-  if (!config || typeof config !== 'object') return fallback
-  const v = (config as Record<string, unknown>)[key]
-  return v !== undefined && v !== null ? String(v) : fallback
-}
+import { strVal } from '@/lib/configUtils'
 
 // ─── Shared input style ───────────────────────────────────────────────────────
 

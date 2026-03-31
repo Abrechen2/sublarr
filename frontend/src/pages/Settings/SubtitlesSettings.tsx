@@ -18,6 +18,7 @@ import { FormGroup } from '@/components/settings/FormGroup'
 import { Toggle } from '@/components/shared/Toggle'
 import { toast } from '@/components/shared/Toast'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
+import { strVal, numVal, boolVal } from '@/lib/configUtils'
 
 // ─── Lazy sub-tabs ───────────────────────────────────────────────────────────
 
@@ -64,28 +65,6 @@ const inputStyle: React.CSSProperties = {
   outline: 'none',
 }
 
-// ─── Config value helpers ─────────────────────────────────────────────────────
-
-function strVal(config: unknown, key: string, fallback = ''): string {
-  if (!config || typeof config !== 'object') return fallback
-  const v = (config as Record<string, unknown>)[key]
-  return v !== undefined && v !== null ? String(v) : fallback
-}
-
-function numVal(config: unknown, key: string, fallback = 0): number {
-  if (!config || typeof config !== 'object') return fallback
-  const v = (config as Record<string, unknown>)[key]
-  if (v === undefined || v === null) return fallback
-  const n = Number(v)
-  return isNaN(n) ? fallback : n
-}
-
-function boolVal(config: unknown, key: string, fallback = false): boolean {
-  if (!config || typeof config !== 'object') return fallback
-  const v = (config as Record<string, unknown>)[key]
-  if (v === undefined || v === null) return fallback
-  return String(v) === 'true'
-}
 
 // ─── Subtitle Naming Constants ────────────────────────────────────────────────
 

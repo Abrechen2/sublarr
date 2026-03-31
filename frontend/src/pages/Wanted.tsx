@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback, useEffect, useRef, Fragment } from 'react'
+import { useState, useMemo, useCallback, useRef, Fragment } from 'react'
+import { useDebounce } from '@/hooks/useDebounce'
 import { useTranslation } from 'react-i18next'
 import {
   useWantedItems, useWantedSummary, useRefreshWanted, useUpdateWantedStatus,
@@ -279,13 +280,7 @@ export function WantedPage() {
   const [sortBy, setSortBy] = useState('added_at')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [searchText, setSearchText] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-
-  // Debounce search input
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchText), 300)
-    return () => clearTimeout(timer)
-  }, [searchText])
+  const debouncedSearch = useDebounce(searchText, 300)
 
   // Zustand selection store: subscribe only to this scope to avoid re-renders from other pages
   const scopeSelections = useSelectionStore((s) => s.selections[SCOPE])

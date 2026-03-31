@@ -19,6 +19,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
 import { Toggle } from '@/components/shared/Toggle'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
+import { numVal, boolVal } from '@/lib/configUtils'
 
 // ─── Lazy sub-tabs ───────────────────────────────────────────────────────────
 
@@ -55,23 +56,6 @@ const ConfigExportImportTab = lazy(() =>
 const CacheTab = lazy(() =>
   import('./CacheTab').then((m) => ({ default: m.CacheTab })),
 )
-
-// ─── Config value helpers ─────────────────────────────────────────────────────
-
-function boolVal(config: unknown, key: string, fallback = false): boolean {
-  if (!config || typeof config !== 'object') return fallback
-  const v = (config as Record<string, unknown>)[key]
-  if (v === undefined || v === null) return fallback
-  return String(v) === 'true' || v === true
-}
-
-function numVal(config: unknown, key: string, fallback = 0): number {
-  if (!config || typeof config !== 'object') return fallback
-  const v = (config as Record<string, unknown>)[key]
-  if (v === undefined || v === null) return fallback
-  const n = Number(v)
-  return isNaN(n) ? fallback : n
-}
 
 const inputStyle: React.CSSProperties = {
   background: 'var(--bg-elevated)',

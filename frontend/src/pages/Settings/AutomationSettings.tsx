@@ -15,21 +15,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
 import { Toggle } from '@/components/shared/Toggle'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
-
-// ─── Config value helpers ─────────────────────────────────────────────────────
-
-function strVal(config: unknown, key: string, fallback = ''): string {
-  if (!config || typeof config !== 'object') return fallback
-  const v = (config as Record<string, unknown>)[key]
-  return v !== undefined && v !== null ? String(v) : fallback
-}
-
-function boolVal(config: unknown, key: string, fallback = false): boolean {
-  if (!config || typeof config !== 'object') return fallback
-  const v = (config as Record<string, unknown>)[key]
-  if (v === undefined || v === null) return fallback
-  return v === true || v === 'true' || v === 1
-}
+import { strVal, boolVal } from '@/lib/configUtils'
 
 // ─── Shared input style ───────────────────────────────────────────────────────
 

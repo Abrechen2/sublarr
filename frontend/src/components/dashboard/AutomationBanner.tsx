@@ -69,12 +69,8 @@ export function AutomationBanner() {
 
   const isActive = Boolean(scannerStatus?.is_scanning || scannerStatus?.is_searching)
 
-  // Extended fields not yet in Stats type definition
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const extStats = stats as any
-
-  const successRate = extStats?.success_rate ?? 0
-  const downloadsToday = extStats?.downloads_today ?? 0
+  const successRate = stats?.success_rate ?? 0
+  const downloadsToday = stats?.downloads_today ?? 0
   const needsAttention = wantedSummary?.total ?? 0
 
   const lastActivity = scannerStatus?.last_scan_at ?? scannerStatus?.last_search_at ?? null
