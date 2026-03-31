@@ -688,6 +688,8 @@ class ProviderManager:
             query.languages,
         )
 
+        import requests as _requests
+
         for attempt in range(retries + 1):
             try:
                 start = _time.monotonic()
@@ -723,6 +725,19 @@ class ProviderManager:
                     _time.sleep(wait_time)
                 else:
                     return [], 0.0  # Don't retry indefinitely for rate limits
+            except _requests.Timeout:
+                # Timeouts are not transient — the server is slow or unreachable.
+                # Retrying will just waste the full timeout budget again. Give up
+                # immediately so the executor slot is freed as soon as possible.
+                elapsed_ms = (_time.monotonic() - start) * 1000
+                logger.warning(
+                    "Provider %s timed out after %.0fms (attempt %d/%d), not retrying",
+                    name,
+                    elapsed_ms,
+                    attempt + 1,
+                    retries + 1,
+                )
+                return [], 0.0
             except Exception as e:
                 if attempt < retries:
                     logger.debug(
