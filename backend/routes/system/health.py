@@ -37,11 +37,15 @@ def _is_newer_version(tag: str, current: str) -> bool:
 
 
 def _health_check_ollama():
-    """Return (dict of service_status entries, overall_healthy bool)."""
+    """Return (dict of service_status entries, overall_healthy bool).
+
+    Ollama is an optional translation backend — its unavailability never marks
+    the system unhealthy (overall=None means 'informational only').
+    """
     from ollama_client import check_ollama_health
 
-    healthy, message = check_ollama_health()
-    return {"ollama": message}, healthy
+    _, message = check_ollama_health()
+    return {"ollama": message}, None
 
 
 def _health_check_providers(app=None):
@@ -161,7 +165,7 @@ def health():
                 results_by_name[name] = (part, overall)
             except Exception as exc:
                 logger.debug("Health check %s failed: %s", name, exc)
-                results_by_name[name] = ({name: "error"}, False if name == "ollama" else None)
+                results_by_name[name] = ({name: "error"}, None)
 
     for name, (part, overall) in results_by_name.items():
         service_status.update(part)
