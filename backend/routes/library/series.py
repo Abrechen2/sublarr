@@ -331,8 +331,8 @@ def get_series_detail(series_id):
                     wanted_fallback[eid] = {}
                 if existing:
                     wanted_fallback[eid][lang] = existing
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Failed to load wanted fallback for series episodes: %s", exc)
 
     episodes = []
     for ep in episodes_raw:

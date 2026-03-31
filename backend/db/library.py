@@ -74,3 +74,8 @@ def get_library_stats() -> dict:
     dl_stats = _get_repo().get_download_stats()
     up_stats = _get_repo().get_upgrade_stats()
     return {**dl_stats, "upgrades": up_stats}
+
+
+def delete_download_record(file_path: str) -> None:
+    """Delete subtitle_downloads entry for the given file path."""
+    _get_repo().delete_download_record(file_path)

@@ -2,7 +2,6 @@
 
 import json
 import logging
-from datetime import UTC, datetime
 
 from sqlalchemy import and_, delete, or_, select
 
@@ -52,7 +51,7 @@ class FilterPresetsRepository(BaseRepository):
         self, name: str, scope: str, conditions: dict, is_default: bool = False
     ) -> dict:
         self._validate_conditions(conditions, scope)
-        now = datetime.now(UTC).isoformat()
+        now = self._now()
         preset = FilterPreset(
             name=name,
             scope=scope,
@@ -78,7 +77,7 @@ class FilterPresetsRepository(BaseRepository):
             row.conditions = json.dumps(conditions)
         if is_default is not None:
             row.is_default = 1 if is_default else 0
-        row.updated_at = datetime.now(UTC).isoformat()
+        row.updated_at = self._now()
         self._commit()
         return self._preset_to_dict(row)
 
@@ -127,8 +126,8 @@ class FilterPresetsRepository(BaseRepository):
             "scope": row.scope,
             "conditions": json.loads(row.conditions or "{}"),
             "is_default": bool(row.is_default),
-            "created_at": row.created_at,
-            "updated_at": row.updated_at,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+            "updated_at": row.updated_at.isoformat() if row.updated_at else None,
         }
 
     def _validate_conditions(self, node: dict, scope: str) -> None:

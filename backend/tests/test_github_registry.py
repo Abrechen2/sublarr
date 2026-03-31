@@ -41,15 +41,15 @@ def _make_registry(github_token: str = "") -> "GitHubRegistry":  # noqa: F821
     return GitHubRegistry(github_token=github_token)
 
 
-def _fresh_timestamp() -> str:
-    return datetime.now(UTC).isoformat()
+def _fresh_timestamp() -> datetime:
+    return datetime.now(UTC)
 
 
-def _stale_timestamp() -> str:
-    return (datetime.now(UTC) - timedelta(hours=2)).isoformat()
+def _stale_timestamp() -> datetime:
+    return datetime.now(UTC) - timedelta(hours=2)
 
 
-def _insert_cache_entry(app_ctx, name: str, last_fetched: str) -> None:
+def _insert_cache_entry(app_ctx, name: str, last_fetched: datetime) -> None:
     from db.models.plugins import MarketplaceCache
 
     with app_ctx.app_context():

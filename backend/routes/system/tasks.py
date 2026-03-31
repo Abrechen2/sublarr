@@ -128,7 +128,7 @@ def list_tasks():
                           type: boolean
     """
     from config import get_settings
-    from wanted_scanner import get_scanner
+    from services.wanted_scanner import get_scanner
 
     s = get_settings()
     tasks = []
@@ -146,8 +146,8 @@ def list_tasks():
 
                 last_dt = datetime.fromisoformat(str(scan_last))
                 scan_next = (last_dt + timedelta(hours=scan_interval)).isoformat()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Could not compute wanted_scan next_run time: %s", exc)
         tasks.append(
             {
                 "name": "wanted_scan",
@@ -170,8 +170,8 @@ def list_tasks():
 
                 last_dt = datetime.fromisoformat(str(search_last))
                 search_next = (last_dt + timedelta(hours=search_interval)).isoformat()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Could not compute wanted_search next_run time: %s", exc)
         tasks.append(
             {
                 "name": "wanted_search",
@@ -346,7 +346,7 @@ def cancel_task(name):
         409:
           description: Task not currently running
     """
-    from wanted_scanner import get_scanner
+    from services.wanted_scanner import get_scanner
 
     scanner = get_scanner()
     if name == "wanted_search":

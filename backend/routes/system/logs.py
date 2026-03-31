@@ -310,8 +310,8 @@ def support_export():
     hostname: str | None = None
     try:
         hostname = _socket.gethostname()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("gethostname() failed, log anonymization will skip hostname: %s", exc)
 
     buf = io.BytesIO()
     with _zipfile.ZipFile(buf, "w", _zipfile.ZIP_DEFLATED) as zf:
@@ -438,8 +438,8 @@ def support_preview():
     hostname: str | None = None
     try:
         hostname = _socket.gethostname()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("gethostname() failed, log anonymization will skip hostname: %s", exc)
 
     for path in candidates:
         try:

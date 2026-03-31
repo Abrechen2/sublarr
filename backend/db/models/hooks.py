@@ -3,7 +3,9 @@
 All column types and defaults match the existing SCHEMA DDL in db/__init__.py exactly.
 """
 
-from sqlalchemy import Float, Index, Integer, String, Text
+from datetime import datetime
+
+from sqlalchemy import DateTime, Float, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from extensions import db
@@ -21,11 +23,13 @@ class HookConfig(db.Model):
     enabled: Mapped[int | None] = mapped_column(Integer, default=1)
     script_path: Mapped[str | None] = mapped_column(Text, default="")
     timeout_seconds: Mapped[int | None] = mapped_column(Integer, default=30)
-    last_triggered_at: Mapped[str | None] = mapped_column(Text, default="")
+    last_triggered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     last_status: Mapped[str | None] = mapped_column(Text, default="")
     trigger_count: Mapped[int | None] = mapped_column(Integer, default=0)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (Index("idx_hook_configs_event", "event_name"),)
 
@@ -43,13 +47,15 @@ class WebhookConfig(db.Model):
     enabled: Mapped[int | None] = mapped_column(Integer, default=1)
     retry_count: Mapped[int | None] = mapped_column(Integer, default=3)
     timeout_seconds: Mapped[int | None] = mapped_column(Integer, default=10)
-    last_triggered_at: Mapped[str | None] = mapped_column(Text, default="")
+    last_triggered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     last_status_code: Mapped[int | None] = mapped_column(Integer, default=0)
     last_error: Mapped[str | None] = mapped_column(Text, default="")
     consecutive_failures: Mapped[int | None] = mapped_column(Integer, default=0)
     trigger_count: Mapped[int | None] = mapped_column(Integer, default=0)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (Index("idx_webhook_configs_event", "event_name"),)
 
@@ -71,7 +77,7 @@ class HookLog(db.Model):
     stderr: Mapped[str | None] = mapped_column(Text, default="")
     error: Mapped[str | None] = mapped_column(Text, default="")
     duration_ms: Mapped[float | None] = mapped_column(Float, default=0)
-    triggered_at: Mapped[str] = mapped_column(Text, nullable=False)
+    triggered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         Index("idx_hook_log_hook_id", "hook_id"),

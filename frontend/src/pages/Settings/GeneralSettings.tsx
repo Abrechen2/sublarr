@@ -3,28 +3,10 @@ import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
+import { strVal } from '@/lib/configUtils'
+import { settingsInputStyle } from '@/styles/settingsShared'
 
-// ─── Config value helpers ─────────────────────────────────────────────────────
-
-function strVal(config: unknown, key: string, fallback = ''): string {
-  if (!config || typeof config !== 'object') return fallback
-  const v = (config as Record<string, unknown>)[key]
-  return v !== undefined && v !== null ? String(v) : fallback
-}
-
-// ─── Shared input style ───────────────────────────────────────────────────────
-
-const inputStyle: React.CSSProperties = {
-  background: 'var(--bg-elevated)',
-  border: '1px solid var(--border)',
-  color: 'var(--text-primary)',
-  borderRadius: '6px',
-  padding: '7px 12px',
-  fontSize: '13px',
-  fontFamily: 'var(--font-body)',
-  width: '220px',
-  outline: 'none',
-}
+const inputStyle: React.CSSProperties = { ...settingsInputStyle, width: '220px', outline: 'none' }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

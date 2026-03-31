@@ -1,6 +1,7 @@
 """Tests for marketplace routes — /installed, /refresh, /install."""
 
 import os
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -65,7 +66,7 @@ def test_get_installed_with_data(app, client):
             sha256="a" * 64,
             capabilities='["provider"]',
             enabled=1,
-            installed_at="2026-03-11T00:00:00+00:00",
+            installed_at=datetime(2026, 3, 11, 0, 0, 0, tzinfo=UTC),
         )
         sa_db.session.add(plugin)
         sa_db.session.commit()

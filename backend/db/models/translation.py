@@ -3,7 +3,9 @@
 All column types and defaults match the existing SCHEMA DDL in db/__init__.py exactly.
 """
 
-from sqlalchemy import Float, Index, Integer, String, Text, UniqueConstraint
+from datetime import datetime
+
+from sqlalchemy import DateTime, Float, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from extensions import db
@@ -19,8 +21,8 @@ class TranslationConfigHistory(db.Model):
     ollama_model: Mapped[str | None] = mapped_column(Text)
     prompt_template: Mapped[str | None] = mapped_column(Text)
     target_language: Mapped[str | None] = mapped_column(Text)
-    first_used_at: Mapped[str] = mapped_column(Text, nullable=False)
-    last_used_at: Mapped[str] = mapped_column(Text, nullable=False)
+    first_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class GlossaryEntry(db.Model):
@@ -41,8 +43,8 @@ class GlossaryEntry(db.Model):
     term_type: Mapped[str] = mapped_column(Text, nullable=False, default="other")
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     approved: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         Index("idx_glossary_series_id", "series_id"),
@@ -59,8 +61,8 @@ class PromptPreset(db.Model):
     name: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     prompt_template: Mapped[str] = mapped_column(Text, nullable=False)
     is_default: Mapped[int | None] = mapped_column(Integer, default=0)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class TranslationBackendStats(db.Model):
@@ -75,11 +77,11 @@ class TranslationBackendStats(db.Model):
     total_characters: Mapped[int | None] = mapped_column(Integer, default=0)
     avg_response_time_ms: Mapped[float | None] = mapped_column(Float, default=0)
     last_response_time_ms: Mapped[float | None] = mapped_column(Float, default=0)
-    last_success_at: Mapped[str | None] = mapped_column(Text)
-    last_failure_at: Mapped[str | None] = mapped_column(Text)
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_failure_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, default="")
     consecutive_failures: Mapped[int | None] = mapped_column(Integer, default=0)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (Index("idx_translation_backend_stats_updated", "updated_at"),)
 
@@ -104,9 +106,9 @@ class WhisperJob(db.Model):
     processing_time_ms: Mapped[float | None] = mapped_column(Float, default=0.0)
     audio_track_index: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
     error: Mapped[str | None] = mapped_column(Text, default="")
-    created_at: Mapped[str] = mapped_column(Text, nullable=False)
-    started_at: Mapped[str | None] = mapped_column(Text, default="")
-    completed_at: Mapped[str | None] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         Index("idx_whisper_jobs_status", "status"),
@@ -134,7 +136,7 @@ class TranslationMemory(db.Model):
     source_text_normalized: Mapped[str] = mapped_column(Text, nullable=False)
     text_hash: Mapped[str] = mapped_column(Text, nullable=False)
     translated_text: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         # Fast exact-match lookup

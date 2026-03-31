@@ -9,6 +9,43 @@ from routes.library import bp
 logger = logging.getLogger(__name__)
 
 
+def _get_or_create_episode_wanted(
+    sonarr, episode: dict, episode_id: int, target_lang: str
+) -> tuple[int | None, object | None]:
+    """Find or create a WantedItem for a Sonarr episode.
+
+    Returns (item_id, None) on success or (None, flask_response) when the episode
+    has no file and a 404 should be returned to the caller.
+    """
+    from config import map_path
+    from db.wanted import find_wanted_by_episode, upsert_wanted_item
+
+    wanted = find_wanted_by_episode(episode_id, target_lang)
+    if wanted:
+        return wanted["id"], None
+
+    file_path = sonarr.get_episode_file_path(episode_id)
+    if not file_path:
+        return None, (jsonify({"error": "Episode has no file"}), 404)
+
+    file_path = map_path(file_path)
+    series_id = episode.get("seriesId")
+    series = sonarr.get_series_by_id(series_id) if series_id else None
+    title = series.get("title", "") if series else ""
+    se = f"S{episode.get('seasonNumber', 0):02d}E{episode.get('episodeNumber', 0):02d}"
+
+    item_id, _ = upsert_wanted_item(
+        item_type="episode",
+        file_path=file_path,
+        title=title,
+        season_episode=se,
+        sonarr_series_id=series_id,
+        sonarr_episode_id=episode_id,
+        target_language=target_lang,
+    )
+    return item_id, None
+
+
 @bp.route("/episodes/<int:episode_id>/search", methods=["POST"])
 def episode_search(episode_id):
     """Search providers for a specific episode's subtitles.
@@ -42,9 +79,8 @@ def episode_search(episode_id):
         503:
           description: Sonarr not configured
     """
-    from config import get_settings, map_path
+    from config import get_settings
     from db.profiles import get_default_profile, get_series_profile
-    from db.wanted import find_wanted_by_episode, upsert_wanted_item
     from sonarr_client import get_sonarr_client
     from wanted_search import search_wanted_item
 
@@ -65,36 +101,11 @@ def episode_search(episode_id):
         if profile
         else [settings.target_language]
     )
-
-    # Use the first target language (primary)
     target_lang = target_languages[0] if target_languages else settings.target_language
 
-    # Check if wanted item already exists for this episode
-    wanted = find_wanted_by_episode(episode_id, target_lang)
-
-    if not wanted:
-        # Get file path from episode
-        file_path = sonarr.get_episode_file_path(episode_id)
-        if not file_path:
-            return jsonify({"error": "Episode has no file"}), 404
-
-        file_path = map_path(file_path)
-        series = sonarr.get_series_by_id(series_id) if series_id else None
-        title = series.get("title", "") if series else ""
-        se = f"S{episode.get('seasonNumber', 0):02d}E{episode.get('episodeNumber', 0):02d}"
-
-        # Create a wanted item
-        item_id, _ = upsert_wanted_item(
-            item_type="episode",
-            file_path=file_path,
-            title=title,
-            season_episode=se,
-            sonarr_series_id=series_id,
-            sonarr_episode_id=episode_id,
-            target_language=target_lang,
-        )
-    else:
-        item_id = wanted["id"]
+    item_id, err = _get_or_create_episode_wanted(sonarr, episode, episode_id, target_lang)
+    if err:
+        return err
 
     result = search_wanted_item(item_id)
     if result.get("error"):
@@ -128,9 +139,8 @@ def episode_search_providers_interactive(episode_id):
         503:
           description: Sonarr not configured
     """
-    from config import get_settings, map_path
+    from config import get_settings
     from db.profiles import get_default_profile, get_series_profile
-    from db.wanted import find_wanted_by_episode, upsert_wanted_item
     from sonarr_client import get_sonarr_client
     from wanted_search import search_providers_for_item
 
@@ -152,26 +162,9 @@ def episode_search_providers_interactive(episode_id):
     )
     target_lang = target_languages[0] if target_languages else settings.target_language
 
-    wanted = find_wanted_by_episode(episode_id, target_lang)
-    if not wanted:
-        file_path = sonarr.get_episode_file_path(episode_id)
-        if not file_path:
-            return jsonify({"error": "Episode has no file"}), 404
-        file_path = map_path(file_path)
-        series = sonarr.get_series_by_id(series_id) if series_id else None
-        title = series.get("title", "") if series else ""
-        se = f"S{episode.get('seasonNumber', 0):02d}E{episode.get('episodeNumber', 0):02d}"
-        item_id, _ = upsert_wanted_item(
-            item_type="episode",
-            file_path=file_path,
-            title=title,
-            season_episode=se,
-            sonarr_series_id=series_id,
-            sonarr_episode_id=episode_id,
-            target_language=target_lang,
-        )
-    else:
-        item_id = wanted["id"]
+    item_id, err = _get_or_create_episode_wanted(sonarr, episode, episode_id, target_lang)
+    if err:
+        return err
 
     result = search_providers_for_item(item_id)
     return jsonify(result)
@@ -222,9 +215,8 @@ def episode_download_specific(episode_id):
         503:
           description: Sonarr not configured
     """
-    from config import get_settings, map_path
+    from config import get_settings
     from db.profiles import get_default_profile, get_series_profile
-    from db.wanted import find_wanted_by_episode, upsert_wanted_item
     from events import emit_event
     from sonarr_client import get_sonarr_client
     from wanted_search import download_specific_for_item
@@ -256,26 +248,9 @@ def episode_download_specific(episode_id):
     )
     target_lang = target_languages[0] if target_languages else settings.target_language
 
-    wanted = find_wanted_by_episode(episode_id, target_lang)
-    if not wanted:
-        file_path = sonarr.get_episode_file_path(episode_id)
-        if not file_path:
-            return jsonify({"error": "Episode has no file"}), 404
-        file_path = map_path(file_path)
-        series = sonarr.get_series_by_id(series_id) if series_id else None
-        title = series.get("title", "") if series else ""
-        se = f"S{episode.get('seasonNumber', 0):02d}E{episode.get('episodeNumber', 0):02d}"
-        item_id, _ = upsert_wanted_item(
-            item_type="episode",
-            file_path=file_path,
-            title=title,
-            season_episode=se,
-            sonarr_series_id=series_id,
-            sonarr_episode_id=episode_id,
-            target_language=target_lang,
-        )
-    else:
-        item_id = wanted["id"]
+    item_id, err = _get_or_create_episode_wanted(sonarr, episode, episode_id, target_lang)
+    if err:
+        return err
 
     result = download_specific_for_item(item_id, provider_name, subtitle_id, language, translate)
     if not result.get("success"):

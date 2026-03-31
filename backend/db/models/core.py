@@ -1,10 +1,12 @@
 """Core ORM models: jobs, stats, config, wanted, upgrades, profiles, cache, blacklist.
 
 All column types and defaults match the existing SCHEMA DDL in db/__init__.py exactly.
-Timestamp columns use Text (not DateTime) to preserve backward compatibility.
+Timestamp columns use DateTime(timezone=True) for proper datetime handling.
 """
 
-from sqlalchemy import Float, Index, Integer, String, Text, UniqueConstraint
+from datetime import datetime
+
+from sqlalchemy import DateTime, Float, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from extensions import db
@@ -25,8 +27,8 @@ class Job(db.Model):
     force: Mapped[int | None] = mapped_column(Integer, default=0)
     bazarr_context_json: Mapped[str | None] = mapped_column(Text, default="")
     config_hash: Mapped[str | None] = mapped_column(String(12), default="")
-    created_at: Mapped[str] = mapped_column(Text, nullable=False)
-    completed_at: Mapped[str | None] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         Index("idx_jobs_status", "status"),
@@ -54,7 +56,7 @@ class ConfigEntry(db.Model):
 
     key: Mapped[str] = mapped_column(Text, primary_key=True)
     value: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class WantedItem(db.Model):
@@ -73,11 +75,11 @@ class WantedItem(db.Model):
     existing_sub: Mapped[str | None] = mapped_column(Text, default="")
     missing_languages: Mapped[str | None] = mapped_column(Text, default="[]")
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="wanted")
-    last_search_at: Mapped[str | None] = mapped_column(Text, default="")
+    last_search_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     search_count: Mapped[int | None] = mapped_column(Integer, default=0)
     error: Mapped[str | None] = mapped_column(Text, default="")
-    added_at: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     upgrade_candidate: Mapped[int | None] = mapped_column(Integer, default=0)
     current_score: Mapped[int | None] = mapped_column(Integer, default=0)
     target_language: Mapped[str | None] = mapped_column(Text, default="")
@@ -85,7 +87,7 @@ class WantedItem(db.Model):
     standalone_series_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     standalone_movie_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     subtitle_type: Mapped[str | None] = mapped_column(String(20), default="full")
-    retry_after: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    retry_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         Index("idx_wanted_status", "status"),
@@ -120,7 +122,7 @@ class UpgradeHistory(db.Model):
     new_score: Mapped[int | None] = mapped_column(Integer)
     provider_name: Mapped[str | None] = mapped_column(Text)
     upgrade_reason: Mapped[str | None] = mapped_column(Text)
-    upgraded_at: Mapped[str] = mapped_column(Text, nullable=False)
+    upgraded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (Index("idx_upgrade_history_path", "file_path"),)
 
@@ -147,8 +149,8 @@ class LanguageProfile(db.Model):
     must_not_contain_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     cutoff_language: Mapped[str] = mapped_column(Text, nullable=False, default="")
     audio_exclude_languages_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
-    created_at: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class SeriesLanguageProfile(db.Model):
@@ -185,7 +187,7 @@ class FfprobeCache(db.Model):
     file_path: Mapped[str] = mapped_column(Text, primary_key=True)
     mtime: Mapped[float] = mapped_column(Float, nullable=False)
     probe_data_json: Mapped[str] = mapped_column(Text, nullable=False)
-    cached_at: Mapped[str] = mapped_column(Text, nullable=False)
+    cached_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (Index("idx_ffprobe_cache_mtime", "mtime"),)
 
@@ -202,7 +204,7 @@ class ChapterCache(db.Model):
     file_path: Mapped[str] = mapped_column(Text, primary_key=True)
     mtime: Mapped[float] = mapped_column(Float, nullable=False)
     chapters_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
-    cached_at: Mapped[str] = mapped_column(Text, nullable=False)
+    cached_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class BlacklistEntry(db.Model):
@@ -217,7 +219,7 @@ class BlacklistEntry(db.Model):
     file_path: Mapped[str | None] = mapped_column(Text, default="")
     title: Mapped[str | None] = mapped_column(Text, default="")
     reason: Mapped[str | None] = mapped_column(Text, default="")
-    added_at: Mapped[str] = mapped_column(Text, nullable=False)
+    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         UniqueConstraint("provider_name", "subtitle_id"),
@@ -237,8 +239,8 @@ class FilterPreset(db.Model):
         Text, nullable=False, default="{}"
     )  # JSON condition tree
     is_default: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 1 = auto-apply
-    created_at: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (Index("idx_filter_presets_scope", "scope"),)
 
@@ -257,7 +259,7 @@ class AnidbAbsoluteMapping(db.Model):
     season: Mapped[int] = mapped_column(Integer, nullable=False)
     episode: Mapped[int] = mapped_column(Integer, nullable=False)
     anidb_absolute_episode: Mapped[int] = mapped_column(Integer, nullable=False)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     source: Mapped[str | None] = mapped_column(Text, default="")
 
     __table_args__ = (
@@ -282,7 +284,7 @@ class SeriesSettings(db.Model):
         Integer, nullable=True, default=None
     )
     processing_config: Mapped[str | None] = mapped_column(Text, nullable=True)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class FansubPreference(db.Model):
@@ -299,7 +301,7 @@ class FansubPreference(db.Model):
     preferred_groups_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     excluded_groups_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     bonus: Mapped[int] = mapped_column(Integer, nullable=False, default=20)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 __all__ = [

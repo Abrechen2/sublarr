@@ -23,6 +23,7 @@ import { srtLanguage } from './lang-srt'
 import { sublarrTheme } from './editor-theme'
 import { useSaveSubtitle, useValidateSubtitle } from '@/hooks/useApi'
 import { toast } from '@/components/shared/Toast'
+import { ConfirmModal } from '@/components/shared/ConfirmModal'
 import type { SubtitleValidation } from '@/lib/types'
 import {
   Save, CheckCircle, Search, Undo2, Redo2,
@@ -54,6 +55,7 @@ export function SubtitleEditor({
   const [isSaving, setIsSaving] = useState(false)
   const [isValidating, setIsValidating] = useState(false)
   const [currentMtime, setCurrentMtime] = useState(lastModified)
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false)
 
   const editorRef = useRef<ReactCodeMirrorRef>(null)
   const lastValidatedContent = useRef<string>('')
@@ -209,9 +211,7 @@ export function SubtitleEditor({
 
   const handleClose = useCallback(() => {
     if (hasChanges) {
-      if (window.confirm('You have unsaved changes. Close anyway?')) {
-        onClose?.()
-      }
+      setShowCloseConfirm(true)
     } else {
       onClose?.()
     }
@@ -398,6 +398,14 @@ export function SubtitleEditor({
           </span>
         )}
       </div>
+      <ConfirmModal
+        open={showCloseConfirm}
+        title="Unsaved Changes"
+        message="You have unsaved changes. Close anyway?"
+        confirmLabel="Close"
+        onConfirm={() => { setShowCloseConfirm(false); onClose?.() }}
+        onCancel={() => setShowCloseConfirm(false)}
+      />
     </div>
   )
 }

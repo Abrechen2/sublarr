@@ -290,7 +290,11 @@ def batch_extract():
 
     from config import map_path
 
+    settings = get_settings()
     video_path = map_path(video_path)
+    if not is_safe_path(video_path, settings.media_path):
+        return jsonify({"error": "Access denied"}), 403
+
     if not os.path.exists(video_path):
         return jsonify({"error": f"Video not found: {video_path}"}), 404
 

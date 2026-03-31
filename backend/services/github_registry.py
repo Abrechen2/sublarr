@@ -40,7 +40,7 @@ class GitHubRegistry:
 
     def _load_from_cache(self) -> list[dict] | None:
         """Return cached entries if any are fresher than CACHE_TTL_HOURS. None = stale/empty."""
-        cutoff = (datetime.now(UTC) - timedelta(hours=CACHE_TTL_HOURS)).isoformat()
+        cutoff = datetime.now(UTC) - timedelta(hours=CACHE_TTL_HOURS)
         stmt = select(MarketplaceCache).where(MarketplaceCache.last_fetched > cutoff)
         rows = db.session.execute(stmt).scalars().all()
         if not rows:
@@ -99,7 +99,7 @@ class GitHubRegistry:
                 )
                 return None
 
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now(UTC)
         capabilities = manifest.get("capabilities", [])
         is_official = 1 if manifest["name"] in official_names else 0
 
@@ -166,6 +166,6 @@ class GitHubRegistry:
             "capabilities": json.loads(row.capabilities or "[]"),
             "min_sublarr_version": row.min_sublarr_version,
             "is_official": bool(row.is_official),
-            "last_fetched": row.last_fetched,
+            "last_fetched": row.last_fetched.isoformat() if row.last_fetched else None,
         }
         return d

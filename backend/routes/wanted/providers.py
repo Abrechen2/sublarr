@@ -37,7 +37,7 @@ def _sidecar_lang_codes(lang: str) -> set[str]:
 @bp.route("/wanted/scanner/status", methods=["GET"])
 def scanner_status():
     """Live status of the Wanted scanner (scanning + searching state, progress, timestamps)."""
-    from wanted_scanner import get_scanner  # noqa: I001
+    from services.wanted_scanner import get_scanner  # noqa: I001
 
     scanner = get_scanner()
     return jsonify(
@@ -241,7 +241,7 @@ def cleanup_sidecars():
     import glob as _glob
 
     from config import get_settings
-    from db.wanted import get_wanted_item, get_wanted_items
+    from db.wanted import get_wanted_items, get_wanted_items_by_ids
     from security_utils import is_safe_path
 
     data = request.get_json(force=True, silent=True) or {}
@@ -257,11 +257,18 @@ def cleanup_sidecars():
 
     # Resolve items to process
     if item_ids:
-        items = [get_wanted_item(iid) for iid in item_ids]
-        items = [it for it in items if it]
+        items = list(get_wanted_items_by_ids(item_ids).values())
     else:
-        result = get_wanted_items(status="extracted", per_page=10000)
-        items = result.get("data", [])
+        _PAGE = 200
+        _page = 1
+        items = []
+        while True:
+            result = get_wanted_items(status="extracted", page=_page, per_page=_PAGE)
+            batch = result.get("data", [])
+            items.extend(batch)
+            if len(batch) < _PAGE:
+                break
+            _page += 1
 
     for item in items:
         file_path = item.get("file_path", "")
@@ -278,7 +285,7 @@ def cleanup_sidecars():
             pattern = f"{base}.*.{fmt}"
             for sidecar in _glob.glob(pattern):
                 # Security: ensure sidecar is within allowed media path
-                if not is_safe_path(media_path, sidecar):
+                if not is_safe_path(sidecar, media_path):
                     errors.append(f"Skipped (path traversal): {sidecar}")
                     continue
 
@@ -307,70 +314,10 @@ def cleanup_sidecars():
 
 
 def _retranslate_item(item_id: int):
-    """Queue re-translation for a single wanted item.
+    """Queue re-translation for a single wanted item. Delegates to retranslation service."""
+    from services.retranslation import retranslate_item
 
-    Looks up the wanted item by ID, verifies the media file exists, deletes any
-    existing translated subtitle sidecar files, and starts a background
-    translation job.
-
-    Returns the job_id string on success, or None if the item / file was not found.
-    """
-    import threading
-
-    from config import get_settings
-    from db.jobs import create_job
-    from db.wanted import get_wanted_item
-    from events import emit_event
-    from security_utils import is_safe_path
-
-    item = get_wanted_item(item_id)
-    if not item:
-        return None
-
-    file_path = item.get("file_path") or item.get("path")
-    if not file_path or not os.path.exists(file_path):
-        return None
-
-    settings = get_settings()
-    if not is_safe_path(file_path, settings.media_path):
-        logger.warning("_retranslate_item: path traversal rejected for item %s", item_id)
-        return None
-
-    # Remove existing translated sidecar files so re-translation starts clean
-    base = os.path.splitext(file_path)[0]
-    for fmt in ("ass", "srt"):
-        for pattern in settings.get_target_patterns(fmt):
-            target = base + pattern
-            if os.path.exists(target):
-                try:
-                    os.remove(target)
-                    logger.info("batch-translate: removed existing sidecar %s", target)
-                except OSError as exc:
-                    logger.warning("batch-translate: could not remove %s: %s", target, exc)
-
-    new_job = create_job(file_path, force=True)
-
-    from flask import current_app as _current_app
-
-    _app = _current_app._get_current_object()
-
-    def _run():
-        from routes.translate import _run_job
-
-        with _app.app_context():
-            _run_job(new_job)
-            emit_event(
-                "translation_complete",
-                {
-                    "file_path": file_path,
-                    "job_id": new_job["id"],
-                },
-            )
-
-    thread = threading.Thread(target=_run, daemon=True)
-    thread.start()
-
-    return new_job["id"]
+    return retranslate_item(item_id)
 
 
 @bp.route("/wanted/batch-translate", methods=["POST"])

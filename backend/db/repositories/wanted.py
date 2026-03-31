@@ -284,8 +284,8 @@ class WantedRepository(BaseRepository):
         self._commit()
         return True
 
-    def set_retry_after(self, item_id: int, retry_after: str) -> bool:
-        """Set retry_after ISO timestamp for adaptive backoff."""
+    def set_retry_after(self, item_id: int, retry_after) -> bool:
+        """Set retry_after datetime for adaptive backoff."""
         item = self.session.get(WantedItem, item_id)
         if not item:
             return False

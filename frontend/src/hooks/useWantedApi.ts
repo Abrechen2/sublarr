@@ -12,9 +12,9 @@ import {
 // ─── Wanted ─────────────────────────────────────────────────────────────
 
 /** When fetchAll=true, fetches page=1 with perPage=9999 (cap ~9999 items). Sufficient for typical Wanted lists. */
-export function useWantedItems(page = 1, perPage = 50, itemType?: string, status?: string, subtitleType?: string, fetchAll = false, movieId?: number) {
+export function useWantedItems(page = 1, perPage = 50, itemType?: string, status?: string, subtitleType?: string, fetchAll = false, movieId?: number, sonarrSeriesId?: number) {
   return useQuery({
-    queryKey: ['wanted', fetchAll ? 'all' : page, fetchAll ? 9999 : perPage, itemType, status, subtitleType, movieId],
+    queryKey: ['wanted', fetchAll ? 'all' : page, fetchAll ? 9999 : perPage, itemType, status, subtitleType, movieId, sonarrSeriesId],
     queryFn: () =>
       getWantedItems(
         fetchAll ? 1 : page,
@@ -23,6 +23,7 @@ export function useWantedItems(page = 1, perPage = 50, itemType?: string, status
         status,
         subtitleType,
         movieId,
+        sonarrSeriesId,
       ),
     placeholderData: keepPreviousData,
   })

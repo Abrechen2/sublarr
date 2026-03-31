@@ -272,8 +272,8 @@ def wanted_batch_search():
                         body=f"Wanted batch finished: {snapshot.get('found', 0)} found, {snapshot.get('failed', 0)} failed",
                         event_type="batch_complete",
                     )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("Notification send failed after wanted batch search: %s", exc)
 
     thread = threading.Thread(target=_run_batch, daemon=True)
     thread.start()
@@ -344,7 +344,7 @@ def wanted_search_all():
         409:
           description: Search already running
     """
-    from wanted_scanner import get_scanner
+    from services.wanted_scanner import get_scanner
 
     scanner = get_scanner()
     if scanner.is_searching:

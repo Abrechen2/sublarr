@@ -331,8 +331,12 @@ def batch_extract_series_tracks(series_id):
                         _series_info = client.get_series_by_id(series_id)
                         if isinstance(_series_info, dict) and _series_info.get("title"):
                             _series_title = _series_info["title"]
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug(
+                        "Could not fetch series title for job display (series %s): %s",
+                        series_id,
+                        exc,
+                    )
 
                 _job = create_job(
                     f"batch-extract: {_series_title} ({total_files} Dateien)",

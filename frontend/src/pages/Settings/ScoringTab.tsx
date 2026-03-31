@@ -21,19 +21,9 @@ import { SettingsSection } from '@/components/settings/SettingsSection'
 import { Toggle } from '@/components/shared/Toggle'
 import { toast } from '@/components/shared/Toast'
 import type { ScoringWeights, ScoringPreset } from '@/lib/types'
+import { settingsInputStyle } from '@/styles/settingsShared'
 
-// ─── Shared styles ────────────────────────────────────────────────────────────
-
-const inputStyle: React.CSSProperties = {
-  background: 'var(--bg-elevated)',
-  border: '1px solid var(--border)',
-  color: 'var(--text-primary)',
-  borderRadius: '6px',
-  padding: '7px 12px',
-  fontSize: '13px',
-  fontFamily: 'var(--font-body)',
-  outline: 'none',
-}
+const inputStyle: React.CSSProperties = { ...settingsInputStyle, outline: 'none' }
 
 // ─── Weight display names ─────────────────────────────────────────────────────
 

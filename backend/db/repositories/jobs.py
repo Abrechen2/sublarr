@@ -7,7 +7,7 @@ Return types match the existing functions exactly.
 import json
 import logging
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import delete, func, select
 
@@ -35,7 +35,7 @@ class JobRepository(BaseRepository):
             force=int(force),
             bazarr_context_json=context_json,
             created_at=now,
-            completed_at="",
+            completed_at=None,
         )
         self.session.add(job)
         self._commit()
@@ -46,7 +46,7 @@ class JobRepository(BaseRepository):
             "status": "queued",
             "force": force,
             "arr_context": arr_context,
-            "created_at": now,
+            "created_at": now.isoformat(),
             "completed_at": None,
             "result": None,
             "error": None,
@@ -54,7 +54,7 @@ class JobRepository(BaseRepository):
 
     def update_job(self, job_id: str, status: str, result: dict = None, error: str = None):
         """Update a job's status and result."""
-        now = self._now() if status in ("completed", "failed") else ""
+        now = self._now() if status in ("completed", "failed") else None
         stats_json = json.dumps(result.get("stats", {})) if result else "{}"
         output_path = result.get("output_path", "") if result else ""
         source_format = ""
@@ -128,7 +128,7 @@ class JobRepository(BaseRepository):
 
     def delete_old_jobs(self, days: int) -> int:
         """Delete jobs older than N days. Returns count deleted."""
-        cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         stmt = delete(Job).where(Job.created_at < cutoff)
         result = self.session.execute(stmt)
         self._commit()

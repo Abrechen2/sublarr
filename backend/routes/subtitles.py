@@ -183,12 +183,9 @@ def _trash_sidecar(path: str, media_path: str, batch_dir: str) -> tuple[str, str
 
     # Remove subtitle_downloads DB entry (best-effort)
     try:
-        from extensions import db as sa_db  # noqa: I001
-        from sqlalchemy import text as _text  # noqa: I001
+        from db.library import delete_download_record
 
-        with sa_db.engine.connect() as conn:
-            conn.execute(_text("DELETE FROM subtitle_downloads WHERE file_path = :p"), {"p": path})
-            conn.commit()
+        delete_download_record(path)
     except Exception as exc:
         logger.debug("Could not remove subtitle_downloads entry for %s: %s", path, exc)
 

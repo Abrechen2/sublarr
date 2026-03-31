@@ -1,6 +1,7 @@
 """Tests for marketplace_cache and installed_plugins DB tables."""
 
 import os
+from datetime import UTC, datetime
 
 import pytest
 
@@ -68,7 +69,7 @@ def test_insert_marketplace_cache_row(app):
             capabilities='["provider"]',
             min_sublarr_version="0.22.0",
             is_official=0,
-            last_fetched="2026-03-11T00:00:00Z",
+            last_fetched=datetime(2026, 3, 11, 0, 0, 0, tzinfo=UTC),
         )
         sa_db.session.add(entry)
         sa_db.session.commit()
@@ -95,7 +96,7 @@ def test_insert_installed_plugin_row(app):
             sha256="b" * 64,
             capabilities='["provider"]',
             enabled=1,
-            installed_at="2026-03-11T00:00:00Z",
+            installed_at=datetime(2026, 3, 11, 0, 0, 0, tzinfo=UTC),
         )
         sa_db.session.add(plugin)
         sa_db.session.commit()
@@ -117,7 +118,7 @@ def test_marketplace_cache_defaults(app):
         entry = MarketplaceCache(
             name="minimal-plugin",
             display_name="Minimal Plugin",
-            last_fetched="2026-03-11T00:00:00Z",
+            last_fetched=datetime(2026, 3, 11, 0, 0, 0, tzinfo=UTC),
         )
         sa_db.session.add(entry)
         sa_db.session.commit()
@@ -137,7 +138,7 @@ def test_installed_plugin_defaults(app):
     with app.app_context():
         plugin = InstalledPlugin(
             name="minimal-plugin",
-            installed_at="2026-03-11T00:00:00Z",
+            installed_at=datetime(2026, 3, 11, 0, 0, 0, tzinfo=UTC),
         )
         sa_db.session.add(plugin)
         sa_db.session.commit()

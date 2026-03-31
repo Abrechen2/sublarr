@@ -3,7 +3,9 @@
 All column types and defaults match the existing SCHEMA DDL in db/__init__.py exactly.
 """
 
-from sqlalchemy import Float, Index, Integer, Text, UniqueConstraint
+from datetime import datetime
+
+from sqlalchemy import DateTime, Float, Index, Integer, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from extensions import db
@@ -18,8 +20,8 @@ class ProviderCache(db.Model):
     provider_name: Mapped[str] = mapped_column(Text, nullable=False)
     query_hash: Mapped[str] = mapped_column(Text, nullable=False)
     results_json: Mapped[str] = mapped_column(Text, nullable=False)
-    cached_at: Mapped[str] = mapped_column(Text, nullable=False)
-    expires_at: Mapped[str] = mapped_column(Text, nullable=False)
+    cached_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         Index("idx_provider_cache_hash", "provider_name", "query_hash"),
@@ -41,7 +43,7 @@ class SubtitleDownload(db.Model):
     score: Mapped[int | None] = mapped_column(Integer, default=0)
     subtitle_type: Mapped[str | None] = mapped_column(Text, default="full")
     source: Mapped[str | None] = mapped_column(Text, default="provider")  # "provider" | "whisper"
-    downloaded_at: Mapped[str] = mapped_column(Text, nullable=False)
+    downloaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     upgraded_from_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     __table_args__ = (
@@ -60,14 +62,14 @@ class ProviderStats(db.Model):
     successful_downloads: Mapped[int | None] = mapped_column(Integer, default=0)
     failed_downloads: Mapped[int | None] = mapped_column(Integer, default=0)
     avg_score: Mapped[float | None] = mapped_column(Float, default=0)
-    last_success_at: Mapped[str | None] = mapped_column(Text)
-    last_failure_at: Mapped[str | None] = mapped_column(Text)
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_failure_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     consecutive_failures: Mapped[int | None] = mapped_column(Integer, default=0)
     avg_response_time_ms: Mapped[float | None] = mapped_column(Float, default=0)
     last_response_time_ms: Mapped[float | None] = mapped_column(Float, default=0)
     auto_disabled: Mapped[int | None] = mapped_column(Integer, default=0)
-    disabled_until: Mapped[str | None] = mapped_column(Text, default="")
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    disabled_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (Index("idx_provider_stats_updated", "updated_at"),)
 
@@ -79,7 +81,7 @@ class ProviderScoreModifier(db.Model):
 
     provider_name: Mapped[str] = mapped_column(Text, primary_key=True)
     modifier: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class ScoringWeights(db.Model):
@@ -91,7 +93,7 @@ class ScoringWeights(db.Model):
     score_type: Mapped[str] = mapped_column(Text, nullable=False)
     weight_key: Mapped[str] = mapped_column(Text, nullable=False)
     weight_value: Mapped[int] = mapped_column(Integer, nullable=False)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (UniqueConstraint("score_type", "weight_key"),)
 

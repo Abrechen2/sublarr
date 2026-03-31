@@ -10,15 +10,19 @@ from db.models.cleanup import (
     SubtitleHash,
 )
 from db.models.core import (
+    AnidbAbsoluteMapping,
     BlacklistEntry,
+    ChapterCache,
     ConfigEntry,
     DailyStats,
+    FansubPreference,
     FfprobeCache,
     FilterPreset,
     Job,
     LanguageProfile,
     MovieLanguageProfile,
     SeriesLanguageProfile,
+    SeriesSettings,
     UpgradeHistory,
     WantedItem,
 )
@@ -56,6 +60,7 @@ from db.models.translation import (
     PromptPreset,
     TranslationBackendStats,
     TranslationConfigHistory,
+    TranslationMemory,
     WhisperJob,
 )
 
@@ -71,6 +76,10 @@ __all__ = [
     "MovieLanguageProfile",
     "FfprobeCache",
     "BlacklistEntry",
+    "SeriesSettings",
+    "FansubPreference",
+    "AnidbAbsoluteMapping",
+    "ChapterCache",
     # providers
     "ProviderCache",
     "SubtitleDownload",
@@ -82,6 +91,7 @@ __all__ = [
     "GlossaryEntry",
     "PromptPreset",
     "TranslationBackendStats",
+    "TranslationMemory",
     "WhisperJob",
     # hooks
     "HookConfig",

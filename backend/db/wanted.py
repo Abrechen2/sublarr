@@ -115,8 +115,8 @@ def update_wanted_search(item_id: int):
     return _get_repo().mark_search_attempted(item_id)
 
 
-def set_wanted_retry_after(item_id: int, retry_after: str) -> bool:
-    """Set retry_after ISO timestamp for adaptive backoff."""
+def set_wanted_retry_after(item_id: int, retry_after) -> bool:
+    """Set retry_after datetime for adaptive backoff."""
     return _get_repo().set_retry_after(item_id, retry_after)
 
 
@@ -188,6 +188,11 @@ def get_wanted_for_series(sonarr_series_id: int) -> list:
 def get_wanted_by_subtitle_type() -> dict:
     """Get wanted item counts grouped by subtitle_type."""
     return _get_repo().get_wanted_by_subtitle_type()
+
+
+def get_wanted_items_by_ids(item_ids: list) -> dict:
+    """Fetch multiple wanted items by ID in one query. Returns dict mapping id -> item dict."""
+    return _get_repo().get_wanted_items_by_ids(item_ids)
 
 
 # Keep private helper for backward compat

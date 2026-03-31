@@ -7,7 +7,7 @@ Results are cached in chapter_cache DB table (invalidated by file mtime).
 import json
 import logging
 import subprocess
-from datetime import datetime
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ def _set_cached(file_path: str, mtime: float, chapters: list[dict]) -> None:
     from db.models.core import ChapterCache
     from extensions import db
 
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC)
     existing = db.session.get(ChapterCache, file_path)
     if existing:
         existing.mtime = mtime

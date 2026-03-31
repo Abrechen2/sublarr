@@ -38,8 +38,6 @@ class ProviderRepository(BaseRepository):
         """
         now = datetime.now(UTC)
         expires = now + timedelta(hours=ttl_hours)
-        cached_at_str = now.isoformat()
-        expires_str = expires.isoformat()
 
         existing = self.session.execute(
             select(ProviderCache)
@@ -52,15 +50,15 @@ class ProviderRepository(BaseRepository):
 
         if existing:
             existing.results_json = results_json
-            existing.cached_at = cached_at_str
-            existing.expires_at = expires_str
+            existing.cached_at = now
+            existing.expires_at = expires
         else:
             entry = ProviderCache(
                 provider_name=provider_name,
                 query_hash=query_hash,
                 results_json=results_json,
-                cached_at=cached_at_str,
-                expires_at=expires_str,
+                cached_at=now,
+                expires_at=expires,
             )
             self.session.add(entry)
         self._commit()
@@ -73,7 +71,7 @@ class ProviderRepository(BaseRepository):
         Returns:
             Cached results JSON string or None.
         """
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now(UTC)
         stmt = (
             select(ProviderCache.results_json)
             .where(
@@ -89,13 +87,13 @@ class ProviderRepository(BaseRepository):
 
     def cleanup_expired_cache(self):
         """Remove expired cache entries."""
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now(UTC)
         self.session.execute(delete(ProviderCache).where(ProviderCache.expires_at < now))
         self._commit()
 
     def get_provider_cache_stats(self) -> dict:
         """Get aggregated cache stats per provider (total entries, active/expired)."""
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now(UTC)
         (
             select(
                 ProviderCache.provider_name,
@@ -362,7 +360,7 @@ class ProviderRepository(BaseRepository):
         if (entry.consecutive_failures or 0) >= threshold:
             entry.auto_disabled = 1
             # Default cooldown: disabled until explicitly cleared
-            entry.disabled_until = ""
+            entry.disabled_until = None
             entry.updated_at = self._now()
             self._commit()
             return True
@@ -371,26 +369,26 @@ class ProviderRepository(BaseRepository):
     def auto_disable_provider(self, provider_name: str, cooldown_minutes: int = 30):
         """Auto-disable a provider with a cooldown period."""
         now = datetime.now(UTC)
-        disabled_until = (now + timedelta(minutes=cooldown_minutes)).isoformat()
+        disabled_until = now + timedelta(minutes=cooldown_minutes)
 
         existing = self.session.get(ProviderStats, provider_name)
         if existing:
             existing.auto_disabled = 1
             existing.disabled_until = disabled_until
-            existing.updated_at = now.isoformat()
+            existing.updated_at = now
         else:
             entry = ProviderStats(
                 provider_name=provider_name,
                 auto_disabled=1,
                 disabled_until=disabled_until,
-                updated_at=now.isoformat(),
+                updated_at=now,
             )
             self.session.add(entry)
         self._commit()
         logger.warning(
             "Provider %s auto-disabled until %s (%d min cooldown)",
             provider_name,
-            disabled_until,
+            disabled_until.isoformat(),
             cooldown_minutes,
         )
 
@@ -400,7 +398,7 @@ class ProviderRepository(BaseRepository):
         if not entry:
             return False
         entry.auto_disabled = 0
-        entry.disabled_until = ""
+        entry.disabled_until = None
         entry.consecutive_failures = 0
         entry.updated_at = self._now()
         self._commit()
@@ -421,11 +419,13 @@ class ProviderRepository(BaseRepository):
         # Check if cooldown has expired
         disabled_until = entry.disabled_until
         if disabled_until:
-            now = datetime.now(UTC).isoformat()
+            now = datetime.now(UTC)
+            if disabled_until.tzinfo is None:
+                disabled_until = disabled_until.replace(tzinfo=UTC)
             if disabled_until < now:
                 # Cooldown expired, clear auto-disable
                 entry.auto_disabled = 0
-                entry.disabled_until = ""
+                entry.disabled_until = None
                 entry.updated_at = now
                 self._commit()
                 logger.info("Provider %s auto-disable expired, re-enabled", provider_name)
@@ -440,7 +440,7 @@ class ProviderRepository(BaseRepository):
 
     def get_provider_health_history(self, provider_name: str = None, days: int = 7) -> list:
         """Get provider health history entries."""
-        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         stmt = select(ProviderStats).where(ProviderStats.updated_at >= cutoff)
         if provider_name:
             stmt = stmt.where(ProviderStats.provider_name == provider_name)
@@ -462,7 +462,7 @@ class ProviderRepository(BaseRepository):
         """
         stmt = select(ProviderStats)
         entries = self.session.execute(stmt).scalars().all()
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now(UTC)
         result = {}
         for entry in entries:
             stats = self._row_to_stats(entry)
@@ -470,8 +470,12 @@ class ProviderRepository(BaseRepository):
             stats["success_rate"] = (entry.successful_downloads or 0) / total if total > 0 else 0.0
             # Mirror is_auto_disabled() cooldown logic without DB write
             auto_disabled = bool(entry.auto_disabled)
-            if auto_disabled and entry.disabled_until and entry.disabled_until < now:
-                auto_disabled = False
+            if auto_disabled and entry.disabled_until:
+                du = entry.disabled_until
+                if du.tzinfo is None:
+                    du = du.replace(tzinfo=UTC)
+                if du < now:
+                    auto_disabled = False
             stats["auto_disabled"] = auto_disabled
             result[entry.provider_name] = stats
         return result

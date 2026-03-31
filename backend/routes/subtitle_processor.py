@@ -240,12 +240,12 @@ def update_series_processing_config(series_id):
     row = _db.session.get(SeriesSettings, series_id)
     if row:
         row.processing_config = json.dumps(config) if config else None
-        row.updated_at = datetime.now(UTC).isoformat()
+        row.updated_at = datetime.now(UTC)
     else:
         row = SeriesSettings(
             sonarr_series_id=series_id,
             processing_config=json.dumps(config) if config else None,
-            updated_at=datetime.now(UTC).isoformat(),
+            updated_at=datetime.now(UTC),
         )
         _db.session.add(row)
     _db.session.commit()

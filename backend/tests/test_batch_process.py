@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
-def _now() -> str:
-    return datetime.now(UTC).isoformat()
+def _now() -> datetime:
+    return datetime.now(UTC)
 
 
 @pytest.fixture(autouse=True)

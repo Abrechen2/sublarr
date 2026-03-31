@@ -151,7 +151,7 @@ def update_config():
     """
     from config import Settings, reload_settings
     from db.config import get_all_config_entries, save_config_entry
-    from wanted_scanner import invalidate_scanner
+    from services.wanted_scanner import invalidate_scanner
 
     data = request.get_json() or {}
     if not data:
@@ -274,13 +274,12 @@ def update_config():
     # reference. Without this, search_all() fails with "Working outside of
     # application context" because invalidate_scanner() resets _app to None.
     try:
-        from extensions import socketio as _sock
         from flask import current_app as _capp
-        from wanted_scanner import get_scanner as _get_scanner
 
-        _get_scanner().start_scheduler(
-            app=_capp._get_current_object(), socketio=_sock
-        )
+        from extensions import socketio as _sock
+        from services.wanted_scanner import get_scanner as _get_scanner
+
+        _get_scanner().start_scheduler(app=_capp._get_current_object(), socketio=_sock)
     except Exception as _exc:
         logger.warning("Failed to restart scanner scheduler after config update: %s", _exc)
 
@@ -289,8 +288,8 @@ def update_config():
         from mediaserver import get_media_server_manager
 
         get_media_server_manager().load_instances()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Media server reload failed after config update: %s", exc)
 
     logger.info("Config updated: %s — settings reloaded", saved_keys)
 
@@ -305,8 +304,8 @@ def update_config():
             from providers.base import invalidate_scoring_cache
 
             invalidate_scoring_cache()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Scoring cache invalidation failed after config update: %s", exc)
 
     return jsonify(
         {
@@ -466,7 +465,7 @@ def import_config():
     """
     from config import Settings, reload_settings
     from db.config import get_all_config_entries, save_config_entry
-    from wanted_scanner import invalidate_scanner
+    from services.wanted_scanner import invalidate_scanner
 
     data = request.get_json() or {}
     if not data:
@@ -529,13 +528,12 @@ def import_config():
 
     # Restart scanner scheduler so the new scanner instance has the Flask app reference
     try:
-        from extensions import socketio as _sock
         from flask import current_app as _capp
-        from wanted_scanner import get_scanner as _get_scanner
 
-        _get_scanner().start_scheduler(
-            app=_capp._get_current_object(), socketio=_sock
-        )
+        from extensions import socketio as _sock
+        from services.wanted_scanner import get_scanner as _get_scanner
+
+        _get_scanner().start_scheduler(app=_capp._get_current_object(), socketio=_sock)
     except Exception as _exc:
         logger.warning("Failed to restart scanner scheduler after config import: %s", _exc)
 
@@ -544,8 +542,8 @@ def import_config():
         from mediaserver import get_media_server_manager
 
         get_media_server_manager().load_instances()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Media server reload failed after config import: %s", exc)
 
     logger.info("Config imported: %s (skipped secrets: %s)", imported, skipped_secrets)
 

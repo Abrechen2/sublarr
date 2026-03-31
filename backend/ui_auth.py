@@ -81,6 +81,22 @@ def init_ui_auth(app):
     # Secure flag only when served over HTTPS (not for internal HTTP-only deployments)
     app.config["SESSION_COOKIE_SECURE"] = False
 
+    # Enforce session_timeout_minutes from config; default to 8 hours instead of Flask's 31-day default
+    from datetime import timedelta
+
+    from config import get_settings
+
+    try:
+        settings = get_settings()
+        timeout = getattr(settings, "session_timeout_minutes", 0)
+        if timeout and timeout > 0:
+            app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=timeout)
+        else:
+            app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)
+    except Exception:
+        # If settings fail to load, use secure default
+        app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)
+
     @app.before_request
     def check_ui_session():
         path = request.path

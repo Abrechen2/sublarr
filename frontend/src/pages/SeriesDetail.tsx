@@ -47,22 +47,22 @@ export function SeriesDetailPage() {
   const seriesId = id && !isNaN(Number(id)) ? Number(id) : null
   const { data: series, isLoading, error } = useSeriesDetail(seriesId)
 
-  // Plan 4: fetch wanted items for skip/accept wiring
+  // Plan 4: fetch wanted items for skip/accept wiring — filter server-side by series_id
   const { data: seriesWanted } = useWantedItems(
-    1, 9999, 'episode', undefined, undefined, true
+    1, 200, 'episode', undefined, undefined, false, undefined, seriesId ?? undefined
   )
   const updateWantedStatus = useUpdateWantedStatus()
 
   const episodeWantedMap = useMemo((): Map<number, number> => {
     const map = new Map<number, number>()
-    if (!seriesWanted?.data || seriesId == null) return map
+    if (!seriesWanted?.data) return map
     for (const item of seriesWanted.data) {
-      if (item.sonarr_series_id === seriesId && item.sonarr_episode_id != null) {
+      if (item.sonarr_episode_id != null) {
         map.set(item.sonarr_episode_id, item.id)
       }
     }
     return map
-  }, [seriesWanted?.data, seriesId])
+  }, [seriesWanted?.data])
 
   // Episode action state
   const [expandedEp, setExpandedEp] = useState<{ id: number; mode: 'search' | 'history' | 'glossary' | 'tracks' } | null>(null)

@@ -112,7 +112,7 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401 && !error.config.url?.includes('/auth/')) {
-      window.location.reload()
+      window.location.href = '/login'
     }
     return Promise.reject(error)
   }
@@ -208,13 +208,14 @@ export async function updateConfig(values: Record<string, unknown>) {
 
 export async function getWantedItems(
   page = 1, perPage = 50, itemType?: string, status?: string,
-  subtitleType?: string, movieId?: number
+  subtitleType?: string, movieId?: number, sonarrSeriesId?: number
 ): Promise<PaginatedWanted> {
   const params: Record<string, unknown> = { page, per_page: perPage }
   if (itemType) params.item_type = itemType
   if (status) params.status = status
   if (subtitleType) params.subtitle_type = subtitleType
   if (movieId != null) params.movie_id = movieId
+  if (sonarrSeriesId != null) params.series_id = sonarrSeriesId
   const { data } = await api.get('/wanted', { params })
   return data
 }

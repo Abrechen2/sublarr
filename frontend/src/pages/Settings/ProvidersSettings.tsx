@@ -9,36 +9,15 @@ import { useClearProviderCache } from '@/hooks/useApi'
 import { toast } from '@/components/shared/Toast'
 import { ProvidersTab } from './ProvidersTab'
 import { MarketplaceTab } from './providers/MarketplaceTab'
+import { strVal, boolVal } from '@/lib/configUtils'
+import { settingsInputStyle } from '@/styles/settingsShared'
 
-function numVal(v: string | undefined, fallback: number): number {
+function parseNum(v: string | undefined, fallback: number): number {
   const n = Number(v)
   return isNaN(n) ? fallback : n
 }
 
-function strVal(config: unknown, key: string, fallback = ''): string {
-  if (!config || typeof config !== 'object') return fallback
-  const v = (config as Record<string, unknown>)[key]
-  return v !== undefined && v !== null ? String(v) : fallback
-}
-
-function boolVal(config: unknown, key: string, fallback = false): boolean {
-  if (!config || typeof config !== 'object') return fallback
-  const v = (config as Record<string, unknown>)[key]
-  if (v === undefined || v === null) return fallback
-  return v === true || v === 'true' || v === 1
-}
-
-const inputStyle: React.CSSProperties = {
-  background: 'var(--bg-elevated)',
-  border: '1px solid var(--border)',
-  color: 'var(--text-primary)',
-  borderRadius: '6px',
-  padding: '7px 12px',
-  fontSize: '13px',
-  fontFamily: 'var(--font-body)',
-  width: '220px',
-  outline: 'none',
-}
+const inputStyle: React.CSSProperties = { ...settingsInputStyle, width: '220px', outline: 'none' }
 
 export function ProvidersSettings() {
   const { t } = useTranslation('common')
@@ -381,7 +360,7 @@ export function ProvidersSettings() {
                 type="number"
                 data-testid="input-max-concurrent-provider-searches"
                 style={{ ...inputStyle, maxWidth: '100px' }}
-                value={numVal(values['max_concurrent_provider_searches'], 3)}
+                value={parseNum(values['max_concurrent_provider_searches'], 3)}
                 onChange={(e) =>
                   handleFieldChange(
                     'max_concurrent_provider_searches',
@@ -404,7 +383,7 @@ export function ProvidersSettings() {
                 type="number"
                 data-testid="input-max-subtitle-file-size-kb"
                 style={{ ...inputStyle, maxWidth: '120px' }}
-                value={numVal(values['max_subtitle_file_size_kb'], 2048)}
+                value={parseNum(values['max_subtitle_file_size_kb'], 2048)}
                 onChange={(e) =>
                   handleFieldChange(
                     'max_subtitle_file_size_kb',
@@ -427,7 +406,7 @@ export function ProvidersSettings() {
                 type="number"
                 data-testid="input-download-delay-between-providers-ms"
                 style={{ ...inputStyle, maxWidth: '120px' }}
-                value={numVal(values['download_delay_between_providers_ms'], 0)}
+                value={parseNum(values['download_delay_between_providers_ms'], 0)}
                 onChange={(e) =>
                   handleFieldChange(
                     'download_delay_between_providers_ms',

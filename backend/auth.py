@@ -7,6 +7,7 @@ Health endpoint is exempt.
 
 import functools
 import hmac
+import ipaddress as _ipaddress
 import logging
 import re
 import threading
@@ -71,6 +72,30 @@ def require_api_key(f):
     return decorated
 
 
+def _check_ip_allowlist() -> "tuple[dict, int] | None":
+    """Returns 403 response tuple if request IP is not in allowed_ip_ranges, else None."""
+    try:
+        allowed = getattr(get_settings(), "allowed_ip_ranges", "").strip()
+    except Exception:
+        return None  # settings not available yet
+    if not allowed:
+        return None  # empty = allow all
+    try:
+        networks = [
+            _ipaddress.ip_network(r.strip(), strict=False) for r in allowed.split(",") if r.strip()
+        ]
+    except ValueError:
+        logger.warning("allowed_ip_ranges contains invalid CIDR — skipping IP check")
+        return None
+    try:
+        client_ip = _ipaddress.ip_address(request.remote_addr)
+    except ValueError:
+        return None  # can't parse IP, allow through
+    if not any(client_ip in net for net in networks):
+        return jsonify({"error": "Forbidden"}), 403
+    return None
+
+
 def init_auth(app):
     """Initialize authentication for the Flask app.
 
@@ -83,6 +108,11 @@ def init_auth(app):
     @app.before_request
     def check_api_key():
         """Check API key for /api/ routes (except health)."""
+        # Enforce IP allowlist first — before any other logic
+        ip_block = _check_ip_allowlist()
+        if ip_block:
+            return ip_block
+
         # Read settings on every request to pick up runtime config changes
         current_settings = get_settings()
         if not current_settings.api_key:

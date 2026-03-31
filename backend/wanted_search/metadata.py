@@ -12,8 +12,8 @@ from providers.base import VideoQuery
 logger = logging.getLogger(__name__)
 
 
-def _compute_retry_after(search_count: int, settings) -> str | None:
-    """Compute ISO retry_after timestamp using exponential backoff.
+def _compute_retry_after(search_count: int, settings) -> datetime | None:
+    """Compute retry_after datetime using exponential backoff.
 
     Formula: delay = min(base_hours × 2^(search_count-1), cap_hours)
     - search_count=1 → 1h, =2 → 2h, =3 → 4h, =4 → 8h, ... capped at 168h (7 days)
@@ -23,7 +23,7 @@ def _compute_retry_after(search_count: int, settings) -> str | None:
     base = getattr(settings, "wanted_backoff_base_hours", 1.0)
     cap = getattr(settings, "wanted_backoff_cap_hours", 168)
     delay_hours = min(base * (2 ** max(search_count - 1, 0)), cap)
-    return (datetime.now(UTC) + timedelta(hours=delay_hours)).isoformat()
+    return datetime.now(UTC) + timedelta(hours=delay_hours)
 
 
 def _set_adaptive_retry_after(item_id: int, search_count: int, settings) -> None:

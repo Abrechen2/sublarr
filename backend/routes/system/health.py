@@ -163,8 +163,10 @@ def health():
                 logger.debug("Health check %s failed: %s", name, exc)
                 results_by_name[name] = ({name: "error"}, False if name == "ollama" else None)
 
-    for name, (part, _overall) in results_by_name.items():
+    for name, (part, overall) in results_by_name.items():
         service_status.update(part)
+        if overall is False:  # None = optional, False = required service is down
+            healthy = False
 
     status_code = 200 if healthy else 503
 
@@ -564,7 +566,7 @@ def health_detailed():
 
     # Scheduler Status
     try:
-        from wanted_scanner import get_scanner
+        from services.wanted_scanner import get_scanner
 
         scanner = get_scanner()
         tasks = []

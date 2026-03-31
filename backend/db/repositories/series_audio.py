@@ -5,7 +5,6 @@ Uses UPSERT semantics: creates the row if it does not exist yet.
 """
 
 import logging
-from datetime import datetime
 
 from db.models.core import SeriesSettings
 from db.repositories.base import BaseRepository
@@ -27,7 +26,7 @@ class SeriesAudioRepository(BaseRepository):
         Creates a series_settings row if one does not exist yet.
         Pass track_index=None to clear the preference (auto-select resumes).
         """
-        now = datetime.utcnow().isoformat()
+        now = self._now()
         existing = self.session.get(SeriesSettings, series_id)
         if existing:
             existing.preferred_audio_track_index = track_index

@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 import requests
 
-from security_utils import is_safe_path, safe_zip_extract, validate_git_url
+from security_utils import is_safe_path, safe_zip_extract, validate_git_url, validate_service_url
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,10 @@ class PluginMarketplace:
         """
         if self.registry_cache:
             return self.registry_cache
+
+        ok, reason = validate_service_url(self.registry_url)
+        if not ok:
+            raise RuntimeError(f"Registry URL blocked for security reasons: {reason}")
 
         try:
             response = requests.get(self.registry_url, timeout=10)
@@ -221,6 +225,10 @@ class PluginMarketplace:
             if urlparse(zip_url).scheme != "https":
                 raise RuntimeError("Only HTTPS zip_url is allowed for plugin installation")
 
+            ok, reason = validate_service_url(zip_url)
+            if not ok:
+                raise RuntimeError(f"Plugin URL blocked for security reasons: {reason}")
+
             response = requests.get(zip_url, timeout=60)
             response.raise_for_status()
 
@@ -272,6 +280,10 @@ class PluginMarketplace:
         """
         if urlparse(zip_url).scheme != "https":
             raise RuntimeError("Only HTTPS zip_url is allowed for plugin installation")
+
+        ok, reason = validate_service_url(zip_url)
+        if not ok:
+            raise RuntimeError(f"Plugin URL blocked for security reasons: {reason}")
 
         response = requests.get(zip_url, timeout=60)
         response.raise_for_status()

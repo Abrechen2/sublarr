@@ -6,7 +6,7 @@ Return types match the existing functions exactly.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, func, select
 
@@ -42,7 +42,7 @@ class HookRepository(BaseRepository):
             enabled=1 if enabled else 0,
             script_path=script_path,
             timeout_seconds=timeout_seconds,
-            last_triggered_at="",
+            last_triggered_at=None,
             last_status="",
             trigger_count=0,
             created_at=now,
@@ -59,11 +59,11 @@ class HookRepository(BaseRepository):
             "enabled": 1 if enabled else 0,
             "script_path": script_path,
             "timeout_seconds": timeout_seconds,
-            "last_triggered_at": "",
+            "last_triggered_at": None,
             "last_status": "",
             "trigger_count": 0,
-            "created_at": now,
-            "updated_at": now,
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
         }
 
     def get_hooks(self, event_name: str = None, enabled_only: bool = False) -> list:
@@ -155,7 +155,7 @@ class HookRepository(BaseRepository):
             enabled=1 if enabled else 0,
             retry_count=retry_count,
             timeout_seconds=timeout_seconds,
-            last_triggered_at="",
+            last_triggered_at=None,
             last_status_code=0,
             last_error="",
             consecutive_failures=0,
@@ -175,13 +175,13 @@ class HookRepository(BaseRepository):
             "enabled": 1 if enabled else 0,
             "retry_count": retry_count,
             "timeout_seconds": timeout_seconds,
-            "last_triggered_at": "",
+            "last_triggered_at": None,
             "last_status_code": 0,
             "last_error": "",
             "consecutive_failures": 0,
             "trigger_count": 0,
-            "created_at": now,
-            "updated_at": now,
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
         }
 
     def get_webhooks(self, event_name: str = None, enabled_only: bool = False) -> list:
@@ -309,7 +309,7 @@ class HookRepository(BaseRepository):
             "stderr": stderr,
             "error": error,
             "duration_ms": duration_ms,
-            "triggered_at": now,
+            "triggered_at": now.isoformat(),
         }
 
     def get_hook_logs(
@@ -347,7 +347,7 @@ class HookRepository(BaseRepository):
 
     def clear_old_hook_logs(self, days: int) -> int:
         """Delete hook logs older than N days. Returns count deleted."""
-        cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         result = self.session.execute(delete(HookLog).where(HookLog.triggered_at < cutoff))
         self._commit()
         return result.rowcount

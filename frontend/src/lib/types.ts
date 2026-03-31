@@ -52,6 +52,11 @@ export interface Stats {
   pending_jobs: number
   uptime_seconds: number
   batch_running: boolean
+  total_subtitles?: number
+  downloads_today?: number
+  average_score?: number
+  low_score_count?: number
+  success_rate?: number
 }
 
 export interface DailyStat {

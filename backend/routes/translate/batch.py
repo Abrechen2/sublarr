@@ -238,8 +238,8 @@ def batch_start():
                         body=f"Batch finished: {snapshot['succeeded']} succeeded, {snapshot['failed']} failed, {snapshot['skipped']} skipped",
                         event_type="batch_complete",
                     )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("Notification send failed after batch translate: %s", exc)
 
         if callback_url:
             _send_callback(

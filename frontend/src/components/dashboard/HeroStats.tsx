@@ -156,14 +156,10 @@ export function HeroStats() {
   const { data: stats } = useStats()
   const { data: wantedSummary } = useWantedSummary()
 
-  // Extended fields not yet in the Stats type — accessed safely with defaults.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const extStats = stats as any
-
-  const totalSubtitles: number = extStats?.total_subtitles ?? 0
-  const downloadsToday: number = extStats?.downloads_today ?? 0
-  const averageScore: number = extStats?.average_score ?? 0
-  const lowScoreCount: number = extStats?.low_score_count ?? 0
+  const totalSubtitles: number = stats?.total_subtitles ?? 0
+  const downloadsToday: number = stats?.downloads_today ?? 0
+  const averageScore: number = stats?.average_score ?? 0
+  const lowScoreCount: number = stats?.low_score_count ?? 0
   const missingTotal: number = wantedSummary?.total ?? 0
 
   return (

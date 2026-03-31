@@ -376,9 +376,7 @@ class CleanupRepository(BaseRepository):
                 func.substr(CleanupHistory.performed_at, 1, 10).label("date"),
                 func.coalesce(func.sum(CleanupHistory.bytes_freed), 0).label("freed"),
             )
-            .where(
-                CleanupHistory.performed_at > (datetime.now(UTC) - timedelta(days=30)).isoformat()
-            )
+            .where(CleanupHistory.performed_at > datetime.now(UTC) - timedelta(days=30))
             .group_by(func.substr(CleanupHistory.performed_at, 1, 10))
             .order_by(func.substr(CleanupHistory.performed_at, 1, 10))
         )

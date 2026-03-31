@@ -32,15 +32,20 @@ def run_post_download_command(
         return
 
     expanded = (
-        command.replace("{subtitle_path}", shlex.quote(subtitle_path))
-        .replace("{language}", shlex.quote(language))
-        .replace("{provider}", shlex.quote(provider))
+        command.replace("{subtitle_path}", subtitle_path)
+        .replace("{language}", language)
+        .replace("{provider}", provider)
         .replace("{score}", str(int(score)))
-        .replace("{video_path}", shlex.quote(video_path))
+        .replace("{video_path}", video_path)
     )
     try:
-        logger.info("Running post-download command: %s", expanded)
-        subprocess.run(expanded, shell=True, timeout=60, check=False)
+        argv = shlex.split(expanded)
+    except ValueError as exc:
+        logger.warning("post_download_command: invalid shell syntax, skipping: %s", exc)
+        return
+    try:
+        logger.info("Running post-download command: %s", argv)
+        subprocess.run(argv, shell=False, timeout=60, check=False)  # noqa: S603
     except subprocess.TimeoutExpired:
         logger.warning("post_download_command timed out after 60 s")
     except Exception as exc:

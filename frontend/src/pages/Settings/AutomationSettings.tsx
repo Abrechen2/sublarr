@@ -15,35 +15,10 @@ import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
 import { Toggle } from '@/components/shared/Toggle'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
+import { strVal, boolVal } from '@/lib/configUtils'
+import { settingsInputStyle } from '@/styles/settingsShared'
 
-// ─── Config value helpers ─────────────────────────────────────────────────────
-
-function strVal(config: unknown, key: string, fallback = ''): string {
-  if (!config || typeof config !== 'object') return fallback
-  const v = (config as Record<string, unknown>)[key]
-  return v !== undefined && v !== null ? String(v) : fallback
-}
-
-function boolVal(config: unknown, key: string, fallback = false): boolean {
-  if (!config || typeof config !== 'object') return fallback
-  const v = (config as Record<string, unknown>)[key]
-  if (v === undefined || v === null) return fallback
-  return v === true || v === 'true' || v === 1
-}
-
-// ─── Shared input style ───────────────────────────────────────────────────────
-
-const inputStyle: React.CSSProperties = {
-  background: 'var(--bg-elevated)',
-  border: '1px solid var(--border)',
-  color: 'var(--text-primary)',
-  borderRadius: '6px',
-  padding: '7px 12px',
-  fontSize: '13px',
-  fontFamily: 'var(--font-body)',
-  width: '220px',
-  outline: 'none',
-}
+const inputStyle: React.CSSProperties = { ...settingsInputStyle, width: '220px', outline: 'none' }
 
 // ─── SectionSkeleton ─────────────────────────────────────────────────────────
 
