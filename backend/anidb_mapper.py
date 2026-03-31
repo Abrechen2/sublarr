@@ -153,3 +153,41 @@ def resolve_anidb_from_anilist(anilist_id: int, tvdb_id: int | None = None) -> i
     except Exception as e:
         logger.debug("AniList → AniDB resolution failed for AniList %d: %s", anilist_id, e)
     return None
+
+
+def resolve_anidb_from_title(series_title: str, tvdb_id: int | None = None) -> int | None:
+    """Resolve AniDB ID by searching AniList with a series title.
+
+    Used as last-resort fallback when neither tvdb_id nor anilist_id is known
+    (e.g. standalone items scanned without external ID metadata).  Performs
+    an AniList title search, then fetches the AniDB external link from the
+    best match.  Caches the result so subsequent calls are instant.
+
+    Returns:
+        AniDB series ID as int, or None if not found / API unavailable.
+    """
+    if not series_title:
+        return None
+    try:
+        from metadata.anilist_client import AniListClient
+
+        client = AniListClient()
+        match = client.search_anime(series_title)
+        if not match:
+            logger.debug("AniList title search returned no results for %r", series_title)
+            return None
+
+        anilist_id = match.get("id")
+        if not anilist_id:
+            return None
+
+        logger.debug(
+            "AniList title search: %r → AniList %d (%s)",
+            series_title,
+            anilist_id,
+            match.get("title", {}).get("romaji", ""),
+        )
+        return resolve_anidb_from_anilist(anilist_id, tvdb_id=tvdb_id)
+    except Exception as e:
+        logger.debug("AniList title search failed for %r: %s", series_title, e)
+    return None

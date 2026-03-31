@@ -204,20 +204,24 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
                             "Built query from standalone series metadata: %s", query.series_title
                         )
                         # Resolve AniDB ID for AnimeTosho accuracy.
-                        # Priority: 1) TVDB→AniDB cache  2) AniList external links
-                        if not query.anidb_id and query.tvdb_id:
+                        # Priority: 1) TVDB→AniDB cache  2) AniList external links  3) title search
+                        if not query.anidb_id:
                             try:
-                                from db.cache import get_anidb_mapping
+                                # Tier 1: TVDB→AniDB cache
+                                if query.tvdb_id:
+                                    from db.cache import get_anidb_mapping
 
-                                cached_anidb_id = get_anidb_mapping(query.tvdb_id)
-                                if cached_anidb_id:
-                                    query.anidb_id = cached_anidb_id
-                                    logger.debug(
-                                        "Resolved AniDB ID %d from cache for standalone TVDB %d",
-                                        cached_anidb_id,
-                                        query.tvdb_id,
-                                    )
-                                elif query.anilist_id:
+                                    cached_anidb_id = get_anidb_mapping(query.tvdb_id)
+                                    if cached_anidb_id:
+                                        query.anidb_id = cached_anidb_id
+                                        logger.debug(
+                                            "Resolved AniDB ID %d from cache for standalone TVDB %d",
+                                            cached_anidb_id,
+                                            query.tvdb_id,
+                                        )
+
+                                # Tier 2: AniList external links
+                                if not query.anidb_id and query.anilist_id:
                                     from anidb_mapper import resolve_anidb_from_anilist
 
                                     anidb_id = resolve_anidb_from_anilist(
@@ -229,6 +233,22 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
                                             "Resolved AniDB ID %d via AniList %d for wanted %d",
                                             anidb_id,
                                             query.anilist_id,
+                                            wanted_item["id"],
+                                        )
+
+                                # Tier 3: title-based AniList search (works even when tvdb_id/anilist_id are unknown)
+                                if not query.anidb_id and query.series_title:
+                                    from anidb_mapper import resolve_anidb_from_title
+
+                                    anidb_id = resolve_anidb_from_title(
+                                        query.series_title, tvdb_id=query.tvdb_id
+                                    )
+                                    if anidb_id:
+                                        query.anidb_id = anidb_id
+                                        logger.debug(
+                                            "Resolved AniDB ID %d via title search %r for wanted %d",
+                                            anidb_id,
+                                            query.series_title,
                                             wanted_item["id"],
                                         )
                             except Exception as _e:
