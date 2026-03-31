@@ -659,6 +659,7 @@ class ProviderManager:
             query.file_path or "",
             ",".join(sorted(query.languages)) if query.languages else "",
             format_filter.value if format_filter else "",
+            str(query.anidb_id) if query.anidb_id else "",
         ]
         key_str = "|".join(key_parts)
         return hashlib.md5(key_str.encode(), usedforsecurity=False).hexdigest()  # noqa: S324

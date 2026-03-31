@@ -4,15 +4,38 @@ Provides multiple strategies for resolving AniDB IDs:
 1. Sonarr Custom Fields (highest priority)
 2. Local cache (TVDB → AniDB mappings)
 3. AniList external links (anilist_id → AniDB via GraphQL)
+4. AniDB title dump (anime-titles.xml.gz offline lookup)
 
 License: GPL-3.0
 """
 
+import gzip
 import logging
+import os
 import re
+import tempfile
+import threading
+import time
+import xml.etree.ElementTree as ET
+from difflib import SequenceMatcher
+from urllib.request import Request, urlopen
 
 from config import get_settings
 from db.cache import get_anidb_mapping, save_anidb_mapping
+
+# ---------------------------------------------------------------------------
+# AniDB title dump — module-level cache (populated lazily, refreshed every 36 h)
+# ---------------------------------------------------------------------------
+_DUMP_URL = "https://anidb.net/api/anime-titles.xml.gz"
+_DUMP_TTL = 36 * 3600  # seconds
+_DUMP_MIN_ENTRIES = 8_000  # sanity-check: valid dump has >8 k anime
+_DUMP_CACHE_FILE = os.path.join(tempfile.gettempdir(), "sublarr_anidb_titles.xml.gz")
+_DUMP_MATCH_THRESHOLD = 0.82  # SequenceMatcher ratio required for a title hit
+
+# { normalized_title: aid }
+_title_index: dict[str, int] = {}
+_title_index_lock = threading.Lock()
+_title_index_loaded_at: float = 0.0
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +175,147 @@ def resolve_anidb_from_anilist(anilist_id: int, tvdb_id: int | None = None) -> i
         logger.debug("No AniDB external link found for AniList %d", anilist_id)
     except Exception as e:
         logger.debug("AniList → AniDB resolution failed for AniList %d: %s", anilist_id, e)
+    return None
+
+
+def _normalize(title: str) -> str:
+    """Lowercase + collapse whitespace for fuzzy matching."""
+    return re.sub(r"\s+", " ", title.lower().strip())
+
+
+def _fetch_dump() -> bool:
+    """Download anime-titles.xml.gz to the local cache file.
+
+    Returns True on success, False on failure.
+    """
+    try:
+        req = Request(_DUMP_URL, headers={"User-Agent": "Sublarr/1.0"})
+        with urlopen(req, timeout=30) as resp:
+            data = resp.read()
+        # Validate: must be valid gzip with ≥ _DUMP_MIN_ENTRIES entries
+        try:
+            root = ET.fromstring(gzip.decompress(data))
+        except Exception as parse_err:
+            logger.debug("AniDB dump validation failed (parse error): %s", parse_err)
+            return False
+        if len(root.findall("anime")) < _DUMP_MIN_ENTRIES:
+            logger.debug("AniDB dump too small — likely an error page, skipping")
+            return False
+        with open(_DUMP_CACHE_FILE, "wb") as f:
+            f.write(data)
+        logger.debug("AniDB title dump downloaded and cached (%d bytes)", len(data))
+        return True
+    except Exception as e:
+        logger.debug("AniDB dump download failed: %s", e)
+        return False
+
+
+def _load_title_index() -> None:
+    """Build in-memory title → AID index from the cached dump file.
+
+    Downloads the dump if missing or stale (>36 h).  Falls back to stale cache
+    on download failure.  No-ops if the index was populated within _DUMP_TTL.
+    """
+    global _title_index, _title_index_loaded_at
+
+    with _title_index_lock:
+        now = time.monotonic()
+        if _title_index and (now - _title_index_loaded_at) < _DUMP_TTL:
+            return  # still fresh
+
+        # Decide whether we need a fresh download
+        needs_download = True
+        if os.path.exists(_DUMP_CACHE_FILE):
+            age = time.time() - os.path.getmtime(_DUMP_CACHE_FILE)
+            if age < _DUMP_TTL:
+                needs_download = False
+
+        if needs_download:
+            ok = _fetch_dump()
+            if not ok and not os.path.exists(_DUMP_CACHE_FILE):
+                logger.debug("AniDB dump unavailable and no local cache — skipping title index")
+                return
+
+        # Parse the (possibly stale) cache file
+        try:
+            with gzip.open(_DUMP_CACHE_FILE, "rb") as f:
+                root = ET.parse(f).getroot()
+        except Exception as e:
+            logger.debug("Failed to parse AniDB dump cache: %s", e)
+            return
+
+        index: dict[str, int] = {}
+        for anime_el in root.findall("anime"):
+            try:
+                aid = int(anime_el.get("aid", "0"))
+            except ValueError:
+                continue
+            if not aid:
+                continue
+            for title_el in anime_el.findall("title"):
+                text = title_el.text
+                if text:
+                    index[_normalize(text)] = aid
+
+        _title_index = index
+        _title_index_loaded_at = now
+        logger.debug("AniDB title index loaded: %d title entries", len(index))
+
+
+def resolve_anidb_from_title_dump(series_title: str, tvdb_id: int | None = None) -> int | None:
+    """Resolve AniDB ID via the offline anime-titles.xml.gz dump.
+
+    Tries exact match first, then fuzzy (SequenceMatcher ≥ 0.82).  Caches the
+    result in ``anidb_mappings`` when *tvdb_id* is provided.
+
+    Returns:
+        AniDB series ID as int, or None if not found.
+    """
+    if not series_title:
+        return None
+    _load_title_index()
+    if not _title_index:
+        return None
+
+    needle = _normalize(series_title)
+
+    # Exact match
+    if needle in _title_index:
+        aid = _title_index[needle]
+        logger.debug("AniDB dump exact match: %r → AID %d", series_title, aid)
+        if tvdb_id:
+            try:
+                save_anidb_mapping(tvdb_id, aid)
+            except Exception:
+                pass
+        return aid
+
+    # Fuzzy match — find best scoring entry
+    best_aid: int | None = None
+    best_score = 0.0
+    for title, aid in _title_index.items():
+        score = SequenceMatcher(None, needle, title).ratio()
+        if score > best_score:
+            best_score = score
+            best_aid = aid
+
+    if best_score >= _DUMP_MATCH_THRESHOLD and best_aid:
+        logger.debug(
+            "AniDB dump fuzzy match: %r → AID %d (score=%.2f)", series_title, best_aid, best_score
+        )
+        if tvdb_id:
+            try:
+                save_anidb_mapping(tvdb_id, best_aid)
+            except Exception:
+                pass
+        return best_aid
+
+    logger.debug(
+        "AniDB dump: no match for %r (best score=%.2f < %.2f)",
+        series_title,
+        best_score,
+        _DUMP_MATCH_THRESHOLD,
+    )
     return None
 
 

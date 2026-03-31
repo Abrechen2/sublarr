@@ -251,6 +251,22 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
                                             query.series_title,
                                             wanted_item["id"],
                                         )
+
+                                # Tier 4: AniDB title dump (offline xml.gz lookup — works when AniList has no AniDB link)
+                                if not query.anidb_id and query.series_title:
+                                    from anidb_mapper import resolve_anidb_from_title_dump
+
+                                    anidb_id = resolve_anidb_from_title_dump(
+                                        query.series_title, tvdb_id=query.tvdb_id
+                                    )
+                                    if anidb_id:
+                                        query.anidb_id = anidb_id
+                                        logger.debug(
+                                            "Resolved AniDB ID %d via title dump %r for wanted %d",
+                                            anidb_id,
+                                            query.series_title,
+                                            wanted_item["id"],
+                                        )
                             except Exception as _e:
                                 logger.debug(
                                     "AniDB ID resolution failed for standalone wanted %d: %s",

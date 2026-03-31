@@ -25,6 +25,17 @@ from providers.http_session import create_session
 logger = logging.getLogger(__name__)
 
 FEED_API = "https://feed.animetosho.org/json"
+ATTACH_BASE = "https://animetosho.org/storage/attach"
+
+# ISO 639-2b → 2-letter code mapping for AnimeTosho attachment info.lang field
+_ISO639_2_TO_1 = {
+    "eng": "en", "jpn": "ja", "deu": "de", "ger": "de",
+    "fre": "fr", "fra": "fr", "spa": "es", "por": "pt",
+    "rus": "ru", "zho": "zh", "chi": "zh", "kor": "ko",
+    "ara": "ar", "nld": "nl", "dut": "nl", "pol": "pl",
+    "swe": "sv", "ces": "cs", "cze": "cs", "hun": "hu",
+    "tur": "tr", "ita": "it",
+}
 
 _SUBTITLE_EXTENSIONS = {".ass", ".srt", ".ssa"}
 _FORMAT_MAP = {
@@ -198,7 +209,22 @@ class AnimeToshoProvider(SubtitleProvider):
 
             logger.debug("AnimeTosho: API returned %d entries", len(entries))
 
+            # Pre-filter: only fetch torrent details for episode-matching entries
+            # to cap secondary API calls.  Batch releases (e.g. "01~12") are
+            # included when the query episode falls in their range.
+            MAX_DETAIL_CALLS = 8
+            detail_count = 0
             for entry in entries:
+                if detail_count >= MAX_DETAIL_CALLS:
+                    break
+                entry_title = entry.get("title", "")
+                entry_episode = _extract_episode_number(entry_title)
+                # Accept if episode matches OR entry has no episode number (could be batch)
+                if entry_episode is not None:
+                    target_ep = query.absolute_episode if query.absolute_episode is not None else query.episode
+                    if target_ep is not None and entry_episode != target_ep:
+                        continue
+                detail_count += 1
                 entry_results = self._process_entry(entry, query)
                 results.extend(entry_results)
 
@@ -216,21 +242,54 @@ class AnimeToshoProvider(SubtitleProvider):
             )
         return results
 
+    def _fetch_torrent_detail(self, entry_id: int) -> dict | None:
+        """Fetch full torrent detail including file/attachment listing.
+
+        AnimeTosho's search feed does not include file listings.  A second
+        request to ``?show=torrent&id=<entry_id>`` returns the complete
+        torrent object with a ``files`` array, where each file has an
+        ``attachments`` list of extracted subtitle/font tracks.
+        """
+        try:
+            resp = self.session.get(FEED_API, params={"show": "torrent", "id": entry_id})
+            if resp.status_code != 200:
+                logger.debug(
+                    "AnimeTosho: torrent detail request failed for id=%d: HTTP %d",
+                    entry_id,
+                    resp.status_code,
+                )
+                return None
+            return resp.json()
+        except Exception as e:
+            logger.debug("AnimeTosho: torrent detail fetch error for id=%d: %s", entry_id, e)
+            return None
+
     def _process_entry(self, entry: dict, query: VideoQuery) -> list[SubtitleResult]:
-        """Process a single AnimeTosho entry and extract subtitle info."""
+        """Process a single AnimeTosho entry and extract subtitle attachments.
+
+        The search feed does not include file listings — a second request to
+        ``?show=torrent&id=<id>`` is required to get the ``files`` →
+        ``attachments`` structure.
+        """
         results = []
 
         title = entry.get("title", "")
         entry_id = entry.get("id", 0)
 
-        # Check for subtitle attachments
-        files = entry.get("files", [])
+        # Quick pre-filter: skip entries with no files at all
+        if not entry.get("num_files", 0):
+            return []
+
+        # Fetch detailed torrent info to get file/attachment listing
+        detail = self._fetch_torrent_detail(entry_id)
+        if not detail:
+            return []
+
+        files = detail.get("files", [])
         if not files:
             return []
 
-        # Try to match episode number.
-        # Prefer AniDB absolute episode when available — more reliable for anime
-        # releases that use absolute numbering in filenames.
+        # Try to match episode number against the release title
         entry_episode = _extract_episode_number(title)
         if query.absolute_episode is not None:
             episode_match = entry_episode is not None and entry_episode == query.absolute_episode
@@ -242,61 +301,82 @@ class AnimeToshoProvider(SubtitleProvider):
             )
 
         for f in files:
-            filename = f.get("name", "")
-            ext = os.path.splitext(filename)[1].lower()
+            for attachment in f.get("attachments", []):
+                if attachment.get("type") != "subtitle":
+                    continue
 
-            if ext not in _SUBTITLE_EXTENSIONS:
-                continue
+                attach_id = attachment.get("id")
+                if not attach_id:
+                    continue
 
-            # Build download URL
-            # AnimeTosho stores subtitles as attachments, often XZ-compressed
-            download_url = f.get("url", "")
-            if not download_url:
-                continue
+                info = attachment.get("info", {})
+                lang_raw = info.get("lang", "")
+                lang = _ISO639_2_TO_1.get(lang_raw.lower(), "")
 
-            fmt = _FORMAT_MAP.get(ext, SubtitleFormat.UNKNOWN)
+                # Derive codec/extension from info.codec or attachment-level filename
+                codec = info.get("codec", "").upper()
+                codec_ext_map = {"ASS": ".ass", "SSA": ".ssa", "SRT": ".srt", "SUBRIP": ".srt"}
+                ext = codec_ext_map.get(codec, "")
+                # Fall back: check if attachment has a top-level filename field
+                raw_filename = attachment.get("filename", "") or ""
+                if not ext and raw_filename:
+                    ext = os.path.splitext(raw_filename)[1].lower()
 
-            # Detect language from filename
-            lang = self._detect_language(filename, title)
+                if not ext:
+                    continue  # unknown subtitle type — skip
 
-            # Check if language matches query
-            if query.languages and lang not in query.languages:
-                continue
+                fmt = _FORMAT_MAP.get(ext, SubtitleFormat.UNKNOWN)
 
-            # Build matches
-            matches = set()
-            series_title = query.series_title or query.title
-            if series_title and series_title.lower() in title.lower():
-                matches.add("series")
-            if episode_match:
-                matches.add("episode")
-            if query.anidb_id:
-                matches.add("series")  # AniDB match is a strong signal
-            if query.release_group and query.release_group.lower() in title.lower():
-                matches.add("release_group")
-            # Check resolution
-            for res in ["1080p", "720p", "480p", "2160p"]:
-                if res in title:
-                    if query.resolution == res:
-                        matches.add("resolution")
-                    break
+                # Build a descriptive filename: track_name.lang.ext
+                track_name = info.get("name", f"track{info.get('tracknum', attach_id)}")
+                filename = f"{track_name}.{lang_raw or lang}.{ext.lstrip('.')}"
 
-            result = SubtitleResult(
-                provider_name=self.name,
-                subtitle_id=f"{entry_id}:{filename}",
-                language=lang,
-                format=fmt,
-                filename=filename,
-                download_url=download_url,
-                release_info=title,
-                matches=matches,
-                provider_data={
-                    "entry_id": entry_id,
-                    "entry_title": title,
-                    "is_xz": download_url.endswith(".xz"),
-                },
-            )
-            results.append(result)
+                # Language fall back to filename heuristic if not in ISO table
+                if not lang:
+                    lang = self._detect_language(filename, title)
+
+                # Filter by requested languages
+                if query.languages and lang not in query.languages:
+                    continue
+
+                # Download URL: XZ-compressed attachment
+                hex_id = format(attach_id, "08x")
+                download_url = f"{ATTACH_BASE}/{hex_id}/{attach_id}.xz"
+
+                # Build matches
+                matches = set()
+                series_title = query.series_title or query.title
+                if series_title and series_title.lower() in title.lower():
+                    matches.add("series")
+                if episode_match:
+                    matches.add("episode")
+                if query.anidb_id:
+                    matches.add("series")  # AniDB match is a strong signal
+                if query.release_group and query.release_group.lower() in title.lower():
+                    matches.add("release_group")
+                for res in ["1080p", "720p", "480p", "2160p"]:
+                    if res in title:
+                        if query.resolution == res:
+                            matches.add("resolution")
+                        break
+
+                result = SubtitleResult(
+                    provider_name=self.name,
+                    subtitle_id=f"{entry_id}:{attach_id}",
+                    language=lang,
+                    format=fmt,
+                    filename=filename,
+                    download_url=download_url,
+                    release_info=title,
+                    matches=matches,
+                    provider_data={
+                        "entry_id": entry_id,
+                        "entry_title": title,
+                        "attach_id": attach_id,
+                        "is_xz": True,
+                    },
+                )
+                results.append(result)
 
         return results
 
