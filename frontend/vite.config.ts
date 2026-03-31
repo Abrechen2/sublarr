@@ -9,6 +9,12 @@ const reactDomPath = path.resolve(projectRoot, 'node_modules/react-dom')
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  experimental: {
+    // Vite 8.0.x bug: FullBundleDevEnvironment (Rolldown) does not replace
+    // __BUNDLED_DEV__ in @vite/client, causing ReferenceError → blank page.
+    // Disable until fixed upstream.
+    bundledDev: false,
+  },
   build: {
     rollupOptions: {
       output: {
