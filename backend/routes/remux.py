@@ -71,8 +71,8 @@ def _update_job(
             "remux_job_update",
             {"job_id": job_id, "status": status, "result": result, "error": error},
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("SocketIO emit remux_job_update failed: %s", exc)
 
 
 def _arr_pause(pause: bool) -> None:

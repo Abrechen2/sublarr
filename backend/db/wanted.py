@@ -190,6 +190,11 @@ def get_wanted_by_subtitle_type() -> dict:
     return _get_repo().get_wanted_by_subtitle_type()
 
 
+def get_wanted_items_by_ids(item_ids: list) -> dict:
+    """Fetch multiple wanted items by ID in one query. Returns dict mapping id -> item dict."""
+    return _get_repo().get_wanted_items_by_ids(item_ids)
+
+
 # Keep private helper for backward compat
 def _row_to_wanted(row) -> dict:
     """Convert a database row to a wanted item dict (legacy compat)."""

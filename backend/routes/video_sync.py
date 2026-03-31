@@ -37,8 +37,8 @@ def _update_job(job_id: str, status: str, result: dict = None, error: str = None
                 "error": error,
             },
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("SocketIO emit sync_job_update failed: %s", exc)
 
 
 def _run_sync(

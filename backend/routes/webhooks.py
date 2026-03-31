@@ -107,8 +107,8 @@ def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None, mo
             body=f"Subtitle pipeline completed for {title}",
             event_type="download",
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Notification send failed in webhook handler: %s", exc)
 
 
 @bp.route("/webhook/sonarr", methods=["POST"])

@@ -518,8 +518,8 @@ def restore_full_backup():
                 _inv_radarr()
                 _inv_media()
                 _inv_providers()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("Cache invalidation failed after backup restore: %s", exc)
 
             logger.info("Full backup restored: config=%s, db=%s", imported_keys, db_restored)
 

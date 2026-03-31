@@ -272,8 +272,8 @@ def wanted_batch_search():
                         body=f"Wanted batch finished: {snapshot.get('found', 0)} found, {snapshot.get('failed', 0)} failed",
                         event_type="batch_complete",
                     )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("Notification send failed after wanted batch search: %s", exc)
 
     thread = threading.Thread(target=_run_batch, daemon=True)
     thread.start()

@@ -146,8 +146,8 @@ def list_tasks():
 
                 last_dt = datetime.fromisoformat(str(scan_last))
                 scan_next = (last_dt + timedelta(hours=scan_interval)).isoformat()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Could not compute wanted_scan next_run time: %s", exc)
         tasks.append(
             {
                 "name": "wanted_scan",
@@ -170,8 +170,8 @@ def list_tasks():
 
                 last_dt = datetime.fromisoformat(str(search_last))
                 search_next = (last_dt + timedelta(hours=search_interval)).isoformat()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Could not compute wanted_search next_run time: %s", exc)
         tasks.append(
             {
                 "name": "wanted_search",

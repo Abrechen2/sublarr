@@ -288,8 +288,8 @@ def update_config():
         from mediaserver import get_media_server_manager
 
         get_media_server_manager().load_instances()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Media server reload failed after config update: %s", exc)
 
     logger.info("Config updated: %s — settings reloaded", saved_keys)
 
@@ -304,8 +304,8 @@ def update_config():
             from providers.base import invalidate_scoring_cache
 
             invalidate_scoring_cache()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Scoring cache invalidation failed after config update: %s", exc)
 
     return jsonify(
         {
@@ -542,8 +542,8 @@ def import_config():
         from mediaserver import get_media_server_manager
 
         get_media_server_manager().load_instances()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Media server reload failed after config import: %s", exc)
 
     logger.info("Config imported: %s (skipped secrets: %s)", imported, skipped_secrets)
 
