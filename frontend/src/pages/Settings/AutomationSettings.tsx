@@ -16,20 +16,9 @@ import { FormGroup } from '@/components/settings/FormGroup'
 import { Toggle } from '@/components/shared/Toggle'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { strVal, boolVal } from '@/lib/configUtils'
+import { settingsInputStyle } from '@/styles/settingsShared'
 
-// ─── Shared input style ───────────────────────────────────────────────────────
-
-const inputStyle: React.CSSProperties = {
-  background: 'var(--bg-elevated)',
-  border: '1px solid var(--border)',
-  color: 'var(--text-primary)',
-  borderRadius: '6px',
-  padding: '7px 12px',
-  fontSize: '13px',
-  fontFamily: 'var(--font-body)',
-  width: '220px',
-  outline: 'none',
-}
+const inputStyle: React.CSSProperties = { ...settingsInputStyle, width: '220px', outline: 'none' }
 
 // ─── SectionSkeleton ─────────────────────────────────────────────────────────
 

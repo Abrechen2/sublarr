@@ -10,23 +10,14 @@ import { toast } from '@/components/shared/Toast'
 import { ProvidersTab } from './ProvidersTab'
 import { MarketplaceTab } from './providers/MarketplaceTab'
 import { strVal, boolVal } from '@/lib/configUtils'
+import { settingsInputStyle } from '@/styles/settingsShared'
 
 function parseNum(v: string | undefined, fallback: number): number {
   const n = Number(v)
   return isNaN(n) ? fallback : n
 }
 
-const inputStyle: React.CSSProperties = {
-  background: 'var(--bg-elevated)',
-  border: '1px solid var(--border)',
-  color: 'var(--text-primary)',
-  borderRadius: '6px',
-  padding: '7px 12px',
-  fontSize: '13px',
-  fontFamily: 'var(--font-body)',
-  width: '220px',
-  outline: 'none',
-}
+const inputStyle: React.CSSProperties = { ...settingsInputStyle, width: '220px', outline: 'none' }
 
 export function ProvidersSettings() {
   const { t } = useTranslation('common')
