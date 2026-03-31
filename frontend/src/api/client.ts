@@ -1970,7 +1970,7 @@ export async function computeSubtitleDiff(
     return data
   } catch (err: unknown) {
     const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-    throw new Error(msg ?? `computeSubtitleDiff failed`)
+    throw new Error(msg ?? `computeSubtitleDiff failed`, { cause: err })
   }
 }
 
@@ -1988,7 +1988,7 @@ export async function applySubtitleDiff(
     return data
   } catch (err: unknown) {
     const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-    throw new Error(msg ?? `applySubtitleDiff failed`)
+    throw new Error(msg ?? `applySubtitleDiff failed`, { cause: err })
   }
 }
 
