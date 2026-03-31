@@ -83,62 +83,23 @@ class TestQualityTrendNormalization:
 class TestStatisticsQualityFields:
     """Verify that /statistics endpoint includes quality_trend and series_quality."""
 
-    def _setup_mocks(self, mock_db_execute):
-        """Set up mock DB return values for all queries in get_statistics()."""
-
-        call_count = [0]
-
-        def side_effect(query, *args, **kwargs):
-            q = str(query).strip()
-            result = MagicMock()
-            call_count[0] += 1
-
-            if "daily_stats" in q:
-                result.fetchall.return_value = []
-            elif (
-                "provider_name, COUNT" in q
-                and "subtitle_downloads" in q
-                and "GROUP_CONCAT" not in q
-            ):
-                # downloads_by_provider
-                result.fetchall.return_value = []
-            elif "translation_backend_stats" in q or "upgrade_history" in q:
-                result.fetchall.return_value = []
-            elif "substr(downloaded_at" in q:
-                # quality_trend query
-                row = MagicMock()
-                row.__getitem__ = lambda self, k: ["2026-01-15", 630.0, 5, 0][k]
-                result.fetchall.return_value = [row]
-            elif "GROUP_CONCAT" in q:
-                # series_quality query
-                row = MagicMock()
-                row.__getitem__ = lambda self, k: [
-                    "Attack on Titan",
-                    720.0,
-                    10,
-                    "2026-01-14T12:00:00",
-                    "ass",
-                ][k]
-                result.fetchall.return_value = [row]
-            else:
-                result.fetchall.return_value = []
-
-            return result
-
-        mock_db_execute.side_effect = side_effect
-
     def test_quality_trend_in_response(self):
         app = _make_app()
 
+        quality_trend_data = [
+            {"date": "2026-01-15", "avg_score": 70.0, "files_checked": 5, "issues_count": 0}
+        ]
+
         with (
             app.test_request_context("/api/v1/statistics?range=30d"),
-            patch("db.get_db") as mock_get_db,
+            patch("db.statistics.get_daily_stats", return_value=([], {})),
+            patch("db.statistics.get_downloads_by_provider", return_value=[]),
+            patch("db.statistics.get_translation_backend_stats", return_value=[]),
+            patch("db.statistics.get_upgrade_type_summary", return_value=[]),
+            patch("db.statistics.get_quality_trend", return_value=quality_trend_data),
+            patch("db.statistics.get_series_quality", return_value=[]),
             patch("db.providers.get_provider_stats", return_value={}),
         ):
-            mock_conn = MagicMock()
-            mock_get_db.return_value = mock_conn
-            self._setup_mocks(mock_conn.execute)
-
             from routes.system import get_statistics
 
             response = get_statistics()
@@ -146,19 +107,32 @@ class TestStatisticsQualityFields:
 
         assert "quality_trend" in data
         assert isinstance(data["quality_trend"], list)
+        assert len(data["quality_trend"]) == 1
 
     def test_series_quality_in_response(self):
         app = _make_app()
 
+        series_quality_data = [
+            {
+                "title": "Attack on Titan",
+                "avg_score": 80.0,
+                "avg_score_pct": 80.0,
+                "download_count": 10,
+                "last_download": "2026-01-14T12:00:00",
+                "formats": ["ass"],
+            }
+        ]
+
         with (
             app.test_request_context("/api/v1/statistics?range=30d"),
-            patch("db.get_db") as mock_get_db,
+            patch("db.statistics.get_daily_stats", return_value=([], {})),
+            patch("db.statistics.get_downloads_by_provider", return_value=[]),
+            patch("db.statistics.get_translation_backend_stats", return_value=[]),
+            patch("db.statistics.get_upgrade_type_summary", return_value=[]),
+            patch("db.statistics.get_quality_trend", return_value=[]),
+            patch("db.statistics.get_series_quality", return_value=series_quality_data),
             patch("db.providers.get_provider_stats", return_value={}),
         ):
-            mock_conn = MagicMock()
-            mock_get_db.return_value = mock_conn
-            self._setup_mocks(mock_conn.execute)
-
             from routes.system import get_statistics
 
             response = get_statistics()
@@ -166,6 +140,7 @@ class TestStatisticsQualityFields:
 
         assert "series_quality" in data
         assert isinstance(data["series_quality"], list)
+        assert len(data["series_quality"]) == 1
 
     def test_quality_trend_structure(self):
         """Each quality_trend entry has the expected fields."""
