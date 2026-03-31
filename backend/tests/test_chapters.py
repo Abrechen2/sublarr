@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 from db.models.core import ChapterCache
@@ -98,7 +98,7 @@ class TestGetChapters:
             file_path=str(video),
             mtime=video.stat().st_mtime,
             chapters_json=json.dumps(chapters),
-            cached_at=datetime.utcnow().isoformat(),
+            cached_at=datetime.now(UTC),
         )
         db.session.add(row)
         db.session.commit()
@@ -132,7 +132,7 @@ class TestGetChapters:
             file_path=str(video),
             mtime=0.0,  # wrong mtime
             chapters_json=json.dumps([]),
-            cached_at=datetime.utcnow().isoformat(),
+            cached_at=datetime.now(UTC),
         )
         db.session.add(row)
         db.session.commit()

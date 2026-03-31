@@ -62,7 +62,9 @@ class TestComputeRetryAfter:
         settings = _make_settings(wanted_backoff_base_hours=2.0, wanted_backoff_cap_hours=48.0)
         result = _compute_retry_after(search_count=1, settings=settings)
         assert result is not None
-        ts = datetime.fromisoformat(result)
+        ts = result
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=UTC)
         now = datetime.now(UTC)
         delta_hours = (ts - now).total_seconds() / 3600
         assert 1.9 <= delta_hours <= 2.1, f"Expected ~2h delay, got {delta_hours:.2f}h"
@@ -74,7 +76,9 @@ class TestComputeRetryAfter:
         now = datetime.now(UTC)
         delays = []
         for count in range(1, 5):
-            ts = datetime.fromisoformat(_compute_retry_after(count, settings))
+            ts = _compute_retry_after(count, settings)
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=UTC)
             delays.append((ts - now).total_seconds() / 3600)
         for i in range(len(delays) - 1):
             assert delays[i + 1] > delays[i], f"Delay did not increase at step {i + 1}"
@@ -84,7 +88,9 @@ class TestComputeRetryAfter:
 
         settings = _make_settings(wanted_backoff_base_hours=1.0, wanted_backoff_cap_hours=10.0)
         result = _compute_retry_after(search_count=20, settings=settings)
-        ts = datetime.fromisoformat(result)
+        ts = result
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=UTC)
         now = datetime.now(UTC)
         delay_hours = (ts - now).total_seconds() / 3600
         assert delay_hours <= 10.5, f"Cap exceeded: {delay_hours:.2f}h"

@@ -191,7 +191,7 @@ class UpgradeScheduler:
 
                 # Find subtitle_downloads older than window_days
                 stmt = select(SubtitleDownload).where(
-                    SubtitleDownload.downloaded_at < cutoff_download.isoformat()
+                    SubtitleDownload.downloaded_at < cutoff_download
                 )
                 downloads = db.execute(stmt).scalars().all()
 
@@ -235,7 +235,7 @@ class UpgradeScheduler:
                             status="wanted",
                             upgrade_candidate=1,
                             current_score=dl.score or 0,
-                            updated_at=datetime.now(UTC).isoformat(),
+                            updated_at=datetime.now(UTC),
                         )
                     )
                     db.commit()

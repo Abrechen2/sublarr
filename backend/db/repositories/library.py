@@ -134,7 +134,7 @@ class LibraryRepository(BaseRepository):
             self.session.execute(
                 select(func.count())
                 .select_from(SubtitleDownload)
-                .where(SubtitleDownload.downloaded_at > (now - timedelta(days=1)).isoformat())
+                .where(SubtitleDownload.downloaded_at > now - timedelta(days=1))
             ).scalar()
             or 0
         )
@@ -143,7 +143,7 @@ class LibraryRepository(BaseRepository):
             self.session.execute(
                 select(func.count())
                 .select_from(SubtitleDownload)
-                .where(SubtitleDownload.downloaded_at > (now - timedelta(days=7)).isoformat())
+                .where(SubtitleDownload.downloaded_at > now - timedelta(days=7))
             ).scalar()
             or 0
         )

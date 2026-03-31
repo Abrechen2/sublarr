@@ -3,7 +3,9 @@
 All column types and defaults match the existing SCHEMA DDL in db/__init__.py exactly.
 """
 
-from sqlalchemy import Index, Integer, Text
+from datetime import datetime
+
+from sqlalchemy import DateTime, Index, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from extensions import db
@@ -19,9 +21,9 @@ class WatchedFolder(db.Model):
     label: Mapped[str | None] = mapped_column(Text, default="")
     media_type: Mapped[str | None] = mapped_column(Text, default="auto")
     enabled: Mapped[int | None] = mapped_column(Integer, default=1)
-    last_scan_at: Mapped[str | None] = mapped_column(Text, default="")
-    created_at: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    last_scan_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class StandaloneSeries(db.Model):
@@ -42,8 +44,8 @@ class StandaloneSeries(db.Model):
     episode_count: Mapped[int | None] = mapped_column(Integer, default=0)
     season_count: Mapped[int | None] = mapped_column(Integer, default=0)
     metadata_source: Mapped[str | None] = mapped_column(Text, default="")
-    created_at: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         Index("idx_standalone_series_tmdb", "tmdb_id"),
@@ -64,8 +66,8 @@ class StandaloneMovie(db.Model):
     imdb_id: Mapped[str | None] = mapped_column(Text, default="")
     poster_url: Mapped[str | None] = mapped_column(Text, default="")
     metadata_source: Mapped[str | None] = mapped_column(Text, default="")
-    created_at: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (Index("idx_standalone_movies_tmdb", "tmdb_id"),)
 
@@ -78,8 +80,8 @@ class MetadataCache(db.Model):
     cache_key: Mapped[str] = mapped_column(Text, primary_key=True)
     provider: Mapped[str] = mapped_column(Text, nullable=False)
     response_json: Mapped[str] = mapped_column(Text, nullable=False)
-    cached_at: Mapped[str] = mapped_column(Text, nullable=False)
-    expires_at: Mapped[str] = mapped_column(Text, nullable=False)
+    cached_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (Index("idx_metadata_cache_expires", "expires_at"),)
 
@@ -92,8 +94,8 @@ class AnidbMapping(db.Model):
     tvdb_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     anidb_id: Mapped[int] = mapped_column(Integer, nullable=False)
     series_title: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[str | None] = mapped_column(Text)
-    last_used: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_used: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (Index("idx_anidb_mappings_anidb_id", "anidb_id"),)
 

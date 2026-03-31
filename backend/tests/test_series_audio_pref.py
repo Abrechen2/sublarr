@@ -1,5 +1,7 @@
 """Tests for per-series audio track preference."""
 
+from datetime import UTC, datetime
+
 import pytest
 
 
@@ -7,7 +9,9 @@ class TestSeriesAudioPrefModel:
     def test_series_settings_has_audio_track_field(self):
         from db.models.core import SeriesSettings
 
-        ss = SeriesSettings(sonarr_series_id=1, absolute_order=0, updated_at="2026-01-01")
+        ss = SeriesSettings(
+            sonarr_series_id=1, absolute_order=0, updated_at=datetime(2026, 1, 1, tzinfo=UTC)
+        )
         assert hasattr(ss, "preferred_audio_track_index")
         assert ss.preferred_audio_track_index is None
 

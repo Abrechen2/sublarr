@@ -73,13 +73,21 @@ class BaseRepository:
 
         Returns:
             Dict with column names as keys and their values.
+            datetime values are serialized to ISO format strings.
         """
         if model_instance is None:
             return None
         if columns is None:
             columns = [c.key for c in model_instance.__table__.columns]
-        return {col: getattr(model_instance, col) for col in columns}
+        result = {}
+        for col in columns:
+            val = getattr(model_instance, col)
+            if isinstance(val, datetime):
+                result[col] = val.isoformat()
+            else:
+                result[col] = val
+        return result
 
-    def _now(self) -> str:
-        """Return current UTC time as ISO format string."""
-        return datetime.now(UTC).isoformat()
+    def _now(self) -> datetime:
+        """Return current UTC time as a datetime object."""
+        return datetime.now(UTC)

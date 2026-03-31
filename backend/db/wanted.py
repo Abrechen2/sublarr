@@ -115,8 +115,8 @@ def update_wanted_search(item_id: int):
     return _get_repo().mark_search_attempted(item_id)
 
 
-def set_wanted_retry_after(item_id: int, retry_after: str) -> bool:
-    """Set retry_after ISO timestamp for adaptive backoff."""
+def set_wanted_retry_after(item_id: int, retry_after) -> bool:
+    """Set retry_after datetime for adaptive backoff."""
     return _get_repo().set_retry_after(item_id, retry_after)
 
 

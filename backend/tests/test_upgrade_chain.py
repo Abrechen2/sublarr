@@ -1,5 +1,6 @@
 """Tests for upgrade chain tracking (upgraded_from_id in subtitle_downloads)."""
 
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 
@@ -19,7 +20,7 @@ def test_record_subtitle_download_accepts_upgraded_from_id():
 
         repo = ProviderRepository.__new__(ProviderRepository)
         repo._local = __import__("threading").local()
-        repo._now = lambda: "2026-03-28T12:00:00"
+        repo._now = lambda: datetime(2026, 3, 28, 12, 0, 0, tzinfo=UTC)
 
         repo.record_subtitle_download(
             "opensubtitles",
@@ -46,7 +47,7 @@ def test_record_subtitle_download_upgraded_from_id_defaults_to_none():
 
         repo = ProviderRepository.__new__(ProviderRepository)
         repo._local = __import__("threading").local()
-        repo._now = lambda: "2026-03-28T12:00:00"
+        repo._now = lambda: datetime(2026, 3, 28, 12, 0, 0, tzinfo=UTC)
 
         repo.record_subtitle_download(
             "opensubtitles",

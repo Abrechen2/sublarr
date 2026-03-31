@@ -7,7 +7,7 @@ anidb_mappings operations. Return types match the existing functions exactly.
 
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, func, select
 
@@ -241,8 +241,12 @@ class CacheRepository(BaseRepository):
         cache_ttl_days = settings.anidb_cache_ttl_days
         if cache_ttl_days > 0:
             try:
-                last_used = datetime.fromisoformat(mapping.last_used)
-                age_days = (datetime.utcnow() - last_used).days
+                last_used = mapping.last_used
+                if last_used is None:
+                    return None
+                if last_used.tzinfo is None:
+                    last_used = last_used.replace(tzinfo=UTC)
+                age_days = (datetime.now(UTC) - last_used).days
                 if age_days > cache_ttl_days:
                     logger.debug(
                         "AniDB mapping for TVDB %d expired (age: %d days)", tvdb_id, age_days
@@ -285,7 +289,7 @@ class CacheRepository(BaseRepository):
         Returns:
             Number of mappings deleted.
         """
-        cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         result = self.session.execute(delete(AnidbMapping).where(AnidbMapping.last_used < cutoff))
         self._commit()
         deleted = result.rowcount

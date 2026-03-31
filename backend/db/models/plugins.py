@@ -1,6 +1,8 @@
 """SQLAlchemy models for plugin marketplace."""
 
-from sqlalchemy import Integer, String, Text
+from datetime import datetime
+
+from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from extensions import db
@@ -22,7 +24,7 @@ class MarketplaceCache(db.Model):
     capabilities: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     min_sublarr_version: Mapped[str] = mapped_column(String(50), nullable=False, default="")
     is_official: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    last_fetched: Mapped[str] = mapped_column(Text, nullable=False)
+    last_fetched: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class InstalledPlugin(db.Model):
@@ -37,4 +39,4 @@ class InstalledPlugin(db.Model):
     sha256: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     capabilities: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     enabled: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    installed_at: Mapped[str] = mapped_column(Text, nullable=False)
+    installed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

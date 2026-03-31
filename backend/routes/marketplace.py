@@ -260,7 +260,7 @@ def install_marketplace_plugin():
         )
 
         # Persist to installed_plugins
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now(UTC)
         capabilities = json.dumps(data.get("capabilities", []))
         existing = InstalledPlugin.query.get(name)
         if existing:

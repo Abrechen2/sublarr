@@ -120,7 +120,7 @@ class StatisticsRepository(BaseRepository):
                 "avg_score": round(row[1] or 0, 1),
                 "avg_score_pct": round(min(100.0, (row[1] or 0) / _SCORE_MAX * 100), 1),
                 "download_count": row[2] or 0,
-                "last_download": row[3],
+                "last_download": row[3].replace(" ", "T") + "Z" if row[3] else None,
                 "formats": [f for f in (row[4] or "").split(",") if f],
             }
             for row in rows

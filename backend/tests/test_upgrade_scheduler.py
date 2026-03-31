@@ -29,7 +29,7 @@ def _make_download(
     dl.file_path = file_path
     dl.score = score
     dl.format = fmt
-    dl.downloaded_at = downloaded_at or (datetime.now(UTC) - timedelta(days=14)).isoformat()
+    dl.downloaded_at = downloaded_at or (datetime.now(UTC) - timedelta(days=14))
     return dl
 
 

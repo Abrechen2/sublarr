@@ -6,7 +6,7 @@ and anidb_mappings tables. Return types match the existing functions exactly.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, select
 
@@ -39,7 +39,7 @@ class StandaloneRepository(BaseRepository):
             label=label,
             media_type=media_type,
             enabled=1,
-            last_scan_at="",
+            last_scan_at=None,
             created_at=now,
             updated_at=now,
         )
@@ -275,11 +275,14 @@ class StandaloneRepository(BaseRepository):
 
     def get_metadata_cache(self, cache_key: str) -> dict | None:
         """Get a cached metadata entry if not expired."""
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(UTC)
         entry = self.session.get(MetadataCache, cache_key)
         if not entry:
             return None
-        if entry.expires_at <= now:
+        expires = entry.expires_at
+        if expires is not None and expires.tzinfo is None:
+            expires = expires.replace(tzinfo=UTC)
+        if expires is None or expires <= now:
             return None
         return self._to_dict(entry)
 
@@ -287,22 +290,21 @@ class StandaloneRepository(BaseRepository):
         self, cache_key: str, provider: str, response_json: str, ttl_days: int = 30
     ):
         """Insert or replace a metadata cache entry with TTL."""
-        now = datetime.utcnow()
-        cached_at = now.isoformat()
-        expires_at = (now + timedelta(days=ttl_days)).isoformat()
+        now = datetime.now(UTC)
+        expires_at = now + timedelta(days=ttl_days)
 
         existing = self.session.get(MetadataCache, cache_key)
         if existing:
             existing.provider = provider
             existing.response_json = response_json
-            existing.cached_at = cached_at
+            existing.cached_at = now
             existing.expires_at = expires_at
         else:
             entry = MetadataCache(
                 cache_key=cache_key,
                 provider=provider,
                 response_json=response_json,
-                cached_at=cached_at,
+                cached_at=now,
                 expires_at=expires_at,
             )
             self.session.add(entry)
@@ -310,7 +312,7 @@ class StandaloneRepository(BaseRepository):
 
     def clear_expired_metadata_cache(self) -> int:
         """Delete all expired metadata cache entries. Returns count deleted."""
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(UTC)
         result = self.session.execute(delete(MetadataCache).where(MetadataCache.expires_at <= now))
         self._commit()
         return result.rowcount
@@ -348,7 +350,7 @@ class StandaloneRepository(BaseRepository):
 
     def clear_old_anidb_mappings(self, ttl_days: int = 90) -> int:
         """Remove AniDB mappings older than specified days. Returns count deleted."""
-        cutoff = (datetime.utcnow() - timedelta(days=ttl_days)).isoformat()
+        cutoff = datetime.now(UTC) - timedelta(days=ttl_days)
         result = self.session.execute(delete(AnidbMapping).where(AnidbMapping.last_used < cutoff))
         self._commit()
         return result.rowcount

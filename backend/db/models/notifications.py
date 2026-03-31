@@ -4,7 +4,9 @@ Supports Jinja2 template rendering, notification history tracking,
 and quiet hours suppression for the notification management system.
 """
 
-from sqlalchemy import Index, Integer, String, Text
+from datetime import datetime
+
+from sqlalchemy import DateTime, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from extensions import db
@@ -22,8 +24,8 @@ class NotificationTemplate(db.Model):
     event_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     service_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
     enabled: Mapped[int] = mapped_column(Integer, default=1)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class NotificationHistory(db.Model):
@@ -39,7 +41,7 @@ class NotificationHistory(db.Model):
     service_urls: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="sent")
     error: Mapped[str | None] = mapped_column(Text, default="")
-    sent_at: Mapped[str] = mapped_column(Text, nullable=False)
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         Index("idx_notification_history_event_type", "event_type"),
@@ -59,8 +61,8 @@ class QuietHoursConfig(db.Model):
     days_of_week: Mapped[str] = mapped_column(Text, default="[0,1,2,3,4,5,6]")
     exception_events: Mapped[str] = mapped_column(Text, default='["error"]')
     enabled: Mapped[int] = mapped_column(Integer, default=1)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_at: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 __all__ = [
