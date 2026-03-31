@@ -11,6 +11,7 @@ import {
 import { useOllamaPullModel } from '@/hooks/useTranslationApi'
 import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Plus, Edit2, X, Check, Activity, Eye, EyeOff, BookOpen, Search, Database, Wand2, Download } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
+import { ConfirmModal } from '@/components/shared/ConfirmModal'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
 import type { TranslationBackendInfo, BackendStats, BackendHealthResult } from '@/lib/types'
@@ -1212,6 +1213,7 @@ export function TranslationMemorySection() {
   const updateConfig = useUpdateConfig()
   const { data: stats, isLoading: statsLoading } = useTranslationMemoryStats()
   const clearCache = useClearTranslationMemoryCache()
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
 
   const enabled = config
     ? (config as Record<string, unknown>)['translation_memory_enabled'] !== 'false'
@@ -1252,7 +1254,6 @@ export function TranslationMemorySection() {
   }
 
   const handleClearCache = () => {
-    if (!window.confirm('Clear all cached translations? This cannot be undone.')) return
     clearCache.mutate(undefined, {
       onSuccess: (result) => toast(`Translation memory cleared (${result.deleted} entries removed)`),
       onError: () => toast('Failed to clear translation memory', 'error'),
@@ -1316,7 +1317,7 @@ export function TranslationMemorySection() {
 
       <div className="flex items-center gap-3 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
         <button
-          onClick={handleClearCache}
+          onClick={() => setShowClearConfirm(true)}
           disabled={clearCache.isPending || (stats?.entries ?? 0) === 0}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
           style={{
@@ -1350,6 +1351,14 @@ export function TranslationMemorySection() {
           </span>
         )}
       </div>
+      <ConfirmModal
+        open={showClearConfirm}
+        title="Clear Translation Memory"
+        message="Clear all cached translations? This cannot be undone."
+        confirmLabel="Clear"
+        onConfirm={() => { setShowClearConfirm(false); handleClearCache() }}
+        onCancel={() => setShowClearConfirm(false)}
+      />
     </div>
   )
 }
