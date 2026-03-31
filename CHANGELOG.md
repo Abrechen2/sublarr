@@ -5,6 +5,43 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.37.0-beta] - 2026-03-31
+
+### BREAKING CHANGE — Database Migration Required
+
+**All timestamp columns have been migrated from plain TEXT to `DateTime(timezone=True)`.**
+The Alembic migration `b0c1d2e3f4a5` reformats stored timestamps from ISO 8601 (`2024-01-15T10:30:00+00:00`) to SQLAlchemy's SQLite format (`2024-01-15 10:30:00`). This runs automatically on startup (`flask db upgrade`). **No manual action required for Docker deployments** — the migration is applied automatically.
+
+Use `scripts/check_datetime_migration.py --db /config/sublarr.db --mode before/after` to verify migration integrity.
+
+### Added
+- **ConfirmModal component** — replaces all `window.confirm()` calls with an accessible, styled modal dialog
+- **StatisticsRepository** — extracted all statistics queries from route handlers into a dedicated repository
+- **`services/retranslation.py`** — business logic for item re-translation extracted from route handlers
+- **`scripts/check_datetime_migration.py`** — standalone pre/post migration DB consistency checker (70 columns, 29 tables, row-count snapshot comparison)
+- **`useDebounce` hook** — extracted reusable debounce hook into `frontend/src/hooks/useDebounce.ts`
+- **`configUtils.ts`** — shared frontend config helpers extracted from settings pages
+- **`settingsShared.ts`** — consolidated duplicate `inputStyle` and shared settings UI constants
+
+### Changed
+- **TranslationTab refactor** — split 1989-line `TranslationTab.tsx` into 8 focused sub-files under `pages/Settings/translation/` (`TranslationBackendsTab`, `BackendCard`, `PromptPresetsTab`, `GlobalGlossaryPanel`, `TranslationQualitySection`, `TranslationMemorySection`, `OllamaPullSection`, `TemplatePickerModal`)
+- **SeriesDetail performance** — episode wanted-items now filtered server-side by `series_id`; eliminates the previous 9999-item full-list fetch
+- **`wanted_scanner.py`** moved to `services/wanted_scanner.py` for consistent service-layer placement
+- **Session timeout** — now enforced at 8 h by default (was Flask's 31-day default); configurable via `session_timeout_minutes`
+
+### Fixed
+- **Security — command injection** — replaced `subprocess(shell=True)` with `shlex.split()` in all subprocess calls
+- **Security — IP allowlist** — `allowed_ip_ranges` setting now enforced in `before_request` hook for all non-exempt routes
+- **Security — SSRF** — `validate_service_url()` now applied to plugin install URLs and plugin registry fetch
+- **Security — webhook auth** — requests are now rejected immediately when no API key is configured
+- **Security — path traversal** — `is_safe_path()` added to OCR batch-extract endpoint; corrected reversed argument order in `cleanup_sidecars`
+- **Security — health endpoint** — returns HTTP 503 when required services are down (was always 200)
+- **`subtitle_processor` route** — removed erroneous `.isoformat()` call when writing to `updated_at` DateTime column
+- **Silent error suppression** — replaced bare `except Exception: pass` blocks with `logger.warning()`/`logger.debug()` throughout backend
+- **Alembic revision conflict** — resolved duplicate revision ID `a1b2c3d4e5f6`
+
+---
+
 ## [0.36.4-beta] - 2026-03-30
 
 ### Fixed
