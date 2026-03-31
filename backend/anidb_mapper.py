@@ -3,12 +3,13 @@
 Provides multiple strategies for resolving AniDB IDs:
 1. Sonarr Custom Fields (highest priority)
 2. Local cache (TVDB → AniDB mappings)
-3. External mapping APIs (future: AniList, TheTVDB cross-references)
+3. AniList external links (anilist_id → AniDB via GraphQL)
 
 License: GPL-3.0
 """
 
 import logging
+import re
 
 from config import get_settings
 from db.cache import get_anidb_mapping, save_anidb_mapping
@@ -105,8 +106,50 @@ def get_anidb_id(
             logger.debug("Found cached AniDB ID %d for TVDB ID %d", cached, tvdb_id)
             return cached
 
-    # Strategy 3: External mapping APIs (future implementation)
-    # Could use AniList API, TheTVDB cross-references, etc.
-    # For now, return None if not found in Custom Fields or cache
+    # Strategy 3: AniList external links (anilist_id → AniDB URL)
+    # Falls back to None if not found
 
+    return None
+
+
+def resolve_anidb_from_anilist(anilist_id: int, tvdb_id: int | None = None) -> int | None:
+    """Resolve AniDB ID from AniList external links.
+
+    Fetches the AniList media details for *anilist_id* and extracts the AniDB
+    entry ID from the ``externalLinks`` field (site == "AniDB").  Caches the
+    result in ``anidb_mappings`` when *tvdb_id* is provided so subsequent
+    lookups hit the local DB instead of calling the API again.
+
+    Returns:
+        AniDB series ID as int, or None if not found / API unavailable.
+    """
+    try:
+        from metadata.anilist_client import AniListClient
+
+        client = AniListClient()
+        details = client.get_details(anilist_id)
+        if not details:
+            return None
+
+        for link in details.get("externalLinks", []):
+            if link.get("site") == "AniDB":
+                url = link.get("url", "")
+                m = re.search(r"/anime/(\d+)", url)
+                if m:
+                    anidb_id = int(m.group(1))
+                    logger.debug(
+                        "Resolved AniDB ID %d from AniList %d external link",
+                        anidb_id,
+                        anilist_id,
+                    )
+                    if tvdb_id:
+                        try:
+                            save_anidb_mapping(tvdb_id, anidb_id)
+                        except Exception as _cache_err:
+                            logger.debug("Failed to cache AniDB mapping: %s", _cache_err)
+                    return anidb_id
+
+        logger.debug("No AniDB external link found for AniList %d", anilist_id)
+    except Exception as e:
+        logger.debug("AniList → AniDB resolution failed for AniList %d: %s", anilist_id, e)
     return None

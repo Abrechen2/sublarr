@@ -203,6 +203,40 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
                         logger.debug(
                             "Built query from standalone series metadata: %s", query.series_title
                         )
+                        # Resolve AniDB ID for AnimeTosho accuracy.
+                        # Priority: 1) TVDB→AniDB cache  2) AniList external links
+                        if not query.anidb_id and query.tvdb_id:
+                            try:
+                                from db.cache import get_anidb_mapping
+
+                                cached_anidb_id = get_anidb_mapping(query.tvdb_id)
+                                if cached_anidb_id:
+                                    query.anidb_id = cached_anidb_id
+                                    logger.debug(
+                                        "Resolved AniDB ID %d from cache for standalone TVDB %d",
+                                        cached_anidb_id,
+                                        query.tvdb_id,
+                                    )
+                                elif query.anilist_id:
+                                    from anidb_mapper import resolve_anidb_from_anilist
+
+                                    anidb_id = resolve_anidb_from_anilist(
+                                        query.anilist_id, query.tvdb_id
+                                    )
+                                    if anidb_id:
+                                        query.anidb_id = anidb_id
+                                        logger.debug(
+                                            "Resolved AniDB ID %d via AniList %d for wanted %d",
+                                            anidb_id,
+                                            query.anilist_id,
+                                            wanted_item["id"],
+                                        )
+                            except Exception as _e:
+                                logger.debug(
+                                    "AniDB ID resolution failed for standalone wanted %d: %s",
+                                    wanted_item["id"],
+                                    _e,
+                                )
                 except Exception as e:
                     logger.warning(
                         "Failed to get standalone series metadata for wanted %d: %s",
@@ -343,6 +377,29 @@ def build_query_from_wanted(wanted_item: dict) -> VideoQuery:
             except Exception as _abs_err:
                 logger.warning(
                     "Wanted %d: AniDB absolute episode resolution failed: %s",
+                    wanted_item["id"],
+                    _abs_err,
+                )
+        elif wanted_item.get("standalone_series_id") and query.absolute_episode is None:
+            # Standalone items have no per-series absolute_order flag — try resolving anyway
+            # if a TVDB→absolute mapping exists in the DB (populated by AniDB sync).
+            try:
+                from db.repositories.anidb import AnidbRepository
+
+                repo = AnidbRepository()
+                abs_ep = repo.get_anidb_absolute(query.tvdb_id, query.season, query.episode)
+                if abs_ep is not None:
+                    query.absolute_episode = abs_ep
+                    logger.debug(
+                        "Wanted %d (standalone): AniDB absolute episode resolved: S%02dE%02d -> abs %d",
+                        wanted_item["id"],
+                        query.season,
+                        query.episode,
+                        abs_ep,
+                    )
+            except Exception as _abs_err:
+                logger.debug(
+                    "Wanted %d (standalone): AniDB absolute episode resolution skipped: %s",
                     wanted_item["id"],
                     _abs_err,
                 )
