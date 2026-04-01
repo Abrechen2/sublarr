@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { useWantedBatchStatus, useWantedBatchProbeStatus, useScannerStatus } from '@/hooks/useApi'
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { truncatePath } from '@/lib/utils'
-import { Layers, Loader2, ListVideo, ScanSearch, Search } from 'lucide-react'
+import { Layers, ListVideo, ScanSearch, Search } from 'lucide-react'
 
 export function QueuePage() {
   const { t } = useTranslation('activity')

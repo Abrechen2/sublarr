@@ -92,6 +92,7 @@ vi.mock('@/components/shared/StatusBadge', () => ({
 }))
 
 vi.mock('@/lib/utils', () => ({
+  cn: (...args: unknown[]) => args.filter(Boolean).join(' '),
   formatRelativeTime: () => '',
   truncatePath: (p: string) => p,
 }))

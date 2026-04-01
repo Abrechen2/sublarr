@@ -67,9 +67,9 @@ describe('IconSidebar', () => {
     expect(libraryLink).not.toHaveAttribute('aria-current')
   })
 
-  it('shows badge on Activity when there are wanted items', () => {
+  it('shows badge on Wanted when there are wanted items', () => {
     renderWithRouter(<IconSidebar />)
-    const badge = screen.getByTestId('activity-badge')
+    const badge = screen.getByTestId('wanted-badge')
     expect(badge).toBeInTheDocument()
     expect(badge).toHaveTextContent('5')
   })
