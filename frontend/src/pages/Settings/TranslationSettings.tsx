@@ -9,12 +9,14 @@
  * 5. Sync Engine (advanced)       – default sync engine and auto-sync
  * 6. Whisper (advanced)           – speech-to-text configuration
  */
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Server, MessageSquare, BookOpen, Settings2, RefreshCw, Mic, Layers, FlaskConical } from 'lucide-react'
+import { Server, MessageSquare, BookOpen, Settings2, RefreshCw, Mic, Layers, FlaskConical, AlertTriangle } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { EpisodeContextSection } from './TranslationTab'
+import { useDisableTranslation } from '@/hooks/useApi'
 
 // ─── Lazy sub-tabs ───────────────────────────────────────────────────────────
 
@@ -66,6 +68,15 @@ function SectionSkeleton() {
 
 export function TranslationSettings() {
   const { t } = useTranslation('common')
+  const navigate = useNavigate()
+  const [showDisableConfirm, setShowDisableConfirm] = useState(false)
+  const disableTranslation = useDisableTranslation()
+
+  function handleDisableConfirm() {
+    disableTranslation.mutate(undefined, {
+      onSuccess: () => navigate('/settings'),
+    })
+  }
 
   return (
     <SettingsDetailLayout
@@ -250,6 +261,70 @@ export function TranslationSettings() {
             <EpisodeContextSection />
           </div>
         </SettingsSection>
+      </div>
+      {/* Danger Zone — Disable Translation */}
+      <div
+        data-testid="section-disable-translation"
+        style={{
+          marginTop: 16,
+          padding: '16px 20px',
+          borderRadius: 8,
+          border: '1px solid var(--error)',
+          backgroundColor: 'var(--error-bg)',
+        }}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle size={18} style={{ color: 'var(--error)', flexShrink: 0, marginTop: 1 }} />
+            <div>
+              <div className="font-semibold text-sm" style={{ color: 'var(--error)' }}>
+                Translation deaktivieren
+              </div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                Deaktiviert die Translation-Funktion und bricht alle wartenden Jobs ab.
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowDisableConfirm(true)}
+            className="shrink-0 px-3 py-1.5 rounded-md text-sm font-medium"
+            style={{
+              border: '1px solid var(--error)',
+              color: 'var(--error)',
+              backgroundColor: 'transparent',
+            }}
+          >
+            Disable Translation
+          </button>
+        </div>
+
+        {showDisableConfirm && (
+          <div
+            className="mt-3 pt-3 flex items-center justify-between gap-4"
+            style={{ borderTop: '1px solid var(--error)' }}
+          >
+            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Wirklich deaktivieren? Alle wartenden Translation-Jobs werden abgebrochen.
+            </span>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={() => setShowDisableConfirm(false)}
+                className="px-3 py-1.5 rounded-md text-sm"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handleDisableConfirm}
+                disabled={disableTranslation.isPending}
+                className="px-3 py-1.5 rounded-md text-sm font-semibold"
+                style={{ backgroundColor: 'var(--error)', color: '#fff' }}
+              >
+                {disableTranslation.isPending ? 'Deaktiviere…' : 'Bestätigen'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </SettingsDetailLayout>
   )
