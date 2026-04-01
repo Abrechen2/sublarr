@@ -152,7 +152,7 @@ function SidebarNavItem({ item, label, badgeCount }: SidebarNavItemProps) {
           {badgeCount > 0 && (
             <span
               data-testid="wanted-badge"
-              className="sidebar-label ml-auto text-[10px] font-bold rounded-full opacity-0 transition-opacity duration-200"
+              className="sidebar-label sidebar-badge text-[10px] font-bold rounded-full opacity-0 transition-opacity duration-200"
               style={{
                 backgroundColor: 'var(--warning)',
                 color: '#000',

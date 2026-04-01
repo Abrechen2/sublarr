@@ -395,6 +395,10 @@ a:hover {
   width: auto;
 }
 
+.icon-sidebar:hover .sidebar-badge {
+  margin-left: auto;
+}
+
 /* Respect user motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *,
