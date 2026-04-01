@@ -5,6 +5,20 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.37.3-beta] - 2026-04-01
+
+### Changed
+- **Activity navigation restructure** — "Wanted" promoted to top-level sidebar nav item (alongside Dashboard, Library, Settings); Activity reduced from 5 tabs to 4 clean tabs: Queue, Translations, History, Blacklist
+- **Queue tab** — now shows only background batch operations (Wanted Batch Search, Batch Probe, Scanner) with an empty state when idle; translation jobs moved to dedicated Translations tab
+- **Translations tab** (new) — shows active and queued translation jobs with live polling; replaces the old "In Progress" tab
+- **Badge indicator** — moved from Activity nav item to Wanted nav item (shows count of items still needing subtitles); Translations tab shows badge for active + queued job count
+
+### Removed
+- **"Needs Attention" tab** — redundant with the Wanted page (was a filtered view of the same data)
+- **"In Progress" tab** — consolidated into the new Translations tab
+
+---
+
 ## [0.37.2-beta] - 2026-03-31
 
 ### Added
