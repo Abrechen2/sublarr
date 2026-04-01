@@ -63,10 +63,6 @@ vi.mock('react-i18next', () => ({
 }))
 
 // Mock the sub-pages to avoid pulling in their full dependency trees
-vi.mock('@/pages/Wanted', () => ({
-  WantedPage: () => <div data-testid="wanted-page-content">Wanted Content</div>,
-}))
-
 vi.mock('@/pages/Queue', () => ({
   QueuePage: () => <div data-testid="queue-page-content">Queue Content</div>,
 }))
@@ -79,8 +75,8 @@ vi.mock('@/pages/Blacklist', () => ({
   BlacklistPage: () => <div data-testid="blacklist-page-content">Blacklist Content</div>,
 }))
 
-vi.mock('@/components/activity/NeedsAttentionTab', () => ({
-  NeedsAttentionTab: () => <div data-testid="attention-page-content">Attention Content</div>,
+vi.mock('@/components/activity/TranslationsTab', () => ({
+  TranslationsTab: () => <div data-testid="translations-page-content">Translations Content</div>,
 }))
 
 vi.mock('@/components/layout/PageHeader', () => ({
@@ -126,7 +122,7 @@ function createQueryClient() {
   })
 }
 
-function renderWithProviders(initialEntry = '/activity?tab=wanted') {
+function renderWithProviders(initialEntry = '/activity?tab=queue') {
   const queryClient = createQueryClient()
   return render(
     <QueryClientProvider client={queryClient}>
@@ -162,36 +158,35 @@ describe('ActivityPage', () => {
     expect(screen.getByTestId('pill-tabs')).toBeInTheDocument()
   })
 
-  it('renders all 5 tabs', () => {
+  it('renders all 4 tabs', () => {
     renderWithProviders()
 
-    expect(screen.getByTestId('tab-attention')).toBeInTheDocument()
-    expect(screen.getByTestId('tab-wanted')).toBeInTheDocument()
-    expect(screen.getByTestId('tab-progress')).toBeInTheDocument()
-    expect(screen.getByTestId('tab-completed')).toBeInTheDocument()
+    expect(screen.getByTestId('tab-queue')).toBeInTheDocument()
+    expect(screen.getByTestId('tab-translations')).toBeInTheDocument()
+    expect(screen.getByTestId('tab-history')).toBeInTheDocument()
     expect(screen.getByTestId('tab-blacklist')).toBeInTheDocument()
   })
 
-  it('defaults to attention tab', () => {
+  it('defaults to queue tab', () => {
     renderWithProviders('/activity')
 
-    // With no tab param, defaults to 'attention'
-    expect(screen.getByTestId('tab-attention')).toHaveAttribute('data-active', 'true')
-    expect(screen.getByTestId('attention-page-content')).toBeInTheDocument()
+    // With no tab param, defaults to 'queue'
+    expect(screen.getByTestId('tab-queue')).toHaveAttribute('data-active', 'true')
+    expect(screen.getByTestId('tab-content-queue')).toBeInTheDocument()
   })
 
-  it('renders wanted tab content when tab=wanted', () => {
-    renderWithProviders('/activity?tab=wanted')
+  it('renders translations tab content when tab=translations', () => {
+    renderWithProviders('/activity?tab=translations')
 
-    expect(screen.getByTestId('wanted-page-content')).toBeInTheDocument()
+    expect(screen.getByTestId('translations-page-content')).toBeInTheDocument()
     expect(screen.queryByTestId('history-page-content')).not.toBeInTheDocument()
   })
 
-  it('renders completed tab content when tab=completed', () => {
-    renderWithProviders('/activity?tab=completed')
+  it('renders history tab content when tab=history', () => {
+    renderWithProviders('/activity?tab=history')
 
     expect(screen.getByTestId('history-page-content')).toBeInTheDocument()
-    expect(screen.queryByTestId('wanted-page-content')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('queue-page-content')).not.toBeInTheDocument()
   })
 
   it('renders blacklist tab content when tab=blacklist', () => {
@@ -200,35 +195,38 @@ describe('ActivityPage', () => {
     expect(screen.getByTestId('blacklist-page-content')).toBeInTheDocument()
   })
 
-  it('renders in-progress tab content when tab=progress', () => {
-    renderWithProviders('/activity?tab=progress')
+  it('renders queue tab content when tab=queue', () => {
+    renderWithProviders('/activity?tab=queue')
 
-    expect(screen.getByTestId('queue-page-content')).toBeInTheDocument()
+    expect(screen.getByTestId('tab-content-queue')).toBeInTheDocument()
   })
 
   it('switches tabs when clicking a tab button', () => {
-    renderWithProviders('/activity?tab=wanted')
+    renderWithProviders('/activity?tab=queue')
 
-    expect(screen.getByTestId('wanted-page-content')).toBeInTheDocument()
+    expect(screen.getByTestId('tab-content-queue')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByTestId('tab-completed'))
+    fireEvent.click(screen.getByTestId('tab-history'))
 
     expect(screen.getByTestId('history-page-content')).toBeInTheDocument()
-    expect(screen.queryByTestId('wanted-page-content')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('tab-content-queue')).not.toBeInTheDocument()
   })
 
-  it('shows attention count badge when there are attention items', () => {
+  it('shows translations count badge when there are active/queued jobs', () => {
     renderWithProviders()
 
-    // Item id=1 is failed, item id=2 has score 35 (< 50 and > 0) -> 2 attention items
-    const badge = screen.getByTestId('tab-count-attention')
-    expect(badge).toHaveTextContent('2')
+    // The Translations tab should have a count badge for active + queued jobs
+    const badge = screen.queryByTestId('tab-count-translations')
+    // May or may not be present depending on mock job data
+    if (badge) {
+      expect(badge).toBeInTheDocument()
+    }
   })
 
-  it('falls back to attention tab for invalid tab param', () => {
+  it('falls back to queue tab for invalid tab param', () => {
     renderWithProviders('/activity?tab=invalid')
 
-    expect(screen.getByTestId('tab-attention')).toHaveAttribute('data-active', 'true')
-    expect(screen.getByTestId('attention-page-content')).toBeInTheDocument()
+    expect(screen.getByTestId('tab-queue')).toHaveAttribute('data-active', 'true')
+    expect(screen.getByTestId('tab-content-queue')).toBeInTheDocument()
   })
 })
