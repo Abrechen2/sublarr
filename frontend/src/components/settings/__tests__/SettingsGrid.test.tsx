@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
@@ -29,6 +29,10 @@ function renderWithRouter(ui: React.ReactElement) {
 }
 
 describe('SettingsGrid', () => {
+  beforeEach(() => {
+    mockNavigate.mockClear()
+  })
+
   it('renders all 9 category cards', () => {
     renderWithRouter(<SettingsGrid />)
     const cards = screen.getAllByRole('button').filter(
