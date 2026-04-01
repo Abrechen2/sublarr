@@ -82,6 +82,12 @@ api.interceptors.response.use(
           }
         } })
       }
+      if (url.includes('/cleanup/stats')) {
+        return Promise.resolve({ data: {
+          total_files: 0, total_size_bytes: 0, by_format: [],
+          duplicate_files: 0, duplicate_size_bytes: 0, potential_savings_bytes: 0, trends: []
+        } })
+      }
       if (url.includes('/stats')) {
         return Promise.resolve({ data: {
           total_subtitles: 12,
