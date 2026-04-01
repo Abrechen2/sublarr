@@ -9,7 +9,7 @@ import logging
 import uuid
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 
 from db.models.core import DailyStats, Job
 from db.repositories.base import BaseRepository
@@ -130,6 +130,13 @@ class JobRepository(BaseRepository):
         """Delete jobs older than N days. Returns count deleted."""
         cutoff = datetime.now(UTC) - timedelta(days=days)
         stmt = delete(Job).where(Job.created_at < cutoff)
+        result = self.session.execute(stmt)
+        self._commit()
+        return result.rowcount
+
+    def cancel_queued_jobs(self) -> int:
+        """Mark all queued translation jobs as cancelled. Returns count of cancelled jobs."""
+        stmt = update(Job).where(Job.status == "queued").values(status="cancelled")
         result = self.session.execute(stmt)
         self._commit()
         return result.rowcount
