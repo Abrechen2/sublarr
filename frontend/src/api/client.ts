@@ -107,6 +107,10 @@ api.interceptors.response.use(
         } })
       }
       
+      if (url.includes('/filter-presets')) {
+        return Promise.resolve({ data: [] })
+      }
+
       // Fallback empty object for other fails
       return Promise.resolve({ data: {} })
     }
