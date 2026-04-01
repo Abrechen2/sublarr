@@ -3,32 +3,21 @@ import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { PillTabs } from '@/components/shared/PillTabs'
-import { NeedsAttentionTab } from '@/components/activity/NeedsAttentionTab'
-import { InProgressTab } from '@/components/activity/InProgressTab'
-import { WantedPage } from '@/pages/Wanted'
+import { TranslationsTab } from '@/components/activity/TranslationsTab'
+import { QueuePage } from '@/pages/Queue'
 import { HistoryPage } from '@/pages/History'
 import { BlacklistPage } from '@/pages/Blacklist'
-import { useWantedItems } from '@/hooks/useApi'
 import { useJobs } from '@/hooks/useApi'
-import type { WantedItem } from '@/lib/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-const VALID_TABS = ['attention', 'wanted', 'progress', 'completed', 'blacklist'] as const
+const VALID_TABS = ['queue', 'translations', 'history', 'blacklist'] as const
 type TabId = typeof VALID_TABS[number]
 
-const DEFAULT_TAB: TabId = 'attention'
+const DEFAULT_TAB: TabId = 'queue'
 
 function isValidTab(value: string | null): value is TabId {
   return value !== null && (VALID_TABS as readonly string[]).includes(value)
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function countAttentionItems(items: readonly WantedItem[]): number {
-  return items.filter(
-    (item) => item.status === 'failed' || (item.current_score > 0 && item.current_score < 50),
-  ).length
 }
 
 // ─── ActivityPage ─────────────────────────────────────────────────────────────
@@ -49,45 +38,36 @@ export function ActivityPage() {
     [setSearchParams],
   )
 
-  // Fetch counts for tab badges
-  const { data: wantedData } = useWantedItems(1, 100)
+  // Badge: active + queued translation jobs for the Translations tab
   const { data: activeJobs } = useJobs(1, 20, 'running', 3000)
   const { data: queuedJobs } = useJobs(1, 20, 'queued', 3000)
 
-  const attentionCount = useMemo(
-    () => countAttentionItems(wantedData?.data ?? []),
-    [wantedData?.data],
-  )
-
-  const wantedCount = wantedData?.total ?? undefined
-  const progressCount =
+  const translationsCount =
     (activeJobs?.data?.length ?? 0) + (queuedJobs?.data?.length ?? 0) || undefined
 
   const tabs = useMemo(
     () => [
-      { id: 'attention' as const, label: t('tabs.attention', 'Needs Attention'), count: attentionCount || undefined },
-      { id: 'wanted' as const, label: t('tabs.wanted', 'Wanted'), count: wantedCount },
-      { id: 'progress' as const, label: t('tabs.progress', 'In Progress'), count: progressCount },
-      { id: 'completed' as const, label: t('tabs.completed', 'Completed') },
+      { id: 'queue' as const, label: t('tabs.queue', 'Queue') },
+      { id: 'translations' as const, label: t('tabs.translations', 'Translations'), count: translationsCount },
+      { id: 'history' as const, label: t('tabs.history', 'History') },
       { id: 'blacklist' as const, label: t('tabs.blacklist', 'Blacklist') },
     ],
-    [t, attentionCount, wantedCount, progressCount],
+    [t, translationsCount],
   )
 
   return (
     <div data-testid="activity-page" className="space-y-5">
       <PageHeader
         title={t('page_title', 'Activity')}
-        subtitle={t('page_subtitle', 'Track subtitle searches, downloads, and issues')}
+        subtitle={t('page_subtitle', 'Monitor subtitle searches, downloads, and translation jobs')}
       />
 
       <PillTabs tabs={tabs} activeTab={activeTab} onChange={handleTabChange} />
 
       <div data-testid={`tab-content-${activeTab}`}>
-        {activeTab === 'attention' && <NeedsAttentionTab />}
-        {activeTab === 'wanted' && <WantedPage />}
-        {activeTab === 'progress' && <InProgressTab />}
-        {activeTab === 'completed' && <HistoryPage />}
+        {activeTab === 'queue' && <QueuePage />}
+        {activeTab === 'translations' && <TranslationsTab />}
+        {activeTab === 'history' && <HistoryPage />}
         {activeTab === 'blacklist' && <BlacklistPage />}
       </div>
     </div>
