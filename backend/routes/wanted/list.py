@@ -100,7 +100,7 @@ def list_wanted():
     from db.wanted import get_wanted_items
 
     page = request.args.get("page", 1, type=int)
-    per_page = min(request.args.get("per_page", 50, type=int), 200)
+    per_page = min(request.args.get("per_page", 50, type=int), 9999)
     item_type = request.args.get("item_type")
     status_filter = request.args.get("status")
     series_id = request.args.get("series_id", type=int)
