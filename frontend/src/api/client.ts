@@ -218,7 +218,8 @@ export async function updateConfig(values: Record<string, unknown>) {
 
 export async function getWantedItems(
   page = 1, perPage = 50, itemType?: string, status?: string,
-  subtitleType?: string, movieId?: number, sonarrSeriesId?: number
+  subtitleType?: string, movieId?: number, sonarrSeriesId?: number,
+  search?: string, sortBy?: string, sortDir?: string
 ): Promise<PaginatedWanted> {
   const params: Record<string, unknown> = { page, per_page: perPage }
   if (itemType) params.item_type = itemType
@@ -226,6 +227,9 @@ export async function getWantedItems(
   if (subtitleType) params.subtitle_type = subtitleType
   if (movieId != null) params.movie_id = movieId
   if (sonarrSeriesId != null) params.series_id = sonarrSeriesId
+  if (search) params.search = search
+  if (sortBy) params.sort_by = sortBy
+  if (sortDir) params.sort_dir = sortDir
   const { data } = await api.get('/wanted', { params })
   return data
 }

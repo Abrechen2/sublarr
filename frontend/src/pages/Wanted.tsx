@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from 'rea
 import { useDebounce } from '@/hooks/useDebounce'
 import { useTranslation } from 'react-i18next'
 import {
-  useWantedItems, useWantedSummary, useRefreshWanted, useUpdateWantedStatus,
+  useInfiniteWantedItems, useWantedSummary, useRefreshWanted, useUpdateWantedStatus,
   useSearchWantedItem, useProcessWantedItem, useStartWantedBatch, useWantedBatchStatus,
   useWantedBatchExtractStatus, useWantedBatchProbeStatus, useStartBatchProbe,
   useRetranslateSingle, useAddToBlacklist, useExtractEmbeddedSub,
@@ -28,7 +28,6 @@ import { BatchActionBar } from '@/components/batch/BatchActionBar'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useQueryClient } from '@tanstack/react-query'
-import { useWantedVirtualizer } from '@/components/wanted/VirtualWantedTable'
 
 export function formatRetryCountdown(retryAfter: string | null): string | null {
   if (!retryAfter) return null
@@ -290,7 +289,13 @@ export function WantedPage() {
   const clearSelection = useSelectionStore((s) => s.clearSelection)
   const isSelected = useCallback((id: number) => (scopeSelections ?? new Set()).has(id), [scopeSelections])
   const { data: summary } = useWantedSummary()
-  const { data: wanted, isLoading } = useWantedItems(1, 50, typeFilter, statusFilter, subtitleTypeFilter, true)
+  const {
+    data: wanted,
+    isPending: isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteWantedItems(typeFilter, statusFilter, subtitleTypeFilter, debouncedSearch, sortBy, sortDir)
   const refreshWanted = useRefreshWanted()
   const updateStatus = useUpdateWantedStatus()
   const searchItem = useSearchWantedItem()
@@ -355,10 +360,14 @@ export function WantedPage() {
   const upgradeable = summary?.upgradeable ?? 0
   const forcedCount = summary?.by_subtitle_type?.forced ?? 0
 
-  // Extract unique languages from data
-  const wantedData = wanted?.data
+  // Flatten all loaded pages into a single array
+  const wantedData = useMemo(
+    () => wanted?.pages.flatMap((p) => p.data) ?? [],
+    [wanted?.pages]
+  )
+
+  // Extract unique languages from loaded data
   const availableLanguages = useMemo(() => {
-    if (!wantedData) return []
     const langs = new Set<string>()
     for (const item of wantedData) {
       if (item.target_language) langs.add(item.target_language)
@@ -366,45 +375,34 @@ export function WantedPage() {
     return Array.from(langs).sort()
   }, [wantedData])
 
-  // Client-side filters + search + sort
+  // Client-side post-filters (upgrade + language have no server-side param)
   const filteredData = useMemo(() => {
-    let data = wanted?.data
-    if (!data) return data
+    let data = wantedData
     if (upgradeFilter) {
       data = data.filter((item) => item.upgrade_candidate === 1)
     }
     if (languageFilter) {
       data = data.filter((item) => item.target_language === languageFilter)
     }
-    if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase()
-      data = data.filter((item) =>
-        (item.title && item.title.toLowerCase().includes(q)) ||
-        (item.file_path && item.file_path.toLowerCase().includes(q))
-      )
-    }
-    // Client-side sort
-    const sorted = [...data]
-    sorted.sort((a, b) => {
-      let cmp = 0
-      if (sortBy === 'title') {
-        cmp = (a.title || '').localeCompare(b.title || '')
-      } else if (sortBy === 'added_at') {
-        cmp = (a.added_at || '').localeCompare(b.added_at || '')
-      } else if (sortBy === 'last_search_at') {
-        cmp = (a.last_search_at || '').localeCompare(b.last_search_at || '')
-      } else if (sortBy === 'current_score') {
-        cmp = (a.current_score ?? 0) - (b.current_score ?? 0)
-      } else if (sortBy === 'search_count') {
-        cmp = (a.search_count ?? 0) - (b.search_count ?? 0)
-      }
-      return sortDir === 'asc' ? cmp : -cmp
-    })
-    return sorted
-  }, [wanted?.data, upgradeFilter, languageFilter, debouncedSearch, sortBy, sortDir])
+    return data
+  }, [wantedData, upgradeFilter, languageFilter])
 
-  // Virtual scroll for Wanted list
-  const { parentRef: wantedParentRef, virtualItems: wantedVirtualItems, paddingTop: wantedPaddingTop, paddingBottom: wantedPaddingBottom } = useWantedVirtualizer(filteredData?.length ?? 0)
+  // Infinite scroll sentinel
+  const sentinelRef = useRef<HTMLTableRowElement>(null)
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage()
+        }
+      },
+      { threshold: 0.1 }
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   // Bulk selection helpers using Zustand store
   const visibleIds = useMemo(() => filteredData?.map((d) => d.id) ?? [], [filteredData])
@@ -897,7 +895,7 @@ export function WantedPage() {
         className="rounded-lg overflow-hidden flex-1 min-h-0 flex flex-col"
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
-        <div ref={wantedParentRef} className="flex-1 min-h-0" style={{ overflowY: 'auto' }}>
+        <div className="flex-1 min-h-0" style={{ overflowY: 'auto' }}>
           <table className="w-full min-w-[800px]">
             <thead style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--bg-elevated)' }}>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -939,15 +937,7 @@ export function WantedPage() {
                 ))
               ) : filteredData?.length ? (
                 <>
-                  {wantedPaddingTop > 0 && (
-                    <tr aria-hidden="true">
-                      <td colSpan={9} style={{ height: wantedPaddingTop, padding: 0 }} />
-                    </tr>
-                  )}
-                  {wantedVirtualItems.map((virtualRow) => {
-                    const item = filteredData[virtualRow.index]
-                    const i = virtualRow.index
-                    return (
+                  {filteredData.map((item, i) => (
                   <Fragment key={item.id}>
                     <tr
                       data-testid="wanted-item"
@@ -1180,13 +1170,15 @@ export function WantedPage() {
                       />
                     )}
                   </Fragment>
-                    )
-                  })}
-                  {wantedPaddingBottom > 0 && (
-                    <tr aria-hidden="true">
-                      <td colSpan={9} style={{ height: wantedPaddingBottom, padding: 0 }} />
+                  ))}
+                  {isFetchingNextPage && (
+                    <tr>
+                      <td colSpan={9} className="px-3 py-3 text-center">
+                        <Loader2 size={16} className="animate-spin mx-auto" style={{ color: 'var(--text-muted)' }} />
+                      </td>
                     </tr>
                   )}
+                  <tr ref={sentinelRef} aria-hidden="true" />
                 </>
               ) : (
                 <tr>

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import {
   getWantedItems, getWantedSummary, refreshWanted,
   updateWantedItemStatus,
@@ -26,6 +26,25 @@ export function useWantedItems(page = 1, perPage = 50, itemType?: string, status
         sonarrSeriesId,
       ),
     placeholderData: keepPreviousData,
+  })
+}
+
+/** Infinite scroll version — loads 50 items per page, fetches next page as user scrolls. */
+export function useInfiniteWantedItems(
+  itemType?: string,
+  status?: string,
+  subtitleType?: string,
+  search?: string,
+  sortBy = 'added_at',
+  sortDir: 'asc' | 'desc' = 'desc',
+) {
+  return useInfiniteQuery({
+    queryKey: ['wanted', 'infinite', itemType, status, subtitleType, search, sortBy, sortDir],
+    queryFn: ({ pageParam }) =>
+      getWantedItems(pageParam as number, 50, itemType, status, subtitleType, undefined, undefined, search, sortBy, sortDir),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.page < lastPage.total_pages ? lastPage.page + 1 : undefined,
   })
 }
 

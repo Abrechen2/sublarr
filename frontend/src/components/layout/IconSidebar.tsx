@@ -127,7 +127,7 @@ function SidebarNavItem({ item, label, badgeCount }: SidebarNavItemProps) {
       aria-label={label}
       className={({ isActive }) =>
         cn(
-          'sidebar-nav-item flex items-center py-2 mb-0.5 rounded-md relative',
+          'sidebar-nav-item flex items-center mb-0.5 rounded-md relative',
           'transition-colors duration-100',
           !isActive && 'hover:bg-[rgba(255,255,255,0.04)]'
         )
