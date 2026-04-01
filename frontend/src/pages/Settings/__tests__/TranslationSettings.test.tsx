@@ -59,8 +59,9 @@ vi.mock('../TranslationTab', () => ({
   ),
 }))
 
+const mockDisableMutate = vi.fn()
 vi.mock('@/hooks/useApi', () => ({
-  useDisableTranslation: () => ({ mutate: vi.fn(), isPending: false }),
+  useDisableTranslation: () => ({ mutate: mockDisableMutate, isPending: false }),
 }))
 
 vi.mock('../WhisperTab', () => ({
@@ -307,6 +308,15 @@ describe('TranslationSettings', () => {
     renderPage()
     await user.click(screen.getByRole('button', { name: /disable translation/i }))
     expect(screen.getByText(/wirklich deaktivieren/i)).toBeInTheDocument()
+  })
+
+  it('clicking Bestätigen calls disableTranslation.mutate', async () => {
+    mockDisableMutate.mockClear()
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: /disable translation/i }))
+    await user.click(screen.getByRole('button', { name: /bestätigen/i }))
+    expect(mockDisableMutate).toHaveBeenCalledOnce()
   })
 })
 

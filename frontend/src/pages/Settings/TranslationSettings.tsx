@@ -1,13 +1,15 @@
 /**
  * TranslationSettings — Settings page for translation configuration.
  *
- * Six sections:
+ * Seven sections + danger zone:
  * 1. Translation Backends  – backend configuration
  * 2. Prompt Presets        – prompt preset management
  * 3. Global Glossary       – shared glossary entries
  * 4. Context & Quality (advanced) – context window, quality, memory settings
  * 5. Sync Engine (advanced)       – default sync engine and auto-sync
  * 6. Whisper (advanced)           – speech-to-text configuration
+ * 7. Episode Context       – per-series context and glossary
+ * Danger Zone: Disable Translation button (not a SettingsSection, styled separately)
  */
 import { lazy, Suspense, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -75,6 +77,7 @@ export function TranslationSettings() {
   function handleDisableConfirm() {
     disableTranslation.mutate(undefined, {
       onSuccess: () => navigate('/settings'),
+      onError: () => setShowDisableConfirm(false),
     })
   }
 
