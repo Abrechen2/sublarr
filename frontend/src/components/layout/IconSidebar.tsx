@@ -156,7 +156,6 @@ function SidebarNavItem({ item, label, badgeCount }: SidebarNavItemProps) {
               style={{
                 backgroundColor: 'var(--warning)',
                 color: '#000',
-                padding: '1px 6px',
               }}
             >
               {badgeCount > 99 ? '99+' : badgeCount}

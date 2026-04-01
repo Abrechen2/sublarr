@@ -397,6 +397,7 @@ a:hover {
 
 .icon-sidebar:hover .sidebar-badge {
   margin-left: auto;
+  padding: 1px 6px;
 }
 
 /* Respect user motion preferences */
