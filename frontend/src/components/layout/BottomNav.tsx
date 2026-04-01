@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { LayoutDashboard, BookOpen, Bell, Settings } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Bell, Settings, Search } from 'lucide-react'
 import { useWantedSummary } from '@/hooks/useWantedApi'
 
 interface BottomNavItem {
@@ -14,7 +14,8 @@ interface BottomNavItem {
 const navItems: readonly BottomNavItem[] = [
   { to: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard, testId: 'bottom-nav-dashboard' },
   { to: '/library', labelKey: 'nav.library', icon: BookOpen, testId: 'bottom-nav-library' },
-  { to: '/activity', labelKey: 'nav.activity', icon: Bell, testId: 'bottom-nav-activity', showBadge: true },
+  { to: '/wanted', labelKey: 'nav.wanted', icon: Search, testId: 'bottom-nav-wanted', showBadge: true },
+  { to: '/activity', labelKey: 'nav.activity', icon: Bell, testId: 'bottom-nav-activity' },
   { to: '/settings', labelKey: 'nav.settings', icon: Settings, testId: 'bottom-nav-settings' },
 ] as const
 
@@ -58,7 +59,7 @@ export function BottomNav() {
                 <Icon size={22} strokeWidth={isActive ? 2.2 : 1.8} />
                 {showBadge && wantedCount > 0 && (
                   <span
-                    data-testid="bottom-nav-badge"
+                    data-testid="bottom-nav-wanted-badge"
                     className="absolute -top-1 -right-2 text-[9px] font-semibold px-1 min-w-[14px] text-center rounded-full"
                     style={{
                       backgroundColor: 'var(--warning-bg)',

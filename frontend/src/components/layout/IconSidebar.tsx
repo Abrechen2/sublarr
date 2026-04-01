@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { LayoutDashboard, BookOpen, Bell, Settings } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Bell, Settings, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useHealth } from '@/hooks/useApi'
 import { useWantedSummary } from '@/hooks/useWantedApi'
@@ -17,7 +17,8 @@ interface NavItem {
 const mainNavItems: readonly NavItem[] = [
   { to: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard, testId: 'nav-link-dashboard' },
   { to: '/library', labelKey: 'nav.library', icon: BookOpen, testId: 'nav-link-library' },
-  { to: '/activity', labelKey: 'nav.activity', icon: Bell, testId: 'nav-link-activity', showBadge: true },
+  { to: '/wanted', labelKey: 'nav.wanted', icon: Search, testId: 'nav-link-wanted', showBadge: true },
+  { to: '/activity', labelKey: 'nav.activity', icon: Bell, testId: 'nav-link-activity' },
 ] as const
 
 const bottomNavItems: readonly NavItem[] = [
@@ -150,7 +151,7 @@ function SidebarNavItem({ item, label, badgeCount }: SidebarNavItemProps) {
           </span>
           {badgeCount > 0 && (
             <span
-              data-testid="activity-badge"
+              data-testid="wanted-badge"
               className="sidebar-label ml-auto text-[10px] font-bold rounded-full opacity-0 transition-opacity duration-200"
               style={{
                 backgroundColor: 'var(--warning)',
