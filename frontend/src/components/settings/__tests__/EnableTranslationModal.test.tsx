@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { EnableTranslationModal } from '../EnableTranslationModal'
 
@@ -8,6 +8,10 @@ vi.mock('@/hooks/useApi', () => ({
 }))
 
 describe('EnableTranslationModal', () => {
+  beforeEach(() => {
+    mockMutate.mockClear()
+  })
+
   it('renders beta warning text', () => {
     render(<EnableTranslationModal onClose={vi.fn()} />)
     expect(screen.getByText('BETA')).toBeInTheDocument()
