@@ -433,6 +433,7 @@ def disable_translation():
                   cancelled_jobs:
                     type: integer
     """
+    from cache_response import invalidate_response_cache
     from config import reload_settings
     from db.config import get_all_config_entries, save_config_entry
     from db.jobs import cancel_queued_jobs
@@ -440,6 +441,7 @@ def disable_translation():
     save_config_entry("translation_enabled", "false")
     all_overrides = get_all_config_entries()
     reload_settings(all_overrides)
+    invalidate_response_cache()
 
     cancelled = cancel_queued_jobs()
     return jsonify({"status": "disabled", "cancelled_jobs": cancelled})
