@@ -155,14 +155,14 @@ function CategoryCard({
         'relative flex flex-col gap-3 rounded-xl cursor-pointer',
         'border border-[var(--border)] bg-[var(--bg-surface)]',
         'transition-all duration-200',
-        'hover:-translate-y-0.5 hover:border-[var(--accent)]',
+        !disabled && !isSoftDisabled && 'hover:-translate-y-0.5 hover:border-[var(--accent)]',
         'focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-1',
         disabled && 'opacity-40 pointer-events-none cursor-default',
-        isSoftDisabled && 'opacity-70',
+        isSoftDisabled && 'opacity-50',
       )}
       style={{ padding: 22 }}
       onMouseEnter={(e) => {
-        if (!disabled) {
+        if (!disabled && !isSoftDisabled) {
           (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 20px rgba(0,0,0,0.2)'
         }
       }}
