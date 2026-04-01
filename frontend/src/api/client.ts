@@ -214,6 +214,11 @@ export async function updateConfig(values: Record<string, unknown>) {
   return data
 }
 
+export async function disableTranslation(): Promise<{ status: string; cancelled_jobs: number }> {
+  const { data } = await api.post('/translate/disable')
+  return data
+}
+
 // ─── Wanted ─────────────────────────────────────────────────────────────
 
 export async function getWantedItems(

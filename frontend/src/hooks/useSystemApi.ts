@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { toast } from '@/components/shared/Toast'
 import {
   getHealth, getUpdateInfo, getStats, getJobs,
-  getBatchStatus, getConfig, updateConfig,
+  getBatchStatus, getConfig, updateConfig, disableTranslation,
   getLogs,
   retryJob,
   exportConfig, importConfig,
@@ -125,6 +125,23 @@ export function useUpdateConfig() {
   })
 }
 
+/** Returns whether the translation feature is enabled. */
+export function useTranslationEnabled(): boolean {
+  const { data } = useConfig()
+  return Boolean(data?.translation_enabled)
+}
+
+/** Mutation: disables translation + cancels all queued jobs. */
+export function useDisableTranslation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: disableTranslation,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['config'] })
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+    },
+  })
+}
 
 export function useContextWindowSize() {
   const { data } = useConfig()
