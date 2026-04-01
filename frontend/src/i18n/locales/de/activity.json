@@ -1,4 +1,17 @@
 {
+  "page_title": "Aktivität",
+  "page_subtitle": "Untertitel-Suche, Downloads und Übersetzungsjobs überwachen",
+  "tabs": {
+    "queue": "Warteschlange",
+    "translations": "Übersetzungen",
+    "history": "Verlauf",
+    "blacklist": "Sperrliste"
+  },
+  "translations": {
+    "no_active": "Keine aktiven Übersetzungsjobs",
+    "no_queued": "Keine wartenden Übersetzungsjobs",
+    "empty": "Keine Übersetzungsjobs aktiv. Übersetzungen starten automatisch nach dem Untertitel-Download."
+  },
   "title": "Übersetzungen",
   "filter": {
     "all": "Alle",
@@ -37,6 +50,7 @@
   "page_info": "Seite {{page}} von {{totalPages}} ({{total}} gesamt)",
   "queue": {
     "title": "Warteschlange",
+    "empty": "Keine aktiven Untertitel-Suchen. Nutze \"Alle suchen\" auf der Wanted-Seite.",
     "batch_processing": "Stapelverarbeitung",
     "wanted_batch_searching": "Wanted-Suche läuft",
     "batch_probe_running": "Batch-Probe läuft",

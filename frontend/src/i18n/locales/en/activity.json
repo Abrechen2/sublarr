@@ -1,4 +1,17 @@
 {
+  "page_title": "Activity",
+  "page_subtitle": "Monitor subtitle searches, downloads, and translation jobs",
+  "tabs": {
+    "queue": "Queue",
+    "translations": "Translations",
+    "history": "History",
+    "blacklist": "Blacklist"
+  },
+  "translations": {
+    "no_active": "No active translation jobs",
+    "no_queued": "No queued translation jobs",
+    "empty": "No translation jobs running. Translations start automatically after subtitle download."
+  },
   "title": "Translations",
   "filter": {
     "all": "All",
@@ -37,6 +50,7 @@
   "page_info": "Page {{page}} of {{totalPages}} ({{total}} total)",
   "queue": {
     "title": "Queue",
+    "empty": "No active subtitle searches. Use \"Search All\" on the Wanted page to start.",
     "batch_processing": "Batch Processing",
     "wanted_batch_searching": "Wanted Batch Search Running",
     "batch_probe_running": "Batch Probe Running",
