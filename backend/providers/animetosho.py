@@ -29,12 +29,28 @@ ATTACH_BASE = "https://animetosho.org/storage/attach"
 
 # ISO 639-2b → 2-letter code mapping for AnimeTosho attachment info.lang field
 _ISO639_2_TO_1 = {
-    "eng": "en", "jpn": "ja", "deu": "de", "ger": "de",
-    "fre": "fr", "fra": "fr", "spa": "es", "por": "pt",
-    "rus": "ru", "zho": "zh", "chi": "zh", "kor": "ko",
-    "ara": "ar", "nld": "nl", "dut": "nl", "pol": "pl",
-    "swe": "sv", "ces": "cs", "cze": "cs", "hun": "hu",
-    "tur": "tr", "ita": "it",
+    "eng": "en",
+    "jpn": "ja",
+    "deu": "de",
+    "ger": "de",
+    "fre": "fr",
+    "fra": "fr",
+    "spa": "es",
+    "por": "pt",
+    "rus": "ru",
+    "zho": "zh",
+    "chi": "zh",
+    "kor": "ko",
+    "ara": "ar",
+    "nld": "nl",
+    "dut": "nl",
+    "pol": "pl",
+    "swe": "sv",
+    "ces": "cs",
+    "cze": "cs",
+    "hun": "hu",
+    "tur": "tr",
+    "ita": "it",
 }
 
 _SUBTITLE_EXTENSIONS = {".ass", ".srt", ".ssa"}
@@ -221,7 +237,11 @@ class AnimeToshoProvider(SubtitleProvider):
                 entry_episode = _extract_episode_number(entry_title)
                 # Accept if episode matches OR entry has no episode number (could be batch)
                 if entry_episode is not None:
-                    target_ep = query.absolute_episode if query.absolute_episode is not None else query.episode
+                    target_ep = (
+                        query.absolute_episode
+                        if query.absolute_episode is not None
+                        else query.episode
+                    )
                     if target_ep is not None and entry_episode != target_ep:
                         continue
                 detail_count += 1

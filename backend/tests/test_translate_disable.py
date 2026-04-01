@@ -1,4 +1,5 @@
 """Tests for translation disable: job cancellation and /translate/disable endpoint."""
+
 import pytest
 
 
@@ -30,7 +31,7 @@ def test_disable_endpoint_returns_200_when_no_jobs(app_ctx, temp_db):
 
 def test_cancel_queued_jobs_cancels_only_queued(app_ctx, temp_db):
     """cancel_queued_jobs() marks queued jobs as cancelled, leaves running/completed alone."""
-    from db.jobs import cancel_queued_jobs, create_job, update_job, get_job
+    from db.jobs import cancel_queued_jobs, create_job, get_job, update_job
 
     queued_job = create_job("/media/queued.mkv")
     running_job = create_job("/media/running.mkv")
