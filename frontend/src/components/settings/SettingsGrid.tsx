@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { EnableTranslationModal } from './EnableTranslationModal'
 import {
   Settings,
   Plug,
@@ -112,6 +114,7 @@ interface CategoryCardProps {
   readonly isTranslationCard?: boolean
   readonly translationEnabled?: boolean
   readonly onClick: () => void
+  readonly onDisabledClick?: () => void
 }
 
 function CategoryCard({
@@ -120,6 +123,7 @@ function CategoryCard({
   isTranslationCard = false,
   translationEnabled = false,
   onClick,
+  onDisabledClick,
 }: CategoryCardProps) {
   const { t } = useTranslation('common')
   const Icon = category.icon
@@ -130,18 +134,21 @@ function CategoryCard({
   const title = rawTitle === category.titleKey ? fallback.title : rawTitle
   const description = rawDesc === category.descKey ? fallback.description : rawDesc
 
+  const isSoftDisabled = !!onDisabledClick
+
   return (
     <div
       data-testid={`settings-card-${category.id}`}
       data-disabled={disabled ? 'true' : undefined}
       role="button"
       tabIndex={disabled ? -1 : 0}
-      aria-disabled={disabled}
-      onClick={disabled ? undefined : onClick}
+      aria-disabled={disabled || isSoftDisabled}
+      onClick={disabled ? undefined : (isSoftDisabled ? onDisabledClick : onClick)}
       onKeyDown={(e) => {
-        if (!disabled && (e.key === 'Enter' || e.key === ' ')) {
+        if (disabled) return
+        if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          onClick()
+          if (isSoftDisabled) { onDisabledClick?.() } else { onClick() }
         }
       }}
       className={cn(
@@ -151,6 +158,7 @@ function CategoryCard({
         'hover:-translate-y-0.5 hover:border-[var(--accent)]',
         'focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-1',
         disabled && 'opacity-40 pointer-events-none cursor-default',
+        isSoftDisabled && 'opacity-70',
       )}
       style={{ padding: 22 }}
       onMouseEnter={(e) => {
@@ -247,6 +255,7 @@ function CategoryCard({
 export function SettingsGrid({ disabledCategories = [], className }: SettingsGridProps) {
   const navigate = useNavigate()
   const { data: config } = useConfig()
+  const [showEnableModal, setShowEnableModal] = useState(false)
 
   const translationEnabled = Boolean(config?.translation_enabled)
 
@@ -264,20 +273,24 @@ export function SettingsGrid({ disabledCategories = [], className }: SettingsGri
       >
         {CATEGORIES.map((category) => {
           const isTranslationCard = category.id === 'translation'
-          const isDisabled = disabledCategories.includes(category.id) ||
-            (isTranslationCard && !translationEnabled)
+          const isSystemDisabled = disabledCategories.includes(category.id)
+          const isTranslationDisabled = isTranslationCard && !translationEnabled
           return (
             <CategoryCard
               key={category.id}
               category={category}
-              disabled={isDisabled}
+              disabled={isSystemDisabled}
               isTranslationCard={isTranslationCard}
               translationEnabled={translationEnabled}
               onClick={() => navigate(`/settings/${category.id}`)}
+              onDisabledClick={isTranslationDisabled ? () => setShowEnableModal(true) : undefined}
             />
           )
         })}
       </div>
+      {showEnableModal && (
+        <EnableTranslationModal onClose={() => setShowEnableModal(false)} />
+      )}
     </div>
   )
 }

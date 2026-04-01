@@ -132,4 +132,13 @@ describe('SettingsGrid', () => {
     const card = screen.getByTestId('settings-card-general')
     expect(card).toHaveAttribute('data-disabled', 'true')
   })
+
+  it('clicking disabled translation card opens enable modal', async () => {
+    mockNavigate.mockClear()
+    const user = userEvent.setup()
+    renderWithRouter(<SettingsGrid />)
+    const translationCard = screen.getByTestId('settings-card-translation')
+    await user.click(translationCard)
+    expect(screen.getByText('Translation aktivieren')).toBeInTheDocument()
+  })
 })
