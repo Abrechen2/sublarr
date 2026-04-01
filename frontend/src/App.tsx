@@ -31,6 +31,7 @@ const SetupPage = lazy(() => import('@/pages/Setup').then(m => ({ default: m.Set
 const LoginPage = lazy(() => import('@/pages/Login').then(m => ({ default: m.LoginPage })))
 const LanguageProfilesPage = lazy(() => import('@/pages/LanguageProfiles').then(m => ({ default: m.LanguageProfilesPage })))
 const MovieDetailPage = lazy(() => import('@/pages/MovieDetail').then(m => ({ default: m.MovieDetailPage })))
+const WantedPage = lazy(() => import('@/pages/Wanted').then(m => ({ default: m.WantedPage })))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,10 +64,10 @@ function AnimatedRoutes() {
           <Route path="/library" element={<ErrorBoundary><Suspense fallback={<LibrarySkeleton />}><LibraryPage /></Suspense></ErrorBoundary>} />
           <Route path="/library/series/:id" element={<Suspense fallback={<PageSkeleton />}><SeriesDetailPage /></Suspense>} />
           <Route path="/activity" element={<Suspense fallback={<PageSkeleton />}><ActivityPage /></Suspense>} />
+          <Route path="/wanted" element={<Suspense fallback={<PageSkeleton />}><WantedPage /></Suspense>} />
           {/* Redirect old routes to unified Activity page tabs */}
-          <Route path="/wanted" element={<Navigate to="/activity?tab=wanted" replace />} />
-          <Route path="/queue" element={<Navigate to="/activity?tab=progress" replace />} />
-          <Route path="/history" element={<Navigate to="/activity?tab=completed" replace />} />
+          <Route path="/queue" element={<Navigate to="/activity?tab=queue" replace />} />
+          <Route path="/history" element={<Navigate to="/activity?tab=history" replace />} />
           <Route path="/blacklist" element={<Navigate to="/activity?tab=blacklist" replace />} />
           <Route path="/settings/*" element={<ErrorBoundary><Suspense fallback={<FormSkeleton />}><SettingsPage /></Suspense></ErrorBoundary>} />
           <Route path="/settings/language-profiles" element={<ErrorBoundary><Suspense fallback={<FormSkeleton />}><LanguageProfilesPage /></Suspense></ErrorBoundary>} />

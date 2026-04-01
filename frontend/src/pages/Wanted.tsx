@@ -19,6 +19,7 @@ import {
   CheckSquare, Square, MinusSquare, Download, ArrowUp, ArrowDown, ScanSearch, Languages,
 } from 'lucide-react'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
+import { PageHeader } from '@/components/layout/PageHeader'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
 import { FilterBar } from '@/components/filters/FilterBar'
 import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
@@ -493,6 +494,10 @@ export function WantedPage() {
 
   return (
     <div className="flex flex-col gap-5" style={{ height: 'calc(100vh - 40px)' }}>
+      <PageHeader
+        title={t('wanted.page_title', 'Wanted')}
+        subtitle={t('wanted.page_subtitle', 'Subtitles missing from your library')}
+      />
       {/* Batch Probe Progress Banner */}
       {probeStatus?.running && (
         <div
