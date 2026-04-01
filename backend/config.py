@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     backoff_base: int = 5
 
     # Translation
+    translation_enabled: bool = False  # Must be explicitly enabled — Beta feature
     source_language: str = "en"
     target_language: str = "de"
     source_language_name: str = "English"

@@ -80,3 +80,16 @@ def test_github_token_defaults_empty():
 
     s = Settings()
     assert s.github_token == ""
+
+
+def test_translation_enabled_default():
+    """translation_enabled defaults to False (opt-in feature)."""
+    settings = reload_settings()
+    assert settings.translation_enabled is False
+
+
+def test_translation_enabled_env_override(monkeypatch):
+    """SUBLARR_TRANSLATION_ENABLED=true activates the feature."""
+    monkeypatch.setenv("SUBLARR_TRANSLATION_ENABLED", "true")
+    settings = reload_settings()
+    assert settings.translation_enabled is True
