@@ -7,7 +7,7 @@ import { TranslationsTab } from '@/components/activity/TranslationsTab'
 import { QueuePage } from '@/pages/Queue'
 import { HistoryPage } from '@/pages/History'
 import { BlacklistPage } from '@/pages/Blacklist'
-import { useJobs } from '@/hooks/useApi'
+import { useJobs, useTranslationEnabled } from '@/hooks/useApi'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,21 +38,26 @@ export function ActivityPage() {
     [setSearchParams],
   )
 
-  // Badge: active + queued translation jobs for the Translations tab
+  const translationEnabled = useTranslationEnabled()
+
+  // Badge: active + queued translation jobs for the Translations tab (only when enabled)
   const { data: activeJobs } = useJobs(1, 20, 'running', 3000)
   const { data: queuedJobs } = useJobs(1, 20, 'queued', 3000)
 
-  const translationsCount =
-    (activeJobs?.data?.length ?? 0) + (queuedJobs?.data?.length ?? 0) || undefined
+  const translationsCount = translationEnabled
+    ? ((activeJobs?.data?.length ?? 0) + (queuedJobs?.data?.length ?? 0) || undefined)
+    : undefined
 
   const tabs = useMemo(
     () => [
       { id: 'queue' as const, label: t('tabs.queue', 'Queue') },
-      { id: 'translations' as const, label: t('tabs.translations', 'Translations'), count: translationsCount },
+      ...(translationEnabled
+        ? [{ id: 'translations' as const, label: t('tabs.translations', 'Translations'), count: translationsCount }]
+        : []),
       { id: 'history' as const, label: t('tabs.history', 'History') },
       { id: 'blacklist' as const, label: t('tabs.blacklist', 'Blacklist') },
     ],
-    [t, translationsCount],
+    [t, translationsCount, translationEnabled],
   )
 
   return (
@@ -66,7 +71,7 @@ export function ActivityPage() {
 
       <div data-testid={`tab-content-${activeTab}`}>
         {activeTab === 'queue' && <QueuePage />}
-        {activeTab === 'translations' && <TranslationsTab />}
+        {activeTab === 'translations' && translationEnabled && <TranslationsTab />}
         {activeTab === 'history' && <HistoryPage />}
         {activeTab === 'blacklist' && <BlacklistPage />}
       </div>

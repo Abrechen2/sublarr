@@ -6,7 +6,7 @@ import {
   useSearchWantedItem, useProcessWantedItem, useStartWantedBatch, useWantedBatchStatus,
   useWantedBatchExtractStatus, useWantedBatchProbeStatus, useStartBatchProbe,
   useRetranslateSingle, useAddToBlacklist, useExtractEmbeddedSub,
-  useCleanupSidecars,
+  useCleanupSidecars, useTranslationEnabled,
 } from '@/hooks/useApi'
 import { useBatchTranslate } from '@/hooks/useTranslationApi'
 import { StatusBadge, SubtitleTypeBadge } from '@/components/shared/StatusBadge'
@@ -311,6 +311,7 @@ export function WantedPage() {
   const startProbe = useStartBatchProbe()
   const cleanupSidecars = useCleanupSidecars()
   const batchTranslate = useBatchTranslate()
+  const translationEnabled = useTranslationEnabled()
   const [showCleanupConfirm, setShowCleanupConfirm] = useState(false)
   const queryClient = useQueryClient()
 
@@ -636,21 +637,23 @@ export function WantedPage() {
             <Download size={14} />
             {t('wanted.cleanup')}
           </button>
-          <button
-            onClick={() => batchTranslate.mutate([])}
-            disabled={batchTranslate.isPending}
-            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium hover:opacity-90"
-            title="Batch translate downloaded subtitles"
-            data-testid="batch-translate-btn"
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border)',
-            }}
-          >
-            <Languages size={14} />
-            Batch Translate
-          </button>
+          {translationEnabled && (
+            <button
+              onClick={() => batchTranslate.mutate([])}
+              disabled={batchTranslate.isPending}
+              className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium hover:opacity-90"
+              title="Batch translate downloaded subtitles"
+              data-testid="batch-translate-btn"
+              style={{
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              <Languages size={14} />
+              Batch Translate
+            </button>
+          )}
           <button
             onClick={handleBatchSearch}
             disabled={startBatch.isPending || batchStatus?.running}
@@ -1124,17 +1127,19 @@ export function WantedPage() {
                           >
                             <Play size={14} />
                           </button>
-                          <button
-                            onClick={() => retranslateItem.mutate(item.id)}
-                            disabled={retranslateItem.isPending}
-                            className="p-1 rounded transition-colors duration-150"
-                            title={t('wanted.re_translate')}
-                            style={{ color: 'var(--text-muted)' }}
-                            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--warning)')}
-                            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-                          >
-                            <RefreshCw size={14} />
-                          </button>
+                          {translationEnabled && (
+                            <button
+                              onClick={() => retranslateItem.mutate(item.id)}
+                              disabled={retranslateItem.isPending}
+                              className="p-1 rounded transition-colors duration-150"
+                              title={t('wanted.re_translate')}
+                              style={{ color: 'var(--text-muted)' }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--warning)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                            >
+                              <RefreshCw size={14} />
+                            </button>
+                          )}
                           <button
                             onClick={() => updateStatus.mutate({
                               itemId: item.id,
