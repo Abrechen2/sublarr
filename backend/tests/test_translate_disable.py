@@ -1,5 +1,31 @@
-"""Tests for translation disable: job cancellation."""
+"""Tests for translation disable: job cancellation and /translate/disable endpoint."""
 import pytest
+
+
+def test_disable_endpoint_sets_flag_and_cancels_jobs(app_ctx, temp_db):
+    """POST /translate/disable sets translation_enabled=false and cancels queued jobs."""
+    from db.jobs import create_job, get_job
+
+    job = create_job("/media/test.mkv")
+
+    with app_ctx.test_client() as client:
+        resp = client.post("/api/v1/translate/disable")
+
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["status"] == "disabled"
+    assert data["cancelled_jobs"] >= 1
+    assert get_job(job["id"])["status"] == "cancelled"
+
+
+def test_disable_endpoint_returns_200_when_no_jobs(app_ctx, temp_db):
+    """POST /translate/disable returns 200 even when no queued jobs exist."""
+    with app_ctx.test_client() as client:
+        resp = client.post("/api/v1/translate/disable")
+
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["cancelled_jobs"] == 0
 
 
 def test_cancel_queued_jobs_cancels_only_queued(app_ctx, temp_db):
