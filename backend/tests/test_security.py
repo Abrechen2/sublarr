@@ -933,3 +933,99 @@ class TestPromptInjectionGuard:
         # Count lines: should have exactly as many numbered entries as input lines
         numbered_lines = [l for l in prompt.split("\n") if l.strip() and l.strip()[0].isdigit()]
         assert len(numbered_lines) == len(lines)
+
+
+# ---------------------------------------------------------------------------
+# TestMagicByteValidation — P4 format validation after download (Task 5)
+# ---------------------------------------------------------------------------
+
+
+class TestMagicByteValidation:
+    """Downloaded content is validated to match the declared subtitle format."""
+
+    def test_pe_executable_rejected(self):
+        from providers import _validate_subtitle_content
+
+        pe_header = b"MZ\x90\x00" + b"\x00" * 100  # Windows PE header
+        ok, reason = _validate_subtitle_content(pe_header, "srt")
+        assert ok is False
+        assert "executable" in reason.lower() or "binary" in reason.lower()
+
+    def test_elf_executable_rejected(self):
+        from providers import _validate_subtitle_content
+
+        elf_header = b"\x7fELF" + b"\x00" * 100  # Linux ELF header
+        ok, reason = _validate_subtitle_content(elf_header, "srt")
+        assert ok is False
+
+    def test_valid_srt_accepted(self):
+        from providers import _validate_subtitle_content
+
+        srt_content = b"1\n00:00:01,000 --> 00:00:03,000\nHello world\n\n"
+        ok, reason = _validate_subtitle_content(srt_content, "srt")
+        assert ok is True
+
+    def test_valid_ass_accepted(self):
+        from providers import _validate_subtitle_content
+
+        ass_content = b"[Script Info]\nScriptType: v4.00+\n"
+        ok, reason = _validate_subtitle_content(ass_content, "ass")
+        assert ok is True
+
+    def test_empty_content_rejected(self):
+        from providers import _validate_subtitle_content
+
+        ok, reason = _validate_subtitle_content(b"", "srt")
+        assert ok is False
+
+    def test_binary_noise_rejected_for_srt(self):
+        from providers import _validate_subtitle_content
+
+        binary = bytes(range(256)) * 10  # Random binary data
+        ok, reason = _validate_subtitle_content(binary, "srt")
+        assert ok is False
+
+
+# ---------------------------------------------------------------------------
+# TestStreamingDownload — P5 download size cap (Task 5)
+# ---------------------------------------------------------------------------
+
+
+class TestStreamingDownload:
+    """Provider downloads are capped at 50 MB to prevent OOM attacks."""
+
+    def test_download_within_limit_succeeds(self):
+        from unittest.mock import MagicMock
+
+        from providers import _stream_download
+
+        mock_response = MagicMock()
+        mock_response.headers = {"Content-Length": "1000"}
+        mock_response.iter_content.return_value = [b"x" * 1000]
+        mock_response.raise_for_status = MagicMock()
+        mock_response.__enter__ = lambda s: s
+        mock_response.__exit__ = MagicMock(return_value=False)
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_response
+
+        content = _stream_download(mock_session, "https://example.com/sub.srt")
+        assert content == b"x" * 1000
+
+    def test_content_length_too_large_rejected(self):
+        from unittest.mock import MagicMock
+
+        import pytest
+
+        from providers import _stream_download
+
+        mock_response = MagicMock()
+        mock_response.headers = {"Content-Length": str(60 * 1024 * 1024)}  # 60 MB > limit
+        mock_response.__enter__ = lambda s: s
+        mock_response.__exit__ = MagicMock(return_value=False)
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_response
+
+        with pytest.raises(Exception, match="too large"):
+            _stream_download(mock_session, "https://example.com/huge.srt")

@@ -61,6 +61,102 @@ def _detect_format_from_content(content: bytes) -> SubtitleFormat:
     return SubtitleFormat.SRT
 
 
+# Known malicious binary signatures that should never appear in subtitle files
+_BINARY_SIGNATURES = [
+    b"MZ",  # Windows PE executable
+    b"\x7fELF",  # Linux ELF executable
+    b"\xca\xfe\xba\xbe",  # Java class file
+    b"\xfe\xed\xfa\xce",  # macOS Mach-O
+    b"\xfe\xed\xfa\xcf",  # macOS Mach-O 64-bit
+]
+
+_MAX_SUBTITLE_SIZE = 50 * 1024 * 1024  # 50 MB
+
+
+def _validate_subtitle_content(content: bytes, fmt: str) -> tuple[bool, str | None]:
+    """Validate downloaded subtitle content matches the declared format (P4).
+
+    Rejects executable/binary signatures and content that is clearly not a
+    text-based subtitle file. Format-specific checks are applied for ASS/SSA.
+
+    Returns:
+        (True, None) if content looks like a valid subtitle.
+        (False, reason) if content appears to be malicious or wrong format.
+    """
+    if not content:
+        return False, "Empty content"
+
+    # Check for executable/binary signatures
+    for sig in _BINARY_SIGNATURES:
+        if content.startswith(sig):
+            return False, f"Content has binary executable signature (0x{sig.hex()[:8]})"
+
+    # Check that content is mostly text (subtitle files are text-based).
+    # Reject if more than 30% of sampled bytes are non-printable control characters
+    # (allowing for UTF-8 multi-byte sequences which may have high bytes, but not
+    # random binary data which distributes evenly across all 256 byte values).
+    sample = content[:1024]
+    null_bytes = sample.count(b"\x00")
+    if null_bytes > len(sample) * 0.05:
+        return False, "Content appears to be binary data (too many null bytes)"
+    # Count bytes that are neither printable ASCII nor valid UTF-8 continuation bytes
+    # (i.e. bytes < 0x09 or in range 0x0E–0x1F, excluding tab/LF/CR/FF)
+    control_chars = sum(
+        1 for b in sample if (b < 0x09) or (0x0E <= b <= 0x1F)
+    )
+    if control_chars > len(sample) * 0.10:
+        return False, "Content appears to be binary data (too many control characters)"
+
+    # Format-specific checks
+    fmt_lower = fmt.lower()
+    try:
+        text = content[:512].decode("utf-8", errors="ignore").strip()
+    except Exception:
+        return False, "Content cannot be decoded as text"
+
+    if fmt_lower in ("ass", "ssa"):
+        if not any(marker in text for marker in ("[Script Info]", "[V4+ Styles]", "[Events]")):
+            # Soft check: ASS files must start with a section header
+            if not text.startswith("["):
+                return False, "ASS/SSA content does not begin with expected section header"
+
+    return True, None
+
+
+def _stream_download(session, url: str, timeout: int = 15) -> bytes:
+    """Download a subtitle file with a 50 MB size cap (P5).
+
+    Uses streaming to avoid loading the entire response into memory at once.
+    Raises RuntimeError if the declared or actual content exceeds _MAX_SUBTITLE_SIZE.
+    """
+    with session.get(url, stream=True, timeout=timeout) as response:
+        response.raise_for_status()
+
+        # Preflight: reject oversized files advertised via Content-Length
+        content_length = response.headers.get("Content-Length")
+        if content_length:
+            try:
+                if int(content_length) > _MAX_SUBTITLE_SIZE:
+                    raise RuntimeError(
+                        f"Subtitle file too large: {int(content_length)} bytes "
+                        f"(max {_MAX_SUBTITLE_SIZE})"
+                    )
+            except ValueError:
+                pass  # Non-integer Content-Length — proceed with streaming check
+
+        chunks = []
+        total = 0
+        for chunk in response.iter_content(chunk_size=65536):
+            total += len(chunk)
+            if total > _MAX_SUBTITLE_SIZE:
+                raise RuntimeError(
+                    f"Subtitle download exceeded size limit of {_MAX_SUBTITLE_SIZE} bytes"
+                )
+            chunks.append(chunk)
+
+        return b"".join(chunks)
+
+
 logger = logging.getLogger(__name__)
 
 # Provider registry — maps name to class
@@ -1286,6 +1382,12 @@ class ProviderManager:
         """
         if not result.content:
             raise ValueError("SubtitleResult has no content (download first)")
+
+        # Validate content against declared format before processing (P4)
+        fmt_hint = result.format.value if result.format != SubtitleFormat.UNKNOWN else "srt"
+        valid, reason = _validate_subtitle_content(result.content, fmt_hint)
+        if not valid:
+            raise RuntimeError(f"Downloaded subtitle content failed validation: {reason}")
 
         # Determine extension — detect from content if format is unknown
         if result.format == SubtitleFormat.UNKNOWN and result.content:
