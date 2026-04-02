@@ -101,9 +101,7 @@ def _validate_subtitle_content(content: bytes, fmt: str) -> tuple[bool, str | No
         return False, "Content appears to be binary data (too many null bytes)"
     # Count bytes that are neither printable ASCII nor valid UTF-8 continuation bytes
     # (i.e. bytes < 0x09 or in range 0x0E–0x1F, excluding tab/LF/CR/FF)
-    control_chars = sum(
-        1 for b in sample if (b < 0x09) or (0x0E <= b <= 0x1F)
-    )
+    control_chars = sum(1 for b in sample if (b < 0x09) or (0x0E <= b <= 0x1F))
     if control_chars > len(sample) * 0.10:
         return False, "Content appears to be binary data (too many control characters)"
 
