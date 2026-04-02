@@ -39,6 +39,10 @@ class ProfileRepository(BaseRepository):
         translation_backend: str = "ollama",
         fallback_chain: list = None,
         forced_preference: str = "disabled",
+        must_contain: list = None,
+        must_not_contain: list = None,
+        cutoff_language: str = "",
+        audio_exclude_languages: list = None,
     ) -> int:
         """Create a new language profile. Returns the profile ID."""
         if forced_preference not in VALID_FORCED_PREFERENCES:
@@ -62,6 +66,14 @@ class ProfileRepository(BaseRepository):
             is_default=0,
             created_at=now,
             updated_at=now,
+            must_contain_json=json.dumps(must_contain if must_contain is not None else []),
+            must_not_contain_json=json.dumps(
+                must_not_contain if must_not_contain is not None else []
+            ),
+            cutoff_language=cutoff_language or "",
+            audio_exclude_languages_json=json.dumps(
+                audio_exclude_languages if audio_exclude_languages is not None else []
+            ),
         )
         self.session.add(profile)
         self._commit()
@@ -124,6 +136,10 @@ class ProfileRepository(BaseRepository):
             "translation_backend",
             "fallback_chain",
             "forced_preference",
+            "must_contain",
+            "must_not_contain",
+            "cutoff_language",
+            "audio_exclude_languages",
         }
 
         # Validate forced_preference if provided
@@ -143,6 +159,16 @@ class ProfileRepository(BaseRepository):
                 profile.target_language_names_json = json.dumps(value)
             elif key == "fallback_chain":
                 profile.fallback_chain_json = json.dumps(value)
+            elif key == "must_contain":
+                profile.must_contain_json = json.dumps(value if isinstance(value, list) else [])
+            elif key == "must_not_contain":
+                profile.must_not_contain_json = json.dumps(
+                    value if isinstance(value, list) else []
+                )
+            elif key == "audio_exclude_languages":
+                profile.audio_exclude_languages_json = json.dumps(
+                    value if isinstance(value, list) else []
+                )
             else:
                 setattr(profile, key, value)
 
@@ -318,5 +344,28 @@ class ProfileRepository(BaseRepository):
 
         # Forced subtitle preference (added in Phase 6)
         d["forced_preference"] = d.get("forced_preference", "disabled")
+
+        # Profile filter fields (Phase 4)
+        try:
+            d["must_contain"] = json.loads(d.pop("must_contain_json", "[]") or "[]")
+        except (json.JSONDecodeError, TypeError):
+            d["must_contain"] = []
+            d.pop("must_contain_json", None)
+
+        try:
+            d["must_not_contain"] = json.loads(d.pop("must_not_contain_json", "[]") or "[]")
+        except (json.JSONDecodeError, TypeError):
+            d["must_not_contain"] = []
+            d.pop("must_not_contain_json", None)
+
+        d["cutoff_language"] = d.get("cutoff_language", "") or ""
+
+        try:
+            d["audio_exclude_languages"] = json.loads(
+                d.pop("audio_exclude_languages_json", "[]") or "[]"
+            )
+        except (json.JSONDecodeError, TypeError):
+            d["audio_exclude_languages"] = []
+            d.pop("audio_exclude_languages_json", None)
 
         return d
