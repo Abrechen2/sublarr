@@ -250,10 +250,6 @@ class ProviderManager:
         except ImportError as e:
             logger.debug("Napisy24 provider not available: %s", e)
         try:
-            from providers import whisper_subgen  # noqa: F401
-        except ImportError as e:
-            logger.debug("WhisperSubgen provider not available: %s", e)
-        try:
             from providers import titrari  # noqa: F401
         except ImportError as e:
             logger.debug("Titrari provider not available: %s", e)
