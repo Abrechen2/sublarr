@@ -88,8 +88,8 @@ def validate_download_url(url: str, provider_name: str) -> tuple[bool, str | Non
             return False, f"Blocked metadata host: {host!r}"
         try:
             addr = ipaddress.ip_address(host)
-            if addr.is_link_local or addr.is_loopback or addr.is_private:
-                return False, f"Private/link-local/loopback addresses are not allowed: {host!r}"
+            if addr.is_link_local or addr.is_loopback:
+                return False, f"Link-local/loopback addresses are not allowed: {host!r}"
             for network in _METADATA_NETWORKS:
                 if addr in network:
                     return False, f"Blocked metadata IP range: {host!r}"

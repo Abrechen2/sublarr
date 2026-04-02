@@ -761,9 +761,15 @@ class TestValidateDownloadUrl:
         assert ok is True
         assert err is None
 
-    def test_subsdump_private_ip_rejected(self):
-        # Private IPs are now blocked even for self-hosted providers to prevent SSRF
+    def test_subsdump_any_host_allowed(self):
+        """Self-hosted providers: private LAN IPs must be allowed (operator-controlled)."""
         ok, err = validate_download_url("http://192.168.178.195:8080/api/download/123.zip", "subsdump")
+        assert ok is True
+        assert err is None
+
+    def test_subsdump_loopback_rejected(self):
+        """Loopback must be blocked even for self-hosted to prevent SSRF to localhost."""
+        ok, err = validate_download_url("http://127.0.0.1:5765/api/v1/config", "subsdump")
         assert ok is False
 
     def test_subsdump_rejects_file_scheme(self):
