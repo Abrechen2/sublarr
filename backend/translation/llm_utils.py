@@ -108,6 +108,24 @@ def parse_llm_response(response_text: str, expected_count: int) -> list[str] | N
     return None
 
 
+def _escape_subtitle_line(line: str) -> str:
+    """Escape control characters in subtitle text to prevent prompt injection.
+
+    Replaces literal newlines and carriage returns with their escaped representations
+    so they cannot break the numbered prompt format.
+    """
+    return line.replace("\r\n", "\\r\\n").replace("\r", "\\r").replace("\n", "\\n")
+
+
+def _is_valid_glossary_entry(term: str) -> bool:
+    """Validate a glossary term before including it in a prompt.
+
+    Returns False if the term is too long or contains newlines that could
+    inject prompt breaks.
+    """
+    return len(term) <= 100 and "\n" not in term and "\r" not in term
+
+
 def build_prompt_with_glossary(
     prompt_template: str,
     glossary_entries: list[dict] | None,
@@ -133,9 +151,16 @@ def build_prompt_with_glossary(
         Complete prompt with optional glossary prefix and numbered lines
     """
     # Filter out non-approved entries (approved == 0 means pending suggestion)
+    # Also reject entries whose terms contain newlines or exceed the max length
     approved_entries: list[dict] = []
     if glossary_entries:
-        approved_entries = [e for e in glossary_entries if e.get("approved", 1) != 0]
+        approved_entries = [
+            e
+            for e in glossary_entries
+            if e.get("approved", 1) != 0
+            and _is_valid_glossary_entry(e.get("source_term", ""))
+            and _is_valid_glossary_entry(e.get("target_term", ""))
+        ]
 
     # Build glossary prefix (V8-compatible comma-separated format, max 15 entries)
     glossary_str = ""
@@ -145,11 +170,14 @@ def build_prompt_with_glossary(
         )
         glossary_str = f"Glossary: {pairs}\n\n"
 
-    # Single-line mode: V8 expects direct "Translate to German: <line>" format
-    if len(lines) == 1:
-        return f"{glossary_str}Translate to German: {lines[0]}"
+    # Escape subtitle lines to prevent prompt injection via embedded newlines
+    escaped_lines = [_escape_subtitle_line(line) for line in lines]
 
-    numbered = "\n".join(f"{i + 1}: {line}" for i, line in enumerate(lines))
+    # Single-line mode: V8 expects direct "Translate to German: <line>" format
+    if len(escaped_lines) == 1:
+        return f"{glossary_str}Translate to German: {escaped_lines[0]}"
+
+    numbered = "\n".join(f"{i + 1}: {line}" for i, line in enumerate(escaped_lines))
     return glossary_str + prompt_template + numbered
 
 
