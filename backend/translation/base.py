@@ -55,6 +55,7 @@ class TranslationBackend(ABC):
         source_lang: str,
         target_lang: str,
         glossary_entries: list[dict] | None = None,
+        series_context: str | None = None,
     ) -> TranslationResult:
         """Translate a batch of subtitle lines.
 
@@ -63,6 +64,7 @@ class TranslationBackend(ABC):
             source_lang: ISO 639-1 source language code
             target_lang: ISO 639-1 target language code
             glossary_entries: Optional list of {source_term, target_term} dicts
+            series_context: Optional series/show context for the system prompt
 
         Returns:
             TranslationResult with translated_lines in same order as input

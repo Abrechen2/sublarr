@@ -15,7 +15,9 @@ State transitions:
 import logging
 import threading
 import time
+from collections.abc import Callable
 from enum import StrEnum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,10 @@ class CircuitBreaker:
         name: Human-readable name (e.g. provider name) for logging.
         failure_threshold: Number of consecutive failures before opening.
         cooldown_seconds: Seconds to wait in OPEN before transitioning to HALF_OPEN.
+        persist_fn: Optional callback invoked after every state change with signature
+            ``persist_fn(name, state, failure_count, last_failure_time)``.
+            Exceptions raised by persist_fn are caught and logged — they never affect
+            the circuit breaker's own operation.
     """
 
     def __init__(
@@ -40,6 +46,7 @@ class CircuitBreaker:
         name: str,
         failure_threshold: int = 5,
         cooldown_seconds: int = 60,
+        persist_fn: Callable[[str, CircuitState, int, float | None], Any] | None = None,
     ) -> None:
         self.name = name
         self.failure_threshold = failure_threshold
@@ -49,6 +56,41 @@ class CircuitBreaker:
         self._failure_count = 0
         self._last_failure_time: float | None = None
         self._lock = threading.Lock()
+        self._persist_fn = persist_fn
+
+    def _call_persist(self) -> None:
+        """Invoke persist_fn with current state snapshot. Never raises."""
+        if self._persist_fn is None:
+            return
+        try:
+            self._persist_fn(self.name, self._state, self._failure_count, self._last_failure_time)
+        except Exception as e:
+            logger.warning("CircuitBreaker[%s]: persist_fn failed: %s", self.name, e)
+
+    def load_state(
+        self,
+        state: CircuitState | str,
+        failure_count: int,
+        last_failure_time: float | None,
+    ) -> None:
+        """Restore persisted state — called once at startup before any requests.
+
+        If the restored state is OPEN but the cooldown has already elapsed the
+        breaker transitions immediately to HALF_OPEN so the first real request
+        acts as the probe call.
+        """
+        with self._lock:
+            self._state = CircuitState(state) if isinstance(state, str) else state
+            self._failure_count = failure_count
+            self._last_failure_time = last_failure_time
+            # Eagerly evaluate OPEN→HALF_OPEN so we don't block traffic unnecessarily
+            self._check_half_open_transition_locked()
+            logger.info(
+                "CircuitBreaker[%s]: state restored — %s (failures: %d)",
+                self.name,
+                self._state.value,
+                self._failure_count,
+            )
 
     def _check_half_open_transition_locked(self) -> None:
         """Evaluate the OPEN→HALF_OPEN transition. Must be called while self._lock is held."""
@@ -94,6 +136,7 @@ class CircuitBreaker:
             self._state = CircuitState.CLOSED
             self._failure_count = 0
             self._last_failure_time = None
+            self._call_persist()
 
     def record_failure(self) -> None:
         """Record a failed call — may trip the breaker to OPEN."""
@@ -117,6 +160,7 @@ class CircuitBreaker:
                     self.name,
                     self._failure_count,
                 )
+            self._call_persist()
 
     def reset(self) -> None:
         """Manually reset the breaker to CLOSED."""
@@ -129,6 +173,7 @@ class CircuitBreaker:
                 logger.info(
                     "CircuitBreaker[%s]: %s → CLOSED (manual reset)", self.name, old_state.value
                 )
+            self._call_persist()
 
     def get_status(self) -> dict:
         """Return a JSON-serialisable status dict."""
