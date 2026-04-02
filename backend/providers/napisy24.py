@@ -13,6 +13,8 @@ import hashlib
 import logging
 import os
 
+from werkzeug.utils import secure_filename as _secure_filename
+
 from archive_utils import extract_subtitles_from_zip
 from providers import register_provider
 from providers.base import (
@@ -23,6 +25,7 @@ from providers.base import (
     VideoQuery,
 )
 from providers.http_session import create_session
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
@@ -262,8 +265,6 @@ class Napisy24Provider(SubtitleProvider):
             raise ValueError("No download URL")
 
         # P1: Validate download URL against allowed domains before fetching
-        from security_utils import validate_download_url
-
         url_ok, url_err = validate_download_url(url, self.name)
         if not url_ok:
             raise ProviderError(f"Napisy24 download URL rejected: {url_err}")
@@ -286,7 +287,8 @@ class Napisy24Provider(SubtitleProvider):
             if entries:
                 entries.sort(key=lambda e: _PRIORITY.get(os.path.splitext(e[0])[1].lower(), 99))
                 best_name, content = entries[0]
-                result.filename = best_name
+                # P2: Sanitize archive-extracted filename to prevent path traversal
+                result.filename = _secure_filename(best_name) or "subtitle"
                 ext = os.path.splitext(best_name)[1].lower()
                 if ext == ".ass":
                     result.format = SubtitleFormat.ASS

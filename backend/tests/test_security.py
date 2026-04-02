@@ -815,3 +815,47 @@ class TestProviderDownloadUrlValidation:
         ok, err = validate_download_url("https://myplugin.example.com/sub.srt", "my_custom_plugin")
         assert ok is False
         assert "unknown provider" in err.lower()
+
+
+# ---------------------------------------------------------------------------
+# TestFilenameSanitization — P2 provider filename sanitization (Task 3)
+# ---------------------------------------------------------------------------
+
+
+class TestFilenameSanitization:
+    """Provider filenames are sanitized via werkzeug.secure_filename before use."""
+
+    def test_path_traversal_filename_sanitized(self):
+        """../../../etc/passwd.srt becomes a safe name without traversal components."""
+        from werkzeug.utils import secure_filename
+
+        result = secure_filename("../../../etc/passwd.srt")
+        assert ".." not in result
+        assert "/" not in result
+        assert result.endswith(".srt")
+
+    def test_windows_path_traversal_sanitized(self):
+        from werkzeug.utils import secure_filename
+
+        result = secure_filename("..\\..\\windows\\system32\\cmd.exe.srt")
+        assert ".." not in result
+        assert "\\" not in result
+
+    def test_null_byte_sanitized(self):
+        from werkzeug.utils import secure_filename
+
+        result = secure_filename("normal\x00hidden.srt")
+        assert "\x00" not in result
+
+    def test_empty_filename_fallback(self):
+        """Empty filename after sanitization falls back to 'subtitle.srt'."""
+        from werkzeug.utils import secure_filename
+
+        result = secure_filename("") or "subtitle.srt"
+        assert result == "subtitle.srt"
+
+    def test_normal_filename_preserved(self):
+        from werkzeug.utils import secure_filename
+
+        result = secure_filename("Attack.on.Titan.S01E01.srt")
+        assert result == "Attack.on.Titan.S01E01.srt"

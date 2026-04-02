@@ -15,12 +15,14 @@ import logging
 from providers import register_provider
 from providers.base import (
     ProviderAuthError,
+    ProviderError,
     SubtitleFormat,
     SubtitleProvider,
     SubtitleResult,
     VideoQuery,
 )
 from providers.http_session import create_session
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
@@ -224,21 +226,19 @@ class BetaSeriesProvider(SubtitleProvider):
 
     def download(self, result: SubtitleResult) -> bytes:
         if not self.session:
-            raise RuntimeError("BetaSeries not initialized")
+            raise ProviderError("BetaSeries not initialized")
         # P1: Validate download URL against allowed domains before fetching
-        from security_utils import validate_download_url
-
         url_ok, url_err = validate_download_url(result.download_url or "", self.name)
         if not url_ok:
-            raise RuntimeError(f"BetaSeries download URL rejected: {url_err}")
+            raise ProviderError(f"BetaSeries download URL rejected: {url_err}")
         try:
             resp = self.session.get(result.download_url, timeout=self.timeout)
             if resp.status_code != 200:
-                raise RuntimeError(f"BetaSeries download failed: HTTP {resp.status_code}")
-        except RuntimeError:
+                raise ProviderError(f"BetaSeries download failed: HTTP {resp.status_code}")
+        except ProviderError:
             raise
         except Exception as e:
-            raise RuntimeError(f"BetaSeries download error: {e}") from e
+            raise ProviderError(f"BetaSeries download error: {e}") from e
         content = resp.content
         result.content = content
         logger.info("BetaSeries: downloaded %s (%d bytes)", result.filename, len(content))

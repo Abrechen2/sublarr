@@ -10,10 +10,13 @@ API: https://jimaku.cc/api/docs
 import logging
 import os
 
+from werkzeug.utils import secure_filename as _secure_filename
+
 from archive_utils import extract_subtitles_from_rar, extract_subtitles_from_zip
 from providers import register_provider
 from providers.base import (
     ProviderAuthError,
+    ProviderError,
     ProviderRateLimitError,
     SubtitleFormat,
     SubtitleProvider,
@@ -21,6 +24,7 @@ from providers.base import (
     VideoQuery,
 )
 from providers.http_session import create_session
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
@@ -388,22 +392,20 @@ class JimakuProvider(SubtitleProvider):
 
     def download(self, result: SubtitleResult) -> bytes:
         if not self.session:
-            raise RuntimeError("Jimaku not initialized")
+            raise ProviderError("Jimaku not initialized")
 
         url = result.download_url
         if not url:
-            raise ValueError("No download URL")
+            raise ProviderError("No download URL")
 
         # P1: Validate download URL against allowed domains before fetching
-        from security_utils import validate_download_url
-
         url_ok, url_err = validate_download_url(url, self.name)
         if not url_ok:
-            raise RuntimeError(f"Jimaku download URL rejected: {url_err}")
+            raise ProviderError(f"Jimaku download URL rejected: {url_err}")
 
         resp = self.session.get(url)
         if resp.status_code != 200:
-            raise RuntimeError(f"Jimaku download failed: HTTP {resp.status_code}")
+            raise ProviderError(f"Jimaku download failed: HTTP {resp.status_code}")
 
         content = resp.content
         is_archive = result.provider_data.get("is_archive", False)
@@ -423,20 +425,20 @@ class JimakuProvider(SubtitleProvider):
                 try:
                     extracted = extract_subtitles_from_rar(content)
                 except ImportError:
-                    raise RuntimeError("rarfile not installed, cannot extract RAR archives")
+                    raise ProviderError("rarfile not installed, cannot extract RAR archives")
             else:
-                raise RuntimeError(f"Unsupported archive format: {ext}")
+                raise ProviderError(f"Unsupported archive format: {ext}")
 
             if not extracted:
-                raise RuntimeError("No subtitle files found in archive")
+                raise ProviderError("No subtitle files found in archive")
 
             # Score and pick best
             scored = [(name, data, _score_subtitle_file(name, query)) for name, data in extracted]
             scored.sort(key=lambda x: x[2], reverse=True)
 
             best_name, best_content, _ = scored[0]
-            # Update result metadata
-            result.filename = best_name
+            # Update result metadata; P2: sanitize archive-extracted filename
+            result.filename = _secure_filename(best_name) or "subtitle"
             ext = os.path.splitext(best_name)[1].lower()
             result.format = _FORMAT_MAP.get(ext, SubtitleFormat.UNKNOWN)
             content = best_content

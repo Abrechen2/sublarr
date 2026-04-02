@@ -20,6 +20,7 @@ from providers.base import (
     VideoQuery,
 )
 from providers.http_session import create_session
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
@@ -285,8 +286,6 @@ class SubsDumpProvider(SubtitleProvider):
             raise ProviderError(f"subsdump: no download_url for {result.subtitle_id}")
 
         # P1: Validate download URL against allowed domains before fetching
-        from security_utils import validate_download_url
-
         url_ok, url_err = validate_download_url(result.download_url, self.name)
         if not url_ok:
             raise ProviderError(f"subsdump: download URL rejected: {url_err}")

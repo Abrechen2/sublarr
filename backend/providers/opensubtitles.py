@@ -11,6 +11,8 @@ import contextlib
 import logging
 import os
 
+from werkzeug.utils import secure_filename as _secure_filename
+
 from providers import register_provider
 from providers.base import (
     ProviderAuthError,
@@ -21,6 +23,7 @@ from providers.base import (
     VideoQuery,
 )
 from providers.http_session import create_session
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
@@ -384,7 +387,8 @@ class OpenSubtitlesProvider(SubtitleProvider):
 
                 for f in files:
                     file_id = f.get("file_id")
-                    filename = f.get("file_name", "")
+                    # P2: Sanitize provider-returned filename to prevent path traversal
+                    filename = _secure_filename(f.get("file_name", ""))
 
                     fmt = SubtitleFormat.UNKNOWN
                     ext = os.path.splitext(filename)[1].lower().lstrip(".")
@@ -481,7 +485,8 @@ class OpenSubtitlesProvider(SubtitleProvider):
         # The /download response returns the actual file_name with extension (e.g. "Movie.de.ass").
         # The /subtitles search API omits the format field entirely for most entries, so this
         # is the only reliable place to detect the real format before saving.
-        actual_filename = data.get("file_name", "")
+        # P2: Sanitize provider-returned filename to prevent path traversal
+        actual_filename = _secure_filename(data.get("file_name", ""))
         if actual_filename:
             ext = os.path.splitext(actual_filename)[1].lower().lstrip(".")
             if ext in _FORMAT_MAP:
@@ -493,8 +498,6 @@ class OpenSubtitlesProvider(SubtitleProvider):
                 )
 
         # P1: Validate download URL against allowed domains before fetching
-        from security_utils import validate_download_url
-
         url_ok, url_err = validate_download_url(download_link, self.name)
         if not url_ok:
             raise RuntimeError(f"OpenSubtitles download URL rejected: {url_err}")

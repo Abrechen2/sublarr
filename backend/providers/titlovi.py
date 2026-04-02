@@ -11,15 +11,19 @@ License:  GPL-3.0
 
 import logging
 
+from werkzeug.utils import secure_filename as _secure_filename
+
 from archive_utils import extract_subtitles_from_zip
 from providers import register_provider
 from providers.base import (
+    ProviderError,
     SubtitleFormat,
     SubtitleProvider,
     SubtitleResult,
     VideoQuery,
 )
 from providers.http_session import create_session
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
@@ -159,23 +163,21 @@ class TitloviProvider(SubtitleProvider):
 
     def download(self, result: SubtitleResult) -> bytes:
         if not self.session:
-            raise RuntimeError("Titlovi not initialized")
+            raise ProviderError("Titlovi not initialized")
 
         # P1: Validate download URL against allowed domains before fetching
-        from security_utils import validate_download_url
-
         url_ok, url_err = validate_download_url(result.download_url or "", self.name)
         if not url_ok:
-            raise RuntimeError(f"Titlovi download URL rejected: {url_err}")
+            raise ProviderError(f"Titlovi download URL rejected: {url_err}")
 
         try:
             resp = self.session.get(result.download_url, timeout=self.timeout)
             if resp.status_code != 200:
-                raise RuntimeError(f"Titlovi download failed: HTTP {resp.status_code}")
-        except RuntimeError:
+                raise ProviderError(f"Titlovi download failed: HTTP {resp.status_code}")
+        except ProviderError:
             raise
         except Exception as e:
-            raise RuntimeError(f"Titlovi download error: {e}") from e
+            raise ProviderError(f"Titlovi download error: {e}") from e
 
         content = resp.content
 
@@ -184,11 +186,15 @@ class TitloviProvider(SubtitleProvider):
                 entries = extract_subtitles_from_zip(content)
                 if entries:
                     name, content = entries[0]
-                    result.filename = name
-                    ext = f".{name.lower().rsplit('.', 1)[-1]}" if "." in name else ""
+                    # P2: Sanitize archive-extracted filename to prevent path traversal
+                    result.filename = _secure_filename(name) or "subtitle"
+                    safe_name = result.filename
+                    ext = f".{safe_name.lower().rsplit('.', 1)[-1]}" if "." in safe_name else ""
                     result.format = _FORMAT_MAP.get(ext, SubtitleFormat.SRT)
+            except ProviderError:
+                raise
             except Exception as e:
-                raise RuntimeError(f"Titlovi: archive extraction failed: {e}") from e
+                raise ProviderError(f"Titlovi: archive extraction failed: {e}") from e
 
         result.content = content
         logger.info("Titlovi: downloaded %s (%d bytes)", result.filename, len(content))
