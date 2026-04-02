@@ -16,6 +16,7 @@ from werkzeug.utils import secure_filename as _secure_filename
 from providers import register_provider
 from providers.base import (
     ProviderAuthError,
+    ProviderError,
     ProviderRateLimitError,
     SubtitleFormat,
     SubtitleProvider,
@@ -460,7 +461,7 @@ class OpenSubtitlesProvider(SubtitleProvider):
 
     def download(self, result: SubtitleResult) -> bytes:
         if not self.session:
-            raise RuntimeError("OpenSubtitles not initialized")
+            raise ProviderError("OpenSubtitles not initialized")
 
         file_id = result.provider_data.get("file_id")
         if not file_id:
@@ -475,12 +476,12 @@ class OpenSubtitlesProvider(SubtitleProvider):
         )
 
         if resp.status_code != 200:
-            raise RuntimeError(f"OpenSubtitles download request failed: HTTP {resp.status_code}")
+            raise ProviderError(f"OpenSubtitles download request failed: HTTP {resp.status_code}")
 
         data = resp.json()
         download_link = data.get("link")
         if not download_link:
-            raise RuntimeError("No download link in response")
+            raise ProviderError("No download link in response")
 
         # The /download response returns the actual file_name with extension (e.g. "Movie.de.ass").
         # The /subtitles search API omits the format field entirely for most entries, so this
@@ -500,12 +501,12 @@ class OpenSubtitlesProvider(SubtitleProvider):
         # P1: Validate download URL against allowed domains before fetching
         url_ok, url_err = validate_download_url(download_link, self.name)
         if not url_ok:
-            raise RuntimeError(f"OpenSubtitles download URL rejected: {url_err}")
+            raise ProviderError(f"OpenSubtitles download URL rejected: {url_err}")
 
         # Download the actual file
         dl_resp = self.session.get(download_link)
         if dl_resp.status_code != 200:
-            raise RuntimeError(f"OpenSubtitles file download failed: HTTP {dl_resp.status_code}")
+            raise ProviderError(f"OpenSubtitles file download failed: HTTP {dl_resp.status_code}")
 
         content = dl_resp.content
         result.content = content
