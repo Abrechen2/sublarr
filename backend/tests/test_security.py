@@ -1029,3 +1029,119 @@ class TestStreamingDownload:
 
         with pytest.raises(Exception, match="too large"):
             _stream_download(mock_session, "https://example.com/huge.srt")
+
+
+# ---------------------------------------------------------------------------
+# TestWebhookExemptionWarning — F-05 webhook auth footgun (Task 6)
+# ---------------------------------------------------------------------------
+
+
+class TestWebhookExemptionWarning:
+    """A warning is logged when a webhook request arrives without X-Signature.
+
+    The warning only fires when an API key is configured (otherwise all routes
+    are open and there's nothing to exempt webhooks from). Tests therefore use
+    a fixture that enables the API key, and patch `auth.logger` wholesale with
+    a MagicMock so the effective log level (ERROR in tests) doesn't suppress
+    WARNING calls before they reach the mock.
+    """
+
+    @pytest.fixture
+    def client_with_api_key(self, tmp_path, monkeypatch):
+        """Test client with a non-empty API key so the auth middleware is active."""
+        import os
+        import sys
+
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        monkeypatch.setenv("SUBLARR_DB_PATH", str(tmp_path / "test.db"))
+        monkeypatch.setenv("SUBLARR_API_KEY", "test-key-for-webhook-warning")
+        monkeypatch.setenv("SUBLARR_LOG_LEVEL", "ERROR")
+        monkeypatch.setenv("SUBLARR_PLUGINS_DIR", str(tmp_path / "plugins"))
+        monkeypatch.setenv("SUBLARR_MEDIA_PATH", str(tmp_path))
+
+        from app import create_app
+        from config import reload_settings
+        from db import init_db
+
+        reload_settings()
+        (tmp_path / "plugins").mkdir(exist_ok=True)
+        app = create_app()
+        init_db()
+        app.config["TESTING"] = True
+        with app.test_client() as c:
+            yield c
+
+    def test_warning_logged_for_webhook_without_signature(self, client_with_api_key):
+        """Webhook request without X-Signature header produces a warning log."""
+        from unittest.mock import MagicMock, patch
+
+        import auth as auth_module
+
+        mock_logger = MagicMock()
+        with patch.object(auth_module, "logger", mock_logger):
+            client_with_api_key.post("/api/v1/webhook/sonarr", json={})
+
+        calls = [str(c) for c in mock_logger.warning.call_args_list]
+        assert any(
+            "webhook" in c.lower() and "signature" in c.lower() for c in calls
+        ), f"Expected webhook/signature warning; got calls: {calls}"
+
+    def test_no_warning_when_x_signature_present(self, client_with_api_key):
+        """Webhook request with X-Signature header must NOT produce the footgun warning."""
+        from unittest.mock import MagicMock, patch
+
+        import auth as auth_module
+
+        mock_logger = MagicMock()
+        with patch.object(auth_module, "logger", mock_logger):
+            client_with_api_key.post(
+                "/api/v1/webhook/sonarr",
+                json={},
+                headers={"X-Signature": "sha256=abc123"},
+            )
+
+        footgun_calls = [
+            str(c)
+            for c in mock_logger.warning.call_args_list
+            if "no x-signature" in str(c).lower()
+        ]
+        assert footgun_calls == [], f"Unexpected footgun warning fired: {footgun_calls}"
+
+    def test_no_warning_when_x_bazarr_signature_present(self, client_with_api_key):
+        """Webhook request with X-Bazarr-Signature header must NOT produce the footgun warning."""
+        from unittest.mock import MagicMock, patch
+
+        import auth as auth_module
+
+        mock_logger = MagicMock()
+        with patch.object(auth_module, "logger", mock_logger):
+            client_with_api_key.post(
+                "/api/v1/webhook/sonarr",
+                json={},
+                headers={"X-Bazarr-Signature": "sha256=abc123"},
+            )
+
+        footgun_calls = [
+            str(c)
+            for c in mock_logger.warning.call_args_list
+            if "no x-signature" in str(c).lower()
+        ]
+        assert footgun_calls == [], f"Unexpected footgun warning fired: {footgun_calls}"
+
+    def test_warning_includes_path_and_remote_addr(self, client_with_api_key):
+        """Warning message includes the request path and remote address for diagnostics."""
+        from unittest.mock import MagicMock, patch
+
+        import auth as auth_module
+
+        mock_logger = MagicMock()
+        with patch.object(auth_module, "logger", mock_logger):
+            client_with_api_key.post("/api/v1/webhook/radarr", json={})
+
+        footgun_calls = [
+            str(c)
+            for c in mock_logger.warning.call_args_list
+            if "no x-signature" in str(c).lower()
+        ]
+        assert len(footgun_calls) >= 1
+        assert "/api/v1/webhook/radarr" in footgun_calls[0]

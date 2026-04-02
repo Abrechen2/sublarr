@@ -134,6 +134,15 @@ def init_auth(app):
         # route added under /api/v1/webhook/ MUST implement auth manually;
         # there is no fallback enforcement here.
         if path.startswith("/api/v1/webhook/"):
+            if not request.headers.get("X-Signature") and not request.headers.get(
+                "X-Bazarr-Signature"
+            ):
+                logger.warning(
+                    "Webhook request to %s from %s has no X-Signature header — "
+                    "ensure the handler implements HMAC verification",
+                    path,
+                    request.remote_addr,
+                )
             return None
 
         # Skip auth for UI auth endpoints (login, setup, status, logout)
