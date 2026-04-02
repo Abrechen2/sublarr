@@ -39,6 +39,9 @@ from providers.base import (
     compute_score,
 )
 from providers.download_manager import _stream_download  # noqa: F401 — re-exported for providers
+from providers.format_validator import (  # noqa: F401 — re-exported for callers
+    _validate_subtitle_content,
+)
 from providers.registry import PROVIDER_METADATA
 
 logger = logging.getLogger(__name__)

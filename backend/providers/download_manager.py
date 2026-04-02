@@ -162,10 +162,16 @@ def save_subtitle(
         ValueError: If result has no content or path is outside media_path.
         RuntimeError: If disk space is insufficient or I/O fails.
     """
-    from providers.format_validator import detect_format_from_content
+    from providers.format_validator import _validate_subtitle_content, detect_format_from_content
 
     if not result.content:
         raise ValueError("SubtitleResult has no content (download first)")
+
+    # Validate content against declared format before processing (P4)
+    fmt_hint = result.format.value if result.format != SubtitleFormat.UNKNOWN else "srt"
+    valid, reason = _validate_subtitle_content(result.content, fmt_hint)
+    if not valid:
+        raise RuntimeError(f"Downloaded subtitle content failed validation: {reason}")
 
     # Determine extension — detect from content if format is unknown
     if result.format == SubtitleFormat.UNKNOWN and result.content:
