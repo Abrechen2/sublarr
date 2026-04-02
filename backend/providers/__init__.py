@@ -77,7 +77,7 @@ def _validate_subtitle_content(content: bytes, fmt: str) -> tuple[bool, str | No
     """Validate downloaded subtitle content matches the declared format (P4).
 
     Rejects executable/binary signatures and content that is clearly not a
-    text-based subtitle file. Format-specific checks are applied for ASS/SSA.
+    text-based subtitle file.
 
     Returns:
         (True, None) if content looks like a valid subtitle.
@@ -106,19 +106,6 @@ def _validate_subtitle_content(content: bytes, fmt: str) -> tuple[bool, str | No
     )
     if control_chars > len(sample) * 0.10:
         return False, "Content appears to be binary data (too many control characters)"
-
-    # Format-specific checks
-    fmt_lower = fmt.lower()
-    try:
-        text = content[:512].decode("utf-8", errors="ignore").strip()
-    except Exception:
-        return False, "Content cannot be decoded as text"
-
-    if fmt_lower in ("ass", "ssa"):
-        if not any(marker in text for marker in ("[Script Info]", "[V4+ Styles]", "[Events]")):
-            # Soft check: ASS files must start with a section header
-            if not text.startswith("["):
-                return False, "ASS/SSA content does not begin with expected section header"
 
     return True, None
 
