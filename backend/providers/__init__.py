@@ -42,22 +42,7 @@ from providers.base import (
 from providers.registry import PROVIDER_METADATA
 
 
-def _detect_format_from_content(content: bytes) -> SubtitleFormat:
-    """Detect subtitle format by inspecting the first bytes of file content.
-
-    Used when a provider doesn't include format metadata (e.g. OpenSubtitles
-    returns filenames without extensions for some results).
-    """
-    # Strip UTF-8 BOM if present
-    text_start = content[:512].lstrip(b"\xef\xbb\xbf")
-    try:
-        preview = text_start.decode("utf-8", errors="replace").strip()
-    except (UnicodeDecodeError, ValueError):
-        return SubtitleFormat.SRT
-    # ASS/SSA files always begin with [Script Info]
-    if preview.startswith("[Script Info]") or preview.lower().startswith("[v4"):
-        return SubtitleFormat.ASS
-    return SubtitleFormat.SRT
+from providers.format_validator import detect_format_from_content as _detect_format_from_content
 
 
 logger = logging.getLogger(__name__)
@@ -1180,28 +1165,14 @@ class ProviderManager:
         Returns:
             Raw subtitle file content, or None on failure
         """
-        provider = self._providers.get(result.provider_name)
-        if not provider:
-            logger.error("Provider %s not available for download", result.provider_name)
-            return None
+        from providers.download_manager import download_subtitle
 
-        # Check rate limit before download
-        if not self._check_rate_limit(result.provider_name):
-            logger.debug(
-                "Skipping download from provider %s due to rate limit", result.provider_name
-            )
-            return None
-
-        try:
-            content = provider.download(result)
-            result.content = content
-            # Rate limit tracking is already updated by _check_rate_limit() above
-            return content
-        except Exception as e:
-            logger.error("Download from %s failed: %s", result.provider_name, e)
-            # On failure, we should still track the rate limit attempt
-            # The timestamp was already added by _check_rate_limit(), so we don't need to do anything
-            return None
+        return download_subtitle(
+            providers=self._providers,
+            circuit_breakers=self._circuit_breakers,
+            rate_limit_checker=self._check_rate_limit,
+            result=result,
+        )
 
     def search_and_download_best(
         self,
@@ -1216,42 +1187,19 @@ class ProviderManager:
         Returns:
             SubtitleResult with content populated, or None
         """
-        results = self.search_with_fallback(
-            query,
+        from db.providers import update_provider_stats
+        from providers.download_manager import search_and_download_best as _sad_best
+
+        return _sad_best(
+            search_fn=self.search_with_fallback,
+            download_fn=self.download,
+            update_stats_fn=update_provider_stats,
+            query=query,
             format_filter=format_filter,
             min_score=min_score,
             must_contain=must_contain,
             must_not_contain=must_not_contain,
         )
-        if not results:
-            return None
-
-        # Try results in order until one downloads successfully
-        for result in results:
-            # Track search attempt for stats
-            from db.providers import update_provider_stats
-
-            try:
-                content = self.download(result)
-                if content is not None:  # Empty bytes for embedded is OK
-                    # Record successful download
-                    update_provider_stats(result.provider_name, success=True, score=result.score)
-                    # Trigger auto re-ranking (throttled to once/hour)
-                    try:
-                        from providers.reranker import apply_auto_reranking
-
-                        apply_auto_reranking()
-                    except Exception as _rr_err:
-                        logger.debug("Re-ranking trigger skipped: %s", _rr_err)
-                    return result
-                else:
-                    # Record failed download
-                    update_provider_stats(result.provider_name, success=False, score=0)
-            except Exception as e:
-                logger.warning("Download failed for %s: %s", result.subtitle_id, e)
-                update_provider_stats(result.provider_name, success=False, score=0)
-
-        return None
 
     def save_subtitle(
         self, result: SubtitleResult, output_path: str, series_id: int | None = None
@@ -1272,190 +1220,9 @@ class ProviderManager:
             OSError: If directory creation or file write fails
             RuntimeError: If disk space is insufficient
         """
-        if not result.content:
-            raise ValueError("SubtitleResult has no content (download first)")
+        from providers.download_manager import save_subtitle as _save
 
-        # Determine extension — detect from content if format is unknown
-        if result.format == SubtitleFormat.UNKNOWN and result.content:
-            result.format = _detect_format_from_content(result.content)
-        ext = result.format.value if result.format != SubtitleFormat.UNKNOWN else "srt"
-        if not output_path.endswith(f".{ext}"):
-            # If output_path already has an extension, replace it
-            base, _ = os.path.splitext(output_path)
-            output_path = f"{base}.{ext}"
-
-        # Check disk space before writing (defensive guard)
-        try:
-            import shutil
-
-            stat = shutil.disk_usage(os.path.dirname(output_path))
-            free_mb = stat.free / (1024 * 1024)
-            MIN_FREE_SPACE_MB = 100  # Same as translator.py
-            if free_mb < MIN_FREE_SPACE_MB:
-                raise RuntimeError(
-                    f"Insufficient disk space: {free_mb:.0f}MB free, "
-                    f"need at least {MIN_FREE_SPACE_MB}MB"
-                )
-        except OSError as e:
-            logger.warning("Failed to check disk space for %s: %s", output_path, e)
-            # Continue anyway - disk space check is best-effort
-
-        # Validate output path is within allowed media directory (path traversal guard)
-        try:
-            from config import get_settings as _get_settings
-            from security_utils import is_safe_path as _is_safe_path
-
-            _settings = _get_settings()
-            _media_path = getattr(_settings, "media_path", "/media")
-            if not _is_safe_path(output_path, _media_path):
-                raise ValueError(
-                    f"save_subtitle: output_path {output_path!r} is outside media_path"
-                )
-        except ValueError:
-            raise
-        except Exception as e:
-            logger.debug("Path validation skipped (config unavailable, likely in tests): %s", e)
-
-        # Sanitize subtitle content before writing to disk
-        try:
-            from subtitle_sanitizer import sanitize_subtitle
-
-            result.content = sanitize_subtitle(result.content, result.format)
-        except ValueError as e:
-            raise RuntimeError(f"Subtitle failed security check: {e}") from e
-        except Exception as e:
-            logger.warning("Subtitle sanitization failed (skipping): %s", e)
-            # Non-fatal: log and continue on unexpected errors to preserve availability
-
-        # Duplicate detection: skip write if identical content already exists on disk
-        try:
-            from config import get_settings as _get_settings_dedup
-            from db.repositories.cleanup import CleanupRepository
-            from dedup_engine import compute_content_hash_from_bytes
-            from error_handler import DuplicateSubtitleError
-
-            _dedup_settings = _get_settings_dedup()
-            if getattr(_dedup_settings, "dedup_on_download", True):
-                content_hash = compute_content_hash_from_bytes(result.content)
-                _output_dir = os.path.dirname(os.path.abspath(output_path))
-
-                repo = CleanupRepository()
-                matches = repo.find_by_content_hash(content_hash)
-                stale_paths = []
-                duplicate_path = None
-
-                for match in matches:
-                    match_path = match["file_path"]
-                    if not os.path.isfile(match_path):
-                        stale_paths.append(match_path)
-                        continue
-                    if os.path.dirname(os.path.abspath(match_path)) == _output_dir:
-                        duplicate_path = match_path
-                        break
-
-                if stale_paths:
-                    repo.delete_hashes_by_paths(stale_paths)
-                    logger.debug("Cleaned %d stale hash entries", len(stale_paths))
-
-                if duplicate_path:
-                    logger.info(
-                        "Duplicate subtitle skipped: hash %s already at %s",
-                        content_hash[:12],
-                        duplicate_path,
-                    )
-                    raise DuplicateSubtitleError(content_hash, duplicate_path, output_path)
-        except DuplicateSubtitleError:
-            raise
-        except Exception as e:
-            logger.debug("Dedup check skipped: %s", e)
-
-        # Create directory with error handling
-        try:
-            dir_path = os.path.dirname(output_path)
-            if dir_path:  # Only create if there's a directory component
-                os.makedirs(dir_path, exist_ok=True)
-        except OSError as e:
-            logger.error("Failed to create directory for %s: %s", output_path, e)
-            raise RuntimeError(f"Cannot create directory for subtitle: {e}") from e
-
-        # Write file with error handling
-        try:
-            with open(output_path, "wb") as f:
-                f.write(result.content)
-        except OSError as e:
-            logger.error("Failed to write subtitle to %s: %s", output_path, e)
-            raise RuntimeError(f"Cannot write subtitle file: {e}") from e
-
-        # Register hash in dedup DB after successful write
-        try:
-            from db.repositories.cleanup import CleanupRepository as CleanupRepo
-            from dedup_engine import compute_content_hash_from_bytes as _chfb
-
-            _hash = _chfb(result.content)
-            _ext = result.format.value if result.format.value != "unknown" else "srt"
-            CleanupRepo().upsert_hash(
-                file_path=output_path,
-                content_hash=_hash,
-                file_size=len(result.content),
-                format=_ext,
-                language=result.language,
-            )
-        except Exception as e:
-            logger.debug("Failed to register subtitle hash after write: %s", e)
-
-        logger.info(
-            "Saved subtitle: %s (%s, %s, score=%d)",
-            output_path,
-            result.provider_name,
-            result.language,
-            result.score,
-        )
-
-        # Fire subtitle_downloaded event for post-processing hooks
-        try:
-            from events import emit_event
-
-            emit_event(
-                "subtitle_downloaded",
-                {
-                    "subtitle_path": output_path,
-                    "provider_name": result.provider_name or "",
-                    "language": result.language or "",
-                    "format": result.format.value if result.format else "",
-                    "score": result.score or 0,
-                },
-            )
-        except Exception as _ev_err:
-            logger.debug("subtitle_downloaded event skipped: %s", _ev_err)
-
-        # Post-download processing pipeline
-        try:
-            from routes.subtitle_processor import _run_pipeline_for_path
-
-            _run_pipeline_for_path(output_path, series_id=series_id)
-        except Exception as _exc:
-            logger.warning("[pipeline] hook error: %s", _exc)
-
-        # Post-download shell command (user-configurable, Bazarr parity)
-        from post_download import run_post_download_command
-
-        _pd_settings = getattr(self, "settings", None)
-        _pd_cmd = (
-            getattr(_pd_settings, "post_download_command", "") if _pd_settings is not None else ""
-        )
-        if _pd_cmd:
-            try:
-                run_post_download_command(
-                    _pd_cmd,
-                    subtitle_path=output_path,
-                    language=result.language or "",
-                    provider=result.provider_name or "",
-                    score=result.score or 0,
-                )
-            except Exception as _pd_err:
-                logger.warning("post_download_command hook failed: %s", _pd_err)
-
-        return output_path
+        return _save(result, output_path, series_id=series_id)
 
     def get_provider(self, name: str) -> "SubtitleProvider | None":
         """Return an active provider instance by name, or None if not found."""
