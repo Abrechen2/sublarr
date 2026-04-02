@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+from providers.base import ProviderError
+
 
 class TestSubsourceProvider:
     def test_import_and_name(self):
@@ -543,7 +545,7 @@ class TestBetaSeriesProvider:
             filename="x.srt",
             download_url="https://api.betaseries.com/x",
         )
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ProviderError):
             p.download(r)
 
     def test_download_success_returns_content(self):
@@ -671,7 +673,7 @@ class TestTitloviProvider:
             filename="x.srt",
             download_url="https://titlovi.com/download/12345",
         )
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ProviderError):
             p.download(r)
 
     def test_download_success_returns_content(self):
