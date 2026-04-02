@@ -215,10 +215,14 @@ class OllamaBackend(TranslationBackend):
             try:
                 if self._use_chat_api:
                     system = self._build_system_prompt(series_context)
-                    user = build_translation_prompt(lines, source_lang, target_lang, glossary_entries)
+                    user = build_translation_prompt(
+                        lines, source_lang, target_lang, glossary_entries
+                    )
                     response = self._call_ollama_chat(system, user)
                 else:
-                    prompt = build_translation_prompt(lines, source_lang, target_lang, glossary_entries)
+                    prompt = build_translation_prompt(
+                        lines, source_lang, target_lang, glossary_entries
+                    )
                     response = self._call_ollama(prompt)
                 parsed = parse_llm_response(response, len(lines))
                 if parsed is not None:
@@ -278,10 +282,14 @@ class OllamaBackend(TranslationBackend):
                 try:
                     if self._use_chat_api:
                         system = self._build_system_prompt(series_context)
-                        user = build_translation_prompt([line], source_lang, target_lang, glossary_entries)
+                        user = build_translation_prompt(
+                            [line], source_lang, target_lang, glossary_entries
+                        )
                         response = self._call_ollama_chat(system, user)
                     else:
-                        prompt = build_translation_prompt([line], source_lang, target_lang, glossary_entries)
+                        prompt = build_translation_prompt(
+                            [line], source_lang, target_lang, glossary_entries
+                        )
                         response = self._call_ollama(prompt)
                     translated = re.sub(r"^\d+[\.:]\s*", "", response.strip().split("\n")[0])
                     if has_cjk_hallucination(translated):

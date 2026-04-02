@@ -1,4 +1,5 @@
 """ORM model for circuit breaker state persistence."""
+
 from datetime import datetime
 
 from sqlalchemy import DateTime, Float, Index, Integer, Text

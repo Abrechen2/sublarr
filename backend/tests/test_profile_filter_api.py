@@ -1,4 +1,5 @@
 """Tests that profile filter fields round-trip through the repository layer."""
+
 import json
 from unittest.mock import MagicMock, patch
 
@@ -42,17 +43,13 @@ def _call_row_to_profile(profile_dict: dict) -> dict:
 
 class TestRowToProfileFilterFields:
     def test_must_contain_deserialized(self):
-        result = _call_row_to_profile(
-            _make_profile_dict(must_contain_json='["BluRay","x265"]')
-        )
+        result = _call_row_to_profile(_make_profile_dict(must_contain_json='["BluRay","x265"]'))
         assert "must_contain" in result
         assert result["must_contain"] == ["BluRay", "x265"]
         assert "must_contain_json" not in result
 
     def test_must_not_contain_deserialized(self):
-        result = _call_row_to_profile(
-            _make_profile_dict(must_not_contain_json='["HDCAM","CAM"]')
-        )
+        result = _call_row_to_profile(_make_profile_dict(must_not_contain_json='["HDCAM","CAM"]'))
         assert "must_not_contain" in result
         assert result["must_not_contain"] == ["HDCAM", "CAM"]
         assert "must_not_contain_json" not in result

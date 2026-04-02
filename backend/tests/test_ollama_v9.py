@@ -1,14 +1,20 @@
 """Tests for Ollama V9 chat-API integration."""
+
 from unittest.mock import MagicMock, patch
 
 
 def _make_backend(use_chat_api: bool = False, system_prompt: str = ""):
     from translation.ollama import OllamaBackend
+
     backend = OllamaBackend.__new__(OllamaBackend)
     backend.config = {
-        "url": "http://localhost:11434", "model": "test-model",
-        "temperature": "0.3", "request_timeout": "10",
-        "max_retries": "1", "backoff_base": "1", "batch_size": "15",
+        "url": "http://localhost:11434",
+        "model": "test-model",
+        "temperature": "0.3",
+        "request_timeout": "10",
+        "max_retries": "1",
+        "backoff_base": "1",
+        "batch_size": "15",
         "use_chat_api": "true" if use_chat_api else "false",
         "system_prompt": system_prompt,
     }
@@ -102,6 +108,7 @@ class TestCallOllamaChat:
 
     def test_raises_on_missing_message_key(self):
         import pytest
+
         backend = _make_backend(use_chat_api=True)
         mock_resp = MagicMock()
         mock_resp.status_code = 200

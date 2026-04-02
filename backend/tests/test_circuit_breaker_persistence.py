@@ -1,4 +1,5 @@
 """Tests for CircuitBreaker state persistence via persist_fn callback."""
+
 import time
 from unittest.mock import MagicMock
 
@@ -72,7 +73,9 @@ class TestCircuitBreakerPersistFn:
                 last_failure_time=last_failure_time,
             )
 
-        cb = CircuitBreaker("prov_test", failure_threshold=1, cooldown_seconds=60, persist_fn=my_persist)
+        cb = CircuitBreaker(
+            "prov_test", failure_threshold=1, cooldown_seconds=60, persist_fn=my_persist
+        )
         cb.record_failure()
         assert captured["name"] == "prov_test"
         assert captured["state"] == CircuitState.OPEN
