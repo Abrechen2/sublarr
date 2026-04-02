@@ -19,7 +19,7 @@ class QualityRepository(BaseRepository):
     """Repository for subtitle_health_results table operations."""
 
     def save_health_result(
-        self, file_path: str, score: int, issues_json: str, checks_run: int, checked_at: str
+        self, file_path: str, score: int, issues_json: str, checks_run: int, checked_at: datetime
     ) -> dict:
         """Save or update a health check result for a file.
 
@@ -94,7 +94,7 @@ class QualityRepository(BaseRepository):
             )
             .where(
                 SubtitleHealthResult.checked_at
-                > (datetime.now(UTC) - timedelta(days=days)).isoformat()
+                > (datetime.now(UTC) - timedelta(days=days))
             )
             .group_by(func.substr(SubtitleHealthResult.checked_at, 1, 10))
             .order_by(func.substr(SubtitleHealthResult.checked_at, 1, 10))
