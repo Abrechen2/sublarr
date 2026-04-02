@@ -26,6 +26,104 @@ _METADATA_NETWORKS = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Per-provider domain allowlists for subtitle download URLs (P1)
+# ---------------------------------------------------------------------------
+
+# Providers that perform all downloads locally (no external URL needed).
+_LOCAL_PROVIDERS = {"embedded", "whisper"}
+
+# Providers that are self-hosted (operator chooses the URL).
+# Scheme must be http/https, but any hostname is accepted.
+_SELF_HOSTED_PROVIDERS = {"subsdump"}
+
+# Allowlists: a URL is accepted when netloc equals entry OR ends with ".<entry>".
+_PROVIDER_DOWNLOAD_DOMAINS: dict[str, set[str]] = {
+    "opensubtitles": {"opensubtitles.com", "opensubtitles.org", "dl.opensubtitles.com"},
+    "podnapisi": {"podnapisi.net", "www.podnapisi.net"},
+    "jimaku": {"jimaku.cc"},
+    "addic7ed": {"addic7ed.com", "www.addic7ed.com"},
+    "betaseries": {"betaseries.com", "www.betaseries.com", "api.betaseries.com"},
+    "gestdown": {"gestdown.info", "api.gestdown.info"},
+    "kitsunekko": {"kitsunekko.net", "www.kitsunekko.net"},
+    "legendasdivx": {"legendasdivx.pt", "www.legendasdivx.pt"},
+    "napisy24": {"napisy24.pl", "www.napisy24.pl"},
+    "subdl": {"subdl.com", "api.subdl.com", "dl.subdl.com"},
+    "animetosho": {"animetosho.org", "www.animetosho.org"},
+    "subscene": {"subscene.com", "www.subscene.com"},
+    "subf2m": {"subf2m.co", "www.subf2m.co"},
+    "subsource": {"subsource.net", "www.subsource.net"},
+    "titlovi": {"titlovi.com", "kodi.titlovi.com"},
+    "titrari": {"titrari.ro", "www.titrari.ro"},
+    "tvsubtitles": {"tvsubtitles.net", "www.tvsubtitles.net"},
+    "turkcealtyazi": {"turkcealtyazi.org", "www.turkcealtyazi.org"},
+    "yifysubtitles": {"yifysubtitles.ch", "www.yifysubtitles.ch"},
+    "zimuku": {"zimuku.net", "www.zimuku.net"},
+}
+
+
+def validate_download_url(url: str, provider_name: str) -> tuple[bool, str | None]:
+    """Validate that a provider download URL points to an allowed domain (P1 SSRF guard).
+
+    Returns:
+        (True, None) if the URL is safe to fetch.
+        (False, reason) if the URL should be rejected.
+    """
+    if provider_name in _LOCAL_PROVIDERS:
+        return True, None
+
+    if provider_name in _SELF_HOSTED_PROVIDERS:
+        if not url:
+            return False, "Self-hosted provider download URL must not be empty"
+        try:
+            parsed = urllib.parse.urlparse(url)
+        except Exception:
+            return False, "URL could not be parsed"
+        if parsed.scheme not in _ALLOWED_SERVICE_SCHEMES:
+            return False, f"Invalid scheme {parsed.scheme!r} — only http/https are allowed"
+        return True, None
+
+    allowed_domains = _PROVIDER_DOWNLOAD_DOMAINS.get(provider_name)
+    if allowed_domains is None:
+        return False, f"Unknown provider {provider_name!r} — no download domain allowlist defined"
+
+    if not url:
+        return False, "Download URL must not be empty"
+
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except Exception:
+        return False, "URL could not be parsed"
+
+    if parsed.scheme not in _ALLOWED_SERVICE_SCHEMES:
+        return False, f"Invalid scheme {parsed.scheme!r} — only http/https are allowed"
+
+    host = parsed.hostname
+    if not host:
+        return False, "URL has no hostname"
+
+    if host.lower() in _BLOCKED_METADATA_HOSTS:
+        return False, f"Blocked metadata host: {host!r}"
+    try:
+        addr = ipaddress.ip_address(host)
+        if addr.is_link_local:
+            return False, f"Link-local addresses are not allowed: {host!r}"
+        for network in _METADATA_NETWORKS:
+            if addr in network:
+                return False, f"Blocked metadata IP range: {host!r}"
+    except ValueError:
+        pass
+
+    netloc = host.lower()
+    for allowed in allowed_domains:
+        if netloc == allowed or netloc.endswith("." + allowed):
+            return True, None
+
+    return False, (
+        f"Download URL domain {netloc!r} is not in the allowlist for provider {provider_name!r}"
+    )
+
+
 def is_safe_path(file_path: str, base_dir: str) -> bool:
     """Return True iff file_path resolves inside base_dir (symlinks resolved).
 

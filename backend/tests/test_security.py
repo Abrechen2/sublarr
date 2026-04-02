@@ -675,3 +675,116 @@ class TestExtensionUrlValidation:
         resp = client.put("/api/v1/config", json={key: "http://192.168.1.100:9000"})
         # 200 = saved, anything other than 400 means validation passed
         assert resp.status_code != 400 or "Invalid URL" not in resp.get_json().get("error", "")
+
+
+# ---------------------------------------------------------------------------
+# TestValidateDownloadUrl — P1 provider domain allowlist (Task 1)
+# ---------------------------------------------------------------------------
+
+
+class TestValidateDownloadUrl:
+    """validate_download_url() blocks off-allowlist domains per provider."""
+
+    def test_opensubtitles_allowed_domain(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url(
+            "https://dl.opensubtitles.com/en/download/src-api/vip/subtitle/xyz.srt",
+            "opensubtitles",
+        )
+        assert ok is True
+        assert err is None
+
+    def test_opensubtitles_rejected_domain(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("https://evil.example.com/malware.srt", "opensubtitles")
+        assert ok is False
+        assert "allowlist" in err.lower()
+
+    def test_podnapisi_allowed(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("https://www.podnapisi.net/subtitles/12345/download", "podnapisi")
+        assert ok is True
+
+    def test_jimaku_allowed(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("https://jimaku.cc/api/entries/123/files/sub.ass", "jimaku")
+        assert ok is True
+
+    def test_addic7ed_allowed(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("https://www.addic7ed.com/original/12345/0", "addic7ed")
+        assert ok is True
+
+    def test_betaseries_allowed(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("https://www.betaseries.com/srt/12345", "betaseries")
+        assert ok is True
+
+    def test_gestdown_allowed(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("https://api.gestdown.info/subtitles/download/abc123", "gestdown")
+        assert ok is True
+
+    def test_kitsunekko_allowed(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("https://kitsunekko.net/dirlist.php?dir=subtitles%2Fjapanese%2F", "kitsunekko")
+        assert ok is True
+
+    def test_legendasdivx_allowed(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("https://www.legendasdivx.pt/downloadFile.php?id=1234", "legendasdivx")
+        assert ok is True
+
+    def test_napisy24_allowed(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("http://napisy24.pl/run/CheckSubAgent.php?mode=download&id=123", "napisy24")
+        assert ok is True
+
+    def test_subdl_allowed_download_domain(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("https://dl.subdl.com/subtitle/abc123.zip", "subdl")
+        assert ok is True
+
+    def test_animetosho_allowed(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("https://animetosho.org/storage/attach/0001/12345.xz", "animetosho")
+        assert ok is True
+
+    def test_unknown_provider_rejected(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("https://legitimate.site.com/file.srt", "unknown_provider_xyz")
+        assert ok is False
+        assert "unknown provider" in err.lower()
+
+    def test_ssrf_metadata_ip_rejected_even_for_known_provider(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("http://169.254.169.254/latest/meta-data/", "opensubtitles")
+        assert ok is False
+
+    def test_empty_url_rejected(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("", "opensubtitles")
+        assert ok is False
+
+    def test_embedded_provider_skips_validation(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("", "embedded")
+        assert ok is True
+        assert err is None
+
+    def test_whisper_provider_skips_validation(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("", "whisper")
+        assert ok is True
+        assert err is None
+
+    def test_subsdump_any_host_allowed(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("http://192.168.178.195:8080/api/download/123.zip", "subsdump")
+        assert ok is True
+        assert err is None
+
+    def test_subsdump_rejects_file_scheme(self):
+        from security_utils import validate_download_url
+        ok, err = validate_download_url("file:///etc/passwd", "subsdump")
+        assert ok is False
