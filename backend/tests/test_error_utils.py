@@ -1,4 +1,5 @@
 """Tests for handle_api_error decorator."""
+
 import pytest
 from flask import Flask
 
@@ -18,6 +19,7 @@ def test_decorator_passes_through_on_success():
     @handle_api_error("Should not appear")
     def ok_view():
         from flask import jsonify
+
         return jsonify({"result": "good"})
 
     with app.test_client() as c:

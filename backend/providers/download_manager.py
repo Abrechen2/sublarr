@@ -38,9 +38,7 @@ def download_subtitle(
         return None
 
     if not rate_limit_checker(result.provider_name):
-        logger.debug(
-            "Skipping download from provider %s due to rate limit", result.provider_name
-        )
+        logger.debug("Skipping download from provider %s due to rate limit", result.provider_name)
         return None
 
     try:
@@ -164,9 +162,7 @@ def save_subtitle(
         _settings = _get_settings()
         _media_path = getattr(_settings, "media_path", "/media")
         if not _is_safe_path(output_path, _media_path):
-            raise ValueError(
-                f"save_subtitle: output_path {output_path!r} is outside media_path"
-            )
+            raise ValueError(f"save_subtitle: output_path {output_path!r} is outside media_path")
     except ValueError:
         raise
     except Exception as e:

@@ -19,7 +19,6 @@ Usage:
 import hashlib
 import json
 import logging
-import os
 import threading
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -40,10 +39,6 @@ from providers.base import (
     compute_score,
 )
 from providers.registry import PROVIDER_METADATA
-
-
-from providers.format_validator import detect_format_from_content as _detect_format_from_content
-
 
 logger = logging.getLogger(__name__)
 

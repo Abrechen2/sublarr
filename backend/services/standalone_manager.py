@@ -102,8 +102,8 @@ def refresh_series_metadata_async(app, series_id: int) -> None:
     def _run():
         with app.app_context():
             try:
-                from metadata import MetadataResolver
                 from db.standalone import get_standalone_series, upsert_standalone_series
+                from metadata import MetadataResolver
 
                 series = get_standalone_series(series_id)
                 if not series:
