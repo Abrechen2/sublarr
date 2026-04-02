@@ -92,10 +92,7 @@ class QualityRepository(BaseRepository):
                 func.round(func.avg(SubtitleHealthResult.score), 1).label("avg_score"),
                 func.count().label("check_count"),
             )
-            .where(
-                SubtitleHealthResult.checked_at
-                > (datetime.now(UTC) - timedelta(days=days))
-            )
+            .where(SubtitleHealthResult.checked_at > (datetime.now(UTC) - timedelta(days=days)))
             .group_by(func.substr(SubtitleHealthResult.checked_at, 1, 10))
             .order_by(func.substr(SubtitleHealthResult.checked_at, 1, 10))
         )
