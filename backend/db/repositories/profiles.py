@@ -162,9 +162,7 @@ class ProfileRepository(BaseRepository):
             elif key == "must_contain":
                 profile.must_contain_json = json.dumps(value if isinstance(value, list) else [])
             elif key == "must_not_contain":
-                profile.must_not_contain_json = json.dumps(
-                    value if isinstance(value, list) else []
-                )
+                profile.must_not_contain_json = json.dumps(value if isinstance(value, list) else [])
             elif key == "audio_exclude_languages":
                 profile.audio_exclude_languages_json = json.dumps(
                     value if isinstance(value, list) else []
