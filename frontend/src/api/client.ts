@@ -82,6 +82,12 @@ api.interceptors.response.use(
           }
         } })
       }
+      if (url.includes('/cleanup/stats')) {
+        return Promise.resolve({ data: {
+          total_files: 0, total_size_bytes: 0, by_format: [],
+          duplicate_files: 0, duplicate_size_bytes: 0, potential_savings_bytes: 0, trends: []
+        } })
+      }
       if (url.includes('/stats')) {
         return Promise.resolve({ data: {
           total_subtitles: 12,
@@ -208,11 +214,17 @@ export async function updateConfig(values: Record<string, unknown>) {
   return data
 }
 
+export async function disableTranslation(): Promise<{ status: string; cancelled_jobs: number }> {
+  const { data } = await api.post('/translate/disable')
+  return data
+}
+
 // ─── Wanted ─────────────────────────────────────────────────────────────
 
 export async function getWantedItems(
   page = 1, perPage = 50, itemType?: string, status?: string,
-  subtitleType?: string, movieId?: number, sonarrSeriesId?: number
+  subtitleType?: string, movieId?: number, sonarrSeriesId?: number,
+  search?: string, sortBy?: string, sortDir?: string
 ): Promise<PaginatedWanted> {
   const params: Record<string, unknown> = { page, per_page: perPage }
   if (itemType) params.item_type = itemType
@@ -220,6 +232,9 @@ export async function getWantedItems(
   if (subtitleType) params.subtitle_type = subtitleType
   if (movieId != null) params.movie_id = movieId
   if (sonarrSeriesId != null) params.series_id = sonarrSeriesId
+  if (search) params.search = search
+  if (sortBy) params.sort_by = sortBy
+  if (sortDir) params.sort_dir = sortDir
   const { data } = await api.get('/wanted', { params })
   return data
 }

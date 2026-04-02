@@ -127,7 +127,7 @@ function SidebarNavItem({ item, label, badgeCount }: SidebarNavItemProps) {
       aria-label={label}
       className={({ isActive }) =>
         cn(
-          'sidebar-nav-item flex items-center py-2 mb-0.5 rounded-md relative',
+          'sidebar-nav-item flex items-center mb-0.5 rounded-md relative',
           'transition-colors duration-100',
           !isActive && 'hover:bg-[rgba(255,255,255,0.04)]'
         )
@@ -152,11 +152,10 @@ function SidebarNavItem({ item, label, badgeCount }: SidebarNavItemProps) {
           {badgeCount > 0 && (
             <span
               data-testid="wanted-badge"
-              className="sidebar-label ml-auto text-[10px] font-bold rounded-full opacity-0 transition-opacity duration-200"
+              className="sidebar-label sidebar-badge text-[10px] font-bold rounded-full opacity-0 transition-opacity duration-200"
               style={{
                 backgroundColor: 'var(--warning)',
                 color: '#000',
-                padding: '1px 6px',
               }}
             >
               {badgeCount > 99 ? '99+' : badgeCount}

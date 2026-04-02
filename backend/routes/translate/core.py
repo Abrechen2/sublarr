@@ -407,3 +407,41 @@ def retry_job(job_id):
             "file_path": file_path,
         }
     ), 202
+
+
+@bp.route("/translate/disable", methods=["POST"])
+def disable_translation():
+    """Disable the translation feature and cancel all queued jobs.
+    ---
+    post:
+      tags:
+        - Translate
+      summary: Disable translation feature
+      description: Sets translation_enabled=false in config and cancels all queued translation jobs.
+      security:
+        - apiKeyAuth: []
+      responses:
+        200:
+          description: Translation disabled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  cancelled_jobs:
+                    type: integer
+    """
+    from cache_response import invalidate_response_cache
+    from config import reload_settings
+    from db.config import get_all_config_entries, save_config_entry
+    from db.jobs import cancel_queued_jobs
+
+    save_config_entry("translation_enabled", "false")
+    all_overrides = get_all_config_entries()
+    reload_settings(all_overrides)
+    invalidate_response_cache()
+
+    cancelled = cancel_queued_jobs()
+    return jsonify({"status": "disabled", "cancelled_jobs": cancelled})

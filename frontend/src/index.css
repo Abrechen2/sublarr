@@ -368,6 +368,8 @@ a:hover {
   justify-content: center;
   padding-left: 0;
   padding-right: 0;
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 
 .sidebar-label {
@@ -393,6 +395,11 @@ a:hover {
 .icon-sidebar:hover .sidebar-label {
   opacity: 1 !important;
   width: auto;
+}
+
+.icon-sidebar:hover .sidebar-badge {
+  margin-left: auto;
+  padding: 1px 6px;
 }
 
 /* Respect user motion preferences */

@@ -6,7 +6,10 @@ import React from 'react'
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
+let mockTranslationEnabled = false
+
 vi.mock('@/hooks/useApi', () => ({
+  useTranslationEnabled: () => mockTranslationEnabled,
   useWantedItems: () => ({
     data: {
       data: [
@@ -148,6 +151,7 @@ function ActivityPageWrapper() {
 describe('ActivityPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockTranslationEnabled = false
   })
 
   it('renders the page with header and tabs', () => {
@@ -158,7 +162,17 @@ describe('ActivityPage', () => {
     expect(screen.getByTestId('pill-tabs')).toBeInTheDocument()
   })
 
-  it('renders all 4 tabs', () => {
+  it('renders 3 tabs when translation disabled', () => {
+    renderWithProviders()
+
+    expect(screen.getByTestId('tab-queue')).toBeInTheDocument()
+    expect(screen.queryByTestId('tab-translations')).not.toBeInTheDocument()
+    expect(screen.getByTestId('tab-history')).toBeInTheDocument()
+    expect(screen.getByTestId('tab-blacklist')).toBeInTheDocument()
+  })
+
+  it('renders 4 tabs when translation enabled', () => {
+    mockTranslationEnabled = true
     renderWithProviders()
 
     expect(screen.getByTestId('tab-queue')).toBeInTheDocument()
@@ -175,7 +189,8 @@ describe('ActivityPage', () => {
     expect(screen.getByTestId('tab-content-queue')).toBeInTheDocument()
   })
 
-  it('renders translations tab content when tab=translations', () => {
+  it('renders translations tab content when tab=translations and translation enabled', () => {
+    mockTranslationEnabled = true
     renderWithProviders('/activity?tab=translations')
 
     expect(screen.getByTestId('translations-page-content')).toBeInTheDocument()

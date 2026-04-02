@@ -28,8 +28,8 @@ vi.mock('@/hooks/useApi', () => ({
   useRetranslateSingle: () => ({ mutate: vi.fn() }),
   useAddToBlacklist: () => ({ mutate: vi.fn() }),
   useCleanupSidecars: () => ({ mutate: mockCleanupMutate, isPending: false }),
-  // Barrel re-exports (useBatchTranslate comes from useTranslationApi, handled separately)
-  useBatchTranslate: () => ({ mutate: mockBatchTranslateMutate, isPending: false }),
+  useTranslationEnabled: () => true,
+  useInfiniteWantedItems: () => ({ data: undefined, fetchNextPage: vi.fn(), hasNextPage: false, isFetchingNextPage: false }),
 }))
 
 vi.mock('@/stores/selectionStore', () => ({

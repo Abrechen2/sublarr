@@ -10,6 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { TranslationSettings } from '../TranslationSettings'
@@ -56,6 +57,11 @@ vi.mock('../TranslationTab', () => ({
       </div>
     </div>
   ),
+}))
+
+const mockDisableMutate = vi.fn()
+vi.mock('@/hooks/useApi', () => ({
+  useDisableTranslation: () => ({ mutate: mockDisableMutate, isPending: false }),
 }))
 
 vi.mock('../WhisperTab', () => ({
@@ -288,6 +294,29 @@ describe('TranslationSettings', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
     expect(sections).toHaveLength(7)
+  })
+
+  // ── Disable Translation ────────────────────────────────────────────────────
+
+  it('renders Disable Translation button', () => {
+    renderPage()
+    expect(screen.getByRole('button', { name: /disable translation/i })).toBeInTheDocument()
+  })
+
+  it('clicking Disable Translation shows confirmation dialog', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: /disable translation/i }))
+    expect(screen.getByText(/wirklich deaktivieren/i)).toBeInTheDocument()
+  })
+
+  it('clicking Bestätigen calls disableTranslation.mutate', async () => {
+    mockDisableMutate.mockClear()
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: /disable translation/i }))
+    await user.click(screen.getByRole('button', { name: /bestätigen/i }))
+    expect(mockDisableMutate).toHaveBeenCalledOnce()
   })
 })
 
