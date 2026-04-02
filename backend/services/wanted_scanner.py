@@ -116,8 +116,8 @@ class WantedScanner:
         self._socketio = None
         self._app = None  # Flask app reference for background thread context
         self._progress = {"current": 0, "total": 0, "phase": "", "added": 0, "updated": 0}
-        self._last_scan_at = ""
-        self._last_search_at = ""
+        self._last_scan_at = None
+        self._last_search_at = None
         self._last_summary = {}
         # Incremental scan state
         self._last_scan_timestamp = None  # datetime of last successful scan
@@ -138,11 +138,11 @@ class WantedScanner:
 
     @property
     def last_scan_at(self):
-        return self._last_scan_at
+        return self._last_scan_at.isoformat() if self._last_scan_at else None
 
     @property
     def last_search_at(self):
-        return self._last_search_at
+        return self._last_search_at.isoformat() if self._last_search_at else None
 
     @property
     def last_summary(self):
@@ -262,7 +262,7 @@ class WantedScanner:
                 "scan_type": scan_type,
             }
 
-            self._last_scan_at = datetime.now(UTC).isoformat()
+            self._last_scan_at = datetime.now(UTC)
             self._last_scan_timestamp = datetime.now(UTC)
             self._scan_count += 1
             self._last_summary = summary
@@ -963,7 +963,7 @@ class WantedScanner:
                     eligible.append(item)
 
             if not eligible:
-                self._last_search_at = datetime.now(UTC).isoformat()
+                self._last_search_at = datetime.now(UTC)
                 return {"total": 0, "processed": 0, "found": 0, "failed": 0, "skipped": 0}
 
             # Split: items with embedded subs go to extraction, not provider search
@@ -1059,7 +1059,7 @@ class WantedScanner:
                         )
 
             duration = round(time.time() - start, 1)
-            self._last_search_at = datetime.now(UTC).isoformat()
+            self._last_search_at = datetime.now(UTC)
 
             summary = {
                 "total": total,

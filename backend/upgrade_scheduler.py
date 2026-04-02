@@ -90,8 +90,7 @@ class UpgradeScheduler:
         if not self._last_run_at or not self._interval_hours:
             return None
         try:
-            last_dt = datetime.fromisoformat(self._last_run_at)
-            return (last_dt + timedelta(hours=self._interval_hours)).isoformat()
+            return (self._last_run_at + timedelta(hours=self._interval_hours)).isoformat()
         except Exception:
             return None
 
@@ -250,6 +249,6 @@ class UpgradeScheduler:
 
         finally:
             self._executing = False
-            self._last_run_at = datetime.now(UTC).isoformat()
+            self._last_run_at = datetime.now(UTC)
 
         return {"queued": queued, "skipped": skipped}
