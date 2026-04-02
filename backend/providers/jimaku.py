@@ -13,7 +13,7 @@ import os
 from werkzeug.utils import secure_filename as _secure_filename
 
 from archive_utils import extract_subtitles_from_rar, extract_subtitles_from_zip
-from providers import register_provider
+from providers import _stream_download, register_provider
 from providers.base import (
     ProviderAuthError,
     ProviderError,
@@ -403,11 +403,8 @@ class JimakuProvider(SubtitleProvider):
         if not url_ok:
             raise ProviderError(f"Jimaku download URL rejected: {url_err}")
 
-        resp = self.session.get(url)
-        if resp.status_code != 200:
-            raise ProviderError(f"Jimaku download failed: HTTP {resp.status_code}")
-
-        content = resp.content
+        # P5: 50 MB streaming cap
+        content = _stream_download(self.session, url)
         is_archive = result.provider_data.get("is_archive", False)
 
         if is_archive:

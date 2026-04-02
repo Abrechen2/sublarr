@@ -12,7 +12,7 @@ License:  GPL-3.0
 
 import logging
 
-from providers import register_provider
+from providers import _stream_download, register_provider
 from providers.base import (
     ProviderAuthError,
     ProviderError,
@@ -232,14 +232,12 @@ class BetaSeriesProvider(SubtitleProvider):
         if not url_ok:
             raise ProviderError(f"BetaSeries download URL rejected: {url_err}")
         try:
-            resp = self.session.get(result.download_url, timeout=self.timeout)
-            if resp.status_code != 200:
-                raise ProviderError(f"BetaSeries download failed: HTTP {resp.status_code}")
+            # P5: 50 MB streaming cap
+            content = _stream_download(self.session, result.download_url, timeout=self.timeout)
         except ProviderError:
             raise
         except Exception as e:
             raise ProviderError(f"BetaSeries download error: {e}") from e
-        content = resp.content
         result.content = content
         logger.info("BetaSeries: downloaded %s (%d bytes)", result.filename, len(content))
         return content

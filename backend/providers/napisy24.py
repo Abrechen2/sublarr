@@ -16,7 +16,7 @@ import os
 from werkzeug.utils import secure_filename as _secure_filename
 
 from archive_utils import extract_subtitles_from_zip
-from providers import register_provider
+from providers import _stream_download, register_provider
 from providers.base import (
     ProviderError,
     SubtitleFormat,
@@ -270,15 +270,12 @@ class Napisy24Provider(SubtitleProvider):
             raise ProviderError(f"Napisy24 download URL rejected: {url_err}")
 
         try:
-            resp = self.session.get(url, timeout=self.timeout)
-            if resp.status_code != 200:
-                raise ProviderError(f"Napisy24 download failed: HTTP {resp.status_code}")
+            # P5: 50 MB streaming cap
+            content = _stream_download(self.session, url, timeout=self.timeout)
         except ProviderError:
             raise
         except Exception as e:
             raise ProviderError(f"Napisy24 download error: {e}") from e
-
-        content = resp.content
 
         # Handle ZIP archives: prefer SRT then ASS/SSA
         if content[:4] == b"PK\x03\x04":

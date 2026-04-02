@@ -11,7 +11,7 @@ License: GPL-3.0
 import logging
 
 from archive_utils import extract_subtitles_from_zip
-from providers import register_provider
+from providers import _stream_download, register_provider
 from providers.base import (
     ProviderError,
     SubtitleFormat,
@@ -291,17 +291,17 @@ class SubsDumpProvider(SubtitleProvider):
             raise ProviderError(f"subsdump: download URL rejected: {url_err}")
 
         try:
-            r = self._session.get(result.download_url, timeout=60)
-            r.raise_for_status()
+            # P5: 50 MB streaming cap
+            raw = _stream_download(self._session, result.download_url, timeout=60)
         except Exception as exc:
             raise ProviderError(f"subsdump: download failed: {exc}") from exc
 
         # SubsDump returns ZIP archives containing the actual subtitle file
         try:
-            files = extract_subtitles_from_zip(r.content)
+            files = extract_subtitles_from_zip(raw)
         except Exception:
             # Not a ZIP — might already be a raw subtitle
-            return r.content
+            return raw
 
         if not files:
             raise ProviderError(

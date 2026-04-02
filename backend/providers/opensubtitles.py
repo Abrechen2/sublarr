@@ -13,7 +13,7 @@ import os
 
 from werkzeug.utils import secure_filename as _secure_filename
 
-from providers import register_provider
+from providers import _stream_download, register_provider
 from providers.base import (
     ProviderAuthError,
     ProviderError,
@@ -503,12 +503,8 @@ class OpenSubtitlesProvider(SubtitleProvider):
         if not url_ok:
             raise ProviderError(f"OpenSubtitles download URL rejected: {url_err}")
 
-        # Download the actual file
-        dl_resp = self.session.get(download_link)
-        if dl_resp.status_code != 200:
-            raise ProviderError(f"OpenSubtitles file download failed: HTTP {dl_resp.status_code}")
-
-        content = dl_resp.content
+        # Download the actual file (P5: 50 MB streaming cap)
+        content = _stream_download(self.session, download_link, timeout=15)
         result.content = content
         logger.info("OpenSubtitles: downloaded %s (%d bytes)", result.filename, len(content))
         return content

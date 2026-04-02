@@ -14,7 +14,7 @@ import logging
 from werkzeug.utils import secure_filename as _secure_filename
 
 from archive_utils import extract_subtitles_from_zip
-from providers import register_provider
+from providers import _stream_download, register_provider
 from providers.base import (
     ProviderError,
     SubtitleFormat,
@@ -171,15 +171,12 @@ class TitloviProvider(SubtitleProvider):
             raise ProviderError(f"Titlovi download URL rejected: {url_err}")
 
         try:
-            resp = self.session.get(result.download_url, timeout=self.timeout)
-            if resp.status_code != 200:
-                raise ProviderError(f"Titlovi download failed: HTTP {resp.status_code}")
+            # P5: 50 MB streaming cap
+            content = _stream_download(self.session, result.download_url, timeout=self.timeout)
         except ProviderError:
             raise
         except Exception as e:
             raise ProviderError(f"Titlovi download error: {e}") from e
-
-        content = resp.content
 
         if content[:2] == b"PK":
             try:

@@ -228,12 +228,14 @@ def build_evaluation_prompt(
     Returns:
         Prompt string asking LLM to rate translation quality 0-100
     """
+    safe_source = _escape_subtitle_line(source_text)
+    safe_translated = _escape_subtitle_line(translated_text)
     return (
         f"Rate the quality of this subtitle translation from {source_lang} to {target_lang} "
         f"on a scale from 0 to 100, where 100 is a perfect translation. "
         f"Reply with only a single integer number.\n\n"
-        f"Original ({source_lang}): {source_text}\n"
-        f"Translation ({target_lang}): {translated_text}"
+        f"Original ({source_lang}): {safe_source}\n"
+        f"Translation ({target_lang}): {safe_translated}"
     )
 
 
