@@ -55,6 +55,7 @@ from db.models.standalone import (
     StandaloneSeries,
     WatchedFolder,
 )
+from db.models.circuit_breaker import CircuitBreakerState  # noqa: F401
 from db.models.translation import (
     GlossaryEntry,
     PromptPreset,
@@ -118,4 +119,6 @@ __all__ = [
     # plugins / marketplace
     "MarketplaceCache",
     "InstalledPlugin",
+    # circuit breaker
+    "CircuitBreakerState",
 ]
