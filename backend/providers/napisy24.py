@@ -261,6 +261,13 @@ class Napisy24Provider(SubtitleProvider):
         if not url:
             raise ValueError("No download URL")
 
+        # P1: Validate download URL against allowed domains before fetching
+        from security_utils import validate_download_url
+
+        url_ok, url_err = validate_download_url(url, self.name)
+        if not url_ok:
+            raise ProviderError(f"Napisy24 download URL rejected: {url_err}")
+
         try:
             resp = self.session.get(url, timeout=self.timeout)
             if resp.status_code != 200:

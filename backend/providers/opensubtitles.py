@@ -492,6 +492,13 @@ class OpenSubtitlesProvider(SubtitleProvider):
                     result.format.value,
                 )
 
+        # P1: Validate download URL against allowed domains before fetching
+        from security_utils import validate_download_url
+
+        url_ok, url_err = validate_download_url(download_link, self.name)
+        if not url_ok:
+            raise RuntimeError(f"OpenSubtitles download URL rejected: {url_err}")
+
         # Download the actual file
         dl_resp = self.session.get(download_link)
         if dl_resp.status_code != 200:

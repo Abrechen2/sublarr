@@ -284,6 +284,13 @@ class SubsDumpProvider(SubtitleProvider):
         if not result.download_url:
             raise ProviderError(f"subsdump: no download_url for {result.subtitle_id}")
 
+        # P1: Validate download URL against allowed domains before fetching
+        from security_utils import validate_download_url
+
+        url_ok, url_err = validate_download_url(result.download_url, self.name)
+        if not url_ok:
+            raise ProviderError(f"subsdump: download URL rejected: {url_err}")
+
         try:
             r = self._session.get(result.download_url, timeout=60)
             r.raise_for_status()

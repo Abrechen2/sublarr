@@ -394,6 +394,13 @@ class JimakuProvider(SubtitleProvider):
         if not url:
             raise ValueError("No download URL")
 
+        # P1: Validate download URL against allowed domains before fetching
+        from security_utils import validate_download_url
+
+        url_ok, url_err = validate_download_url(url, self.name)
+        if not url_ok:
+            raise RuntimeError(f"Jimaku download URL rejected: {url_err}")
+
         resp = self.session.get(url)
         if resp.status_code != 200:
             raise RuntimeError(f"Jimaku download failed: HTTP {resp.status_code}")

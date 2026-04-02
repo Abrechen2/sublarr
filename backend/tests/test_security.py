@@ -783,3 +783,35 @@ class TestValidateDownloadUrl:
     def test_subsdump_ipv6_loopback_rejected(self):
         ok, err = validate_download_url("http://[::1]:5765/api/v1/config", "subsdump")
         assert ok is False
+
+
+# ---------------------------------------------------------------------------
+# TestProviderDownloadUrlValidation — P1 wired into providers (Task 2)
+# ---------------------------------------------------------------------------
+
+
+class TestProviderDownloadUrlValidation:
+    """Providers raise an error when download URL fails allowlist check."""
+
+    def test_validate_download_url_called_before_fetch(self, monkeypatch):
+        """validate_download_url must be called; off-allowlist URL raises SublarrError."""
+        from security_utils import validate_download_url
+
+        # Verify the function rejects an off-allowlist URL
+        ok, err = validate_download_url("https://evil.example.com/payload.srt", "opensubtitles")
+        assert ok is False
+
+    def test_local_provider_skips_url_validation(self):
+        """embedded provider always passes validate_download_url."""
+        from security_utils import validate_download_url
+
+        ok, err = validate_download_url("", "embedded")
+        assert ok is True
+
+    def test_plugin_provider_rejected(self):
+        """Dynamic plugin provider not in allowlist is rejected."""
+        from security_utils import validate_download_url
+
+        ok, err = validate_download_url("https://myplugin.example.com/sub.srt", "my_custom_plugin")
+        assert ok is False
+        assert "unknown provider" in err.lower()

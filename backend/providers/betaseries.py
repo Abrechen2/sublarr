@@ -225,6 +225,12 @@ class BetaSeriesProvider(SubtitleProvider):
     def download(self, result: SubtitleResult) -> bytes:
         if not self.session:
             raise RuntimeError("BetaSeries not initialized")
+        # P1: Validate download URL against allowed domains before fetching
+        from security_utils import validate_download_url
+
+        url_ok, url_err = validate_download_url(result.download_url or "", self.name)
+        if not url_ok:
+            raise RuntimeError(f"BetaSeries download URL rejected: {url_err}")
         try:
             resp = self.session.get(result.download_url, timeout=self.timeout)
             if resp.status_code != 200:

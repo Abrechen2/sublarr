@@ -40,6 +40,7 @@ from providers.base import (
     compute_score,
 )
 from providers.registry import PROVIDER_METADATA
+from security_utils import validate_download_url
 
 
 def _detect_format_from_content(content: bytes) -> SubtitleFormat:
@@ -1189,6 +1190,17 @@ class ProviderManager:
         if not self._check_rate_limit(result.provider_name):
             logger.debug(
                 "Skipping download from provider %s due to rate limit", result.provider_name
+            )
+            return None
+
+        # P1: Validate download URL against per-provider domain allowlist (SSRF guard)
+        url_ok, url_err = validate_download_url(result.download_url or "", result.provider_name)
+        if not url_ok:
+            logger.warning(
+                "Provider %s: download URL rejected by allowlist — %s (url=%r)",
+                result.provider_name,
+                url_err,
+                result.download_url,
             )
             return None
 
