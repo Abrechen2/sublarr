@@ -36,10 +36,11 @@ class TestListLanguageProfiles:
     """Tests for GET /api/v1/language-profiles."""
 
     def test_returns_profiles_list_with_profiles_key(self, client):
-        with patch("db.profiles.get_all_language_profiles", return_value=[SAMPLE_PROFILE]):
-            # bypass cache decorator
-            with patch("cache_response.cached_get", lambda **kw: lambda f: f):
-                resp = client.get("/api/v1/language-profiles")
+        with (
+            patch("db.profiles.get_all_language_profiles", return_value=[SAMPLE_PROFILE]),
+            patch("cache_response.cached_get", lambda **kw: lambda f: f),
+        ):
+            resp = client.get("/api/v1/language-profiles")
         assert resp.status_code == 200
         data = resp.get_json()
         assert "profiles" in data
@@ -47,9 +48,11 @@ class TestListLanguageProfiles:
         assert data["profiles"][0]["name"] == "My Profile"
 
     def test_returns_empty_list_when_no_profiles(self, client):
-        with patch("db.profiles.get_all_language_profiles", return_value=[]):
-            with patch("cache_response.cached_get", lambda **kw: lambda f: f):
-                resp = client.get("/api/v1/language-profiles")
+        with (
+            patch("db.profiles.get_all_language_profiles", return_value=[]),
+            patch("cache_response.cached_get", lambda **kw: lambda f: f),
+        ):
+            resp = client.get("/api/v1/language-profiles")
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["profiles"] == []
@@ -110,8 +113,9 @@ class TestCreateLanguageProfile:
 
     def test_201_on_success_with_profile_data(self, client, monkeypatch):
         _patch_cache(monkeypatch)
-        with patch("db.profiles.create_language_profile", return_value=1), patch(
-            "db.profiles.get_language_profile", return_value=SAMPLE_PROFILE
+        with (
+            patch("db.profiles.create_language_profile", return_value=1),
+            patch("db.profiles.get_language_profile", return_value=SAMPLE_PROFILE),
         ):
             resp = client.post(
                 "/api/v1/language-profiles",
@@ -158,8 +162,9 @@ class TestUpdateLanguageProfile:
     def test_200_on_success_returns_updated_profile(self, client, monkeypatch):
         _patch_cache(monkeypatch)
         updated = {**SAMPLE_PROFILE, "name": "Renamed Profile"}
-        with patch("db.profiles.get_language_profile", side_effect=[SAMPLE_PROFILE, updated]), patch(
-            "db.profiles.update_language_profile"
+        with (
+            patch("db.profiles.get_language_profile", side_effect=[SAMPLE_PROFILE, updated]),
+            patch("db.profiles.update_language_profile"),
         ):
             resp = client.put("/api/v1/language-profiles/1", json={"name": "Renamed Profile"})
         assert resp.status_code == 200
@@ -168,9 +173,12 @@ class TestUpdateLanguageProfile:
 
     def test_409_on_duplicate_name(self, client, monkeypatch):
         _patch_cache(monkeypatch)
-        with patch("db.profiles.get_language_profile", return_value=SAMPLE_PROFILE), patch(
-            "db.profiles.update_language_profile",
-            side_effect=Exception("UNIQUE constraint failed"),
+        with (
+            patch("db.profiles.get_language_profile", return_value=SAMPLE_PROFILE),
+            patch(
+                "db.profiles.update_language_profile",
+                side_effect=Exception("UNIQUE constraint failed"),
+            ),
         ):
             resp = client.put("/api/v1/language-profiles/1", json={"name": "Existing Name"})
         assert resp.status_code == 409
@@ -237,8 +245,9 @@ class TestAssignProfile:
 
     def test_200_series_assignment_calls_correct_function(self, client):
         mock_assign = MagicMock()
-        with patch("db.profiles.get_language_profile", return_value=SAMPLE_PROFILE), patch(
-            "db.profiles.assign_series_profile", mock_assign
+        with (
+            patch("db.profiles.get_language_profile", return_value=SAMPLE_PROFILE),
+            patch("db.profiles.assign_series_profile", mock_assign),
         ):
             resp = client.put(
                 "/api/v1/language-profiles/assign",
@@ -253,8 +262,9 @@ class TestAssignProfile:
 
     def test_200_movie_assignment_calls_correct_function(self, client):
         mock_assign = MagicMock()
-        with patch("db.profiles.get_language_profile", return_value=SAMPLE_PROFILE), patch(
-            "db.profiles.assign_movie_profile", mock_assign
+        with (
+            patch("db.profiles.get_language_profile", return_value=SAMPLE_PROFILE),
+            patch("db.profiles.assign_movie_profile", mock_assign),
         ):
             resp = client.put(
                 "/api/v1/language-profiles/assign",

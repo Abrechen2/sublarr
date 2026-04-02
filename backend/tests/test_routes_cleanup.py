@@ -81,9 +81,13 @@ class TestStartScan:
     def test_start_scan_returns_scanning_status(self, client):
         """Starts scan, returns status=scanning and a scan_id."""
         mock_socketio = MagicMock()
-        with patch("dedup_engine.scan_for_duplicates", return_value={"groups": [], "total_files": 0}):
-            with patch("extensions.socketio", mock_socketio):
-                rv = client.post("/api/v1/cleanup/scan")
+        with (
+            patch(
+                "dedup_engine.scan_for_duplicates", return_value={"groups": [], "total_files": 0}
+            ),
+            patch("extensions.socketio", mock_socketio),
+        ):
+            rv = client.post("/api/v1/cleanup/scan")
 
         assert rv.status_code == 200
         data = rv.get_json()
@@ -117,12 +121,14 @@ class TestStartScan:
             barrier.wait(timeout=5)
             return {"groups": [], "total_files": 0}
 
-        with patch("dedup_engine.scan_for_duplicates", side_effect=slow_scan):
-            with patch("extensions.socketio", mock_socketio):
-                rv = client.post("/api/v1/cleanup/scan")
-                # State should be "running" immediately after response
-                assert cleanup_mod._scan_state["running"] is True
-                barrier.wait(timeout=5)  # release the background thread
+        with (
+            patch("dedup_engine.scan_for_duplicates", side_effect=slow_scan),
+            patch("extensions.socketio", mock_socketio),
+        ):
+            rv = client.post("/api/v1/cleanup/scan")
+            # State should be "running" immediately after response
+            assert cleanup_mod._scan_state["running"] is True
+            barrier.wait(timeout=5)  # release the background thread
 
         assert rv.status_code == 200
 
@@ -234,11 +240,7 @@ class TestDeleteDuplicates:
     def test_delete_duplicates_rejects_keep_in_delete(self, client):
         rv = client.post(
             "/api/v1/cleanup/duplicates/delete",
-            json={
-                "groups": [
-                    {"keep": "/media/a.srt", "delete": ["/media/a.srt", "/media/b.srt"]}
-                ]
-            },
+            json={"groups": [{"keep": "/media/a.srt", "delete": ["/media/a.srt", "/media/b.srt"]}]},
             content_type="application/json",
         )
         assert rv.status_code == 400

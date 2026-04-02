@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # TestMaskValue — pure function, no HTTP
 # ---------------------------------------------------------------------------
@@ -164,7 +163,7 @@ class TestUpdateServiceKeys:
 
     def test_valid_update_returns_200_with_status(self, client):
         with (
-            patch("db.config.save_config_entry") as mock_save,
+            patch("db.config.save_config_entry"),
             patch("db.config.get_config_entry", return_value="newvalue12345678"),
             patch("db.config.get_all_config_entries", return_value={}),
             patch("config.reload_settings"),
@@ -201,7 +200,7 @@ class TestUpdateServiceKeys:
             patch("config.reload_settings"),
             patch("routes.api_keys._invalidate_for_service"),
         ):
-            resp = client.put(
+            client.put(
                 "/api/v1/api-keys/sonarr",
                 json={"sonarr_api_key": "abcd***efgh"},  # masked value
             )
@@ -248,16 +247,11 @@ class TestTestService:
 
     def test_testable_service_with_mock_returns_200(self, client):
         mock_result = {"success": True, "message": "Sonarr connection OK"}
-        with patch(
-            "routes.api_keys._test_sonarr",
-            return_value=mock_result,
-        ) as mock_fn:
-            # Also patch _TEST_DISPATCH to use the patched function
-            with patch.dict(
-                "routes.api_keys._TEST_DISPATCH",
-                {"_test_sonarr": mock_fn},
-            ):
-                resp = client.post("/api/v1/api-keys/sonarr/test")
+        with (
+            patch("routes.api_keys._test_sonarr", return_value=mock_result) as mock_fn,
+            patch.dict("routes.api_keys._TEST_DISPATCH", {"_test_sonarr": mock_fn}),
+        ):
+            resp = client.post("/api/v1/api-keys/sonarr/test")
         assert resp.status_code == 200
         data = resp.get_json()
         assert "success" in data
@@ -266,15 +260,17 @@ class TestTestService:
 
     def test_testable_service_failed_connection_returns_200_with_success_false(self, client):
         mock_result = {"success": False, "message": "Connection refused"}
-        with patch(
-            "routes.api_keys._test_sonarr",
-            return_value=mock_result,
-        ) as mock_fn:
-            with patch.dict(
+        with (
+            patch(
+                "routes.api_keys._test_sonarr",
+                return_value=mock_result,
+            ) as mock_fn,
+            patch.dict(
                 "routes.api_keys._TEST_DISPATCH",
                 {"_test_sonarr": mock_fn},
-            ):
-                resp = client.post("/api/v1/api-keys/sonarr/test")
+            ),
+        ):
+            resp = client.post("/api/v1/api-keys/sonarr/test")
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["success"] is False
