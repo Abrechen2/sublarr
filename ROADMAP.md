@@ -1,6 +1,6 @@
 # Sublarr — Roadmap
 
-> Completed versions are marked ✅. The current release is **v0.28.0-beta**. Planned versions reflect intended direction and may shift.
+> Completed versions are marked ✅. The current release is **v0.37.3-beta**. Planned versions reflect intended direction and may shift.
 
 ---
 
@@ -286,17 +286,128 @@ Goals: Per-series term glossary auto-populated from translation history, injecte
 
 ---
 
-## v0.29.0 — Web Player
+## v0.29.0 ✅ — Web Player
 
-Goals: In-browser video preview with subtitle overlay — review and fix subs without leaving Sublarr.
+- Streaming endpoint — `GET /api/v1/media/stream?path=` with HTTP 206 range-request support; `is_safe_path()` enforced
+- PlayerModal — portal-based HTML5 `<video>` player with play/pause/seek/volume/fullscreen
+- ASS/SRT subtitle overlay via SubtitleOctopus (libass WASM) rendered natively in-browser
+- Subtitle track selector — switch between all available sidecar subtitle files per episode
+- Seek-to-cue — clicking a cue row in SubtitleEditorModal jumps player to that timestamp
 
-- `GET /api/v1/media/stream?path=` — range-request video streaming; `is_safe_path()` enforced; `Content-Type` by extension
-- HTML5 `<video>` player in a `PlayerModal` — play, pause, seek, volume, fullscreen
-- ASS/SRT subtitle overlay via SubtitleOctopus (libass WASM) — renders styled ASS natively in browser
-- Subtitle track selector — switch between all available sidecars for the episode
-- Seek-to-cue: clicking a cue row in SubtitleEditorModal jumps player to that timestamp
-- Episode card — "Preview" button opens PlayerModal
-- `SUBLARR_STREAMING_ENABLED` setting (default true) — allows disabling the streaming endpoint
+---
+
+## v0.30.0 ✅ — Standalone NFO & Skip Extras
+
+- Standalone — NFO metadata integration — reads `.nfo` sidecar files to resolve series/movie title, year, TVDB/TMDB ID without API lookup
+- Standalone — Skip extra files — trailers, featurettes, samples excluded via Jellyfin/Kodi naming conventions; `standalone_skip_extras` setting
+
+---
+
+## v0.31.0 ✅ — Code Quality & Architecture Split
+
+- 29 new tests added for `WantedSearchService`, `ProviderManager`, quality-validation logic; suite at 736 tests, 47.76% coverage
+- 8 oversized backend files (800–2921 lines) decomposed: `routes/hooks/`, `routes/library/`, `routes/wanted/`, `routes/translate/`, `routes/system/`, `routes/tools/`
+- `providers/registry.py` with `PROVIDER_METADATA` replaces three class-level dicts
+- Frontend — `SyncControls.tsx` and `useApi.ts` each split into 6 focused sub-files
+- Frontend — `ErrorBoundary` wraps Library, Wanted, and Settings routes
+
+---
+
+## v0.32.0 ✅ — Settings Restructure & UX Improvements
+
+- Settings navigation restructured from 7 groups / 23 tabs to 5 logical groups
+- Provider priority via drag & drop (replaces move-up/down buttons)
+- Score breakdown hover tooltip on search result badges
+- Wanted — per-row failure details, attempt count, next retry countdown
+- Dashboard — Automation Widget with live run times and Run Now button
+- Onboarding — Language and Automation setup wizard steps added
+
+---
+
+## v0.33.0 ✅ — Provider Expansion & Processing Pipeline
+
+- 7 new providers: Subf2m, Subsource, YIFY Subtitles, Zimuku, BetaSeries, Titlovi, EmbeddedSubtitles
+- Post-download processing pipeline with 18 fix functions (HI removal, OCR artifact cleanup, etc.); configurable per series
+- Settings — Processing Pipeline section; Series Detail — Batch Process button
+
+---
+
+## v0.35.0 ✅ — Movie Detail & Security Hardening
+
+- Movie Detail — subtitle management panel (wanted items per language with inline Search / Skip / Re-enable)
+- Security — CSP and Permissions-Policy headers on all responses
+- Security — SSRF prevention on webhook create/update endpoints
+- Security — startup warning when both API key and UI auth are disabled
+
+---
+
+## v0.36.0 ✅ — Bazarr Parity Features
+
+- Scoring — `video_codec` weight: x264/x265/AV1 match adds +2 points
+- Language Profiles — `mustContain` / `mustNotContain` AND-logic filters (Bazarr parity)
+- Language Profiles — `cutoff` (stop searching when subtitle already present)
+- Language Profiles — `audioExclude` (skip download when audio track matches target language)
+- CircuitBreaker — OPEN state persisted to DB; survives application restarts
+- Download quality — `upgraded_from_id` foreign key tracks subtitle upgrade chain
+- Standalone Mode — auto-activation when no *arr is configured
+
+---
+
+## v0.37.0 ✅ — Timestamp Migration & Refactoring
+
+**BREAKING CHANGE:** All timestamp columns migrated from TEXT to `DateTime(timezone=True)`. Migration runs automatically on startup.
+
+- `scripts/check_datetime_migration.py` — pre/post migration DB consistency checker (70 columns, 29 tables)
+- Security — `subprocess(shell=True)` replaced with `shlex.split()` throughout; IP allowlist enforced; SSRF on plugin URLs
+- `services/retranslation.py` extracted; `StatisticsRepository` extracted; `useDebounce` hook extracted
+- TranslationTab split from 1989 lines into 8 focused sub-components
+- Frontend — `ConfirmModal` replaces all `window.confirm()` calls
+
+---
+
+## v0.37.2 ✅ — AniDB Resolver & AnimeTosho Fix
+
+- AniDB title dump resolver (Tier 4) — offline 91k+ entry xml.gz lookup (36h cache)
+- AnimeTosho provider — rewritten with correct two-step API flow (`?show=torrent&id=`)
+- Provider cache key now includes `anidb_id` to prevent stale cache hits
+- Alembic — `engine.begin()` wraps all PostgreSQL DDL in explicit transaction
+
+---
+
+## v0.37.3 ✅ — Activity Navigation Restructure
+
+- "Wanted" promoted to top-level sidebar nav item
+- Activity reduced to 4 tabs: Queue, Translations, History, Blacklist
+- New Translations tab shows active and queued translation jobs with live polling
+- Badge moved from Activity to Wanted nav item
+
+---
+
+## v0.38.0 — Phase 2 Cleanup (Planned)
+
+- No `datetime.utcnow()` calls anywhere in backend (10 occurrences fixed)
+- `whisper_subgen` provider removed (dead code since v0.31)
+- ROADMAP.md up to date
+
+---
+
+## v0.39.0 — Security Hardening P1–P5 (Planned)
+
+- P1 — Domain allowlist for provider download URLs (SSRF prevention)
+- P2 — `werkzeug.secure_filename()` on all provider filenames
+- P3 — Prompt injection guard for Ollama (subtitle content sanitization)
+- P4 — Magic byte validation after subtitle download
+- P5 — Streaming size cap (50 MB limit via `iter_content()`)
+- F-05 — Webhook missing-signature warning in `auth.py`
+
+---
+
+## v0.40.0 — Test Coverage Phase (Planned)
+
+- Backend coverage from ~10% toward 35–40%
+- Priority: `routes/cleanup.py`, `routes/api_keys.py`, `routes/profiles.py` (all currently 0% coverage)
+- `bazarr_migrator.py` — data migration tests
+- Stabilize 3+ excluded CI test suites
 
 ---
 
