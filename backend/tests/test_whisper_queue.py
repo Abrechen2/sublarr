@@ -8,7 +8,6 @@ import pytest
 
 from whisper.queue import WhisperJob, WhisperQueue
 
-
 # ---------------------------------------------------------------------------
 # TestWhisperQueueInit
 # ---------------------------------------------------------------------------
@@ -59,9 +58,11 @@ class TestWhisperQueueSubmit:
         q = WhisperQueue()
         mock_manager = MagicMock()
 
-        with patch("db.whisper.create_whisper_job"), patch(
-            "whisper.queue.create_whisper_job"
-        ), patch("threading.Thread") as mock_thread_cls:
+        with (
+            patch("db.whisper.create_whisper_job"),
+            patch("whisper.queue.create_whisper_job"),
+            patch("threading.Thread") as mock_thread_cls,
+        ):
             mock_thread = MagicMock()
             mock_thread_cls.return_value = mock_thread
 
@@ -79,9 +80,10 @@ class TestWhisperQueueSubmit:
         q = WhisperQueue()
         mock_manager = MagicMock()
 
-        with patch("whisper.queue.create_whisper_job"), patch(
-            "threading.Thread"
-        ) as mock_thread_cls:
+        with (
+            patch("whisper.queue.create_whisper_job"),
+            patch("threading.Thread") as mock_thread_cls,
+        ):
             mock_thread_cls.return_value = MagicMock()
             q.submit(
                 job_id="job-xyz",
@@ -98,9 +100,10 @@ class TestWhisperQueueSubmit:
         q = WhisperQueue()
         mock_manager = MagicMock()
 
-        with patch("whisper.queue.create_whisper_job"), patch(
-            "threading.Thread"
-        ) as mock_thread_cls:
+        with (
+            patch("whisper.queue.create_whisper_job"),
+            patch("threading.Thread") as mock_thread_cls,
+        ):
             mock_thread_cls.return_value = MagicMock()
             q.submit(
                 job_id="job-fp",
@@ -117,9 +120,10 @@ class TestWhisperQueueSubmit:
         q = WhisperQueue()
         mock_manager = MagicMock()
 
-        with patch("whisper.queue.create_whisper_job"), patch(
-            "threading.Thread"
-        ) as mock_thread_cls:
+        with (
+            patch("whisper.queue.create_whisper_job"),
+            patch("threading.Thread") as mock_thread_cls,
+        ):
             mock_thread_cls.return_value = MagicMock()
             q.submit(
                 job_id="job-lang",
@@ -135,11 +139,20 @@ class TestWhisperQueueSubmit:
     def test_initial_status_is_queued(self, app_ctx):
         q = WhisperQueue()
         mock_manager = MagicMock()
-        valid_statuses = {"queued", "extracting", "transcribing", "saving", "completed", "failed", "cancelled"}
+        valid_statuses = {
+            "queued",
+            "extracting",
+            "transcribing",
+            "saving",
+            "completed",
+            "failed",
+            "cancelled",
+        }
 
-        with patch("whisper.queue.create_whisper_job"), patch(
-            "threading.Thread"
-        ) as mock_thread_cls:
+        with (
+            patch("whisper.queue.create_whisper_job"),
+            patch("threading.Thread") as mock_thread_cls,
+        ):
             mock_thread_cls.return_value = MagicMock()
             q.submit(
                 job_id="job-status",
