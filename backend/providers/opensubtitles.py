@@ -11,9 +11,12 @@ import contextlib
 import logging
 import os
 
-from providers import register_provider
+from werkzeug.utils import secure_filename as _secure_filename
+
+from providers import _stream_download, register_provider
 from providers.base import (
     ProviderAuthError,
+    ProviderError,
     ProviderRateLimitError,
     SubtitleFormat,
     SubtitleProvider,
@@ -21,6 +24,7 @@ from providers.base import (
     VideoQuery,
 )
 from providers.http_session import create_session
+from security_utils import validate_download_url
 
 logger = logging.getLogger(__name__)
 
@@ -384,7 +388,8 @@ class OpenSubtitlesProvider(SubtitleProvider):
 
                 for f in files:
                     file_id = f.get("file_id")
-                    filename = f.get("file_name", "")
+                    # P2: Sanitize provider-returned filename to prevent path traversal
+                    filename = _secure_filename(f.get("file_name", ""))
 
                     fmt = SubtitleFormat.UNKNOWN
                     ext = os.path.splitext(filename)[1].lower().lstrip(".")
@@ -456,7 +461,7 @@ class OpenSubtitlesProvider(SubtitleProvider):
 
     def download(self, result: SubtitleResult) -> bytes:
         if not self.session:
-            raise RuntimeError("OpenSubtitles not initialized")
+            raise ProviderError("OpenSubtitles not initialized")
 
         file_id = result.provider_data.get("file_id")
         if not file_id:
@@ -471,17 +476,18 @@ class OpenSubtitlesProvider(SubtitleProvider):
         )
 
         if resp.status_code != 200:
-            raise RuntimeError(f"OpenSubtitles download request failed: HTTP {resp.status_code}")
+            raise ProviderError(f"OpenSubtitles download request failed: HTTP {resp.status_code}")
 
         data = resp.json()
         download_link = data.get("link")
         if not download_link:
-            raise RuntimeError("No download link in response")
+            raise ProviderError("No download link in response")
 
         # The /download response returns the actual file_name with extension (e.g. "Movie.de.ass").
         # The /subtitles search API omits the format field entirely for most entries, so this
         # is the only reliable place to detect the real format before saving.
-        actual_filename = data.get("file_name", "")
+        # P2: Sanitize provider-returned filename to prevent path traversal
+        actual_filename = _secure_filename(data.get("file_name", ""))
         if actual_filename:
             ext = os.path.splitext(actual_filename)[1].lower().lstrip(".")
             if ext in _FORMAT_MAP:
@@ -492,12 +498,13 @@ class OpenSubtitlesProvider(SubtitleProvider):
                     result.format.value,
                 )
 
-        # Download the actual file
-        dl_resp = self.session.get(download_link)
-        if dl_resp.status_code != 200:
-            raise RuntimeError(f"OpenSubtitles file download failed: HTTP {dl_resp.status_code}")
+        # P1: Validate download URL against allowed domains before fetching
+        url_ok, url_err = validate_download_url(download_link, self.name)
+        if not url_ok:
+            raise ProviderError(f"OpenSubtitles download URL rejected: {url_err}")
 
-        content = dl_resp.content
+        # Download the actual file (P5: 50 MB streaming cap)
+        content = _stream_download(self.session, download_link, timeout=15)
         result.content = content
         logger.info("OpenSubtitles: downloaded %s (%d bytes)", result.filename, len(content))
         return content

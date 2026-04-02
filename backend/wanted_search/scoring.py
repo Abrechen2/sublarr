@@ -37,3 +37,33 @@ def _apply_fansub_rules(
             result["score"] -= 999
         elif any(g in info for g in preferred_lower):
             result["score"] += bonus
+
+
+# Codec family aliases — result release_info uses various spellings
+_CODEC_ALIASES: dict[str, list[str]] = {
+    "x265": ["x265", "hevc", "h265"],
+    "hevc": ["x265", "hevc", "h265"],
+    "h265": ["x265", "hevc", "h265"],
+    "x264": ["x264", "h264", "avc"],
+    "h264": ["x264", "h264", "avc"],
+    "avc": ["x264", "h264", "avc"],
+    "av1": ["av1"],
+}
+
+
+def apply_video_codec_bonus(results: list[dict], video_codec: str, weight: int) -> None:
+    """Add weight to results whose release_info contains the video file's codec.
+
+    Performs in-place mutation on the results list.
+    Case-insensitive substring match against release_info.
+    """
+    if not video_codec or not weight:
+        return
+
+    codec_lower = video_codec.lower()
+    tags = _CODEC_ALIASES.get(codec_lower, [codec_lower])
+
+    for result in results:
+        info = result.get("release_info", "").lower()
+        if any(tag in info for tag in tags):
+            result["score"] += weight

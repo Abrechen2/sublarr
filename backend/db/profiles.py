@@ -24,6 +24,10 @@ def create_language_profile(
     translation_backend: str = "ollama",
     fallback_chain: list = None,
     forced_preference: str = "disabled",
+    must_contain: list = None,
+    must_not_contain: list = None,
+    cutoff_language: str = "",
+    audio_exclude_languages: list = None,
 ) -> int:
     """Create a new language profile. Returns the profile ID."""
     return _get_repo().create_profile(
@@ -35,6 +39,10 @@ def create_language_profile(
         translation_backend,
         fallback_chain,
         forced_preference,
+        must_contain=must_contain,
+        must_not_contain=must_not_contain,
+        cutoff_language=cutoff_language,
+        audio_exclude_languages=audio_exclude_languages,
     )
 
 

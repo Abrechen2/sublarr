@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+from providers.base import ProviderError
+
 
 class TestSubsourceProvider:
     def test_import_and_name(self):
@@ -543,7 +545,7 @@ class TestBetaSeriesProvider:
             filename="x.srt",
             download_url="https://api.betaseries.com/x",
         )
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ProviderError):
             p.download(r)
 
     def test_download_success_returns_content(self):
@@ -551,12 +553,16 @@ class TestBetaSeriesProvider:
         from providers.betaseries import BetaSeriesProvider
 
         p = BetaSeriesProvider(api_key="test-key")
-        mock_session = MagicMock()
         srt_bytes = b"1\n00:00:01,000 --> 00:00:02,000\nBonjour\n"
-        mock_session.get.return_value = MagicMock(
-            status_code=200,
-            content=srt_bytes,
-        )
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {}
+        mock_response.iter_content.return_value = [srt_bytes]
+        mock_response.__enter__ = lambda s: s
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.raise_for_status = MagicMock()
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_response
         p.session = mock_session
         r = SubtitleResult(
             provider_name="betaseries",
@@ -671,7 +677,7 @@ class TestTitloviProvider:
             filename="x.srt",
             download_url="https://titlovi.com/download/12345",
         )
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ProviderError):
             p.download(r)
 
     def test_download_success_returns_content(self):
@@ -679,12 +685,16 @@ class TestTitloviProvider:
         from providers.titlovi import TitloviProvider
 
         p = TitloviProvider()
-        mock_session = MagicMock()
         srt_bytes = b"1\n00:00:01,000 --> 00:00:02,000\nHvala\n"
-        mock_session.get.return_value = MagicMock(
-            status_code=200,
-            content=srt_bytes,
-        )
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {}
+        mock_response.iter_content.return_value = [srt_bytes]
+        mock_response.__enter__ = lambda s: s
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.raise_for_status = MagicMock()
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_response
         p.session = mock_session
         r = SubtitleResult(
             provider_name="titlovi",

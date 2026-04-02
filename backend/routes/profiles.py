@@ -117,6 +117,10 @@ def create_language_profile_endpoint():
     translation_backend = data.get("translation_backend", "ollama")
     fallback_chain = data.get("fallback_chain")
     forced_preference = data.get("forced_preference", "disabled")
+    must_contain = data.get("must_contain", [])
+    must_not_contain = data.get("must_not_contain", [])
+    cutoff_language = data.get("cutoff_language", "")
+    audio_exclude_languages = data.get("audio_exclude_languages", [])
 
     if forced_preference not in ("disabled", "separate", "auto"):
         return jsonify({"error": "forced_preference must be one of: disabled, separate, auto"}), 400
@@ -131,6 +135,12 @@ def create_language_profile_endpoint():
             translation_backend=translation_backend,
             fallback_chain=fallback_chain,
             forced_preference=forced_preference,
+            must_contain=must_contain if isinstance(must_contain, list) else [],
+            must_not_contain=must_not_contain if isinstance(must_not_contain, list) else [],
+            cutoff_language=cutoff_language if isinstance(cutoff_language, str) else "",
+            audio_exclude_languages=(
+                audio_exclude_languages if isinstance(audio_exclude_languages, list) else []
+            ),
         )
     except Exception as e:
         if "UNIQUE constraint" in str(e):
@@ -218,6 +228,10 @@ def update_language_profile_endpoint(profile_id):
         "translation_backend",
         "fallback_chain",
         "forced_preference",
+        "must_contain",
+        "must_not_contain",
+        "cutoff_language",
+        "audio_exclude_languages",
     ):
         if key in data:
             fields[key] = data[key]
