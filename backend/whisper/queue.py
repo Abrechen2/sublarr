@@ -37,9 +37,9 @@ class WhisperJob:
     phase: str = ""
     result: TranscriptionResult | None = None
     error: str | None = None
-    created_at: str = ""
-    started_at: str | None = None
-    completed_at: str | None = None
+    created_at: datetime | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
 
 class WhisperQueue:
@@ -82,7 +82,7 @@ class WhisperQueue:
         Returns:
             The job_id
         """
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now(UTC)
         job = WhisperJob(
             job_id=job_id,
             file_path=file_path,
@@ -186,7 +186,7 @@ class WhisperQueue:
                     if not job or job.status == "cancelled":
                         return
 
-                now = datetime.now(UTC).isoformat()
+                now = datetime.now(UTC)
                 self._update_job(
                     job_id, status="extracting", progress=0.0, phase="extracting", started_at=now
                 )
@@ -259,7 +259,7 @@ class WhisperQueue:
                         segment_count=result.segment_count,
                         duration_seconds=result.duration_seconds,
                         processing_time_ms=elapsed_ms,
-                        completed_at=datetime.now(UTC).isoformat(),
+                        completed_at=datetime.now(UTC),
                     )
                 except Exception as e:
                     logger.error("Failed to persist completed job %s: %s", job_id, e)
@@ -293,7 +293,7 @@ class WhisperQueue:
                     status="completed",
                     progress=1.0,
                     phase="completed",
-                    completed_at=datetime.now(UTC).isoformat(),
+                    completed_at=datetime.now(UTC),
                 )
                 self._emit_progress(socketio, job_id, "completed", 1.0, "Transcription complete")
 
@@ -329,7 +329,7 @@ class WhisperQueue:
                 job_id,
                 status="failed",
                 error=error_msg,
-                completed_at=datetime.now(UTC).isoformat(),
+                completed_at=datetime.now(UTC),
             )
 
             # Persist failure to DB
@@ -338,7 +338,7 @@ class WhisperQueue:
                     job_id,
                     status="failed",
                     error=error_msg[:500],
-                    completed_at=datetime.now(UTC).isoformat(),
+                    completed_at=datetime.now(UTC),
                 )
             except Exception as db_err:
                 logger.error("Failed to persist failed job %s: %s", job_id, db_err)

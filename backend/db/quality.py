@@ -4,6 +4,8 @@ Thin wrapper with lazy-initialized repository for convenience access
 from route handlers and other modules.
 """
 
+from datetime import datetime
+
 from db.repositories.quality import QualityRepository
 
 _repo = None
@@ -17,7 +19,7 @@ def _get_repo():
 
 
 def save_health_result(
-    file_path: str, score: int, issues_json: str, checks_run: int, checked_at: str
+    file_path: str, score: int, issues_json: str, checks_run: int, checked_at: datetime
 ) -> dict:
     """Save a health check result to the database."""
     return _get_repo().save_health_result(file_path, score, issues_json, checks_run, checked_at)

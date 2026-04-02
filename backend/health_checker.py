@@ -383,7 +383,7 @@ def run_health_checks(file_path: str) -> dict:
             "checks_run": 0,
             "issues": [],
             "score": 0,
-            "checked_at": datetime.now(UTC).isoformat(),
+            "checked_at": datetime.now(UTC),
         }
 
     # Parse subtitle
@@ -405,7 +405,7 @@ def run_health_checks(file_path: str) -> dict:
                 }
             ],
             "score": 0,
-            "checked_at": datetime.now(UTC).isoformat(),
+            "checked_at": datetime.now(UTC),
         }
 
     # Run encoding check (needs raw_bytes)
@@ -429,7 +429,7 @@ def run_health_checks(file_path: str) -> dict:
         "checks_run": checks_run,
         "issues": all_issues,
         "score": score,
-        "checked_at": datetime.now(UTC).isoformat(),
+        "checked_at": datetime.now(UTC),
     }
 
 
