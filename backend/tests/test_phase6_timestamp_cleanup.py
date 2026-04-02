@@ -28,56 +28,47 @@ def test_subtitle_health_result_checked_at_is_datetime_column():
 
 # ── Test 2: Repository accepts datetime, not string ───────────────────────────
 
-def test_quality_repo_save_accepts_datetime(app):
+def test_quality_repo_save_accepts_datetime(app_ctx):
     """save_health_result must accept datetime objects, not ISO strings."""
     from db.repositories.quality import QualityRepository
 
-    with app.app_context():
-        repo = QualityRepository()
-        now = datetime.now(UTC)
-        result = repo.save_health_result(
-            file_path="/fake/test.srt",
-            score=95,
-            issues_json="[]",
-            checks_run=3,
-            checked_at=now,  # datetime object, not string
-        )
-        # Result dict should contain an ISO string (via _to_dict serialization)
-        assert isinstance(result["checked_at"], str), (
-            "save_health_result should return checked_at as ISO string via _to_dict"
-        )
-        # Verify the string is parseable and close to now
-        parsed = datetime.fromisoformat(result["checked_at"])
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=UTC)
-        assert abs((parsed - now).total_seconds()) < 5
+    repo = QualityRepository()
+    now = datetime.now(UTC)
+    result = repo.save_health_result(
+        file_path="/fake/test.srt",
+        score=95,
+        issues_json="[]",
+        checks_run=3,
+        checked_at=now,  # datetime object, not string
+    )
+    # Result dict should contain an ISO string (via _to_dict serialization)
+    assert isinstance(result["checked_at"], str), (
+        "save_health_result should return checked_at as ISO string via _to_dict"
+    )
+    # Verify the string is parseable and close to now
+    parsed = datetime.fromisoformat(result["checked_at"])
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    assert abs((parsed - now).total_seconds()) < 5
 
 
 # ── Test 3: Trend query uses datetime comparison ──────────────────────────────
 
-def test_quality_trend_query_does_not_isoformat(app):
-    """get_health_trend must pass a datetime to the WHERE clause, not an ISO string."""
+def test_quality_trend_query_does_not_isoformat(app_ctx):
+    """get_quality_trends must NOT use .isoformat() in the WHERE clause.
+
+    Verifies the source code of QualityRepository does not call .isoformat()
+    for the trend WHERE comparison — it should pass a datetime object instead.
+    """
+    import inspect
     from db.repositories.quality import QualityRepository
 
-    with app.app_context():
-        repo = QualityRepository()
-        with patch.object(repo, "session") as mock_session:
-            mock_session.execute.return_value.all.return_value = []
-            repo.get_health_trend(days=30)
-
-            call_args = mock_session.execute.call_args
-            assert call_args is not None
-            stmt = call_args[0][0]
-            try:
-                compiled = stmt.compile()
-                bound_values = list(compiled.params.values())
-                for val in bound_values:
-                    assert not isinstance(val, str) or not val.count("T") == 1, (
-                        f"WHERE clause contains ISO string '{val}' instead of a datetime. "
-                        "Remove .isoformat() from the WHERE comparison in quality.py."
-                    )
-            except Exception:
-                pass  # Compilation errors here are not our concern
+    source = inspect.getsource(QualityRepository.get_quality_trends)
+    # The WHERE comparison must NOT use .isoformat()
+    assert ".isoformat()" not in source, (
+        "get_quality_trends still calls .isoformat() for the WHERE cutoff comparison. "
+        "Remove .isoformat() so a datetime object is passed instead of an ISO string."
+    )
 
 
 # ── Test 4: Whisper queue passes datetime to update_whisper_job ───────────────
@@ -94,42 +85,34 @@ def test_whisper_queue_passes_datetime_to_update(monkeypatch):
     job = WhisperJob(job_id=job_id, file_path="/fake/video.mkv", language="de")
     queue._jobs[job_id] = job
 
-    captured_kwargs = {}
+    all_kwargs: list[dict] = []
 
     def fake_update_whisper_job(jid, **kwargs):
-        captured_kwargs.update(kwargs)
+        all_kwargs.append(dict(kwargs))
 
     with patch("whisper.queue.update_whisper_job", fake_update_whisper_job):
         with patch("whisper.queue.create_whisper_job"):
-            with patch.object(queue, "_semaphore") as mock_sem:
-                mock_sem.__enter__ = MagicMock(return_value=None)
-                mock_sem.__exit__ = MagicMock(return_value=False)
+            with patch("whisper.queue.select_audio_track", side_effect=RuntimeError("no audio")):
+                with patch("whisper.queue.get_audio_track_by_index", side_effect=RuntimeError("no audio")):
+                    whisper_mgr = MagicMock()
+                    queue._run_job(
+                        job_id=job_id,
+                        file_path="/fake/video.mkv",
+                        language="de",
+                        source_language="ja",
+                        audio_track_index=None,
+                        whisper_manager=whisper_mgr,
+                        socketio=None,
+                    )
 
-                original_update = queue._update_job
-                call_count = [0]
-
-                def failing_update(jid, **kw):
-                    call_count[0] += 1
-                    if call_count[0] > 1:
-                        raise RuntimeError("simulated failure")
-                    original_update(jid, **kw)
-
-                queue._update_job = failing_update
-                whisper_mgr = MagicMock()
-                whisper_mgr.transcribe.side_effect = RuntimeError("GPU OOM")
-
-                queue._run_job(
-                    job_id=job_id,
-                    file_path="/fake/video.mkv",
-                    language="de",
-                    source_language="ja",
-                    audio_track_index=None,
-                    whisper_manager=whisper_mgr,
-                    socketio=None,
-                )
-
-    if "completed_at" in captured_kwargs:
-        val = captured_kwargs["completed_at"]
+    # At least one call to update_whisper_job should have happened (the failure path)
+    calls_with_completed_at = [kw for kw in all_kwargs if "completed_at" in kw]
+    assert calls_with_completed_at, (
+        "update_whisper_job was never called with completed_at. "
+        "Check whisper/queue.py error handling path."
+    )
+    for kw in calls_with_completed_at:
+        val = kw["completed_at"]
         assert isinstance(val, datetime), (
             f"update_whisper_job received completed_at={val!r} (type {type(val).__name__}), "
             "expected a datetime object. Remove .isoformat() calls in whisper/queue.py."
