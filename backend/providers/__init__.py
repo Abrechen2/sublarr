@@ -38,6 +38,7 @@ from providers.base import (
     VideoQuery,
     compute_score,
 )
+from providers.download_manager import _stream_download  # noqa: F401 — re-exported for providers
 from providers.registry import PROVIDER_METADATA
 
 logger = logging.getLogger(__name__)

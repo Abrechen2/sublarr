@@ -14,6 +14,42 @@ from providers.base import SubtitleFormat, SubtitleResult
 
 logger = logging.getLogger(__name__)
 
+_MAX_SUBTITLE_SIZE = 50 * 1024 * 1024  # 50 MB
+
+
+def _stream_download(session, url: str, timeout: int = 15) -> bytes:
+    """Download a subtitle file with a 50 MB size cap (P5).
+
+    Uses streaming to avoid loading the entire response into memory at once.
+    Raises RuntimeError if the declared or actual content exceeds _MAX_SUBTITLE_SIZE.
+    """
+    with session.get(url, stream=True, timeout=timeout) as response:
+        response.raise_for_status()
+
+        # Preflight: reject oversized files advertised via Content-Length
+        content_length = response.headers.get("Content-Length")
+        if content_length:
+            try:
+                if int(content_length) > _MAX_SUBTITLE_SIZE:
+                    raise RuntimeError(
+                        f"Subtitle file too large: {int(content_length)} bytes "
+                        f"(max {_MAX_SUBTITLE_SIZE})"
+                    )
+            except ValueError:
+                pass  # Non-integer Content-Length — proceed with streaming check
+
+        chunks = []
+        total = 0
+        for chunk in response.iter_content(chunk_size=65536):
+            total += len(chunk)
+            if total > _MAX_SUBTITLE_SIZE:
+                raise RuntimeError(
+                    f"Subtitle download exceeded size limit of {_MAX_SUBTITLE_SIZE} bytes"
+                )
+            chunks.append(chunk)
+
+        return b"".join(chunks)
+
 
 def download_subtitle(
     providers: dict,
