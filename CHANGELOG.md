@@ -5,6 +5,31 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.39.0-beta] - 2026-04-03
+
+### Added
+- **Post-Processing UI** — Toggle and command textarea for `post_processing_enabled` / `post_download_command` added to Settings → Automation → Processing Pipeline; 7 substitution variables supported (`{subtitle_path}`, `{language}`, `{provider}`, `{score}`, `{media_type}`, etc.)
+- **Rate limiting on critical routes** — `POST /api/v1/config/import` (5/min), `GET /api/v1/config/export` (30/min), `POST /api/v1/auth/setup` (5/min), `POST /api/v1/auth/change-password` (5/min + 20/hr), `POST /api/v1/providers/search` (20/min)
+- **Provider cache metrics** — `sublarr_provider_cache_hits_total` and `sublarr_provider_cache_misses_total` Prometheus counters with `layer=fast/db` label; now increment correctly from two-tier cache path
+- **DB performance indexes** — Composite index `(status, retry_after)` on `wanted_items` for scan-loop filter; `language` index on `subtitle_downloads` for provider history queries (Alembic migration `b5c6d7e8f9a0`)
+- **Configurable Gestdown retry delay** — `gestdown_retry_delay_s` config field (default `1.0`, env `SUBLARR_GESTDOWN_RETRY_DELAY_S`); replaces hardcoded `time.sleep(1)` on HTTP 423; set to `0` to disable for batch scans
+- **OpenAPI docstrings** — All 6 endpoints in `routes/auth_ui.py` and `stream_media()` in `routes/media.py` now have full OpenAPI YAML docstrings with status codes and schemas
+
+### Changed
+- **`providers/__init__.py` refactored** — 1404 → 843 LOC; search coordination extracted to `providers/search_coordinator.py` (`SearchCoordinatorMixin`)
+- **`wanted_search/process.py` refactored** — 1067 → 695 LOC; post-download logic extracted to `wanted_search/post_processor.py`; score selection to `wanted_search/score_selector.py`
+- **Frontend splits** — `ConnectionsSettings.tsx` (938 → 43 LOC), `EventsTab.tsx` (903 → 12 LOC), `api/system.ts` (888 → 20 LOC); all split into domain sub-components with barrel re-exports
+
+### Tests
+- **+58 new backend tests** — Route tests for `config`, `mediaservers`, `media`, `blacklist`, `series_audio`; unit tests for `archive_utils` (ZIP bomb/slip) and `anidb_sync` (token parser, XML processor, 409 guard)
+- **+6 frontend tests** — `Library.test.tsx` (series/movies tab, view toggle) and `SeriesDetail.test.tsx` (title, season, episode render)
+- **`test_security.py` split** — 1159-LOC file split into 4 domain files: `test_security_paths.py`, `test_security_download.py`, `test_security_prompt.py`, `test_security_auth.py`
+
+### Docs
+- **Wiki: Post-Processing** — New page `user-guide/post-processing.md` covering variables, examples, behavior limits, troubleshooting
+- **Wiki: Circuit Breaker** — New page `user-guide/advanced/circuit-breaker.md` covering state machine, persistence, Prometheus metrics, manual reset
+- **Wiki: Ollama Chat API (V9+)** — `user-guide/settings/translation.md` extended with Chat vs. Generate comparison, system prompt / `{series_context}` guide, per-model recommendations
+
 ## [0.38.1-beta] - 2026-04-03
 
 ### Tests
