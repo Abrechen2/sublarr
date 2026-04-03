@@ -2,9 +2,11 @@
 
 Variables available in the command string:
     {subtitle_path}  — absolute path to the saved subtitle file
+    {path}           — alias for {subtitle_path} (Bazarr compat)
     {language}       — ISO 639-1 language code
     {provider}       — provider name (e.g. "jimaku")
     {score}          — integer match score
+    {media_type}     — "series" | "movie" | ""
     {video_path}     — reserved for future use; currently always substituted as '' (empty string)
 """
 
@@ -22,20 +24,35 @@ def run_post_download_command(
     provider: str,
     score: int,
     video_path: str = "",
+    media_type: str = "",
+    enabled: bool = True,
 ) -> None:
-    """Execute the post-download shell command if configured.
+    """Execute the post-download shell command if configured and enabled.
 
     Errors are logged as warnings but never propagated — post-processing
     is best-effort and must not break the download pipeline.
+
+    Variables:
+        {subtitle_path}  — absolute path to the saved subtitle file
+        {path}           — alias for {subtitle_path} (Bazarr compat)
+        {language}       — ISO 639-1 language code
+        {provider}       — provider name (e.g. "jimaku")
+        {score}          — integer match score
+        {media_type}     — "series" | "movie" | ""
+        {video_path}     — video file path (may be empty)
     """
+    if not enabled:
+        return
     if not command or not command.strip():
         return
 
     expanded = (
         command.replace("{subtitle_path}", subtitle_path)
+        .replace("{path}", subtitle_path)
         .replace("{language}", language)
         .replace("{provider}", provider)
         .replace("{score}", str(int(score)))
+        .replace("{media_type}", media_type)
         .replace("{video_path}", video_path)
     )
     try:

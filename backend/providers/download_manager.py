@@ -342,12 +342,16 @@ def save_subtitle(
 
     if _pd_cmd:
         try:
+            _pd_enabled = getattr(_pd_settings, "post_processing_enabled", False)
+            _pd_media_type = "series" if series_id is not None else "movie"
             run_post_download_command(
                 _pd_cmd,
                 subtitle_path=output_path,
                 language=result.language or "",
                 provider=result.provider_name or "",
                 score=result.score or 0,
+                media_type=_pd_media_type,
+                enabled=_pd_enabled,
             )
         except Exception as _pd_err:
             logger.warning("post_download_command hook failed: %s", _pd_err)

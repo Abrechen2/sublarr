@@ -6,7 +6,6 @@ or via a .env file. Example: SUBLARR_PORT=8080
 
 import hashlib
 import logging
-import os
 import threading
 
 logger = logging.getLogger(__name__)
@@ -199,6 +198,9 @@ class Settings(BaseSettings):
 
     # Post-download shell command
     post_download_command: str = ""  # Shell command to run after each subtitle download
+    post_processing_enabled: bool = (
+        False  # Must be explicitly enabled; gate for post_download_command
+    )
 
     # NFO Export
     auto_nfo_export: bool = False  # Expert: write XML NFO sidecar after every download/translation
@@ -729,192 +731,7 @@ class ScanningSettings(_SettingsView):
     )
 
 
-def map_path(path: str) -> str:
-    """Map a remote file path to a local path using configured path mappings.
-
-    Path mapping is configured via the SUBLARR_PATH_MAPPING setting:
-    Format: "remote_prefix=local_prefix" (multiple pairs separated by semicolons)
-    Example: "/data/media=/mnt/media;/anime=/share/anime"
-
-    On Windows, forward slashes in the mapped path are converted to backslashes.
-
-    SECURITY NOTE: This function performs string-based prefix replacement only.
-    Callers that serve or delete files MUST validate the mapped result with
-    ``security_utils.is_safe_path(mapped, media_path)`` before using it,
-    to guard against path traversal after mapping.
-    """
-    s = get_settings()
-    mapping = s.path_mapping
-    if not mapping:
-        return path
-
-    for pair in mapping.split(";"):
-        pair = pair.strip()
-        if "=" not in pair:
-            continue
-        remote_prefix, local_prefix = pair.split("=", 1)
-        remote_prefix = remote_prefix.strip()
-        local_prefix = local_prefix.strip()
-        if not remote_prefix or not local_prefix:
-            continue
-
-        if path.startswith(remote_prefix):
-            mapped = local_prefix + path[len(remote_prefix) :]
-            if os.name == "nt":
-                mapped = mapped.replace("/", "\\")
-            return mapped
-
-    return path
-
-
-# Language tag mapping (ISO 639-1 -> all known file/metadata variants)
-_LANGUAGE_TAGS = {
-    # Western Europe
-    "de": {"de", "deu", "ger", "german"},
-    "en": {"en", "eng", "english"},
-    "fr": {"fr", "fra", "fre", "french"},
-    "es": {"es", "spa", "spanish"},
-    "it": {"it", "ita", "italian"},
-    "pt": {"pt", "por", "portuguese"},
-    "nl": {"nl", "nld", "dut", "dutch"},
-    "sv": {"sv", "swe", "swedish"},
-    "da": {"da", "dan", "danish"},
-    "no": {"no", "nor", "norwegian"},
-    "fi": {"fi", "fin", "finnish"},
-    "is": {"is", "isl", "ice", "icelandic"},
-    "eu": {"eu", "eus", "baq", "basque"},
-    "ca": {"ca", "cat", "catalan"},
-    "gl": {"gl", "glg", "galician"},
-    # Eastern Europe
-    "pl": {"pl", "pol", "polish"},
-    "cs": {"cs", "ces", "cze", "czech"},
-    "sk": {"sk", "slk", "slo", "slovak"},
-    "hu": {"hu", "hun", "hungarian"},
-    "ro": {"ro", "ron", "rum", "romanian"},
-    "bg": {"bg", "bul", "bulgarian"},
-    "hr": {"hr", "hrv", "croatian"},
-    "sr": {"sr", "srp", "serbian"},
-    "sl": {"sl", "slv", "slovenian"},
-    "bs": {"bs", "bos", "bosnian"},
-    "mk": {"mk", "mkd", "macedonian"},
-    "sq": {"sq", "alb", "sqi", "albanian"},
-    "lt": {"lt", "lit", "lithuanian"},
-    "lv": {"lv", "lav", "latvian"},
-    "et": {"et", "est", "estonian"},
-    "uk": {"uk", "ukr", "ukrainian"},
-    "ru": {"ru", "rus", "russian"},
-    # Caucasus / Central Asia
-    "hy": {"hy", "hye", "arm", "armenian"},
-    "ka": {"ka", "kat", "geo", "georgian"},
-    "az": {"az", "aze", "azerbaijani"},
-    "kk": {"kk", "kaz", "kazakh"},
-    "uz": {"uz", "uzb", "uzbek"},
-    # Middle East
-    "ar": {"ar", "ara", "arabic"},
-    "he": {"he", "heb", "hebrew"},
-    "fa": {"fa", "per", "fas", "persian"},
-    "tr": {"tr", "tur", "turkish"},
-    # South / Southeast Asia
-    "hi": {"hi", "hin", "hindi"},
-    "bn": {"bn", "ben", "bengali"},
-    "ur": {"ur", "urd", "urdu"},
-    "ta": {"ta", "tam", "tamil"},
-    "te": {"te", "tel", "telugu"},
-    "ml": {"ml", "mal", "malayalam"},
-    "kn": {"kn", "kan", "kannada"},
-    "si": {"si", "sin", "sinhala"},
-    "th": {"th", "tha", "thai"},
-    "vi": {"vi", "vie", "vietnamese"},
-    "id": {"id", "ind", "indonesian"},
-    "ms": {"ms", "msa", "may", "malay"},
-    "tl": {"tl", "fil", "tagalog", "filipino"},
-    # East Asia
-    "ja": {"ja", "jpn", "japanese"},
-    "ko": {"ko", "kor", "korean"},
-    "zh": {"zh", "zho", "chi", "chinese"},
-    "zh-hans": {"zh-hans", "zhs", "chs", "chi-sim", "chinese simplified"},
-    "zh-hant": {"zh-hant", "zht", "cht", "chi-tra", "chinese traditional"},
-    "mn": {"mn", "mon", "mongolian"},
-    # Other
-    "el": {"el", "ell", "gre", "greek"},
-    "af": {"af", "afr", "afrikaans"},
-    "sw": {"sw", "swa", "swahili"},
-}
-
-# Ordered list of supported languages for the UI language picker
-SUPPORTED_LANGUAGES: list[dict] = [
-    {"code": "af", "name": "Afrikaans"},
-    {"code": "sq", "name": "Albanian"},
-    {"code": "ar", "name": "Arabic"},
-    {"code": "hy", "name": "Armenian"},
-    {"code": "az", "name": "Azerbaijani"},
-    {"code": "eu", "name": "Basque"},
-    {"code": "bn", "name": "Bengali"},
-    {"code": "bs", "name": "Bosnian"},
-    {"code": "bg", "name": "Bulgarian"},
-    {"code": "ca", "name": "Catalan"},
-    {"code": "zh", "name": "Chinese"},
-    {"code": "zh-hans", "name": "Chinese (Simplified)"},
-    {"code": "zh-hant", "name": "Chinese (Traditional)"},
-    {"code": "hr", "name": "Croatian"},
-    {"code": "cs", "name": "Czech"},
-    {"code": "da", "name": "Danish"},
-    {"code": "nl", "name": "Dutch"},
-    {"code": "en", "name": "English"},
-    {"code": "et", "name": "Estonian"},
-    {"code": "tl", "name": "Filipino"},
-    {"code": "fi", "name": "Finnish"},
-    {"code": "fr", "name": "French"},
-    {"code": "gl", "name": "Galician"},
-    {"code": "ka", "name": "Georgian"},
-    {"code": "de", "name": "German"},
-    {"code": "el", "name": "Greek"},
-    {"code": "he", "name": "Hebrew"},
-    {"code": "hi", "name": "Hindi"},
-    {"code": "hu", "name": "Hungarian"},
-    {"code": "is", "name": "Icelandic"},
-    {"code": "id", "name": "Indonesian"},
-    {"code": "it", "name": "Italian"},
-    {"code": "ja", "name": "Japanese"},
-    {"code": "kn", "name": "Kannada"},
-    {"code": "kk", "name": "Kazakh"},
-    {"code": "ko", "name": "Korean"},
-    {"code": "lv", "name": "Latvian"},
-    {"code": "lt", "name": "Lithuanian"},
-    {"code": "mk", "name": "Macedonian"},
-    {"code": "ms", "name": "Malay"},
-    {"code": "ml", "name": "Malayalam"},
-    {"code": "mn", "name": "Mongolian"},
-    {"code": "no", "name": "Norwegian"},
-    {"code": "fa", "name": "Persian"},
-    {"code": "pl", "name": "Polish"},
-    {"code": "pt", "name": "Portuguese"},
-    {"code": "ro", "name": "Romanian"},
-    {"code": "ru", "name": "Russian"},
-    {"code": "sr", "name": "Serbian"},
-    {"code": "si", "name": "Sinhala"},
-    {"code": "sk", "name": "Slovak"},
-    {"code": "sl", "name": "Slovenian"},
-    {"code": "es", "name": "Spanish"},
-    {"code": "sw", "name": "Swahili"},
-    {"code": "sv", "name": "Swedish"},
-    {"code": "ta", "name": "Tamil"},
-    {"code": "te", "name": "Telugu"},
-    {"code": "th", "name": "Thai"},
-    {"code": "tr", "name": "Turkish"},
-    {"code": "uk", "name": "Ukrainian"},
-    {"code": "ur", "name": "Urdu"},
-    {"code": "uz", "name": "Uzbek"},
-    {"code": "vi", "name": "Vietnamese"},
-]
-
-
-def _get_language_tags(lang_code: str) -> set[str]:
-    """Get all known tags for a language code."""
-    return _LANGUAGE_TAGS.get(lang_code, {lang_code})
-
-
-# Singleton settings instance
+# Singleton settings instance — get_settings() and reload_settings() below
 _settings: Settings | None = None
 _settings_lock = threading.Lock()
 
@@ -976,126 +793,16 @@ def reload_settings(overrides: dict = None) -> Settings:
     return _settings
 
 
-def get_sonarr_instances() -> list[dict]:
-    """Get Sonarr instances from config, with fallback to legacy settings.
-
-    Returns list of instance dicts: [{"name": "...", "url": "...", "api_key": "...", "path_mapping": "..."}]
-    """
-    import json
-
-    settings = get_settings()
-
-    # Try new multi-instance config
-    if settings.sonarr_instances_json:
-        try:
-            instances = json.loads(settings.sonarr_instances_json)
-            if isinstance(instances, list) and len(instances) > 0:
-                return instances
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    # Fallback to legacy single-instance config
-    if settings.sonarr_url and settings.sonarr_api_key:
-        return [
-            {
-                "name": "Default",
-                "url": settings.sonarr_url,
-                "api_key": settings.sonarr_api_key,
-                "path_mapping": settings.path_mapping,
-            }
-        ]
-
-    return []
-
-
-def get_radarr_instances() -> list[dict]:
-    """Get Radarr instances from config, with fallback to legacy settings.
-
-    Returns list of instance dicts: [{"name": "...", "url": "...", "api_key": "...", "path_mapping": "..."}]
-    """
-    import json
-
-    settings = get_settings()
-
-    # Try new multi-instance config
-    if settings.radarr_instances_json:
-        try:
-            instances = json.loads(settings.radarr_instances_json)
-            if isinstance(instances, list) and len(instances) > 0:
-                return instances
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    # Fallback to legacy single-instance config
-    if settings.radarr_url and settings.radarr_api_key:
-        return [
-            {
-                "name": "Default",
-                "url": settings.radarr_url,
-                "api_key": settings.radarr_api_key,
-                "path_mapping": settings.path_mapping,
-            }
-        ]
-
-    return []
-
-
-def is_standalone_mode() -> bool:
-    """Return True when standalone mode should be active.
-
-    Standalone activates when:
-    - ``standalone_enabled`` is explicitly True, OR
-    - No Sonarr AND no Radarr instances are configured (auto-activation).
-    """
-    settings = get_settings()
-
-    if getattr(settings, "standalone_enabled", False):
-        return True
-
-    # Auto-activate when no arr instances are configured
-    return len(get_sonarr_instances()) == 0 and len(get_radarr_instances()) == 0
-
-
-def get_media_server_instances() -> list[dict]:
-    """Get media server instances from config, with fallback to legacy Jellyfin settings.
-
-    Checks config_entries for media_servers_json first.
-    If not found, auto-migrates legacy jellyfin_url + jellyfin_api_key to the new format.
-
-    Returns list of instance dicts:
-        [{"type": "jellyfin", "name": "...", "enabled": true, "url": "...", "api_key": "..."}]
-    """
-    import json
-
-    from db.config import get_config_entry, save_config_entry
-
-    # Try new multi-instance config from DB
-    raw = get_config_entry("media_servers_json")
-    if raw:
-        try:
-            instances = json.loads(raw)
-            if isinstance(instances, list) and len(instances) > 0:
-                return instances
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    # Fallback to legacy single-instance Jellyfin config
-    settings = get_settings()
-    if settings.jellyfin_url and settings.jellyfin_api_key:
-        migrated = [
-            {
-                "type": "jellyfin",
-                "name": "Jellyfin",
-                "enabled": True,
-                "url": settings.jellyfin_url,
-                "api_key": settings.jellyfin_api_key,
-            }
-        ]
-        # One-time migration: store back into config_entries
-        try:
-            save_config_entry("media_servers_json", json.dumps(migrated))
-        except Exception:
-            pass  # Migration is best-effort
-        return migrated
-
-    return []
+# ─── Re-exports for backwards compatibility ──────────────────────────────────
+from config_instances import (  # noqa: E402, F401
+    get_media_server_instances,
+    get_radarr_instances,
+    get_sonarr_instances,
+    is_standalone_mode,
+)
+from config_language_data import (  # noqa: E402, F401
+    _LANGUAGE_TAGS,
+    SUPPORTED_LANGUAGES,
+    _get_language_tags,
+)
+from config_utils import map_path  # noqa: E402, F401

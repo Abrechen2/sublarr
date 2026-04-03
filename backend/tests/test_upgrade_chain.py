@@ -77,3 +77,33 @@ def test_get_latest_download_id_returns_none_when_no_records():
         result = repo.get_latest_download_id("/no/such/path.mkv")
 
     assert result is None
+
+
+def test_episode_history_includes_upgraded_from_id():
+    """get_episode_history entries must include upgraded_from_id field."""
+    from datetime import UTC, datetime
+    from unittest.mock import MagicMock, patch
+
+    mock_session = MagicMock()
+    # Simulate one SubtitleDownload row with upgraded_from_id=7
+    mock_row = MagicMock()
+    mock_row.provider_name = "jimaku"
+    mock_row.format = "ass"
+    mock_row.score = 200
+    mock_row.downloaded_at = datetime(2026, 4, 3, 12, 0, tzinfo=UTC)
+    mock_row.upgraded_from_id = 7
+    # First execute() call returns download rows; second returns empty job rows
+    mock_session.execute.return_value.all.side_effect = [[mock_row], []]
+
+    with patch("db.repositories.base.db") as mock_db:
+        mock_db.session = mock_session
+        from db.repositories.cache import CacheRepository
+
+        repo = CacheRepository.__new__(CacheRepository)
+        repo._local = __import__("threading").local()
+        entries = repo.get_episode_history("/media/ep.mkv")
+
+    assert len(entries) >= 1
+    dl_entry = next(e for e in entries if e.get("action") == "download")
+    assert "upgraded_from_id" in dl_entry
+    assert dl_entry["upgraded_from_id"] == 7
