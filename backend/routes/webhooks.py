@@ -38,7 +38,10 @@ def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None, mo
         },
     )
 
-    # Step 1: Configurable delay
+    # Step 1: Configurable delay (blocking sleep is safe here — this runs in a
+    # dedicated background thread, HTTP response was already returned to the caller).
+    # Long-term path: replace with RQ job so delay survives server restarts and
+    # is visible in the job queue UI. See app.job_queue for the existing RQ setup.
     if delay > 0:
         logger.info("Webhook pipeline: waiting %d minutes...", s.webhook_delay_minutes)
         time.sleep(delay)

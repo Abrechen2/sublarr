@@ -28,6 +28,10 @@ def process_wanted_item(item_id: int) -> dict:
     Returns:
         dict: {wanted_id, status, output_path, provider, error}
     """
+    # NOTE: item_id-only API ist absichtlich — der Caller (ThreadPoolExecutor) übergibt
+    # nur die ID damit jeder Thread seinen eigenen DB-Session-Scope bekommt.
+    # Trade-off: N einzelne SELECTs statt 1 Bulk-Fetch. Akzeptiert, solange
+    # wanted_search_max_items_per_run < 200 bleibt (typisch: 50).
     item = get_wanted_item(item_id)
     if not item:
         return {"wanted_id": item_id, "status": "error", "error": "Item not found"}

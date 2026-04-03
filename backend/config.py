@@ -349,6 +349,10 @@ class Settings(BaseSettings):
     max_concurrent_provider_searches: int = 3
     max_subtitle_file_size_kb: int = 2048
     download_delay_between_providers_ms: int = 0
+    gestdown_retry_delay_s: float = 1.0
+    """Wartezeit in Sekunden vor dem Retry nach HTTP 423 (Locked) von Gestdown.
+    Niedrigere Werte beschleunigen Batch-Scans; 0.0 deaktiviert das Warten.
+    Env: SUBLARR_GESTDOWN_RETRY_DELAY_S"""
 
     # Translation Context (Step 45)
     translation_use_episode_context: bool = False

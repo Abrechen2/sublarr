@@ -793,6 +793,9 @@ class WantedScanner:
         items = get_wanted_items_for_cleanup()
         to_remove_ids = []
 
+        # NOTE: os.path.exists() wird für jedes Item einzeln aufgerufen (I/O-Loop).
+        # Bei sehr großen Libraries (>5000 Items) kann dies spürbar sein.
+        # Optimization path: batch via ThreadPoolExecutor mit max_workers=8 falls nötig.
         for item in items:
             path = item["file_path"]
             target_lang = item.get("target_language", "")
