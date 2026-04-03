@@ -1,12 +1,11 @@
 """Unit tests for bazarr_migrator.py — config parsing, DB reading, transformation."""
 
 import json
+import os
 import sqlite3
 import tempfile
-import os
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call
-
+from unittest.mock import MagicMock, call, patch
 
 # ---------------------------------------------------------------------------
 # parse_bazarr_config — config parsing
@@ -182,9 +181,9 @@ def test_validate_table_name_valid():
 
 
 def test_validate_table_name_invalid():
-    from bazarr_migrator import _validate_table_name
-
     import pytest
+
+    from bazarr_migrator import _validate_table_name
 
     with pytest.raises(ValueError):
         _validate_table_name("table; DROP TABLE users")
@@ -197,9 +196,9 @@ def test_validate_table_name_invalid():
 
 
 def test_validate_table_name_rejects_spaces():
-    from bazarr_migrator import _validate_table_name
-
     import pytest
+
+    from bazarr_migrator import _validate_table_name
 
     with pytest.raises(ValueError):
         _validate_table_name("table name")
@@ -405,7 +404,7 @@ def test_preview_migration_with_sonarr_config():
 
 
 def test_preview_migration_masks_api_key():
-    from bazarr_migrator import preview_migration, _mask_preview
+    from bazarr_migrator import _mask_preview, preview_migration
 
     # _mask_preview should show first 4 chars + ***
     assert _mask_preview("abc123abc") == "abc1***"

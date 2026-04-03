@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-
 # ---------------------------------------------------------------------------
 # GET /api/v1/status/<job_id> — job status
 # ---------------------------------------------------------------------------
@@ -165,18 +164,9 @@ def test_translate_async_success(client, temp_dir, monkeypatch):
     fake_job = {"id": "job-abc", "status": "queued"}
     with (
         patch("db.jobs.create_job", return_value=fake_job),
-        patch.object(
-            __builtins__ if isinstance(__builtins__, dict) else type(__builtins__),
-            "__getattr__",
-            side_effect=AttributeError,
-        ) if False else patch("routes.translate.core._run_job"),
+        patch("routes.translate.core._run_job"),
     ):
-        # Mock the queue enqueue
-        from unittest.mock import MagicMock
-        mock_queue = MagicMock()
-        with patch("db.jobs.create_job", return_value=fake_job):
-            from flask import current_app
-            resp = client.post("/api/v1/translate", json={"file_path": sub_file})
+        resp = client.post("/api/v1/translate", json={"file_path": sub_file})
 
     # Should queue the job (202) — job_queue may or may not be configured in test
     # Accept either 202 (queued) or 500 (no queue configured but job creation failed)

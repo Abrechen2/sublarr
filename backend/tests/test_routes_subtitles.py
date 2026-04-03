@@ -6,7 +6,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-
 # ---------------------------------------------------------------------------
 # Helper: create a minimal subtitle file
 # ---------------------------------------------------------------------------

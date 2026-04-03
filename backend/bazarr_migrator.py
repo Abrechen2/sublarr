@@ -505,7 +505,7 @@ def generate_mapping_report(db_path: str) -> dict:
                         row_dict = dict(sample_row)
                         masked = {}
                         for col_name in columns:
-                            val = row_dict.get(col_name, None)
+                            val = row_dict.get(col_name)
                             if col_name.lower() in _SENSITIVE_FIELDS and val:
                                 masked[col_name] = "***"
                             else:

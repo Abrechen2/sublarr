@@ -1,12 +1,12 @@
 """HTTP tests for routes/wanted/ — list, summary, status, search, extract, batch."""
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
+from sqlalchemy import text
 
 from app import create_app
 from db import get_db
-from sqlalchemy import text
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -100,7 +100,6 @@ def test_list_wanted_filter_by_item_type(app_and_client):
     app, client = app_and_client
     _insert_wanted_item(app, "Some Episode")
     resp = client.get("/api/v1/wanted?item_type=episode")
-    data = resp.get_json()
     assert resp.status_code == 200
 
 

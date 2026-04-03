@@ -2,7 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-
 # ---------------------------------------------------------------------------
 # GET /api/v1/library — library list
 # ---------------------------------------------------------------------------
@@ -273,10 +272,12 @@ def test_episode_search_success(client, monkeypatch, temp_dir, mock_provider_man
     monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: mock_sonarr)
     monkeypatch.setattr("config.map_path", lambda p: p)
 
-    with patch("db.wanted.find_wanted_by_episode", return_value=None):
-        with patch("db.wanted.upsert_wanted_item", return_value=(1, False)):
-            with patch("wanted_search.search_wanted_item", return_value={"wanted_id": 1, "results": []}):
-                resp = client.post("/api/v1/episodes/1/search")
+    with (
+        patch("db.wanted.find_wanted_by_episode", return_value=None),
+        patch("db.wanted.upsert_wanted_item", return_value=(1, False)),
+        patch("wanted_search.search_wanted_item", return_value={"wanted_id": 1, "results": []}),
+    ):
+        resp = client.post("/api/v1/episodes/1/search")
 
     assert resp.status_code in (200, 202)
 
