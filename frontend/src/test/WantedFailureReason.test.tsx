@@ -1,25 +1,36 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { FailureReasonRow, formatRetryCountdown } from '../pages/Wanted'
 
+const FROZEN_NOW = new Date('2026-04-03T12:00:00.000Z').getTime()
+
 describe('formatRetryCountdown', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(FROZEN_NOW)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('returns null for null input', () => {
     expect(formatRetryCountdown(null)).toBeNull()
   })
 
   it('returns null for past timestamps', () => {
-    expect(formatRetryCountdown(new Date(Date.now() - 60_000).toISOString())).toBeNull()
+    expect(formatRetryCountdown(new Date(FROZEN_NOW - 60_000).toISOString())).toBeNull()
   })
 
   it('formats hours and minutes', () => {
-    const future = new Date(Date.now() + 3 * 60 * 60 * 1000 + 20 * 60 * 1000).toISOString()
+    const future = new Date(FROZEN_NOW + 3 * 60 * 60 * 1000 + 20 * 60 * 1000).toISOString()
     const result = formatRetryCountdown(future)
     expect(result).toMatch(/3h/)
     expect(result).toMatch(/20m/)
   })
 
   it('formats minutes only when < 1 hour', () => {
-    const future = new Date(Date.now() + 25 * 60 * 1000).toISOString()
+    const future = new Date(FROZEN_NOW + 25 * 60 * 1000).toISOString()
     const result = formatRetryCountdown(future)!
     expect(result).toMatch(/25m/)
     expect(result).not.toMatch(/0h/)
