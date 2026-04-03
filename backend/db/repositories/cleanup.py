@@ -7,7 +7,7 @@ and disk space analysis aggregations.
 import logging
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import Date, cast, delete, func, select
 
 from db.models.cleanup import CleanupHistory, CleanupRule, SubtitleHash
 from db.repositories.base import BaseRepository
@@ -373,12 +373,12 @@ class CleanupRepository(BaseRepository):
         # Recent cleanup trend (last 30 days)
         trend_stmt = (
             select(
-                func.substr(CleanupHistory.performed_at, 1, 10).label("date"),
+                cast(CleanupHistory.performed_at, Date).label("date"),
                 func.coalesce(func.sum(CleanupHistory.bytes_freed), 0).label("freed"),
             )
             .where(CleanupHistory.performed_at > datetime.now(UTC) - timedelta(days=30))
-            .group_by(func.substr(CleanupHistory.performed_at, 1, 10))
-            .order_by(func.substr(CleanupHistory.performed_at, 1, 10))
+            .group_by(cast(CleanupHistory.performed_at, Date))
+            .order_by(cast(CleanupHistory.performed_at, Date))
         )
         trend_rows = self.session.execute(trend_stmt).all()
         recent_cleanups = [{"date": row[0], "bytes_freed": row[1]} for row in trend_rows]

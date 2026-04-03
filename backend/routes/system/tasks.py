@@ -140,12 +140,16 @@ def list_tasks():
         scan_interval = getattr(s, "wanted_scan_interval_hours", 6)
         scan_last = scanner.last_scan_at or None
         scan_next = None
-        if scan_last and scan_interval:
+        if scan_interval:
             try:
                 from datetime import timedelta
 
-                last_dt = datetime.fromisoformat(str(scan_last))
-                scan_next = (last_dt + timedelta(hours=scan_interval)).isoformat()
+                base_dt = datetime.fromisoformat(str(scan_last)) if scan_last else (
+                    datetime.fromisoformat(scanner.scheduler_started_at)
+                    if scanner.scheduler_started_at else None
+                )
+                if base_dt:
+                    scan_next = (base_dt + timedelta(hours=scan_interval)).isoformat()
             except Exception as exc:
                 logger.debug("Could not compute wanted_scan next_run time: %s", exc)
         tasks.append(
@@ -164,12 +168,16 @@ def list_tasks():
         search_interval = getattr(s, "wanted_search_interval_hours", 24)
         search_last = scanner.last_search_at or None
         search_next = None
-        if search_last and search_interval:
+        if search_interval:
             try:
                 from datetime import timedelta
 
-                last_dt = datetime.fromisoformat(str(search_last))
-                search_next = (last_dt + timedelta(hours=search_interval)).isoformat()
+                base_dt = datetime.fromisoformat(str(search_last)) if search_last else (
+                    datetime.fromisoformat(scanner.scheduler_started_at)
+                    if scanner.scheduler_started_at else None
+                )
+                if base_dt:
+                    search_next = (base_dt + timedelta(hours=search_interval)).isoformat()
             except Exception as exc:
                 logger.debug("Could not compute wanted_search next_run time: %s", exc)
         tasks.append(

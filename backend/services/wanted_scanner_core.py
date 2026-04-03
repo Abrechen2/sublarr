@@ -48,6 +48,7 @@ class WantedScanner:
         self._progress = {"current": 0, "total": 0, "phase": "", "added": 0, "updated": 0}
         self._last_scan_at = None
         self._last_search_at = None
+        self._scheduler_started_at = None
         self._last_summary = {}
         # Incremental scan state
         self._last_scan_timestamp = None  # datetime of last successful scan
@@ -73,6 +74,10 @@ class WantedScanner:
     @property
     def last_search_at(self):
         return self._last_search_at.isoformat() if self._last_search_at else None
+
+    @property
+    def scheduler_started_at(self):
+        return self._scheduler_started_at.isoformat() if self._scheduler_started_at else None
 
     @property
     def last_summary(self):
@@ -1036,6 +1041,7 @@ class WantedScanner:
         """Start the periodic scan and search schedulers."""
         self._socketio = socketio
         self._app = app
+        self._scheduler_started_at = datetime.now(UTC)
         settings = get_settings()
 
         # Scan scheduler
