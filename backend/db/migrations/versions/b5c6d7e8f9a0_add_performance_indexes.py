@@ -10,7 +10,6 @@ wanted_items(status, retry_after) for the scan-loop candidate filter,
 and language index on subtitle_downloads for provider history lookups.
 """
 
-import sqlalchemy as sa
 from alembic import op
 
 revision = "b5c6d7e8f9a0"
