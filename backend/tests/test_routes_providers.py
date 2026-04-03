@@ -29,7 +29,13 @@ def test_list_providers_empty(client, mock_provider_manager):
 def test_list_providers_multiple(client, mock_provider_manager):
     mock_provider_manager.get_provider_status.return_value = [
         {"name": "animetosho", "healthy": True, "enabled": True, "initialized": True, "stats": {}},
-        {"name": "opensubtitles", "healthy": False, "enabled": False, "initialized": False, "stats": {}},
+        {
+            "name": "opensubtitles",
+            "healthy": False,
+            "enabled": False,
+            "initialized": False,
+            "stats": {},
+        },
     ]
     resp = client.get("/api/v1/providers")
     data = resp.get_json()
@@ -277,9 +283,7 @@ def test_clear_cache_all(client):
 
 def test_clear_cache_specific_provider(client):
     with patch("db.providers.clear_provider_cache") as mock_clear:
-        resp = client.post(
-            "/api/v1/providers/cache/clear", json={"provider_name": "animetosho"}
-        )
+        resp = client.post("/api/v1/providers/cache/clear", json={"provider_name": "animetosho"})
     data = resp.get_json()
     assert resp.status_code == 200
     assert data["provider"] == "animetosho"

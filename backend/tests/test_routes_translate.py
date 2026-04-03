@@ -52,7 +52,9 @@ def test_job_status_failed(client):
 
 
 def test_list_jobs_empty(client):
-    with patch("db.jobs.get_jobs", return_value={"jobs": [], "total": 0, "page": 1, "per_page": 50}):
+    with patch(
+        "db.jobs.get_jobs", return_value={"jobs": [], "total": 0, "page": 1, "per_page": 50}
+    ):
         resp = client.get("/api/v1/jobs")
     data = resp.get_json()
     assert resp.status_code == 200
@@ -78,13 +80,17 @@ def test_list_jobs_with_data(client):
 
 
 def test_list_jobs_with_status_filter(client):
-    with patch("db.jobs.get_jobs", return_value={"jobs": [], "total": 0, "page": 1, "per_page": 50}):
+    with patch(
+        "db.jobs.get_jobs", return_value={"jobs": [], "total": 0, "page": 1, "per_page": 50}
+    ):
         resp = client.get("/api/v1/jobs?status=completed")
     assert resp.status_code == 200
 
 
 def test_list_jobs_pagination(client):
-    with patch("db.jobs.get_jobs", return_value={"jobs": [], "total": 0, "page": 2, "per_page": 10}):
+    with patch(
+        "db.jobs.get_jobs", return_value={"jobs": [], "total": 0, "page": 2, "per_page": 10}
+    ):
         resp = client.get("/api/v1/jobs?page=2&per_page=10")
     assert resp.status_code == 200
 
@@ -147,6 +153,7 @@ def test_translate_async_path_outside_media(client, temp_dir, monkeypatch):
     os.makedirs(sub_media, exist_ok=True)
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", sub_media)
     from config import reload_settings
+
     reload_settings()
 
     resp = client.post("/api/v1/translate", json={"file_path": evil})
@@ -156,6 +163,7 @@ def test_translate_async_path_outside_media(client, temp_dir, monkeypatch):
 def test_translate_async_success(client, temp_dir, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
     from config import reload_settings
+
     reload_settings()
 
     sub_file = os.path.join(temp_dir, "ep.en.srt")
@@ -196,6 +204,7 @@ def test_translate_sync_path_outside_media(client, temp_dir, monkeypatch):
     os.makedirs(sub_media, exist_ok=True)
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", sub_media)
     from config import reload_settings
+
     reload_settings()
 
     resp = client.post("/api/v1/translate/sync", json={"file_path": evil})
@@ -378,9 +387,7 @@ def test_save_backend_config_success(client):
         patch("translation.get_translation_manager", return_value=mock_manager),
         patch("db.config.save_config_entry") as mock_save,
     ):
-        resp = client.put(
-            "/api/v1/backends/ollama/config", json={"url": "http://localhost:11434"}
-        )
+        resp = client.put("/api/v1/backends/ollama/config", json={"url": "http://localhost:11434"})
     data = resp.get_json()
     assert resp.status_code == 200
     assert data["status"] == "saved"

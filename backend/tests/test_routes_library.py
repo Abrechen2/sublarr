@@ -35,9 +35,7 @@ def test_library_sonarr_returns_series(client, monkeypatch):
 
 def test_library_radarr_returns_movies(client, monkeypatch):
     mock_radarr = MagicMock()
-    mock_radarr.get_library_info.return_value = [
-        {"id": 10, "title": "Test Movie", "tags": []}
-    ]
+    mock_radarr.get_library_info.return_value = [{"id": 10, "title": "Test Movie", "tags": []}]
     monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
     monkeypatch.setattr("radarr_client.get_radarr_client", lambda *a, **kw: mock_radarr)
 
@@ -196,9 +194,7 @@ def test_series_settings_missing_field(client):
 
 
 def test_series_settings_update_absolute_order(client):
-    resp = client.put(
-        "/api/v1/library/series/1/settings", json={"absolute_order": True}
-    )
+    resp = client.put("/api/v1/library/series/1/settings", json={"absolute_order": True})
     data = resp.get_json()
     assert resp.status_code == 200
     assert data["success"] is True
@@ -207,9 +203,7 @@ def test_series_settings_update_absolute_order(client):
 
 
 def test_series_settings_disable_absolute_order(client):
-    resp = client.put(
-        "/api/v1/library/series/5/settings", json={"absolute_order": False}
-    )
+    resp = client.put("/api/v1/library/series/5/settings", json={"absolute_order": False})
     data = resp.get_json()
     assert resp.status_code == 200
     assert data["absolute_order"] is False

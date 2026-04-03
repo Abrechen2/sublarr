@@ -11,7 +11,9 @@ from unittest.mock import MagicMock, patch
 # ---------------------------------------------------------------------------
 
 
-def _make_sub(directory: str, name: str, content: str = "1\n00:00:01,000 --> 00:00:02,000\nHello\n") -> str:
+def _make_sub(
+    directory: str, name: str, content: str = "1\n00:00:01,000 --> 00:00:02,000\nHello\n"
+) -> str:
     path = os.path.join(directory, name)
     Path(path).write_text(content, encoding="utf-8")
     return path
@@ -110,6 +112,7 @@ def test_download_subtitle_outside_media_path(client, temp_dir, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", sub_dir)
 
     from config import reload_settings
+
     reload_settings()
 
     resp = client.get(f"/api/v1/subtitles/download?path={outside}")
@@ -119,6 +122,7 @@ def test_download_subtitle_outside_media_path(client, temp_dir, monkeypatch):
 def test_download_subtitle_wrong_extension(client, temp_dir, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
     from config import reload_settings
+
     reload_settings()
 
     bad_file = os.path.join(temp_dir, "video.mkv")
@@ -130,6 +134,7 @@ def test_download_subtitle_wrong_extension(client, temp_dir, monkeypatch):
 def test_download_subtitle_file_not_found(client, temp_dir, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
     from config import reload_settings
+
     reload_settings()
 
     missing = os.path.join(temp_dir, "missing.srt")
@@ -140,6 +145,7 @@ def test_download_subtitle_file_not_found(client, temp_dir, monkeypatch):
 def test_download_subtitle_success(client, temp_dir, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
     from config import reload_settings
+
     reload_settings()
 
     sub_path = _make_sub(temp_dir, "show.en.srt")
@@ -166,6 +172,7 @@ def test_delete_subtitles_empty_paths(client):
 def test_delete_subtitles_invalid_path_type(client, temp_dir, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
     from config import reload_settings
+
     reload_settings()
 
     resp = client.delete("/api/v1/library/subtitles", json={"paths": [42]})
@@ -179,6 +186,7 @@ def test_delete_subtitles_path_outside_media(client, temp_dir, monkeypatch):
     os.makedirs(sub_dir, exist_ok=True)
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", sub_dir)
     from config import reload_settings
+
     reload_settings()
 
     outside = os.path.join(temp_dir, "outside.en.srt")
@@ -193,6 +201,7 @@ def test_delete_subtitles_path_outside_media(client, temp_dir, monkeypatch):
 def test_delete_subtitles_file_not_found(client, temp_dir, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
     from config import reload_settings
+
     reload_settings()
 
     missing = os.path.join(temp_dir, "nonexistent.en.srt")
@@ -205,6 +214,7 @@ def test_delete_subtitles_file_not_found(client, temp_dir, monkeypatch):
 def test_delete_subtitles_success(client, temp_dir, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
     from config import reload_settings
+
     reload_settings()
 
     sub_path = _make_sub(temp_dir, "show.en.srt")
@@ -221,6 +231,7 @@ def test_delete_subtitles_success(client, temp_dir, monkeypatch):
 def test_delete_subtitles_wrong_extension(client, temp_dir, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
     from config import reload_settings
+
     reload_settings()
 
     bad = os.path.join(temp_dir, "show.en.mkv")
@@ -239,6 +250,7 @@ def test_delete_subtitles_wrong_extension(client, temp_dir, monkeypatch):
 def test_list_trash_empty(client, temp_dir, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
     from config import reload_settings
+
     reload_settings()
 
     resp = client.get("/api/v1/library/trash")
@@ -250,6 +262,7 @@ def test_list_trash_empty(client, temp_dir, monkeypatch):
 def test_list_trash_after_delete(client, temp_dir, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
     from config import reload_settings
+
     reload_settings()
 
     sub_path = _make_sub(temp_dir, "show.de.srt")
@@ -272,6 +285,7 @@ def test_list_trash_after_delete(client, temp_dir, monkeypatch):
 def test_restore_invalid_batch_id(client, temp_dir, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
     from config import reload_settings
+
     reload_settings()
 
     # batch_id with non-alphanumeric chars → 400 (isalnum guard)
@@ -282,6 +296,7 @@ def test_restore_invalid_batch_id(client, temp_dir, monkeypatch):
 def test_restore_nonexistent_batch(client, temp_dir, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
     from config import reload_settings
+
     reload_settings()
 
     resp = client.post("/api/v1/library/trash/aabbccdd1234567890123456/restore")
@@ -291,6 +306,7 @@ def test_restore_nonexistent_batch(client, temp_dir, monkeypatch):
 def test_restore_batch_success(client, temp_dir, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
     from config import reload_settings
+
     reload_settings()
 
     sub_path = _make_sub(temp_dir, "show.en.ass")
@@ -315,6 +331,7 @@ def test_restore_batch_success(client, temp_dir, monkeypatch):
 def test_purge_invalid_batch_id(client, temp_dir, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
     from config import reload_settings
+
     reload_settings()
 
     # batch_id with non-alphanumeric chars → 400 (isalnum guard)
@@ -325,6 +342,7 @@ def test_purge_invalid_batch_id(client, temp_dir, monkeypatch):
 def test_purge_nonexistent_batch(client, temp_dir, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
     from config import reload_settings
+
     reload_settings()
 
     resp = client.delete("/api/v1/library/trash/aabbccdd1234567890123456")
@@ -334,6 +352,7 @@ def test_purge_nonexistent_batch(client, temp_dir, monkeypatch):
 def test_purge_batch_success(client, temp_dir, monkeypatch):
     monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
     from config import reload_settings
+
     reload_settings()
 
     sub_path = _make_sub(temp_dir, "show.de.ass")

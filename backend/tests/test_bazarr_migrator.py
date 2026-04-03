@@ -356,7 +356,9 @@ def test_migrate_db_profile_invalid_json(temp_dir):
 
     db_path = os.path.join(temp_dir, "bazarr_bad.db")
     conn = sqlite3.connect(db_path)
-    conn.execute("CREATE TABLE table_languages_profiles (profileId INTEGER, name TEXT, items TEXT, cutoff INTEGER)")
+    conn.execute(
+        "CREATE TABLE table_languages_profiles (profileId INTEGER, name TEXT, items TEXT, cutoff INTEGER)"
+    )
     conn.execute("INSERT INTO table_languages_profiles VALUES (1, 'Test', 'not-valid-json', NULL)")
     conn.commit()
     conn.close()
@@ -378,7 +380,16 @@ def test_preview_migration_empty_inputs():
     from bazarr_migrator import preview_migration
 
     config_data = {"sonarr": {}, "radarr": {}, "general": {}, "raw": {}, "warnings": []}
-    db_data = {"profiles": [], "blacklist": [], "history": [], "shows": [], "movies": [], "warnings": [], "sonarr_config": {}, "radarr_config": {}}
+    db_data = {
+        "profiles": [],
+        "blacklist": [],
+        "history": [],
+        "shows": [],
+        "movies": [],
+        "warnings": [],
+        "sonarr_config": {},
+        "radarr_config": {},
+    }
     result = preview_migration(config_data, db_data)
     assert result["config_entries"] == []
     assert result["profiles"] == []
@@ -395,7 +406,16 @@ def test_preview_migration_with_sonarr_config():
         "raw": {},
         "warnings": [],
     }
-    db_data = {"profiles": [], "blacklist": [], "history": [], "shows": [], "movies": [], "warnings": [], "sonarr_config": {}, "radarr_config": {}}
+    db_data = {
+        "profiles": [],
+        "blacklist": [],
+        "history": [],
+        "shows": [],
+        "movies": [],
+        "warnings": [],
+        "sonarr_config": {},
+        "radarr_config": {},
+    }
     result = preview_migration(config_data, db_data)
     # sonarr_url and sonarr_api_key should appear in config_entries
     keys = [e["key"] for e in result["config_entries"]]
@@ -418,7 +438,10 @@ def test_preview_migration_blacklist_count():
     config_data = {"sonarr": {}, "radarr": {}, "general": {}, "raw": {}, "warnings": []}
     db_data = {
         "profiles": [],
-        "blacklist": [{"provider": "p1", "subtitle_id": "1", "language": "de", "timestamp": "2024-01-01"}] * 5,
+        "blacklist": [
+            {"provider": "p1", "subtitle_id": "1", "language": "de", "timestamp": "2024-01-01"}
+        ]
+        * 5,
         "history": [],
         "shows": [],
         "movies": [],
