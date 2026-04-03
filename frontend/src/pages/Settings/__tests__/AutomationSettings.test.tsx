@@ -708,14 +708,14 @@ describe('AutomationSettings', () => {
       expect(mockMutate).toHaveBeenCalledWith({ streaming_enabled: true })
     })
 
-    it('streaming_enabled form-group is the last element inside processing-pipeline-content', () => {
+    it('post_download_command form-group is the last element inside processing-pipeline-content', () => {
       renderPage()
       const content = screen.getByTestId('processing-pipeline-content')
       const formGroups = content.querySelectorAll(
         '[data-testid^="form-group-"]:not([data-testid="form-group-control"]):not([data-testid="form-group-label"]):not([data-testid="form-group-hint"])',
       )
       const last = formGroups[formGroups.length - 1]
-      expect(last).toHaveAttribute('data-testid', 'form-group-streaming-enabled')
+      expect(last).toHaveAttribute('data-testid', 'form-group-post-download-command')
     })
   })
 

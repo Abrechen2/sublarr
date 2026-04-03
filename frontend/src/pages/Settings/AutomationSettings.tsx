@@ -568,6 +568,43 @@ function ProcessingPipelineContent() {
           disabled={updateConfig.isPending}
         />
       </FormGroup>
+
+      <FormGroup
+        label="Post-Processing aktiviert"
+        hint="Führt nach jedem erfolgreichen Subtitle-Download den konfigurierten Shell-Befehl aus."
+        data-testid="form-group-post-processing-enabled"
+      >
+        <Toggle
+          checked={boolVal(config, 'post_processing_enabled', false)}
+          onChange={(v) => save({ post_processing_enabled: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Post-Download-Befehl"
+        hint="Shell-Befehl nach Subtitle-Download. Variablen: {subtitle_path}, {path}, {language}, {provider}, {score}, {media_type}, {video_path}"
+        htmlFor="post-download-command"
+        data-testid="form-group-post-download-command"
+      >
+        <textarea
+          id="post-download-command"
+          data-testid="input-post-download-command"
+          style={{
+            ...settingsInputStyle,
+            width: '100%',
+            minHeight: '60px',
+            resize: 'vertical',
+            fontFamily: 'monospace',
+            fontSize: '12px',
+          }}
+          value={strVal(config, 'post_download_command', '')}
+          onChange={(e) => save({ post_download_command: e.target.value })}
+          disabled={updateConfig.isPending}
+          placeholder="z.B. curl -s http://localhost:7878/api/refreshMonitor"
+          spellCheck={false}
+        />
+      </FormGroup>
     </div>
   )
 }
