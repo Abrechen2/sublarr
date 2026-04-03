@@ -199,6 +199,9 @@ class Settings(BaseSettings):
 
     # Post-download shell command
     post_download_command: str = ""  # Shell command to run after each subtitle download
+    post_processing_enabled: bool = (
+        False  # Must be explicitly enabled; gate for post_download_command
+    )
 
     # NFO Export
     auto_nfo_export: bool = False  # Expert: write XML NFO sidecar after every download/translation
