@@ -10,7 +10,7 @@ import {
 } from '@/hooks/useApi'
 import { useBatchTranslate } from '@/hooks/useTranslationApi'
 import { toast } from '@/components/shared/Toast'
-import type { WantedSearchResponse, FilterCondition } from '@/lib/types'
+import type { WantedSearchResponse } from '@/lib/types'
 import { Loader2, CheckSquare, Square, MinusSquare, Download } from 'lucide-react'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { PageHeader } from '@/components/layout/PageHeader'

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { RefreshCw, Search, ScanSearch, Download, Languages, Loader2 } from 'lucide-react'
+import { RefreshCw, Search, ScanSearch, Download, Languages } from 'lucide-react'
 
 export interface WantedToolbarProps {
   summaryTotal: number
