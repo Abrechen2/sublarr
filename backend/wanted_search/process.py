@@ -16,6 +16,7 @@ from upgrade_scorer import should_upgrade
 from wanted_search.metadata import _set_adaptive_retry_after, build_query_from_wanted
 from wanted_search.post_processor import (
     _process_forced_wanted_item,
+    _try_auto_sync,
     download_specific_for_item,  # noqa: F401 — re-exported for callers
 )
 
@@ -235,6 +236,7 @@ def process_wanted_item(item_id: int) -> dict:
                         "score": result.score,
                     },
                 )
+                _try_auto_sync(output_path, file_path, settings)
                 update_wanted_status(item_id, "found")
                 return {
                     "wanted_id": item_id,
@@ -379,6 +381,7 @@ def process_wanted_item(item_id: int) -> dict:
                         item_id,
                         result.provider_name,
                     )
+                    _try_auto_sync(translate_result.get("output_path"), file_path, settings)
                     update_wanted_status(item_id, "found")
                     return {
                         "wanted_id": item_id,
@@ -449,6 +452,7 @@ def process_wanted_item(item_id: int) -> dict:
                             "score": result.score,
                         },
                     )
+                    _try_auto_sync(output_path, file_path, settings)
                     update_wanted_status(item_id, "found")
                     return {
                         "wanted_id": item_id,
@@ -588,6 +592,7 @@ def process_wanted_item(item_id: int) -> dict:
                         item_id,
                         result.provider_name,
                     )
+                    _try_auto_sync(translate_result.get("output_path"), file_path, settings)
                     update_wanted_status(item_id, "found")
                     return {
                         "wanted_id": item_id,

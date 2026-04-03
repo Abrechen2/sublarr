@@ -839,8 +839,13 @@ class WantedScanner:
 
     # ─── Search All ────────────────────────────────────────────────────────
 
-    def search_all(self, socketio=None) -> dict:
+    def search_all(self, socketio=None, include_upgrades: bool | None = None) -> dict:
         """Search providers for all wanted items (respects max_items_per_run).
+
+        Args:
+            include_upgrades: Whether to include upgrade candidates. Defaults to
+                True when upgrade_scan_interval_hours > 0, False otherwise.
+                Pass True explicitly to force a one-time upgrade search run.
 
         Uses ThreadPoolExecutor for parallel item processing instead of
         sequential processing with sleep delays. Provider-level rate limiting
@@ -860,10 +865,19 @@ class WantedScanner:
             settings = get_settings()
             max_items = settings.wanted_search_max_items_per_run
 
+            # Determine whether upgrade candidates are included in this run
+            upgrade_enabled = getattr(settings, "upgrade_scan_interval_hours", 0) > 0
+            if include_upgrades is None:
+                include_upgrades = upgrade_enabled
+
             from db.wanted import get_wanted_items
 
             result = get_wanted_items(page=1, per_page=max_items, status="wanted")
             items = result.get("data", [])
+
+            # Skip upgrade candidates when upgrade scan is disabled (unless forced)
+            if not include_upgrades:
+                items = [i for i in items if not i.get("upgrade_candidate")]
 
             # Filter: adaptive backoff (or fixed 1h fallback when disabled)
             eligible = []
@@ -1098,13 +1112,13 @@ class WantedScanner:
         else:
             self.scan_all()
 
-    def _run_search_with_context(self, socketio=None):
+    def _run_search_with_context(self, socketio=None, include_upgrades: bool | None = None):
         """Run search_all inside Flask app context (for background threads)."""
         if self._app is not None:
             with self._app.app_context():
-                self.search_all(socketio)
+                self.search_all(socketio, include_upgrades=include_upgrades)
         else:
-            self.search_all(socketio)
+            self.search_all(socketio, include_upgrades=include_upgrades)
 
     def _scheduled_scan(self, interval_hours):
         """Execute a scheduled scan and reschedule."""
