@@ -410,7 +410,6 @@ def wanted_batch_action():
         400:
           description: Invalid input
     """
-    from db import get_db
     from db.repositories.wanted import WantedRepository
 
     ALLOWED_ACTIONS = {"ignore", "unignore", "blacklist", "export"}
@@ -433,7 +432,7 @@ def wanted_batch_action():
 
     # Export action: return item data without DB changes
     if action == "export":
-        items_map = WantedRepository(get_db()).get_wanted_items_by_ids(item_ids)
+        items_map = WantedRepository().get_wanted_items_by_ids(item_ids)
         items = [items_map[i] for i in item_ids if i in items_map]
         return jsonify({"success": True, "action": "export", "data": items})
 
@@ -442,10 +441,10 @@ def wanted_batch_action():
     warning = None
 
     if action == "ignore":
-        affected = WantedRepository(get_db()).update_wanted_status_bulk(item_ids, "ignored")
+        affected = WantedRepository().update_wanted_status_bulk(item_ids, "ignored")
 
     elif action == "unignore":
-        wr = WantedRepository(get_db())
+        wr = WantedRepository()
         items_map = wr.get_wanted_items_by_ids(item_ids)
         ignored_ids = [i for i in item_ids if items_map.get(i, {}).get("status") == "ignored"]
         affected = wr.update_wanted_status_bulk(ignored_ids, "wanted") if ignored_ids else 0
@@ -454,7 +453,7 @@ def wanted_batch_action():
         try:
             from db.blacklist import add_blacklist_entry
 
-            wr = WantedRepository(get_db())
+            wr = WantedRepository()
             items_map = wr.get_wanted_items_by_ids(item_ids)
             for item_id, item in items_map.items():
                 add_blacklist_entry(
@@ -471,7 +470,7 @@ def wanted_batch_action():
         except ImportError:
             # Blacklist module not available -- fall back to ignore
             warning = "Blacklist module not available, items set to ignored instead"
-            affected = WantedRepository(get_db()).update_wanted_status_bulk(item_ids, "ignored")
+            affected = WantedRepository().update_wanted_status_bulk(item_ids, "ignored")
 
     result = {
         "success": True,
