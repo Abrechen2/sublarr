@@ -134,6 +134,18 @@ def _run_batch_extract(item_ids, auto_translate, app):
                     )
                     with _batch_extract_lock:
                         _batch_extract_state["succeeded"] += 1
+                except (LookupError, FileNotFoundError, ValueError) as exc:
+                    # Permanent failure: no subtitle stream found or file missing.
+                    # Clear the embedded_sub flag so the item falls through to provider search.
+                    logger.warning("[batch-extract] item %d failed (clearing embedded flag): %s", item_id, exc)
+                    try:
+                        from db.wanted import update_existing_sub, update_wanted_status
+                        update_existing_sub(item_id, "")
+                        update_wanted_status(item_id, "wanted")
+                    except Exception as db_exc:
+                        logger.debug("[batch-extract] DB update failed for item %d: %s", item_id, db_exc)
+                    with _batch_extract_lock:
+                        _batch_extract_state["failed"] += 1
                 except Exception as exc:
                     logger.warning("[batch-extract] item %d failed: %s", item_id, exc)
                     with _batch_extract_lock:

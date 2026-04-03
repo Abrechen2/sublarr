@@ -348,6 +348,9 @@ class WantedScanner:
             existing = detect_existing_target_for_lang(mapped_path, target_lang, probe_data)
             if existing == "ass":
                 continue
+            # SRT is sufficient when upgrade scanning is disabled
+            if existing == "srt" and not settings.upgrade_enabled:
+                continue
 
             embedded_sub = None
             if probe_data:
@@ -608,6 +611,9 @@ class WantedScanner:
                 existing = detect_existing_target_for_lang(mapped_path, target_lang, probe_data)
                 if existing == "ass":
                     continue  # Goal achieved for this language
+                # SRT is sufficient when upgrade scanning is disabled
+                if existing == "srt" and not settings.upgrade_enabled:
+                    continue
 
                 # Check embedded streams and audio tracks if probe_data available
                 embedded_sub = None
@@ -811,7 +817,8 @@ class WantedScanner:
                 to_remove_ids.append(item["id"])
                 continue
 
-            # Target ASS appeared since last scan (language-aware)
+            # Target subtitle appeared since last scan (language-aware)
+            settings = get_settings()
             if target_lang:
                 existing = detect_existing_target_for_lang(path, target_lang)
             else:
@@ -819,6 +826,10 @@ class WantedScanner:
 
                 existing = detect_existing_target(path)
             if existing == "ass":
+                to_remove_ids.append(item["id"])
+                continue
+            # SRT counts as goal achieved when upgrade scanning is disabled
+            if existing == "srt" and not settings.upgrade_enabled:
                 to_remove_ids.append(item["id"])
                 continue
 
