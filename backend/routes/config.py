@@ -7,6 +7,7 @@ from flask import Blueprint, jsonify, request
 
 from cache_response import cached_get, invalidate_response_cache
 from events import emit_event
+from extensions import limiter
 from security_utils import validate_service_url
 
 bp = Blueprint("config", __name__, url_prefix="/api/v1")
@@ -393,6 +394,7 @@ def onboarding_complete():
 
 
 @bp.route("/config/export", methods=["GET"])
+@limiter.limit("30 per minute")
 def export_config():
     """Export current configuration as JSON (without secrets).
     ---
@@ -419,6 +421,7 @@ def export_config():
 
 
 @bp.route("/config/import", methods=["POST"])
+@limiter.limit("5 per minute")
 def import_config():
     """Import configuration from JSON. Secrets are skipped for safety.
     ---

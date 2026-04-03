@@ -58,6 +58,7 @@ def bootstrap():
 
 
 @auth_ui_bp.post("/setup")
+@limiter.limit("5 per minute")
 def setup():
     if ui_auth.is_ui_auth_configured():
         return jsonify({"error": "Already configured. Use /toggle or /change-password."}), 409
@@ -114,6 +115,7 @@ def logout():
 
 
 @auth_ui_bp.post("/change-password")
+@limiter.limit("5 per minute; 20 per hour")
 def change_password():
     if not _is_session_authenticated():
         return jsonify({"error": "Authentication required"}), 401

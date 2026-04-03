@@ -6,6 +6,7 @@ import logging
 from flask import Blueprint, jsonify, request
 
 from cache_response import cached_get
+from extensions import limiter
 
 bp = Blueprint("providers", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -211,6 +212,7 @@ def test_provider(provider_name):
 
 
 @bp.route("/providers/search", methods=["POST"])
+@limiter.limit("20 per minute")
 def search_providers():
     """Search subtitle providers for a specific file.
     ---
