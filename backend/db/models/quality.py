@@ -4,7 +4,9 @@ Stores per-file health check results including quality score,
 issues JSON, and check metadata for trend tracking.
 """
 
-from sqlalchemy import Index, Integer, Text
+from datetime import datetime
+
+from sqlalchemy import DateTime, Index, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from extensions import db
@@ -20,7 +22,7 @@ class SubtitleHealthResult(db.Model):
     score: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
     issues_json: Mapped[str] = mapped_column(Text, default="[]")
     checks_run: Mapped[int] = mapped_column(Integer, default=0)
-    checked_at: Mapped[str] = mapped_column(Text, nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         Index("idx_health_results_path", "file_path"),

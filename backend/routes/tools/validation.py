@@ -371,7 +371,16 @@ def health_check():
             except Exception as e:
                 logger.warning("Failed to persist health result for %s: %s", abs_path, e)
 
-            return jsonify(check_result)
+            # Serialize datetime to ISO string for JSON response
+            response_result = {
+                **check_result,
+                "checked_at": (
+                    check_result["checked_at"].isoformat()
+                    if hasattr(check_result["checked_at"], "isoformat")
+                    else check_result["checked_at"]
+                ),
+            }
+            return jsonify(response_result)
 
         except Exception as exc:
             logger.error("Health check failed for %s: %s", abs_path, exc)
@@ -415,7 +424,17 @@ def health_check():
                 except Exception as e:
                     logger.warning("Failed to persist health result for %s: %s", abs_path, e)
 
-                results.append(check_result)
+                # Serialize datetime to ISO string for JSON response
+                results.append(
+                    {
+                        **check_result,
+                        "checked_at": (
+                            check_result["checked_at"].isoformat()
+                            if hasattr(check_result["checked_at"], "isoformat")
+                            else check_result["checked_at"]
+                        ),
+                    }
+                )
                 total_issues += len(check_result["issues"])
                 total_score += check_result["score"]
 

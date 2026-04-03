@@ -5,7 +5,7 @@ This is an expert feature disabled by default (auto_nfo_export = false).
 
 import logging
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def write_nfo(subtitle_path: str, metadata: dict) -> None:
         root = ET.Element("subtitle")
         meta = dict(metadata)
         meta.setdefault("sublarr_version", _get_version())
-        meta.setdefault("downloaded_at", datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"))
+        meta.setdefault("downloaded_at", datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S"))
         for field in _FIELDS:
             val = meta.get(field)
             ET.SubElement(root, field).text = "" if val is None else str(val)

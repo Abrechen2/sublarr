@@ -89,7 +89,7 @@ def _get_last_scan_minutes() -> int | None:
         if not val:
             return None
         ts = _dt2.datetime.fromisoformat(val)
-        delta = _dt2.datetime.utcnow() - ts
+        delta = _dt2.datetime.now(_dt2.UTC) - ts
         return int(delta.total_seconds() / 60)
     except Exception:
         return None
@@ -156,7 +156,7 @@ def _build_diagnostic() -> dict:
     settings = _gs4()
     diag: dict = {
         "version": _ver,
-        "timestamp_utc": _dt4.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "timestamp_utc": _dt4.datetime.now(_dt4.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "uptime_minutes": None,
         "memory_mb": None,
     }
@@ -287,7 +287,7 @@ def support_export():
     import json as _json
     import platform
     import zipfile as _zipfile
-    from datetime import datetime
+    from datetime import UTC, datetime
 
     from flask import session as _session
 
@@ -304,7 +304,7 @@ def support_export():
 
     log_path = getattr(_s, "log_file", "log/sublarr.log")
     candidates = [log_path] + [f"{log_path}.{i}" for i in range(1, 4)]
-    ts = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%SZ")
+    ts = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
     zip_name = f"sublarr-support-{ts}.zip"
 
     hostname: str | None = None

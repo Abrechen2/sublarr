@@ -40,6 +40,7 @@ from providers.base import (
     compute_score,
 )
 from providers.registry import PROVIDER_METADATA
+from security_utils import validate_download_url
 
 
 def _detect_format_from_content(content: bytes) -> SubtitleFormat:
@@ -58,6 +59,87 @@ def _detect_format_from_content(content: bytes) -> SubtitleFormat:
     if preview.startswith("[Script Info]") or preview.lower().startswith("[v4"):
         return SubtitleFormat.ASS
     return SubtitleFormat.SRT
+
+
+# Known malicious binary signatures that should never appear in subtitle files
+_BINARY_SIGNATURES = [
+    b"MZ",  # Windows PE executable
+    b"\x7fELF",  # Linux ELF executable
+    b"\xca\xfe\xba\xbe",  # Java class file
+    b"\xfe\xed\xfa\xce",  # macOS Mach-O
+    b"\xfe\xed\xfa\xcf",  # macOS Mach-O 64-bit
+]
+
+_MAX_SUBTITLE_SIZE = 50 * 1024 * 1024  # 50 MB
+
+
+def _validate_subtitle_content(content: bytes, fmt: str) -> tuple[bool, str | None]:
+    """Validate downloaded subtitle content matches the declared format (P4).
+
+    Rejects executable/binary signatures and content that is clearly not a
+    text-based subtitle file.
+
+    Returns:
+        (True, None) if content looks like a valid subtitle.
+        (False, reason) if content appears to be malicious or wrong format.
+    """
+    if not content:
+        return False, "Empty content"
+
+    # Check for executable/binary signatures
+    for sig in _BINARY_SIGNATURES:
+        if content.startswith(sig):
+            return False, f"Content has binary executable signature (0x{sig.hex()[:8]})"
+
+    # Check that content is mostly text (subtitle files are text-based).
+    # Reject if more than 30% of sampled bytes are non-printable control characters
+    # (allowing for UTF-8 multi-byte sequences which may have high bytes, but not
+    # random binary data which distributes evenly across all 256 byte values).
+    sample = content[:1024]
+    null_bytes = sample.count(b"\x00")
+    if null_bytes > len(sample) * 0.05:
+        return False, "Content appears to be binary data (too many null bytes)"
+    # Count bytes that are neither printable ASCII nor valid UTF-8 continuation bytes
+    # (i.e. bytes < 0x09 or in range 0x0E–0x1F, excluding tab/LF/CR/FF)
+    control_chars = sum(1 for b in sample if (b < 0x09) or (0x0E <= b <= 0x1F))
+    if control_chars > len(sample) * 0.10:
+        return False, "Content appears to be binary data (too many control characters)"
+
+    return True, None
+
+
+def _stream_download(session, url: str, timeout: int = 15) -> bytes:
+    """Download a subtitle file with a 50 MB size cap (P5).
+
+    Uses streaming to avoid loading the entire response into memory at once.
+    Raises RuntimeError if the declared or actual content exceeds _MAX_SUBTITLE_SIZE.
+    """
+    with session.get(url, stream=True, timeout=timeout) as response:
+        response.raise_for_status()
+
+        # Preflight: reject oversized files advertised via Content-Length
+        content_length = response.headers.get("Content-Length")
+        if content_length:
+            try:
+                if int(content_length) > _MAX_SUBTITLE_SIZE:
+                    raise RuntimeError(
+                        f"Subtitle file too large: {int(content_length)} bytes "
+                        f"(max {_MAX_SUBTITLE_SIZE})"
+                    )
+            except ValueError:
+                pass  # Non-integer Content-Length — proceed with streaming check
+
+        chunks = []
+        total = 0
+        for chunk in response.iter_content(chunk_size=65536):
+            total += len(chunk)
+            if total > _MAX_SUBTITLE_SIZE:
+                raise RuntimeError(
+                    f"Subtitle download exceeded size limit of {_MAX_SUBTITLE_SIZE} bytes"
+                )
+            chunks.append(chunk)
+
+        return b"".join(chunks)
 
 
 logger = logging.getLogger(__name__)
@@ -249,10 +331,6 @@ class ProviderManager:
             from providers import napisy24  # noqa: F401
         except ImportError as e:
             logger.debug("Napisy24 provider not available: %s", e)
-        try:
-            from providers import whisper_subgen  # noqa: F401
-        except ImportError as e:
-            logger.debug("WhisperSubgen provider not available: %s", e)
         try:
             from providers import titrari  # noqa: F401
         except ImportError as e:
@@ -1192,6 +1270,17 @@ class ProviderManager:
             )
             return None
 
+        # P1: Validate download URL against per-provider domain allowlist (SSRF guard)
+        url_ok, url_err = validate_download_url(result.download_url or "", result.provider_name)
+        if not url_ok:
+            logger.warning(
+                "Provider %s: download URL rejected by allowlist — %s (url=%r)",
+                result.provider_name,
+                url_err,
+                result.download_url,
+            )
+            return None
+
         try:
             content = provider.download(result)
             result.content = content
@@ -1274,6 +1363,12 @@ class ProviderManager:
         """
         if not result.content:
             raise ValueError("SubtitleResult has no content (download first)")
+
+        # Validate content against declared format before processing (P4)
+        fmt_hint = result.format.value if result.format != SubtitleFormat.UNKNOWN else "srt"
+        valid, reason = _validate_subtitle_content(result.content, fmt_hint)
+        if not valid:
+            raise RuntimeError(f"Downloaded subtitle content failed validation: {reason}")
 
         # Determine extension — detect from content if format is unknown
         if result.format == SubtitleFormat.UNKNOWN and result.content:

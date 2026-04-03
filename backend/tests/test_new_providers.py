@@ -531,7 +531,7 @@ class TestOpenSubtitlesDownloadFormatDetection:
         dl_resp.content = content
         provider.session.post.return_value = MagicMock(
             status_code=200,
-            json=lambda: {"link": "https://example.com/file", "file_name": file_name},
+            json=lambda: {"link": "https://opensubtitles.com/file", "file_name": file_name},
         )
         provider.session.get.return_value = dl_resp
 
@@ -571,7 +571,7 @@ class TestOpenSubtitlesDownloadFormatDetection:
         dl_resp.content = b"content"
         p.session.post.return_value = MagicMock(
             status_code=200,
-            json=lambda: {"link": "https://example.com/file"},  # no file_name
+            json=lambda: {"link": "https://opensubtitles.com/file"},  # no file_name
         )
         p.session.get.return_value = dl_resp
 

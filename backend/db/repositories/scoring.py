@@ -24,6 +24,7 @@ _DEFAULT_EPISODE_WEIGHTS = {
     "source": 7,
     "audio_codec": 3,
     "resolution": 2,
+    "video_codec": 2,
     "hearing_impaired": 1,
     "format_bonus": 50,
 }
@@ -36,6 +37,7 @@ _DEFAULT_MOVIE_WEIGHTS = {
     "source": 7,
     "audio_codec": 3,
     "resolution": 2,
+    "video_codec": 2,
     "hearing_impaired": 1,
     "format_bonus": 50,
 }

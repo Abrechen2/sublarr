@@ -4,6 +4,7 @@ All models use Flask-SQLAlchemy's db.Model as the base class.
 Import all models from here to ensure Alembic autogenerate detects them.
 """
 
+from db.models.circuit_breaker import CircuitBreakerState  # noqa: F401
 from db.models.cleanup import (
     CleanupHistory,
     CleanupRule,
@@ -118,4 +119,6 @@ __all__ = [
     # plugins / marketplace
     "MarketplaceCache",
     "InstalledPlugin",
+    # circuit breaker
+    "CircuitBreakerState",
 ]

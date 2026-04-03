@@ -8,7 +8,7 @@ Runs enabled cleanup rules in order: dedup scan then rule execution.
 import contextlib
 import logging
 import threading
-from datetime import UTC
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -76,10 +76,9 @@ class CleanupScheduler:
         if not self._last_run_at or not self._interval_hours:
             return None
         try:
-            from datetime import datetime, timedelta
+            from datetime import timedelta
 
-            last_dt = datetime.fromisoformat(self._last_run_at)
-            return (last_dt + timedelta(hours=self._interval_hours)).isoformat()
+            return (self._last_run_at + timedelta(hours=self._interval_hours)).isoformat()
         except Exception:
             return None
 
@@ -179,8 +178,6 @@ class CleanupScheduler:
 
     def _execute_cleanup(self):
         """Run all enabled cleanup rules in order."""
-        from datetime import datetime
-
         from config import get_settings
         from db.repositories.cleanup import CleanupRepository
         from dedup_engine import scan_for_duplicates, scan_orphaned_subtitles
@@ -262,4 +259,4 @@ class CleanupScheduler:
                     logger.error("Failed to execute rule %d (%s): %s", rule["id"], rule["name"], e)
         finally:
             self._executing = False
-            self._last_run_at = datetime.now(UTC).isoformat()
+            self._last_run_at = datetime.now(UTC)

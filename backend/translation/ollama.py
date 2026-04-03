@@ -75,6 +75,27 @@ class OllamaBackend(TranslationBackend):
             "default": "3",
             "help": "Number of retry attempts on failure",
         },
+        {
+            "key": "use_chat_api",
+            "label": "Chat API (V9+)",
+            "type": "checkbox",
+            "required": False,
+            "default": "false",
+            "help": "Use /api/chat instead of /api/generate for V9+ models",
+        },
+        {
+            "key": "system_prompt",
+            "label": "System Prompt",
+            "type": "textarea",
+            "required": False,
+            "default": (
+                "Du bist ein spezialisierter Anime-Untertitel-Übersetzer. "
+                "Übersetze englische Anime-Untertitel präzise und natürlich ins Deutsche. "
+                "Verwende informelle Sprache (du-Form). Behalte Charakternamen und "
+                "Eigennamen unverändert. Keine Erklärungen oder Kommentare — nur die Übersetzung."
+            ),
+            "help": "System prompt for chat API mode. Use {series_context} as placeholder.",
+        },
     ]
 
     def __init__(self, **config):
@@ -144,12 +165,37 @@ class OllamaBackend(TranslationBackend):
         except (ValueError, TypeError):
             return 5
 
+    @property
+    def _use_chat_api(self) -> bool:
+        val = self.config.get("use_chat_api", "false")
+        if isinstance(val, bool):
+            return val
+        return str(val).lower() in ("true", "1", "yes")
+
+    @property
+    def _system_prompt(self) -> str:
+        return self.config.get("system_prompt", "")
+
+    def _build_system_prompt(self, series_context: str | None) -> str:
+        base = self._system_prompt or (
+            "Du bist ein spezialisierter Anime-Untertitel-Übersetzer. "
+            "Übersetze englische Anime-Untertitel präzise und natürlich ins Deutsche. "
+            "Verwende informelle Sprache (du-Form). Behalte Charakternamen und "
+            "Eigennamen unverändert. Keine Erklärungen oder Kommentare — nur die Übersetzung."
+        )
+        if not series_context:
+            return base.replace("{series_context}", "").strip()
+        if "{series_context}" in base:
+            return base.replace("{series_context}", series_context)
+        return f"{base} {series_context}"
+
     def translate_batch(
         self,
         lines: list[str],
         source_lang: str,
         target_lang: str,
         glossary_entries: list[dict] | None = None,
+        series_context: str | None = None,
     ) -> TranslationResult:
         """Translate a batch of subtitle lines via Ollama.
 
@@ -164,11 +210,20 @@ class OllamaBackend(TranslationBackend):
             )
 
         start_time = time.time()
-        prompt = build_translation_prompt(lines, source_lang, target_lang, glossary_entries)
 
         for attempt in range(1, self._max_retries + 1):
             try:
-                response = self._call_ollama(prompt)
+                if self._use_chat_api:
+                    system = self._build_system_prompt(series_context)
+                    user = build_translation_prompt(
+                        lines, source_lang, target_lang, glossary_entries
+                    )
+                    response = self._call_ollama_chat(system, user)
+                else:
+                    prompt = build_translation_prompt(
+                        lines, source_lang, target_lang, glossary_entries
+                    )
+                    response = self._call_ollama(prompt)
                 parsed = parse_llm_response(response, len(lines))
                 if parsed is not None:
                     # Check for CJK hallucination in any line
@@ -204,7 +259,7 @@ class OllamaBackend(TranslationBackend):
         # Fallback: translate lines individually
         logger.warning("Batch translation failed, falling back to single-line mode")
         return self._translate_singles(
-            lines, source_lang, target_lang, glossary_entries, start_time
+            lines, source_lang, target_lang, glossary_entries, start_time, series_context
         )
 
     def _translate_singles(
@@ -214,18 +269,28 @@ class OllamaBackend(TranslationBackend):
         target_lang: str,
         glossary_entries: list[dict] | None,
         start_time: float,
+        series_context: str | None = None,
     ) -> TranslationResult:
         """Translate lines one by one as fallback, with retries."""
         import re
 
         results = []
         for i, line in enumerate(lines):
-            prompt = build_translation_prompt([line], source_lang, target_lang, glossary_entries)
             last_error = None
 
             for attempt in range(1, self._max_retries + 1):
                 try:
-                    response = self._call_ollama(prompt)
+                    if self._use_chat_api:
+                        system = self._build_system_prompt(series_context)
+                        user = build_translation_prompt(
+                            [line], source_lang, target_lang, glossary_entries
+                        )
+                        response = self._call_ollama_chat(system, user)
+                    else:
+                        prompt = build_translation_prompt(
+                            [line], source_lang, target_lang, glossary_entries
+                        )
+                        response = self._call_ollama(prompt)
                     translated = re.sub(r"^\d+[\.:]\s*", "", response.strip().split("\n")[0])
                     if has_cjk_hallucination(translated):
                         logger.warning(
@@ -326,6 +391,52 @@ class OllamaBackend(TranslationBackend):
             raise RuntimeError(f"Ollama response missing 'response' key: {list(data.keys())}")
 
         return data["response"].strip()
+
+    def _call_ollama_chat(self, system_prompt: str, user_prompt: str) -> str:
+        """Make a single Ollama Chat API call (/api/chat) for V9+ models.
+
+        Returns:
+            Model response text from message.content
+
+        Raises:
+            RuntimeError: On API errors, invalid responses, or missing message key
+            requests.RequestException: On network errors
+        """
+        payload = {
+            "model": self._model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "stream": False,
+            "options": {"temperature": self._temperature, "num_predict": 4096, "num_ctx": 4096},
+        }
+        resp = requests.post(f"{self._url}/api/chat", json=payload, timeout=self._request_timeout)
+
+        if resp.status_code == 429:
+            retry_after = resp.headers.get("Retry-After")
+            try:
+                wait_seconds = int(retry_after) if retry_after else 60
+            except ValueError:
+                wait_seconds = 60
+            raise RuntimeError(f"Ollama rate limited, retry after {wait_seconds}s")
+
+        resp.raise_for_status()
+
+        try:
+            data = resp.json()
+        except ValueError:
+            raise RuntimeError("Ollama returned invalid JSON response")
+
+        if "error" in data:
+            raise RuntimeError(f"Ollama error: {data['error']}")
+
+        if "message" not in data or "content" not in data.get("message", {}):
+            raise RuntimeError(
+                f"Ollama chat response missing 'message.content': {list(data.keys())}"
+            )
+
+        return data["message"]["content"].strip()
 
     def health_check(self) -> tuple[bool, str]:
         """Check if Ollama is reachable and the model is available."""
