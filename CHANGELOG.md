@@ -5,6 +5,42 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.38.0-beta] - 2026-04-03
+
+### Security
+- **P1 — Provider domain allowlist** — `validate_download_url()` added to `security_utils.py`; all 6 provider download methods now validate URLs against a per-provider domain allowlist before fetching; blocks SSRF via compromised provider responses
+- **P2 — Filename sanitization** — `werkzeug.secure_filename()` applied to all provider-supplied filenames before they reach `os.path.splitext` or disk writes; neutralizes path traversal attacks
+- **P3 — Prompt injection guard** — subtitle lines and glossary entries are sanitized before LLM prompt construction in `translation/llm_utils.py`; embedded newlines escaped, oversized terms rejected
+- **P4 — Magic-byte validation** — downloaded subtitle content validated against expected format signatures (SRT/ASS/VTT); binary payloads rejected before storage
+- **P5 — Streaming size cap** — all provider downloads capped at 50 MB via streaming download helper; replaces unbounded `.content` reads
+- **F-05 — Webhook signature warning** — `auth.py` now logs a warning when a Sonarr/Radarr webhook arrives without `X-Signature` or `X-Bazarr-Signature` header
+
+### Added
+- **Language profile filters API** — `must_contain`, `cutoff`, and `audio_exclude` fields now fully exposed via `GET/PUT /api/v1/language-profiles/:id`; repository serializer and update allowlist updated
+- **Video codec scoring** — `video_codec` weight (default 2) added to scoring defaults; `apply_video_codec_bonus()` helper matches codec strings from media metadata
+- **Ollama Chat API (V9)** — `use_chat_api` flag in translation config enables Ollama `/api/chat` endpoint alongside legacy `/api/generate`; `series_context` injected as system message for improved translation coherence
+- **Circuit breaker state persistence** — breaker open/closed state and failure counters survive restarts via new `circuit_breaker_state` DB table + Alembic migration
+- **`@handle_api_error` decorator** — `error_utils.py` provides a reusable decorator for route error handling; applied to cleanup route handlers
+
+### Changed
+- **`providers/__init__.py` split** — 1642-line file extracted into `providers/format_validator.py` (magic-byte validation) and `providers/download_manager.py` (streaming download + size cap); all imports backwards-compatible
+- **`services/cleanup_scanner.py`** — cleanup business logic extracted from `routes/cleanup.py` (1016 → <400 LOC)
+- **`services/standalone_manager.py`** — standalone auto-mode logic extracted from `routes/standalone.py`
+- **`frontend/src/api/client.ts` split** — 2151-line file split into 9 domain modules (`core`, `library`, `providers`, `settings`, `system`, `translation`, `wanted`, `health`); backwards-compat re-exports maintained
+- **`frontend/src/lib/types.ts` split** — 1301-line file split into 7 domain type files under `frontend/src/types/`; backwards-compat re-exports maintained
+- **ROADMAP.md** — updated to reflect v0.37.3 current state; v0.29–v0.37 marked done; v0.38–v0.40 roadmap added
+- **`datetime.utcnow()` removed** — all 10 deprecated calls replaced with `datetime.now(UTC)` across `whisper/queue.py`, `nfo_export.py`, and `routes/system/logs.py`
+
+### Removed
+- **`providers/whisper_subgen.py`** — dead provider file deleted (replaced by Whisper backend system in v0.35)
+
+### Tests
+- **+147 backend tests** — new test files for `routes/cleanup`, `routes/api_keys`, `routes/profiles`, `routes/notifications`, and `whisper/queue`
+- **+72 security tests** — `TestValidateDownloadUrl`, `TestFilenameSanitization`, `TestPromptInjectionGuard`, `TestMagicByteValidation`, `TestStreamingCap` appended to `test_security.py`
+- **Subtitle health timestamps** — `subtitle_health_results.checked_at` migrated from TEXT to `DateTime(timezone=True)`; in-memory scheduler state uses datetime objects throughout
+
+---
+
 ## [0.37.3-beta] - 2026-04-01
 
 ### Changed
