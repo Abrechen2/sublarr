@@ -170,6 +170,7 @@ class CacheRepository(BaseRepository):
                 SubtitleDownload.format,
                 SubtitleDownload.score,
                 SubtitleDownload.downloaded_at,
+                SubtitleDownload.upgraded_from_id,
             )
             .where(SubtitleDownload.file_path.like(like_pattern))
             .order_by(SubtitleDownload.downloaded_at.desc())
@@ -186,6 +187,7 @@ class CacheRepository(BaseRepository):
                     "date": r.downloaded_at,
                     "status": "completed",
                     "error": "",
+                    "upgraded_from_id": r.upgraded_from_id,
                 }
             )
 
