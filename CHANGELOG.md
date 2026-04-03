@@ -5,6 +5,16 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.38.1-beta] - 2026-04-03
+
+### Tests
+- **HTTP route tests** — 6 new test files covering `routes/subtitles.py`, `routes/library/`, `routes/wanted/`, `routes/providers.py`, `routes/translate/`, and `bazarr_migrator.py` (Phase 3b test coverage)
+- **2 bug fixes via TDD** — `WantedRepository` init call fixed in `routes/wanted/search.py`; `sqlite3.Row.get()` replaced with `dict()` in `bazarr_migrator.py`
+- **Flaky time test fixed** — `WantedFailureReason.test.tsx` uses `vi.useFakeTimers()` + frozen timestamp to prevent minute-boundary failures
+
+### Changed
+- **Phase 5 refactoring complete** — `wanted_scanner.py` → facade + `wanted_scanner_core.py`; `config.py` → `config_language_data.py` + `config_instances.py` + `config_utils.py`; `AdvancedTab.tsx` → 4 sub-tab components; `Wanted.tsx` → toolbar/filter/row components; `LegacySettings.tsx` reduced to 682 LOC
+
 ## [0.38.0-beta] - 2026-04-03
 
 ### Security
