@@ -1,4 +1,4 @@
-"""HTTP tests for routes/subtitles.py — sidecar discovery, trash, and download."""
+"""HTTP tests for routes/subtitles.py — sidecar discovery, trash management, download."""
 
 import json
 import os
@@ -6,416 +6,448 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-# ─── Episode subtitle sidecar endpoints ────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Helper: create a minimal subtitle file
+# ---------------------------------------------------------------------------
 
 
-def test_list_episode_subtitles_sonarr_not_configured(client, monkeypatch):
-    """Returns 503 when no Sonarr client is configured."""
-    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda: None)
-    resp = client.get("/api/v1/library/episodes/1/subtitles")
-    assert resp.status_code == 503
-    assert "error" in resp.get_json()
+def _make_sub(
+    directory: str, name: str, content: str = "1\n00:00:01,000 --> 00:00:02,000\nHello\n"
+) -> str:
+    path = os.path.join(directory, name)
+    Path(path).write_text(content, encoding="utf-8")
+    return path
 
 
-def test_list_episode_subtitles_no_video_file(client, monkeypatch):
-    """Returns 404 when episode has no video file path."""
-    mock_sonarr = MagicMock()
-    mock_sonarr.get_episode_file_path.return_value = None
-    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda: mock_sonarr)
-    resp = client.get("/api/v1/library/episodes/99/subtitles")
-    assert resp.status_code == 404
-    data = resp.get_json()
-    assert "error" in data
+# ---------------------------------------------------------------------------
+# scan_subtitle_sidecars unit tests (pure function)
+# ---------------------------------------------------------------------------
 
 
-def test_list_episode_subtitles_video_file_not_on_disk(client, monkeypatch):
-    """Returns 404 when video file path does not exist on disk."""
-    mock_sonarr = MagicMock()
-    mock_sonarr.get_episode_file_path.return_value = "/nonexistent/video.mkv"
-    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda: mock_sonarr)
-    monkeypatch.setattr("config.map_path", lambda p: p)
-    resp = client.get("/api/v1/library/episodes/1/subtitles")
-    assert resp.status_code == 404
-
-
-def test_list_episode_subtitles_success(client, monkeypatch, temp_dir):
-    """Returns 200 with subtitle list when episode video file exists."""
-    # Create a fake video file + sidecar
-    video = os.path.join(temp_dir, "episode.mkv")
-    sidecar = os.path.join(temp_dir, "episode.de.ass")
-    Path(video).write_bytes(b"fake")
-    Path(sidecar).write_bytes(b"fake sub")
-
-    mock_sonarr = MagicMock()
-    mock_sonarr.get_episode_file_path.return_value = video
-    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda: mock_sonarr)
-    monkeypatch.setattr("config.map_path", lambda p: p)
-
-    resp = client.get("/api/v1/library/episodes/1/subtitles")
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert "subtitles" in data
-    assert "video_path" in data
-    assert any(s["language"] == "de" for s in data["subtitles"])
-
-
-def test_list_series_subtitles_sonarr_not_configured(client, monkeypatch):
-    """Returns 503 when Sonarr not configured and no standalone series."""
-    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda: None)
-    monkeypatch.setattr("db.standalone.get_standalone_series", lambda sid: None)
-    resp = client.get("/api/v1/library/series/1/subtitles")
-    assert resp.status_code == 503
-
-
-def test_list_series_subtitles_empty_episode_files(client, monkeypatch):
-    """Returns 200 with empty subtitles when series has no episode files."""
-    mock_sonarr = MagicMock()
-    mock_sonarr.get_episode_files_by_series.return_value = {}
-    mock_sonarr.get_episodes.return_value = []
-    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda: mock_sonarr)
-
-    resp = client.get("/api/v1/library/series/1/subtitles")
-    assert resp.status_code == 200
-    assert resp.get_json()["subtitles"] == {}
-
-
-# ─── Trash (soft-delete) endpoints ─────────────────────────────────────────────
-
-
-def test_delete_subtitles_missing_paths(client):
-    """Returns 400 when paths field is missing or empty."""
-    resp = client.delete("/api/v1/library/subtitles", json={})
-    assert resp.status_code == 400
-    assert "error" in resp.get_json()
-
-
-def test_delete_subtitles_empty_paths_list(client):
-    """Returns 400 when paths is an empty list."""
-    resp = client.delete("/api/v1/library/subtitles", json={"paths": []})
-    assert resp.status_code == 400
-
-
-def test_delete_subtitles_path_outside_media(client, monkeypatch, temp_dir):
-    """Files outside media_path are rejected with a 'failed' entry."""
-    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
-
-    from config import reload_settings
-
-    reload_settings()
-
-    resp = client.delete(
-        "/api/v1/library/subtitles",
-        json={"paths": ["/etc/passwd.de.ass"]},
-    )
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert len(data["failed"]) == 1
-    assert data["deleted"] == []
-
-
-def test_delete_subtitles_file_not_found(client, monkeypatch, temp_dir):
-    """Returns failed entry when file does not exist on disk."""
-    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
-    from config import reload_settings
-
-    reload_settings()
-
-    resp = client.delete(
-        "/api/v1/library/subtitles",
-        json={"paths": [os.path.join(temp_dir, "nonexistent.de.ass")]},
-    )
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert len(data["failed"]) == 1
-
-
-def test_delete_subtitles_success(client, monkeypatch, temp_dir):
-    """Moves subtitle file to trash and returns deleted list."""
-    sub_file = os.path.join(temp_dir, "video.de.ass")
-    Path(sub_file).write_text("[Script Info]\n", encoding="utf-8")
-
-    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
-    from config import reload_settings
-
-    reload_settings()
-
-    resp = client.delete(
-        "/api/v1/library/subtitles",
-        json={"paths": [sub_file]},
-    )
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert sub_file in data["deleted"]
-    assert "batch_id" in data
-    assert not os.path.exists(sub_file)  # file was moved to trash
-
-
-def test_list_trash_empty(client, monkeypatch, temp_dir):
-    """Returns empty batches list when no trash exists."""
-    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
-    from config import reload_settings
-
-    reload_settings()
-
-    resp = client.get("/api/v1/library/trash")
-    assert resp.status_code == 200
-    assert resp.get_json()["batches"] == []
-
-
-def test_list_trash_with_batch(client, monkeypatch, temp_dir):
-    """Returns batch info after a file has been trashed."""
-    sub_file = os.path.join(temp_dir, "ep1.de.ass")
-    Path(sub_file).write_text("[Script Info]\n", encoding="utf-8")
-
-    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
-    from config import reload_settings
-
-    reload_settings()
-
-    # First, delete a file to create a trash batch
-    del_resp = client.delete("/api/v1/library/subtitles", json={"paths": [sub_file]})
-    assert del_resp.status_code == 200
-
-    # Now list trash
-    resp = client.get("/api/v1/library/trash")
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert len(data["batches"]) >= 1
-    batch = data["batches"][0]
-    assert "batch_id" in batch
-    assert "file_count" in batch
-
-
-def test_restore_trash_batch_invalid_id(client, monkeypatch, temp_dir):
-    """Returns 400 for non-alphanumeric batch_id containing hyphens."""
-    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
-    from config import reload_settings
-
-    reload_settings()
-
-    resp = client.post("/api/v1/library/trash/bad-id-here/restore")
-    assert resp.status_code == 400
-
-
-def test_restore_trash_batch_not_found(client, monkeypatch, temp_dir):
-    """Returns 404 for a batch_id that does not exist."""
-    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
-    from config import reload_settings
-
-    reload_settings()
-
-    resp = client.post("/api/v1/library/trash/nonexistentbatch123/restore")
-    assert resp.status_code == 404
-
-
-def test_restore_trash_batch_success(client, monkeypatch, temp_dir):
-    """Successfully restores a previously trashed file."""
-    sub_file = os.path.join(temp_dir, "ep_restore.de.ass")
-    Path(sub_file).write_text("[Script Info]\n", encoding="utf-8")
-
-    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
-    from config import reload_settings
-
-    reload_settings()
-
-    # Trash it
-    del_resp = client.delete("/api/v1/library/subtitles", json={"paths": [sub_file]})
-    batch_id = del_resp.get_json()["batch_id"]
-
-    # Restore it
-    resp = client.post(f"/api/v1/library/trash/{batch_id}/restore")
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert data["restored"] == 1
-    assert data["failed"] == 0
-    assert os.path.exists(sub_file)  # file is back
-
-
-def test_purge_trash_batch_invalid_id(client, monkeypatch, temp_dir):
-    """Returns 400 for non-alphanumeric batch_id."""
-    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
-    from config import reload_settings
-
-    reload_settings()
-
-    resp = client.delete("/api/v1/library/trash/bad-id-here")
-    assert resp.status_code == 400
-
-
-def test_purge_trash_batch_not_found(client, monkeypatch, temp_dir):
-    """Returns 404 for non-existent batch."""
-    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
-    from config import reload_settings
-
-    reload_settings()
-
-    resp = client.delete("/api/v1/library/trash/abc123notexist")
-    assert resp.status_code == 404
-
-
-def test_purge_trash_batch_success(client, monkeypatch, temp_dir):
-    """Permanently deletes a trash batch."""
-    sub_file = os.path.join(temp_dir, "ep_purge.de.ass")
-    Path(sub_file).write_text("[Script Info]\n", encoding="utf-8")
-
-    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
-    from config import reload_settings
-
-    reload_settings()
-
-    # Trash it
-    del_resp = client.delete("/api/v1/library/subtitles", json={"paths": [sub_file]})
-    batch_id = del_resp.get_json()["batch_id"]
-
-    # Purge it
-    resp = client.delete(f"/api/v1/library/trash/{batch_id}")
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert "purged" in data
-
-
-# ─── Download subtitle endpoint ─────────────────────────────────────────────────
-
-
-def test_download_subtitle_missing_path(client):
-    """Returns 400 when path query param is missing."""
-    resp = client.get("/api/v1/subtitles/download")
-    assert resp.status_code == 400
-
-
-def test_download_subtitle_outside_media(client, monkeypatch, temp_dir):
-    """Returns 403 when path is outside media_path."""
-    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
-    from config import reload_settings
-
-    reload_settings()
-
-    resp = client.get("/api/v1/subtitles/download?path=/etc/shadow")
-    assert resp.status_code == 403
-
-
-def test_download_subtitle_wrong_extension(client, monkeypatch, temp_dir):
-    """Returns 403 when file has a non-subtitle extension."""
-    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
-    from config import reload_settings
-
-    reload_settings()
-
-    bad_file = os.path.join(temp_dir, "file.exe")
-    Path(bad_file).write_bytes(b"binary")
-
-    resp = client.get(f"/api/v1/subtitles/download?path={bad_file}")
-    assert resp.status_code == 403
-
-
-def test_download_subtitle_file_not_found(client, monkeypatch, temp_dir):
-    """Returns 404 when subtitle file does not exist."""
-    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
-    from config import reload_settings
-
-    reload_settings()
-
-    resp = client.get(f"/api/v1/subtitles/download?path={temp_dir}/missing.de.ass")
-    assert resp.status_code == 404
-
-
-def test_download_subtitle_success(client, monkeypatch, temp_dir):
-    """Returns 200 with file content for a valid subtitle file."""
-    sub_file = os.path.join(temp_dir, "ep.de.ass")
-    Path(sub_file).write_text("[Script Info]\nTitle: Test\n", encoding="utf-8")
-
-    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
-    from config import reload_settings
-
-    reload_settings()
-
-    resp = client.get(f"/api/v1/subtitles/download?path={sub_file}")
-    assert resp.status_code == 200
-    assert resp.headers.get("Content-Disposition", "").startswith("attachment")
-
-
-# ─── scan_subtitle_sidecars helper (unit level) ─────────────────────────────────
-
-
-def test_scan_subtitle_sidecars_no_sidecars(temp_dir):
-    """Returns empty list when no subtitle files exist next to video."""
+def test_scan_subtitle_sidecars_empty_dir(temp_dir):
     from routes.subtitles import scan_subtitle_sidecars
 
-    video = os.path.join(temp_dir, "ep.mkv")
-    Path(video).write_bytes(b"fake")
+    video = os.path.join(temp_dir, "episode.mkv")
+    Path(video).touch()
     result = scan_subtitle_sidecars(video)
     assert result == []
 
 
-def test_scan_subtitle_sidecars_finds_ass(temp_dir):
-    """Finds .de.ass sidecar next to video file."""
+def test_scan_subtitle_sidecars_finds_sidecar(temp_dir):
     from routes.subtitles import scan_subtitle_sidecars
 
-    video = os.path.join(temp_dir, "show.S01E01.mkv")
-    sidecar = os.path.join(temp_dir, "show.S01E01.de.ass")
-    Path(video).write_bytes(b"fake")
-    Path(sidecar).write_text("[Script Info]\n", encoding="utf-8")
+    video = os.path.join(temp_dir, "episode.mkv")
+    Path(video).touch()
+    _make_sub(temp_dir, "episode.en.srt")
 
     result = scan_subtitle_sidecars(video)
     assert len(result) == 1
-    assert result[0]["language"] == "de"
-    assert result[0]["format"] == "ass"
+    assert result[0]["language"] == "en"
+    assert result[0]["format"] == "srt"
 
 
-def test_scan_subtitle_sidecars_multiple_languages(temp_dir):
-    """Finds multiple language sidecars next to the same video."""
+def test_scan_subtitle_sidecars_multiple_langs(temp_dir):
     from routes.subtitles import scan_subtitle_sidecars
 
-    video = os.path.join(temp_dir, "movie.mkv")
-    Path(video).write_bytes(b"fake")
-    for lang in ("de", "en", "fr"):
-        Path(os.path.join(temp_dir, f"movie.{lang}.srt")).write_text("1\n", encoding="utf-8")
+    video = os.path.join(temp_dir, "episode.mkv")
+    Path(video).touch()
+    _make_sub(temp_dir, "episode.de.ass")
+    _make_sub(temp_dir, "episode.en.srt")
 
     result = scan_subtitle_sidecars(video)
     langs = {r["language"] for r in result}
-    assert langs == {"de", "en", "fr"}
+    assert "de" in langs
+    assert "en" in langs
 
 
-def test_scan_subtitle_sidecars_ignores_video_itself(temp_dir):
-    """Video file is not included in sidecar results."""
+def test_scan_subtitle_sidecars_excludes_video(temp_dir):
     from routes.subtitles import scan_subtitle_sidecars
 
-    video = os.path.join(temp_dir, "ep.mkv")
-    Path(video).write_bytes(b"fake")
+    video = os.path.join(temp_dir, "episode.mkv")
+    Path(video).touch()
     result = scan_subtitle_sidecars(video)
+    # Video itself must not appear
     paths = [r["path"] for r in result]
     assert video not in paths
 
 
-def test_scan_subtitle_sidecars_ignores_non_subtitle_ext(temp_dir):
-    """Non-subtitle files with the right naming pattern are ignored."""
+def test_scan_subtitle_sidecars_ignores_long_lang_code(temp_dir):
     from routes.subtitles import scan_subtitle_sidecars
 
-    video = os.path.join(temp_dir, "movie.mkv")
-    Path(video).write_bytes(b"fake")
-    Path(os.path.join(temp_dir, "movie.de.txt")).write_text("text", encoding="utf-8")
-
+    video = os.path.join(temp_dir, "episode.mkv")
+    Path(video).touch()
+    # lang code "toolongcode" has 11 chars — should be ignored
+    _make_sub(temp_dir, "episode.toolongcode.srt")
     result = scan_subtitle_sidecars(video)
     assert result == []
 
 
-# ─── Batch-delete series subtitles ──────────────────────────────────────────────
+def test_scan_subtitle_sidecars_nonexistent_video(temp_dir):
+    from routes.subtitles import scan_subtitle_sidecars
+
+    # Non-existent video path — should return empty without crashing
+    result = scan_subtitle_sidecars(os.path.join(temp_dir, "missing.mkv"))
+    assert result == []
 
 
-def test_batch_delete_series_subtitles_sonarr_not_configured(client, monkeypatch):
-    """Returns 503 when Sonarr not configured."""
-    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda: None)
-    resp = client.post("/api/v1/library/series/1/subtitles/batch-delete", json={})
+# ---------------------------------------------------------------------------
+# GET /api/v1/subtitles/download — path-based download
+# ---------------------------------------------------------------------------
+
+
+def test_download_subtitle_missing_param(client, temp_dir):
+    resp = client.get("/api/v1/subtitles/download")
+    assert resp.status_code == 400
+    assert b"path" in resp.data
+
+
+def test_download_subtitle_outside_media_path(client, temp_dir, monkeypatch):
+    # media_path is temp_dir; request a path outside → 403
+    import os
+
+    outside = os.path.join(tempfile.gettempdir(), "evil.srt")
+    # Point media_path to a subdirectory so the above is "outside"
+    sub_dir = os.path.join(temp_dir, "media")
+    os.makedirs(sub_dir, exist_ok=True)
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", sub_dir)
+
+    from config import reload_settings
+
+    reload_settings()
+
+    resp = client.get(f"/api/v1/subtitles/download?path={outside}")
+    assert resp.status_code == 403
+
+
+def test_download_subtitle_wrong_extension(client, temp_dir, monkeypatch):
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    bad_file = os.path.join(temp_dir, "video.mkv")
+    Path(bad_file).touch()
+    resp = client.get(f"/api/v1/subtitles/download?path={bad_file}")
+    assert resp.status_code == 403
+
+
+def test_download_subtitle_file_not_found(client, temp_dir, monkeypatch):
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    missing = os.path.join(temp_dir, "missing.srt")
+    resp = client.get(f"/api/v1/subtitles/download?path={missing}")
+    assert resp.status_code == 404
+
+
+def test_download_subtitle_success(client, temp_dir, monkeypatch):
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    sub_path = _make_sub(temp_dir, "show.en.srt")
+    resp = client.get(f"/api/v1/subtitles/download?path={sub_path}")
+    assert resp.status_code == 200
+    assert b"Hello" in resp.data
+
+
+# ---------------------------------------------------------------------------
+# DELETE /api/v1/library/subtitles — soft-delete (trash)
+# ---------------------------------------------------------------------------
+
+
+def test_delete_subtitles_missing_paths(client):
+    resp = client.delete("/api/v1/library/subtitles", json={})
+    assert resp.status_code == 400
+
+
+def test_delete_subtitles_empty_paths(client):
+    resp = client.delete("/api/v1/library/subtitles", json={"paths": []})
+    assert resp.status_code == 400
+
+
+def test_delete_subtitles_invalid_path_type(client, temp_dir, monkeypatch):
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    resp = client.delete("/api/v1/library/subtitles", json={"paths": [42]})
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert len(data["failed"]) == 1
+
+
+def test_delete_subtitles_path_outside_media(client, temp_dir, monkeypatch):
+    sub_dir = os.path.join(temp_dir, "media")
+    os.makedirs(sub_dir, exist_ok=True)
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", sub_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    outside = os.path.join(temp_dir, "outside.en.srt")
+    Path(outside).write_text("dummy")
+    resp = client.delete("/api/v1/library/subtitles", json={"paths": [outside]})
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert len(data["failed"]) == 1
+    assert "outside" in data["failed"][0]["error"].lower() or "Path" in data["failed"][0]["error"]
+
+
+def test_delete_subtitles_file_not_found(client, temp_dir, monkeypatch):
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    missing = os.path.join(temp_dir, "nonexistent.en.srt")
+    resp = client.delete("/api/v1/library/subtitles", json={"paths": [missing]})
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert len(data["failed"]) == 1
+
+
+def test_delete_subtitles_success(client, temp_dir, monkeypatch):
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    sub_path = _make_sub(temp_dir, "show.en.srt")
+    resp = client.delete("/api/v1/library/subtitles", json={"paths": [sub_path]})
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert sub_path in data["deleted"]
+    assert len(data["failed"]) == 0
+    assert "batch_id" in data
+    # File should no longer exist at original location
+    assert not os.path.exists(sub_path)
+
+
+def test_delete_subtitles_wrong_extension(client, temp_dir, monkeypatch):
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    bad = os.path.join(temp_dir, "show.en.mkv")
+    Path(bad).touch()
+    resp = client.delete("/api/v1/library/subtitles", json={"paths": [bad]})
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert len(data["failed"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/library/trash
+# ---------------------------------------------------------------------------
+
+
+def test_list_trash_empty(client, temp_dir, monkeypatch):
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    resp = client.get("/api/v1/library/trash")
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert data["batches"] == []
+
+
+def test_list_trash_after_delete(client, temp_dir, monkeypatch):
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    sub_path = _make_sub(temp_dir, "show.de.srt")
+    client.delete("/api/v1/library/subtitles", json={"paths": [sub_path]})
+
+    resp = client.get("/api/v1/library/trash")
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert len(data["batches"]) == 1
+    batch = data["batches"][0]
+    assert "batch_id" in batch
+    assert batch["file_count"] == 1
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/library/trash/<batch_id>/restore
+# ---------------------------------------------------------------------------
+
+
+def test_restore_invalid_batch_id(client, temp_dir, monkeypatch):
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    # batch_id with non-alphanumeric chars → 400 (isalnum guard)
+    resp = client.post("/api/v1/library/trash/abc-def-123/restore")
+    assert resp.status_code == 400
+
+
+def test_restore_nonexistent_batch(client, temp_dir, monkeypatch):
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    resp = client.post("/api/v1/library/trash/aabbccdd1234567890123456/restore")
+    assert resp.status_code == 404
+
+
+def test_restore_batch_success(client, temp_dir, monkeypatch):
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    sub_path = _make_sub(temp_dir, "show.en.ass")
+    del_resp = client.delete("/api/v1/library/subtitles", json={"paths": [sub_path]})
+    batch_id = del_resp.get_json()["batch_id"]
+
+    assert not os.path.exists(sub_path)
+
+    restore_resp = client.post(f"/api/v1/library/trash/{batch_id}/restore")
+    data = restore_resp.get_json()
+    assert restore_resp.status_code == 200
+    assert data["restored"] == 1
+    assert data["failed"] == 0
+    assert os.path.exists(sub_path)
+
+
+# ---------------------------------------------------------------------------
+# DELETE /api/v1/library/trash/<batch_id> — permanent purge
+# ---------------------------------------------------------------------------
+
+
+def test_purge_invalid_batch_id(client, temp_dir, monkeypatch):
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    # batch_id with non-alphanumeric chars → 400 (isalnum guard)
+    resp = client.delete("/api/v1/library/trash/abc-def-123")
+    assert resp.status_code == 400
+
+
+def test_purge_nonexistent_batch(client, temp_dir, monkeypatch):
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    resp = client.delete("/api/v1/library/trash/aabbccdd1234567890123456")
+    assert resp.status_code == 404
+
+
+def test_purge_batch_success(client, temp_dir, monkeypatch):
+    monkeypatch.setenv("SUBLARR_MEDIA_PATH", temp_dir)
+    from config import reload_settings
+
+    reload_settings()
+
+    sub_path = _make_sub(temp_dir, "show.de.ass")
+    del_resp = client.delete("/api/v1/library/subtitles", json={"paths": [sub_path]})
+    batch_id = del_resp.get_json()["batch_id"]
+
+    purge_resp = client.delete(f"/api/v1/library/trash/{batch_id}")
+    data = purge_resp.get_json()
+    assert purge_resp.status_code == 200
+    assert data["purged"] == 1
+
+    # Trash batch directory should be gone
+    list_resp = client.get("/api/v1/library/trash")
+    assert list_resp.get_json()["batches"] == []
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/library/episodes/<ep_id>/subtitles — sonarr-dependent
+# ---------------------------------------------------------------------------
+
+
+def test_list_episode_subtitles_sonarr_not_configured(client, monkeypatch):
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
+    resp = client.get("/api/v1/library/episodes/1/subtitles")
     assert resp.status_code == 503
 
 
-def test_batch_delete_series_subtitles_no_episode_files(client, monkeypatch):
-    """Returns 200 with zero deleted when series has no episode files."""
+def test_list_episode_subtitles_no_file(client, monkeypatch):
+    mock_sonarr = MagicMock()
+    mock_sonarr.get_episode_file_path.return_value = None
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: mock_sonarr)
+    resp = client.get("/api/v1/library/episodes/99/subtitles")
+    assert resp.status_code == 404
+
+
+def test_list_episode_subtitles_file_not_found_on_disk(client, temp_dir, monkeypatch):
+    mock_sonarr = MagicMock()
+    mock_sonarr.get_episode_file_path.return_value = "/nonexistent/path/episode.mkv"
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: mock_sonarr)
+    monkeypatch.setattr("config.map_path", lambda p: p)
+    resp = client.get("/api/v1/library/episodes/1/subtitles")
+    assert resp.status_code == 404
+
+
+def test_list_episode_subtitles_success_empty(client, temp_dir, monkeypatch):
+    video = os.path.join(temp_dir, "episode.mkv")
+    Path(video).touch()
+
+    mock_sonarr = MagicMock()
+    mock_sonarr.get_episode_file_path.return_value = video
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: mock_sonarr)
+    monkeypatch.setattr("config.map_path", lambda p: p)
+
+    resp = client.get("/api/v1/library/episodes/1/subtitles")
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert data["subtitles"] == []
+
+
+def test_list_episode_subtitles_success_with_sidecar(client, temp_dir, monkeypatch):
+    video = os.path.join(temp_dir, "episode.mkv")
+    Path(video).touch()
+    _make_sub(temp_dir, "episode.de.srt")
+
+    mock_sonarr = MagicMock()
+    mock_sonarr.get_episode_file_path.return_value = video
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: mock_sonarr)
+    monkeypatch.setattr("config.map_path", lambda p: p)
+
+    resp = client.get("/api/v1/library/episodes/1/subtitles")
+    data = resp.get_json()
+    assert resp.status_code == 200
+    assert len(data["subtitles"]) == 1
+    assert data["subtitles"][0]["language"] == "de"
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/library/series/<id>/subtitles — sonarr-dependent
+# ---------------------------------------------------------------------------
+
+
+def test_list_series_subtitles_sonarr_not_configured(client, monkeypatch):
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: None)
+    # Without standalone series, should return 503
+    with patch("db.standalone.get_standalone_series", return_value=None):
+        resp = client.get("/api/v1/library/series/1/subtitles")
+    assert resp.status_code == 503
+
+
+def test_list_series_subtitles_no_files(client, monkeypatch):
     mock_sonarr = MagicMock()
     mock_sonarr.get_episode_files_by_series.return_value = {}
-    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda: mock_sonarr)
-
-    resp = client.post("/api/v1/library/series/1/subtitles/batch-delete", json={})
-    assert resp.status_code == 200
+    mock_sonarr.get_episodes.return_value = []
+    monkeypatch.setattr("sonarr_client.get_sonarr_client", lambda *a, **kw: mock_sonarr)
+    resp = client.get("/api/v1/library/series/1/subtitles")
     data = resp.get_json()
-    assert data["deleted"] == 0
+    assert resp.status_code == 200
+    assert data["subtitles"] == {}

@@ -502,9 +502,10 @@ def generate_mapping_report(db_path: str) -> dict:
                     sample_cursor = conn.execute(f"SELECT * FROM [{table_name}] LIMIT 1")
                     sample_row = sample_cursor.fetchone()
                     if sample_row:
+                        row_dict = dict(sample_row)
                         masked = {}
                         for col_name in columns:
-                            val = sample_row.get(col_name, None)
+                            val = row_dict.get(col_name)
                             if col_name.lower() in _SENSITIVE_FIELDS and val:
                                 masked[col_name] = "***"
                             else:
