@@ -12,6 +12,14 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from concurrent.futures import TimeoutError as FutureTimeoutError
 
+try:
+    import metrics as _metrics_module
+
+    _METRICS_AVAILABLE = getattr(_metrics_module, "METRICS_AVAILABLE", False)
+except ImportError:
+    _metrics_module = None  # type: ignore[assignment]
+    _METRICS_AVAILABLE = False
+
 from providers.base import (
     ProviderAuthError,
     ProviderRateLimitError,
@@ -237,6 +245,13 @@ class SearchCoordinatorMixin:
                         cached_data = json.loads(fast_cached)
                         cached_results = self._deserialize_results(cached_data)
                         logger.info("Returning %d results from fast cache", len(cached_results))
+                        try:
+                            if _METRICS_AVAILABLE:
+                                _metrics_module.PROVIDER_CACHE_HITS_TOTAL.labels(
+                                    layer="fast"
+                                ).inc()
+                        except Exception:
+                            pass
                         return cached_results
                     except Exception as e:
                         logger.debug("Failed to parse fast cached results: %s", e)
@@ -254,6 +269,11 @@ class SearchCoordinatorMixin:
                 cached_data = json.loads(cached_json)
                 cached_results = self._deserialize_results(cached_data)
                 logger.info("Returning %d cached results from DB", len(cached_results))
+                try:
+                    if _METRICS_AVAILABLE:
+                        _metrics_module.PROVIDER_CACHE_HITS_TOTAL.labels(layer="db").inc()
+                except Exception:
+                    pass
                 # Backfill fast cache so next lookup is faster
                 if cache_backend:
                     try:
@@ -268,6 +288,14 @@ class SearchCoordinatorMixin:
 
         all_results: list[SubtitleResult] = []
         perfect_match_found = False
+
+        # Both cache tiers missed — record cache miss metrics
+        try:
+            if _METRICS_AVAILABLE:
+                _metrics_module.PROVIDER_CACHE_MISSES_TOTAL.labels(layer="fast").inc()
+                _metrics_module.PROVIDER_CACHE_MISSES_TOTAL.labels(layer="db").inc()
+        except Exception:
+            pass
 
         # Parallel search with ThreadPoolExecutor
         from db.providers import (

@@ -49,6 +49,7 @@ class SubtitleDownload(db.Model):
     __table_args__ = (
         Index("idx_subtitle_downloads_path", "file_path"),
         Index("idx_subtitle_downloads_downloaded_at", "downloaded_at"),
+        Index("idx_subtitle_downloads_language", "language"),
     )
 
 

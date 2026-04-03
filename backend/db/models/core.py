@@ -101,6 +101,7 @@ class WantedItem(db.Model):
         # Avoids SQLite merging two single-column index scans.
         Index("idx_wanted_composite", "status", "item_type"),
         Index("idx_wanted_retry_after", "retry_after"),
+        Index("idx_wanted_status_retry_after", "status", "retry_after"),
         # Prevent duplicate entries for the same file + language + subtitle type.
         # The upsert logic relies on this for race-condition safety.
         UniqueConstraint(

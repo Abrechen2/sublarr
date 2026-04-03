@@ -134,6 +134,16 @@ if METRICS_AVAILABLE:
         "Cache miss counter",
         ["backend"],
     )
+    PROVIDER_CACHE_HITS_TOTAL = Counter(
+        "sublarr_provider_cache_hits_total",
+        "Provider search result cache hits",
+        ["layer"],  # "fast" (Redis/memory), "db" (ProviderCache table)
+    )
+    PROVIDER_CACHE_MISSES_TOTAL = Counter(
+        "sublarr_provider_cache_misses_total",
+        "Provider search result cache misses",
+        ["layer"],  # "fast", "db"
+    )
     CACHE_SIZE = Gauge(
         "sublarr_cache_size",
         "Number of items in cache",
