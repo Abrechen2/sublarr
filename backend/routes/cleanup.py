@@ -14,6 +14,8 @@ import uuid
 
 from flask import Blueprint, jsonify, request
 
+from error_utils import handle_api_error
+
 bp = Blueprint("cleanup", __name__, url_prefix="/api/v1/cleanup")
 logger = logging.getLogger(__name__)
 
@@ -678,6 +680,7 @@ def delete_rule(rule_id: int):
 
 
 @bp.route("/rules/<int:rule_id>/run", methods=["POST"])
+@handle_api_error("Rule execution failed")
 def run_rule(rule_id: int):
     """Execute a cleanup rule manually.
     ---
@@ -714,62 +717,58 @@ def run_rule(rule_id: int):
     settings = get_settings()
     media_path = settings.media_path
 
-    try:
-        if rule["rule_type"] == "dedup":
-            result = scan_for_duplicates(media_path, socketio=socketio)
-            repo.update_rule_last_run(rule_id)
-            return jsonify({"status": "completed", "rule": rule["name"], "result": result})
+    if rule["rule_type"] == "dedup":
+        result = scan_for_duplicates(media_path, socketio=socketio)
+        repo.update_rule_last_run(rule_id)
+        return jsonify({"status": "completed", "rule": rule["name"], "result": result})
 
-        elif rule["rule_type"] == "orphaned":
-            result = scan_orphaned_subtitles(media_path)
-            repo.update_rule_last_run(rule_id)
-            return jsonify(
-                {
-                    "status": "completed",
-                    "rule": rule["name"],
-                    "orphaned": result,
-                    "count": len(result),
-                }
-            )
+    elif rule["rule_type"] == "orphaned":
+        result = scan_orphaned_subtitles(media_path)
+        repo.update_rule_last_run(rule_id)
+        return jsonify(
+            {
+                "status": "completed",
+                "rule": rule["name"],
+                "orphaned": result,
+                "count": len(result),
+            }
+        )
 
-        elif rule["rule_type"] == "old_backups":
-            # Scan for .bak files and report
-            import os
+    elif rule["rule_type"] == "old_backups":
+        # Scan for .bak files and report
+        import os
 
-            bak_files = []
-            for root, _dirs, files in os.walk(media_path):
-                for filename in files:
-                    if ".bak" in filename:
-                        full_path = os.path.join(root, filename)
-                        try:
-                            size = os.path.getsize(full_path)
-                        except OSError:
-                            size = 0
-                        bak_files.append({"path": full_path, "size": size})
+        bak_files = []
+        for root, _dirs, files in os.walk(media_path):
+            for filename in files:
+                if ".bak" in filename:
+                    full_path = os.path.join(root, filename)
+                    try:
+                        size = os.path.getsize(full_path)
+                    except OSError:
+                        size = 0
+                    bak_files.append({"path": full_path, "size": size})
 
-            repo.update_rule_last_run(rule_id)
-            return jsonify(
-                {
-                    "status": "completed",
-                    "rule": rule["name"],
-                    "backup_files": bak_files,
-                    "count": len(bak_files),
-                    "total_size": sum(f["size"] for f in bak_files),
-                }
-            )
+        repo.update_rule_last_run(rule_id)
+        return jsonify(
+            {
+                "status": "completed",
+                "rule": rule["name"],
+                "backup_files": bak_files,
+                "count": len(bak_files),
+                "total_size": sum(f["size"] for f in bak_files),
+            }
+        )
 
-        else:
-            return jsonify({"error": f"Unknown rule type: {rule['rule_type']}"}), 400
-
-    except Exception as e:
-        logger.error("Rule execution failed for %d: %s", rule_id, e)
-        return jsonify({"error": f"Rule execution failed: {e}"}), 500
+    else:
+        return jsonify({"error": f"Unknown rule type: {rule['rule_type']}"}), 400
 
 
 # ---- Dashboard Endpoints -------------------------------------------------------
 
 
 @bp.route("/stats", methods=["GET"])
+@handle_api_error("Cleanup stats failed")
 def cleanup_stats():
     """Get disk space analysis and cleanup statistics.
     ---
@@ -795,33 +794,30 @@ def cleanup_stats():
 
     repo = CleanupRepository()
 
-    try:
-        disk_stats = repo.get_disk_stats()
+    disk_stats = repo.get_disk_stats()
 
-        # Reshape by_format from dict to array expected by the frontend DiskSpaceStats type
-        raw_by_format = disk_stats.get("by_format", {})
-        by_format = [
-            {"format": fmt, "count": v["count"], "size_bytes": v["size"]}
-            for fmt, v in raw_by_format.items()
-        ]
+    # Reshape by_format from dict to array expected by the frontend DiskSpaceStats type
+    raw_by_format = disk_stats.get("by_format", {})
+    by_format = [
+        {"format": fmt, "count": v["count"], "size_bytes": v["size"]}
+        for fmt, v in raw_by_format.items()
+    ]
 
-        return jsonify(
-            {
-                "total_files": disk_stats.get("total_files", 0),
-                "total_size_bytes": disk_stats.get("total_size_bytes", 0),
-                "by_format": by_format,
-                "duplicate_files": disk_stats.get("duplicate_count", 0),
-                "duplicate_size_bytes": disk_stats.get("duplicate_size_bytes", 0),
-                "potential_savings_bytes": disk_stats.get("potential_savings_bytes", 0),
-                "trends": disk_stats.get("recent_cleanups", []),
-            }
-        )
-    except Exception as e:
-        logger.error("Cleanup stats failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+    return jsonify(
+        {
+            "total_files": disk_stats.get("total_files", 0),
+            "total_size_bytes": disk_stats.get("total_size_bytes", 0),
+            "by_format": by_format,
+            "duplicate_files": disk_stats.get("duplicate_count", 0),
+            "duplicate_size_bytes": disk_stats.get("duplicate_size_bytes", 0),
+            "potential_savings_bytes": disk_stats.get("potential_savings_bytes", 0),
+            "trends": disk_stats.get("recent_cleanups", []),
+        }
+    )
 
 
 @bp.route("/history", methods=["GET"])
+@handle_api_error("Cleanup history failed")
 def cleanup_history():
     """Get cleanup execution history.
     ---
