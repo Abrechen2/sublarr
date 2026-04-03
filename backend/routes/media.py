@@ -62,6 +62,50 @@ def _stream_range(
 @bp.route("/media/stream")
 @require_api_key
 def stream_media():
+    """Stream a video file with HTTP 206 Range support.
+    ---
+    get:
+      tags:
+        - Media
+      summary: Stream video file
+      description: >
+        Serves a local video file with RFC 7233 Range request support (HTTP 206).
+        Requires the streaming_enabled setting to be active.
+        Path must be within the configured media_path (path traversal protection).
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Absolute path to the video file
+      responses:
+        200:
+          description: Full file content (no Range header supplied)
+        206:
+          description: Partial content (Range header present)
+          headers:
+            Content-Range:
+              schema:
+                type: string
+              example: "bytes 0-1048575/52428800"
+            Accept-Ranges:
+              schema:
+                type: string
+              example: "bytes"
+        400:
+          description: Missing path parameter
+        403:
+          description: Path outside media_path (access denied)
+        404:
+          description: File not found
+        416:
+          description: Invalid Range header
+        503:
+          description: Streaming is disabled in settings
+    """
     settings = get_settings()
 
     if not settings.streaming_enabled:

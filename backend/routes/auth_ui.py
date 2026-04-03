@@ -27,6 +27,29 @@ def _is_session_authenticated() -> bool:
 
 @auth_ui_bp.get("/status")
 def get_status():
+    """Return current authentication configuration and session status.
+    ---
+    get:
+      tags:
+        - Auth
+      summary: Get auth status
+      description: Returns whether UI auth is configured, enabled, and whether the current session is authenticated.
+      security: []
+      responses:
+        200:
+          description: Auth status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  configured:
+                    type: boolean
+                  enabled:
+                    type: boolean
+                  authenticated:
+                    type: boolean
+    """
     return jsonify(
         {
             "configured": ui_auth.is_ui_auth_configured(),
@@ -60,6 +83,44 @@ def bootstrap():
 @auth_ui_bp.post("/setup")
 @limiter.limit("5 per minute")
 def setup():
+    """Configure UI authentication for the first time.
+    ---
+    post:
+      tags:
+        - Auth
+      summary: Initial auth setup
+      description: Sets or disables UI password authentication. Only callable when auth is not yet configured. Rate limited to 5 per minute.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [set_password, disable]
+                password:
+                  type: string
+                  description: Required when action is set_password. Minimum 12 characters.
+      responses:
+        200:
+          description: Auth configured
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [enabled, disabled]
+        400:
+          description: Password too short or missing
+        409:
+          description: Auth already configured
+    """
     if ui_auth.is_ui_auth_configured():
         return jsonify({"error": "Already configured. Use /toggle or /change-password."}), 409
 
@@ -90,6 +151,38 @@ def setup():
 @auth_ui_bp.post("/login")
 @limiter.limit("10/minute; 30/hour")
 def login():
+    """Authenticate with UI password and create a session.
+    ---
+    post:
+      tags:
+        - Auth
+      summary: Login
+      description: Validates the UI password and creates an authenticated session cookie. Rate limited to 10 per minute and 30 per hour.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password:
+                  type: string
+      responses:
+        200:
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        401:
+          description: Wrong password
+    """
     if not ui_auth.is_ui_auth_enabled():
         session["ui_authenticated"] = True
         return jsonify({"status": "ok"})
@@ -110,6 +203,26 @@ def login():
 
 @auth_ui_bp.post("/logout")
 def logout():
+    """Clear the current session cookie.
+    ---
+    post:
+      tags:
+        - Auth
+      summary: Logout
+      description: Clears the authenticated session. No auth required — always succeeds.
+      security: []
+      responses:
+        200:
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+    """
     session.pop("ui_authenticated", None)
     return jsonify({"status": "ok"})
 
@@ -117,6 +230,44 @@ def logout():
 @auth_ui_bp.post("/change-password")
 @limiter.limit("5 per minute; 20 per hour")
 def change_password():
+    """Change the UI authentication password.
+    ---
+    post:
+      tags:
+        - Auth
+      summary: Change password
+      description: Verifies the current password and sets a new one. Requires an active session. Rate limited to 5 per minute and 20 per hour.
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password:
+                  type: string
+                new_password:
+                  type: string
+                  description: Minimum 12 characters.
+      responses:
+        200:
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        400:
+          description: New password too short or missing fields
+        401:
+          description: Not authenticated or current password incorrect
+    """
     if not _is_session_authenticated():
         return jsonify({"error": "Authentication required"}), 401
 
@@ -140,6 +291,42 @@ def change_password():
 
 @auth_ui_bp.post("/toggle")
 def toggle():
+    """Enable or disable UI authentication.
+    ---
+    post:
+      tags:
+        - Auth
+      summary: Toggle auth
+      description: Enables or disables UI password authentication. Requires an active session or a valid API key.
+      security:
+        - sessionAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled:
+                  type: boolean
+      responses:
+        200:
+          description: Auth toggled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [enabled, disabled]
+        400:
+          description: enabled field missing or not boolean
+        401:
+          description: Not authenticated
+    """
     if not _is_session_authenticated() and not ui_auth._has_valid_api_key():
         return jsonify({"error": "Authentication required"}), 401
 
