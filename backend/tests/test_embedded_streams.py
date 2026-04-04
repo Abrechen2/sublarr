@@ -1,4 +1,5 @@
 """Tests for get_all_subtitle_streams in ass_utils."""
+
 from unittest.mock import patch
 
 import pytest
@@ -40,6 +41,7 @@ PROBE_DUPLICATE = {
 @pytest.fixture(autouse=True)
 def mock_lang_tags():
     """Mock _get_language_tags to avoid real config loading."""
+
     def fake_tags(lang):
         mapping = {
             "de": {"deu", "ger", "de"},
@@ -54,6 +56,7 @@ def mock_lang_tags():
 
 def test_returns_all_non_target_streams():
     from ass_utils import get_all_subtitle_streams
+
     result = get_all_subtitle_streams(PROBE_EN_ASS_JA_SRT, exclude_language="de")
     langs = {r["lang"] for r in result}
     assert "eng" in langs
@@ -63,6 +66,7 @@ def test_returns_all_non_target_streams():
 
 def test_excludes_target_language():
     from ass_utils import get_all_subtitle_streams
+
     result = get_all_subtitle_streams(PROBE_EN_ASS_JA_SRT, exclude_language="en")
     langs = {r["lang"] for r in result}
     assert "eng" not in langs
@@ -71,6 +75,7 @@ def test_excludes_target_language():
 
 def test_formats_correctly():
     from ass_utils import get_all_subtitle_streams
+
     result = get_all_subtitle_streams(PROBE_EN_ASS_JA_SRT, exclude_language="de")
     by_lang = {r["lang"]: r["format"] for r in result}
     assert by_lang["eng"] == "ass"
@@ -79,16 +84,19 @@ def test_formats_correctly():
 
 def test_empty_probe_returns_empty():
     from ass_utils import get_all_subtitle_streams
+
     assert get_all_subtitle_streams(PROBE_EMPTY) == []
 
 
 def test_no_subtitle_streams_returns_empty():
     from ass_utils import get_all_subtitle_streams
+
     assert get_all_subtitle_streams(PROBE_NO_SUBS) == []
 
 
 def test_skips_unknown_codecs():
     from ass_utils import get_all_subtitle_streams
+
     result = get_all_subtitle_streams(PROBE_UNKNOWN_CODEC)
     assert len(result) == 1
     assert result[0]["format"] == "ass"
@@ -96,11 +104,13 @@ def test_skips_unknown_codecs():
 
 def test_deduplicates_same_lang_format():
     from ass_utils import get_all_subtitle_streams
+
     result = get_all_subtitle_streams(PROBE_DUPLICATE)
     assert len(result) == 1
 
 
 def test_no_exclude_returns_all():
     from ass_utils import get_all_subtitle_streams
+
     result = get_all_subtitle_streams(PROBE_EN_ASS_JA_SRT, exclude_language=None)
     assert len(result) == 3  # eng, jpn, deu
