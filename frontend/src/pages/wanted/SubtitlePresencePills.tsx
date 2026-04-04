@@ -11,6 +11,7 @@ interface SubtitlePresencePillsProps {
   targetLanguage: string
   sourceLanguage: string
   embeddedLanguages: EmbeddedLang[]
+  upgradeCandidate?: boolean
 }
 
 const PILL_BASE: CSSProperties = {
@@ -63,11 +64,19 @@ const PILL_NONE: CSSProperties = {
 
 const INLINE_LIMIT = 2
 
+// Map ISO 639-1 (2-letter, from Sublarr config) to ISO 639-2 (3-letter, from ffprobe tags)
+const ISO1_TO_ISO2: Record<string, string> = {
+  ar: 'ara', de: 'deu', en: 'eng', es: 'spa', fr: 'fra', it: 'ita',
+  ja: 'jpn', ko: 'kor', nl: 'nld', no: 'nor', pl: 'pol', pt: 'por',
+  ru: 'rus', sv: 'swe', tr: 'tur', zh: 'chi',
+}
+
 export function SubtitlePresencePills({
   existingSub,
   targetLanguage,
   sourceLanguage,
   embeddedLanguages,
+  upgradeCandidate = false,
 }: SubtitlePresencePillsProps) {
   const [expanded, setExpanded] = useState(false)
   const lang = targetLanguage.toUpperCase()
@@ -81,15 +90,16 @@ export function SubtitlePresencePills({
   } else if (existingSub === 'ass') {
     leftPill = <span style={PILL_EMB}>{lang} ASS</span>
   } else if (existingSub === 'srt') {
-    leftPill = <span style={PILL_SRT}>{lang} SRT ↑</span>
+    leftPill = <span style={PILL_SRT}>{lang} SRT{upgradeCandidate ? ' ↑' : ''}</span>
   } else {
     leftPill = <span style={PILL_MISS}>{lang} ✗</span>
   }
 
   // Right group — sort sourceLanguage first, then alphabetically
+  const sourceLang3 = ISO1_TO_ISO2[sourceLanguage] ?? sourceLanguage
   const sorted = [...embeddedLanguages].sort((a, b) => {
-    const aIsSource = a.lang === sourceLanguage || a.lang.startsWith(sourceLanguage)
-    const bIsSource = b.lang === sourceLanguage || b.lang.startsWith(sourceLanguage)
+    const aIsSource = a.lang === sourceLanguage || a.lang === sourceLang3
+    const bIsSource = b.lang === sourceLanguage || b.lang === sourceLang3
     if (aIsSource && !bIsSource) return -1
     if (!aIsSource && bIsSource) return 1
     return a.lang.localeCompare(b.lang)

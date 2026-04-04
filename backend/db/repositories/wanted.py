@@ -53,7 +53,7 @@ class WantedRepository(BaseRepository):
         """
         now = self._now()
         langs_json = json.dumps(missing_languages or [])
-        embedded_json = json.dumps(embedded_languages or [])
+        embedded_json = json.dumps(embedded_languages) if embedded_languages is not None else None
         upgrade_int = 1 if upgrade_candidate else 0
 
         # Match on file_path + target_language + subtitle_type for multi-language + multi-type support
@@ -84,7 +84,8 @@ class WantedRepository(BaseRepository):
                 existing.season_episode = season_episode
                 existing.existing_sub = existing_sub
                 existing.missing_languages = langs_json
-                existing.embedded_languages = embedded_json
+                if embedded_json is not None:
+                    existing.embedded_languages = embedded_json
                 existing.sonarr_series_id = sonarr_series_id
                 existing.sonarr_episode_id = sonarr_episode_id
                 existing.radarr_movie_id = radarr_movie_id
@@ -102,7 +103,8 @@ class WantedRepository(BaseRepository):
                 existing.season_episode = season_episode
                 existing.existing_sub = existing_sub
                 existing.missing_languages = langs_json
-                existing.embedded_languages = embedded_json
+                if embedded_json is not None:
+                    existing.embedded_languages = embedded_json
                 existing.status = "wanted"
                 existing.sonarr_series_id = sonarr_series_id
                 existing.sonarr_episode_id = sonarr_episode_id
@@ -125,7 +127,7 @@ class WantedRepository(BaseRepository):
             season_episode=season_episode,
             existing_sub=existing_sub,
             missing_languages=langs_json,
-            embedded_languages=embedded_json,
+            embedded_languages=embedded_json if embedded_json is not None else "[]",
             sonarr_series_id=sonarr_series_id,
             sonarr_episode_id=sonarr_episode_id,
             radarr_movie_id=radarr_movie_id,

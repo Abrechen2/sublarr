@@ -36,13 +36,14 @@ describe('SubtitlePresencePills', () => {
     expect(screen.getByText('Kein Sub')).toBeTruthy()
   })
 
-  it('shows DE SRT ↑ for srt existing_sub', () => {
+  it('shows DE SRT ↑ for srt existing_sub when upgrade enabled', () => {
     render(
       <SubtitlePresencePills
         existingSub="srt"
         targetLanguage="de"
         sourceLanguage="en"
         embeddedLanguages={enAss}
+        upgradeCandidate={true}
       />
     )
     expect(screen.getByText('DE SRT ↑')).toBeTruthy()
@@ -122,7 +123,21 @@ describe('SubtitlePresencePills', () => {
     expect(screen.getByText('FRA ↓ SRT')).toBeTruthy()
   })
 
-  it('sorts sourceLanguage first in right group', () => {
+  it('sorts sourceLanguage first in right group (ISO 639-1 to 639-2 mapping)', () => {
+    render(
+      <SubtitlePresencePills
+        existingSub=""
+        targetLanguage="de"
+        sourceLanguage="es"
+        embeddedLanguages={[{ lang: 'jpn', format: 'srt' }, { lang: 'spa', format: 'ass' }]}
+      />
+    )
+    const pills = document.querySelectorAll('[data-testid="embedded-pill"]')
+    expect(pills[0].textContent).toBe('SPA ↓ ASS')
+    expect(pills[1].textContent).toBe('JPN ↓ SRT')
+  })
+
+  it('sorts eng first when sourceLanguage is en', () => {
     render(
       <SubtitlePresencePills
         existingSub=""
@@ -134,5 +149,31 @@ describe('SubtitlePresencePills', () => {
     const pills = document.querySelectorAll('[data-testid="embedded-pill"]')
     expect(pills[0].textContent).toBe('ENG ↓ ASS')
     expect(pills[1].textContent).toBe('JPN ↓ SRT')
+  })
+
+  it('shows SRT without arrow when upgrade is disabled', () => {
+    render(
+      <SubtitlePresencePills
+        existingSub="srt"
+        targetLanguage="de"
+        sourceLanguage="en"
+        embeddedLanguages={noEmbedded}
+        upgradeCandidate={false}
+      />
+    )
+    expect(screen.getByText('DE SRT')).toBeTruthy()
+  })
+
+  it('shows SRT ↑ when upgrade is enabled', () => {
+    render(
+      <SubtitlePresencePills
+        existingSub="srt"
+        targetLanguage="de"
+        sourceLanguage="en"
+        embeddedLanguages={noEmbedded}
+        upgradeCandidate={true}
+      />
+    )
+    expect(screen.getByText('DE SRT ↑')).toBeTruthy()
   })
 })

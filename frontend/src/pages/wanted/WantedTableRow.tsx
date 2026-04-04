@@ -303,6 +303,7 @@ export function WantedTableRow({
             targetLanguage={item.target_language}
             sourceLanguage={sourceLanguage}
             embeddedLanguages={item.embedded_languages ?? []}
+            upgradeCandidate={item.upgrade_candidate === 1}
           />
         </td>
         <td
