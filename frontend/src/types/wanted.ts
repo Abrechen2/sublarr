@@ -10,6 +10,7 @@ export interface WantedItem {
   season_episode: string
   file_path: string
   existing_sub: string
+  embedded_languages: Array<{ lang: string; format: string }>
   missing_languages: string[]
   target_language: string
   status: 'wanted' | 'searching' | 'found' | 'failed' | 'ignored' | 'extracted'
