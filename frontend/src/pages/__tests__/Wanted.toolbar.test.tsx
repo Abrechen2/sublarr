@@ -48,7 +48,16 @@ vi.mock('@/hooks/useWebSocket', () => ({
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>()
-  return { ...actual, useQueryClient: () => ({ invalidateQueries: vi.fn() }) }
+  return {
+    ...actual,
+    useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+    useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
+      if (Array.isArray(queryKey) && queryKey[0] === 'config') {
+        return { data: { source_language: 'en' } }
+      }
+      return { data: undefined }
+    },
+  }
 })
 
 vi.mock('@/components/wanted/VirtualWantedTable', () => ({

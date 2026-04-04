@@ -359,6 +359,40 @@ def wanted_search_all():
     return jsonify({"status": "search_started"}), 202
 
 
+@bp.route("/wanted/search-upgrades", methods=["POST"])
+def wanted_search_upgrades():
+    """Trigger a one-time search for upgrade candidates (regardless of upgrade schedule setting).
+    ---
+    post:
+      tags:
+        - Wanted
+      summary: One-time upgrade search
+      description: >
+        Searches all upgrade candidates once, even when upgrade_scan_interval_hours is 0.
+        Useful for a manual upgrade run without permanently enabling the upgrade scheduler.
+      security:
+        - apiKeyAuth: []
+      responses:
+        202:
+          description: Search started
+        409:
+          description: Search already running
+    """
+    from services.wanted_scanner import get_scanner
+
+    scanner = get_scanner()
+    if scanner.is_searching:
+        return jsonify({"error": "Search already running"}), 409
+
+    def _run_search():
+        scanner._run_search_with_context(socketio=socketio, include_upgrades=True)
+
+    thread = threading.Thread(target=_run_search, daemon=True)
+    thread.start()
+
+    return jsonify({"status": "search_started"}), 202
+
+
 @bp.route("/wanted/batch-action", methods=["POST"])
 def wanted_batch_action():
     """Perform a batch action on multiple wanted items.

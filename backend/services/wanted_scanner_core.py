@@ -20,7 +20,12 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 
-from ass_utils import get_media_streams, has_target_language_audio, has_target_language_stream
+from ass_utils import (
+    get_all_subtitle_streams,
+    get_media_streams,
+    has_target_language_audio,
+    has_target_language_stream,
+)
 from config import get_settings, map_path
 from db.profiles import get_movie_profile, get_series_profile
 from db.wanted import batch_upsert_context, upsert_wanted_item
@@ -348,6 +353,9 @@ class WantedScanner:
             existing = detect_existing_target_for_lang(mapped_path, target_lang, probe_data)
             if existing == "ass":
                 continue
+            # SRT is sufficient when upgrade scanning is disabled
+            if existing == "srt" and not settings.upgrade_enabled:
+                continue
 
             embedded_sub = None
             if probe_data:
@@ -359,6 +367,10 @@ class WantedScanner:
                     existing = "embedded_ass"
                 elif embedded_sub == "srt":
                     existing = "embedded_srt"
+
+            embedded_langs = []
+            if probe_data:
+                embedded_langs = get_all_subtitle_streams(probe_data, exclude_language=target_lang)
 
             title = movie_title
             if len(target_languages) > 1:
@@ -385,6 +397,7 @@ class WantedScanner:
                 target_language=target_lang,
                 instance_name=instance_name or "",
                 subtitle_type="full",
+                embedded_languages=embedded_langs,
             )
             if was_updated:
                 updated += 1
@@ -608,6 +621,9 @@ class WantedScanner:
                 existing = detect_existing_target_for_lang(mapped_path, target_lang, probe_data)
                 if existing == "ass":
                     continue  # Goal achieved for this language
+                # SRT is sufficient when upgrade scanning is disabled
+                if existing == "srt" and not settings.upgrade_enabled:
+                    continue
 
                 # Check embedded streams and audio tracks if probe_data available
                 embedded_sub = None
@@ -620,6 +636,12 @@ class WantedScanner:
                         existing = "embedded_ass"
                     elif embedded_sub == "srt":
                         existing = "embedded_srt"
+
+                embedded_langs = []
+                if probe_data:
+                    embedded_langs = get_all_subtitle_streams(
+                        probe_data, exclude_language=target_lang
+                    )
 
                 title = f"{series_title} — {season_episode}"
                 if len(target_languages) > 1:
@@ -649,6 +671,7 @@ class WantedScanner:
                     target_language=target_lang,
                     instance_name=instance_name or "",
                     subtitle_type="full",
+                    embedded_languages=embedded_langs,
                 )
                 if was_updated:
                     updated += 1
@@ -811,7 +834,8 @@ class WantedScanner:
                 to_remove_ids.append(item["id"])
                 continue
 
-            # Target ASS appeared since last scan (language-aware)
+            # Target subtitle appeared since last scan (language-aware)
+            settings = get_settings()
             if target_lang:
                 existing = detect_existing_target_for_lang(path, target_lang)
             else:
@@ -819,6 +843,10 @@ class WantedScanner:
 
                 existing = detect_existing_target(path)
             if existing == "ass":
+                to_remove_ids.append(item["id"])
+                continue
+            # SRT counts as goal achieved when upgrade scanning is disabled
+            if existing == "srt" and not settings.upgrade_enabled:
                 to_remove_ids.append(item["id"])
                 continue
 
@@ -839,8 +867,13 @@ class WantedScanner:
 
     # ─── Search All ────────────────────────────────────────────────────────
 
-    def search_all(self, socketio=None) -> dict:
+    def search_all(self, socketio=None, include_upgrades: bool | None = None) -> dict:
         """Search providers for all wanted items (respects max_items_per_run).
+
+        Args:
+            include_upgrades: Whether to include upgrade candidates. Defaults to
+                True when upgrade_scan_interval_hours > 0, False otherwise.
+                Pass True explicitly to force a one-time upgrade search run.
 
         Uses ThreadPoolExecutor for parallel item processing instead of
         sequential processing with sleep delays. Provider-level rate limiting
@@ -860,10 +893,19 @@ class WantedScanner:
             settings = get_settings()
             max_items = settings.wanted_search_max_items_per_run
 
+            # Determine whether upgrade candidates are included in this run
+            upgrade_enabled = getattr(settings, "upgrade_scan_interval_hours", 0) > 0
+            if include_upgrades is None:
+                include_upgrades = upgrade_enabled
+
             from db.wanted import get_wanted_items
 
             result = get_wanted_items(page=1, per_page=max_items, status="wanted")
             items = result.get("data", [])
+
+            # Skip upgrade candidates when upgrade scan is disabled (unless forced)
+            if not include_upgrades:
+                items = [i for i in items if not i.get("upgrade_candidate")]
 
             # Filter: adaptive backoff (or fixed 1h fallback when disabled)
             eligible = []
@@ -1098,13 +1140,13 @@ class WantedScanner:
         else:
             self.scan_all()
 
-    def _run_search_with_context(self, socketio=None):
+    def _run_search_with_context(self, socketio=None, include_upgrades: bool | None = None):
         """Run search_all inside Flask app context (for background threads)."""
         if self._app is not None:
             with self._app.app_context():
-                self.search_all(socketio)
+                self.search_all(socketio, include_upgrades=include_upgrades)
         else:
-            self.search_all(socketio)
+            self.search_all(socketio, include_upgrades=include_upgrades)
 
     def _scheduled_scan(self, interval_hours):
         """Execute a scheduled scan and reschedule."""

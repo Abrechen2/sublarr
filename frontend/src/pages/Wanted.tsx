@@ -19,7 +19,8 @@ import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
 import { BatchActionBar } from '@/components/batch/BatchActionBar'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useWebSocket } from '@/hooks/useWebSocket'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, useQuery } from '@tanstack/react-query'
+import { getConfig } from '@/api/settings'
 import { WantedToolbar } from './wanted/WantedToolbar'
 import { WantedFilterPanel } from './wanted/WantedFilterPanel'
 import { WantedTableRow } from './wanted/WantedTableRow'
@@ -114,6 +115,8 @@ export function WantedPage() {
   const selectAll = useSelectionStore((s) => s.selectAll)
   const clearSelection = useSelectionStore((s) => s.clearSelection)
   const isSelected = useCallback((id: number) => (scopeSelections ?? new Set()).has(id), [scopeSelections])
+  const { data: config } = useQuery({ queryKey: ['config'], queryFn: getConfig })
+  const sourceLanguage = (config?.source_language as string | undefined) ?? 'en'
   const { data: summary } = useWantedSummary()
   const {
     data: wanted,
@@ -526,6 +529,7 @@ export function WantedPage() {
                       itemIndex={i}
                       isSelected={isSelected(item.id)}
                       expandedItem={expandedItem}
+                      sourceLanguage={sourceLanguage}
                       searchingItems={searchingItems}
                       searchResults={searchResults}
                       extractingItemId={extractingItemId}

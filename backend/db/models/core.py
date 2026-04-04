@@ -73,6 +73,7 @@ class WantedItem(db.Model):
     season_episode: Mapped[str | None] = mapped_column(Text, default="")
     file_path: Mapped[str] = mapped_column(Text, nullable=False)
     existing_sub: Mapped[str | None] = mapped_column(Text, default="")
+    embedded_languages: Mapped[str | None] = mapped_column(Text, default="[]")
     missing_languages: Mapped[str | None] = mapped_column(Text, default="[]")
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="wanted")
     last_search_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

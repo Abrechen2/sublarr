@@ -71,6 +71,50 @@ def has_target_language_stream(ffprobe_data, target_language=None):
     return None
 
 
+def get_all_subtitle_streams(ffprobe_data: dict, exclude_language: str | None = None) -> list[dict]:
+    """Return all embedded subtitle streams as a list of {lang, format} dicts.
+
+    Args:
+        ffprobe_data: dict from get_media_streams / ffprobe JSON output.
+        exclude_language: ISO-639-1 code to exclude (typically the target language,
+            already tracked separately in existing_sub). None = return all.
+
+    Returns:
+        Deduplicated list of dicts with 'lang' (raw language tag) and 'format'
+        ('ass' or 'srt'). Unknown codecs (dvd_subtitle, etc.) are skipped.
+    """
+    exclude_tags: set[str] = set()
+    if exclude_language:
+        from config import _get_language_tags
+
+        exclude_tags = _get_language_tags(exclude_language)
+
+    seen: set[tuple] = set()
+    result: list[dict] = []
+
+    for stream in ffprobe_data.get("streams", []):
+        if stream.get("codec_type") != "subtitle":
+            continue
+        lang = stream.get("tags", {}).get("language", "").lower()
+        if not lang:
+            continue
+        if lang in exclude_tags:
+            continue
+        codec = stream.get("codec_name", "").lower()
+        if codec in ("ass", "ssa"):
+            fmt = "ass"
+        elif codec in ("subrip", "srt"):
+            fmt = "srt"
+        else:
+            continue
+        key = (lang, fmt)
+        if key not in seen:
+            seen.add(key)
+            result.append({"lang": lang, "format": fmt})
+
+    return result
+
+
 def has_target_language_audio(ffprobe_data, target_language=None):
     """Check if the file has an audio track in the target language.
 

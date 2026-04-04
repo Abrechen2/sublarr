@@ -37,6 +37,9 @@ api.interceptors.response.use(
           source_language: 'en', target_language: 'de', media_path: '/media', port: 5765, log_level: 'INFO'
         } })
       }
+      if (url.includes('/providers/stats')) {
+        return Promise.resolve({ data: { cache: {} } })
+      }
       if (url.includes('/providers')) {
         return Promise.resolve({ data: {
           providers: [
