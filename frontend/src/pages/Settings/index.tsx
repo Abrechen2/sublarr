@@ -58,6 +58,9 @@ const HooksPage = lazy(() =>
 const WebhooksPage = lazy(() =>
   import('./WebhooksPage').then((m) => ({ default: m.WebhooksPage })),
 )
+const CleanupSettings = lazy(() =>
+  import('./CleanupSettings').then((m) => ({ default: m.CleanupSettings })),
+)
 
 export function SettingsPage() {
   return (
@@ -74,6 +77,7 @@ export function SettingsPage() {
         <Route path="notifications" element={<NotificationsSettings />} />
         <Route path="system" element={<SystemSettings />} />
         <Route path="about" element={<AboutSettings />} />
+        <Route path="cleanup" element={<Suspense fallback={<FormSkeleton />}><CleanupSettings /></Suspense>} />
         <Route path="hooks" element={<HooksPage />} />
         <Route path="webhooks" element={<WebhooksPage />} />
       </Routes>

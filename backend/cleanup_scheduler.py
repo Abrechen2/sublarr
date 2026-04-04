@@ -177,10 +177,18 @@ class CleanupScheduler:
             logger.warning("Zombie job expiry check failed: %s", e)
 
     def _execute_cleanup(self):
-        """Run all enabled cleanup rules in order."""
+        """Run all enabled scheduled cleanup rules in order."""
+        import os
+
         from config import get_settings
         from db.repositories.cleanup import CleanupRepository
         from dedup_engine import scan_for_duplicates, scan_orphaned_subtitles
+        from services.cleanup_executors import (
+            execute_format_upgrade,
+            execute_language_filter,
+            execute_orphan_db,
+            execute_orphan_files,
+        )
 
         self._executing = True
         try:
@@ -192,20 +200,83 @@ class CleanupScheduler:
             settings = get_settings()
             media_path = settings.media_path
 
-            enabled_rules = [r for r in rules if r.get("enabled")]
+            scheduled_rules = [
+                r
+                for r in rules
+                if r.get("enabled") and r.get("schedule") in ("daily", "weekly", "after_scan")
+            ]
 
-            if not enabled_rules:
-                logger.info("No enabled cleanup rules to execute")
+            if not scheduled_rules:
+                logger.info("No scheduled cleanup rules to execute")
                 return
 
-            logger.info("Executing %d enabled cleanup rules", len(enabled_rules))
+            logger.info("Executing %d scheduled cleanup rules", len(scheduled_rules))
 
-            for rule in enabled_rules:
+            for rule in scheduled_rules:
                 try:
                     rule_type = rule["rule_type"]
                     rule_id = rule["id"]
+                    config = rule.get("config_json", {})
 
-                    if rule_type == "dedup":
+                    if rule_type == "language_filter":
+                        result = execute_language_filter(media_path, config, dry_run=False)
+                        repo.update_rule_last_run(rule_id)
+                        repo.log_cleanup(
+                            action_type="scheduled_language_filter",
+                            files_deleted=result.get("deleted", 0),
+                            bytes_freed=result.get("bytes_freed", 0),
+                            rule_id=rule_id,
+                        )
+                        logger.info(
+                            "Scheduled language_filter: %d deleted, %d bytes freed",
+                            result.get("deleted", 0),
+                            result.get("bytes_freed", 0),
+                        )
+
+                    elif rule_type == "format_upgrade":
+                        result = execute_format_upgrade(media_path, config, dry_run=False)
+                        repo.update_rule_last_run(rule_id)
+                        repo.log_cleanup(
+                            action_type="scheduled_format_upgrade",
+                            files_deleted=result.get("deleted", 0),
+                            bytes_freed=result.get("bytes_freed", 0),
+                            rule_id=rule_id,
+                        )
+                        logger.info(
+                            "Scheduled format_upgrade: %d deleted, %d bytes freed",
+                            result.get("deleted", 0),
+                            result.get("bytes_freed", 0),
+                        )
+
+                    elif rule_type == "orphan_files":
+                        result = execute_orphan_files(media_path, config, dry_run=False)
+                        repo.update_rule_last_run(rule_id)
+                        repo.log_cleanup(
+                            action_type="scheduled_orphan_files",
+                            files_deleted=result.get("deleted", 0),
+                            bytes_freed=result.get("bytes_freed", 0),
+                            rule_id=rule_id,
+                        )
+                        logger.info(
+                            "Scheduled orphan_files: %d deleted, %d bytes freed",
+                            result.get("deleted", 0),
+                            result.get("bytes_freed", 0),
+                        )
+
+                    elif rule_type == "orphan_db":
+                        result = execute_orphan_db(config, dry_run=False)
+                        repo.update_rule_last_run(rule_id)
+                        repo.log_cleanup(
+                            action_type="scheduled_orphan_db",
+                            files_deleted=result.get("deleted", 0),
+                            rule_id=rule_id,
+                        )
+                        logger.info(
+                            "Scheduled orphan_db: %d DB entries removed",
+                            result.get("deleted", 0),
+                        )
+
+                    elif rule_type == "dedup":
                         result = scan_for_duplicates(media_path, socketio=self._socketio)
                         repo.update_rule_last_run(rule_id)
                         repo.log_cleanup(
@@ -231,8 +302,6 @@ class CleanupScheduler:
 
                     elif rule_type == "old_backups":
                         # Scan only, do not auto-delete backups
-                        import os
-
                         bak_count = 0
                         bak_size = 0
                         for root, _dirs, files in os.walk(media_path):
@@ -253,7 +322,7 @@ class CleanupScheduler:
                         )
 
                     else:
-                        logger.warning("Unknown rule type: %s", rule_type)
+                        logger.warning("Unknown rule type in scheduler: %s", rule_type)
 
                 except Exception as e:
                     logger.error("Failed to execute rule %d (%s): %s", rule["id"], rule["name"], e)

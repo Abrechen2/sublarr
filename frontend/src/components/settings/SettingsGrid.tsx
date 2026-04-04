@@ -12,6 +12,7 @@ import {
   Bell,
   Shield,
   Heart,
+  Trash2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -83,6 +84,13 @@ const CATEGORIES: readonly SettingsCategory[] = [
     badge: 'System',
   },
   {
+    id: 'cleanup',
+    icon: Trash2,
+    titleKey: 'settings.categories.cleanup.title',
+    descKey: 'settings.categories.cleanup.description',
+    badge: 'Cleanup',
+  },
+  {
     id: 'about',
     icon: Heart,
     titleKey: 'settings.categories.about.title',
@@ -100,6 +108,7 @@ const CATEGORY_FALLBACKS: Record<string, { title: string; description: string }>
   translation: { title: 'Translation', description: 'AI translation backends' },
   notifications: { title: 'Notifications', description: 'Channels, templates' },
   system: { title: 'System', description: 'Security, backup, logs' },
+  cleanup: { title: 'Cleanup', description: 'Language filters, format upgrades, orphan removal' },
   about: { title: 'About', description: 'Version, GitHub, donate' },
 }
 
