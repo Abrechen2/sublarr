@@ -1,7 +1,7 @@
 """add schedule to cleanup_rules
 
 Revision ID: f0e1d2c3b4a5
-Revises: b3c2a1d4e5f6
+Revises: a2b3c4d5e6f7
 Create Date: 2026-04-04
 """
 
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "f0e1d2c3b4a5"
-down_revision = "b3c2a1d4e5f6"
+down_revision = "a2b3c4d5e6f7"
 branch_labels = None
 depends_on = None
 
