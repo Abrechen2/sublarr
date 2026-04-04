@@ -5,6 +5,17 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.40.0-beta] - 2026-04-04
+
+### Added
+- **Subtitle Presence Pills** — The `Vorhanden` column on the Wanted page is replaced by a pill-based `Untertitel` column. A left pill shows the target-language subtitle status (`DE ✗` / `DE SRT ↑` / `DE ↓ ASS`); a right group shows all other embedded subtitle streams in the video file (`EN ↓ ASS`, `+N ▾` overflow dropdown sorted by configured source language). The `↑` upgrade arrow only appears when the upgrade candidate flag is set.
+- **`embedded_languages` field** — New `embedded_languages` TEXT column on `wanted_items` (Alembic migration `c6d7e8f9a0b1`). The wanted scanner now probes and stores all non-target embedded subtitle streams at both movie and episode scan sites.
+- **`get_all_subtitle_streams()`** — New utility in `ass_utils.py` returning all embedded subtitle streams as `[{lang, format}]`, with optional target-language exclusion and deduplication.
+
+### Changed
+- **Wanted column renamed** — i18n key `existing_col` changed from `"Vorhanden"` to `"Untertitel"` (DE) and `"Existing"` to `"Subtitles"` (EN).
+- **`upsert_wanted_item` partial-update safety** — `embedded_languages` is no longer overwritten to `[]` by call sites that do not supply the field (episodes route, standalone scanner); existing data is preserved on partial updates.
+
 ## [0.39.0-beta] - 2026-04-03
 
 ### Added
