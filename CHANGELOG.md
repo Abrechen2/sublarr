@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.41.0-beta] - 2026-04-04
+
+### Added
+- **Cleanup Rules page** — Dedicated first-class Settings page (`/settings/cleanup`) replacing the old CleanupTab. Rule list sidebar + detail view with 4 rule types: Language Filter (delete sidecars in non-allowed languages), Format Upgrade (delete SRT when ASS exists), Orphan Files (delete subtitle sidecars with no matching video), and DB Cleanup (remove DB entries whose subtitle file no longer exists on disk). Each rule has a name, enabled toggle, and schedule (manual / daily / weekly / after scan). Dry-run preview before executing. `.nfo` files are never touched.
+- **`schedule` column on `cleanup_rules`** — New `schedule` column (manual/daily/weekly/after_scan) added via Alembic migration `f0e1d2c3b4a5`; existing rules default to `manual`.
+- **Rule executors** — `backend/services/cleanup_executors.py` with pure executor functions for all 4 rule types, supporting `dry_run` mode for preview.
+- **`POST /api/v1/cleanup/rules/{id}/preview`** — New dry-run endpoint returning files that would be deleted with estimated MB freed.
+
 ## [0.40.0-beta] - 2026-04-04
 
 ### Added
