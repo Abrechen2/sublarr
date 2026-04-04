@@ -4,7 +4,7 @@ import { SubtitlePresencePills } from '@/pages/wanted/SubtitlePresencePills'
 
 const noEmbedded: Array<{ lang: string; format: string }> = []
 const enAss = [{ lang: 'eng', format: 'ass' }]
-const enAssJaSrt = [{ lang: 'eng', format: 'ass' }, { lang: 'jpn', format: 'srt' }]
+const _enAssJaSrt = [{ lang: 'eng', format: 'ass' }, { lang: 'jpn', format: 'srt' }]
 const threeLangs = [
   { lang: 'eng', format: 'ass' },
   { lang: 'jpn', format: 'srt' },
