@@ -86,6 +86,7 @@ def get_all_subtitle_streams(ffprobe_data: dict, exclude_language: str | None = 
     exclude_tags: set[str] = set()
     if exclude_language:
         from config import _get_language_tags
+
         exclude_tags = _get_language_tags(exclude_language)
 
     seen: set[tuple] = set()

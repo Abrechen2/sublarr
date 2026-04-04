@@ -144,9 +144,14 @@ def list_tasks():
             try:
                 from datetime import timedelta
 
-                base_dt = datetime.fromisoformat(str(scan_last)) if scan_last else (
-                    datetime.fromisoformat(scanner.scheduler_started_at)
-                    if scanner.scheduler_started_at else None
+                base_dt = (
+                    datetime.fromisoformat(str(scan_last))
+                    if scan_last
+                    else (
+                        datetime.fromisoformat(scanner.scheduler_started_at)
+                        if scanner.scheduler_started_at
+                        else None
+                    )
                 )
                 if base_dt:
                     scan_next = (base_dt + timedelta(hours=scan_interval)).isoformat()
@@ -172,9 +177,14 @@ def list_tasks():
             try:
                 from datetime import timedelta
 
-                base_dt = datetime.fromisoformat(str(search_last)) if search_last else (
-                    datetime.fromisoformat(scanner.scheduler_started_at)
-                    if scanner.scheduler_started_at else None
+                base_dt = (
+                    datetime.fromisoformat(str(search_last))
+                    if search_last
+                    else (
+                        datetime.fromisoformat(scanner.scheduler_started_at)
+                        if scanner.scheduler_started_at
+                        else None
+                    )
                 )
                 if base_dt:
                     search_next = (base_dt + timedelta(hours=search_interval)).isoformat()

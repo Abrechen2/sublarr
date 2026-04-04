@@ -247,9 +247,7 @@ class SearchCoordinatorMixin:
                         logger.info("Returning %d results from fast cache", len(cached_results))
                         try:
                             if _METRICS_AVAILABLE:
-                                _metrics_module.PROVIDER_CACHE_HITS_TOTAL.labels(
-                                    layer="fast"
-                                ).inc()
+                                _metrics_module.PROVIDER_CACHE_HITS_TOTAL.labels(layer="fast").inc()
                         except Exception:
                             pass
                         return cached_results
