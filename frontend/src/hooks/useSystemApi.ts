@@ -24,7 +24,7 @@ import {
   getCleanupStats, startCleanupScan, getCleanupScanStatus,
   getDuplicates, deleteDuplicates,
   scanOrphaned, getOrphanedFiles, deleteOrphaned,
-  getCleanupRules, createCleanupRule, updateCleanupRule, deleteCleanupRule, runCleanupRule,
+  getCleanupRules, createCleanupRule, updateCleanupRule, deleteCleanupRule, runCleanupRule, previewCleanupRule,
   getCleanupHistory, getCleanupPreview,
   getSupportedLanguages,
   testSonarrInstance, testRadarrInstance,
@@ -712,6 +712,12 @@ export function useRunCleanupRule() {
       void qc.invalidateQueries({ queryKey: ['cleanup-stats'] })
       void qc.invalidateQueries({ queryKey: ['cleanup-history'] })
     },
+  })
+}
+
+export function useRulePreview() {
+  return useMutation({
+    mutationFn: (id: number) => previewCleanupRule(id),
   })
 }
 

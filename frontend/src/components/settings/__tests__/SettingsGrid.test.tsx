@@ -33,18 +33,18 @@ describe('SettingsGrid', () => {
     mockNavigate.mockClear()
   })
 
-  it('renders all 9 category cards', () => {
+  it('renders all 10 category cards', () => {
     renderWithRouter(<SettingsGrid />)
     const cards = screen.getAllByRole('button').filter(
       (el) => el.getAttribute('data-testid')?.match(/^settings-card-[^-]+$/)
     )
-    expect(cards).toHaveLength(9)
+    expect(cards).toHaveLength(10)
   })
 
   it('renders each card with an icon box', () => {
     renderWithRouter(<SettingsGrid />)
     const iconBoxes = screen.getAllByTestId(/^settings-card-icon-/)
-    expect(iconBoxes).toHaveLength(9)
+    expect(iconBoxes).toHaveLength(10)
   })
 
   it('renders the General card with title and description', () => {
@@ -92,7 +92,19 @@ describe('SettingsGrid', () => {
   it('renders a count or tag element on each card', () => {
     renderWithRouter(<SettingsGrid />)
     const badges = screen.getAllByTestId(/^settings-card-badge-/)
-    expect(badges).toHaveLength(9)
+    expect(badges).toHaveLength(10)
+  })
+
+  it('renders the Cleanup card', () => {
+    renderWithRouter(<SettingsGrid />)
+    expect(screen.getByTestId('settings-card-cleanup')).toBeInTheDocument()
+  })
+
+  it('navigates to /settings/cleanup when Cleanup card is clicked', async () => {
+    const user = userEvent.setup()
+    renderWithRouter(<SettingsGrid />)
+    await user.click(screen.getByTestId('settings-card-cleanup'))
+    expect(mockNavigate).toHaveBeenCalledWith('/settings/cleanup')
   })
 
   it('renders the About card', () => {

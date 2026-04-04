@@ -188,6 +188,15 @@ export async function runCleanupRule(id: number): Promise<{ message: string }> {
   return data
 }
 
+export async function previewCleanupRule(id: number): Promise<{
+  rule_id: number
+  rule_type: string
+  preview: Record<string, number>
+}> {
+  const { data } = await api.post(`/cleanup/rules/${id}/preview`)
+  return data
+}
+
 export async function getCleanupHistory(page = 1, perPage = 50): Promise<{ entries: CleanupHistoryEntry[]; total: number; page: number }> {
   const { data } = await api.get('/cleanup/history', { params: { page, per_page: perPage } })
   return data
