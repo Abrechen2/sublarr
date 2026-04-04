@@ -145,7 +145,7 @@ export function RuleDetail({
           <button
             onClick={onDelete}
             className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs"
-            style={{ border: '1px solid #3a1a1a', color: 'var(--error)' }}
+            style={{ border: '1px solid var(--error-dim, #3a1a1a)', color: 'var(--error)' }}
           >
             <Trash2 size={12} />
           </button>
