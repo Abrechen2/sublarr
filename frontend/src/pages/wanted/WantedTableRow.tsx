@@ -8,6 +8,7 @@ import { StatusBadge, SubtitleTypeBadge } from '@/components/shared/StatusBadge'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
 import { FailureReasonRow } from '@/pages/Wanted'
 import type { WantedSearchResponse } from '@/lib/types'
+import { SubtitlePresencePills } from '@/pages/wanted/SubtitlePresencePills'
 
 interface SearchResultsRowProps {
   results: WantedSearchResponse | null
@@ -146,6 +147,7 @@ export interface WantedItem {
   status: string
   season_episode: string | null
   existing_sub: string
+  embedded_languages: Array<{ lang: string; format: string }>
   target_language: string
   subtitle_type: string
   instance_name: string
@@ -162,6 +164,7 @@ export interface WantedTableRowProps {
   itemIndex: number
   isSelected: boolean
   expandedItem: number | null
+  sourceLanguage: string
   searchingItems: Set<number>
   searchResults: Record<number, WantedSearchResponse>
   extractingItemId: number | null
@@ -193,6 +196,7 @@ export function WantedTableRow({
   itemIndex,
   isSelected,
   expandedItem,
+  sourceLanguage,
   searchingItems,
   searchResults,
   extractingItemId,
@@ -294,28 +298,12 @@ export function WantedTableRow({
           </div>
         </td>
         <td className="px-3 py-2.5 hidden sm:table-cell">
-          <div className="flex items-center gap-1.5">
-            <span
-              className="text-xs uppercase"
-              style={{
-                fontFamily: 'var(--font-mono)',
-                color: item.existing_sub === 'srt' ? 'var(--warning)' : 'var(--text-muted)',
-              }}
-            >
-              {item.existing_sub || 'none'}
-            </span>
-            {item.upgrade_candidate === 1 && (
-              <span
-                className="text-[9px] px-1 py-0.5 rounded font-bold uppercase"
-                style={{
-                  backgroundColor: 'rgba(16,185,129,0.1)',
-                  color: 'var(--success)',
-                }}
-              >
-                SRT&rarr;ASS
-              </span>
-            )}
-          </div>
+          <SubtitlePresencePills
+            existingSub={item.existing_sub}
+            targetLanguage={item.target_language}
+            sourceLanguage={sourceLanguage}
+            embeddedLanguages={item.embedded_languages ?? []}
+          />
         </td>
         <td
           className="px-3 py-2.5 text-xs tabular-nums hidden md:table-cell"
