@@ -46,6 +46,7 @@ def upsert_wanted_item(
     target_language: str = "",
     instance_name: str = "",
     subtitle_type: str = "full",
+    embedded_languages: list = None,
 ) -> tuple:
     """Insert or update a wanted item. Returns (row_id, was_updated)."""
     return _get_repo().upsert_wanted_item(
@@ -65,6 +66,7 @@ def upsert_wanted_item(
         target_language,
         instance_name,
         subtitle_type,
+        embedded_languages,
     )
 
 

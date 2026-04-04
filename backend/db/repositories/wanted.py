@@ -40,6 +40,7 @@ class WantedRepository(BaseRepository):
         target_language: str = "",
         instance_name: str = "",
         subtitle_type: str = "full",
+        embedded_languages: list = None,
     ) -> tuple:
         """Insert or update a wanted item (matched on file_path + target_language + subtitle_type).
 
@@ -52,6 +53,7 @@ class WantedRepository(BaseRepository):
         """
         now = self._now()
         langs_json = json.dumps(missing_languages or [])
+        embedded_json = json.dumps(embedded_languages or [])
         upgrade_int = 1 if upgrade_candidate else 0
 
         # Match on file_path + target_language + subtitle_type for multi-language + multi-type support
@@ -82,6 +84,7 @@ class WantedRepository(BaseRepository):
                 existing.season_episode = season_episode
                 existing.existing_sub = existing_sub
                 existing.missing_languages = langs_json
+                existing.embedded_languages = embedded_json
                 existing.sonarr_series_id = sonarr_series_id
                 existing.sonarr_episode_id = sonarr_episode_id
                 existing.radarr_movie_id = radarr_movie_id
@@ -99,6 +102,7 @@ class WantedRepository(BaseRepository):
                 existing.season_episode = season_episode
                 existing.existing_sub = existing_sub
                 existing.missing_languages = langs_json
+                existing.embedded_languages = embedded_json
                 existing.status = "wanted"
                 existing.sonarr_series_id = sonarr_series_id
                 existing.sonarr_episode_id = sonarr_episode_id
@@ -121,6 +125,7 @@ class WantedRepository(BaseRepository):
             season_episode=season_episode,
             existing_sub=existing_sub,
             missing_languages=langs_json,
+            embedded_languages=embedded_json,
             sonarr_series_id=sonarr_series_id,
             sonarr_episode_id=sonarr_episode_id,
             radarr_movie_id=radarr_movie_id,
@@ -495,4 +500,11 @@ class WantedRepository(BaseRepository):
                 d["missing_languages"] = []
         else:
             d["missing_languages"] = []
+        if d.get("embedded_languages"):
+            try:
+                d["embedded_languages"] = json.loads(d["embedded_languages"])
+            except json.JSONDecodeError:
+                d["embedded_languages"] = []
+        else:
+            d["embedded_languages"] = []
         return d
