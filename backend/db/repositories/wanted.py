@@ -491,7 +491,7 @@ class WantedRepository(BaseRepository):
     # ---- Helpers ----
 
     def _row_to_wanted(self, item: WantedItem) -> dict:
-        """Convert a WantedItem model to a dict. Parse missing_languages JSON."""
+        """Convert a WantedItem model to a dict. Parse missing_languages and embedded_languages JSON."""
         d = self._to_dict(item)
         if d.get("missing_languages"):
             try:
