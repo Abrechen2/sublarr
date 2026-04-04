@@ -160,8 +160,37 @@ class CleanupRepository(BaseRepository):
 
     # ---- Cleanup Rules ---------------------------------------------------------
 
+    def _rule_to_dict(self, rule) -> dict:
+        """Serialize a CleanupRule ORM object to a dict.
+
+        Parses config_json from a JSON string into a dict and includes
+        the schedule field along with all standard rule fields.
+        """
+        import json as _json
+
+        try:
+            config = _json.loads(rule.config_json or "{}")
+        except (ValueError, TypeError):
+            config = {}
+        return {
+            "id": rule.id,
+            "name": rule.name,
+            "rule_type": rule.rule_type,
+            "config_json": config,
+            "enabled": bool(rule.enabled),
+            "schedule": rule.schedule,
+            "last_run_at": rule.last_run_at.isoformat() if rule.last_run_at else None,
+            "created_at": rule.created_at.isoformat(),
+            "updated_at": rule.updated_at.isoformat(),
+        }
+
     def create_rule(
-        self, name: str, rule_type: str, config_json: str = "{}", enabled: bool = True
+        self,
+        name: str,
+        rule_type: str,
+        config_json: str = "{}",
+        enabled: bool = True,
+        schedule: str = "manual",
     ) -> dict:
         """Create a new cleanup rule.
 
@@ -174,12 +203,13 @@ class CleanupRepository(BaseRepository):
             rule_type=rule_type,
             config_json=config_json,
             enabled=1 if enabled else 0,
+            schedule=schedule,
             created_at=now,
             updated_at=now,
         )
         self.session.add(entry)
         self._commit()
-        return self._to_dict(entry)
+        return self._rule_to_dict(entry)
 
     def get_rules(self) -> list[dict]:
         """Get all cleanup rules ordered by name.
@@ -189,7 +219,7 @@ class CleanupRepository(BaseRepository):
         """
         stmt = select(CleanupRule).order_by(CleanupRule.name)
         entries = self.session.execute(stmt).scalars().all()
-        return [self._to_dict(e) for e in entries]
+        return [self._rule_to_dict(e) for e in entries]
 
     def get_rule(self, rule_id: int) -> dict | None:
         """Get a single cleanup rule by ID.
@@ -199,12 +229,12 @@ class CleanupRepository(BaseRepository):
         """
         stmt = select(CleanupRule).where(CleanupRule.id == rule_id)
         result = self.session.execute(stmt).scalar_one_or_none()
-        return self._to_dict(result)
+        return self._rule_to_dict(result) if result is not None else None
 
     def update_rule(self, rule_id: int, **kwargs) -> dict | None:
         """Update a cleanup rule by ID.
 
-        Accepts any combination of: name, rule_type, config_json, enabled.
+        Accepts any combination of: name, rule_type, config_json, enabled, schedule.
 
         Returns:
             Updated dict or None if not found.
@@ -214,7 +244,7 @@ class CleanupRepository(BaseRepository):
         if entry is None:
             return None
 
-        allowed_fields = {"name", "rule_type", "config_json", "enabled"}
+        allowed_fields = {"name", "rule_type", "config_json", "enabled", "schedule"}
         for key, value in kwargs.items():
             if key in allowed_fields:
                 if key == "enabled":
@@ -223,7 +253,7 @@ class CleanupRepository(BaseRepository):
 
         entry.updated_at = self._now()
         self._commit()
-        return self._to_dict(entry)
+        return self._rule_to_dict(entry)
 
     def delete_rule(self, rule_id: int) -> bool:
         """Delete a cleanup rule by ID.

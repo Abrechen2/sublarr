@@ -42,6 +42,7 @@ class CleanupRule(db.Model):
     rule_type: Mapped[str] = mapped_column(String(50), nullable=False)
     config_json: Mapped[str] = mapped_column(Text, default="{}")
     enabled: Mapped[int] = mapped_column(Integer, default=1)
+    schedule: Mapped[str] = mapped_column(String(20), default="manual")
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
