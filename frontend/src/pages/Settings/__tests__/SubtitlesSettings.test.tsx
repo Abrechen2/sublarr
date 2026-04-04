@@ -3,8 +3,8 @@
  *
  * Covers:
  * - Renders the page via SettingsDetailLayout
- * - All 6 sections are present (data-testid attributes)
- * - Sections 4-6 (Embedded Extraction, Language Profiles, Fansub Preferences)
+ * - All 8 sections are present (data-testid attributes)
+ * - Sections 3-5 (Embedded Extraction, Language Profiles, Fansub Preferences)
  *   use the `advanced` prop and are collapsed by default
  * - Expanding an advanced section via toggle reveals its content
  */
@@ -26,10 +26,6 @@ vi.mock('@/pages/Settings/AdvancedTab', () => ({
     <div data-testid="mock-language-profiles-tab">Language Profiles Tab</div>
   ),
   SubtitleToolsTab: () => <div data-testid="mock-subtitle-tools-tab">Subtitle Tools Tab</div>,
-}))
-
-vi.mock('@/pages/Settings/CleanupTab', () => ({
-  CleanupTab: () => <div data-testid="mock-cleanup-tab">Cleanup Tab</div>,
 }))
 
 const mockMutate = vi.fn()
@@ -128,11 +124,6 @@ describe('SubtitlesSettings', () => {
     expect(screen.getByTestId('section-format-tools')).toBeInTheDocument()
   })
 
-  it('renders the Cleanup section', () => {
-    renderPage()
-    expect(screen.getByTestId('section-cleanup')).toBeInTheDocument()
-  })
-
   it('renders the Embedded Extraction section', () => {
     renderPage()
     expect(screen.getByTestId('section-embedded-extraction')).toBeInTheDocument()
@@ -162,13 +153,6 @@ describe('SubtitlesSettings', () => {
     const wrapper = screen.getByTestId('section-format-tools')
     const title = wrapper.querySelector('[data-testid="settings-section-title"]')
     expect(title).toHaveTextContent('Format & Tools')
-  })
-
-  it('shows "Cleanup" section title', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('section-cleanup')
-    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
-    expect(title).toHaveTextContent('Cleanup')
   })
 
   it('shows "Embedded Extraction" section title', () => {
@@ -233,14 +217,6 @@ describe('SubtitlesSettings', () => {
   it('Format & Tools section does not have an advanced toggle', () => {
     renderPage()
     const wrapper = screen.getByTestId('section-format-tools')
-    expect(
-      wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]'),
-    ).toBeNull()
-  })
-
-  it('Cleanup section does not have an advanced toggle', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('section-cleanup')
     expect(
       wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]'),
     ).toBeNull()
@@ -344,10 +320,10 @@ describe('SubtitlesSettings', () => {
 
   // ── All sections exist ────────────────────────────────────────────────────
 
-  it('renders exactly 9 settings sections', () => {
+  it('renders exactly 8 settings sections', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections).toHaveLength(9)
+    expect(sections).toHaveLength(8)
   })
 })
 

@@ -11,7 +11,7 @@
  */
 import { lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Star, FileType, Trash2, Film, Users, Heart, Tag, Filter, Sliders } from 'lucide-react'
+import { Star, FileType, Film, Users, Heart, Tag, Filter, Sliders } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
@@ -32,10 +32,6 @@ const LanguageProfilesTab = lazy(() =>
 const SubtitleToolsTab = lazy(() =>
   import('./AdvancedTab').then((m) => ({ default: m.SubtitleToolsTab })),
 )
-const CleanupTab = lazy(() =>
-  import('./CleanupTab').then((m) => ({ default: m.CleanupTab })),
-)
-
 function SectionSkeleton() {
   return (
     <div data-testid="section-skeleton" className="animate-pulse space-y-3 py-2">
@@ -475,24 +471,6 @@ export function SubtitlesSettings() {
           <div data-testid="format-tools-content">
             <Suspense fallback={<SectionSkeleton />}>
               <SubtitleToolsTab />
-            </Suspense>
-          </div>
-        </SettingsSection>
-      </div>
-
-      {/* 3. Cleanup */}
-      <div data-testid="section-cleanup">
-        <SettingsSection
-          title={t('settings.subtitles.cleanup.title', 'Cleanup')}
-          description={t(
-            'settings.subtitles.cleanup.description',
-            'Remove duplicate and orphaned subtitle files from your library.',
-          )}
-          icon={<Trash2 size={16} style={{ color: 'var(--accent)' }} />}
-        >
-          <div data-testid="cleanup-content">
-            <Suspense fallback={<SectionSkeleton />}>
-              <CleanupTab />
             </Suspense>
           </div>
         </SettingsSection>
