@@ -1,7 +1,7 @@
 """Tests for get_all_subtitle_streams in ass_utils."""
-import pytest
 from unittest.mock import patch
 
+import pytest
 
 PROBE_EN_ASS_JA_SRT = {
     "streams": [
