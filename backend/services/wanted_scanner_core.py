@@ -20,7 +20,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 
-from ass_utils import get_media_streams, has_target_language_audio, has_target_language_stream
+from ass_utils import get_all_subtitle_streams, get_media_streams, has_target_language_audio, has_target_language_stream
 from config import get_settings, map_path
 from db.profiles import get_movie_profile, get_series_profile
 from db.wanted import batch_upsert_context, upsert_wanted_item
@@ -363,6 +363,10 @@ class WantedScanner:
                 elif embedded_sub == "srt":
                     existing = "embedded_srt"
 
+            embedded_langs = []
+            if probe_data:
+                embedded_langs = get_all_subtitle_streams(probe_data, exclude_language=target_lang)
+
             title = movie_title
             if len(target_languages) > 1:
                 title = f"{title} [{target_lang.upper()}]"
@@ -388,6 +392,7 @@ class WantedScanner:
                 target_language=target_lang,
                 instance_name=instance_name or "",
                 subtitle_type="full",
+                embedded_languages=embedded_langs,
             )
             if was_updated:
                 updated += 1
@@ -627,6 +632,10 @@ class WantedScanner:
                     elif embedded_sub == "srt":
                         existing = "embedded_srt"
 
+                embedded_langs = []
+                if probe_data:
+                    embedded_langs = get_all_subtitle_streams(probe_data, exclude_language=target_lang)
+
                 title = f"{series_title} — {season_episode}"
                 if len(target_languages) > 1:
                     title = f"{title} [{target_lang.upper()}]"
@@ -655,6 +664,7 @@ class WantedScanner:
                     target_language=target_lang,
                     instance_name=instance_name or "",
                     subtitle_type="full",
+                    embedded_languages=embedded_langs,
                 )
                 if was_updated:
                     updated += 1
