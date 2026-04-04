@@ -559,11 +559,20 @@ def create_rule():
     rule_type = data.get("rule_type", "").strip()
     config_json = data.get("config_json", "{}")
     enabled = data.get("enabled", True)
+    schedule = data.get("schedule", "manual")
 
     if not name:
         return jsonify({"error": "name is required"}), 400
 
-    valid_types = {"dedup", "orphaned", "old_backups"}
+    valid_types = {
+        "dedup",
+        "orphaned",
+        "old_backups",
+        "language_filter",
+        "format_upgrade",
+        "orphan_files",
+        "orphan_db",
+    }
     if rule_type not in valid_types:
         return jsonify({"error": f"rule_type must be one of: {sorted(valid_types)}"}), 400
 
@@ -582,6 +591,7 @@ def create_rule():
         rule_type=rule_type,
         config_json=config_json,
         enabled=enabled,
+        schedule=schedule,
     )
 
     return jsonify(rule), 201
@@ -613,11 +623,14 @@ def update_rule(rule_id: int):
                   type: string
                 rule_type:
                   type: string
-                  enum: [dedup, orphaned, old_backups]
+                  enum: [dedup, orphaned, old_backups, language_filter, format_upgrade, orphan_files, orphan_db]
                 config_json:
                   type: string
                 enabled:
                   type: boolean
+                schedule:
+                  type: string
+                  enum: [manual, daily, weekly, after_scan]
       responses:
         200:
           description: Rule updated
@@ -703,10 +716,18 @@ def run_rule(rule_id: int):
         500:
           description: Execution error
     """
+    import os
+
     from config import get_settings
     from db.repositories.cleanup import CleanupRepository
     from dedup_engine import scan_for_duplicates, scan_orphaned_subtitles
     from extensions import socketio
+    from services.cleanup_executors import (
+        execute_format_upgrade,
+        execute_language_filter,
+        execute_orphan_db,
+        execute_orphan_files,
+    )
 
     repo = CleanupRepository()
     rule = repo.get_rule(rule_id)
@@ -716,52 +737,130 @@ def run_rule(rule_id: int):
 
     settings = get_settings()
     media_path = settings.media_path
+    rule_type = rule["rule_type"]
+    config = rule.get("config_json", {})
 
-    if rule["rule_type"] == "dedup":
-        result = scan_for_duplicates(media_path, socketio=socketio)
-        repo.update_rule_last_run(rule_id)
-        return jsonify({"status": "completed", "rule": rule["name"], "result": result})
+    try:
+        if rule_type == "language_filter":
+            result = execute_language_filter(media_path, config, dry_run=False)
+        elif rule_type == "format_upgrade":
+            result = execute_format_upgrade(media_path, config, dry_run=False)
+        elif rule_type == "orphan_files":
+            result = execute_orphan_files(media_path, config, dry_run=False)
+        elif rule_type == "orphan_db":
+            result = execute_orphan_db(config, dry_run=False)
+        elif rule_type == "dedup":
+            result = scan_for_duplicates(media_path, socketio=socketio)
+            repo.update_rule_last_run(rule_id)
+            return jsonify({"status": "completed", "rule": rule["name"], "result": result})
+        elif rule_type == "orphaned":
+            result = scan_orphaned_subtitles(media_path)
+            repo.update_rule_last_run(rule_id)
+            return jsonify(
+                {
+                    "status": "completed",
+                    "rule": rule["name"],
+                    "orphaned": result,
+                    "count": len(result),
+                }
+            )
+        elif rule_type == "old_backups":
+            bak_files = []
+            for root, _dirs, files in os.walk(media_path):
+                for filename in files:
+                    if ".bak" in filename:
+                        full_path = os.path.join(root, filename)
+                        try:
+                            size = os.path.getsize(full_path)
+                        except OSError:
+                            size = 0
+                        bak_files.append({"path": full_path, "size": size})
+            repo.update_rule_last_run(rule_id)
+            return jsonify(
+                {
+                    "status": "completed",
+                    "rule": rule["name"],
+                    "backup_files": bak_files,
+                    "count": len(bak_files),
+                    "total_size": sum(f["size"] for f in bak_files),
+                }
+            )
+        else:
+            return jsonify({"error": f"Unknown rule type: {rule_type}"}), 400
 
-    elif rule["rule_type"] == "orphaned":
-        result = scan_orphaned_subtitles(media_path)
         repo.update_rule_last_run(rule_id)
-        return jsonify(
-            {
-                "status": "completed",
-                "rule": rule["name"],
-                "orphaned": result,
-                "count": len(result),
-            }
+        repo.log_cleanup(
+            action_type=rule_type,
+            rule_id=rule_id,
+            files_deleted=result.get("deleted", 0),
+            bytes_freed=result.get("bytes_freed", 0),
         )
+        return jsonify({"status": "ok", "result": result})
+    except Exception as e:
+        logger.error("Rule %d (%s) failed: %s", rule_id, rule_type, e)
+        return jsonify({"error": str(e)}), 500
 
-    elif rule["rule_type"] == "old_backups":
-        # Scan for .bak files and report
-        import os
 
-        bak_files = []
-        for root, _dirs, files in os.walk(media_path):
-            for filename in files:
-                if ".bak" in filename:
-                    full_path = os.path.join(root, filename)
-                    try:
-                        size = os.path.getsize(full_path)
-                    except OSError:
-                        size = 0
-                    bak_files.append({"path": full_path, "size": size})
+@bp.route("/rules/<int:rule_id>/preview", methods=["POST"])
+def preview_rule(rule_id: int):
+    """Dry-run a cleanup rule — return what would be deleted without deleting.
+    ---
+    post:
+      tags:
+        - Cleanup
+      summary: Preview cleanup rule
+      description: Runs a cleanup rule in dry-run mode and returns what would be affected without making any changes.
+      parameters:
+        - in: path
+          name: rule_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Preview results
+        404:
+          description: Rule not found
+        400:
+          description: Preview not supported for rule type
+        500:
+          description: Preview error
+    """
+    from config import get_settings
+    from db.repositories.cleanup import CleanupRepository
+    from services.cleanup_executors import (
+        execute_format_upgrade,
+        execute_language_filter,
+        execute_orphan_db,
+        execute_orphan_files,
+    )
 
-        repo.update_rule_last_run(rule_id)
-        return jsonify(
-            {
-                "status": "completed",
-                "rule": rule["name"],
-                "backup_files": bak_files,
-                "count": len(bak_files),
-                "total_size": sum(f["size"] for f in bak_files),
-            }
-        )
+    repo = CleanupRepository()
+    rule = repo.get_rule(rule_id)
+    if not rule:
+        return jsonify({"error": "Rule not found"}), 404
 
-    else:
-        return jsonify({"error": f"Unknown rule type: {rule['rule_type']}"}), 400
+    settings = get_settings()
+    media_path = settings.media_path
+    rule_type = rule["rule_type"]
+    config = rule.get("config_json", {})
+
+    try:
+        if rule_type == "language_filter":
+            result = execute_language_filter(media_path, config, dry_run=True)
+        elif rule_type == "format_upgrade":
+            result = execute_format_upgrade(media_path, config, dry_run=True)
+        elif rule_type == "orphan_files":
+            result = execute_orphan_files(media_path, config, dry_run=True)
+        elif rule_type == "orphan_db":
+            result = execute_orphan_db(config, dry_run=True)
+        else:
+            return jsonify({"error": f"Preview not supported for rule type: {rule_type}"}), 400
+
+        return jsonify({"rule_id": rule_id, "rule_type": rule_type, "preview": result})
+    except Exception as e:
+        logger.error("Preview for rule %d failed: %s", rule_id, e)
+        return jsonify({"error": str(e)}), 500
 
 
 # ---- Dashboard Endpoints -------------------------------------------------------
