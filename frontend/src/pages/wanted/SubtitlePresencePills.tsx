@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
 interface EmbeddedLang {
   lang: string
@@ -12,7 +13,7 @@ interface SubtitlePresencePillsProps {
   embeddedLanguages: EmbeddedLang[]
 }
 
-const PILL_BASE: React.CSSProperties = {
+const PILL_BASE: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   padding: '2px 6px',
@@ -24,35 +25,35 @@ const PILL_BASE: React.CSSProperties = {
   border: '1px solid',
 }
 
-const PILL_MISS: React.CSSProperties = {
+const PILL_MISS: CSSProperties = {
   ...PILL_BASE,
   background: 'rgba(239,68,68,0.1)',
   color: '#ef4444',
   borderColor: 'rgba(239,68,68,0.2)',
 }
 
-const PILL_SRT: React.CSSProperties = {
+const PILL_SRT: CSSProperties = {
   ...PILL_BASE,
   background: 'rgba(234,179,8,0.12)',
   color: '#eab308',
   borderColor: 'rgba(234,179,8,0.25)',
 }
 
-const PILL_EMB: React.CSSProperties = {
+const PILL_EMB: CSSProperties = {
   ...PILL_BASE,
   background: 'rgba(16,185,129,0.12)',
   color: '#10b981',
   borderColor: 'rgba(16,185,129,0.25)',
 }
 
-const PILL_OTHER: React.CSSProperties = {
+const PILL_OTHER: CSSProperties = {
   ...PILL_BASE,
   background: 'rgba(29,184,212,0.12)',
   color: '#1db8d4',
   borderColor: 'rgba(29,184,212,0.25)',
 }
 
-const PILL_NONE: React.CSSProperties = {
+const PILL_NONE: CSSProperties = {
   ...PILL_BASE,
   background: 'rgba(255,255,255,0.04)',
   color: 'var(--text-muted)',
@@ -72,7 +73,7 @@ export function SubtitlePresencePills({
   const lang = targetLanguage.toUpperCase()
 
   // Left pill — target language status
-  let leftPill: React.ReactNode
+  let leftPill: ReactNode
   if (existingSub === 'embedded_ass') {
     leftPill = <span style={PILL_EMB}>{lang} ↓ ASS</span>
   } else if (existingSub === 'embedded_srt') {
@@ -101,8 +102,8 @@ export function SubtitlePresencePills({
     embeddedLanguages.length === 0 ? (
       <span style={PILL_NONE}>Kein Sub</span>
     ) : (
-      inline.map((e, i) => (
-        <span key={i} data-testid="embedded-pill" style={PILL_OTHER}>
+      inline.map((e) => (
+        <span key={e.lang} data-testid="embedded-pill" style={PILL_OTHER}>
           {e.lang.toUpperCase()} ↓ {e.format.toUpperCase()}
         </span>
       ))
@@ -143,8 +144,8 @@ export function SubtitlePresencePills({
                 border: '1px solid var(--border)',
               }}
             >
-              {overflow.map((e, i) => (
-                <span key={i} data-testid="embedded-pill" style={PILL_OTHER}>
+              {overflow.map((e) => (
+                <span key={e.lang} data-testid="embedded-pill" style={PILL_OTHER}>
                   {e.lang.toUpperCase()} ↓ {e.format.toUpperCase()}
                 </span>
               ))}

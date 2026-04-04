@@ -60,6 +60,30 @@ describe('SubtitlePresencePills', () => {
     expect(screen.getByText('DE ↓ ASS')).toBeTruthy()
   })
 
+  it('shows DE ↓ SRT for embedded_srt', () => {
+    render(
+      <SubtitlePresencePills
+        existingSub="embedded_srt"
+        targetLanguage="de"
+        sourceLanguage="en"
+        embeddedLanguages={noEmbedded}
+      />
+    )
+    expect(screen.getByText('DE ↓ SRT')).toBeTruthy()
+  })
+
+  it('shows DE ASS for ass sidecar existing_sub', () => {
+    render(
+      <SubtitlePresencePills
+        existingSub="ass"
+        targetLanguage="de"
+        sourceLanguage="en"
+        embeddedLanguages={noEmbedded}
+      />
+    )
+    expect(screen.getByText('DE ASS')).toBeTruthy()
+  })
+
   it('shows embedded lang pill', () => {
     render(
       <SubtitlePresencePills
