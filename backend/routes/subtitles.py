@@ -399,15 +399,41 @@ def batch_delete_series_subtitles(series_id: int):
 
     body = request.get_json(force=True, silent=True) or {}
     # languages/formats = the ones TO DELETE (empty/absent = delete all)
-    delete_languages: list[str] | None = body.get("languages") or None
-    delete_formats: list[str] | None = body.get("formats") or None
+    # Normalise to lowercase so filenames like "DE" match request value "de"
+    delete_languages: set[str] | None = (
+        {l.lower() for l in body["languages"]} if body.get("languages") else None
+    )
+    delete_formats: set[str] | None = (
+        {f.lower() for f in body["formats"]} if body.get("formats") else None
+    )
 
     client = get_sonarr_client()
-    if client is None:
-        return jsonify({"error": "Sonarr not configured"}), 503
 
-    episode_files = client.get_episode_files_by_series(series_id)
-    if not episode_files:
+    # Collect video file paths — via Sonarr or standalone DB
+    video_paths: list[str] = []
+    if client is None:
+        from sqlalchemy import text
+
+        from db import get_db
+        from db.standalone import get_standalone_series
+
+        if get_standalone_series(series_id) is None:
+            return jsonify({"error": "Sonarr not configured"}), 503
+
+        db = get_db()
+        rows = db.execute(
+            text("SELECT file_path FROM wanted_items WHERE standalone_series_id=:sid"),
+            {"sid": series_id},
+        ).fetchall()
+        video_paths = [row.file_path for row in rows if row.file_path]
+    else:
+        episode_files = client.get_episode_files_by_series(series_id)
+        for file_info in (episode_files or {}).values():
+            raw_path = file_info.get("path")
+            if raw_path:
+                video_paths.append(map_path(raw_path))
+
+    if not video_paths:
         return jsonify({"batch_id": None, "deleted": 0, "failed": 0}), 200
 
     settings = get_settings()
@@ -422,23 +448,17 @@ def batch_delete_series_subtitles(series_id: int):
     failed_count = 0
     manifest_files: list[dict] = []
 
-    for file_info in episode_files.values():
-        raw_path = file_info.get("path")
-        if not raw_path:
-            continue
-        video_path = map_path(raw_path)
+    for video_path in video_paths:
         if not os.path.exists(video_path):
             continue
 
         sidecars = scan_subtitle_sidecars(video_path)
         for sidecar in sidecars:
-            lang = sidecar["language"]
-            fmt = sidecar["format"]
+            lang = sidecar["language"].lower()
+            fmt = sidecar["format"].lower()
 
-            # Only delete if matches the requested language filter
             if delete_languages is not None and lang not in delete_languages:
                 continue
-            # Only delete if matches the requested format filter
             if delete_formats is not None and fmt not in delete_formats:
                 continue
 
