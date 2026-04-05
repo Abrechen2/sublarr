@@ -237,7 +237,8 @@ def download_specific_for_item(
     query.languages = [language]
 
     try:
-        results = manager.search(query)
+        # early_exit=False: must scan all results to find the exact subtitle_id
+        results = manager.search(query, early_exit=False)
     except Exception as e:
         logger.error("Search failed during download_specific for wanted %d: %s", item_id, e)
         return {"success": False, "error": f"Search failed: {e}"}

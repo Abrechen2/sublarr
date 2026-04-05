@@ -137,6 +137,8 @@ export function InteractiveSearchModal({
         toast(translate ? 'Untertitel heruntergeladen & übersetzt' : 'Untertitel heruntergeladen', 'success')
         queryClient.invalidateQueries({ queryKey: ['jobs'] })
         queryClient.invalidateQueries({ queryKey: ['history'] })
+        queryClient.invalidateQueries({ queryKey: ['wanted'] })
+        queryClient.invalidateQueries({ queryKey: ['series-subtitles'] })
         onDownloaded()
       } else {
         toast(res?.error ?? 'Download fehlgeschlagen', 'error')
