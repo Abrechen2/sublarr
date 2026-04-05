@@ -161,3 +161,21 @@ def test_delete_event_type_logs_correctly(app_ctx):
     assert row is not None
     assert row.file_path == "/media/Anime/ep7.de.ass"
     assert row.status == "success"
+
+
+def test_scan_event_logs_without_file_path(app_ctx):
+    """Scan events have no file_path (None) and include scan summary details."""
+    from db.activity import log_activity
+    from db.models.activity import ActivityLog, EVENT_SCAN
+    from extensions import db
+
+    log_activity(
+        EVENT_SCAN,
+        file_path=None,  # scans have no specific file
+        status="success",
+        details={"found": 3, "processed": 10, "failed": 0},
+    )
+    row = db.session.query(ActivityLog).filter_by(event_type=EVENT_SCAN).first()
+    assert row is not None
+    assert row.file_path is None
+    assert row.status == "success"
