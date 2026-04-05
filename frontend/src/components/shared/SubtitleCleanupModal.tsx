@@ -10,6 +10,38 @@ import { X, Trash2, Loader2, CheckSquare, Square } from 'lucide-react'
 import { listSeriesSubtitles, batchDeleteSeriesSubtitles } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 
+// Language variant map — mirrors backend config_language_data.py
+// Maps ISO 639-1 code → all accepted tags for that language
+const LANG_VARIANTS: Record<string, string[]> = {
+  de: ['de', 'deu', 'ger', 'german'],
+  en: ['en', 'eng', 'english'],
+  fr: ['fr', 'fre', 'fra', 'french'],
+  es: ['es', 'spa', 'spanish'],
+  it: ['it', 'ita', 'italian'],
+  ja: ['ja', 'jpn', 'japanese'],
+  ko: ['ko', 'kor', 'korean'],
+  zh: ['zh', 'chi', 'zho', 'chinese'],
+  pt: ['pt', 'por', 'portuguese'],
+  ru: ['ru', 'rus', 'russian'],
+  nl: ['nl', 'dut', 'nld', 'dutch'],
+  pl: ['pl', 'pol', 'polish'],
+  sv: ['sv', 'swe', 'swedish'],
+  no: ['no', 'nor', 'norwegian'],
+  da: ['da', 'dan', 'danish'],
+  fi: ['fi', 'fin', 'finnish'],
+  cs: ['cs', 'cze', 'ces', 'czech'],
+  hu: ['hu', 'hun', 'hungarian'],
+  tr: ['tr', 'tur', 'turkish'],
+  ar: ['ar', 'ara', 'arabic'],
+}
+
+/** Returns true if lang (from filename) matches any variant of targetLang (ISO 639-1). */
+function matchesTargetLang(lang: string, targetLang: string): boolean {
+  const needle = lang.toLowerCase()
+  const variants = LANG_VARIANTS[targetLang.toLowerCase()] ?? [targetLang.toLowerCase()]
+  return variants.includes(needle)
+}
+
 interface Props {
   seriesId: number
   targetLanguages: string[]
@@ -61,7 +93,9 @@ export function SubtitleCleanupModal({ seriesId, targetLanguages, onClose }: Pro
     })
 
   const selectNonTarget = () => {
-    setToDelete(new Set(allLanguages.filter((l) => !targetLanguages.includes(l))))
+    setToDelete(
+      new Set(allLanguages.filter((l) => !targetLanguages.some((t) => matchesTargetLang(l, t))))
+    )
   }
 
   const clearSelection = () => setToDelete(new Set())
@@ -159,7 +193,7 @@ export function SubtitleCleanupModal({ seriesId, targetLanguages, onClose }: Pro
               <div className="space-y-1.5">
                 {allLanguages.map((lang) => {
                   const info = byLanguage[lang]
-                  const isTarget = targetLanguages.includes(lang)
+                  const isTarget = targetLanguages.some((t) => matchesTargetLang(lang, t))
                   const selected = toDelete.has(lang)
                   return (
                     <label
