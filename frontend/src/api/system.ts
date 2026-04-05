@@ -12,6 +12,7 @@
  *
  * All existing imports from '@/api/system' continue to work unchanged.
  */
+export * from './system/activity'
 export * from './system/history'
 export * from './system/logs'
 export * from './system/standalone'

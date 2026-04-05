@@ -29,6 +29,7 @@ import {
   getSupportedLanguages,
   testSonarrInstance, testRadarrInstance,
   getFfprobeStats, triggerFfprobeCleanup, triggerDbVacuum,
+  getActivity,
 } from '@/api/client'
 import type {
   LogRotationConfig, FilterScope,
@@ -761,5 +762,15 @@ export function useDbVacuum() {
     mutationFn: triggerDbVacuum,
     onSuccess: (r) => toast(r.message ?? 'Database vacuumed'),
     onError: () => toast('Vacuum failed', 'error'),
+  })
+}
+
+// ─── Activity Log ─────────────────────────────────────────────────────────────
+
+export function useActivity(page = 1, perPage = 50, eventType?: string) {
+  return useQuery({
+    queryKey: ['activity', page, perPage, eventType],
+    queryFn: () => getActivity(page, perPage, eventType),
+    staleTime: 30_000,
   })
 }
