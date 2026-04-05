@@ -28,3 +28,41 @@ def test_migration_file_exists():
         "e4f5a6b7c8d9_add_activity_log.py"
     )
     assert os.path.exists(migration_path), "Migration file missing"
+
+
+def test_log_event_persists_record(app_ctx):
+    """log_activity() creates an ActivityLog row in the DB."""
+    from db.activity import log_activity
+    from db.models.activity import ActivityLog, EVENT_DOWNLOAD
+    from extensions import db
+
+    log_activity(EVENT_DOWNLOAD, file_path="/media/ep1.mkv", status="success",
+                 details={"provider": "jimaku", "score": 90})
+    row = db.session.query(ActivityLog).filter_by(event_type=EVENT_DOWNLOAD).first()
+    assert row is not None
+    assert row.file_path == "/media/ep1.mkv"
+    assert row.status == "success"
+    assert "jimaku" in (row.details_json or "")
+
+
+def test_get_activity_returns_paginated(app_ctx):
+    """get_activity() returns paginated results newest-first."""
+    from db.activity import log_activity, get_activity
+    from db.models.activity import EVENT_EXTRACT, EVENT_DELETE
+
+    log_activity(EVENT_EXTRACT, file_path="/media/ep2.mkv", status="success")
+    log_activity(EVENT_DELETE, file_path="/media/ep3.mkv", status="success")
+    result = get_activity(page=1, per_page=10)
+    assert result["total"] >= 2
+    assert len(result["data"]) >= 2
+    assert result["data"][0]["created_at"] >= result["data"][-1]["created_at"]
+
+
+def test_get_activity_filters_by_type(app_ctx):
+    """get_activity() respects event_type filter."""
+    from db.activity import log_activity, get_activity
+    from db.models.activity import EVENT_SCAN
+
+    log_activity(EVENT_SCAN, status="success", details={"found": 5})
+    result = get_activity(page=1, per_page=10, event_type=EVENT_SCAN)
+    assert all(r["event_type"] == EVENT_SCAN for r in result["data"])
