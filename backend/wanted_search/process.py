@@ -8,7 +8,12 @@ from config import get_settings
 from db.jobs import create_job, record_stat, update_job
 from db.library import record_upgrade
 from db.providers import record_subtitle_download
-from db.wanted import get_wanted_item, update_wanted_search, update_wanted_status
+from db.wanted import (
+    delete_wanted_item,
+    get_wanted_item,
+    update_wanted_search,
+    update_wanted_status,
+)
 from error_handler import DuplicateSubtitleError
 from providers import get_provider_manager
 from providers.base import SubtitleFormat
@@ -75,7 +80,7 @@ def process_wanted_item(item_id: int) -> dict:
                     _cutoff,
                     _cutoff_path,
                 )
-                update_wanted_status(item_id, "found")
+                delete_wanted_item(item_id)
                 return {
                     "wanted_id": item_id,
                     "status": "skipped",
@@ -95,7 +100,7 @@ def process_wanted_item(item_id: int) -> dict:
                     item_id,
                     item_lang,
                 )
-                update_wanted_status(item_id, "found")
+                delete_wanted_item(item_id)
                 return {
                     "wanted_id": item_id,
                     "status": "skipped",
@@ -237,7 +242,7 @@ def process_wanted_item(item_id: int) -> dict:
                     },
                 )
                 _try_auto_sync(output_path, file_path, settings)
-                update_wanted_status(item_id, "found")
+                delete_wanted_item(item_id)
                 return {
                     "wanted_id": item_id,
                     "status": "found",
@@ -251,7 +256,7 @@ def process_wanted_item(item_id: int) -> dict:
                     item_id,
                     dup_err.existing_path,
                 )
-                update_wanted_status(item_id, "found")
+                delete_wanted_item(item_id)
                 return {
                     "wanted_id": item_id,
                     "status": "duplicate_skipped",
@@ -382,7 +387,7 @@ def process_wanted_item(item_id: int) -> dict:
                         result.provider_name,
                     )
                     _try_auto_sync(translate_result.get("output_path"), file_path, settings)
-                    update_wanted_status(item_id, "found")
+                    delete_wanted_item(item_id)
                     return {
                         "wanted_id": item_id,
                         "status": "found",
@@ -453,7 +458,7 @@ def process_wanted_item(item_id: int) -> dict:
                         },
                     )
                     _try_auto_sync(output_path, file_path, settings)
-                    update_wanted_status(item_id, "found")
+                    delete_wanted_item(item_id)
                     return {
                         "wanted_id": item_id,
                         "status": "found",
@@ -466,7 +471,7 @@ def process_wanted_item(item_id: int) -> dict:
                         item_id,
                         dup_err.existing_path,
                     )
-                    update_wanted_status(item_id, "found")
+                    delete_wanted_item(item_id)
                     return {
                         "wanted_id": item_id,
                         "status": "duplicate_skipped",
@@ -593,7 +598,7 @@ def process_wanted_item(item_id: int) -> dict:
                         result.provider_name,
                     )
                     _try_auto_sync(translate_result.get("output_path"), file_path, settings)
-                    update_wanted_status(item_id, "found")
+                    delete_wanted_item(item_id)
                     return {
                         "wanted_id": item_id,
                         "status": "found",
@@ -655,7 +660,7 @@ def process_wanted_item(item_id: int) -> dict:
                 source=s.get("source", ""),
             )
             if translate_result["stats"].get("skipped"):
-                update_wanted_status(item_id, "found")
+                delete_wanted_item(item_id)
                 return {
                     "wanted_id": item_id,
                     "status": "found",
@@ -663,7 +668,7 @@ def process_wanted_item(item_id: int) -> dict:
                     "provider": "translate_pipeline",
                 }
             else:
-                update_wanted_status(item_id, "found")
+                delete_wanted_item(item_id)
                 return {
                     "wanted_id": item_id,
                     "status": "found",

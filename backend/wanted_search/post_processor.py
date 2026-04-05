@@ -11,7 +11,7 @@ import os
 from config import get_settings
 from db.jobs import create_job, record_stat, update_job
 from db.providers import record_subtitle_download
-from db.wanted import get_wanted_item, update_wanted_status
+from db.wanted import delete_wanted_item, get_wanted_item, update_wanted_status
 from error_handler import DuplicateSubtitleError
 from providers import get_provider_manager
 from providers.base import SubtitleFormat
@@ -87,7 +87,7 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                         item_id,
                         result.provider_name,
                     )
-                    update_wanted_status(item_id, "found")
+                    delete_wanted_item(item_id)
                     return {
                         "wanted_id": item_id,
                         "status": "found",
@@ -101,7 +101,7 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                         item_id,
                         dup_err.existing_path,
                     )
-                    update_wanted_status(item_id, "found")
+                    delete_wanted_item(item_id)
                     return {
                         "wanted_id": item_id,
                         "status": "duplicate_skipped",
@@ -155,7 +155,7 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                         item_id,
                         result.provider_name,
                     )
-                    update_wanted_status(item_id, "found")
+                    delete_wanted_item(item_id)
                     return {
                         "wanted_id": item_id,
                         "status": "found",
@@ -169,7 +169,7 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                         item_id,
                         dup_err.existing_path,
                     )
-                    update_wanted_status(item_id, "found")
+                    delete_wanted_item(item_id)
                     return {
                         "wanted_id": item_id,
                         "status": "duplicate_skipped",
@@ -352,7 +352,7 @@ def download_specific_for_item(
             fmt=s.get("format", ""),
             source=s.get("source", ""),
         )
-        update_wanted_status(item_id, "found")
+        delete_wanted_item(item_id)
         out = translate_result.get("output_path")
         if out:
             _try_auto_sync(out, file_path, settings)
@@ -378,7 +378,7 @@ def download_specific_for_item(
             target_result.score,
         )
     except DuplicateSubtitleError as dup_err:
-        update_wanted_status(item_id, "found")
+        delete_wanted_item(item_id)
         _try_auto_sync(dup_err.existing_path, file_path, settings)
         return {
             "success": True,
@@ -390,7 +390,7 @@ def download_specific_for_item(
     except (OSError, RuntimeError) as e:
         return {"success": False, "error": f"Failed to save subtitle: {e}"}
 
-    update_wanted_status(item_id, "found")
+    delete_wanted_item(item_id)
     _try_auto_sync(actual_path, file_path, settings)
     return {
         "success": True,

@@ -332,6 +332,7 @@ class TestAutoTranslateGuard:
     @patch("wanted_search.process.get_settings")
     @patch("wanted_search.process.get_wanted_item")
     @patch("wanted_search.process.get_provider_manager")
+    @patch("wanted_search.process.delete_wanted_item")
     @patch("wanted_search.process.update_wanted_status")
     @patch("wanted_search.process.update_wanted_search")
     @patch("wanted_search.process.build_query_from_wanted")
@@ -340,6 +341,7 @@ class TestAutoTranslateGuard:
         mock_build_query,
         mock_update_search,
         mock_update_status,
+        mock_delete_item,
         mock_get_manager,
         mock_get_item,
         mock_get_settings,

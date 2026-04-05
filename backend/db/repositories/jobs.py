@@ -11,7 +11,8 @@ from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import delete, func, select, update
 
-from db.models.core import DailyStats, Job
+from db.models.core import DailyStats, Job, WantedItem
+from db.models.providers import SubtitleDownload
 from db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
@@ -270,6 +271,22 @@ class JobRepository(BaseRepository):
         today_row = self.session.get(DailyStats, date.today().isoformat())
         today_translated = today_row.translated if today_row else 0
 
+        total_subtitles = (
+            self.session.execute(select(func.count()).select_from(SubtitleDownload)).scalar() or 0
+        )
+        avg_score_raw = self.session.execute(
+            select(func.avg(SubtitleDownload.score)).select_from(SubtitleDownload)
+        ).scalar()
+        average_score = round(float(avg_score_raw), 1) if avg_score_raw is not None else None
+        low_score_count = (
+            self.session.execute(
+                select(func.count())
+                .select_from(WantedItem)
+                .where(WantedItem.upgrade_candidate == True)  # noqa: E712
+            ).scalar()
+            or 0
+        )
+
         return {
             "total_translated": total_translated,
             "total_failed": total_failed,
@@ -278,6 +295,9 @@ class JobRepository(BaseRepository):
             "by_format": by_format_total,
             "by_source": by_source_total,
             "daily": daily,
+            "total_subtitles": total_subtitles,
+            "average_score": average_score,
+            "low_score_count": low_score_count,
         }
 
     # ---- Helpers ----
