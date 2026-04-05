@@ -1,25 +1,17 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AttentionBanner } from './AttentionBanner'
-import { useJobs } from '@/hooks/useSystemApi'
-import { truncatePath, formatRelativeTime } from '@/lib/utils'
+import { useHistory } from '@/hooks/useProvidersApi'
+import { parseMediaTitle, formatRelativeTime } from '@/lib/utils'
 
 const FEED_LIMIT = 20
-const DOT_COLOR: Record<string, string> = {
-  completed: 'var(--success)',
-  failed: 'var(--error)',
-}
-
-function dotColor(status: string): string {
-  return DOT_COLOR[status] ?? 'var(--accent)'
-}
 
 export function ActivityFeed() {
   const { t } = useTranslation('dashboard')
-  const { data: jobsData } = useJobs(1, FEED_LIMIT, undefined, 15000)
+  const { data: historyData } = useHistory(1, FEED_LIMIT)
 
-  const jobs = jobsData?.data ?? []
-  const total = jobsData?.total ?? 0
+  const entries = historyData?.data ?? []
+  const total = historyData?.total ?? 0
 
   return (
     <div
@@ -59,7 +51,7 @@ export function ActivityFeed() {
         </span>
         <Link
           data-testid="feed-view-all"
-          to="/activity"
+          to="/activity?tab=history"
           style={{ fontSize: '11px', color: 'var(--accent)', textDecoration: 'none' }}
         >
           {t('feed.viewAll')} →
@@ -70,7 +62,7 @@ export function ActivityFeed() {
       <div style={{ flex: 1, overflow: 'auto', padding: '8px 10px' }}>
         <AttentionBanner />
 
-        {jobs.length === 0 ? (
+        {entries.length === 0 ? (
           <div
             data-testid="feed-empty"
             style={{
@@ -84,57 +76,67 @@ export function ActivityFeed() {
           </div>
         ) : (
           <>
-            {jobs.map((job) => (
-              <div
-                key={job.id}
-                data-testid={`feed-item-${job.id}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '5px 4px',
-                  borderRadius: '4px',
-                }}
-              >
-                <span
-                  data-testid={`feed-dot-${job.id}`}
-                  data-status={job.status}
+            {entries.map((entry) => {
+              const media = parseMediaTitle(entry.file_path ?? '')
+              return (
+                <div
+                  key={entry.id}
+                  data-testid={`feed-item-${entry.id}`}
                   style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    background: dotColor(job.status),
-                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '5px 4px',
+                    borderRadius: '4px',
                   }}
-                />
-                <span
-                  style={{
-                    flex: 1,
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)',
-                    fontFamily: 'var(--font-mono)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                  title={job.file_path}
                 >
-                  {truncatePath(job.file_path)}
-                </span>
-                {job.created_at && (
                   <span
+                    data-testid={`feed-dot-${entry.id}`}
+                    data-status="completed"
                     style={{
-                      fontSize: '10px',
-                      color: 'var(--text-muted)',
-                      whiteSpace: 'nowrap',
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: 'var(--success)',
                       flexShrink: 0,
                     }}
+                  />
+                  <span
+                    style={{
+                      flex: 1,
+                      fontSize: '12px',
+                      color: 'var(--text-secondary)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title={entry.file_path}
                   >
-                    {formatRelativeTime(job.created_at)}
+                    {media.title}
+                    {media.episodeCode && (
+                      <span style={{ color: 'var(--text-muted)', marginLeft: '5px', fontSize: '11px' }}>
+                        {media.episodeCode}
+                      </span>
+                    )}
                   </span>
-                )}
-              </div>
-            ))}
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                    {entry.provider_name}
+                  </span>
+                  {entry.downloaded_at && (
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        color: 'var(--text-muted)',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {formatRelativeTime(entry.downloaded_at)}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
 
             {total > FEED_LIMIT && (
               <div
