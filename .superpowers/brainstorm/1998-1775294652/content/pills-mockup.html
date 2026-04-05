@@ -1,0 +1,143 @@
+<h2>Sprach-Pills — Konzept</h2>
+<p class="subtitle">Ziel-Sprache zuerst, dann zweite Priorität (EN), weitere Sprachen im Dropdown. Klick auf eine Reihe um die Details zu sehen.</p>
+
+<style>
+  .pill { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; font-family: monospace; white-space: nowrap; }
+  .pill-miss  { background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); }
+  .pill-ok-ass{ background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25); }
+  .pill-ok-srt{ background: rgba(234,179,8,0.12); color: #eab308; border: 1px solid rgba(234,179,8,0.25); }
+  .pill-emb   { background: rgba(29,184,212,0.12); color: #1db8d4; border: 1px solid rgba(29,184,212,0.25); }
+  .pill-none  { background: rgba(255,255,255,0.05); color: #555; border: 1px solid rgba(255,255,255,0.08); }
+  .pill-more  { background: rgba(255,255,255,0.06); color: #888; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
+  .pill-more:hover { background: rgba(255,255,255,0.1); color: #aaa; }
+
+  .mini-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .mini-table th { background: #1a1a2e; color: #888; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; padding: 7px 10px; text-align: left; border-bottom: 1px solid #333; }
+  .mini-table td { padding: 7px 10px; border-bottom: 1px solid #1e1e2e; color: #ccc; vertical-align: middle; }
+  .mini-table tr:last-child td { border-bottom: none; }
+  .mini-table tr.clickable { cursor: pointer; }
+  .mini-table tr.clickable:hover td { background: rgba(29,184,212,0.04); }
+  .mini-table tr.expanded-row td { background: rgba(29,184,212,0.03); border-top: none; padding-top: 0; }
+
+  .tag-de { background: rgba(29,184,212,0.2); color: #1db8d4; padding: 1px 5px; border-radius: 3px; font-size: 10px; font-weight: 700; margin-left: 3px; font-family: monospace; }
+  .status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; background: rgba(234,179,8,0.12); color: #eab308; }
+  .dim { color: #555; font-family: monospace; font-size: 11px; }
+
+  .dropdown-panel { background: #1a1a2e; border: 1px solid #333; border-radius: 6px; padding: 8px 10px; margin-top: 4px; font-size: 11px; display: flex; flex-wrap: wrap; gap: 4px; }
+
+  .pills-cell { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .badge-srt { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; background: rgba(234,179,8,0.15); color: #eab308; }
+  .badge-ass { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; background: rgba(16,185,129,0.15); color: #10b981; }
+</style>
+
+<div class="mockup">
+  <div class="mockup-header">Wanted — Spalte "Untertitel"</div>
+  <div class="mockup-body" style="padding: 0;">
+    <table class="mini-table">
+      <thead>
+        <tr>
+          <th style="width: 35%">Titel</th>
+          <th style="width: 8%">S/E</th>
+          <th style="width: 12%">Status</th>
+          <th style="width: 28%; color: #1db8d4">Untertitel</th>
+          <th style="width: 8%">Suchen</th>
+          <th style="width: 9%">Aktionen</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <!-- Case 1: DE fehlt, EN embedded vorhanden -->
+        <tr class="clickable" onclick="toggleDropdown('dd1')">
+          <td>Welcome to Japan, Ms. Elf! <span class="tag-de">DE</span></td>
+          <td class="dim">S01E01</td>
+          <td><span class="status-badge">Gesucht</span></td>
+          <td>
+            <div class="pills-cell">
+              <span class="pill pill-miss">DE fehlt</span>
+              <span class="pill pill-emb">EN ↓ ASS</span>
+            </div>
+          </td>
+          <td class="dim">1</td>
+          <td class="dim">···</td>
+        </tr>
+
+        <!-- Case 2: DE fehlt, kein Sub überhaupt -->
+        <tr>
+          <td>The Great Jahy Will Not Be Defeated! <span class="tag-de">DE</span></td>
+          <td class="dim">S01E17</td>
+          <td><span class="status-badge">Gesucht</span></td>
+          <td>
+            <div class="pills-cell">
+              <span class="pill pill-miss">DE fehlt</span>
+              <span class="pill pill-none">Kein Sub</span>
+            </div>
+          </td>
+          <td class="dim">1</td>
+          <td class="dim">···</td>
+        </tr>
+
+        <!-- Case 3: DE SRT vorhanden (Upgrade-Kandidat) -->
+        <tr>
+          <td>Otaku Elf <span class="tag-de">DE</span></td>
+          <td class="dim">S01E03</td>
+          <td><span class="status-badge">Gesucht</span></td>
+          <td>
+            <div class="pills-cell">
+              <span class="pill pill-ok-srt">DE SRT</span>
+              <span class="pill pill-emb">EN ↓ ASS</span>
+              <span class="pill pill-more" onclick="event.stopPropagation(); toggleDropdown('dd3')">+2 ▾</span>
+            </div>
+          </td>
+          <td class="dim">3</td>
+          <td class="dim">···</td>
+        </tr>
+        <!-- Dropdown für Case 3 -->
+        <tr id="dd3" style="display: none;">
+          <td colspan="6" style="padding: 0 10px 8px 10px;">
+            <div class="dropdown-panel">
+              <span class="pill pill-emb">JA ↓ ASS</span>
+              <span class="pill pill-emb">FR ↓ SRT</span>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Case 4: DE embedded ASS (extractable) -->
+        <tr>
+          <td>My Friend's Little Sister <span class="tag-de">DE</span></td>
+          <td class="dim">S01E01</td>
+          <td><span class="status-badge">Gesucht</span></td>
+          <td>
+            <div class="pills-cell">
+              <span class="pill pill-ok-ass">DE ↓ ASS</span>
+              <span class="pill pill-emb">EN ↓ ASS</span>
+            </div>
+          </td>
+          <td class="dim">1</td>
+          <td class="dim">···</td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function toggleDropdown(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
+}
+</script>
+
+<div class="section" style="margin-top: 20px;">
+  <h3>Legende</h3>
+  <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; font-size: 11px; color: #888;">
+    <span><span class="pill pill-miss">DE fehlt</span> — Ziel-Sub nicht vorhanden</span>
+    <span><span class="pill pill-none">Kein Sub</span> — Gar nichts eingebettet</span>
+    <span><span class="pill pill-ok-ass">DE ↓ ASS</span> — Eingebettet, extrahierbar</span>
+    <span><span class="pill pill-ok-srt">DE SRT</span> — Sidecar vorhanden</span>
+    <span><span class="pill pill-emb">EN ↓ ASS</span> — Andere Sprache eingebettet</span>
+    <span><span class="pill pill-more">+2 ▾</span> — Weitere Sprachen</span>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top: 16px;">↑ Klick auf eine Zeile zeigt das Dropdown (Zeile 3 hat +2 weitere). Sieht das so aus wie du dir das vorstellst?</p>

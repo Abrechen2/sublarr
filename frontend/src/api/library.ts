@@ -169,13 +169,27 @@ export function getSubtitleDownloadUrl(path: string): string {
   return `/api/v1/subtitles/download?path=${encodeURIComponent(path)}`
 }
 
-/** Returns a URL that triggers a ZIP download of all subtitles for a series. */
-export function getSeriesSubtitleExportUrl(
+/** Downloads all subtitle sidecar files for a series as a ZIP. */
+export async function exportSeriesSubtitles(
   seriesId: number,
   lang?: string,
-): string {
+): Promise<void> {
   const params = lang ? `?lang=${encodeURIComponent(lang)}` : ""
-  return `/api/v1/series/${seriesId}/subtitles/export${params}`
+  const { data, headers } = await api.get(
+    `/series/${seriesId}/subtitles/export${params}`,
+    { responseType: 'blob' },
+  )
+  const disposition: string = headers['content-disposition'] ?? ''
+  const match = disposition.match(/filename[^;=\n]*=["']?([^"';\n]+)["']?/)
+  const filename = match ? match[1].trim() : `series-${seriesId}-subtitles.zip`
+  const url = URL.createObjectURL(data as Blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 export async function updateSeriesSettings(

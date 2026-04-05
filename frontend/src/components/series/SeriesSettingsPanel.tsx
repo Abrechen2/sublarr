@@ -15,7 +15,7 @@ interface SeriesSettingsPanelProps {
   readonly onExtract: () => void
   readonly onCleanup: () => void
   readonly onFansub: () => void
-  readonly exportUrl: string
+  readonly onExport: () => void
   readonly updatePending: boolean
   readonly refreshPending: boolean
 }
@@ -48,7 +48,7 @@ export function SeriesSettingsPanel({
   onExtract,
   onCleanup,
   onFansub,
-  exportUrl,
+  onExport,
   updatePending,
   refreshPending,
 }: SeriesSettingsPanelProps) {
@@ -181,22 +181,18 @@ export function SeriesSettingsPanel({
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
           {/* Untertitel exportieren */}
           <Tooltip content="Alle Sidecar-Untertitel dieser Serie als ZIP-Datei herunterladen — praktisch als Backup oder zur Weitergabe.">
-            <a
-              href={exportUrl}
-              download
+            <button
+              onClick={onExport}
               style={{
                 ...buttonBaseStyle,
                 backgroundColor: 'var(--bg-elevated)',
                 color: 'var(--text-secondary)',
                 border: '1px solid var(--border)',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
+                cursor: 'pointer',
               }}
             >
               📦 Untertitel exportieren
-            </a>
+            </button>
           </Tooltip>
 
           {/* Embedded extrahieren */}

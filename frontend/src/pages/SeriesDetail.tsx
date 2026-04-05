@@ -15,7 +15,7 @@ import { toast } from '@/components/shared/Toast'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { PlayerModal } from '@/components/player/PlayerModal'
 import type { PlayerSubtitleTrack } from '@/lib/types'
-import { autoSyncFile, batchExtractAllTracks, listSeriesSubtitles, deleteSubtitles, getSeriesSubtitleExportUrl, exportSeriesNfo } from '@/api/client'
+import { autoSyncFile, batchExtractAllTracks, listSeriesSubtitles, deleteSubtitles, exportSeriesSubtitles, exportSeriesNfo } from '@/api/client'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
@@ -305,6 +305,14 @@ export function SeriesDetailPage() {
     setShowExtractConfirm(true)
   }, [seriesId, extractProgress])
 
+  const handleExport = useCallback(() => {
+    if (seriesId == null) return
+    exportSeriesSubtitles(seriesId).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : 'Export fehlgeschlagen'
+      toast(msg, 'error')
+    })
+  }, [seriesId])
+
   const handlePreview = useCallback((ep: EpisodeInfo) => {
     const epSidecars = sidecarMap[String(ep.id)] ?? []
     const tracks: PlayerSubtitleTrack[] = epSidecars
@@ -512,7 +520,7 @@ export function SeriesDetailPage() {
           onExtract={handleExtract}
           onCleanup={() => setShowCleanupModal(true)}
           onFansub={() => setFansubOpen(true)}
-          exportUrl={getSeriesSubtitleExportUrl(series.id)}
+          onExport={handleExport}
           updatePending={updateSeriesSettingsMutation.isPending}
           refreshPending={refreshAnidbMappingMutation.isPending}
         />
