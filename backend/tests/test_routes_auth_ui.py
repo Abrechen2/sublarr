@@ -161,6 +161,7 @@ def test_bootstrap_local_access_always_allowed(app, monkeypatch):
         api_key = "test-key-123"
 
     import config
+
     monkeypatch.setattr(config, "get_settings", lambda: _FakeSettings())
     with app.test_client() as client:
         r = client.get("/api/v1/auth/bootstrap", environ_base={"REMOTE_ADDR": "127.0.0.1"})
@@ -176,6 +177,7 @@ def test_bootstrap_lan_allowed_when_auth_disabled(app, monkeypatch):
         api_key = "open-key"
 
     import config
+
     monkeypatch.setattr(config, "get_settings", lambda: _FakeSettings())
     with app.test_client() as client:
         r = client.get("/api/v1/auth/bootstrap", environ_base={"REMOTE_ADDR": "192.168.1.10"})
@@ -199,6 +201,7 @@ def test_bootstrap_lan_allowed_with_session(app, monkeypatch):
         api_key = "session-key"
 
     import config
+
     monkeypatch.setattr(config, "get_settings", lambda: _FakeSettings())
     with app.test_client() as client:
         with client.session_transaction() as sess:

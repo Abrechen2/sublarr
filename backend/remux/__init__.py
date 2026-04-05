@@ -220,9 +220,7 @@ def _verify(original_path: str, remuxed_path: str, n_removed: int = 1) -> None:
     new_subs = _count(new_info, "subtitle")
     expected = orig_subs - n_removed
     if new_subs != expected:
-        raise RemuxError(
-            f"Unexpected subtitle stream count: expected {expected}, got {new_subs}"
-        )
+        raise RemuxError(f"Unexpected subtitle stream count: expected {expected}, got {new_subs}")
 
     # File size sanity (≥ 50 % of original)
     orig_size = os.path.getsize(original_path)

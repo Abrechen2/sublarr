@@ -1,11 +1,13 @@
-import pytest
-from datetime import datetime, timezone
 import os
+from datetime import datetime, timezone
+
+import pytest
 
 
 def test_activity_log_model_has_expected_columns(app_ctx):
     """ActivityLog model has the correct columns and tablename."""
     from db.models.activity import ActivityLog
+
     assert ActivityLog.__tablename__ == "activity_log"
     mapper = ActivityLog.__mapper__
     col_names = {c.key for c in mapper.column_attrs}
@@ -14,7 +16,8 @@ def test_activity_log_model_has_expected_columns(app_ctx):
 
 def test_activity_log_event_types(app_ctx):
     """Known event types are defined as constants."""
-    from db.models.activity import EVENT_DOWNLOAD, EVENT_EXTRACT, EVENT_DELETE, EVENT_SCAN
+    from db.models.activity import EVENT_DELETE, EVENT_DOWNLOAD, EVENT_EXTRACT, EVENT_SCAN
+
     assert EVENT_DOWNLOAD == "download"
     assert EVENT_EXTRACT == "extract"
     assert EVENT_DELETE == "delete"
@@ -24,8 +27,12 @@ def test_activity_log_event_types(app_ctx):
 def test_migration_file_exists():
     """Migration file for activity_log table exists."""
     migration_path = os.path.join(
-        os.path.dirname(__file__), "..", "db", "migrations", "versions",
-        "e4f5a6b7c8d9_add_activity_log.py"
+        os.path.dirname(__file__),
+        "..",
+        "db",
+        "migrations",
+        "versions",
+        "e4f5a6b7c8d9_add_activity_log.py",
     )
     assert os.path.exists(migration_path), "Migration file missing"
 
@@ -33,11 +40,15 @@ def test_migration_file_exists():
 def test_log_event_persists_record(app_ctx):
     """log_activity() creates an ActivityLog row in the DB."""
     from db.activity import log_activity
-    from db.models.activity import ActivityLog, EVENT_DOWNLOAD
+    from db.models.activity import EVENT_DOWNLOAD, ActivityLog
     from extensions import db
 
-    log_activity(EVENT_DOWNLOAD, file_path="/media/ep1.mkv", status="success",
-                 details={"provider": "jimaku", "score": 90})
+    log_activity(
+        EVENT_DOWNLOAD,
+        file_path="/media/ep1.mkv",
+        status="success",
+        details={"provider": "jimaku", "score": 90},
+    )
     row = db.session.query(ActivityLog).filter_by(event_type=EVENT_DOWNLOAD).first()
     assert row is not None
     assert row.file_path == "/media/ep1.mkv"
@@ -47,8 +58,8 @@ def test_log_event_persists_record(app_ctx):
 
 def test_get_activity_returns_paginated(app_ctx):
     """get_activity() returns paginated results newest-first."""
-    from db.activity import log_activity, get_activity
-    from db.models.activity import EVENT_EXTRACT, EVENT_DELETE
+    from db.activity import get_activity, log_activity
+    from db.models.activity import EVENT_DELETE, EVENT_EXTRACT
 
     log_activity(EVENT_EXTRACT, file_path="/media/ep2.mkv", status="success")
     log_activity(EVENT_DELETE, file_path="/media/ep3.mkv", status="success")
@@ -60,7 +71,7 @@ def test_get_activity_returns_paginated(app_ctx):
 
 def test_get_activity_filters_by_type(app_ctx):
     """get_activity() respects event_type filter."""
-    from db.activity import log_activity, get_activity
+    from db.activity import get_activity, log_activity
     from db.models.activity import EVENT_SCAN
 
     log_activity(EVENT_SCAN, status="success", details={"found": 5})
@@ -101,9 +112,10 @@ def test_activity_endpoint_filters_by_type(client):
 
 def test_record_subtitle_download_also_logs_activity(app_ctx):
     """record_subtitle_download() also inserts an activity_log download entry."""
-    from db.models.activity import ActivityLog, EVENT_DOWNLOAD
-    from extensions import db
     from unittest.mock import patch
+
+    from db.models.activity import EVENT_DOWNLOAD, ActivityLog
+    from extensions import db
 
     # Patch the repository method to avoid needing real provider data fixtures
     with patch("db.providers._get_repo") as mock_get_repo:
@@ -111,6 +123,7 @@ def test_record_subtitle_download_also_logs_activity(app_ctx):
         mock_repo.record_subtitle_download.return_value = None
 
         import db.providers as prov
+
         prov.record_subtitle_download(
             provider_name="jimaku",
             subtitle_id="abc123",
@@ -120,9 +133,11 @@ def test_record_subtitle_download_also_logs_activity(app_ctx):
             score=88,
         )
 
-    row = db.session.query(ActivityLog).filter_by(
-        event_type=EVENT_DOWNLOAD, file_path="/media/ep5.mkv"
-    ).first()
+    row = (
+        db.session.query(ActivityLog)
+        .filter_by(event_type=EVENT_DOWNLOAD, file_path="/media/ep5.mkv")
+        .first()
+    )
     assert row is not None
     assert row.status == "success"
 
@@ -130,7 +145,7 @@ def test_record_subtitle_download_also_logs_activity(app_ctx):
 def test_extract_event_type_logs_correctly(app_ctx):
     """Extract events are stored with event_type='extract' and a file_path."""
     from db.activity import log_activity
-    from db.models.activity import ActivityLog, EVENT_EXTRACT
+    from db.models.activity import EVENT_EXTRACT, ActivityLog
     from extensions import db
 
     log_activity(
@@ -148,7 +163,7 @@ def test_extract_event_type_logs_correctly(app_ctx):
 def test_delete_event_type_logs_correctly(app_ctx):
     """Delete events are stored with event_type='delete' and a file_path."""
     from db.activity import log_activity
-    from db.models.activity import ActivityLog, EVENT_DELETE
+    from db.models.activity import EVENT_DELETE, ActivityLog
     from extensions import db
 
     log_activity(
@@ -166,7 +181,7 @@ def test_delete_event_type_logs_correctly(app_ctx):
 def test_scan_event_logs_without_file_path(app_ctx):
     """Scan events have no file_path (None) and include scan summary details."""
     from db.activity import log_activity
-    from db.models.activity import ActivityLog, EVENT_SCAN
+    from db.models.activity import EVENT_SCAN, ActivityLog
     from extensions import db
 
     log_activity(

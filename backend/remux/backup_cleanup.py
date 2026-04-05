@@ -34,9 +34,7 @@ def _derive_video_path(bak_path: str) -> str | None:
     # Navigate out of .sublarr/trash/{date}/ → original video directory
     # bak_path: .../video_dir/.sublarr/trash/YYYY-MM-DD/filename.bak
     try:
-        original_dir = os.path.normpath(
-            os.path.join(os.path.dirname(bak_path), "..", "..", "..")
-        )
+        original_dir = os.path.normpath(os.path.join(os.path.dirname(bak_path), "..", "..", ".."))
     except Exception:
         return None
 
@@ -104,7 +102,10 @@ def list_backups(media_paths: list[str], retention_days: int = 0) -> list[dict]:
             expires_at = None
             if retention_days > 0:
                 from datetime import UTC, datetime, timedelta
-                expires_dt = datetime.fromtimestamp(stat.st_mtime, tz=UTC) + timedelta(days=retention_days)
+
+                expires_dt = datetime.fromtimestamp(stat.st_mtime, tz=UTC) + timedelta(
+                    days=retention_days
+                )
                 expires_at = expires_dt.isoformat()
 
             result.append(

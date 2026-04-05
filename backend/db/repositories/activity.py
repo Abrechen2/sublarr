@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import desc
 
@@ -28,7 +28,7 @@ class ActivityLogRepository:
                 file_path=file_path,
                 status=status,
                 details_json=json.dumps(details) if details else None,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             )
             db.session.add(row)
             db.session.commit()

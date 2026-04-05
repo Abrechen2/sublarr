@@ -748,7 +748,11 @@ def extract_embedded_sub(item_id):
             EVENT_EXTRACT,
             file_path=str(file_path),
             status="success",
-            details={"format": stream_info["format"], "output_path": output_path, "wanted_id": item_id},
+            details={
+                "format": stream_info["format"],
+                "output_path": output_path,
+                "wanted_id": item_id,
+            },
         )
 
         return jsonify(
