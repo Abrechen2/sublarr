@@ -153,6 +153,61 @@ def test_toggle_disable_requires_session(app, monkeypatch):
         assert r.status_code == 401
 
 
+def test_bootstrap_local_access_always_allowed(app, monkeypatch):
+    """Local (127.0.0.1) requests get the API key regardless of auth state."""
+    monkeypatch.setattr(ui_auth, "is_ui_auth_enabled", lambda: True)
+
+    class _FakeSettings:
+        api_key = "test-key-123"
+
+    import config
+    monkeypatch.setattr(config, "get_settings", lambda: _FakeSettings())
+    with app.test_client() as client:
+        r = client.get("/api/v1/auth/bootstrap", environ_base={"REMOTE_ADDR": "127.0.0.1"})
+        assert r.status_code == 200
+        assert r.get_json()["api_key"] == "test-key-123"
+
+
+def test_bootstrap_lan_allowed_when_auth_disabled(app, monkeypatch):
+    """LAN access is allowed when UI auth is disabled (API is open anyway)."""
+    monkeypatch.setattr(ui_auth, "is_ui_auth_enabled", lambda: False)
+
+    class _FakeSettings:
+        api_key = "open-key"
+
+    import config
+    monkeypatch.setattr(config, "get_settings", lambda: _FakeSettings())
+    with app.test_client() as client:
+        r = client.get("/api/v1/auth/bootstrap", environ_base={"REMOTE_ADDR": "192.168.1.10"})
+        assert r.status_code == 200
+        assert r.get_json()["api_key"] == "open-key"
+
+
+def test_bootstrap_lan_blocked_when_auth_enabled_no_session(app, monkeypatch):
+    """LAN access is blocked when UI auth is enabled and no session exists."""
+    monkeypatch.setattr(ui_auth, "is_ui_auth_enabled", lambda: True)
+    with app.test_client() as client:
+        r = client.get("/api/v1/auth/bootstrap", environ_base={"REMOTE_ADDR": "192.168.1.10"})
+        assert r.status_code == 403
+
+
+def test_bootstrap_lan_allowed_with_session(app, monkeypatch):
+    """LAN access is allowed when UI auth is enabled and session is authenticated."""
+    monkeypatch.setattr(ui_auth, "is_ui_auth_enabled", lambda: True)
+
+    class _FakeSettings:
+        api_key = "session-key"
+
+    import config
+    monkeypatch.setattr(config, "get_settings", lambda: _FakeSettings())
+    with app.test_client() as client:
+        with client.session_transaction() as sess:
+            sess["ui_authenticated"] = True
+        r = client.get("/api/v1/auth/bootstrap", environ_base={"REMOTE_ADDR": "192.168.1.10"})
+        assert r.status_code == 200
+        assert r.get_json()["api_key"] == "session-key"
+
+
 def test_toggle_disable_with_session(app, monkeypatch):
     saved = {}
     monkeypatch.setattr(ui_auth, "_save_config_entry", lambda k, v: saved.update({k: v}))

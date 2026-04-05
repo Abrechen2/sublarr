@@ -72,8 +72,12 @@ def bootstrap():
     remote = request.remote_addr or ""
     is_local = remote in ("127.0.0.1", "::1", "localhost")
     is_session_auth = _is_session_authenticated()
+    auth_enabled = ui_auth.is_ui_auth_enabled()
 
-    if not is_local and not is_session_auth:
+    # Block non-local unauthenticated requests only when UI auth is active.
+    # When auth is disabled the API is already open to the network, so the
+    # API key is not a secret worth protecting via this gate.
+    if not is_local and not is_session_auth and auth_enabled:
         return jsonify({"error": "Forbidden"}), 403
 
     settings = get_settings()
