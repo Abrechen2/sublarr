@@ -7,6 +7,7 @@ wanted_items for files missing target language subtitles.
 
 import logging
 import os
+import re
 import threading
 import time
 
@@ -136,6 +137,8 @@ class StandaloneScanner:
                         e,
                     )
 
+            # Cleanup: remove stale series entries (season subfolders / missing dirs)
+            self._cleanup_stale_series()
             # Cleanup: remove wanted items whose files no longer exist
             self._cleanup_stale_wanted()
 
@@ -611,25 +614,79 @@ class StandaloneScanner:
             logger.debug("Could not check existing subs for %s: %s", file_path, e)
             return None
 
+    # Matches typical season subfolder names: Season 1, Staffel 2, Saison 3, S01, etc.
+    _SEASON_FOLDER_RE = re.compile(
+        r"^(season|staffel|saison|serie|stagione|temporada|s\d+)\b",
+        re.IGNORECASE,
+    )
+
     def _find_common_parent(self, paths: list[str]) -> str:
         """Find the common parent directory of a list of file paths.
+
+        Always returns the series root — never a season subfolder.  When all
+        files live under a single season directory (e.g. Season 1/), the parent
+        of that directory is returned so that subsequent scans covering more
+        seasons don't create duplicate standalone_series entries.
 
         Args:
             paths: List of absolute file paths.
 
         Returns:
-            The deepest common parent directory.
+            The deepest common parent directory, normalized to series root.
         """
         if not paths:
             return ""
         if len(paths) == 1:
-            return os.path.dirname(paths[0])
+            common = os.path.dirname(paths[0])
+        else:
+            common = os.path.commonpath(paths)
+            if os.path.isfile(common):
+                common = os.path.dirname(common)
 
-        common = os.path.commonpath(paths)
-        # If commonpath returns a file (all same file), use its parent
-        if os.path.isfile(common):
+        # If the result is itself a season subfolder, go up one level so that
+        # the key stored in standalone_series always points to the series root.
+        basename = os.path.basename(common)
+        if self._SEASON_FOLDER_RE.match(basename):
             common = os.path.dirname(common)
+
         return common
+
+    def _cleanup_stale_series(self) -> int:
+        """Remove standalone_series entries whose folder no longer exists or is
+        a season subfolder (artefact of earlier scans before series-root
+        normalization was enforced).
+
+        Returns:
+            Number of series rows removed.
+        """
+        try:
+            from db.standalone import delete_standalone_series, get_standalone_series
+
+            all_series = get_standalone_series()
+            if not all_series:
+                return 0
+
+            to_remove = []
+            for s in all_series:
+                folder = s.get("folder_path", "")
+                basename = os.path.basename(folder)
+                if not os.path.isdir(folder) or self._SEASON_FOLDER_RE.match(basename):
+                    to_remove.append(s["id"])
+
+            for sid in to_remove:
+                delete_standalone_series(sid)
+
+            if to_remove:
+                logger.info(
+                    "Standalone cleanup: removed %d stale/season-subfolder series entries",
+                    len(to_remove),
+                )
+
+            return len(to_remove)
+
+        except Exception as e:
+            logger.error("Standalone series cleanup failed: %s", e)
+            return 0
 
     def _cleanup_stale_wanted(self) -> int:
         """Remove standalone wanted items whose files no longer exist on disk.
