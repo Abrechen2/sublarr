@@ -117,6 +117,7 @@ export function SeriesDetailPage() {
     onBatchExtractCompleted: (data) => {
       const d = data as { series_id: number; succeeded: number; failed: number; skipped: number }
       if (d.series_id !== seriesId) return
+      if (extractTimeoutRef.current) clearTimeout(extractTimeoutRef.current)
       setExtractProgress(null)
       void queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })
       void queryClient.invalidateQueries({ queryKey: ['series', seriesId] })
@@ -276,15 +277,25 @@ export function SeriesDetailPage() {
     setHealthCheckPath(filePath)
   }, [])
 
+  const extractTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const handleExtract = useCallback(() => {
     if (seriesId == null || extractProgress !== null) return
     setExtractProgress({ current: 0, total: 0, filename: '' })
+    // Safety fallback: clear stuck state after 10 minutes
+    if (extractTimeoutRef.current) clearTimeout(extractTimeoutRef.current)
+    extractTimeoutRef.current = setTimeout(() => {
+      setExtractProgress(null)
+      void queryClient.invalidateQueries({ queryKey: ['series-subtitles', seriesId] })
+      void queryClient.invalidateQueries({ queryKey: ['series', seriesId] })
+    }, 10 * 60 * 1000)
     batchExtractAllTracks(seriesId).catch((err: unknown) => {
       setExtractProgress(null)
+      if (extractTimeoutRef.current) clearTimeout(extractTimeoutRef.current)
       const msg = err instanceof Error ? err.message : 'Extraktion fehlgeschlagen'
       toast(msg, 'error')
     })
-  }, [seriesId, extractProgress])
+  }, [seriesId, extractProgress, queryClient])
 
   const handlePreview = useCallback((ep: EpisodeInfo) => {
     const epSidecars = sidecarMap[String(ep.id)] ?? []

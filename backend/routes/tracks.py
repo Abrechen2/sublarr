@@ -10,6 +10,7 @@ from flask import Blueprint, current_app, jsonify, request
 from ass_utils import extract_subtitle_stream, get_media_streams
 from config import map_path
 from events import emit_event
+from remux import RemuxError, remove_subtitle_streams
 
 bp = Blueprint("tracks", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -386,6 +387,7 @@ def batch_extract_series_tracks(series_id):
                 subtitle_tracks = [t for t in tracks if t["codec_type"] == "subtitle"]
 
                 file_extracted = 0
+                extracted_streams: list[tuple[int, int]] = []  # (global_index, sub_index)
                 for track in subtitle_tracks:
                     lang = track["language"] or "und"
                     ext = _CODEC_EXT.get(track["codec"], "ass")
@@ -406,6 +408,7 @@ def batch_extract_series_tracks(series_id):
                         )
                         succeeded += 1
                         file_extracted += 1
+                        extracted_streams.append((track["index"], track["sub_index"]))
                     except Exception as exc:
                         logger.warning(
                             "[batch-extract-tracks] extract failed (%s track %d): %s",
@@ -414,6 +417,23 @@ def batch_extract_series_tracks(series_id):
                             exc,
                         )
                         failed += 1
+
+                # Remove all successfully-extracted subtitle streams from the container
+                if extracted_streams:
+                    try:
+                        bak = remove_subtitle_streams(video_path, extracted_streams)
+                        logger.info(
+                            "[batch-extract-tracks] removed %d stream(s) from %s (backup: %s)",
+                            len(extracted_streams),
+                            video_path,
+                            bak,
+                        )
+                    except RemuxError as exc:
+                        logger.warning(
+                            "[batch-extract-tracks] could not remove streams from %s: %s",
+                            video_path,
+                            exc,
+                        )
 
                 emit_event(
                     "batch_extract_progress",
