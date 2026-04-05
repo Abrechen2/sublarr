@@ -528,21 +528,25 @@ class ProviderManager(SearchCoordinatorMixin):
         2. Class attribute (provider-specific hardcoded timeout)
         3. Registry (PROVIDER_METADATA)
         4. Global provider_search_timeout setting
+
+        The global provider_search_timeout acts as an upper bound — no provider
+        timeout may exceed it, so the setting is always effective.
         """
+        global_cap = self.settings.provider_search_timeout
         # 1. Dynamic timeout from stats
         if all_stats and provider_name in all_stats:
             dynamic = self._compute_dynamic_timeout(provider_name, all_stats[provider_name])
             if dynamic:
-                return dynamic
+                return min(dynamic, global_cap)
         # 2. Class attribute
         cls = _PROVIDER_CLASSES.get(provider_name)
         if cls:
             class_timeout = getattr(cls, "timeout", 0)
             if class_timeout > 0:
-                return class_timeout
+                return min(class_timeout, global_cap)
         # 3. Registry, 4. Global setting
         meta = PROVIDER_METADATA.get(provider_name, {})
-        return meta.get("timeout", self.settings.provider_search_timeout)
+        return min(meta.get("timeout", global_cap), global_cap)
 
     def _get_retries(self, provider_name: str) -> int:
         """Get retry count for a provider.
