@@ -114,6 +114,17 @@ def search_wanted_item(item_id: int) -> dict:
         logger.warning("Source SRT search failed for wanted %d: %s", item_id, e, exc_info=True)
         # Continue with other searches - don't fail entire operation
 
+    # Deduplicate by (provider, subtitle_id) — four separate searches can return the same result
+    # This happens especially when item_lang == source_lang (e.g. both configured as "de")
+    seen: set[tuple[str, str]] = set()
+    deduped = []
+    for r in all_results:
+        key = (r["provider"], r["subtitle_id"])
+        if key not in seen:
+            seen.add(key)
+            deduped.append(r)
+    all_results = deduped
+
     # Apply per-series fansub group preferences
     series_id = item.get("sonarr_series_id")
     if series_id:
@@ -159,14 +170,11 @@ def search_providers_for_item(item_id: int) -> dict:
     if not item:
         return {"error": "Item not found", "wanted_id": item_id}
 
-    settings = get_settings()
     manager = get_provider_manager()
-    item_lang = item.get("target_language") or settings.target_language
-    source_lang = settings.source_language
 
-    # Search both languages in a single pass (deduplicated set)
+    # Search without language restriction so the modal shows all available languages
     query = build_query_from_wanted(item)
-    query.languages = list({item_lang, source_lang})
+    query.languages = []
 
     all_results = []
     try:

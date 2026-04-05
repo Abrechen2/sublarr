@@ -25,10 +25,16 @@ export function EpisodeSearchPanel({ results, isLoading, onProcess }: EpisodeSea
 
   if (!results) return null
 
+  const seen = new Set<string>()
   const allResults = [
     ...(results.target_results ?? []).map((r) => ({ ...r, _type: 'target' as const })),
     ...(results.source_results ?? []).map((r) => ({ ...r, _type: 'source' as const })),
-  ]
+  ].filter((r) => {
+    const key = `${r.provider}-${r.subtitle_id}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 
   if (allResults.length === 0) {
     return (

@@ -104,8 +104,8 @@ export function InteractiveSearchModal({
     const rect = e.currentTarget.getBoundingClientRect()
     setPopover({
       rowKey,
-      top: rect.bottom + window.scrollY + 4,
-      left: rect.left + window.scrollX,
+      top: rect.bottom + 4,
+      left: rect.left,
       result,
     })
   }, [popover])
