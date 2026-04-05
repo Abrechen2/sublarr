@@ -66,3 +66,34 @@ def test_get_activity_filters_by_type(app_ctx):
     log_activity(EVENT_SCAN, status="success", details={"found": 5})
     result = get_activity(page=1, per_page=10, event_type=EVENT_SCAN)
     assert all(r["event_type"] == EVENT_SCAN for r in result["data"])
+
+
+def test_activity_endpoint_returns_paginated(client):
+    """GET /api/v1/activity returns paginated activity log."""
+    from db.activity import log_activity
+    from db.models.activity import EVENT_DOWNLOAD
+
+    with client.application.app_context():
+        log_activity(EVENT_DOWNLOAD, file_path="/media/test.mkv", status="success")
+
+    resp = client.get("/api/v1/activity?page=1&per_page=10")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert "data" in body
+    assert "total" in body
+    assert isinstance(body["data"], list)
+
+
+def test_activity_endpoint_filters_by_type(client):
+    """GET /api/v1/activity?type=extract filters correctly."""
+    from db.activity import log_activity
+    from db.models.activity import EVENT_EXTRACT
+
+    with client.application.app_context():
+        log_activity(EVENT_EXTRACT, file_path="/media/ep4.mkv", status="success")
+
+    resp = client.get("/api/v1/activity?type=extract&per_page=50")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    for entry in body["data"]:
+        assert entry["event_type"] == "extract"
