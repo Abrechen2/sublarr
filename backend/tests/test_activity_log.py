@@ -178,6 +178,14 @@ def test_delete_event_type_logs_correctly(app_ctx):
     assert row.status == "success"
 
 
+def test_activity_endpoint_rejects_invalid_type(client):
+    """GET /api/v1/activity?type=invalid returns 400."""
+    resp = client.get("/api/v1/activity?type=invalid_event_type")
+    assert resp.status_code == 400
+    body = resp.get_json()
+    assert "error" in body
+
+
 def test_scan_event_logs_without_file_path(app_ctx):
     """Scan events have no file_path (None) and include scan summary details."""
     from db.activity import log_activity

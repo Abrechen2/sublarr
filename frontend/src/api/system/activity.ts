@@ -5,7 +5,7 @@ export interface ActivityEntry {
   event_type: 'download' | 'extract' | 'delete' | 'scan'
   file_path: string | null
   status: 'success' | 'failed'
-  details_json: string | null
+  details: Record<string, unknown> | null
   created_at: string
 }
 

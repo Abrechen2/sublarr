@@ -60,7 +60,7 @@ class ActivityLogRepository:
                     "event_type": r.event_type,
                     "file_path": r.file_path,
                     "status": r.status,
-                    "details_json": r.details_json,
+                    "details": json.loads(r.details_json) if r.details_json else None,
                     "created_at": r.created_at.isoformat(),
                 }
                 for r in rows

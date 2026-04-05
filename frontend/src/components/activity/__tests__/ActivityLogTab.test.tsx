@@ -17,14 +17,14 @@ const SAMPLE_DATA = {
   data: {
     data: [
       { id: 1, event_type: 'download', file_path: '/media/One Piece - S01E01.mkv',
-        status: 'success', details_json: '{"provider":"jimaku","score":90}',
+        status: 'success', details: { provider: 'jimaku', score: 90 },
         created_at: '2026-04-05T10:00:00Z' },
       { id: 2, event_type: 'extract', file_path: '/media/Attack on Titan - S02E01.mkv',
-        status: 'success', details_json: null, created_at: '2026-04-05T09:50:00Z' },
+        status: 'success', details: null, created_at: '2026-04-05T09:50:00Z' },
       { id: 3, event_type: 'delete', file_path: '/media/Demon Slayer.de.ass',
-        status: 'success', details_json: null, created_at: '2026-04-05T09:40:00Z' },
+        status: 'success', details: null, created_at: '2026-04-05T09:40:00Z' },
       { id: 4, event_type: 'scan', file_path: null,
-        status: 'success', details_json: '{"found":3,"total":10}',
+        status: 'success', details: { found: 3, total: 10 },
         created_at: '2026-04-05T09:30:00Z' },
     ],
     total: 4,
@@ -88,6 +88,6 @@ describe('ActivityLogTab', () => {
 
   it('renders scan label for scan events without file_path', () => {
     wrap(<ActivityLogTab />)
-    expect(screen.getByTestId('activity-row-4')).toBeInTheDocument()
+    expect(screen.getByTestId('activity-row-4')).toHaveTextContent('Wanted scan')
   })
 })
