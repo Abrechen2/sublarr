@@ -9,6 +9,7 @@ with conditional handling for empty/null target_language.
 
 import json
 import logging
+import os
 
 from sqlalchemy import asc, delete, desc, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
@@ -51,6 +52,8 @@ class WantedRepository(BaseRepository):
         Returns (row_id, was_updated) where was_updated=True if an existing row
         was updated, False if a new row was inserted.
         """
+        # Normalize path separators to avoid duplicate rows from mixed / and \ paths
+        file_path = os.path.normpath(file_path) if file_path else file_path
         now = self._now()
         langs_json = json.dumps(missing_languages or [])
         embedded_json = json.dumps(embedded_languages) if embedded_languages is not None else None
