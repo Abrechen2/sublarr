@@ -5,7 +5,6 @@ Reads cleanup_schedule_interval_hours from config_entries (default: 168 = weekly
 Runs enabled cleanup rules in order: dedup scan then rule execution.
 """
 
-import contextlib
 import logging
 import threading
 from datetime import UTC, datetime
@@ -178,8 +177,6 @@ class CleanupScheduler:
 
     def _execute_cleanup(self):
         """Run all enabled scheduled cleanup rules in order."""
-        import os
-
         from config import get_settings
         from db.repositories.cleanup import CleanupRepository
         from dedup_engine import scan_for_duplicates, scan_orphaned_subtitles
@@ -309,9 +306,6 @@ class CleanupScheduler:
                             trash_dirs = _trash_paths()
                         result = cleanup_old_backups(trash_dirs, retention_days)
                         deleted_count = len(result.get("deleted", []))
-                        bytes_freed = sum(
-                            0 for _ in result.get("deleted", [])
-                        )  # size not tracked in cleanup result
 
                         repo.update_rule_last_run(rule_id)
                         repo.log_cleanup(

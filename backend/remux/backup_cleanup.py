@@ -103,8 +103,8 @@ def list_backups(media_paths: list[str], retention_days: int = 0) -> list[dict]:
 
             expires_at = None
             if retention_days > 0:
-                from datetime import datetime, timezone, timedelta
-                expires_dt = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc) + timedelta(days=retention_days)
+                from datetime import UTC, datetime, timedelta
+                expires_dt = datetime.fromtimestamp(stat.st_mtime, tz=UTC) + timedelta(days=retention_days)
                 expires_at = expires_dt.isoformat()
 
             result.append(

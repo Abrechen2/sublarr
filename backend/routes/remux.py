@@ -252,7 +252,11 @@ def trigger_backup_cleanup():
 def restore_backup():
     """Restore a backup file to its original video path.
 
-    Body: { "backup_path": "/path/to/trash/...", "video_path": "/path/to/original.mkv" }
+    Body: {
+        "backup_path": "/path/to/trash/...",
+        "video_path": "/path/to/original.mkv",
+        "delete_sidecars": false   # optional: also purge sidecar trash batches for this video
+    }
 
     The original video (the remuxed file) is deleted and the backup is moved back.
     Both paths are validated against the configured media/trash directories.
@@ -260,6 +264,7 @@ def restore_backup():
     body = request.get_json(force=True, silent=True) or {}
     backup_path = body.get("backup_path", "")
     video_path = body.get("video_path", "")
+    delete_sidecars = bool(body.get("delete_sidecars", False))
 
     if not backup_path or not video_path:
         return jsonify({"error": "backup_path and video_path are required"}), 400
@@ -283,7 +288,61 @@ def restore_backup():
         # Replace the remuxed file with the backup (atomic on same filesystem)
         os.replace(backup_path, video_path)
         logger.info("Remux restore: %s → %s", backup_path, video_path)
-        return jsonify({"restored": video_path, "backup_removed": backup_path}), 200
     except OSError as exc:
         logger.error("Remux restore failed: %s", exc)
         return jsonify({"error": f"Restore failed: {exc}"}), 500
+
+    sidecars_deleted = 0
+    if delete_sidecars:
+        sidecars_deleted = _purge_sidecars_for_video(video_path)
+
+    return jsonify(
+        {
+            "restored": video_path,
+            "backup_removed": backup_path,
+            "sidecars_deleted": sidecars_deleted,
+        }
+    ), 200
+
+
+def _purge_sidecars_for_video(video_path: str) -> int:
+    """Delete all sidecar trash batches whose files live next to video_path.
+
+    Returns the number of batches deleted.
+    """
+    import shutil
+
+    video_dir = os.path.dirname(video_path)
+    settings = get_settings()
+    media_path = getattr(settings, "media_path", "")
+    if not media_path:
+        return 0
+
+    try:
+        from routes.subtitles import _get_trash_root, _read_manifest
+    except ImportError:
+        logger.warning("Cannot import sidecar helpers for purge")
+        return 0
+
+    trash_root = _get_trash_root(media_path)
+    if not os.path.isdir(trash_root):
+        return 0
+
+    deleted = 0
+    for entry in os.scandir(trash_root):
+        if not entry.is_dir():
+            continue
+        manifest = _read_manifest(entry.path)
+        if manifest is None:
+            continue
+        # Check whether any file in the batch originated from the same directory
+        files = manifest.get("files", [])
+        if any(os.path.dirname(f.get("original", "")) == video_dir for f in files):
+            try:
+                shutil.rmtree(entry.path)
+                logger.info("Purged sidecar batch %s (linked to %s)", entry.name, video_path)
+                deleted += 1
+            except OSError as exc:
+                logger.warning("Failed to purge sidecar batch %s: %s", entry.name, exc)
+
+    return deleted

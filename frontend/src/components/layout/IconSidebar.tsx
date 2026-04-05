@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { LayoutDashboard, BookOpen, Bell, Settings, Search } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Bell, Settings, Search, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useHealth } from '@/hooks/useApi'
 import { useWantedSummary } from '@/hooks/useWantedApi'
@@ -19,6 +19,7 @@ const mainNavItems: readonly NavItem[] = [
   { to: '/library', labelKey: 'nav.library', icon: BookOpen, testId: 'nav-link-library' },
   { to: '/wanted', labelKey: 'nav.wanted', icon: Search, testId: 'nav-link-wanted', showBadge: true },
   { to: '/activity', labelKey: 'nav.activity', icon: Bell, testId: 'nav-link-activity' },
+  { to: '/trash', labelKey: 'nav.trash', icon: Trash2, testId: 'nav-link-trash' },
 ] as const
 
 const bottomNavItems: readonly NavItem[] = [

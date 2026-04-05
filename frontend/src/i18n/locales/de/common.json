@@ -11,7 +11,8 @@
     "logs": "Protokolle",
     "statistics": "Statistiken",
     "tasks": "Aufgaben",
-    "plugins": "Plugins"
+    "plugins": "Plugins",
+    "trash": "Papierkorb"
   },
   "nav_groups": {
     "content": "Inhalte",
