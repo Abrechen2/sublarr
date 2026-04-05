@@ -143,3 +143,21 @@ def test_extract_event_type_logs_correctly(app_ctx):
     assert row is not None
     assert row.file_path == "/media/Anime/ep6.mkv"
     assert row.status == "success"
+
+
+def test_delete_event_type_logs_correctly(app_ctx):
+    """Delete events are stored with event_type='delete' and a file_path."""
+    from db.activity import log_activity
+    from db.models.activity import ActivityLog, EVENT_DELETE
+    from extensions import db
+
+    log_activity(
+        EVENT_DELETE,
+        file_path="/media/Anime/ep7.de.ass",
+        status="success",
+        details={"batch_id": "abc123"},
+    )
+    row = db.session.query(ActivityLog).filter_by(event_type=EVENT_DELETE).first()
+    assert row is not None
+    assert row.file_path == "/media/Anime/ep7.de.ass"
+    assert row.status == "success"
