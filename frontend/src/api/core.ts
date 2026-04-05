@@ -60,6 +60,9 @@ api.interceptors.response.use(
           }
         } })
       }
+      if (url.includes('/cleanup/rules')) {
+        return Promise.resolve({ data: [] })
+      }
       if (url.includes('/cleanup/stats')) {
         return Promise.resolve({ data: {
           total_files: 0, total_size_bytes: 0, by_format: [],

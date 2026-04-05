@@ -13,6 +13,8 @@ Rule types:
 import logging
 import os
 
+from config_language_data import _get_language_tags
+
 logger = logging.getLogger(__name__)
 
 # Module-level import seam so tests can monkeypatch SubtitleRepository.
@@ -62,7 +64,9 @@ def execute_language_filter(media_path: str, config: dict, dry_run: bool = False
         {"deleted": int, "kept": int, "bytes_freed": int} or
         {"would_delete": int, "would_keep": int} in dry_run mode.
     """
-    keep_languages = {lang.lower() for lang in config.get("keep_languages", [])}
+    keep_languages: set[str] = set()
+    for lang in config.get("keep_languages", []):
+        keep_languages.update(_get_language_tags(lang.lower()))
     deleted = 0
     kept = 0
     bytes_freed = 0

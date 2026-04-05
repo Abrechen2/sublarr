@@ -25,6 +25,27 @@ def test_language_filter_deletes_non_kept_languages(tmp_path):
     assert not (tmp_path / "show.en.srt").exists()
 
 
+def test_language_filter_keeps_language_variants(tmp_path):
+    """keep_languages=['de'] must also keep .deu.ass and .ger.ass variants."""
+    from services.cleanup_executors import execute_language_filter
+
+    (tmp_path / "show.de.ass").write_text("german iso-1")
+    (tmp_path / "show.deu.ass").write_text("german iso-2")
+    (tmp_path / "show.ger.ass").write_text("german iso-legacy")
+    (tmp_path / "show.german.ass").write_text("german full")
+    (tmp_path / "show.fr.ass").write_text("french sub")
+
+    config = {"keep_languages": ["de"]}
+    result = execute_language_filter(str(tmp_path), config, dry_run=False)
+
+    assert result["deleted"] == 1  # only fr.ass
+    assert (tmp_path / "show.de.ass").exists()
+    assert (tmp_path / "show.deu.ass").exists()
+    assert (tmp_path / "show.ger.ass").exists()
+    assert (tmp_path / "show.german.ass").exists()
+    assert not (tmp_path / "show.fr.ass").exists()
+
+
 def test_language_filter_dry_run_deletes_nothing(tmp_path):
     """dry_run=True must not delete any files."""
     from services.cleanup_executors import execute_language_filter
