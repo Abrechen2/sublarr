@@ -131,6 +131,7 @@ export function WantedPage() {
   const processItem = useProcessWantedItem()
   const extractItem = useExtractEmbeddedSub()
   const [extractingItemId, setExtractingItemId] = useState<number | null>(null)
+  const [processingItemId, setProcessingItemId] = useState<number | null>(null)
   const retranslateItem = useRetranslateSingle()
   const startBatch = useStartWantedBatch()
   const addBlacklist = useAddToBlacklist()
@@ -274,8 +275,11 @@ export function WantedPage() {
   }
 
   const handleProcess = (itemId: number) => {
+    setProcessingItemId(itemId)
     processItem.mutate(itemId, {
+      onSuccess: () => toast('Suche gestartet…', 'success'),
       onError: (e: Error) => toast(e.message, 'error'),
+      onSettled: () => setProcessingItemId(null),
     })
   }
 
@@ -502,7 +506,7 @@ export function WantedPage() {
                 <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.searches_col')}</th>
                 <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.last_search_col')}</th>
                 <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.added_col')}</th>
-                <th scope="col" className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.actions_col')}</th>
+                <th scope="col" className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)', position: 'sticky', right: 0, zIndex: 2, backgroundColor: 'var(--bg-elevated)' }}>{t('wanted.actions_col')}</th>
               </tr>
             </thead>
             <tbody>
@@ -541,6 +545,7 @@ export function WantedPage() {
                       scope={SCOPE}
                       onToggleItem={toggleItem}
                       onSearch={handleSearch}
+                      processingItemId={processingItemId}
                       onProcess={handleProcess}
                       onExtract={handleExtract}
                       onRetranslate={(id) => retranslateItem.mutate(id)}

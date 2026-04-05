@@ -1,7 +1,7 @@
 import { Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Search, RefreshCw, Eye, EyeOff, Play, Loader2, ChevronUp,
+  Search, RefreshCw, Eye, EyeOff, Play, Loader2,
   CheckSquare, Square, Download, ScanSearch,
 } from 'lucide-react'
 import { StatusBadge, SubtitleTypeBadge } from '@/components/shared/StatusBadge'
@@ -177,6 +177,7 @@ export interface WantedTableRowProps {
   onToggleItem: (scope: 'wanted', id: number, idx: number, shift: boolean, ids: number[]) => void
   onSearch: (itemId: number) => void
   onProcess: (itemId: number) => void
+  processingItemId: number | null
   onExtract: (itemId: number, targetLanguage?: string) => void
   onRetranslate: (itemId: number) => void
   onUpdateStatus: (itemId: number, status: string) => void
@@ -200,15 +201,16 @@ export function WantedTableRow({
   searchingItems,
   searchResults,
   extractingItemId,
-  searchPending,
+  searchPending: _searchPending,
   processPending,
   retranslatePending,
   translationEnabled,
   visibleIds,
   scope,
   onToggleItem,
-  onSearch,
+  onSearch: _onSearch,
   onProcess,
+  processingItemId,
   onExtract,
   onRetranslate,
   onUpdateStatus,
@@ -324,7 +326,7 @@ export function WantedTableRow({
         >
           {item.added_at ? formatRelativeTime(item.added_at) : ''}
         </td>
-        <td className="px-4 py-2.5 text-right">
+        <td className="px-4 py-2.5 text-right" style={{ position: 'sticky', right: 0, backgroundColor: 'var(--bg-elevated)' }}>
           <div className="flex items-center justify-end gap-1">
             {(item.existing_sub === 'ass' || item.existing_sub === 'srt') && item.file_path && item.target_language && (
               <button
@@ -340,19 +342,17 @@ export function WantedTableRow({
             )}
             <button
               data-testid="wanted-search-btn"
-              onClick={() => onSearch(item.id)}
-              disabled={searchPending && expandedItem === item.id}
+              onClick={() => onProcess(item.id)}
+              disabled={processingItemId === item.id}
               className="p-1 rounded transition-colors duration-150"
               title={t('wanted.search_providers')}
-              style={{ color: expandedItem === item.id ? 'var(--accent)' : 'var(--text-muted)' }}
+              style={{ color: 'var(--text-muted)' }}
               onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-              onMouseLeave={(e) => {
-                if (expandedItem !== item.id) e.currentTarget.style.color = 'var(--text-muted)'
-              }}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
             >
-              {searchPending && expandedItem === item.id
+              {processingItemId === item.id
                 ? <Loader2 size={14} className="animate-spin" />
-                : expandedItem === item.id ? <ChevronUp size={14} /> : <Search size={14} />
+                : <Search size={14} />
               }
             </button>
             {(item.existing_sub === 'embedded_ass' || item.existing_sub === 'embedded_srt') && (
