@@ -97,3 +97,31 @@ def test_activity_endpoint_filters_by_type(client):
     body = resp.get_json()
     for entry in body["data"]:
         assert entry["event_type"] == "extract"
+
+
+def test_record_subtitle_download_also_logs_activity(app_ctx):
+    """record_subtitle_download() also inserts an activity_log download entry."""
+    from db.models.activity import ActivityLog, EVENT_DOWNLOAD
+    from extensions import db
+    from unittest.mock import patch
+
+    # Patch the repository method to avoid needing real provider data fixtures
+    with patch("db.providers._get_repo") as mock_get_repo:
+        mock_repo = mock_get_repo.return_value
+        mock_repo.record_subtitle_download.return_value = None
+
+        import db.providers as prov
+        prov.record_subtitle_download(
+            provider_name="jimaku",
+            subtitle_id="abc123",
+            language="de",
+            fmt="ass",
+            file_path="/media/ep5.mkv",
+            score=88,
+        )
+
+    row = db.session.query(ActivityLog).filter_by(
+        event_type=EVENT_DOWNLOAD, file_path="/media/ep5.mkv"
+    ).first()
+    assert row is not None
+    assert row.status == "success"
