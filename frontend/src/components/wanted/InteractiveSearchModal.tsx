@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { X, Loader2, Search, Download, RefreshCw, AlertCircle, ChevronsRight } from 'lucide-react'
 import {
@@ -168,7 +169,7 @@ export function InteractiveSearchModal({
 
   const isDownloading = downloadWanted.isPending || downloadEpisode.isPending
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -420,7 +421,8 @@ export function InteractiveSearchModal({
           </button>
         </div>
       )}
-    </>
+    </>,
+    document.body
   )
 }
 
