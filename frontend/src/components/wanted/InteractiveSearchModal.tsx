@@ -183,7 +183,7 @@ export function InteractiveSearchModal({
         role="dialog"
       >
         <div
-          className="pointer-events-auto w-full max-w-4xl rounded-lg shadow-2xl flex flex-col max-h-[85vh]"
+          className="pointer-events-auto w-full max-w-4xl rounded-lg shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
           style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
           onClick={e => e.stopPropagation()}
         >
