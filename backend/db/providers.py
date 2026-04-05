@@ -2,6 +2,8 @@
 
 import logging
 
+from db.activity import log_activity
+from db.models.activity import EVENT_DOWNLOAD
 from db.repositories.providers import ProviderRepository
 
 logger = logging.getLogger(__name__)
@@ -96,6 +98,12 @@ def record_subtitle_download(
         score,
         source=source,
         upgraded_from_id=upgraded_from_id,
+    )
+    log_activity(
+        EVENT_DOWNLOAD,
+        file_path=file_path,
+        status="success",
+        details={"provider": provider_name, "language": language, "format": fmt, "score": score},
     )
     # Also record in daily_stats so the Statistics page shows provider downloads
     try:

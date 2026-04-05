@@ -27,6 +27,8 @@ from ass_utils import (
     has_target_language_stream,
 )
 from config import get_settings, map_path
+from db.activity import log_activity
+from db.models.activity import EVENT_SCAN
 from db.profiles import get_movie_profile, get_series_profile
 from db.wanted import batch_upsert_context, upsert_wanted_item
 from translator import detect_existing_target_for_lang, get_output_path_for_lang
@@ -1062,6 +1064,17 @@ class WantedScanner:
             from events import emit_event
 
             emit_event("wanted_scan_complete", summary)
+
+            log_activity(
+                EVENT_SCAN,
+                status="success",
+                details={
+                    "found": summary.get("found", 0),
+                    "processed": summary.get("processed", 0),
+                    "failed": summary.get("failed", 0),
+                    "duration": summary.get("duration_seconds"),
+                },
+            )
 
             return summary
 

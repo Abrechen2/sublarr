@@ -70,8 +70,8 @@ vi.mock('@/pages/Queue', () => ({
   QueuePage: () => <div data-testid="queue-page-content">Queue Content</div>,
 }))
 
-vi.mock('@/pages/History', () => ({
-  HistoryPage: () => <div data-testid="history-page-content">History Content</div>,
+vi.mock('@/components/activity/ActivityLogTab', () => ({
+  ActivityLogTab: () => <div data-testid="activity-log-tab">Activity Log Content</div>,
 }))
 
 vi.mock('@/pages/Blacklist', () => ({
@@ -200,7 +200,7 @@ describe('ActivityPage', () => {
   it('renders history tab content when tab=history', () => {
     renderWithProviders('/activity?tab=history')
 
-    expect(screen.getByTestId('history-page-content')).toBeInTheDocument()
+    expect(screen.getByTestId('activity-log-tab')).toBeInTheDocument()
     expect(screen.queryByTestId('queue-page-content')).not.toBeInTheDocument()
   })
 
@@ -223,7 +223,7 @@ describe('ActivityPage', () => {
 
     fireEvent.click(screen.getByTestId('tab-history'))
 
-    expect(screen.getByTestId('history-page-content')).toBeInTheDocument()
+    expect(screen.getByTestId('activity-log-tab')).toBeInTheDocument()
     expect(screen.queryByTestId('tab-content-queue')).not.toBeInTheDocument()
   })
 

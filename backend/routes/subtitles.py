@@ -29,6 +29,8 @@ from datetime import UTC, datetime
 from flask import Blueprint, jsonify, request, send_file
 
 from config import get_settings, map_path
+from db.activity import log_activity
+from db.models.activity import EVENT_DELETE
 from security_utils import is_safe_path
 
 bp = Blueprint("subtitles", __name__, url_prefix="/api/v1")
@@ -383,9 +385,21 @@ def delete_subtitles():
         trash_path, err = _trash_sidecar(path, media_path, batch_dir)
         if err:
             failed.append({"path": path, "error": err})
+            log_activity(
+                EVENT_DELETE,
+                file_path=path,
+                status="failed",
+                details={"error": err, "batch_id": batch_id},
+            )
         else:
             deleted.append(path)
             manifest_files.append({"original": path, "trashed": trash_path})
+            log_activity(
+                EVENT_DELETE,
+                file_path=path,
+                status="success",
+                details={"trash_path": trash_path, "batch_id": batch_id},
+            )
 
     if manifest_files:
         _write_manifest(batch_dir, batch_id, manifest_files)
@@ -565,6 +579,7 @@ def list_trash():
         if created_at and retention > 0:
             try:
                 from datetime import timedelta
+
                 expires_dt = datetime.fromisoformat(created_at) + timedelta(days=retention)
                 expires_at = expires_dt.isoformat()
             except (ValueError, TypeError):

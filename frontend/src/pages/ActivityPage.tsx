@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { PillTabs } from '@/components/shared/PillTabs'
 import { TranslationsTab } from '@/components/activity/TranslationsTab'
 import { QueuePage } from '@/pages/Queue'
-import { HistoryPage } from '@/pages/History'
+import { ActivityLogTab } from '@/components/activity/ActivityLogTab'
 import { BlacklistPage } from '@/pages/Blacklist'
 import { useJobs, useTranslationEnabled } from '@/hooks/useApi'
 
@@ -72,7 +72,7 @@ export function ActivityPage() {
       <div data-testid={`tab-content-${activeTab}`}>
         {activeTab === 'queue' && <QueuePage />}
         {activeTab === 'translations' && translationEnabled && <TranslationsTab />}
-        {activeTab === 'history' && <HistoryPage />}
+        {activeTab === 'history' && <ActivityLogTab />}
         {activeTab === 'blacklist' && <BlacklistPage />}
       </div>
     </div>
