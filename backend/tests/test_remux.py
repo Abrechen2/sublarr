@@ -9,7 +9,13 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
-from remux import RemuxError, _detect_backend, _verify, remove_subtitle_stream
+from remux import (
+    RemuxError,
+    _detect_backend,
+    _verify,
+    remove_subtitle_stream,
+    remove_subtitle_streams,
+)
 from remux.backup_cleanup import cleanup_old_backups, list_backups
 
 # ---------------------------------------------------------------------------
@@ -66,6 +72,25 @@ def test_verify_passes_clean_remux(tmp_path):
         ],
     ):
         _verify(orig, new)  # should not raise
+
+
+def test_verify_passes_multi_stream_removal(tmp_path):
+    """_verify with n_removed=2 should pass when 2 subtitle streams are gone."""
+    orig = str(tmp_path / "orig.mkv")
+    new = str(tmp_path / "new.mkv")
+    with open(orig, "wb") as f:
+        f.write(b"x" * 1000)
+    with open(new, "wb") as f:
+        f.write(b"x" * 900)
+
+    with patch(
+        "remux._probe",
+        side_effect=[
+            _make_probe(3600, subtitle=3),
+            _make_probe(3600, subtitle=1),
+        ],
+    ):
+        _verify(orig, new, n_removed=2)  # should not raise
 
 
 def test_verify_fails_duration_mismatch(tmp_path):
@@ -174,8 +199,8 @@ def test_remove_subtitle_stream_mkv_success(tmp_path):
 
     assert bak == video + ".bak"
     mock_remux.assert_called_once()
-    # stream_index=2 (global TID) must be passed to mkvmerge, not subtitle_track_index=0
-    assert mock_remux.call_args[0][1] == 2
+    # stream_index=2 must be passed as a list to _remux_mkvmerge
+    assert mock_remux.call_args[0][1] == [2]
 
 
 def test_remove_subtitle_stream_ffmpeg_success(tmp_path):
@@ -194,6 +219,29 @@ def test_remove_subtitle_stream_ffmpeg_success(tmp_path):
 
     assert bak == video + ".bak"
     mock_remux.assert_called_once()
+    assert mock_remux.call_args[0][1] == [3]
+
+
+def test_remove_subtitle_streams_multi_mkv(tmp_path):
+    """remove_subtitle_streams removes multiple streams in one mkvmerge call."""
+    video = str(tmp_path / "show.mkv")
+    with open(video, "wb") as f:
+        f.write(b"x" * 2000)
+
+    with (
+        patch("remux._remux_mkvmerge") as mock_remux,
+        patch("remux._verify"),
+        patch("remux._make_backup", return_value=video + ".bak"),
+        patch("remux._detect_backend", return_value="mkvmerge"),
+        patch("remux._which", return_value=True),
+        patch("os.replace"),
+    ):
+        bak = remove_subtitle_streams(video, streams=[(2, 0), (4, 1)])
+
+    assert bak == video + ".bak"
+    mock_remux.assert_called_once()
+    # Both global indices must be passed as a list
+    assert mock_remux.call_args[0][1] == [2, 4]
 
 
 def test_remove_subtitle_stream_cleans_temp_on_error(tmp_path):
@@ -231,6 +279,7 @@ def test_remove_subtitle_stream_fallback_to_ffmpeg_when_mkvmerge_missing(tmp_pat
 
     assert bak == video + ".bak"
     mock_ffmpeg.assert_called_once()
+    assert mock_ffmpeg.call_args[0][1] == [2]
 
 
 def test_remove_subtitle_stream_ffmpeg_not_found_raises(tmp_path):

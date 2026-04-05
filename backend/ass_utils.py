@@ -372,12 +372,11 @@ def select_best_subtitle_stream(ffprobe_data, format_filter=None):
             )
             return src[0]
 
-        # P4: Non-signs ASS without target lang tag
+        # P4: Non-signs/songs/OP/ED ASS without target lang tag
+        _SKIP_TITLE_PARTS = {"sign", "song", "op", "ed", "karaoke", "credit", "caption"}
         for s in ass_streams:
-            if (
-                s["language"] not in target_tags
-                and "sign" not in s["title"]
-                and "song" not in s["title"]
+            if s["language"] not in target_tags and not any(
+                part in s["title"] for part in _SKIP_TITLE_PARTS
             ):
                 logger.info("Selected stream %d: '%s' (non-signs ASS)", s["sub_index"], s["title"])
                 return s

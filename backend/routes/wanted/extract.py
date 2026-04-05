@@ -10,6 +10,7 @@ from flask import current_app, jsonify, request
 
 from events import emit_event
 from extensions import socketio
+from remux import RemuxError, remove_subtitle_stream, remove_subtitle_streams
 from routes.batch_state import (
     _batch_extract_lock,
     _batch_extract_state,
@@ -19,6 +20,38 @@ from routes.batch_state import (
 from routes.wanted import bp
 
 logger = logging.getLogger(__name__)
+
+
+def _remove_stream_from_container(file_path: str, stream_info: dict) -> None:
+    """Remove a subtitle stream from the video container after extraction.
+
+    Non-fatal: logs a warning and continues if the remux fails.
+    """
+    global_idx = stream_info.get("stream_index")
+    sub_idx = stream_info.get("sub_index", 0)
+
+    if global_idx is None:
+        logger.warning(
+            "Cannot remove stream from %s: stream_index missing in stream_info", file_path
+        )
+        return
+
+    try:
+        from config import get_settings
+
+        settings = get_settings()
+        bak = remove_subtitle_stream(
+            video_path=file_path,
+            stream_index=global_idx,
+            subtitle_track_index=sub_idx,
+            use_reflink=getattr(settings, "remux_use_reflink", True),
+            trash_dir=getattr(settings, "remux_trash_dir", ".sublarr"),
+        )
+        logger.info("Removed subtitle stream %d from %s (backup: %s)", global_idx, file_path, bak)
+    except RemuxError as exc:
+        logger.warning("Could not remove subtitle stream from %s: %s", file_path, exc)
+    except Exception as exc:
+        logger.warning("Unexpected error removing stream from %s: %s", file_path, exc)
 
 
 def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = False) -> dict:
@@ -63,6 +96,9 @@ def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = F
     # Determine output path and extract
     output_path = get_output_path_for_lang(file_path, stream_info["format"], target_language)
     extract_subtitle_stream(file_path, stream_info, output_path)
+
+    # Remove the extracted stream from the video container
+    _remove_stream_from_container(file_path, stream_info)
 
     # Mark item as extracted — keep visible in Wanted for user-initiated cleanup/translate
     update_existing_sub(item_id, stream_info["format"])
@@ -217,7 +253,9 @@ def _run_batch_probe(items, app):
                         with _batch_probe_lock:
                             _batch_probe_state["skipped"] += 1
                     else:
-                        # Collect all text-based subtitle streams (language-agnostic)
+                        # Collect all text-based subtitle streams (language-agnostic).
+                        # Capture both sub_index (0-based subtitle-only) and stream_index
+                        # (global ffprobe index, needed for container removal).
                         sub_streams = []
                         sub_index = 0
                         for stream in probe_data.get("streams", []):
@@ -240,7 +278,12 @@ def _run_batch_probe(items, app):
                                 continue  # skip PGS, VobSub, etc.
                             lang = (stream.get("tags", {}).get("language", "und") or "und").lower()
                             sub_streams.append(
-                                {"sub_index": sub_index, "format": fmt, "language": lang}
+                                {
+                                    "sub_index": sub_index,
+                                    "stream_index": stream.get("index"),
+                                    "format": fmt,
+                                    "language": lang,
+                                }
                             )
                             sub_index += 1
 
@@ -249,11 +292,32 @@ def _run_batch_probe(items, app):
                                 _batch_probe_state["skipped"] += 1
                         else:
                             any_extracted = False
+                            # streams_to_remove: (global_stream_index, sub_index) for remux
+                            streams_to_remove: list[tuple[int, int]] = []
+                            seen_lang_fmt: set[tuple[str, str]] = set()
+
                             for stream_info in sub_streams:
+                                lang_fmt = (stream_info["language"], stream_info["format"])
                                 out = get_subtitle_stream_output_path(file_path, stream_info)
+
                                 if os.path.exists(out):
                                     any_extracted = True
-                                    continue  # already on disk
+                                    # Stream already on disk — still schedule for removal
+                                    if stream_info.get("stream_index") is not None:
+                                        streams_to_remove.append(
+                                            (stream_info["stream_index"], stream_info["sub_index"])
+                                        )
+                                    seen_lang_fmt.add(lang_fmt)
+                                    continue
+
+                                if lang_fmt in seen_lang_fmt:
+                                    # Duplicate lang+format: skip extraction but still remove
+                                    if stream_info.get("stream_index") is not None:
+                                        streams_to_remove.append(
+                                            (stream_info["stream_index"], stream_info["sub_index"])
+                                        )
+                                    continue
+
                                 try:
                                     extract_subtitle_stream(file_path, stream_info, out)
                                     logger.info(
@@ -263,12 +327,43 @@ def _run_batch_probe(items, app):
                                         out,
                                     )
                                     any_extracted = True
+                                    seen_lang_fmt.add(lang_fmt)
+                                    if stream_info.get("stream_index") is not None:
+                                        streams_to_remove.append(
+                                            (stream_info["stream_index"], stream_info["sub_index"])
+                                        )
                                 except Exception as sub_exc:
                                     logger.warning(
                                         "[batch-probe] item %d stream %d: %s",
                                         item_id,
                                         stream_info["sub_index"],
                                         sub_exc,
+                                    )
+
+                            # Remove all extracted streams from the container in one pass
+                            if streams_to_remove:
+                                try:
+                                    from config import get_settings as _gs
+
+                                    _settings = _gs()
+                                    bak = remove_subtitle_streams(
+                                        video_path=file_path,
+                                        streams=streams_to_remove,
+                                        use_reflink=getattr(_settings, "remux_use_reflink", True),
+                                        trash_dir=getattr(_settings, "remux_trash_dir", ".sublarr"),
+                                    )
+                                    logger.info(
+                                        "[batch-probe] item %d: removed %d stream(s) from container"
+                                        " (backup: %s)",
+                                        item_id,
+                                        len(streams_to_remove),
+                                        bak,
+                                    )
+                                except (RemuxError, Exception) as remux_exc:
+                                    logger.warning(
+                                        "[batch-probe] item %d: container removal failed: %s",
+                                        item_id,
+                                        remux_exc,
                                     )
 
                             if any_extracted:
@@ -623,8 +718,9 @@ def extract_embedded_sub(item_id):
         # Determine output path
         output_path = get_output_path_for_lang(file_path, stream_info["format"], target_language)
 
-        # Extract
+        # Extract sidecar and remove stream from container
         extract_subtitle_stream(file_path, stream_info, output_path)
+        _remove_stream_from_container(file_path, stream_info)
 
         # Mark item as extracted — keep visible in Wanted for user-initiated cleanup/translate
         update_existing_sub(item_id, stream_info["format"])

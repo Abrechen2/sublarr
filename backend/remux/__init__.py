@@ -121,20 +121,19 @@ def _which(cmd: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _remux_mkvmerge(video_path: str, stream_index: int, output_path: str) -> None:
-    """Remove subtitle stream using mkvmerge.
+def _remux_mkvmerge(video_path: str, stream_indices: list[int], output_path: str) -> None:
+    """Remove subtitle streams using mkvmerge.
 
-    `stream_index` is the global track ID as reported by ffprobe/mkvmerge -i
+    `stream_indices` are the global track IDs as reported by ffprobe/mkvmerge -i
     (matches mkvmerge's --subtitle-tracks !N flag).
     """
-
-    # --subtitle-tracks !N excludes track with global TID N from the output
+    exclusions = ",".join(f"!{idx}" for idx in stream_indices)
     cmd = [
         "mkvmerge",
         "-o",
         output_path,
         "--subtitle-tracks",
-        f"!{stream_index}",
+        exclusions,
         video_path,
     ]
     logger.debug("Remux mkvmerge: %s", " ".join(cmd))
@@ -148,25 +147,17 @@ def _remux_mkvmerge(video_path: str, stream_index: int, output_path: str) -> Non
 # ---------------------------------------------------------------------------
 
 
-def _remux_ffmpeg(video_path: str, stream_index: int, output_path: str) -> None:
-    """Remove subtitle stream `stream_index` using ffmpeg stream copy."""
+def _remux_ffmpeg(video_path: str, stream_indices: list[int], output_path: str) -> None:
+    """Remove subtitle streams using ffmpeg stream copy."""
     if not _which("ffmpeg"):
         raise RemuxError("ffmpeg not found")
 
-    # Map all streams, then un-map the target subtitle stream by global index
-    cmd = [
-        "ffmpeg",
-        "-y",
-        "-i",
-        video_path,
-        "-map",
-        "0",
-        "-map",
-        f"-0:{stream_index}",
-        "-c",
-        "copy",
-        output_path,
-    ]
+    # Map all streams, then un-map each target subtitle stream by global index
+    cmd = ["ffmpeg", "-y", "-i", video_path, "-map", "0"]
+    for idx in stream_indices:
+        cmd += ["-map", f"-0:{idx}"]
+    cmd += ["-c", "copy", output_path]
+
     logger.debug("Remux ffmpeg: %s", " ".join(cmd))
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     if result.returncode != 0:
@@ -200,8 +191,12 @@ def _probe(path: str) -> dict:
     return json.loads(result.stdout)
 
 
-def _verify(original_path: str, remuxed_path: str) -> None:
-    """Compare duration, stream count, and file size between original and remux."""
+def _verify(original_path: str, remuxed_path: str, n_removed: int = 1) -> None:
+    """Compare duration, stream count, and file size between original and remux.
+
+    Args:
+        n_removed: How many subtitle streams were intended to be removed.
+    """
     orig_info = _probe(original_path)
     new_info = _probe(remuxed_path)
 
@@ -219,12 +214,14 @@ def _verify(original_path: str, remuxed_path: str) -> None:
         raise RemuxError("Video stream count decreased after remux")
     if _count(new_info, "audio") < _count(orig_info, "audio"):
         raise RemuxError("Audio stream count decreased after remux")
-    # Subtitle count should be exactly one less
+
+    # Subtitle count should be exactly n_removed less
     orig_subs = _count(orig_info, "subtitle")
     new_subs = _count(new_info, "subtitle")
-    if new_subs != orig_subs - 1:
+    expected = orig_subs - n_removed
+    if new_subs != expected:
         raise RemuxError(
-            f"Unexpected subtitle stream count: expected {orig_subs - 1}, got {new_subs}"
+            f"Unexpected subtitle stream count: expected {expected}, got {new_subs}"
         )
 
     # File size sanity (≥ 50 % of original)
@@ -243,27 +240,26 @@ def _verify(original_path: str, remuxed_path: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Public entry point
+# Public entry points
 # ---------------------------------------------------------------------------
 
 
-def remove_subtitle_stream(
+def remove_subtitle_streams(
     video_path: str,
-    stream_index: int,
-    subtitle_track_index: int,
+    streams: list[tuple[int, int]],
     use_reflink: bool = True,
     trash_dir: str = ".sublarr",
 ) -> str:
-    """Remove a subtitle stream from a video container.
+    """Remove one or more subtitle streams from a video container in one pass.
 
     Parameters
     ----------
     video_path:
         Absolute path to the source video file.
-    stream_index:
-        The ffprobe global stream index (0-based across all streams).
-    subtitle_track_index:
-        The 0-based index within the subtitle-only track list (for mkvmerge).
+    streams:
+        List of (stream_index, subtitle_track_index) tuples.
+        stream_index = global ffprobe index (used by ffmpeg -map).
+        subtitle_track_index = 0-based subtitle-only index (used by mkvmerge).
     use_reflink:
         Attempt CoW reflink for the backup copy (Btrfs/XFS).
     trash_dir:
@@ -273,53 +269,75 @@ def remove_subtitle_stream(
     Returns
     -------
     str
-        Path to the created backup file (<video_path>.bak).
+        Path to the created backup file.
 
     Raises
     ------
     RemuxError
         On any failure (backend not found, remux error, verification failure).
     """
+    if not streams:
+        raise RemuxError("No streams specified for removal")
+
     backend = _detect_backend(video_path)
     video_dir = os.path.dirname(video_path)
     suffix = os.path.splitext(video_path)[1]
 
-    # Write remux output to a temp file in the same directory (same filesystem)
+    # For mkvmerge: use global stream indices (same convention as single-stream)
+    # For ffmpeg: use global stream indices
+    stream_indices = [s[0] for s in streams]
+
     fd, tmp_path = tempfile.mkstemp(suffix=suffix, dir=video_dir)
     os.close(fd)
 
     try:
         logger.info(
-            "Remux: starting (%s) — removing stream %d (sub_idx %d) from %s",
+            "Remux: starting (%s) — removing %d stream(s) %s from %s",
             backend,
-            stream_index,
-            subtitle_track_index,
+            len(streams),
+            stream_indices,
             video_path,
         )
         if backend == "mkvmerge" and _which("mkvmerge"):
-            _remux_mkvmerge(video_path, stream_index, tmp_path)
+            _remux_mkvmerge(video_path, stream_indices, tmp_path)
         elif backend == "mkvmerge":
             logger.warning(
-                "mkvmerge not found — falling back to ffmpeg for MKV (install mkvtoolnix for better support)"
+                "mkvmerge not found — falling back to ffmpeg for MKV "
+                "(install mkvtoolnix for better support)"
             )
-            _remux_ffmpeg(video_path, stream_index, tmp_path)
+            _remux_ffmpeg(video_path, stream_indices, tmp_path)
         else:
-            _remux_ffmpeg(video_path, stream_index, tmp_path)
+            _remux_ffmpeg(video_path, stream_indices, tmp_path)
 
-        _verify(video_path, tmp_path)
+        _verify(video_path, tmp_path, n_removed=len(streams))
 
         # Atomic swap: original → trash dir, temp → original
         bak_path = _make_backup(video_path, use_reflink, trash_dir)
         os.replace(tmp_path, video_path)
-        logger.info("Remux: complete — backup at %s", bak_path)
+        logger.info("Remux: complete — %d stream(s) removed, backup at %s", len(streams), bak_path)
         return bak_path
 
     except Exception:
-        # Clean up temp file on any failure
         if os.path.exists(tmp_path):
             with contextlib_suppress(OSError):
                 os.unlink(tmp_path)
         raise
+
+
+def remove_subtitle_stream(
+    video_path: str,
+    stream_index: int,
+    subtitle_track_index: int,
+    use_reflink: bool = True,
+    trash_dir: str = ".sublarr",
+) -> str:
+    """Remove a single subtitle stream. Convenience wrapper around remove_subtitle_streams."""
+    return remove_subtitle_streams(
+        video_path=video_path,
+        streams=[(stream_index, subtitle_track_index)],
+        use_reflink=use_reflink,
+        trash_dir=trash_dir,
+    )
 
 
 def contextlib_suppress(exc_type):
