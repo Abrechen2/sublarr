@@ -104,5 +104,53 @@
     "disk_space_savings": "savings available",
     "edit_layout": "Edit Layout",
     "done_editing": "Done"
+  },
+  "statusStripe": {
+    "active": "AUTOMATION ACTIVE",
+    "paused": "PAUSED",
+    "lastScan": "Last scan",
+    "neverScanned": "Never scanned",
+    "subtitles": "subtitles",
+    "successRate": "success rate",
+    "today": "today",
+    "missing": "missing",
+    "runNow": "Run Now"
+  },
+  "metrics": {
+    "total": "Subtitles Total",
+    "missing": "Missing",
+    "avgScore": "Avg Score",
+    "lowScore": "Low Score"
+  },
+  "feed": {
+    "title": "Live Activity Feed",
+    "viewAll": "View all",
+    "empty": "No activity yet",
+    "moreEvents": "more events today"
+  },
+  "attention": {
+    "title": "Needs Attention",
+    "viewAll": "View all",
+    "reasonFailed": "No Match",
+    "search": "Search",
+    "skip": "Skip",
+    "findBetter": "Find Better",
+    "accept": "Accept"
+  },
+  "sidebar": {
+    "providers": "Provider Health",
+    "services": "Services",
+    "disk": "Disk Space",
+    "diskFiles": "Files",
+    "diskDuplicates": "Duplicates",
+    "diskSavings": "savings available",
+    "actions": "Quick Actions",
+    "scanLibrary": "Scan Library",
+    "scanning": "Scanning...",
+    "batchSearch": "Start Batch Search",
+    "searching": "Searching...",
+    "wantedList": "Wanted List",
+    "viewLogs": "View Logs",
+    "runNow": "▶ Run Automation Now"
   }
 }

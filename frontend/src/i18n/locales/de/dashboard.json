@@ -104,5 +104,53 @@
     "disk_space_savings": "Einsparung möglich",
     "edit_layout": "Layout bearbeiten",
     "done_editing": "Fertig"
+  },
+  "statusStripe": {
+    "active": "AUTOMATION AKTIV",
+    "paused": "PAUSIERT",
+    "lastScan": "Zuletzt",
+    "neverScanned": "Noch nie gescannt",
+    "subtitles": "Untertitel",
+    "successRate": "Erfolgsrate",
+    "today": "heute",
+    "missing": "fehlend",
+    "runNow": "Jetzt starten"
+  },
+  "metrics": {
+    "total": "Untertitel gesamt",
+    "missing": "Fehlend",
+    "avgScore": "Ø Score",
+    "lowScore": "Low Score"
+  },
+  "feed": {
+    "title": "Live Aktivitäts-Feed",
+    "viewAll": "Alle ansehen",
+    "empty": "Noch keine Aktivität",
+    "moreEvents": "weitere Ereignisse heute"
+  },
+  "attention": {
+    "title": "Needs Attention",
+    "viewAll": "Alle ansehen",
+    "reasonFailed": "Kein Match",
+    "search": "Suchen",
+    "skip": "Skip",
+    "findBetter": "Besser suchen",
+    "accept": "Annehmen"
+  },
+  "sidebar": {
+    "providers": "Provider-Status",
+    "services": "Services",
+    "disk": "Speicher",
+    "diskFiles": "Dateien",
+    "diskDuplicates": "Duplikate",
+    "diskSavings": "einsparbar",
+    "actions": "Schnellaktionen",
+    "scanLibrary": "Bibliothek scannen",
+    "scanning": "Scanne...",
+    "batchSearch": "Batch-Suche starten",
+    "searching": "Suche...",
+    "wantedList": "Wanted-Liste",
+    "viewLogs": "Logs ansehen",
+    "runNow": "▶ Automation jetzt ausführen"
   }
 }
