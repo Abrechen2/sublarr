@@ -192,19 +192,17 @@ class AnimeToshoProvider(SubtitleProvider):
                 "aids": 0,  # Use 0 for server caching
             }
 
-            # AniDB ID provides more accurate results when available.
-            # When absolute_episode is set AND anidb_id is known, use the
-            # eid param for direct absolute episode lookup via AniDB episode ID.
-            if query.anidb_id:
+            # AniDB ID + absolute episode provides the most accurate results.
+            # Only use aid+eid together — aid alone (without eid) filters to the
+            # wrong season when the anidb_id maps to S2 but the query targets S1.
+            if query.anidb_id and query.absolute_episode is not None:
                 params["aid"] = query.anidb_id
-                # Prefer AniDB absolute episode when available
-                if query.absolute_episode is not None:
-                    params["eid"] = query.absolute_episode
-                    logger.debug(
-                        "AnimeTosho: using AniDB aid=%d eid=%d (absolute episode)",
-                        query.anidb_id,
-                        query.absolute_episode,
-                    )
+                params["eid"] = query.absolute_episode
+                logger.debug(
+                    "AnimeTosho: using AniDB aid=%d eid=%d (absolute episode)",
+                    query.anidb_id,
+                    query.absolute_episode,
+                )
 
             logger.debug("AnimeTosho: API request params: %s", params)
             resp = self.session.get(FEED_API, params=params)
