@@ -1,20 +1,6 @@
 name: Build & Push Docker Image
 
 on:
-  push:
-    branches: [master]
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - 'Dockerfile'
-      - 'requirements*.txt'
-      - '.github/workflows/docker-build.yml'
-  pull_request:
-    branches: [master]
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - 'Dockerfile'
   workflow_dispatch:
 
 # Tag pushes (releases) are handled by release.yml, not here.
