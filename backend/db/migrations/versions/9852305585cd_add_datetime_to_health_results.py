@@ -11,7 +11,7 @@ Create Date: 2026-04-02
 from alembic import op
 
 revision = "9852305585cd"
-down_revision = "e4f5a6b7c8d9"
+down_revision = "f2a3b4c5d6e7"
 branch_labels = None
 depends_on = None
 

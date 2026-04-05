@@ -1,6 +1,6 @@
 """make glossary series_id nullable for global glossary support
 
-Revision ID: e4f5a6b7c8d9
+Revision ID: f2a3b4c5d6e7
 Revises: fa890ea72dab
 Create Date: 2026-02-21
 
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "e4f5a6b7c8d9"
+revision = "f2a3b4c5d6e7"
 down_revision = "fa890ea72dab"
 branch_labels = None
 depends_on = None
