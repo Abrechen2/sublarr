@@ -21,6 +21,7 @@ import { ProgressBar } from '@/components/shared/ProgressBar'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
 import { ComparisonSelector } from '@/components/comparison/ComparisonSelector'
 import { SubtitleCleanupModal } from '@/components/shared/SubtitleCleanupModal'
+import { ExtractConfirmModal } from '@/components/series/ExtractConfirmModal'
 import type { EpisodeInfo, WantedSearchResponse, EpisodeHistoryEntry, SidecarSubtitle } from '@/lib/types'
 import { FansubOverrideModal } from '@/components/series/FansubOverrideModal'
 import { deriveSubtitlePath } from '@/components/series/seriesUtils'
@@ -90,6 +91,7 @@ export function SeriesDetailPage() {
   } | null>(null)
   // Sidecar management
   const [showCleanupModal, setShowCleanupModal] = useState(false)
+  const [showExtractConfirm, setShowExtractConfirm] = useState(false)
   const [fansubOpen, setFansubOpen] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [deleteAlsoBlacklist, setDeleteAlsoBlacklist] = useState(false)
@@ -279,7 +281,8 @@ export function SeriesDetailPage() {
 
   const extractTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const handleExtract = useCallback(() => {
+  const handleExtractConfirmed = useCallback(() => {
+    setShowExtractConfirm(false)
     if (seriesId == null || extractProgress !== null) return
     setExtractProgress({ current: 0, total: 0, filename: '' })
     // Safety fallback: clear stuck state after 10 minutes
@@ -296,6 +299,11 @@ export function SeriesDetailPage() {
       toast(msg, 'error')
     })
   }, [seriesId, extractProgress, queryClient])
+
+  const handleExtract = useCallback(() => {
+    if (seriesId == null || extractProgress !== null) return
+    setShowExtractConfirm(true)
+  }, [seriesId, extractProgress])
 
   const handlePreview = useCallback((ep: EpisodeInfo) => {
     const epSidecars = sidecarMap[String(ep.id)] ?? []
@@ -655,6 +663,13 @@ export function SeriesDetailPage() {
           onClose={() => setShowCleanupModal(false)}
         />
       )}
+
+      {/* Extract Confirm Modal */}
+      <ExtractConfirmModal
+        open={showExtractConfirm}
+        onConfirm={handleExtractConfirmed}
+        onCancel={() => setShowExtractConfirm(false)}
+      />
 
       {/* Delete Sidecar Confirmation Dialog */}
       {deleteConfirm && createPortal(

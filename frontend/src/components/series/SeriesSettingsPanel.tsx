@@ -1,5 +1,6 @@
 import type React from 'react'
 import type { SeriesDetail } from '@/lib/types'
+import { Tooltip } from '@/components/shared/Tooltip'
 
 interface SeriesSettingsPanelProps {
   readonly series: SeriesDetail
@@ -178,69 +179,79 @@ export function SeriesSettingsPanel({
       <div>
         <div style={sectionLabelStyle}>Tools</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-          {/* Export ZIP */}
-          <a
-            href={exportUrl}
-            download
-            style={{
-              ...buttonBaseStyle,
-              backgroundColor: 'var(--bg-elevated)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border)',
-              textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
-          >
-            📦 Export ZIP
-          </a>
+          {/* Untertitel exportieren */}
+          <Tooltip content="Alle Sidecar-Untertitel dieser Serie als ZIP-Datei herunterladen — praktisch als Backup oder zur Weitergabe.">
+            <a
+              href={exportUrl}
+              download
+              style={{
+                ...buttonBaseStyle,
+                backgroundColor: 'var(--bg-elevated)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              📦 Untertitel exportieren
+            </a>
+          </Tooltip>
 
-          {/* Extract Tracks */}
-          <button
-            onClick={onExtract}
-            disabled={isExtracting}
-            style={{
-              ...buttonBaseStyle,
-              backgroundColor: isExtracting ? 'var(--accent-bg)' : 'var(--bg-elevated)',
-              color: isExtracting ? 'var(--accent)' : 'var(--text-secondary)',
-              border: isExtracting ? '1px solid var(--accent-dim)' : '1px solid var(--border)',
-              opacity: isExtracting ? 0.6 : 1,
-              cursor: isExtracting ? 'default' : 'pointer',
-            }}
-          >
-            {isExtracting
-              ? `Extracting… ${extractProgress ? `${extractProgress.current}/${extractProgress.total}` : ''}`
-              : '🎵 Extract Tracks'
-            }
-          </button>
+          {/* Embedded extrahieren */}
+          <Tooltip content="Eingebettete Untertitel-Streams aus allen Episoden als Sidecar-Dateien speichern und aus dem Videocontainer entfernen.">
+            <button
+              onClick={onExtract}
+              disabled={isExtracting}
+              style={{
+                ...buttonBaseStyle,
+                backgroundColor: isExtracting ? 'var(--accent-bg)' : 'var(--bg-elevated)',
+                color: isExtracting ? 'var(--accent)' : 'var(--text-secondary)',
+                border: isExtracting ? '1px solid var(--accent-dim)' : '1px solid var(--border)',
+                opacity: isExtracting ? 0.6 : 1,
+                cursor: isExtracting ? 'default' : 'pointer',
+              }}
+            >
+              {isExtracting
+                ? `Extrahiere… ${extractProgress ? `${extractProgress.current}/${extractProgress.total}` : ''}`
+                : '🎵 Embedded extrahieren'
+              }
+            </button>
+          </Tooltip>
 
-          {/* Cleanup / Bereinigen */}
-          <button
-            onClick={onCleanup}
-            style={{
-              ...buttonBaseStyle,
-              backgroundColor: 'var(--bg-elevated)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border)',
-            }}
-          >
-            🧹 Bereinigen
-          </button>
+          {/* Sidecar bereinigen */}
+          <Tooltip content="Sidecar-Untertitel nach Sprache oder Format filtern und in den Papierkorb verschieben (wiederherstellbar).">
+            <button
+              onClick={onCleanup}
+              style={{
+                ...buttonBaseStyle,
+                backgroundColor: 'var(--bg-elevated)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+                cursor: 'pointer',
+              }}
+            >
+              🧹 Sidecar bereinigen
+            </button>
+          </Tooltip>
 
-          {/* Fansub override */}
-          <button
-            onClick={onFansub}
-            style={{
-              ...buttonBaseStyle,
-              backgroundColor: hasFansubOverride ? 'var(--accent-bg)' : 'var(--bg-elevated)',
-              color: hasFansubOverride ? 'var(--accent)' : 'var(--text-secondary)',
-              border: hasFansubOverride ? '1px solid var(--accent)' : '1px solid var(--border)',
-              fontWeight: hasFansubOverride ? 600 : 400,
-            }}
-          >
-            🎭 Fansub{hasFansubOverride ? ' (Override)' : ''}
-          </button>
+          {/* Fansub-Override */}
+          <Tooltip content="Bevorzugten Fansub-Anbieter für diese Serie festlegen. Überschreibt die globale Anbieter-Priorität.">
+            <button
+              onClick={onFansub}
+              style={{
+                ...buttonBaseStyle,
+                backgroundColor: hasFansubOverride ? 'var(--accent-bg)' : 'var(--bg-elevated)',
+                color: hasFansubOverride ? 'var(--accent)' : 'var(--text-secondary)',
+                border: hasFansubOverride ? '1px solid var(--accent)' : '1px solid var(--border)',
+                fontWeight: hasFansubOverride ? 600 : 400,
+                cursor: 'pointer',
+              }}
+            >
+              🎭 Fansub-Override{hasFansubOverride ? ' ✓' : ''}
+            </button>
+          </Tooltip>
         </div>
       </div>
     </div>
