@@ -212,7 +212,9 @@ def get_remux_job(job_id: str):
 @bp.route("/remux/backups", methods=["GET"])
 def list_remux_backups():
     """List all .bak backup files in the configured trash directory."""
-    backups = list_backups(_trash_paths())
+    settings = get_settings()
+    retention_days = getattr(settings, "remux_backup_retention_days", 7)
+    backups = list_backups(_trash_paths(), retention_days=retention_days)
     return jsonify({"backups": backups, "count": len(backups)}), 200
 
 
