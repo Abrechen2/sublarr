@@ -7,11 +7,12 @@ import { TranslationsTab } from '@/components/activity/TranslationsTab'
 import { QueuePage } from '@/pages/Queue'
 import { ActivityLogTab } from '@/components/activity/ActivityLogTab'
 import { BlacklistPage } from '@/pages/Blacklist'
+import { HistoryPage } from '@/pages/History'
 import { useJobs, useTranslationEnabled } from '@/hooks/useApi'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-const VALID_TABS = ['queue', 'translations', 'history', 'blacklist'] as const
+const VALID_TABS = ['queue', 'translations', 'history', 'activity', 'blacklist'] as const
 type TabId = typeof VALID_TABS[number]
 
 const DEFAULT_TAB: TabId = 'queue'
@@ -55,6 +56,7 @@ export function ActivityPage() {
         ? [{ id: 'translations' as const, label: t('tabs.translations', 'Translations'), count: translationsCount }]
         : []),
       { id: 'history' as const, label: t('tabs.history', 'History') },
+      { id: 'activity' as const, label: t('tabs.activity', 'Activity') },
       { id: 'blacklist' as const, label: t('tabs.blacklist', 'Blacklist') },
     ],
     [t, translationsCount, translationEnabled],
@@ -72,7 +74,8 @@ export function ActivityPage() {
       <div data-testid={`tab-content-${activeTab}`}>
         {activeTab === 'queue' && <QueuePage />}
         {activeTab === 'translations' && translationEnabled && <TranslationsTab />}
-        {activeTab === 'history' && <ActivityLogTab />}
+        {activeTab === 'history' && <HistoryPage />}
+        {activeTab === 'activity' && <ActivityLogTab />}
         {activeTab === 'blacklist' && <BlacklistPage />}
       </div>
     </div>
