@@ -5,7 +5,6 @@ Reads cleanup_schedule_interval_hours from config_entries (default: 168 = weekly
 Runs enabled cleanup rules in order: dedup scan then rule execution.
 """
 
-import contextlib
 import logging
 import threading
 from datetime import UTC, datetime
@@ -178,8 +177,6 @@ class CleanupScheduler:
 
     def _execute_cleanup(self):
         """Run all enabled scheduled cleanup rules in order."""
-        import os
-
         from config import get_settings
         from db.repositories.cleanup import CleanupRepository
         from dedup_engine import scan_for_duplicates, scan_orphaned_subtitles
@@ -301,24 +298,43 @@ class CleanupScheduler:
                         logger.info("Scheduled orphan scan: %d orphaned files found", len(result))
 
                     elif rule_type == "old_backups":
-                        # Scan only, do not auto-delete backups
-                        bak_count = 0
-                        bak_size = 0
-                        for root, _dirs, files in os.walk(media_path):
-                            for filename in files:
-                                if ".bak" in filename:
-                                    with contextlib.suppress(OSError):
-                                        bak_size += os.path.getsize(os.path.join(root, filename))
-                                    bak_count += 1
+                        from remux.backup_cleanup import cleanup_old_backups
+                        from routes.remux import _trash_paths
+
+                        retention_days = getattr(settings, "remux_backup_retention_days", 7)
+                        with self._app.app_context():
+                            trash_dirs = _trash_paths()
+                        result = cleanup_old_backups(trash_dirs, retention_days)
+                        deleted_count = len(result.get("deleted", []))
 
                         repo.update_rule_last_run(rule_id)
                         repo.log_cleanup(
-                            action_type="scheduled_backup_scan",
-                            files_processed=bak_count,
+                            action_type="scheduled_backup_cleanup",
+                            files_deleted=deleted_count,
                             rule_id=rule_id,
                         )
                         logger.info(
-                            "Scheduled backup scan: %d .bak files (%d bytes)", bak_count, bak_size
+                            "Scheduled backup cleanup: %d .bak files deleted (retention=%dd)",
+                            deleted_count,
+                            retention_days,
+                        )
+
+                    elif rule_type == "old_sidecar_trash":
+                        from routes.subtitles import _auto_purge_old_trash
+
+                        retention_days = getattr(settings, "subtitle_trash_retention_days", 30)
+                        purged = _auto_purge_old_trash(media_path, retention_days)
+
+                        repo.update_rule_last_run(rule_id)
+                        repo.log_cleanup(
+                            action_type="scheduled_sidecar_trash_purge",
+                            files_deleted=purged,
+                            rule_id=rule_id,
+                        )
+                        logger.info(
+                            "Scheduled sidecar trash purge: %d batches removed (retention=%dd)",
+                            purged,
+                            retention_days,
                         )
 
                     else:

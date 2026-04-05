@@ -11,7 +11,8 @@
     "logs": "Logs",
     "statistics": "Statistics",
     "tasks": "Tasks",
-    "plugins": "Plugins"
+    "plugins": "Plugins",
+    "trash": "Trash"
   },
   "nav_groups": {
     "content": "Content",

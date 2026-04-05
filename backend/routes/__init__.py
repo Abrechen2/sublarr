@@ -1,7 +1,7 @@
 """Routes package — Blueprint registration for all API endpoints.
 
 Each blueprint module defines a `bp` variable. This module provides
-register_blueprints() which imports and registers all 9 blueprints.
+register_blueprints() which imports and registers all blueprints.
 """
 
 
@@ -40,6 +40,7 @@ def register_blueprints(app):
     from routes.tools import bp as tools_bp
     from routes.tracks import bp as tracks_bp
     from routes.translate import bp as translate_bp
+    from routes.trash import bp as trash_bp
     from routes.video import bp as video_bp
     from routes.video_sync import bp as video_sync_bp
     from routes.wanted import bp as wanted_bp
@@ -85,5 +86,6 @@ def register_blueprints(app):
         nfo_bp,
         media_bp,
         subtitle_processor_bp,
+        trash_bp,
     ]:
         app.register_blueprint(blueprint)

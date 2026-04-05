@@ -66,7 +66,7 @@ vi.mock('@/hooks/useApi', () => ({
       auto_cleanup_after_extract: 'false',
       auto_cleanup_keep_languages: 'de,en',
       auto_cleanup_keep_formats: 'ass,srt',
-      subtitle_trash_retention_days: '7',
+      subtitle_trash_retention_days: '30',
     },
     isLoading: false,
   }),
@@ -555,7 +555,7 @@ describe('AutomationSettings', () => {
   it('displays subtitle_trash_retention_days value from config', () => {
     renderPage()
     const input = screen.getByTestId('input-subtitle-trash-retention-days') as HTMLInputElement
-    expect(input.value).toBe('7')
+    expect(input.value).toBe('30')
   })
 
   it('calls updateConfig with subtitle_trash_retention_days as number on change', () => {

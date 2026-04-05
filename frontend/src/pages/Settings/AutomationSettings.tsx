@@ -738,11 +738,11 @@ function CleanupContent() {
           type="number"
           data-testid="input-subtitle-trash-retention-days"
           style={{ ...inputStyle, maxWidth: '120px' }}
-          value={strVal(config, 'subtitle_trash_retention_days', '7')}
+          value={strVal(config, 'subtitle_trash_retention_days', '30')}
           onChange={(e) => save({ subtitle_trash_retention_days: Number(e.target.value) })}
           disabled={updateConfig.isPending}
           min={0}
-          placeholder="7"
+          placeholder="30"
         />
       </FormGroup>
     </div>

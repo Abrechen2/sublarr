@@ -93,12 +93,62 @@ def _get_batch_dir(media_path: str, batch_id: str) -> str:
     return os.path.join(_get_trash_root(media_path), batch_id)
 
 
-def _write_manifest(batch_dir: str, batch_id: str, files: list[dict]) -> None:
+def _derive_series_name(path: str) -> str:
+    """Derive a human-readable series name from a subtitle file path.
+
+    Walks up the directory tree skipping 'Season N' folders.
+    Strips trailing (YEAR) suffix.
+    """
+    import re as _re
+
+    parts = os.path.normpath(path).split(os.sep)
+    # Drop the filename itself, then walk backwards
+    for part in reversed(parts[:-1]):
+        if _re.match(r"^(season|staffel)\s*\d+$", part, _re.IGNORECASE):
+            continue
+        if part in ("", ".", ".."):
+            continue
+        # Strip trailing (YEAR)
+        name = _re.sub(r"\s*\(\d{4}\)\s*$", "", part).strip()
+        return name
+    return ""
+
+
+def _derive_language(files: list[dict]) -> str:
+    """Return the most common language code found in the trashed file names."""
+    import re as _re
+    from collections import Counter
+
+    counts: Counter = Counter()
+    for f in files:
+        basename = os.path.basename(f.get("original", ""))
+        # Match .lang. or .lang.ext patterns, e.g. episode.de.srt → de
+        m = _re.search(r"\.([a-z]{2,3})\.[a-z]+$", basename, _re.IGNORECASE)
+        if m:
+            counts[m.group(1).lower()] += 1
+    return counts.most_common(1)[0][0] if counts else ""
+
+
+def _write_manifest(
+    batch_dir: str,
+    batch_id: str,
+    files: list[dict],
+    series_name: str = "",
+    language: str = "",
+) -> None:
     """Write a manifest.json recording original paths for a trash batch."""
+    # Auto-derive context from files if not explicitly provided
+    if not series_name and files:
+        series_name = _derive_series_name(files[0].get("original", ""))
+    if not language and files:
+        language = _derive_language(files)
+
     manifest = {
         "batch_id": batch_id,
         "created_at": datetime.now(UTC).isoformat(),
         "files": files,  # [{"original": "...", "trashed": "..."}]
+        "series_name": series_name,
+        "language": language,
     }
     manifest_path = os.path.join(batch_dir, "manifest.json")
     with open(manifest_path, "w", encoding="utf-8") as fh:
@@ -481,13 +531,14 @@ def batch_delete_series_subtitles(series_id: int):
 
 @bp.route("/library/trash", methods=["GET"])
 def list_trash():
-    """List all trash batches with file count and total size.
+    """List all trash batches with file count, total size, and context.
 
-    Response: { "batches": [{ batch_id, created_at, file_count, size_bytes }] }
+    Response: { "batches": [{ batch_id, created_at, expires_at,
+                               file_count, size_bytes, series_name, language }] }
     """
     settings = get_settings()
     media_path = getattr(settings, "media_path", "/media")
-    retention = getattr(settings, "subtitle_trash_retention_days", 7)
+    retention = getattr(settings, "subtitle_trash_retention_days", 30)
     _auto_purge_old_trash(media_path, retention)
 
     trash_root = _get_trash_root(media_path)
@@ -508,12 +559,27 @@ def list_trash():
                 total_bytes += os.path.getsize(f["trashed"])
             except OSError:
                 pass
+
+        created_at = manifest.get("created_at")
+        expires_at = None
+        if created_at and retention > 0:
+            try:
+                from datetime import timedelta
+                expires_dt = datetime.fromisoformat(created_at) + timedelta(days=retention)
+                expires_at = expires_dt.isoformat()
+            except (ValueError, TypeError):
+                pass
+
         batches.append(
             {
                 "batch_id": manifest["batch_id"],
-                "created_at": manifest.get("created_at"),
+                "created_at": created_at,
+                "expires_at": expires_at,
                 "file_count": len(files),
                 "size_bytes": total_bytes,
+                "series_name": manifest.get("series_name", ""),
+                "language": manifest.get("language", ""),
+                "files": [f.get("original", "") for f in files],
             }
         )
 

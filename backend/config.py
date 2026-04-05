@@ -288,7 +288,7 @@ class Settings(BaseSettings):
 
     # Subtitle Trash / Soft-Delete
     subtitle_trash_retention_days: int = (
-        7  # Days to keep trashed files before auto-purge (0 = keep forever)
+        30  # Days to keep trashed subtitle files before auto-purge (0 = keep forever)
     )
 
     # AniDB Integration

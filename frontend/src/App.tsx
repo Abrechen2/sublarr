@@ -32,6 +32,7 @@ const LoginPage = lazy(() => import('@/pages/Login').then(m => ({ default: m.Log
 const LanguageProfilesPage = lazy(() => import('@/pages/LanguageProfiles').then(m => ({ default: m.LanguageProfilesPage })))
 const MovieDetailPage = lazy(() => import('@/pages/MovieDetail').then(m => ({ default: m.MovieDetailPage })))
 const WantedPage = lazy(() => import('@/pages/Wanted').then(m => ({ default: m.WantedPage })))
+const TrashPage = lazy(() => import('@/pages/Trash').then(m => ({ default: m.TrashPage })))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -65,6 +66,7 @@ function AnimatedRoutes() {
           <Route path="/library/series/:id" element={<Suspense fallback={<PageSkeleton />}><SeriesDetailPage /></Suspense>} />
           <Route path="/activity" element={<Suspense fallback={<PageSkeleton />}><ActivityPage /></Suspense>} />
           <Route path="/wanted" element={<Suspense fallback={<PageSkeleton />}><WantedPage /></Suspense>} />
+          <Route path="/trash" element={<Suspense fallback={<PageSkeleton />}><TrashPage /></Suspense>} />
           {/* Redirect old routes to unified Activity page tabs */}
           <Route path="/queue" element={<Navigate to="/activity?tab=queue" replace />} />
           <Route path="/history" element={<Navigate to="/activity?tab=history" replace />} />
