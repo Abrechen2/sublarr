@@ -125,3 +125,21 @@ def test_record_subtitle_download_also_logs_activity(app_ctx):
     ).first()
     assert row is not None
     assert row.status == "success"
+
+
+def test_extract_event_type_logs_correctly(app_ctx):
+    """Extract events are stored with event_type='extract' and a file_path."""
+    from db.activity import log_activity
+    from db.models.activity import ActivityLog, EVENT_EXTRACT
+    from extensions import db
+
+    log_activity(
+        EVENT_EXTRACT,
+        file_path="/media/Anime/ep6.mkv",
+        status="success",
+        details={"format": "ass", "wanted_id": 42},
+    )
+    row = db.session.query(ActivityLog).filter_by(event_type=EVENT_EXTRACT).first()
+    assert row is not None
+    assert row.file_path == "/media/Anime/ep6.mkv"
+    assert row.status == "success"

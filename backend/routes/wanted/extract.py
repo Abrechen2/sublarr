@@ -8,6 +8,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from flask import current_app, jsonify, request
 
+from db.activity import log_activity
+from db.models.activity import EVENT_EXTRACT
 from events import emit_event
 from extensions import socketio
 from remux import RemuxError, remove_subtitle_stream, remove_subtitle_streams
@@ -111,6 +113,13 @@ def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = F
             "output_path": output_path,
             "source": "embedded",
         },
+    )
+
+    log_activity(
+        EVENT_EXTRACT,
+        file_path=str(file_path),
+        status="success",
+        details={"format": stream_info["format"], "output_path": output_path, "wanted_id": item_id},
     )
 
     if auto_translate and stream_info["format"] == "srt":
@@ -733,6 +742,13 @@ def extract_embedded_sub(item_id):
                 "output_path": output_path,
                 "source": "embedded",
             },
+        )
+
+        log_activity(
+            EVENT_EXTRACT,
+            file_path=str(file_path),
+            status="success",
+            details={"format": stream_info["format"], "output_path": output_path, "wanted_id": item_id},
         )
 
         return jsonify(
