@@ -1,18 +1,18 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
 const mockMutate = vi.fn()
 
 vi.mock('@/hooks/useWantedApi', () => ({
-  useScannerStatus: () => ({ data: { is_scanning: false, is_searching: false, last_scan_at: '2026-04-05T10:00:00Z', last_search_at: null } }),
-  useWantedSummary: () => ({ data: { total: 3 } }),
-  useRefreshWanted: () => ({ mutate: mockMutate, isPending: false }),
+  useScannerStatus: vi.fn(() => ({ data: { is_scanning: false, is_searching: false, last_scan_at: '2026-04-05T10:00:00Z', last_search_at: null } })),
+  useWantedSummary: vi.fn(() => ({ data: { total: 3 } })),
+  useRefreshWanted: vi.fn(() => ({ mutate: mockMutate, isPending: false })),
 }))
 vi.mock('@/hooks/useSystemApi', () => ({
-  useStats: () => ({ data: { total_subtitles: 5000, downloads_today: 22, success_rate: 95, average_score: 88.0, low_score_count: 4 } }),
+  useStats: vi.fn(() => ({ data: { total_subtitles: 5000, downloads_today: 22, success_rate: 95, average_score: 88.0, low_score_count: 4 } })),
 }))
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: vi.fn(() => ({ t: (key: string) => key })),
 }))
 
 describe('StatusStripe', () => {
@@ -65,5 +65,17 @@ describe('StatusStripe', () => {
     render(<StatusStripe />)
     fireEvent.click(screen.getByTestId('btn-run-now'))
     expect(mockMutate).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows active label when scanning', async () => {
+    const { useScannerStatus } = await import('@/hooks/useWantedApi')
+    const mockScannerStatus = useScannerStatus as ReturnType<typeof vi.fn>
+    mockScannerStatus.mockReturnValueOnce({
+      data: { is_scanning: true, is_searching: false, last_scan_at: null, last_search_at: null },
+    })
+
+    const { StatusStripe } = await import('../StatusStripe')
+    render(<StatusStripe />)
+    expect(screen.getByTestId('status-label')).toHaveTextContent('statusStripe.active')
   })
 })

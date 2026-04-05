@@ -73,7 +73,9 @@ export function StatusStripe() {
       </span>
 
       <span data-testid="status-rate" style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-        <strong style={{ color: 'var(--success)' }}>{stats?.success_rate ?? '—'}%</strong>{' '}
+        <strong style={{ color: 'var(--success)' }}>
+          {stats?.success_rate != null ? `${stats.success_rate}%` : '—'}
+        </strong>{' '}
         {t('statusStripe.successRate')}
       </span>
 
