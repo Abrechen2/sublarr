@@ -5,6 +5,18 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.41.8-beta] - 2026-04-05
+
+### Fixed
+- **Wanted items removed after download** — Wanted items are now deleted from the database immediately after a subtitle is successfully downloaded (previously they accumulated with `status = "found"` and were never removed). 71 stale entries cleaned up on deploy. The scanner will not re-add items that already have a subtitle file on disk.
+- **Dashboard metrics populated** — `UNTERTITEL GESAMT`, `B SCORE`, and `LOW SCORE` showed `—` because the `/stats` endpoint never returned these values. Now returns `total_subtitles` (count from `subtitle_downloads`), `average_score` (avg score), and `low_score_count` (upgrade candidates).
+- **Activity page: Download history restored** — The `Downloads` tab was showing the empty `ActivityLogTab` (new `activity_log` table) instead of `HistoryPage` (subtitle_downloads). Restored correctly; the `ActivityLogTab` is now its own separate `Aktivitätslog` tab.
+
+## [0.41.6-beta] - 2026-04-05
+
+### Fixed
+- **Alembic duplicate revision** — `make_glossary_series_id_nullable` and `add_activity_log` both carried revision ID `e4f5a6b7c8d9`. Renamed `make_glossary_series_id_nullable` to `f2a3b4c5d6e7` and updated the four dependent migrations (`add_fansub_preferences`, `add_chapter_cache`, `add_glossary_metadata`, `add_datetime_to_health_results`). Container startup no longer fails with "Revision is present more than once".
+
 ## [0.41.0-beta] - 2026-04-04
 
 ### Added
