@@ -1,5 +1,5 @@
 import { X, Plus, Filter } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { FilterScope, FilterGroup, FilterOperator } from '@/lib/types'
 import { FilterPresetMenu } from './FilterPresetMenu'
@@ -34,6 +34,20 @@ export function FilterBar({ scope, filters, activeFilters, onFiltersChange, onPr
   const [addingFilter, setAddingFilter] = useState(false)
   const [pendingKey, setPendingKey] = useState('')
   const [pendingValue, setPendingValue] = useState('')
+  const popoverRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!addingFilter) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setAddingFilter(false)
+        setPendingKey('')
+        setPendingValue('')
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [addingFilter])
 
   const removeFilter = (key: string) =>
     onFiltersChange(activeFilters.filter((f) => f.key !== key))
@@ -72,18 +86,40 @@ export function FilterBar({ scope, filters, activeFilters, onFiltersChange, onPr
       ))}
 
       {/* Add filter popover */}
-      <div className="relative">
+      <div className="relative" ref={popoverRef}>
         <button
           onClick={() => setAddingFilter((v) => !v)}
-          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs border border-dashed border-border text-muted-foreground hover:border-teal-500 hover:text-teal-400 transition-colors"
+          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs border border-dashed transition-colors"
+          style={{
+            borderColor: addingFilter ? 'var(--accent)' : 'var(--border)',
+            color: addingFilter ? 'var(--accent)' : 'var(--text-muted)',
+          }}
         >
           <Plus className="h-3 w-3" />
           {t('filters.addFilter')}
         </button>
         {addingFilter && (
-          <div className="absolute top-7 left-0 z-20 bg-background border border-border rounded-lg shadow-lg p-3 min-w-48">
+          <div
+            style={{
+              position: 'absolute',
+              top: '2rem',
+              left: 0,
+              zIndex: 9999,
+              minWidth: '200px',
+              padding: '10px',
+              borderRadius: '8px',
+              backgroundColor: 'var(--bg-elevated)',
+              border: '1px solid var(--accent-dim)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+            }}
+          >
             <select
-              className="w-full mb-2 text-sm bg-background border border-border rounded px-2 py-1"
+              className="w-full mb-2 text-sm rounded px-2 py-1"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border)',
+              }}
               value={pendingKey}
               onChange={(e) => { setPendingKey(e.target.value); setPendingValue('') }}
             >
@@ -96,7 +132,12 @@ export function FilterBar({ scope, filters, activeFilters, onFiltersChange, onPr
               const def = filters.find((f) => f.key === pendingKey)!
               return def.type === 'select' ? (
                 <select
-                  className="w-full text-sm bg-background border border-border rounded px-2 py-1"
+                  className="w-full text-sm rounded px-2 py-1"
+                  style={{
+                    backgroundColor: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)',
+                  }}
                   value={pendingValue}
                   onChange={(e) => {
                     setPendingValue(e.target.value)
@@ -113,7 +154,12 @@ export function FilterBar({ scope, filters, activeFilters, onFiltersChange, onPr
                   value={pendingValue}
                   onChange={(e) => setPendingValue(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && pendingValue) addFilter(pendingKey, pendingValue) }}
-                  className="w-full text-sm bg-background border border-border rounded px-2 py-1 outline-none"
+                  className="w-full text-sm rounded px-2 py-1 outline-none"
+                  style={{
+                    backgroundColor: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)',
+                  }}
                   autoFocus
                 />
               )

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Bookmark, ChevronDown, Save, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useFilterPresets, useCreateFilterPreset, useDeleteFilterPreset } from '@/hooks/useApi'
@@ -15,6 +15,19 @@ export function FilterPresetMenu({ scope, activeFilters, onPresetLoad }: Props) 
   const [open, setOpen] = useState(false)
   const [saveName, setSaveName] = useState('')
   const [saving, setSaving] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false)
+        setSaving(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
   const { data: presets = [] } = useFilterPresets(scope)
   const createPreset = useCreateFilterPreset()
   const deletePreset = useDeleteFilterPreset(scope)
@@ -35,10 +48,11 @@ export function FilterPresetMenu({ scope, activeFilters, onPresetLoad }: Props) 
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={menuRef}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        className="inline-flex items-center gap-1 text-xs transition-colors"
+        style={{ color: open ? 'var(--accent)' : 'var(--text-muted)' }}
         title={t('filters.presets')}
       >
         <Bookmark className="h-3.5 w-3.5" />
@@ -47,21 +61,36 @@ export function FilterPresetMenu({ scope, activeFilters, onPresetLoad }: Props) 
       </button>
 
       {open && (
-        <div className="absolute right-0 top-6 z-20 bg-background border border-border rounded-lg shadow-lg p-3 min-w-52">
+        <div
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: '1.75rem',
+            zIndex: 9999,
+            minWidth: '210px',
+            padding: '10px',
+            borderRadius: '8px',
+            backgroundColor: 'var(--bg-elevated)',
+            border: '1px solid var(--accent-dim)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+          }}
+        >
           {presets.length === 0 && !saving && (
-            <p className="text-xs text-muted-foreground mb-2">{t('filters.noPresets')}</p>
+            <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>{t('filters.noPresets')}</p>
           )}
           {presets.map((p) => (
             <div key={p.id} className="flex items-center gap-1 group mb-1">
               <button
                 onClick={() => { onPresetLoad(p.conditions); setOpen(false) }}
-                className="flex-1 text-left text-sm hover:text-teal-400 truncate"
+                className="flex-1 text-left text-sm truncate"
+                style={{ color: 'var(--text-primary)' }}
               >
                 {p.name}
               </button>
               <button
                 onClick={() => deletePreset.mutate(p.id)}
-                className="opacity-0 group-hover:opacity-100 text-destructive"
+                className="opacity-0 group-hover:opacity-100"
+                style={{ color: 'var(--danger)' }}
                 aria-label="Delete preset"
               >
                 <Trash2 className="h-3 w-3" />
@@ -69,7 +98,7 @@ export function FilterPresetMenu({ scope, activeFilters, onPresetLoad }: Props) 
             </div>
           ))}
 
-          <div className="border-t border-border mt-2 pt-2">
+          <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
             {saving ? (
               <div className="flex gap-1">
                 <input
@@ -78,10 +107,15 @@ export function FilterPresetMenu({ scope, activeFilters, onPresetLoad }: Props) 
                   value={saveName}
                   onChange={(e) => setSaveName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') void handleSave() }}
-                  className="flex-1 text-xs bg-background border border-border rounded px-2 py-1 outline-none"
+                  className="flex-1 text-xs rounded px-2 py-1 outline-none"
+                  style={{
+                    backgroundColor: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)',
+                  }}
                   autoFocus
                 />
-                <button onClick={() => void handleSave()} className="text-teal-400 hover:text-teal-300">
+                <button onClick={() => void handleSave()} style={{ color: 'var(--accent)' }}>
                   <Save className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -89,7 +123,8 @@ export function FilterPresetMenu({ scope, activeFilters, onPresetLoad }: Props) 
               <button
                 onClick={() => setSaving(true)}
                 disabled={activeFilters.length === 0}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+                className="flex items-center gap-1 text-xs disabled:opacity-40 transition-colors"
+                style={{ color: 'var(--text-muted)' }}
               >
                 <Save className="h-3 w-3" />
                 {t('filters.saveCurrentFilters')}
