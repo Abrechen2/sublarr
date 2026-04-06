@@ -6,9 +6,28 @@ import { ConnectionsSettings } from '../ConnectionsSettings'
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
+import enCommon from '../../../i18n/locales/en/common.json'
+import enSettings from '../../../i18n/locales/en/settings.json'
+
+function lookupKey(ns: Record<string, unknown>, key: string): string | undefined {
+  const parts = key.split('.')
+  let v: unknown = ns
+  for (const p of parts) {
+    if (typeof v !== 'object' || v === null) return undefined
+    v = (v as Record<string, unknown>)[p]
+  }
+  return typeof v === 'string' ? v : undefined
+}
+
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => key.split('.').pop() ?? key,
+  useTranslation: (ns?: string) => ({
+    t: (key: string, opts?: string | Record<string, unknown>) => {
+      if (typeof opts === 'string') return opts
+      if (opts !== undefined && typeof opts === 'object' && 'count' in opts)
+        return `${key}:${String(opts.count)}`
+      const dict = ns === 'settings' ? enSettings : enCommon
+      return lookupKey(dict, key) ?? key
+    },
     i18n: { language: 'en', changeLanguage: vi.fn() },
   }),
 }))
@@ -111,10 +130,10 @@ describe('ConnectionsSettings', () => {
 
   // ── Standalone section ──
 
-  it('renders the Standalone-Modus section', () => {
+  it('renders the Standalone Mode section', () => {
     renderWithProviders(<ConnectionsSettings />)
-    expect(screen.getByText('Standalone-Modus')).toBeInTheDocument()
-    expect(screen.getByText('Bibliothek jetzt scannen')).toBeInTheDocument()
+    expect(screen.getByText('Standalone Mode')).toBeInTheDocument()
+    expect(screen.getByText('Scan library now')).toBeInTheDocument()
   })
 })
 

@@ -7,6 +7,17 @@ import { BrowserRouter } from 'react-router-dom'
 const mockToast = vi.fn()
 const mockClipboardWrite = vi.fn()
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, opts?: string | Record<string, unknown>) => {
+      if (typeof opts === 'string') return opts
+      if (opts !== undefined && typeof opts === 'object' && 'count' in opts)
+        return `${key}:${String(opts.count)}`
+      return key
+    },
+  }),
+}))
+
 vi.mock('@/components/shared/Toast', () => ({
   toast: (...args: unknown[]) => mockToast(...args),
 }))
@@ -87,6 +98,6 @@ describe('WebhooksPage (Step 65)', () => {
     renderPage()
     fireEvent.click(screen.getByTestId('webhook-copy-sonarr'))
     expect(mockClipboardWrite).toHaveBeenCalledWith(expect.stringContaining('/api/v1/webhook/sonarr'))
-    expect(mockToast).toHaveBeenCalledWith('Copied!')
+    expect(mockToast).toHaveBeenCalledWith('webhooks_page.copied')
   })
 })

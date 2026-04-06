@@ -5,9 +5,29 @@ import { BrowserRouter } from 'react-router-dom'
 import { ProvidersSettings } from '../ProvidersSettings'
 
 // ─── i18n ─────────────────────────────────────────────────────────────────────
+
+import enCommon from '../../../i18n/locales/en/common.json'
+import enSettings from '../../../i18n/locales/en/settings.json'
+
+function lookupKey(ns: Record<string, unknown>, key: string): string | undefined {
+  const parts = key.split('.')
+  let v: unknown = ns
+  for (const p of parts) {
+    if (typeof v !== 'object' || v === null) return undefined
+    v = (v as Record<string, unknown>)[p]
+  }
+  return typeof v === 'string' ? v : undefined
+}
+
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, fallback?: string) => fallback ?? key.split('.').pop() ?? key,
+  useTranslation: (ns?: string) => ({
+    t: (key: string, opts?: string | Record<string, unknown>) => {
+      if (typeof opts === 'string') return opts
+      if (opts !== undefined && typeof opts === 'object' && 'count' in opts)
+        return `${key}:${String(opts.count)}`
+      const dict = ns === 'settings' ? enSettings : enCommon
+      return lookupKey(dict, key) ?? key.split('.').pop() ?? key
+    },
     i18n: { language: 'en', changeLanguage: vi.fn() },
   }),
 }))

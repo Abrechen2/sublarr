@@ -15,7 +15,14 @@ import { SystemSettings } from '../SystemSettings'
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string, fallback?: string) => fallback ?? key }),
+  useTranslation: () => ({
+    t: (key: string, opts?: string | Record<string, unknown>) => {
+      if (typeof opts === 'string') return opts
+      if (opts !== undefined && typeof opts === 'object' && 'count' in opts)
+        return `${key}:${String(opts.count)}`
+      return key
+    },
+  }),
 }))
 
 vi.mock('../SecurityTab', async () => {
@@ -72,6 +79,14 @@ vi.mock('../RemuxTab', () => ({
 
 vi.mock('../StandaloneSettingsTab', () => ({
   StandaloneSettingsTab: () => <div data-testid="standalone-settings-tab">StandaloneSettingsTab</div>,
+}))
+
+vi.mock('../CacheTab', () => ({
+  CacheTab: () => <div data-testid="cache-tab">CacheTab</div>,
+}))
+
+vi.mock('../ConfigExportImportTab', () => ({
+  ConfigExportImportTab: () => <div data-testid="config-export-import-tab">ConfigExportImportTab</div>,
 }))
 
 const mockSaveConfig = vi.fn()
@@ -169,10 +184,10 @@ describe('SystemSettings', () => {
 
   // ── All sections ──────────────────────────────────────────────────────────
 
-  it('renders exactly 13 settings sections', () => {
+  it('renders exactly 11 settings sections', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections).toHaveLength(13)
+    expect(sections).toHaveLength(11)
   })
 
   // ── Section titles ────────────────────────────────────────────────────────
@@ -350,11 +365,10 @@ describe('SystemSettings', () => {
     expect(screen.getByTestId('section-anidb')).toBeInTheDocument()
   })
 
-  it('shows "AniDB" section title', () => {
+  it('AniDB nav card renders a Configure link', () => {
     renderPage()
     const wrapper = screen.getByTestId('section-anidb')
-    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
-    expect(title).toHaveTextContent('AniDB')
+    expect(wrapper.querySelector('a')).toBeInTheDocument()
   })
 
   it('renders the Remux section', () => {
@@ -362,11 +376,10 @@ describe('SystemSettings', () => {
     expect(screen.getByTestId('section-remux')).toBeInTheDocument()
   })
 
-  it('shows "Remux" section title', () => {
+  it('Remux nav card renders a Configure link', () => {
     renderPage()
     const wrapper = screen.getByTestId('section-remux')
-    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
-    expect(title).toHaveTextContent('Remux')
+    expect(wrapper.querySelector('a')).toBeInTheDocument()
   })
 
   it('renders the Standalone Mode section', () => {

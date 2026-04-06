@@ -1,7 +1,30 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { SettingsDetailLayout } from '../SettingsDetailLayout'
+
+import enCommon from '../../../i18n/locales/en/common.json'
+
+function lookupKey(ns: Record<string, unknown>, key: string): string | undefined {
+  const parts = key.split('.')
+  let v: unknown = ns
+  for (const p of parts) {
+    if (typeof v !== 'object' || v === null) return undefined
+    v = (v as Record<string, unknown>)[p]
+  }
+  return typeof v === 'string' ? v : undefined
+}
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, opts?: string | Record<string, unknown>) => {
+      if (typeof opts === 'string') return opts
+      if (opts !== undefined && typeof opts === 'object' && 'count' in opts)
+        return `${key}:${String(opts.count)}`
+      return lookupKey(enCommon, key) ?? key
+    },
+  }),
+}))
 
 function renderWithRouter(ui: React.ReactElement) {
   return render(<BrowserRouter>{ui}</BrowserRouter>)
