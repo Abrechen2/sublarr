@@ -1,6 +1,13 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { SettingsSection } from '../SettingsSection'
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, opts?: { count?: number }) =>
+      opts?.count !== undefined ? `${key}:${opts.count}` : key,
+  }),
+}))
 
 describe('SettingsSection', () => {
   it('renders with data-testid="settings-section"', () => {
@@ -132,5 +139,23 @@ describe('SettingsSection', () => {
       </SettingsSection>,
     )
     expect(screen.getByTestId('settings-section')).toHaveClass('my-class')
+  })
+
+  it('shows count in toggle label when advancedCount is provided', () => {
+    render(
+      <SettingsSection title="Test" advanced={<div>hidden</div>} advancedCount={3}>
+        <div>normal</div>
+      </SettingsSection>,
+    )
+    expect(screen.getByTestId('settings-section-advanced-toggle')).toHaveTextContent('3')
+  })
+
+  it('renders toggle without count when advancedCount is not provided', () => {
+    render(
+      <SettingsSection title="Test" advanced={<div>hidden</div>}>
+        <div>normal</div>
+      </SettingsSection>,
+    )
+    expect(screen.getByTestId('settings-section-advanced-toggle')).toBeInTheDocument()
   })
 })
