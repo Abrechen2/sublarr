@@ -473,6 +473,27 @@
     "trash_retention": "Papierkorb-Aufbewahrung (Tage)",
     "trash_retention_hint": "Gelöschte Untertitel für diese Anzahl von Tagen im Papierkorb behalten bevor sie endgültig gelöscht werden."
   },
+  "scoring_tab": {
+    "presets_title": "Schnellstart: Preset anwenden",
+    "presets_desc": "Ein Klick um ein abgestimmtes Scoring-Profil anzuwenden. Deine aktuellen Gewichtungen werden ersetzt.",
+    "what_matters_title": "Was am meisten zählt",
+    "what_matters_desc": "Die wirkungsvollsten Einstellungen für Untertitel-Qualität. Diese zuerst ändern.",
+    "prefer_ass": "ASS/SSA-Format bevorzugen",
+    "prefer_ass_hint": "Gibt ASS- und SSA-Untertiteln gegenüber einfachem SRT einen +30 Score-Bonus. Empfohlen für Anime.",
+    "penalize_mt": "Maschinell übersetzte Untertitel bestrafen",
+    "penalize_mt_hint": "Wendet einen −30 Score-Malus auf Untertitel an die als maschinell übersetzt markiert sind.",
+    "release_group_title": "Release-Gruppen-Präferenzen",
+    "release_group_desc": "Untertitel von bestimmten Gruppen bevorzugen (Score-Bonus) oder unerwünschte Gruppen blockieren.",
+    "preferred_groups": "Bevorzugte Gruppen",
+    "blocked_groups": "Blockierte Gruppen",
+    "blocked_groups_hint": "Kommagetrennte Gruppen die vollständig aus allen Ergebnissen ausgeschlossen werden.",
+    "prefer_bonus": "Bevorzugungsbonus (Score-Punkte)",
+    "prefer_bonus_hint": "Zusätzliche Score-Punkte für Untertitel einer bevorzugten Gruppe.",
+    "mt_penalty": "MT Score-Malus",
+    "mt_penalty_hint": "Malus für maschinell übersetzte Untertitel (−50 bis 0; 0 = deaktiviert).",
+    "mt_threshold": "MT Konfidenz-Schwellenwert",
+    "mt_threshold_hint": "Minimale Konfidenz % (0–100) um einen Untertitel als maschinell übersetzt zu markieren."
+  },
   "general_page": {
     "title": "Allgemein",
     "subtitle": "Oberfläche, Server und Protokoll-Einstellungen",

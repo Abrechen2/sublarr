@@ -8,6 +8,7 @@
  * 4. Advanced — full weight sliders + provider modifiers, collapsed by default
  */
 import { useState, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Save, Loader2, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
 import {
   useScoringWeights, useUpdateScoringWeights, useResetScoringWeights,
@@ -142,6 +143,8 @@ export function ScoringTab() {
   const [mtPenalty, setMtPenalty] = useState(-30)
   const [mtThreshold, setMtThreshold] = useState(50)
   const [mtInit, setMtInit] = useState(false)
+
+  const { t } = useTranslation('settings')
 
   // Advanced panel
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -289,8 +292,8 @@ export function ScoringTab() {
       {/* ── 1. Presets ─────────────────────────────────────────────────── */}
       {(presets ?? []).length > 0 && (
         <SettingsSection
-          title="Quick Start: Apply a Preset"
-          description="One click to apply a tuned scoring profile. Your current weights will be replaced."
+          title={t('scoring_tab.presets_title')}
+          description={t('scoring_tab.presets_desc')}
         >
           <div
             data-testid="preset-buttons"
@@ -332,12 +335,12 @@ export function ScoringTab() {
 
       {/* ── 2. What Matters Most ───────────────────────────────────────── */}
       <SettingsSection
-        title="What Matters Most"
-        description="The most impactful settings for subtitle quality. Change these first."
+        title={t('scoring_tab.what_matters_title')}
+        description={t('scoring_tab.what_matters_desc')}
       >
         <FormGroup
-          label="Prefer ASS/SSA format"
-          hint="Gives a +30 score bonus to ASS and SSA subtitles over plain SRT. Recommended for anime."
+          label={t('scoring_tab.prefer_ass')}
+          hint={t('scoring_tab.prefer_ass_hint')}
           data-testid="form-group-prefer-ass"
         >
           <Toggle
@@ -348,8 +351,8 @@ export function ScoringTab() {
         </FormGroup>
 
         <FormGroup
-          label="Penalize machine-translated subtitles"
-          hint="Applies a −30 score penalty to subtitles flagged as machine-translated."
+          label={t('scoring_tab.penalize_mt')}
+          hint={t('scoring_tab.penalize_mt_hint')}
           data-testid="form-group-penalize-mt"
         >
           <Toggle
@@ -362,8 +365,8 @@ export function ScoringTab() {
 
       {/* ── 3. Release Group ──────────────────────────────────────────── */}
       <SettingsSection
-        title="Release Group Preferences"
-        description="Prefer subtitles from specific groups (score bonus) or block groups you dislike."
+        title={t('scoring_tab.release_group_title')}
+        description={t('scoring_tab.release_group_desc')}
       >
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
           <button
@@ -383,7 +386,7 @@ export function ScoringTab() {
         </div>
 
         <FormGroup
-          label="Preferred Groups"
+          label={t('scoring_tab.preferred_groups')}
           hint={`Comma-separated release groups that receive a +${rgBonus} score bonus (e.g. SubsPlease, Erai-raws). Leave empty to disable.`}
           data-testid="form-group-rg-prefer"
         >
@@ -399,8 +402,8 @@ export function ScoringTab() {
         </FormGroup>
 
         <FormGroup
-          label="Blocked Groups"
-          hint="Comma-separated groups to exclude from all results entirely."
+          label={t('scoring_tab.blocked_groups')}
+          hint={t('scoring_tab.blocked_groups_hint')}
           data-testid="form-group-rg-exclude"
         >
           <input
@@ -416,8 +419,8 @@ export function ScoringTab() {
 
         {hasRgPrefer && (
           <FormGroup
-            label="Prefer Bonus (score pts)"
-            hint="Extra score points for subtitles matching a preferred group."
+            label={t('scoring_tab.prefer_bonus')}
+            hint={t('scoring_tab.prefer_bonus_hint')}
             data-testid="form-group-rg-bonus"
           >
             <input
@@ -648,8 +651,8 @@ export function ScoringTab() {
               </div>
               <div data-testid="mt-detection-controls">
                 <FormGroup
-                  label="MT Score Penalty"
-                  hint="Penalty applied to machine-translated subtitles (−50 to 0; 0 = disabled)."
+                  label={t('scoring_tab.mt_penalty')}
+                  hint={t('scoring_tab.mt_penalty_hint')}
                   data-testid="form-group-mt-penalty"
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -670,8 +673,8 @@ export function ScoringTab() {
                   </div>
                 </FormGroup>
                 <FormGroup
-                  label="MT Confidence Threshold"
-                  hint="Minimum confidence % (0–100) to flag a subtitle as machine-translated."
+                  label={t('scoring_tab.mt_threshold')}
+                  hint={t('scoring_tab.mt_threshold_hint')}
                   data-testid="form-group-mt-threshold"
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

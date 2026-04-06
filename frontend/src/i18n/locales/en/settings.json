@@ -473,6 +473,27 @@
     "trash_retention": "Trash Retention (days)",
     "trash_retention_hint": "Keep deleted subtitles in trash for this many days before permanent removal."
   },
+  "scoring_tab": {
+    "presets_title": "Quick Start: Apply a Preset",
+    "presets_desc": "One click to apply a tuned scoring profile. Your current weights will be replaced.",
+    "what_matters_title": "What Matters Most",
+    "what_matters_desc": "The most impactful settings for subtitle quality. Change these first.",
+    "prefer_ass": "Prefer ASS/SSA format",
+    "prefer_ass_hint": "Gives a +30 score bonus to ASS and SSA subtitles over plain SRT. Recommended for anime.",
+    "penalize_mt": "Penalize machine-translated subtitles",
+    "penalize_mt_hint": "Applies a −30 score penalty to subtitles flagged as machine-translated.",
+    "release_group_title": "Release Group Preferences",
+    "release_group_desc": "Prefer subtitles from specific groups (score bonus) or block groups you dislike.",
+    "preferred_groups": "Preferred Groups",
+    "blocked_groups": "Blocked Groups",
+    "blocked_groups_hint": "Comma-separated groups to exclude from all results entirely.",
+    "prefer_bonus": "Prefer Bonus (score pts)",
+    "prefer_bonus_hint": "Extra score points for subtitles matching a preferred group.",
+    "mt_penalty": "MT Score Penalty",
+    "mt_penalty_hint": "Penalty applied to machine-translated subtitles (−50 to 0; 0 = disabled).",
+    "mt_threshold": "MT Confidence Threshold",
+    "mt_threshold_hint": "Minimum confidence % (0–100) to flag a subtitle as machine-translated."
+  },
   "general_page": {
     "title": "General",
     "subtitle": "Interface, server, and logging configuration",
