@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Loader2, Upload, CheckCircle, FileText, Database } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 
@@ -23,6 +24,7 @@ interface MigrationResult {
 }
 
 export function MigrationTab() {
+  const { t } = useTranslation('settings')
   const [step, setStep] = useState<'upload' | 'preview' | 'import' | 'complete'>('upload')
   const [configFile, setConfigFile] = useState<File | null>(null)
   const [dbFile, setDbFile] = useState<File | null>(null)
@@ -101,7 +103,7 @@ export function MigrationTab() {
       </div>
 
       <div>
-        <h2 className="text-2xl font-bold mb-2">Bazarr Migration</h2>
+        <h2 className="text-2xl font-bold mb-2">{t('integrations.bazarr.title')}</h2>
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
           Migrate your Bazarr configuration, profiles, and history to Sublarr.
         </p>
@@ -171,19 +173,19 @@ export function MigrationTab() {
 
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                <span>Config Entries</span>
+                <span>{t('migration.config_entries')}</span>
                 <span className="font-mono">{preview.config_entries}</span>
               </div>
               <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                <span>Language Profiles</span>
+                <span>{t('migration.language_profiles')}</span>
                 <span className="font-mono">{preview.profiles}</span>
               </div>
               <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                <span>Blacklist Entries</span>
+                <span>{t('migration.blacklist_entries')}</span>
                 <span className="font-mono">{preview.blacklist_entries}</span>
               </div>
               <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                <span>History Entries</span>
+                <span>{t('migration.history_entries')}</span>
                 <span className="font-mono">{preview.history_entries}</span>
               </div>
             </div>
@@ -223,19 +225,19 @@ export function MigrationTab() {
 
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                <span>Config Entries Imported</span>
+                <span>{t('migration.config_entries')}</span>
                 <span className="font-mono text-green-400">{importResult.config_imported}</span>
               </div>
               <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                <span>Profiles Imported</span>
+                <span>{t('migration.profiles_imported')}</span>
                 <span className="font-mono text-green-400">{importResult.profiles_imported}</span>
               </div>
               <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                <span>Blacklist Entries Imported</span>
+                <span>{t('migration.blacklist_entries')}</span>
                 <span className="font-mono text-green-400">{importResult.blacklist_imported}</span>
               </div>
               <div className="flex items-center justify-between p-3 rounded" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                <span>History Entries Imported</span>
+                <span>{t('migration.history_entries')}</span>
                 <span className="font-mono text-green-400">{importResult.history_imported}</span>
               </div>
             </div>

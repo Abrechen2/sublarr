@@ -376,5 +376,15 @@
   "subtitle_tools_tab": {
     "common_fixes": "Allgemeine Korrektionen",
     "preview_subtitle": "Untertitel-Vorschau"
+  },
+  "migration": {
+    "config_entries": "Konfigurationseinträge",
+    "language_profiles": "Sprachprofile",
+    "blacklist_entries": "Sperrlisten-Einträge",
+    "history_entries": "Verlaufseinträge",
+    "profiles_imported": "Importierte Profile"
+  },
+  "legacy": {
+    "import_preview": "Import-Vorschau"
   }
 }

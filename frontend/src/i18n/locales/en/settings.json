@@ -376,5 +376,15 @@
   "subtitle_tools_tab": {
     "common_fixes": "Common Fixes",
     "preview_subtitle": "Preview Subtitle"
+  },
+  "migration": {
+    "config_entries": "Config Entries",
+    "language_profiles": "Language Profiles",
+    "blacklist_entries": "Blacklist Entries",
+    "history_entries": "History Entries",
+    "profiles_imported": "Profiles Imported"
+  },
+  "legacy": {
+    "import_preview": "Import Preview"
   }
 }
