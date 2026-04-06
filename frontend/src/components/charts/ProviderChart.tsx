@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function ProviderChart({ data }: Props) {
+  const { t } = useTranslation('statistics')
   const chartData = useMemo(() =>
     Object.entries(data).map(([name, stats]) => ({
       name,
@@ -42,8 +44,8 @@ export function ProviderChart({ data }: Props) {
           }}
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Bar dataKey="searches" name="Searches" fill="var(--accent)" radius={[4, 4, 0, 0]} />
-        <Bar dataKey="downloads" name="Downloads" fill="var(--success)" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="searches" name={t('charts.searches')} fill="var(--accent)" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="downloads" name={t('charts.downloads')} fill="var(--success)" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   )

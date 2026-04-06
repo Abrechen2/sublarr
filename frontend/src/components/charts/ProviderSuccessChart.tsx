@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function ProviderSuccessChart({ data, height = 250 }: Props) {
+  const { t } = useTranslation('statistics')
   if (data.length === 0) {
     return (
       <div
@@ -43,17 +45,18 @@ export function ProviderSuccessChart({ data, height = 250 }: Props) {
             const v = Number(value || 0)
             const n = String(_name || '')
             const payload = (item as { payload?: ProviderSuccessData })?.payload
-            if (payload) {
+            const dataKey = (item as { dataKey?: string })?.dataKey
+            if (payload && dataKey === 'success') {
               const total = payload.success + payload.failed
               const rate = total > 0 ? ((payload.success / total) * 100).toFixed(1) : '0'
-              if (n === 'Success') return [`${v} (${rate}% success rate)`, n]
+              return [`${v} (${rate}% success rate)`, n]
             }
             return [v, n]
           }}
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Bar dataKey="success" name="Success" stackId="a" fill="var(--success)" radius={[0, 0, 0, 0]} />
-        <Bar dataKey="failed" name="Failed" stackId="a" fill="var(--error)" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="success" name={t('charts.success')} stackId="a" fill="var(--success)" radius={[0, 0, 0, 0]} />
+        <Bar dataKey="failed" name={t('charts.failed')} stackId="a" fill="var(--error)" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   )

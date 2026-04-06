@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function TranslationChart({ data }: Props) {
+  const { t } = useTranslation('statistics')
   const chartData = useMemo(() => [...data].reverse(), [data])
 
   const formatDate = (date: unknown) => {
@@ -40,7 +42,7 @@ export function TranslationChart({ data }: Props) {
         <Area
           type="monotone"
           dataKey="translated"
-          name="Translated"
+          name={t('charts.translated')}
           stroke="var(--accent)"
           fill="var(--accent-subtle)"
           strokeWidth={2}
@@ -48,7 +50,7 @@ export function TranslationChart({ data }: Props) {
         <Area
           type="monotone"
           dataKey="failed"
-          name="Failed"
+          name={t('charts.failed')}
           stroke="var(--error)"
           fill="var(--error, rgba(239,68,68,0.1))"
           fillOpacity={0.15}

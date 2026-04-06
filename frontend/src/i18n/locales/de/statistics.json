@@ -20,7 +20,9 @@
     "format": "Untertitelformat-Verteilung",
     "downloads_by_provider": "Downloads nach Provider",
     "count": "Anzahl",
-    "avg_score": "Durchschn. Score"
+    "avg_score": "Durchschn. Score",
+    "success": "Erfolgreich",
+    "issues": "Probleme"
   },
   "no_data": "Noch keine Daten für den gewählten Zeitraum. Starte Untertitel-Suchen oder Übersetzungen.",
   "exported": "Statistiken als {{format}} exportiert",

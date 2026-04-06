@@ -20,7 +20,9 @@
     "format": "Subtitle Format Distribution",
     "downloads_by_provider": "Downloads by Provider",
     "count": "Count",
-    "avg_score": "Avg. Score"
+    "avg_score": "Avg Score",
+    "success": "Success",
+    "issues": "Issues"
   },
   "no_data": "No data for the selected period. Run subtitle searches or translations to populate statistics.",
   "exported": "Statistics exported as {{format}}",

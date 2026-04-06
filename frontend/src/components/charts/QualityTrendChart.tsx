@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function QualityTrendChart({ data, height = 250 }: Props) {
+  const { t } = useTranslation('statistics')
   if (data.length === 0) {
     return (
       <div
@@ -53,10 +55,11 @@ export function QualityTrendChart({ data, height = 250 }: Props) {
             color: 'var(--text-primary)',
             fontSize: 12,
           }}
-          formatter={(value: unknown, _name: unknown) => {
+          formatter={(value: unknown, _name: unknown, item: unknown) => {
             const v = Number(value || 0)
             const n = String(_name || '')
-            if (n === 'Avg Score') return [`${v.toFixed(1)}/100`, n]
+            const dataKey = (item as { dataKey?: string })?.dataKey
+            if (dataKey === 'avg_score') return [`${v.toFixed(1)}/100`, n]
             return [v, n]
           }}
         />
@@ -65,7 +68,7 @@ export function QualityTrendChart({ data, height = 250 }: Props) {
           yAxisId="score"
           type="monotone"
           dataKey="avg_score"
-          name="Avg Score"
+          name={t('charts.avg_score')}
           stroke="var(--accent)"
           strokeWidth={2}
           dot={{ r: 3 }}
@@ -74,7 +77,7 @@ export function QualityTrendChart({ data, height = 250 }: Props) {
           yAxisId="issues"
           type="monotone"
           dataKey="issues_count"
-          name="Issues"
+          name={t('charts.issues')}
           stroke="var(--error)"
           strokeWidth={1.5}
           strokeDasharray="4 2"
