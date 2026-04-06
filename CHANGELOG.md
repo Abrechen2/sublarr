@@ -5,6 +5,13 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.42.0-beta] - 2026-04-06
+
+### Added
+- **Update-Indikator** — Pulsierender amber Dot auf dem Settings-Icon und ein Chip (↑ vX.Y.Z) neben der Versionsnummer im Sidebar wenn ein neueres Release auf GitHub verfügbar ist. Die Versionsnummer in der StatusBar wird anklickbar und öffnet einen Popover mit Link zu GitHub Releases.
+- **Logs-Seite** — Neue Route `/logs` mit eigenem Sidebar-Icon (ScrollText) für direkten Zugriff auf Backend-Logs.
+- **Vollständige i18n-Lokalisierung** — Alle Settings-Seiten (General, Automation, Scoring, Backup, AniDB, Cache), die Trash-Seite sowie weitere UI-Seiten (Library, Plugins, Setup, Statistics u.a.) sind jetzt vollständig übersetzbar. Fallback-Sprache ist Deutsch.
+
 ## [0.41.8-beta] - 2026-04-05
 
 ### Fixed
