@@ -161,5 +161,30 @@
   "plugins": {
     "marketplace_title": "Plugin Marketplace",
     "all_categories": "All Categories"
+  },
+  "trash": {
+    "page_title": "Trash",
+    "loading": "Loading…",
+    "empty": "Trash is empty",
+    "mkv_restore_title": "Restore Video Backup",
+    "mkv_restore_desc": "The remuxed video file will be replaced by the backup (atomic swap).",
+    "mkv_no_video": "Original video no longer found on disk — path cannot be resolved.",
+    "delete_sidecars_label": "Also delete matching sidecar batches",
+    "cancel": "Cancel",
+    "restore": "Restore",
+    "unknown_series": "Unknown Series",
+    "file_singular": "file",
+    "file_plural": "files",
+    "deleted_on": "deleted",
+    "expires": "expires",
+    "restore_btn": "Restore",
+    "delete_btn": "Delete",
+    "delete_confirm": "Delete permanently",
+    "show_files": "Show {{count}} files ▼",
+    "hide_files": "Hide files ▲",
+    "subtitle_sidecars": "Subtitle Sidecars",
+    "video_backups": "Video Backups (Remux)",
+    "original_not_found": "Original not found",
+    "expires_label": "expires"
   }
 }
