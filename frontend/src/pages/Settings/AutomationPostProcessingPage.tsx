@@ -24,6 +24,61 @@ function SectionSkeleton() {
   )
 }
 
+function ProcessingPipelineAdvancedContent() {
+  const { t: tS } = useTranslation('settings')
+  const { data: config, isLoading } = useConfig()
+  const updateConfig = useUpdateConfig()
+  const save = (patch: Record<string, unknown>) => updateConfig.mutate(patch)
+
+  if (isLoading) return <SectionSkeleton />
+
+  return (
+    <div data-testid="processing-pipeline-advanced-content">
+      <FormGroup
+        label={tS('automation_page.sync_threshold')}
+        hint={tS('automation_page.sync_threshold_hint')}
+        htmlFor="auto-process-sync-threshold"
+        advanced
+        data-testid="form-group-auto-process-sync-threshold"
+      >
+        <input
+          id="auto-process-sync-threshold"
+          type="number"
+          data-testid="input-auto-process-sync-threshold"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={strVal(config, 'auto_process_sync_threshold', '80')}
+          onChange={(e) => save({ auto_process_sync_threshold: Number(e.target.value) })}
+          disabled={updateConfig.isPending}
+          min={0}
+          max={100}
+          placeholder="80"
+        />
+      </FormGroup>
+
+      <FormGroup
+        label={tS('automation_page.sync_fallback_engine')}
+        hint={tS('automation_page.sync_fallback_engine_hint')}
+        htmlFor="auto-process-sync-fallback-engine"
+        advanced
+        data-testid="form-group-auto-process-sync-fallback-engine"
+      >
+        <select
+          id="auto-process-sync-fallback-engine"
+          data-testid="select-auto-process-sync-fallback-engine"
+          style={{ ...inputStyle, maxWidth: '160px', cursor: 'pointer' }}
+          value={strVal(config, 'auto_process_sync_fallback_engine', 'ffsubsync')}
+          onChange={(e) => save({ auto_process_sync_fallback_engine: e.target.value })}
+          disabled={updateConfig.isPending}
+        >
+          <option value="auto">auto</option>
+          <option value="alass">alass</option>
+          <option value="ffsubsync">ffsubsync</option>
+        </select>
+      </FormGroup>
+    </div>
+  )
+}
+
 function ProcessingPipelineContent() {
   const { t } = useTranslation('common')
   const { t: tS } = useTranslation('settings')
@@ -115,49 +170,6 @@ function ProcessingPipelineContent() {
           onChange={(v) => save({ auto_process_credit_removal: v })}
           disabled={updateConfig.isPending}
         />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.sync_threshold')}
-        hint={tS('automation_page.sync_threshold_hint')}
-        htmlFor="auto-process-sync-threshold"
-        data-testid="form-group-auto-process-sync-threshold"
-      >
-        <input
-          id="auto-process-sync-threshold"
-          type="number"
-          data-testid="input-auto-process-sync-threshold"
-          style={{ ...inputStyle, maxWidth: '120px' }}
-          value={strVal(config, 'auto_process_sync_threshold', '80')}
-          onChange={(e) => save({ auto_process_sync_threshold: Number(e.target.value) })}
-          disabled={updateConfig.isPending}
-          min={0}
-          max={100}
-          placeholder="80"
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.sync_fallback_engine')}
-        hint={tS('automation_page.sync_fallback_engine_hint')}
-        htmlFor="auto-process-sync-fallback-engine"
-        data-testid="form-group-auto-process-sync-fallback-engine"
-      >
-        <select
-          id="auto-process-sync-fallback-engine"
-          data-testid="select-auto-process-sync-fallback-engine"
-          style={{
-            ...inputStyle,
-            maxWidth: '160px',
-            cursor: 'pointer',
-          }}
-          value={strVal(config, 'auto_process_sync_fallback_engine', 'ffsubsync')}
-          onChange={(e) => save({ auto_process_sync_fallback_engine: e.target.value })}
-          disabled={updateConfig.isPending}
-        >
-          <option value="ffsubsync">ffsubsync</option>
-          <option value="alass">alass</option>
-        </select>
       </FormGroup>
 
       <FormGroup
@@ -253,6 +265,8 @@ export function AutomationPostProcessingPage() {
             'Control post-download processing: translation, synchronisation, and cleanup.',
           )}
           icon={<Workflow size={16} style={{ color: 'var(--accent)' }} />}
+          advanced={<ProcessingPipelineAdvancedContent />}
+          advancedCount={2}
         >
           <ProcessingPipelineContent />
         </SettingsSection>
