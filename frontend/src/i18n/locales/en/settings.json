@@ -334,5 +334,11 @@
   "support_before": "Before",
   "support_after": "After",
   "support_paths_label": "Paths",
-  "support_ips_label": "IPs"
+  "support_ips_label": "IPs",
+  "hooks": {
+    "shell_hooks": "Shell Hooks",
+    "outgoing_webhooks": "Outgoing Webhooks",
+    "all_events": "All Events",
+    "execution_log": "Execution Log"
+  }
 }
