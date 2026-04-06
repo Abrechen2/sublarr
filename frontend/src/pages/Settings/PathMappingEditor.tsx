@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Loader2, Plus, TestTube, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { toast } from '@/components/shared/Toast'
 
 export function PathMappingEditor({
@@ -9,6 +10,7 @@ export function PathMappingEditor({
   value: string
   onChange: (val: string) => void
 }) {
+  const { t } = useTranslation('settings')
   const [testPath, setTestPath] = useState('')
   const [testResult, setTestResult] = useState<{ mapped_path: string; exists: boolean } | null>(null)
   const [isTesting, setIsTesting] = useState(false)
@@ -69,8 +71,8 @@ export function PathMappingEditor({
             className="grid gap-2 text-xs font-medium"
             style={{ gridTemplateColumns: '1fr 1fr 2rem', color: 'var(--text-muted)' }}
           >
-            <span>Remote Path</span>
-            <span>Local Path</span>
+            <span>{t('path_mapping.remote_path')}</span>
+            <span>{t('path_mapping.local_path')}</span>
             <span />
           </div>
         )}
