@@ -19,6 +19,34 @@ import {
 import { ChevronUp, ChevronDown } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import type { LanguageProfile } from '@/lib/types'
+import { LanguagePillSelector } from '@/components/settings/LanguagePillSelector'
+
+const LANGUAGE_OPTIONS = [
+  { value: 'de', label: 'Deutsch' },
+  { value: 'en', label: 'English' },
+  { value: 'fr', label: 'Français' },
+  { value: 'ja', label: 'Japanese' },
+  { value: 'es', label: 'Español' },
+  { value: 'it', label: 'Italiano' },
+  { value: 'pt', label: 'Português' },
+  { value: 'nl', label: 'Nederlands' },
+  { value: 'pl', label: 'Polski' },
+  { value: 'ru', label: 'Русский' },
+  { value: 'ko', label: '한국어' },
+  { value: 'zh', label: '中文' },
+  { value: 'ar', label: 'العربية' },
+  { value: 'tr', label: 'Türkçe' },
+  { value: 'sv', label: 'Svenska' },
+  { value: 'da', label: 'Dansk' },
+  { value: 'fi', label: 'Suomi' },
+  { value: 'no', label: 'Norsk' },
+  { value: 'cs', label: 'Čeština' },
+  { value: 'hu', label: 'Magyar' },
+] as const
+
+function getLangLabel(code: string): string {
+  return LANGUAGE_OPTIONS.find((o) => o.value === code)?.label ?? code
+}
 
 // ─── Language Profiles Tab ────────────────────────────────────────────────────
 
@@ -35,8 +63,7 @@ export function LanguageProfilesTab() {
     name: '',
     source_language: 'en',
     source_language_name: 'English',
-    target_languages: '',
-    target_language_names: '',
+    target_languages: [] as string[],
     translation_backend: '',
     fallback_chain: [] as string[],
     forced_preference: 'disabled' as 'disabled' | 'separate' | 'auto',
@@ -45,7 +72,7 @@ export function LanguageProfilesTab() {
   const backends = backendsData?.backends ?? []
 
   const resetForm = () => {
-    setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: '', target_language_names: '', translation_backend: '', fallback_chain: [], forced_preference: 'disabled' })
+    setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: [], translation_backend: '', fallback_chain: [], forced_preference: 'disabled' })
     setEditingId(null)
     setShowAdd(false)
   }
@@ -55,8 +82,7 @@ export function LanguageProfilesTab() {
       name: p.name,
       source_language: p.source_language,
       source_language_name: p.source_language_name,
-      target_languages: p.target_languages.join(', '),
-      target_language_names: p.target_language_names.join(', '),
+      target_languages: p.target_languages,
       translation_backend: p.translation_backend || '',
       fallback_chain: p.fallback_chain || [],
       forced_preference: p.forced_preference || 'disabled',
@@ -83,14 +109,10 @@ export function LanguageProfilesTab() {
   }
 
   const handleSave = () => {
-    const targetLangs = form.target_languages.split(',').map((s) => s.trim()).filter(Boolean)
-    const targetNames = form.target_language_names.split(',').map((s) => s.trim()).filter(Boolean)
+    const targetLangs = form.target_languages
+    const targetNames = targetLangs.map(getLangLabel)
     if (!form.name || targetLangs.length === 0) {
       toast('Name and at least one target language required', 'error')
-      return
-    }
-    if (targetLangs.length !== targetNames.length) {
-      toast('Target language codes and names must have the same count', 'error')
       return
     }
 
@@ -140,7 +162,7 @@ export function LanguageProfilesTab() {
           Language profiles define which languages to translate for each series/movie
         </span>
         <button
-          onClick={() => { setShowAdd(true); setEditingId(null); setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: '', target_language_names: '', translation_backend: '', fallback_chain: [], forced_preference: 'disabled' }) }}
+          onClick={() => { setShowAdd(true); setEditingId(null); setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: [], translation_backend: '', fallback_chain: [], forced_preference: 'disabled' }) }}
           className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all duration-150"
           style={{ border: '1px solid var(--accent-dim)', color: 'var(--accent)', backgroundColor: 'var(--accent-bg)' }}
         >
@@ -189,24 +211,13 @@ export function LanguageProfilesTab() {
                 style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Target Language Codes (comma-separated)</label>
-              <input
-                type="text" value={form.target_languages}
-                onChange={(e) => setForm((f) => ({ ...f, target_languages: e.target.value }))}
-                placeholder="de, fr"
-                className="w-full px-2.5 py-1.5 rounded text-xs"
-                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}
-              />
-            </div>
             <div className="space-y-1 md:col-span-2">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Target Language Names (comma-separated, same order)</label>
-              <input
-                type="text" value={form.target_language_names}
-                onChange={(e) => setForm((f) => ({ ...f, target_language_names: e.target.value }))}
-                placeholder="German, French"
-                className="w-full px-2.5 py-1.5 rounded text-xs"
-                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Target Languages</label>
+              <LanguagePillSelector
+                value={form.target_languages}
+                options={LANGUAGE_OPTIONS}
+                onChange={(langs) => setForm((f) => ({ ...f, target_languages: langs }))}
+                placeholder="— Add target language —"
               />
             </div>
 
