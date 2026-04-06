@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror'
 import { keymap } from '@codemirror/view'
 import { EditorView } from '@codemirror/view'
@@ -49,6 +50,7 @@ export function SubtitleEditor({
   onClose,
   onDiffView,
 }: SubtitleEditorProps) {
+  const { t } = useTranslation('editor')
   const [content, setContent] = useState(initialContent)
   const [hasChanges, setHasChanges] = useState(false)
   const [validationResult, setValidationResult] = useState<SubtitleValidation | null>(null)
@@ -84,13 +86,13 @@ export function SubtitleEditor({
       setCurrentMtime(result.new_mtime)
       setHasChanges(false)
       onSave?.(result.new_mtime)
-      toast('File saved successfully', 'success')
+      toast(t('save_success'), 'success')
     } catch (err: unknown) {
       const axiosErr = err as { response?: { status?: number } }
       if (axiosErr.response?.status === 409) {
-        toast('Conflict: file was modified externally. Reload before saving.', 'error')
+        toast(t('save_conflict'), 'error')
       } else {
-        toast('Failed to save file', 'error')
+        toast(t('save_failed'), 'error')
       }
     } finally {
       setIsSaving(false)
@@ -236,14 +238,14 @@ export function SubtitleEditor({
           className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm font-medium
             text-teal-400 transition-colors hover:bg-slate-700
             disabled:cursor-not-allowed disabled:text-slate-500 disabled:hover:bg-transparent"
-          title="Save (Ctrl+S)"
+          title={t('save_title')}
         >
           {isSaving ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Save className="h-4 w-4" />
           )}
-          Save
+          {t('save_btn')}
         </button>
 
         <div className="mx-1 h-5 w-px bg-slate-700" />
@@ -255,14 +257,14 @@ export function SubtitleEditor({
           className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm
             text-slate-300 transition-colors hover:bg-slate-700
             disabled:cursor-not-allowed disabled:text-slate-500"
-          title="Validate subtitle structure"
+          title={t('validate_title')}
         >
           {isValidating ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <CheckCircle className="h-4 w-4" />
           )}
-          Validate
+          {t('validate_btn')}
         </button>
 
         {/* Validation badge */}
@@ -291,24 +293,24 @@ export function SubtitleEditor({
           onClick={handleFindReplace}
           className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm
             text-slate-300 transition-colors hover:bg-slate-700"
-          title="Find & Replace (Ctrl+H)"
+          title={t('find_replace_title')}
         >
           <Search className="h-4 w-4" />
-          Find
+          {t('find_btn')}
         </button>
 
         {/* Undo / Redo */}
         <button
           onClick={handleUndo}
           className="rounded p-1.5 text-slate-300 transition-colors hover:bg-slate-700"
-          title="Undo (Ctrl+Z)"
+          title={t('undo_title')}
         >
           <Undo2 className="h-4 w-4" />
         </button>
         <button
           onClick={handleRedo}
           className="rounded p-1.5 text-slate-300 transition-colors hover:bg-slate-700"
-          title="Redo (Ctrl+Y)"
+          title={t('redo_title')}
         >
           <Redo2 className="h-4 w-4" />
         </button>
@@ -321,10 +323,10 @@ export function SubtitleEditor({
             onClick={onDiffView}
             className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm
               text-slate-300 transition-colors hover:bg-slate-700"
-            title="Compare with backup"
+            title={t('compare_title')}
           >
             <GitCompare className="h-4 w-4" />
-            Diff
+            {t('diff_btn')}
           </button>
         )}
 
@@ -333,7 +335,7 @@ export function SubtitleEditor({
           <button
             onClick={handleClose}
             className="rounded p-1.5 text-slate-400 transition-colors hover:bg-slate-700 hover:text-slate-200"
-            title="Close editor"
+            title={t('close_title')}
           >
             <X className="h-4 w-4" />
           </button>
@@ -375,7 +377,7 @@ export function SubtitleEditor({
         {isValidating && (
           <span className="flex items-center gap-1 text-xs text-slate-500">
             <Loader2 className="h-3 w-3 animate-spin" />
-            Validating...
+            {t('validating')}
           </span>
         )}
         {!isValidating && validationResult && (
@@ -384,7 +386,7 @@ export function SubtitleEditor({
               validationResult.valid ? 'text-emerald-400' : 'text-red-400'
             }`}
           >
-            {validationResult.valid ? 'Valid' : 'Invalid'}
+            {validationResult.valid ? t('valid') : t('invalid')}
           </span>
         )}
 
@@ -394,15 +396,15 @@ export function SubtitleEditor({
         {hasChanges && (
           <span className="flex items-center gap-1 text-xs text-amber-400">
             <AlertTriangle className="h-3 w-3" />
-            Unsaved changes
+            {t('unsaved_changes')}
           </span>
         )}
       </div>
       <ConfirmModal
         open={showCloseConfirm}
-        title="Unsaved Changes"
-        message="You have unsaved changes. Close anyway?"
-        confirmLabel="Close"
+        title={t('unsaved_title')}
+        message={t('unsaved_message')}
+        confirmLabel={t('unsaved_confirm')}
         onConfirm={() => { setShowCloseConfirm(false); onClose?.() }}
         onCancel={() => setShowCloseConfirm(false)}
       />
