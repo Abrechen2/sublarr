@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   useWhisperBackends, useTestWhisperBackend, useWhisperBackendConfig, useSaveWhisperBackendConfig,
   useWhisperConfig, useSaveWhisperConfig, useWhisperStats,
@@ -27,6 +28,7 @@ function WhisperBackendCard({
   onTest: () => void
   testResult?: WhisperHealthResult | 'testing'
 }) {
+  const { t } = useTranslation('settings')
   const [expanded, setExpanded] = useState(false)
   const [formValues, setFormValues] = useState<Record<string, string>>({})
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({})
@@ -164,7 +166,7 @@ function WhisperBackendCard({
                   <thead>
                     <tr style={{ backgroundColor: 'var(--bg-primary)' }}>
                       <th className="text-left px-3 py-1.5 font-medium" style={{ color: 'var(--text-secondary)' }}>Model</th>
-                      <th className="text-left px-3 py-1.5 font-medium" style={{ color: 'var(--text-secondary)' }}>Approx Size</th>
+                      <th className="text-left px-3 py-1.5 font-medium" style={{ color: 'var(--text-secondary)' }}>{t('whisper_tab.approx_size')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -237,6 +239,7 @@ function WhisperBackendCard({
 }
 
 export function WhisperTab() {
+  const { t } = useTranslation('settings')
   const { data: backendsData, isLoading: backendsLoading } = useWhisperBackends()
   const { data: statsData } = useWhisperStats()
   const { data: whisperConfig, isLoading: configLoading } = useWhisperConfig()
@@ -312,7 +315,7 @@ export function WhisperTab() {
 
         {/* Enable/disable toggle */}
         <SettingRow
-          label="Enable Whisper"
+          label={t('whisper_tab.enable_whisper')}
           description="Whisper-Backend für automatische Transkription aktivieren"
         >
           <button
@@ -333,7 +336,7 @@ export function WhisperTab() {
 
         {/* Backend selection */}
         <SettingRow
-          label="Active Backend"
+          label={t('whisper_tab.active_backend')}
           description="Aktives Whisper-Backend für Transkriptionsjobs"
         >
           <select
@@ -355,7 +358,7 @@ export function WhisperTab() {
 
         {/* Max concurrent */}
         <SettingRow
-          label="Max Concurrent Jobs"
+          label={t('whisper_tab.max_concurrent_jobs')}
           description="Anzahl paralleler Transkriptionsjobs (1–4) — höhere Werte erfordern mehr CPU/GPU"
         >
           <input
@@ -379,7 +382,7 @@ export function WhisperTab() {
 
         {/* Whisper fallback min score */}
         <SettingRow
-          label="Fallback Min Score"
+          label={t('whisper_tab.fallback_min_score')}
           description="Transkription wird als Fallback genutzt wenn Provider-Score unter diesem Schwellenwert"
         >
           <input

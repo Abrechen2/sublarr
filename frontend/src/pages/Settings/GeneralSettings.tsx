@@ -1,4 +1,5 @@
 import { Globe, HardDrive, FileText, Monitor } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
@@ -20,43 +21,43 @@ const LANGUAGE_OPTIONS = [
 ] as const
 
 const LIBRARY_VIEWS = ['grid', 'list'] as const
-const LIBRARY_SORTS = [
-  { value: 'alpha', label: 'Alphabetical' },
-  { value: 'date', label: 'Date Added' },
-  { value: 'score', label: 'Score' },
-] as const
-const DATETIME_FORMATS = [
-  { value: 'relative', label: 'Relative (2 hours ago)' },
-  { value: 'absolute', label: 'Absolute (2026-03-21 14:00)' },
-] as const
-
-const HI_OPTIONS = [
-  { value: 'include', label: 'Include (no preference)' },
-  { value: 'prefer', label: 'Prefer HI (+30 score)' },
-  { value: 'exclude', label: 'Exclude HI (−999 penalty)' },
-  { value: 'only', label: 'Only HI (non-HI excluded)' },
-] as const
-
-const FORCED_OPTIONS = [
-  { value: 'include', label: 'Include (no preference)' },
-  { value: 'prefer', label: 'Prefer forced (+30 score)' },
-  { value: 'exclude', label: 'Exclude forced (−999 penalty)' },
-  { value: 'only', label: 'Only forced (non-forced excluded)' },
-] as const
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function GeneralSettings() {
   const { data: config, isLoading } = useConfig()
   const { mutate: updateConfig, isPending } = useUpdateConfig()
+  const { t } = useTranslation('settings')
+
+  const hiOptions = [
+    { value: 'include', label: t('general_page.hi_include') },
+    { value: 'prefer',  label: t('general_page.hi_prefer') },
+    { value: 'exclude', label: t('general_page.hi_exclude') },
+    { value: 'only',    label: t('general_page.hi_only') },
+  ]
+  const forcedOptions = [
+    { value: 'include', label: t('general_page.forced_include') },
+    { value: 'prefer',  label: t('general_page.forced_prefer') },
+    { value: 'exclude', label: t('general_page.forced_exclude') },
+    { value: 'only',    label: t('general_page.forced_only') },
+  ]
+  const librarySorts = [
+    { value: 'alpha', label: t('general_page.sort_alpha') },
+    { value: 'date',  label: t('general_page.sort_date') },
+    { value: 'score', label: t('general_page.sort_score') },
+  ]
+  const datetimeFormats = [
+    { value: 'relative', label: t('general_page.datetime_relative') },
+    { value: 'absolute', label: t('general_page.datetime_absolute') },
+  ]
 
   const save = (patch: Record<string, unknown>) => updateConfig(patch)
 
   if (isLoading) {
     return (
       <SettingsDetailLayout
-        title="General"
-        subtitle="Interface, server, and logging configuration"
+        title={t('general_page.title')}
+        subtitle={t('general_page.subtitle')}
       >
         <div
           data-testid="general-settings-skeleton"
@@ -77,21 +78,21 @@ export function GeneralSettings() {
 
   return (
     <SettingsDetailLayout
-      title="General"
-      subtitle="Interface, server, and logging configuration"
+      title={t('general_page.title')}
+      subtitle={t('general_page.subtitle')}
     >
       <div data-testid="general-settings" className="space-y-4">
 
         {/* ── Interface ────────────────────────────────────────────────── */}
         <div data-testid="section-interface">
           <SettingsSection
-            title="Interface"
-            description="Language preferences for subtitle search and display"
+            title={t('general_page.interface_section')}
+            description={t('general_page.interface_desc')}
             icon={<Globe size={16} style={{ color: 'var(--accent)' }} />}
           >
             <FormGroup
-              label="Source Language"
-              hint="Language of the source subtitles (e.g. en)"
+              label={t('general_page.source_language')}
+              hint={t('general_page.source_language_hint')}
               htmlFor="source-language"
               data-testid="form-group-source-language"
             >
@@ -108,8 +109,8 @@ export function GeneralSettings() {
             </FormGroup>
 
             <FormGroup
-              label="Target Language"
-              hint="Language to search subtitles in (e.g. de)"
+              label={t('general_page.target_language')}
+              hint={t('general_page.target_language_hint')}
               htmlFor="target-language"
               data-testid="form-group-target-language"
             >
@@ -126,8 +127,8 @@ export function GeneralSettings() {
             </FormGroup>
 
             <FormGroup
-              label="Hearing Impaired Preference"
-              hint="How subtitles with HI tags are treated during provider search"
+              label={t('general_page.hi_preference')}
+              hint={t('general_page.hi_preference_hint')}
               htmlFor="hi-preference"
               data-testid="form-group-hi-preference"
             >
@@ -139,7 +140,7 @@ export function GeneralSettings() {
                 onChange={(e) => save({ hi_preference: e.target.value })}
                 disabled={isPending}
               >
-                {HI_OPTIONS.map((o) => (
+                {hiOptions.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
@@ -148,8 +149,8 @@ export function GeneralSettings() {
             </FormGroup>
 
             <FormGroup
-              label="Forced Subtitle Preference"
-              hint="How forced subtitles (foreign-language scenes) are handled"
+              label={t('general_page.forced_preference')}
+              hint={t('general_page.forced_preference_hint')}
               htmlFor="forced-preference"
               data-testid="form-group-forced-preference"
             >
@@ -161,7 +162,7 @@ export function GeneralSettings() {
                 onChange={(e) => save({ forced_preference: e.target.value })}
                 disabled={isPending}
               >
-                {FORCED_OPTIONS.map((o) => (
+                {forcedOptions.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
@@ -174,13 +175,13 @@ export function GeneralSettings() {
         {/* ── Interface Preferences ─────────────────────────────────────── */}
         <div data-testid="section-interface-preferences">
           <SettingsSection
-            title="Interface Preferences"
-            description="Pagination, library layout, sorting, and date display defaults."
+            title={t('general_page.interface_prefs_section')}
+            description={t('general_page.interface_prefs_desc')}
             icon={<Monitor size={16} style={{ color: 'var(--accent)' }} />}
           >
             <FormGroup
-              label="Interface Language"
-              hint="UI display language"
+              label={t('general_page.interface_language')}
+              hint={t('general_page.interface_language_hint')}
               htmlFor="interface-language"
               data-testid="form-group-interface-language"
             >
@@ -201,8 +202,8 @@ export function GeneralSettings() {
             </FormGroup>
 
             <FormGroup
-              label="Items per Page"
-              hint="Number of items shown per page in library lists"
+              label={t('general_page.items_per_page')}
+              hint={t('general_page.items_per_page_hint')}
               htmlFor="items-per-page"
               data-testid="form-group-items-per-page"
             >
@@ -220,8 +221,8 @@ export function GeneralSettings() {
             </FormGroup>
 
             <FormGroup
-              label="Default Library View"
-              hint="Default view mode for the library (grid or list)"
+              label={t('general_page.default_library_view')}
+              hint={t('general_page.default_library_view_hint')}
               htmlFor="default-library-view"
               data-testid="form-group-default-library-view"
             >
@@ -242,8 +243,8 @@ export function GeneralSettings() {
             </FormGroup>
 
             <FormGroup
-              label="Default Library Sort"
-              hint="Default sort order for library listings"
+              label={t('general_page.default_library_sort')}
+              hint={t('general_page.default_library_sort_hint')}
               htmlFor="default-library-sort"
               data-testid="form-group-default-library-sort"
             >
@@ -255,7 +256,7 @@ export function GeneralSettings() {
                 onChange={(e) => save({ default_library_sort: e.target.value })}
                 disabled={isPending}
               >
-                {LIBRARY_SORTS.map((o) => (
+                {librarySorts.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
@@ -264,8 +265,8 @@ export function GeneralSettings() {
             </FormGroup>
 
             <FormGroup
-              label="Date/Time Format"
-              hint="How dates and times are displayed throughout the UI"
+              label={t('general_page.datetime_format')}
+              hint={t('general_page.datetime_format_hint')}
               htmlFor="datetime-format"
               data-testid="form-group-datetime-format"
             >
@@ -277,7 +278,7 @@ export function GeneralSettings() {
                 onChange={(e) => save({ datetime_format: e.target.value })}
                 disabled={isPending}
               >
-                {DATETIME_FORMATS.map((o) => (
+                {datetimeFormats.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
@@ -290,14 +291,14 @@ export function GeneralSettings() {
         {/* ── Paths & Server ────────────────────────────────────────────── */}
         <div data-testid="section-paths">
           <SettingsSection
-            title="Paths & Server"
-            description="Media library root, server port, and advanced server options"
+            title={t('general_page.paths_section')}
+            description={t('general_page.paths_desc')}
             icon={<HardDrive size={16} style={{ color: 'var(--accent)' }} />}
             advanced={
               <>
                 <FormGroup
-                  label="Metadata Scan Engine"
-                  hint="Tool used to read media metadata. 'auto' prefers mediainfo when available."
+                  label={t('general_page.metadata_engine')}
+                  hint={t('general_page.metadata_engine_hint')}
                   htmlFor="scan-metadata-engine"
                   data-testid="form-group-scan-metadata-engine"
                 >
@@ -318,8 +319,8 @@ export function GeneralSettings() {
                 </FormGroup>
 
                 <FormGroup
-                  label="Translation Workers"
-                  hint="Parallel threads for subtitle translation jobs"
+                  label={t('general_page.translation_workers')}
+                  hint={t('general_page.translation_workers_hint')}
                   htmlFor="translation-max-workers"
                   data-testid="form-group-translation-max-workers"
                 >
@@ -337,8 +338,8 @@ export function GeneralSettings() {
                 </FormGroup>
 
                 <FormGroup
-                  label="Metadata Scan Workers"
-                  hint="Parallel threads for metadata scanning"
+                  label={t('general_page.metadata_workers')}
+                  hint={t('general_page.metadata_workers_hint')}
                   htmlFor="scan-metadata-max-workers"
                   data-testid="form-group-scan-metadata-max-workers"
                 >
@@ -356,8 +357,8 @@ export function GeneralSettings() {
                 </FormGroup>
 
                 <FormGroup
-                  label="Base URL"
-                  hint="Reverse-proxy prefix if Sublarr is served at a sub-path"
+                  label={t('general_page.base_url')}
+                  hint={t('general_page.base_url_hint')}
                   htmlFor="base-url"
                   data-testid="form-group-base-url"
                 >
@@ -374,8 +375,8 @@ export function GeneralSettings() {
                 </FormGroup>
 
                 <FormGroup
-                  label="Database Path"
-                  hint="SQLite database file. Only change if the DB has been moved."
+                  label={t('general_page.db_path')}
+                  hint={t('general_page.db_path_hint')}
                   htmlFor="db-path"
                   data-testid="form-group-db-path"
                 >
@@ -394,8 +395,8 @@ export function GeneralSettings() {
             }
           >
             <FormGroup
-              label="Media Path"
-              hint="Root path of the media directory. All media paths must be below this."
+              label={t('general_page.media_path')}
+              hint={t('general_page.media_path_hint')}
               htmlFor="media-path"
               data-testid="form-group-media-path"
             >
@@ -412,8 +413,8 @@ export function GeneralSettings() {
             </FormGroup>
 
             <FormGroup
-              label="Port"
-              hint="HTTP port Sublarr listens on. Default: 5765."
+              label={t('general_page.port')}
+              hint={t('general_page.port_hint')}
               htmlFor="port"
               data-testid="form-group-port"
             >
@@ -435,13 +436,13 @@ export function GeneralSettings() {
         {/* ── Logging ───────────────────────────────────────────────────── */}
         <div data-testid="section-logging">
           <SettingsSection
-            title="Logging"
-            description="Log verbosity and file output settings"
+            title={t('general_page.logging_section')}
+            description={t('general_page.logging_desc')}
             icon={<FileText size={16} style={{ color: 'var(--accent)' }} />}
           >
             <FormGroup
-              label="Log Level"
-              hint="Controls the verbosity of backend logging"
+              label={t('general_page.log_level')}
+              hint={t('general_page.log_level_hint')}
               htmlFor="log-level"
               data-testid="form-group-log-level"
             >
@@ -462,8 +463,8 @@ export function GeneralSettings() {
             </FormGroup>
 
             <FormGroup
-              label="Log File Path"
-              hint="Write logs to this file path, e.g. /config/sublarr.log. Leave empty to disable."
+              label={t('general_page.log_file')}
+              hint={t('general_page.log_file_hint')}
               htmlFor="log-file"
               data-testid="form-group-log-file"
             >
@@ -480,8 +481,8 @@ export function GeneralSettings() {
             </FormGroup>
 
             <FormGroup
-              label="Log Format"
-              hint="Output format for log entries. Use 'json' for log aggregation tools."
+              label={t('general_page.log_format')}
+              hint={t('general_page.log_format_hint')}
               htmlFor="log-format"
               data-testid="form-group-log-format"
             >
@@ -507,4 +508,3 @@ export function GeneralSettings() {
     </SettingsDetailLayout>
   )
 }
-

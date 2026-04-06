@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   useFullBackups,
   useCreateFullBackup,
@@ -16,6 +17,7 @@ import { SettingRow } from '@/components/shared/SettingRow'
 
 export function BackupTab() {
   const { data: backupsData, isLoading } = useFullBackups()
+  const { t } = useTranslation('settings')
   const createBackup = useCreateFullBackup()
   const restoreBackup = useRestoreFullBackup()
   const [restoreFile, setRestoreFile] = useState<File | null>(null)
@@ -87,10 +89,10 @@ export function BackupTab() {
       {/* Create Backup */}
       <div className="rounded-lg p-5" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
         <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-          Create Full Backup
+          {t('backup_tab.create_title')}
         </h3>
         <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-          Creates a ZIP archive containing the database and configuration.
+          {t('backup_tab.create_desc')}
         </p>
         <button
           onClick={handleCreate}
@@ -103,14 +105,14 @@ export function BackupTab() {
           ) : (
             <HardDrive size={14} />
           )}
-          {createBackup.isPending ? 'Creating...' : 'Create Backup'}
+          {createBackup.isPending ? t('backup_tab.creating') : t('backup_tab.create_button')}
         </button>
       </div>
 
       {/* Backup List */}
       <div className="rounded-lg p-5" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
         <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-          Existing Backups
+          {t('backup_tab.existing_title')}
         </h3>
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
@@ -118,7 +120,7 @@ export function BackupTab() {
           </div>
         ) : backups.length === 0 ? (
           <p className="text-xs py-4 text-center" style={{ color: 'var(--text-muted)' }}>
-            No backups found. Create one above.
+            {t('backup_tab.no_backups')}
           </p>
         ) : (
           <div className="space-y-2">
@@ -149,7 +151,7 @@ export function BackupTab() {
                     }}
                   >
                     <Download size={12} />
-                    Download
+                    {t('backup_tab.download')}
                   </a>
                 </div>
               </div>
@@ -161,11 +163,11 @@ export function BackupTab() {
       {/* Restore from File */}
       <div className="rounded-lg p-5" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
         <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-          Restore from File
+          {t('backup_tab.restore_title')}
         </h3>
         <div className="flex items-center gap-2 mb-2" style={{ color: 'var(--warning)' }}>
           <AlertTriangle size={14} />
-          <span className="text-xs">API keys will need to be re-entered after restore.</span>
+          <span className="text-xs">{t('backup_tab.restore_warning')}</span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -178,7 +180,7 @@ export function BackupTab() {
             }}
           >
             <Upload size={14} />
-            Select ZIP File
+            {t('backup_tab.select_zip')}
           </button>
           <input
             ref={fileInputRef}
@@ -203,7 +205,7 @@ export function BackupTab() {
                 ) : (
                   <RotateCcw size={12} />
                 )}
-                Restore
+                {t('backup_tab.restore_button')}
               </button>
             </>
           )}
@@ -213,12 +215,12 @@ export function BackupTab() {
       {/* Retention Policy */}
       <div className="rounded-lg p-5 space-y-3" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Retention Policy
+          {t('backup_tab.retention_title')}
         </h3>
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          The built-in scheduler runs daily and prunes backups according to the retention counts below.
+          {t('backup_tab.retention_desc')}
         </p>
-        <SettingRow label="Backup Directory" description="Absolute path for backup storage">
+        <SettingRow label={t('backup_tab.backup_dir')} description={t('backup_tab.backup_dir_desc')}>
           <input
             type="text"
             value={localBackupDir}
@@ -234,7 +236,7 @@ export function BackupTab() {
             }}
           />
         </SettingRow>
-        <SettingRow label="Daily Backups" description="Number of daily backups to keep">
+        <SettingRow label={t('backup_tab.daily_backups')} description={t('backup_tab.daily_backups_desc')}>
           <input
             type="number"
             min={0}
@@ -250,7 +252,7 @@ export function BackupTab() {
             }}
           />
         </SettingRow>
-        <SettingRow label="Weekly Backups" description="Number of weekly backups to keep">
+        <SettingRow label={t('backup_tab.weekly_backups')} description={t('backup_tab.weekly_backups_desc')}>
           <input
             type="number"
             min={0}
@@ -266,7 +268,7 @@ export function BackupTab() {
             }}
           />
         </SettingRow>
-        <SettingRow label="Monthly Backups" description="Number of monthly backups to keep">
+        <SettingRow label={t('backup_tab.monthly_backups')} description={t('backup_tab.monthly_backups_desc')}>
           <input
             type="number"
             min={0}

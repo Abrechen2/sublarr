@@ -33,6 +33,7 @@ const LanguageProfilesPage = lazy(() => import('@/pages/LanguageProfiles').then(
 const MovieDetailPage = lazy(() => import('@/pages/MovieDetail').then(m => ({ default: m.MovieDetailPage })))
 const WantedPage = lazy(() => import('@/pages/Wanted').then(m => ({ default: m.WantedPage })))
 const TrashPage = lazy(() => import('@/pages/Trash').then(m => ({ default: m.TrashPage })))
+const LogsPage = lazy(() => import('@/pages/Logs').then(m => ({ default: m.LogsPage })))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -78,7 +79,7 @@ function AnimatedRoutes() {
           <Route path="/statistics" element={<Navigate to="/settings/system" replace />} />
           <Route path="/tasks" element={<Navigate to="/settings/automation" replace />} />
           <Route path="/plugins" element={<Navigate to="/settings/providers" replace />} />
-          <Route path="/logs" element={<Navigate to="/settings/system" replace />} />
+          <Route path="/logs" element={<Suspense fallback={<PageSkeleton />}><LogsPage /></Suspense>} />
           <Route path="/onboarding" element={<Suspense fallback={<PageSkeleton />}><Onboarding /></Suspense>} />
           <Route path="*" element={<Suspense fallback={<PageSkeleton />}><NotFoundPage /></Suspense>} />
         </Routes>

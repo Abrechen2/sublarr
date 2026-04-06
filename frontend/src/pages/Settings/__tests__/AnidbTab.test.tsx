@@ -8,6 +8,12 @@ import { AdvancedSettingsProvider } from '@/contexts/AdvancedSettingsContext'
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, fallback?: string) => fallback ?? key,
+  }),
+}))
+
 const mutateMock = vi.fn()
 
 vi.mock('@/hooks/useApi', () => ({
@@ -45,26 +51,26 @@ describe('AnidbTab', () => {
 
   it('renders Enable AniDB toggle', () => {
     renderTab()
-    expect(screen.getByText('Enable AniDB')).toBeInTheDocument()
+    expect(screen.getByText('anidb_tab.enable')).toBeInTheDocument()
   })
 
   it('renders Cache TTL number input', () => {
     renderTab()
-    expect(screen.getByText('Cache TTL (days)')).toBeInTheDocument()
+    expect(screen.getByText('anidb_tab.cache_ttl')).toBeInTheDocument()
     const spinners = screen.getAllByRole('spinbutton')
     expect(spinners.some((el) => (el as HTMLInputElement).value === '7')).toBe(true)
   })
 
   it('renders Custom Field Name text input', () => {
     renderTab()
-    expect(screen.getByText('Custom Field Name')).toBeInTheDocument()
+    expect(screen.getByText('anidb_tab.custom_field')).toBeInTheDocument()
     const inputs = screen.getAllByRole('textbox')
     expect(inputs.some((el) => (el as HTMLInputElement).value === 'anidb_id')).toBe(true)
   })
 
   it('renders Fallback to Mapping toggle', () => {
     renderTab()
-    expect(screen.getByText('Fallback to Mapping')).toBeInTheDocument()
+    expect(screen.getByText('anidb_tab.fallback_mapping')).toBeInTheDocument()
   })
 
   it('calls updateConfig immediately when toggle changes', () => {

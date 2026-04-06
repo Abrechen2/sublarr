@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSubtitleTool, usePreviewSubtitle } from '@/hooks/useApi'
 import { Loader2, AlertTriangle, Wrench, Eye } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
@@ -18,6 +19,7 @@ function highlightLine(line: string, format: string): string {
 }
 
 export function SubtitleToolsTab() {
+  const { t } = useTranslation('settings')
   const subtitleTool = useSubtitleTool()
   const previewMutation = usePreviewSubtitle()
   const [hiPath, setHiPath] = useState('')
@@ -133,7 +135,7 @@ export function SubtitleToolsTab() {
 
       {/* Common Fixes */}
       <div className="rounded-lg p-5" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-        <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Common Fixes</h3>
+        <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{t('subtitle_tools_tab.common_fixes')}</h3>
         <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
           Apply common subtitle cleaning operations: fix encoding, trim whitespace, normalize line breaks, remove empty lines.
         </p>
@@ -167,7 +169,7 @@ export function SubtitleToolsTab() {
 
       {/* Preview */}
       <div className="rounded-lg p-5" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-        <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Preview Subtitle</h3>
+        <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{t('subtitle_tools_tab.preview_subtitle')}</h3>
         <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>View the first 100 lines of a subtitle file.</p>
         <div className="flex items-center gap-2 mb-3">
           <input type="text" value={previewPath} onChange={(e) => setPreviewPath(e.target.value)} placeholder="File path"

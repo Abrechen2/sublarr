@@ -8,6 +8,12 @@ import { AdvancedSettingsProvider } from '@/contexts/AdvancedSettingsContext'
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, fallback?: string) => fallback ?? key,
+  }),
+}))
+
 const createMutate = vi.fn()
 const restoreMutate = vi.fn()
 
@@ -54,12 +60,12 @@ describe('BackupTab — Backup Management UI', () => {
 
   it('renders Create Backup button', () => {
     renderTab()
-    expect(screen.getByText('Create Backup')).toBeInTheDocument()
+    expect(screen.getByText('backup_tab.create_button')).toBeInTheDocument()
   })
 
   it('calls createBackup.mutate when Create Backup is clicked', () => {
     renderTab()
-    const btn = screen.getByText('Create Backup')
+    const btn = screen.getByText('backup_tab.create_button')
     fireEvent.click(btn)
     expect(createMutate).toHaveBeenCalled()
   })
@@ -72,7 +78,7 @@ describe('BackupTab — Backup Management UI', () => {
 
   it('renders Download links for each backup', () => {
     renderTab()
-    const downloadLinks = screen.getAllByText('Download')
+    const downloadLinks = screen.getAllByText('backup_tab.download')
     expect(downloadLinks).toHaveLength(2)
   })
 
@@ -87,11 +93,11 @@ describe('BackupTab — Backup Management UI', () => {
 
   it('renders Restore from File section', () => {
     renderTab()
-    expect(screen.getByText('Restore from File')).toBeInTheDocument()
+    expect(screen.getByText('backup_tab.restore_title')).toBeInTheDocument()
   })
 
   it('renders Select ZIP File button', () => {
     renderTab()
-    expect(screen.getByText('Select ZIP File')).toBeInTheDocument()
+    expect(screen.getByText('backup_tab.select_zip')).toBeInTheDocument()
   })
 })

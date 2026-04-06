@@ -532,7 +532,7 @@ function SettingsPageInner() {
                 </div>
                 {importPreview && (
                   <div className="rounded-lg p-4 space-y-3 mb-3" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--accent-dim)' }}>
-                    <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Import Preview</div>
+                    <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('legacy.import_preview')}</div>
                     <div className="max-h-48 overflow-auto rounded px-3 py-2 text-xs" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
                       {Object.entries(importPreview).map(([key, val]) => (
                         <div key={key}><span style={{ color: 'var(--accent)' }}>{key}</span>: {String(val)}</div>

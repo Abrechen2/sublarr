@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { Shield, Eye, EyeOff } from 'lucide-react'
 import { getAuthStatus, toggleAuth, changePassword } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
@@ -11,6 +12,7 @@ import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { numVal, strVal } from '@/lib/configUtils'
 
 export function SecurityTab() {
+  const { t } = useTranslation('settings')
   const queryClient = useQueryClient()
   const { data: auth } = useQuery({ queryKey: ['auth-status'], queryFn: getAuthStatus })
   const { data: config } = useConfig()
@@ -71,18 +73,18 @@ export function SecurityTab() {
 
   return (
     <div className="space-y-6">
-      <SettingsCard title="UI Authentication" icon={Shield}>
-        <SettingRow label="Require login"
-          description="Protect the web UI with a password. API key authentication is unaffected.">
+      <SettingsCard title={t('security.ui_auth_title')} icon={Shield}>
+        <SettingRow label={t('security.require_login')}
+          description={t('security.require_login_desc')}>
           <Toggle checked={auth?.enabled ?? false} onChange={(v) => doToggle(v)} disabled={toggling} />
         </SettingRow>
       </SettingsCard>
 
       {auth?.enabled && (
-        <SettingsCard title="Change Password" icon={Shield}>
+        <SettingsCard title={t('security.change_password_title')} icon={Shield}>
           <form onSubmit={handleChangePw} className="space-y-3 pt-1">
             <div>
-              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Current Password</label>
+              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('security.current_password')}</label>
               <div className="relative">
                 <input type={showPw ? 'text' : 'password'} value={currentPw}
                   onChange={(e) => setCurrentPw(e.target.value)} style={{ ...inputStyle, paddingRight: '2.5rem' }} />
@@ -94,11 +96,11 @@ export function SecurityTab() {
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>New Password</label>
+              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('security.new_password')}</label>
               <input type={showPw ? 'text' : 'password'} value={newPw} onChange={(e) => setNewPw(e.target.value)} style={inputStyle} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Confirm New Password</label>
+              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('security.confirm_new_password')}</label>
               <input type={showPw ? 'text' : 'password'} value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} style={inputStyle} />
             </div>
             {pwError && <p className="text-xs" style={{ color: 'var(--color-error)' }}>{pwError}</p>}
@@ -130,8 +132,8 @@ export function SecurityTab() {
               />
             </FormGroup>
             <FormGroup
-              label="Max Login Attempts"
-              hint="Maximum failed login attempts before lockout"
+              label={t('security.max_login_attempts')}
+              hint={t('security.max_login_attempts_hint')}
               data-testid="form-group-max-login-attempts"
             >
               <input
@@ -145,8 +147,8 @@ export function SecurityTab() {
               />
             </FormGroup>
             <FormGroup
-              label="Lockout Duration (minutes)"
-              hint="Duration of account lockout after exceeding max attempts"
+              label={t('security.lockout_duration')}
+              hint={t('security.lockout_duration_hint')}
               data-testid="form-group-lockout-duration-minutes"
             >
               <input
@@ -160,7 +162,7 @@ export function SecurityTab() {
               />
             </FormGroup>
             <FormGroup
-              label="Allowed IP Ranges"
+              label={t('security.allowed_ip_ranges')}
               hint="Comma-separated CIDR ranges. Empty = allow all."
               data-testid="form-group-allowed-ip-ranges"
             >

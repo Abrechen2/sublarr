@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { LayoutDashboard, BookOpen, Bell, Settings, Search, Trash2 } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Bell, Settings, Search, Trash2, ScrollText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useHealth } from '@/hooks/useApi'
 import { useWantedSummary } from '@/hooks/useWantedApi'
@@ -24,6 +24,7 @@ const mainNavItems: readonly NavItem[] = [
 
 const bottomNavItems: readonly NavItem[] = [
   { to: '/settings', labelKey: 'nav.settings', icon: Settings, testId: 'nav-link-settings' },
+  { to: '/logs', labelKey: 'nav.logs', icon: ScrollText, testId: 'nav-link-logs' },
 ] as const
 
 export function IconSidebar() {

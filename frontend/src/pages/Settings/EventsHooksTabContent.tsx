@@ -5,6 +5,7 @@
  * Import as `EventsHooksTab` for backwards compatibility via EventsTab.tsx barrel.
  */
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   useEventCatalog, useHookConfigs, useCreateHook, useUpdateHook, useDeleteHook, useTestHook,
   useWebhookConfigs, useCreateWebhook, useUpdateWebhook, useDeleteWebhook, useTestWebhook,
@@ -18,6 +19,7 @@ import type { EventCatalogItem, HookConfig, WebhookConfig, HookLog } from '@/lib
 // ─── Events & Hooks Tab ──────────────────────────────────────────────────────
 
 export function EventsHooksTab() {
+  const { t } = useTranslation('settings')
   const { data: eventCatalog } = useEventCatalog()
   const { data: hooks } = useHookConfigs()
   const { data: webhooks } = useWebhookConfigs()
@@ -91,7 +93,7 @@ export function EventsHooksTab() {
           onClick={() => setHooksOpen(!hooksOpen)}
           className="w-full flex items-center justify-between px-4 py-3 text-left"
         >
-          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Shell Hooks</span>
+          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('hooks.shell_hooks')}</span>
           {hooksOpen ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
         </button>
         {hooksOpen && (
@@ -191,7 +193,7 @@ export function EventsHooksTab() {
           onClick={() => setWebhooksOpen(!webhooksOpen)}
           className="w-full flex items-center justify-between px-4 py-3 text-left"
         >
-          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Outgoing Webhooks</span>
+          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('hooks.outgoing_webhooks')}</span>
           {webhooksOpen ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
         </button>
         {webhooksOpen && (
@@ -202,7 +204,7 @@ export function EventsHooksTab() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{wh.name}</span>
                     <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}>
-                      {wh.event_name === '*' ? 'All Events' : wh.event_name}
+                      {wh.event_name === '*' ? t('hooks.all_events') : wh.event_name}
                     </span>
                     {wh.last_status_code > 0 && (
                       <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{
@@ -258,7 +260,7 @@ export function EventsHooksTab() {
                     className="px-2 py-1.5 rounded text-sm" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                   >
                     <option value="">Select event...</option>
-                    <option value="*">All Events</option>
+                    <option value="*">{t('hooks.all_events')}</option>
                     {events.map((ev) => <option key={ev.name} value={ev.name}>{ev.label}</option>)}
                   </select>
                 </div>
@@ -317,7 +319,7 @@ export function EventsHooksTab() {
           className="w-full flex items-center justify-between px-4 py-3 text-left"
         >
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Execution Log</span>
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('hooks.execution_log')}</span>
             {logList.length > 0 && (
               <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-muted)' }}>
                 {logList.length}

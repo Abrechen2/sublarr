@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Search, Download, Trash2, ExternalLink, Loader2, Package, Star } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import {
@@ -14,6 +15,7 @@ import {
 } from '@/hooks/useApi'
 
 export function PluginsPage() {
+  const { t } = useTranslation('common')
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'provider' | 'translation' | 'tool'>('all')
   const [installedPlugins, setInstalledPlugins] = useState<string[]>([])
@@ -55,7 +57,7 @@ export function PluginsPage() {
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-3xl font-bold mb-2">Plugin Marketplace</h1>
+        <h1 className="text-3xl font-bold mb-2">{t('plugins.marketplace_title')}</h1>
         <p className="text-gray-400">
           Browse and install community-provided plugins to extend Sublarr's functionality.
         </p>
@@ -78,7 +80,7 @@ export function PluginsPage() {
           onChange={(e) => setCategoryFilter(e.target.value as typeof categoryFilter)}
           className="px-4 py-2 bg-gray-900 border border-gray-700 rounded text-white"
         >
-          <option value="all">All Categories</option>
+          <option value="all">{t('plugins.all_categories')}</option>
           <option value="provider">Providers</option>
           <option value="translation">Translation</option>
           <option value="tool">Tools</option>

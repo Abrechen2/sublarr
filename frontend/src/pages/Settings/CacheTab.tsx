@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Loader2 } from 'lucide-react'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { useFfprobeStats, useFfprobeCleanup, useDbVacuum } from '@/hooks/useSystemApi'
@@ -7,6 +8,7 @@ import { useFfprobeStats, useFfprobeCleanup, useDbVacuum } from '@/hooks/useSyst
 
 export function CacheTab() {
   const { data: stats } = useFfprobeStats()
+  const { t } = useTranslation('settings')
   const cleanup = useFfprobeCleanup()
   const vacuum = useDbVacuum()
   const [showVacuumConfirm, setShowVacuumConfirm] = useState(false)
@@ -15,7 +17,7 @@ export function CacheTab() {
     <div>
       {/* ffprobe cache */}
       <SettingRow
-        label="ffprobe cache"
+        label={t('cache_tab.ffprobe_label')}
         description={`${stats?.count ?? '…'} entries cached`}
       >
         <button
@@ -31,14 +33,14 @@ export function CacheTab() {
           data-testid="ffprobe-cleanup-btn"
         >
           {cleanup.isPending && <Loader2 size={13} className="animate-spin" />}
-          Clean up stale entries
+          {t('cache_tab.ffprobe_cleanup_btn')}
         </button>
       </SettingRow>
 
       {/* DB vacuum */}
       <SettingRow
-        label="Database vacuum"
-        description="Reclaim unused space and defragment the SQLite database."
+        label={t('cache_tab.vacuum_label')}
+        description={t('cache_tab.vacuum_desc')}
       >
         <button
           className="btn-secondary flex items-center gap-1.5 text-sm px-3 py-1.5 rounded"
@@ -53,7 +55,7 @@ export function CacheTab() {
           data-testid="db-vacuum-btn"
         >
           {vacuum.isPending && <Loader2 size={13} className="animate-spin" />}
-          Run VACUUM
+          {t('cache_tab.vacuum_run')}
         </button>
       </SettingRow>
 
@@ -70,10 +72,10 @@ export function CacheTab() {
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
             <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-              Run database VACUUM?
+              {t('cache_tab.vacuum_confirm_title')}
             </h3>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              This may take a moment on large databases. The app remains available.
+              {t('cache_tab.vacuum_confirm_desc')}
             </p>
             <div className="flex gap-2 justify-end">
               <button
@@ -82,7 +84,7 @@ export function CacheTab() {
                 onClick={() => setShowVacuumConfirm(false)}
                 data-testid="vacuum-cancel-btn"
               >
-                Cancel
+                {t('cache_tab.vacuum_cancel')}
               </button>
               <button
                 className="text-sm px-3 py-1.5 rounded"
@@ -90,7 +92,7 @@ export function CacheTab() {
                 onClick={() => { vacuum.mutate(); setShowVacuumConfirm(false) }}
                 data-testid="vacuum-confirm-btn"
               >
-                Run VACUUM
+                {t('cache_tab.vacuum_run')}
               </button>
             </div>
           </div>

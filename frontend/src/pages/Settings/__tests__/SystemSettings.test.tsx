@@ -444,7 +444,7 @@ describe('Disk Monitoring section', () => {
     renderPage()
     const wrapper = screen.getByTestId('section-disk-monitoring')
     const title = wrapper.querySelector('[data-testid="settings-section-title"]')
-    expect(title).toHaveTextContent('Disk Monitoring')
+    expect(title).toHaveTextContent('system_tab.disk_monitoring_title')
   })
 
   it('input-disk-warning-threshold-percent renders with value 90', () => {

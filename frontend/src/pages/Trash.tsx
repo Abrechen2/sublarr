@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Trash2, RotateCcw, X, FileVideo, Files, AlertTriangle, Loader2 } from 'lucide-react'
 import {
   useTrashOverview,
@@ -34,6 +35,7 @@ interface MkvRestoreModalProps {
 }
 
 function MkvRestoreModal({ backup, onClose }: MkvRestoreModalProps) {
+  const { t } = useTranslation('common')
   const [deleteSidecars, setDeleteSidecars] = useState(false)
   const restore = useRestoreMkvBackup()
 
@@ -54,14 +56,14 @@ function MkvRestoreModal({ backup, onClose }: MkvRestoreModalProps) {
         style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold">Video-Backup wiederherstellen</h2>
+          <h2 className="text-base font-semibold">{t('trash.mkv_restore_title')}</h2>
           <button onClick={onClose} style={{ color: 'var(--text-secondary)' }}>
             <X size={18} />
           </button>
         </div>
 
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Die remuxte Video-Datei wird durch die Sicherung ersetzt (atomarer Tausch).
+          {t('trash.mkv_restore_desc')}
         </p>
 
         <div
@@ -83,7 +85,7 @@ function MkvRestoreModal({ backup, onClose }: MkvRestoreModalProps) {
             style={{ background: 'color-mix(in srgb, var(--warning) 12%, transparent)', color: 'var(--warning)' }}
           >
             <AlertTriangle size={14} />
-            Original-Video nicht mehr auf Disk gefunden — Pfad kann nicht aufgelöst werden.
+            {t('trash.mkv_no_video')}
           </div>
         )}
 
@@ -94,7 +96,7 @@ function MkvRestoreModal({ backup, onClose }: MkvRestoreModalProps) {
             onChange={(e) => setDeleteSidecars(e.target.checked)}
             className="rounded"
           />
-          <span className="text-sm">Passende Sidecar-Batches ebenfalls löschen</span>
+          <span className="text-sm">{t('trash.delete_sidecars_label')}</span>
         </label>
 
         <div className="flex justify-end gap-2 pt-2">
@@ -103,7 +105,7 @@ function MkvRestoreModal({ backup, onClose }: MkvRestoreModalProps) {
             className="px-4 py-2 rounded-lg text-sm"
             style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
           >
-            Abbrechen
+            {t('trash.cancel')}
           </button>
           <button
             onClick={handleRestore}
@@ -112,7 +114,7 @@ function MkvRestoreModal({ backup, onClose }: MkvRestoreModalProps) {
             style={{ background: 'var(--accent)' }}
           >
             {restore.isPending ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
-            Wiederherstellen
+            {t('trash.restore')}
           </button>
         </div>
       </div>
@@ -123,6 +125,7 @@ function MkvRestoreModal({ backup, onClose }: MkvRestoreModalProps) {
 // ─── Sidecar Batch Card ───────────────────────────────────────────────────────
 
 function SidecarBatchCard({ batch }: { batch: SidecarBatch }) {
+  const { t } = useTranslation('common')
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const restore = useRestoreSidecarBatch()
@@ -136,7 +139,7 @@ function SidecarBatchCard({ batch }: { batch: SidecarBatch }) {
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="font-medium text-sm truncate">
-            {batch.series_name || 'Unbekannte Serie'}
+            {batch.series_name || t('trash.unknown_series')}
             {batch.language ? (
               <span
                 className="ml-2 text-xs px-1.5 py-0.5 rounded"
@@ -147,11 +150,11 @@ function SidecarBatchCard({ batch }: { batch: SidecarBatch }) {
             ) : null}
           </div>
           <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-            {batch.file_count} {batch.file_count === 1 ? 'Datei' : 'Dateien'} · {formatBytes(batch.size_bytes)} · gelöscht {formatDate(batch.created_at)}
+            {batch.file_count} {batch.file_count === 1 ? t('trash.file_singular') : t('trash.file_plural')} · {formatBytes(batch.size_bytes)} · {t('trash.deleted_on')} {formatDate(batch.created_at)}
           </div>
           {batch.expires_at && (
             <div className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-              läuft ab {formatDate(batch.expires_at)}
+              {t('trash.expires')} {formatDate(batch.expires_at)}
             </div>
           )}
         </div>
@@ -162,10 +165,10 @@ function SidecarBatchCard({ batch }: { batch: SidecarBatch }) {
             disabled={restore.isPending}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium"
             style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}
-            title="Wiederherstellen"
+            title={t('trash.restore_btn')}
           >
             {restore.isPending ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
-            Restore
+            {t('trash.restore_btn')}
           </button>
 
           {confirmDelete ? (
@@ -176,7 +179,7 @@ function SidecarBatchCard({ batch }: { batch: SidecarBatch }) {
                 className="px-2.5 py-1.5 rounded-md text-xs font-medium text-white"
                 style={{ background: 'var(--error)' }}
               >
-                {remove.isPending ? <Loader2 size={12} className="animate-spin" /> : 'Löschen'}
+                {remove.isPending ? <Loader2 size={12} className="animate-spin" /> : t('trash.delete_btn')}
               </button>
               <button
                 onClick={() => setConfirmDelete(false)}
@@ -191,7 +194,7 @@ function SidecarBatchCard({ batch }: { batch: SidecarBatch }) {
               onClick={() => setConfirmDelete(true)}
               className="p-1.5 rounded-md"
               style={{ color: 'var(--text-tertiary)' }}
-              title="Endgültig löschen"
+              title={t('trash.delete_confirm')}
             >
               <Trash2 size={14} />
             </button>
@@ -205,7 +208,7 @@ function SidecarBatchCard({ batch }: { batch: SidecarBatch }) {
           className="text-xs"
           style={{ color: 'var(--text-tertiary)' }}
         >
-          {expanded ? 'Dateien ausblenden ▲' : `${batch.files.length} Dateien anzeigen ▼`}
+          {expanded ? t('trash.hide_files') : t('trash.show_files', { count: batch.files.length })}
         </button>
       )}
 
@@ -225,6 +228,7 @@ function SidecarBatchCard({ batch }: { batch: SidecarBatch }) {
 // ─── MKV Backup Card ─────────────────────────────────────────────────────────
 
 function MkvBackupCard({ backup }: { backup: MkvBackup }) {
+  const { t } = useTranslation('common')
   const [showModal, setShowModal] = useState(false)
   const filename = backup.path.split(/[/\\]/).pop() ?? backup.path
 
@@ -238,7 +242,7 @@ function MkvBackupCard({ backup }: { backup: MkvBackup }) {
           <div className="font-medium text-sm truncate">{filename}</div>
           <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
             {formatBytes(backup.size_bytes)}
-            {backup.expires_at ? ` · läuft ab ${formatDate(backup.expires_at)}` : ''}
+            {backup.expires_at ? ` · ${t('trash.expires_label')} ${formatDate(backup.expires_at)}` : ''}
           </div>
           {backup.video_path ? (
             <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-tertiary)' }}>
@@ -246,7 +250,7 @@ function MkvBackupCard({ backup }: { backup: MkvBackup }) {
             </div>
           ) : (
             <div className="text-xs mt-0.5" style={{ color: 'var(--warning)' }}>
-              Original nicht gefunden
+              {t('trash.original_not_found')}
             </div>
           )}
         </div>
@@ -257,7 +261,7 @@ function MkvBackupCard({ backup }: { backup: MkvBackup }) {
           style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}
         >
           <RotateCcw size={12} />
-          Restore
+          {t('trash.restore')}
         </button>
       </div>
 
@@ -269,6 +273,7 @@ function MkvBackupCard({ backup }: { backup: MkvBackup }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function TrashPage() {
+  const { t } = useTranslation('common')
   const { data, isLoading } = useTrashOverview()
 
   const sidecarCount = data?.sidecar_batches.length ?? 0
@@ -281,11 +286,11 @@ export function TrashPage() {
       <div>
         <h1 className="text-xl font-semibold flex items-center gap-2">
           <Trash2 size={20} />
-          Papierkorb
+          {t('trash.page_title')}
         </h1>
         <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
           {isLoading
-            ? 'Wird geladen…'
+            ? t('trash.loading')
             : `${sidecarCount} Sidecar-${sidecarCount === 1 ? 'Batch' : 'Batches'} · ${mkvCount} MKV-${mkvCount === 1 ? 'Backup' : 'Backups'} · ${formatBytes(totalSize)} gesamt`}
         </p>
       </div>
@@ -303,7 +308,7 @@ export function TrashPage() {
         >
           <Trash2 size={32} className="mx-auto mb-3" style={{ color: 'var(--text-tertiary)' }} />
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Papierkorb ist leer
+            {t('trash.empty')}
           </p>
         </div>
       )}
@@ -314,7 +319,7 @@ export function TrashPage() {
           <div className="flex items-center gap-2">
             <Files size={16} style={{ color: 'var(--accent)' }} />
             <h2 className="text-sm font-semibold">
-              Untertitel-Sidecars
+              {t('trash.subtitle_sidecars')}
               <span className="ml-2 text-xs font-normal" style={{ color: 'var(--text-tertiary)' }}>
                 (Aufbewahrung: {data?.retention.subtitle_trash_days ?? 30} Tage)
               </span>
@@ -334,7 +339,7 @@ export function TrashPage() {
           <div className="flex items-center gap-2">
             <FileVideo size={16} style={{ color: 'var(--accent)' }} />
             <h2 className="text-sm font-semibold">
-              Video-Backups (Remux)
+              {t('trash.video_backups')}
               <span className="ml-2 text-xs font-normal" style={{ color: 'var(--text-tertiary)' }}>
                 (Aufbewahrung: {data?.retention.mkv_backup_days ?? 7} Tage)
               </span>

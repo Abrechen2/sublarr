@@ -50,7 +50,7 @@ i18n
         editor: deEditor,
       },
     },
-    fallbackLng: 'en',
+    fallbackLng: 'de',
     defaultNS: 'common',
     ns: ['common', 'dashboard', 'settings', 'library', 'activity', 'logs', 'statistics', 'onboarding', 'editor'],
     interpolation: {

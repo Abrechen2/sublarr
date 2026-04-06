@@ -120,7 +120,7 @@
     "total": "Untertitel gesamt",
     "missing": "Fehlend",
     "avgScore": "Ø Score",
-    "lowScore": "Low Score"
+    "lowScore": "Niedriger Score"
   },
   "feed": {
     "title": "Live Aktivitäts-Feed",
@@ -129,11 +129,11 @@
     "moreEvents": "weitere Ereignisse heute"
   },
   "attention": {
-    "title": "Needs Attention",
+    "title": "Benötigt Aufmerksamkeit",
     "viewAll": "Alle ansehen",
     "reasonFailed": "Kein Match",
     "search": "Suchen",
-    "skip": "Skip",
+    "skip": "Überspringen",
     "findBetter": "Besser suchen",
     "accept": "Annehmen"
   },

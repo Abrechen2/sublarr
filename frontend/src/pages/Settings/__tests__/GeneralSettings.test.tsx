@@ -75,7 +75,7 @@ describe('GeneralSettings', () => {
 
   it('renders the page heading "General"', () => {
     renderWithProviders(<GeneralSettings />)
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('General')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('title')
   })
 
   it('renders inside a SettingsDetailLayout (max-width container)', () => {
@@ -360,7 +360,7 @@ describe('Interface Preferences section', () => {
     const title = screen
       .getByTestId('section-interface-preferences')
       .querySelector('[data-testid="settings-section-title"]')
-    expect(title).toHaveTextContent('Interface Preferences')
+    expect(title).toHaveTextContent('interface_prefs_section')
   })
 
   it('select-interface-language renders with value from config (default "en")', () => {

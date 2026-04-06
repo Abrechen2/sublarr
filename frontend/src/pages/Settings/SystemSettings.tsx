@@ -79,14 +79,15 @@ function SectionSkeleton() {
 // ─── Auto Backup Controls (Step 40) ──────────────────────────────────────────
 
 function AutoBackupControls() {
+  const { t } = useTranslation('settings')
   const { data: config } = useConfig()
   const { mutate: save, isPending } = useUpdateConfig()
 
   return (
     <div data-testid="backup-auto-controls" className="mb-4">
       <FormGroup
-        label="Auto Backup"
-        hint="Automatically create backups on a schedule"
+        label={t('system_tab.auto_backup')}
+        hint={t('system_tab.auto_backup_hint')}
         data-testid="form-group-backup-auto-enabled"
       >
         <Toggle
@@ -98,8 +99,8 @@ function AutoBackupControls() {
       </FormGroup>
 
       <FormGroup
-        label="Backup Interval (hours)"
-        hint="How often to automatically create a backup"
+        label={t('system_tab.backup_interval')}
+        hint={t('system_tab.backup_interval_hint')}
         htmlFor="backup-auto-interval-hours"
         data-testid="form-group-backup-auto-interval-hours"
       >
@@ -117,8 +118,8 @@ function AutoBackupControls() {
       </FormGroup>
 
       <FormGroup
-        label="Backup on Startup"
-        hint="Create a backup each time Sublarr starts"
+        label={t('system_tab.backup_on_startup')}
+        hint={t('system_tab.backup_on_startup_hint')}
         data-testid="form-group-backup-auto-on-startup"
       >
         <Toggle
@@ -130,8 +131,8 @@ function AutoBackupControls() {
       </FormGroup>
 
       <FormGroup
-        label="Notify on Failure"
-        hint="Send a notification when a backup fails"
+        label={t('system_tab.notify_on_failure')}
+        hint={t('system_tab.notify_on_failure_hint')}
         data-testid="form-group-backup-notify-on-failure"
       >
         <Toggle
@@ -148,14 +149,15 @@ function AutoBackupControls() {
 // ─── Disk Monitoring Controls (Step 41) ──────────────────────────────────────
 
 function DiskMonitoringControls() {
+  const { t } = useTranslation('settings')
   const { data: config } = useConfig()
   const { mutate: save, isPending } = useUpdateConfig()
 
   return (
     <div data-testid="disk-monitoring-controls">
       <FormGroup
-        label="Warning Threshold (%)"
-        hint="Send an alert when disk usage exceeds this percentage"
+        label={t('system_tab.disk_warning_threshold')}
+        hint={t('system_tab.disk_warning_threshold_hint')}
         htmlFor="disk-warning-threshold-percent"
         data-testid="form-group-disk-warning-threshold-percent"
       >
@@ -175,8 +177,8 @@ function DiskMonitoringControls() {
       </FormGroup>
 
       <FormGroup
-        label="Notify on Warning"
-        hint="Send a notification when the disk warning threshold is reached"
+        label={t('system_tab.notify_on_warning')}
+        hint={t('system_tab.notify_on_warning_hint')}
         data-testid="form-group-disk-warning-notify"
       >
         <Toggle
@@ -194,6 +196,7 @@ function DiskMonitoringControls() {
 
 export function SystemSettings() {
   const { t } = useTranslation('common')
+  const { t: tSettings } = useTranslation('settings')
 
   return (
     <SettingsDetailLayout
@@ -425,8 +428,8 @@ export function SystemSettings() {
       {/* 11. Disk Monitoring (Step 41) */}
       <div data-testid="section-disk-monitoring">
         <SettingsSection
-          title="Disk Monitoring"
-          description="Alert when disk usage exceeds a threshold."
+          title={tSettings('system_tab.disk_monitoring_title')}
+          description={tSettings('system_tab.disk_monitoring_desc')}
           icon={<HardDrive size={16} style={{ color: 'var(--accent)' }} />}
         >
           <DiskMonitoringControls />
@@ -436,8 +439,8 @@ export function SystemSettings() {
       {/* 12. Cache Management */}
       <div data-testid="section-cache-management">
         <SettingsSection
-          title="Cache Management"
-          description="Manage application caches and database maintenance."
+          title={tSettings('system_tab.cache_management_title')}
+          description={tSettings('system_tab.cache_management_desc')}
           icon={<Database size={16} style={{ color: 'var(--accent)' }} />}
         >
           <Suspense fallback={<SectionSkeleton />}>

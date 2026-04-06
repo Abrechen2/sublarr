@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { Lock, Unlock, Eye, EyeOff } from 'lucide-react'
 import { setupAuth } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 
 export function SetupPage() {
+  const { t } = useTranslation('onboarding')
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [password, setPassword] = useState('')
@@ -82,7 +84,7 @@ export function SetupPage() {
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Confirm Password</label>
+            <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{t('confirm_password')}</label>
             <input
               type={showPassword ? 'text' : 'password'}
               value={confirm}
