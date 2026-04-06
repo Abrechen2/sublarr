@@ -440,7 +440,23 @@ export function SubtitlesSettings() {
       title={t('settings.categories.subtitles.title')}
       subtitle={t('settings.categories.subtitles.description')}
     >
-      {/* 1. Scoring */}
+      {/* 1. Language Profiles */}
+      <div data-testid="section-language-profiles">
+        <SettingsSection
+          title={t('settings.subtitles.languageProfiles.title', 'Sprachprofile')}
+          description={t(
+            'settings.subtitles.languageProfiles.description',
+            'Lege fest, welche Untertitelsprachen pro Serie/Film gesucht werden.',
+          )}
+          icon={<Users size={16} style={{ color: 'var(--accent)' }} />}
+        >
+          <Suspense fallback={<SectionSkeleton />}>
+            <LanguageProfilesTab />
+          </Suspense>
+        </SettingsSection>
+      </div>
+
+      {/* 2. Scoring */}
       <div data-testid="section-scoring">
         <SettingsSection
           title={t('settings.subtitles.scoring.title', 'Scoring')}
@@ -494,33 +510,6 @@ export function SubtitlesSettings() {
             {t(
               'settings.subtitles.embeddedExtraction.summary',
               'Configure automatic embedded subtitle extraction triggered by webhook events.',
-            )}
-          </p>
-        </SettingsSection>
-      </div>
-
-      {/* 5. Language Profiles (advanced — collapsed by default) */}
-      <div data-testid="section-language-profiles">
-        <SettingsSection
-          title={t('settings.subtitles.languageProfiles.title', 'Language Profiles')}
-          description={t(
-            'settings.subtitles.languageProfiles.description',
-            'Define reusable language and translation settings for series and movies.',
-          )}
-          icon={<Users size={16} style={{ color: 'var(--accent)' }} />}
-          advanced={
-            <Suspense fallback={<SectionSkeleton />}>
-              <LanguageProfilesTab />
-            </Suspense>
-          }
-        >
-          <p
-            className="text-[12px] text-[var(--text-muted)] py-2"
-            data-testid="language-profiles-summary"
-          >
-            {t(
-              'settings.subtitles.languageProfiles.summary',
-              'Create and manage language profiles that can be assigned to individual series or movies.',
             )}
           </p>
         </SettingsSection>
