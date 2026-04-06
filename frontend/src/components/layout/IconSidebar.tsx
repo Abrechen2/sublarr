@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { useHealth, useUpdateInfo } from '@/hooks/useApi'
 import { useWantedSummary } from '@/hooks/useWantedApi'
 import { ThemeToggle } from '@/components/shared/ThemeToggle'
+import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher'
 
 interface NavItem {
   readonly to: string
@@ -118,7 +119,8 @@ export function IconSidebar() {
             showUpdateDot={item.to === '/settings' && hasUpdate}
           />
         ))}
-        <div className="flex items-center justify-center py-1">
+        <div className="flex items-center justify-center gap-1 py-1">
+          <LanguageSwitcher />
           <ThemeToggle />
         </div>
       </div>

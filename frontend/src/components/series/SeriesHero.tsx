@@ -1,4 +1,5 @@
 import { FileVideo, RefreshCw, Settings, Loader2, Sparkles, FileText } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { SeriesDetail } from '@/lib/types'
 
 interface SeriesHeroProps {
@@ -48,6 +49,7 @@ export function SeriesHero({
   onNfoExport,
   onSeriesSettings,
 }: SeriesHeroProps) {
+  const { t } = useTranslation('library')
   const totalEps = series.episode_file_count ?? 0
   const metaTags = buildMetaTags(series)
 
@@ -226,7 +228,7 @@ export function SeriesHero({
               ) : (
                 '⚡'
               )}
-              {missingSearchStarted ? 'Suche läuft…' : 'Search All Missing'}
+              {missingSearchStarted ? t('series_detail.searching') : t('series_detail.search_all_missing')}
             </button>
 
             <button
@@ -252,7 +254,7 @@ export function SeriesHero({
               ) : (
                 <RefreshCw size={13} />
               )}
-              Re-scan Series
+              {t('series_detail.rescan_series')}
             </button>
 
             {onNfoExport && (
@@ -273,7 +275,7 @@ export function SeriesHero({
                 }}
               >
                 <FileText size={13} />
-                NFO Export
+                {t('series_detail.nfo_export')}
               </button>
             )}
 
@@ -294,7 +296,7 @@ export function SeriesHero({
               }}
             >
               <Settings size={13} />
-              Series Settings
+              {t('series_detail.series_settings')}
             </button>
           </div>
         </div>

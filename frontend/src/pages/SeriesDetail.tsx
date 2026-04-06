@@ -191,13 +191,13 @@ export function SeriesDetailPage() {
     startSeriesSearch.mutate({ seriesId }, {
       onSuccess: (data) => {
         if (data.total_items === 0) {
-          toast('Keine ausstehenden Einträge in der Wanted-Liste für diese Serie', 'info')
+          toast(t('series_detail.no_pending_wanted'), 'info')
           return
         }
         setSeriesSearchStarted(true)
-        toast(`Suche gestartet für ${data.total_items} Episoden`, 'success')
+        toast(`${t('series_detail.searching')} (${data.total_items})`, 'success')
       },
-      onError: () => toast('Suche konnte nicht gestartet werden', 'error'),
+      onError: () => toast(t('series_detail.no_search_results'), 'error'),
     })
   }, [seriesId, startSeriesSearch])
 
@@ -599,13 +599,13 @@ export function SeriesDetailPage() {
             onClick={() => startSeriesSearch.mutate(
               { seriesId: seriesId ?? undefined },
               {
-                onSuccess: () => toast('Season search started'),
-                onError: () => toast('Search failed', 'error'),
+                onSuccess: () => toast(t('series_detail.searching')),
+                onError: () => toast(t('series_detail.no_search_results'), 'error'),
               }
             )}
             data-testid={`search-season-${currentSeason}`}
           >
-            Search Season {currentSeason}
+            {t('series_detail.search_season', { number: currentSeason })}
           </button>
         </div>
       )}

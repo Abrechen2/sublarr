@@ -161,6 +161,13 @@
     "action": "Aktion",
     "provider": "Provider",
     "format": "Format",
-    "score": "Score"
+    "score": "Score",
+    "search_all_missing": "Alle Fehlenden suchen",
+    "searching": "Suche läuft…",
+    "rescan_series": "Serie neu scannen",
+    "nfo_export": "NFO Export",
+    "series_settings": "Serieneinstellungen",
+    "search_season": "Staffel {{number}} suchen",
+    "no_pending_wanted": "Keine ausstehenden Einträge in der Wanted-Liste für diese Serie"
   }
 }

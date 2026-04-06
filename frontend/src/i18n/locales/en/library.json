@@ -161,6 +161,13 @@
     "action": "Action",
     "provider": "Provider",
     "format": "Format",
-    "score": "Score"
+    "score": "Score",
+    "search_all_missing": "Search All Missing",
+    "searching": "Searching…",
+    "rescan_series": "Re-scan Series",
+    "nfo_export": "NFO Export",
+    "series_settings": "Series Settings",
+    "search_season": "Search Season {{number}}",
+    "no_pending_wanted": "No pending wanted items for this series"
   }
 }
