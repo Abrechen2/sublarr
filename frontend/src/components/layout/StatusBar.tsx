@@ -1,20 +1,36 @@
+import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useHealth } from '@/hooks/useApi'
+import { useHealth, useUpdateInfo } from '@/hooks/useApi'
 import { useScannerStatus } from '@/hooks/useWantedApi'
 
 export function StatusBar() {
   const { t } = useTranslation('common')
   const { data: health } = useHealth()
+  const { data: updateInfo } = useUpdateInfo()
   const { data: scannerStatus } = useScannerStatus()
+  const [popoverOpen, setPopoverOpen] = useState(false)
+  const popoverRef = useRef<HTMLDivElement>(null)
 
   const isHealthy = health?.status === 'healthy'
   const isScanning = scannerStatus?.is_scanning ?? false
   const isSearching = scannerStatus?.is_searching ?? false
   const isAutomationActive = isScanning || isSearching
+  const hasUpdate = updateInfo?.available === true
 
   const automationLabel = isAutomationActive
     ? t('status.automation_active', 'Automation: active')
     : t('status.automation_paused', 'Automation: paused')
+
+  useEffect(() => {
+    if (!popoverOpen) return
+    function handleClick(e: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setPopoverOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [popoverOpen])
 
   return (
     <div
@@ -45,26 +61,72 @@ export function StatusBar() {
       </div>
 
       {/* Separator */}
-      <div
-        className="h-3"
-        style={{ borderLeft: '1px solid var(--border)' }}
-      />
+      <div className="h-3" style={{ borderLeft: '1px solid var(--border)' }} />
 
       {/* Automation status */}
-      <span data-testid="status-bar-automation">
-        {automationLabel}
-      </span>
+      <span data-testid="status-bar-automation">{automationLabel}</span>
 
       {/* Separator */}
-      <div
-        className="h-3"
-        style={{ borderLeft: '1px solid var(--border)' }}
-      />
+      <div className="h-3" style={{ borderLeft: '1px solid var(--border)' }} />
 
       {/* Version */}
-      <span data-testid="status-bar-version">
-        v{health?.version ?? '...'}
-      </span>
+      <div className="relative" ref={popoverRef}>
+        {hasUpdate ? (
+          <button
+            data-testid="status-bar-version"
+            onClick={() => setPopoverOpen((o) => !o)}
+            className="flex items-center gap-1 cursor-pointer"
+            style={{
+              color: 'rgb(251,191,36)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10,
+              background: 'none',
+              border: 'none',
+              padding: 0,
+            }}
+          >
+            <span
+              data-testid="status-bar-update-dot"
+              className="w-1.5 h-1.5 rounded-full shrink-0 animate-pulse"
+              style={{ backgroundColor: 'rgb(251,191,36)' }}
+            />
+            v{health?.version ?? '...'}
+          </button>
+        ) : (
+          <span data-testid="status-bar-version">
+            v{health?.version ?? '...'}
+          </span>
+        )}
+
+        {hasUpdate && popoverOpen && (
+          <div
+            data-testid="status-bar-update-popover"
+            className="absolute bottom-full mb-2 left-0 rounded shadow-lg"
+            style={{
+              backgroundColor: 'var(--bg-secondary)',
+              border: '1px solid var(--border)',
+              padding: '8px 10px',
+              fontSize: 11,
+              minWidth: 200,
+              fontFamily: 'var(--font-sans)',
+              color: 'var(--text-primary)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <div style={{ color: 'rgb(251,191,36)', fontWeight: 600, marginBottom: 4 }}>
+              ↑ v{updateInfo?.latest} {t('update.available')}
+            </div>
+            <a
+              href={updateInfo?.url ?? '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'var(--accent)', textDecoration: 'none' }}
+            >
+              {t('update.view_release')}
+            </a>
+          </div>
+        )}
+      </div>
 
       {/* Spacer */}
       <div className="flex-1" />
