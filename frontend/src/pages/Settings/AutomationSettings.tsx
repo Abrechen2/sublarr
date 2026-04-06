@@ -40,6 +40,7 @@ function SectionSkeleton() {
 
 function SearchScanContent() {
   const { t } = useTranslation('common')
+  const { t: tS } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const updateConfig = useUpdateConfig()
 
@@ -61,12 +62,12 @@ function SearchScanContent() {
           margin: '4px 0 10px',
         }}
       >
-        Bibliotheks-Scan
+        {tS('automation_page.subheading_library_scan')}
       </p>
 
       <FormGroup
-        label="Scan-Intervall (Stunden)"
-        hint="Wie oft (in Stunden) Sublarr die Bibliothek auf neue Dateien scannt. 0 = nur event-gesteuert."
+        label={tS('automation_page.scan_interval')}
+        hint={tS('automation_page.scan_interval_hint')}
         htmlFor="wanted-scan-interval-hours"
         data-testid="form-group-wanted-scan-interval-hours"
       >
@@ -84,8 +85,8 @@ function SearchScanContent() {
       </FormGroup>
 
       <FormGroup
-        label="Scan beim Start"
-        hint="Bibliothek beim Start von Sublarr automatisch scannen."
+        label={tS('automation_page.scan_on_startup')}
+        hint={tS('automation_page.scan_on_startup_hint')}
         data-testid="form-group-wanted-scan-on-startup"
       >
         <Toggle
@@ -107,7 +108,7 @@ function SearchScanContent() {
           margin: '16px 0 10px',
         }}
       >
-        Untertitel-Suche
+        {tS('automation_page.subheading_subtitle_search')}
       </p>
 
       <FormGroup
@@ -148,8 +149,8 @@ function SearchScanContent() {
       </FormGroup>
 
       <FormGroup
-        label="Max Items per Run"
-        hint="Maximum number of wanted items processed in a single search run."
+        label={tS('automation_page.max_items_per_run')}
+        hint={tS('automation_page.max_items_per_run_hint')}
         htmlFor="wanted-search-max-items-per-run"
         data-testid="form-group-wanted-search-max-items-per-run"
       >
@@ -167,8 +168,8 @@ function SearchScanContent() {
       </FormGroup>
 
       <FormGroup
-        label="Max Search Attempts"
-        hint="How many times Sublarr retries a failed subtitle search before giving up."
+        label={tS('automation_page.max_search_attempts')}
+        hint={tS('automation_page.max_search_attempts_hint')}
         htmlFor="wanted-max-search-attempts"
         data-testid="form-group-wanted-max-search-attempts"
       >
@@ -186,8 +187,8 @@ function SearchScanContent() {
       </FormGroup>
 
       <FormGroup
-        label="Auto-Extract Embedded"
-        hint="Automatically extract embedded subtitles during wanted scans."
+        label={tS('automation_page.auto_extract')}
+        hint={tS('automation_page.auto_extract_hint')}
         data-testid="form-group-wanted-auto-extract"
       >
         <Toggle
@@ -198,8 +199,8 @@ function SearchScanContent() {
       </FormGroup>
 
       <FormGroup
-        label="Anime Series Only"
-        hint="Only search subtitles for anime series (skip live-action)."
+        label={tS('automation_page.anime_series_only')}
+        hint={tS('automation_page.anime_series_only_hint')}
         data-testid="form-group-wanted-anime-only"
       >
         <Toggle
@@ -210,8 +211,8 @@ function SearchScanContent() {
       </FormGroup>
 
       <FormGroup
-        label="Anime Movies Only"
-        hint="Only search subtitles for anime movies."
+        label={tS('automation_page.anime_movies_only')}
+        hint={tS('automation_page.anime_movies_only_hint')}
         data-testid="form-group-wanted-anime-movies-only"
       >
         <Toggle
@@ -222,8 +223,8 @@ function SearchScanContent() {
       </FormGroup>
 
       <FormGroup
-        label="Skip SRT When No ASS Found"
-        hint="Skip SRT subtitle downloads if no ASS subtitle was found for the episode."
+        label={tS('automation_page.skip_srt_no_ass')}
+        hint={tS('automation_page.skip_srt_no_ass_hint')}
         data-testid="form-group-wanted-skip-srt-on-no-ass"
       >
         <Toggle
@@ -234,8 +235,8 @@ function SearchScanContent() {
       </FormGroup>
 
       <FormGroup
-        label="Adaptive Backoff"
-        hint="Increase retry delay exponentially for items that repeatedly fail."
+        label={tS('automation_page.adaptive_backoff')}
+        hint={tS('automation_page.adaptive_backoff_hint')}
         data-testid="form-group-wanted-adaptive-backoff-enabled"
       >
         <Toggle
@@ -248,8 +249,8 @@ function SearchScanContent() {
       {boolVal(config, 'wanted_adaptive_backoff_enabled', false) && (
         <>
           <FormGroup
-            label="Backoff Base (hours)"
-            hint="Initial retry delay in hours when backoff is active."
+            label={tS('automation_page.backoff_base')}
+            hint={tS('automation_page.backoff_base_hint')}
             htmlFor="wanted-backoff-base-hours"
             data-testid="form-group-wanted-backoff-base-hours"
           >
@@ -267,8 +268,8 @@ function SearchScanContent() {
           </FormGroup>
 
           <FormGroup
-            label="Backoff Cap (hours)"
-            hint="Maximum retry delay in hours. Delay will not exceed this value."
+            label={tS('automation_page.backoff_cap')}
+            hint={tS('automation_page.backoff_cap_hint')}
             htmlFor="wanted-backoff-cap-hours"
             data-testid="form-group-wanted-backoff-cap-hours"
           >
@@ -294,6 +295,7 @@ function SearchScanContent() {
 
 function UpgradeRulesContent() {
   const { t } = useTranslation('common')
+  const { t: tS } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const updateConfig = useUpdateConfig()
 
@@ -363,8 +365,8 @@ function UpgradeRulesContent() {
       </FormGroup>
 
       <FormGroup
-        label="Upgrade Window (days)"
-        hint="Only upgrade subtitles downloaded within this many days."
+        label={tS('automation_page.upgrade_window')}
+        hint={tS('automation_page.upgrade_window_hint')}
         htmlFor="upgrade-window-days"
         data-testid="form-group-upgrade-window-days"
       >
@@ -382,8 +384,8 @@ function UpgradeRulesContent() {
       </FormGroup>
 
       <FormGroup
-        label="Prefer ASS over SRT"
-        hint="Always upgrade from SRT to ASS format when a better ASS subtitle is available."
+        label={tS('automation_page.prefer_ass')}
+        hint={tS('automation_page.prefer_ass_hint')}
         data-testid="form-group-upgrade-prefer-ass"
       >
         <Toggle
