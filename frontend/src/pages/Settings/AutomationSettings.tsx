@@ -10,7 +10,7 @@
  */
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Search, ArrowUpCircle, Workflow, Clock, Zap } from 'lucide-react'
+import { Search, ArrowUpCircle, Clock, Zap } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
