@@ -39,6 +39,122 @@ function SectionSkeleton() {
 
 // ─── Search & Scan Section ────────────────────────────────────────────────────
 
+function SearchScanAdvancedContent() {
+  const { t: tS } = useTranslation('settings')
+  const { data: config, isLoading } = useConfig()
+  const updateConfig = useUpdateConfig()
+  const save = (patch: Record<string, unknown>) => updateConfig.mutate(patch)
+
+  if (isLoading) return <SectionSkeleton />
+
+  return (
+    <div data-testid="search-scan-advanced-content">
+      <FormGroup
+        label={tS('automation_page.anime_series_only')}
+        hint={tS('automation_page.anime_series_only_hint')}
+        advanced
+        data-testid="form-group-wanted-anime-only"
+      >
+        <Toggle
+          checked={boolVal(config, 'wanted_anime_only', false)}
+          onChange={(v) => save({ wanted_anime_only: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label={tS('automation_page.anime_movies_only')}
+        hint={tS('automation_page.anime_movies_only_hint')}
+        advanced
+        data-testid="form-group-wanted-anime-movies-only"
+      >
+        <Toggle
+          checked={boolVal(config, 'wanted_anime_movies_only', false)}
+          onChange={(v) => save({ wanted_anime_movies_only: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label={tS('automation_page.max_items_per_run')}
+        hint={tS('automation_page.max_items_per_run_hint')}
+        htmlFor="wanted-search-max-items-per-run"
+        advanced
+        data-testid="form-group-wanted-search-max-items-per-run"
+      >
+        <input
+          id="wanted-search-max-items-per-run"
+          type="number"
+          data-testid="input-wanted-search-max-items-per-run"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={strVal(config, 'wanted_search_max_items_per_run', '50')}
+          onChange={(e) => save({ wanted_search_max_items_per_run: Number(e.target.value) })}
+          disabled={updateConfig.isPending}
+          min={1}
+          placeholder="50"
+        />
+      </FormGroup>
+
+      <FormGroup
+        label={tS('automation_page.adaptive_backoff')}
+        hint={tS('automation_page.adaptive_backoff_hint')}
+        advanced
+        data-testid="form-group-wanted-adaptive-backoff-enabled"
+      >
+        <Toggle
+          checked={boolVal(config, 'wanted_adaptive_backoff_enabled', false)}
+          onChange={(v) => save({ wanted_adaptive_backoff_enabled: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      {boolVal(config, 'wanted_adaptive_backoff_enabled', false) && (
+        <>
+          <FormGroup
+            label={tS('automation_page.backoff_base')}
+            hint={tS('automation_page.backoff_base_hint')}
+            htmlFor="wanted-backoff-base-hours"
+            advanced
+            data-testid="form-group-wanted-backoff-base-hours"
+          >
+            <input
+              id="wanted-backoff-base-hours"
+              type="number"
+              data-testid="input-wanted-backoff-base-hours"
+              style={{ ...inputStyle, maxWidth: '120px' }}
+              value={strVal(config, 'wanted_backoff_base_hours', '1')}
+              onChange={(e) => save({ wanted_backoff_base_hours: Number(e.target.value) })}
+              disabled={updateConfig.isPending}
+              min={1}
+              placeholder="1"
+            />
+          </FormGroup>
+
+          <FormGroup
+            label={tS('automation_page.backoff_cap')}
+            hint={tS('automation_page.backoff_cap_hint')}
+            htmlFor="wanted-backoff-cap-hours"
+            advanced
+            data-testid="form-group-wanted-backoff-cap-hours"
+          >
+            <input
+              id="wanted-backoff-cap-hours"
+              type="number"
+              data-testid="input-wanted-backoff-cap-hours"
+              style={{ ...inputStyle, maxWidth: '120px' }}
+              value={strVal(config, 'wanted_backoff_cap_hours', '24')}
+              onChange={(e) => save({ wanted_backoff_cap_hours: Number(e.target.value) })}
+              disabled={updateConfig.isPending}
+              min={1}
+              placeholder="24"
+            />
+          </FormGroup>
+        </>
+      )}
+    </div>
+  )
+}
+
 function SearchScanContent() {
   const { t } = useTranslation('common')
   const { t: tS } = useTranslation('settings')
@@ -150,25 +266,6 @@ function SearchScanContent() {
       </FormGroup>
 
       <FormGroup
-        label={tS('automation_page.max_items_per_run')}
-        hint={tS('automation_page.max_items_per_run_hint')}
-        htmlFor="wanted-search-max-items-per-run"
-        data-testid="form-group-wanted-search-max-items-per-run"
-      >
-        <input
-          id="wanted-search-max-items-per-run"
-          type="number"
-          data-testid="input-wanted-search-max-items-per-run"
-          style={{ ...inputStyle, maxWidth: '120px' }}
-          value={strVal(config, 'wanted_search_max_items_per_run', '50')}
-          onChange={(e) => save({ wanted_search_max_items_per_run: Number(e.target.value) })}
-          disabled={updateConfig.isPending}
-          min={1}
-          placeholder="50"
-        />
-      </FormGroup>
-
-      <FormGroup
         label={tS('automation_page.max_search_attempts')}
         hint={tS('automation_page.max_search_attempts_hint')}
         htmlFor="wanted-max-search-attempts"
@@ -200,30 +297,6 @@ function SearchScanContent() {
       </FormGroup>
 
       <FormGroup
-        label={tS('automation_page.anime_series_only')}
-        hint={tS('automation_page.anime_series_only_hint')}
-        data-testid="form-group-wanted-anime-only"
-      >
-        <Toggle
-          checked={boolVal(config, 'wanted_anime_only', false)}
-          onChange={(v) => save({ wanted_anime_only: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.anime_movies_only')}
-        hint={tS('automation_page.anime_movies_only_hint')}
-        data-testid="form-group-wanted-anime-movies-only"
-      >
-        <Toggle
-          checked={boolVal(config, 'wanted_anime_movies_only', false)}
-          onChange={(v) => save({ wanted_anime_movies_only: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
         label={tS('automation_page.skip_srt_no_ass')}
         hint={tS('automation_page.skip_srt_no_ass_hint')}
         data-testid="form-group-wanted-skip-srt-on-no-ass"
@@ -234,65 +307,47 @@ function SearchScanContent() {
           disabled={updateConfig.isPending}
         />
       </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.adaptive_backoff')}
-        hint={tS('automation_page.adaptive_backoff_hint')}
-        data-testid="form-group-wanted-adaptive-backoff-enabled"
-      >
-        <Toggle
-          checked={boolVal(config, 'wanted_adaptive_backoff_enabled', false)}
-          onChange={(v) => save({ wanted_adaptive_backoff_enabled: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      {boolVal(config, 'wanted_adaptive_backoff_enabled', false) && (
-        <>
-          <FormGroup
-            label={tS('automation_page.backoff_base')}
-            hint={tS('automation_page.backoff_base_hint')}
-            htmlFor="wanted-backoff-base-hours"
-            data-testid="form-group-wanted-backoff-base-hours"
-          >
-            <input
-              id="wanted-backoff-base-hours"
-              type="number"
-              data-testid="input-wanted-backoff-base-hours"
-              style={{ ...inputStyle, maxWidth: '120px' }}
-              value={strVal(config, 'wanted_backoff_base_hours', '1')}
-              onChange={(e) => save({ wanted_backoff_base_hours: Number(e.target.value) })}
-              disabled={updateConfig.isPending}
-              min={1}
-              placeholder="1"
-            />
-          </FormGroup>
-
-          <FormGroup
-            label={tS('automation_page.backoff_cap')}
-            hint={tS('automation_page.backoff_cap_hint')}
-            htmlFor="wanted-backoff-cap-hours"
-            data-testid="form-group-wanted-backoff-cap-hours"
-          >
-            <input
-              id="wanted-backoff-cap-hours"
-              type="number"
-              data-testid="input-wanted-backoff-cap-hours"
-              style={{ ...inputStyle, maxWidth: '120px' }}
-              value={strVal(config, 'wanted_backoff_cap_hours', '24')}
-              onChange={(e) => save({ wanted_backoff_cap_hours: Number(e.target.value) })}
-              disabled={updateConfig.isPending}
-              min={1}
-              placeholder="24"
-            />
-          </FormGroup>
-        </>
-      )}
     </div>
   )
 }
 
 // ─── Upgrade Rules Section ────────────────────────────────────────────────────
+
+function UpgradeRulesAdvancedContent() {
+  const { t } = useTranslation('common')
+  const { data: config, isLoading } = useConfig()
+  const updateConfig = useUpdateConfig()
+  const save = (patch: Record<string, unknown>) => updateConfig.mutate(patch)
+
+  if (isLoading) return <SectionSkeleton />
+
+  return (
+    <div data-testid="upgrade-rules-advanced-content">
+      <FormGroup
+        label={t('settings.automation.upgradeRules.checkInterval', 'Upgrade Scan Interval (hours)')}
+        hint={t(
+          'settings.automation.upgradeRules.checkIntervalHint',
+          'How often (in hours) existing subtitles are checked for upgrade candidates.',
+        )}
+        htmlFor="upgrade-scan-interval-hours"
+        advanced
+        data-testid="form-group-upgrade-scan-interval-hours"
+      >
+        <input
+          id="upgrade-scan-interval-hours"
+          type="number"
+          data-testid="input-upgrade-scan-interval-hours"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={strVal(config, 'upgrade_scan_interval_hours', '24')}
+          onChange={(e) => save({ upgrade_scan_interval_hours: Number(e.target.value) })}
+          disabled={updateConfig.isPending}
+          min={1}
+          placeholder="24"
+        />
+      </FormGroup>
+    </div>
+  )
+}
 
 function UpgradeRulesContent() {
   const { t } = useTranslation('common')
@@ -340,28 +395,6 @@ function UpgradeRulesContent() {
           disabled={updateConfig.isPending}
           min={0}
           placeholder="10"
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={t('settings.automation.upgradeRules.checkInterval', 'Upgrade Scan Interval (hours)')}
-        hint={t(
-          'settings.automation.upgradeRules.checkIntervalHint',
-          'How often (in hours) existing subtitles are checked for upgrade candidates.',
-        )}
-        htmlFor="upgrade-scan-interval-hours"
-        data-testid="form-group-upgrade-scan-interval-hours"
-      >
-        <input
-          id="upgrade-scan-interval-hours"
-          type="number"
-          data-testid="input-upgrade-scan-interval-hours"
-          style={{ ...inputStyle, maxWidth: '120px' }}
-          value={strVal(config, 'upgrade_scan_interval_hours', '24')}
-          onChange={(e) => save({ upgrade_scan_interval_hours: Number(e.target.value) })}
-          disabled={updateConfig.isPending}
-          min={1}
-          placeholder="24"
         />
       </FormGroup>
 
@@ -510,6 +543,8 @@ export function AutomationSettings() {
             'Configure how often Sublarr searches for missing subtitles and scans the library.',
           )}
           icon={<Search size={16} style={{ color: 'var(--accent)' }} />}
+          advanced={<SearchScanAdvancedContent />}
+          advancedCount={5}
         >
           <SearchScanContent />
         </SettingsSection>
@@ -524,6 +559,8 @@ export function AutomationSettings() {
             'Define when and how existing subtitles should be replaced with better ones.',
           )}
           icon={<ArrowUpCircle size={16} style={{ color: 'var(--accent)' }} />}
+          advanced={<UpgradeRulesAdvancedContent />}
+          advancedCount={1}
         >
           <UpgradeRulesContent />
         </SettingsSection>
