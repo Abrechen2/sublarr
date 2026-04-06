@@ -87,7 +87,7 @@ export function FilterBar({ scope, filters, activeFilters, onFiltersChange, onPr
               value={pendingKey}
               onChange={(e) => { setPendingKey(e.target.value); setPendingValue('') }}
             >
-              <option value="">Pick field...</option>
+              <option value="">{t('filters.pickField')}</option>
               {filters.map((f) => (
                 <option key={f.key} value={f.key}>{f.label}</option>
               ))}
@@ -103,13 +103,13 @@ export function FilterBar({ scope, filters, activeFilters, onFiltersChange, onPr
                     if (e.target.value) addFilter(pendingKey, e.target.value)
                   }}
                 >
-                  <option value="">Pick value...</option>
+                  <option value="">{t('filters.pickValue')}</option>
                   {def.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               ) : (
                 <input
                   type={def.type === 'number' ? 'number' : 'text'}
-                  placeholder={`Enter ${def.label.toLowerCase()}...`}
+                  placeholder={t('filters.enterValue', { field: def.label.toLowerCase() })}
                   value={pendingValue}
                   onChange={(e) => setPendingValue(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && pendingValue) addFilter(pendingKey, pendingValue) }}

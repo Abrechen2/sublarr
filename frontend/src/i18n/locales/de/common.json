@@ -116,7 +116,10 @@
     "presets": "Voreinstellungen",
     "saveCurrentFilters": "Aktuelle Filter speichern",
     "presetName": "Name der Voreinstellung...",
-    "noPresets": "Keine Voreinstellungen gespeichert"
+    "noPresets": "Keine Voreinstellungen gespeichert",
+    "pickField": "Feld auswählen...",
+    "pickValue": "Wert auswählen...",
+    "enterValue": "{{field}} eingeben..."
   },
   "batch": {
     "itemsSelected": "{{count}} ausgewählt",

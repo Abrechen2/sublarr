@@ -116,7 +116,10 @@
     "presets": "Presets",
     "saveCurrentFilters": "Save current filters",
     "presetName": "Preset name...",
-    "noPresets": "No saved presets"
+    "noPresets": "No saved presets",
+    "pickField": "Select field...",
+    "pickValue": "Select value...",
+    "enterValue": "Enter {{field}}..."
   },
   "batch": {
     "itemsSelected": "{{count}} selected",

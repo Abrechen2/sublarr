@@ -1,13 +1,30 @@
 import { useTranslation } from 'react-i18next'
 import { Search, Film, Tv, ArrowUpCircle, ArrowUp, ArrowDown } from 'lucide-react'
 import { FilterBar } from '@/components/filters/FilterBar'
-import { FilterPresetMenu } from '@/components/filters/FilterPresetMenu'
 import type { FilterDef, ActiveFilter } from '@/components/filters/FilterBar'
 import type { FilterCondition } from '@/lib/types'
 
 const STATUS_FILTERS = ['all', 'wanted', 'extracted', 'failed', 'ignored'] as const
 const TYPE_FILTERS = ['all', 'episode', 'movie'] as const
 const SUBTITLE_TYPE_FILTERS = ['all', 'full', 'forced'] as const
+
+const STATUS_I18N: Record<string, string> = {
+  all: 'wanted.all',
+  wanted: 'wanted.wanted_status',
+  extracted: 'wanted.extracted_status',
+  failed: 'wanted.failed',
+  ignored: 'wanted.ignored',
+}
+const TYPE_I18N: Record<string, string> = {
+  all: 'wanted.all_types',
+  episode: 'wanted.episodes',
+  movie: 'wanted.movie',
+}
+const SUBTITLE_TYPE_I18N: Record<string, string> = {
+  all: 'wanted.all_subs',
+  full: 'wanted.subtitle_type_full',
+  forced: 'wanted.subtitle_type_forced',
+}
 
 const SORT_FIELDS = [
   { value: 'added_at', labelKey: 'wanted.sortFields.added_at' },
@@ -142,7 +159,7 @@ export function WantedFilterPanel({
                   border: `1px solid ${isActive ? 'var(--accent-dim)' : 'var(--border)'}`,
                 }}
               >
-                {s.charAt(0).toUpperCase() + s.slice(1)}
+                {t(STATUS_I18N[s] ?? s, s)}
               </button>
             )
           })}
@@ -161,7 +178,7 @@ export function WantedFilterPanel({
                   border: `1px solid ${isActive ? 'var(--accent-dim)' : 'var(--border)'}`,
                 }}
               >
-                {tf === 'all' ? 'All Types' : tf.charAt(0).toUpperCase() + tf.slice(1) + 's'}
+                {t(TYPE_I18N[tf] ?? tf, tf)}
               </button>
             )
           })}
@@ -181,7 +198,7 @@ export function WantedFilterPanel({
                     border: `1px solid ${isActive ? 'var(--accent-dim)' : 'var(--border)'}`,
                   }}
                 >
-                  {st === 'all' ? 'All Subs' : st.charAt(0).toUpperCase() + st.slice(1)}
+                  {t(SUBTITLE_TYPE_I18N[st] ?? st, st)}
                   {st === 'forced' && ` (${forcedCount})`}
                 </button>
               )
@@ -199,7 +216,7 @@ export function WantedFilterPanel({
                 border: `1px solid ${!languageFilter ? 'var(--accent-dim)' : 'var(--border)'}`,
               }}
             >
-              All Langs
+              {t('wanted.all_langs')}
             </button>
             {availableLanguages.map((lang) => {
               const isActive = languageFilter === lang
@@ -279,7 +296,7 @@ export function WantedFilterPanel({
           <button
             onClick={() => onSortDir(sortDir === 'asc' ? 'desc' : 'asc')}
             className="p-1.5 rounded-md transition-all duration-150"
-            title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
+            title={sortDir === 'asc' ? t('wanted.sort_asc') : t('wanted.sort_desc')}
             style={{
               backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border)',
@@ -291,21 +308,14 @@ export function WantedFilterPanel({
         </div>
       </div>
 
-      {/* FilterBar + Preset Menu */}
-      <div className="flex items-center gap-2">
-        <FilterBar
-          scope={scope}
-          filters={wantedFilters}
-          activeFilters={activeFilters}
-          onFiltersChange={onFiltersChange}
-          onPresetLoad={handlePresetLoad}
-        />
-        <FilterPresetMenu
-          scope={scope}
-          activeFilters={activeFilters}
-          onPresetLoad={handlePresetLoad}
-        />
-      </div>
+      {/* FilterBar (includes preset menu) */}
+      <FilterBar
+        scope={scope}
+        filters={wantedFilters}
+        activeFilters={activeFilters}
+        onFiltersChange={onFiltersChange}
+        onPresetLoad={handlePresetLoad}
+      />
     </>
   )
 }
