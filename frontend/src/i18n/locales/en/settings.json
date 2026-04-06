@@ -350,5 +350,19 @@
     "forced_subtitles": "Forced Subtitles",
     "translation_backend": "Translation Backend",
     "fallback_chain": "Fallback Chain"
+  },
+  "security": {
+    "ui_auth_title": "UI Authentication",
+    "require_login": "Require login",
+    "require_login_desc": "Protect the web UI with a password. API key authentication is unaffected.",
+    "change_password_title": "Change Password",
+    "current_password": "Current Password",
+    "new_password": "New Password",
+    "confirm_new_password": "Confirm New Password",
+    "max_login_attempts": "Max Login Attempts",
+    "max_login_attempts_hint": "Maximum failed login attempts before lockout",
+    "lockout_duration": "Lockout Duration",
+    "lockout_duration_hint": "Duration of account lockout after exceeding max attempts",
+    "allowed_ip_ranges": "Allowed IP Ranges"
   }
 }

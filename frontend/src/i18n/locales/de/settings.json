@@ -350,5 +350,19 @@
     "forced_subtitles": "Erzwungene Untertitel",
     "translation_backend": "Übersetzungs-Backend",
     "fallback_chain": "Fallback-Kette"
+  },
+  "security": {
+    "ui_auth_title": "UI-Authentifizierung",
+    "require_login": "Login erforderlich",
+    "require_login_desc": "UI mit Passwort schützen. API-Key-Authentifizierung ist nicht betroffen.",
+    "change_password_title": "Passwort ändern",
+    "current_password": "Aktuelles Passwort",
+    "new_password": "Neues Passwort",
+    "confirm_new_password": "Neues Passwort bestätigen",
+    "max_login_attempts": "Max. Anmeldeversuche",
+    "max_login_attempts_hint": "Maximale Fehlversuche vor Kontosperrung",
+    "lockout_duration": "Sperrdauer",
+    "lockout_duration_hint": "Dauer der Kontosperrung nach zu vielen Fehlversuchen",
+    "allowed_ip_ranges": "Erlaubte IP-Bereiche"
   }
 }
