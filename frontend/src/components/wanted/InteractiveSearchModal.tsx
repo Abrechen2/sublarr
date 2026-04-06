@@ -10,6 +10,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { X, Loader2, Search, Download, RefreshCw, AlertCircle, ChevronsRight } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import {
   useSearchInteractive,
   useSearchInteractiveEpisode,
@@ -44,6 +45,7 @@ export function InteractiveSearchModal({
   onClose,
   onDownloaded,
 }: InteractiveSearchModalProps) {
+  const { t } = useTranslation('library')
   const [langFilter, setLangFilter] = useState('')
   const [formatFilter, setFormatFilter] = useState('')
   const [providerFilter, setProviderFilter] = useState('')
@@ -135,17 +137,17 @@ export function InteractiveSearchModal({
       }
 
       if (res?.success) {
-        toast(translate ? 'Untertitel heruntergeladen & übersetzt' : 'Untertitel heruntergeladen', 'success')
+        toast(translate ? t('interactive_search.downloaded_translated') : t('interactive_search.downloaded_success'), 'success')
         queryClient.invalidateQueries({ queryKey: ['jobs'] })
         queryClient.invalidateQueries({ queryKey: ['history'] })
         queryClient.invalidateQueries({ queryKey: ['wanted'] })
         queryClient.invalidateQueries({ queryKey: ['series-subtitles'] })
         onDownloaded()
       } else {
-        toast(res?.error ?? 'Download fehlgeschlagen', 'error')
+        toast(res?.error ?? t('interactive_search.download_failed'), 'error')
       }
     } catch {
-      toast('Download fehlgeschlagen', 'error')
+      toast(t('interactive_search.download_failed'), 'error')
     } finally {
       downloadingRef.current = null
     }
@@ -193,7 +195,7 @@ export function InteractiveSearchModal({
             <div className="flex items-center gap-3 min-w-0">
               <Search className="w-5 h-5 text-teal-400 shrink-0" />
               <div className="min-w-0">
-                <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Interaktive Suche</p>
+                <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{t('interactive_search.title')}</p>
                 <h2 className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{itemTitle}</h2>
               </div>
             </div>
@@ -202,7 +204,7 @@ export function InteractiveSearchModal({
                 <button
                   onClick={() => query.refetch()}
                   className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                  title="Erneut suchen"
+                  title={t('interactive_search.retry')}
                 >
                   <RefreshCw className="w-4 h-4" />
                 </button>
@@ -219,33 +221,36 @@ export function InteractiveSearchModal({
           {/* Filter bar */}
           <div className="px-5 py-3 border-b border-[var(--border)] flex flex-wrap gap-2 items-center">
             <FilterSelect
-              label="Sprache"
+              label={t('interactive_search.filter_lang')}
               value={langFilter}
               onChange={setLangFilter}
               options={languages}
+              allLabel={t('interactive_search.filter_all')}
             />
             <FilterSelect
-              label="Format"
+              label={t('interactive_search.filter_format')}
               value={formatFilter}
               onChange={setFormatFilter}
               options={formats}
+              allLabel={t('interactive_search.filter_all')}
             />
             <FilterSelect
-              label="Anbieter"
+              label={t('interactive_search.filter_provider')}
               value={providerFilter}
               onChange={setProviderFilter}
               options={providers}
+              allLabel={t('interactive_search.filter_all')}
             />
             {(langFilter || formatFilter || providerFilter) && (
               <button
                 onClick={() => { setLangFilter(''); setFormatFilter(''); setProviderFilter('') }}
                 className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded transition-colors"
               >
-                Filter zurücksetzen
+                {t('interactive_search.filter_reset')}
               </button>
             )}
             <span className="ml-auto text-xs text-slate-500">
-              {isLoading ? 'Suche läuft…' : `${filtered.length} Ergebnis${filtered.length !== 1 ? 'se' : ''}`}
+              {isLoading ? t('interactive_search.loading') : t('interactive_search.results_count_other', { count: filtered.length })}
             </span>
           </div>
 
@@ -254,21 +259,21 @@ export function InteractiveSearchModal({
             {isLoading && (
               <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
                 <Loader2 className="w-8 h-8 animate-spin text-teal-400" />
-                <p className="text-sm">Suche bei allen Anbietern…</p>
+                <p className="text-sm">{t('interactive_search.searching_providers')}</p>
               </div>
             )}
 
             {!isLoading && query.isError && (
               <div className="flex flex-col items-center justify-center py-16 gap-3 text-red-400">
                 <AlertCircle className="w-8 h-8" />
-                <p className="text-sm">Suche fehlgeschlagen. Bitte erneut versuchen.</p>
+                <p className="text-sm">{t('interactive_search.search_failed')}</p>
               </div>
             )}
 
             {!isLoading && !query.isError && filtered.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-500">
                 <Search className="w-8 h-8" />
-                <p className="text-sm">{results.length === 0 ? 'Keine Ergebnisse gefunden.' : 'Keine Ergebnisse für aktive Filter.'}</p>
+                <p className="text-sm">{results.length === 0 ? t('interactive_search.no_results') : t('interactive_search.no_results_filter')}</p>
               </div>
             )}
 
@@ -276,12 +281,12 @@ export function InteractiveSearchModal({
               <table className="w-full text-sm">
                 <thead className="sticky top-0 border-b border-[var(--border)]" style={{ backgroundColor: 'var(--bg-elevated)' }}>
                   <tr className="text-left text-xs uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                    <th className="px-4 py-2.5 font-medium">Anbieter</th>
-                    <th className="px-4 py-2.5 font-medium">Dateiname</th>
-                    <th className="px-4 py-2.5 font-medium w-12">Lang</th>
-                    <th className="px-4 py-2.5 font-medium w-12">Fmt</th>
-                    <th className="px-4 py-2.5 font-medium w-16 text-right">Score</th>
-                    <th className="px-4 py-2.5 font-medium w-12 text-right">Flags</th>
+                    <th className="px-4 py-2.5 font-medium">{t('interactive_search.col_provider')}</th>
+                    <th className="px-4 py-2.5 font-medium">{t('interactive_search.col_filename')}</th>
+                    <th className="px-4 py-2.5 font-medium w-12">{t('interactive_search.col_lang')}</th>
+                    <th className="px-4 py-2.5 font-medium w-12">{t('interactive_search.col_format')}</th>
+                    <th className="px-4 py-2.5 font-medium w-16 text-right">{t('interactive_search.col_score')}</th>
+                    <th className="px-4 py-2.5 font-medium w-12 text-right">{t('interactive_search.col_flags')}</th>
                     <th className="px-4 py-2.5 font-medium w-12"></th>
                   </tr>
                 </thead>
@@ -332,7 +337,7 @@ export function InteractiveSearchModal({
                             {result.uploader_trust_bonus !== undefined && result.uploader_trust_bonus > 0 && (
                               <span
                                 className="text-[10px] text-emerald-400 bg-emerald-400/10 px-1 rounded"
-                                title={result.uploader_name ? `Uploader: ${result.uploader_name}` : 'Vertrauenswürdiger Uploader'}
+                                title={result.uploader_name ? `Uploader: ${result.uploader_name}` : t('interactive_search.trusted_uploader')}
                               >
                                 +{Math.round(result.uploader_trust_bonus)} Trust
                               </span>
@@ -340,7 +345,7 @@ export function InteractiveSearchModal({
                             {(result.machine_translated || (result.mt_confidence !== undefined && result.mt_confidence > 0)) && (
                               <span
                                 className="text-[10px] text-orange-400 bg-orange-400/10 px-1 rounded"
-                                title="Likely machine-translated"
+                                title={t('interactive_search.machine_translated')}
                               >
                                 {result.mt_confidence !== undefined && result.mt_confidence > 0
                                   ? `MT ${Math.round(result.mt_confidence)}%`
@@ -348,10 +353,10 @@ export function InteractiveSearchModal({
                               </span>
                             )}
                             {result.hearing_impaired && (
-                              <span className="text-[10px] text-amber-400 bg-amber-400/10 px-1 rounded" title="Für Hörgeschädigte">HI</span>
+                              <span className="text-[10px] text-amber-400 bg-amber-400/10 px-1 rounded" title={t('interactive_search.hearing_impaired')}>HI</span>
                             )}
                             {result.forced && (
-                              <span className="text-[10px] text-blue-400 bg-blue-400/10 px-1 rounded" title="Forced">F</span>
+                              <span className="text-[10px] text-blue-400 bg-blue-400/10 px-1 rounded" title={t('interactive_search.forced')}>F</span>
                             )}
                           </div>
                         </td>
@@ -365,7 +370,7 @@ export function InteractiveSearchModal({
                                 ? 'bg-teal-500/20 text-teal-300'
                                 : 'text-slate-400 hover:text-white hover:bg-white/10'
                             }`}
-                            title="Herunterladen"
+                            title={t('interactive_search.download')}
                           >
                             <Download className="w-3.5 h-3.5" />
                           </button>
@@ -384,7 +389,7 @@ export function InteractiveSearchModal({
               onClick={onClose}
               className="px-4 py-2 text-sm text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
             >
-              Schließen
+              {t('interactive_search.close')}
             </button>
           </div>
         </div>
@@ -406,7 +411,7 @@ export function InteractiveSearchModal({
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '' }}
           >
             <Download className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-            Nur herunterladen
+            {t('interactive_search.download_only')}
           </button>
           <button
             onClick={() => handleDownload(true)}
@@ -417,7 +422,7 @@ export function InteractiveSearchModal({
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '' }}
           >
             <ChevronsRight className="w-4 h-4" style={{ color: 'var(--accent)' }} />
-            Herunterladen & Übersetzen
+            {t('interactive_search.download_translate')}
           </button>
         </div>
       )}
@@ -435,7 +440,7 @@ interface FilterSelectProps {
   options: string[]
 }
 
-function FilterSelect({ label, value, onChange, options }: FilterSelectProps) {
+function FilterSelect({ label, value, onChange, options, allLabel }: FilterSelectProps & { allLabel: string }) {
   return (
     <select
       value={value}
@@ -443,7 +448,7 @@ function FilterSelect({ label, value, onChange, options }: FilterSelectProps) {
       className="text-xs rounded px-2.5 py-1.5 focus:outline-none transition-colors"
       style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
     >
-      <option value="">{label}: Alle</option>
+      <option value="">{label}: {allLabel}</option>
       {options.map(opt => (
         <option key={opt} value={opt}>{opt.toUpperCase()}</option>
       ))}
