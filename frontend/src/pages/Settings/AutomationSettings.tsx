@@ -470,77 +470,6 @@ function WebhookContent() {
   )
 }
 
-// ─── Cleanup Section ──────────────────────────────────────────────────────────
-
-function CleanupContent() {
-  const { t } = useTranslation('settings')
-  const { data: config, isLoading } = useConfig()
-  const updateConfig = useUpdateConfig()
-
-  const save = (patch: Record<string, unknown>) => updateConfig.mutate(patch)
-
-  if (isLoading) return <SectionSkeleton />
-
-  return (
-    <div data-testid="cleanup-content">
-      <FormGroup
-        label={t('automation_page.keep_languages')}
-        hint={t('automation_page.keep_languages_hint')}
-        htmlFor="auto-cleanup-keep-languages"
-        data-testid="form-group-auto-cleanup-keep-languages"
-      >
-        <input
-          id="auto-cleanup-keep-languages"
-          type="text"
-          data-testid="input-auto-cleanup-keep-languages"
-          style={inputStyle}
-          value={strVal(config, 'auto_cleanup_keep_languages', '')}
-          onChange={(e) => save({ auto_cleanup_keep_languages: e.target.value })}
-          disabled={updateConfig.isPending}
-          placeholder="de,en"
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={t('automation_page.keep_formats')}
-        hint={t('automation_page.keep_formats_hint')}
-        htmlFor="auto-cleanup-keep-formats"
-        data-testid="form-group-auto-cleanup-keep-formats"
-      >
-        <input
-          id="auto-cleanup-keep-formats"
-          type="text"
-          data-testid="input-auto-cleanup-keep-formats"
-          style={inputStyle}
-          value={strVal(config, 'auto_cleanup_keep_formats', '')}
-          onChange={(e) => save({ auto_cleanup_keep_formats: e.target.value })}
-          disabled={updateConfig.isPending}
-          placeholder="ass,srt"
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={t('automation_page.trash_retention')}
-        hint={t('automation_page.trash_retention_hint')}
-        htmlFor="subtitle-trash-retention-days"
-        data-testid="form-group-subtitle-trash-retention-days"
-      >
-        <input
-          id="subtitle-trash-retention-days"
-          type="number"
-          data-testid="input-subtitle-trash-retention-days"
-          style={{ ...inputStyle, maxWidth: '120px' }}
-          value={strVal(config, 'subtitle_trash_retention_days', '30')}
-          onChange={(e) => save({ subtitle_trash_retention_days: Number(e.target.value) })}
-          disabled={updateConfig.isPending}
-          min={0}
-          placeholder="30"
-        />
-      </FormGroup>
-    </div>
-  )
-}
-
 // ─── Scheduled Tasks Section (advanced placeholder) ───────────────────────────
 
 function ScheduledTasksContent() {
@@ -640,15 +569,33 @@ export function AutomationSettings() {
         </Link>
       </div>
 
-      {/* 5. Cleanup */}
-      <div data-testid="section-cleanup">
-        <SettingsSection
-          title={tS('automation_page.cleanup_section')}
-          description={tS('automation_page.cleanup_section_desc')}
-          icon={<Workflow size={16} style={{ color: 'var(--accent)' }} />}
+      {/* 5. Cleanup — navigates to dedicated cleanup page */}
+      <div
+        data-testid="section-cleanup"
+        style={{
+          padding: '14px 18px',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-lg)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <div>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+            {tS('automation_page.cleanup_section')}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>
+            {tS('automation_page.cleanup_section_desc')}
+          </div>
+        </div>
+        <Link
+          to="/settings/cleanup"
+          style={{ fontSize: '12px', color: 'var(--accent)' }}
         >
-          <CleanupContent />
-        </SettingsSection>
+          Configure →
+        </Link>
       </div>
 
       {/* 6. Scheduled Tasks (advanced — collapsed by default) */}
