@@ -1,4 +1,22 @@
 {
+  "subtitle_pills": {
+    "missing": "{{lang}} missing",
+    "missing_tooltip": "No {{lang}} subtitle found — searching",
+    "embedded_ass": "{{lang}} ASS ⬇",
+    "embedded_ass_tooltip": "Embedded ASS track in video — use Extract button to save it",
+    "embedded_srt": "{{lang}} SRT ⬇",
+    "embedded_srt_tooltip": "Embedded SRT track in video — use Extract button to save it",
+    "sidecar_ass": "{{lang}} ASS",
+    "sidecar_ass_tooltip": "ASS subtitle file present",
+    "sidecar_srt": "{{lang}} SRT",
+    "sidecar_srt_tooltip": "SRT subtitle present",
+    "sidecar_srt_upgrade": "{{lang}} SRT ↑",
+    "sidecar_srt_upgrade_tooltip": "SRT present — upgrade to ASS possible",
+    "no_embedded": "Not embedded",
+    "no_embedded_tooltip": "No embedded subtitle tracks in the video file",
+    "embedded_track": "{{lang}} {{format}} ⬇",
+    "embedded_track_tooltip": "Embedded {{lang}} {{format}} track in the video file"
+  },
   "title": "Library",
   "search_placeholder": "Search...",
   "series_tab": "Series ({{count}})",

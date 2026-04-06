@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { CSSProperties, ReactNode } from 'react'
 
 interface EmbeddedLang {
@@ -78,21 +79,26 @@ export function SubtitlePresencePills({
   embeddedLanguages,
   upgradeCandidate = false,
 }: SubtitlePresencePillsProps) {
+  const { t } = useTranslation('library')
   const [expanded, setExpanded] = useState(false)
   const lang = targetLanguage.toUpperCase()
 
   // Left pill — target language status
   let leftPill: ReactNode
   if (existingSub === 'embedded_ass') {
-    leftPill = <span style={PILL_EMB}>{lang} ↓ ASS</span>
+    leftPill = <span style={PILL_EMB} title={t('subtitle_pills.embedded_ass_tooltip', { lang })}>{t('subtitle_pills.embedded_ass', { lang })}</span>
   } else if (existingSub === 'embedded_srt') {
-    leftPill = <span style={PILL_EMB}>{lang} ↓ SRT</span>
+    leftPill = <span style={PILL_EMB} title={t('subtitle_pills.embedded_srt_tooltip', { lang })}>{t('subtitle_pills.embedded_srt', { lang })}</span>
   } else if (existingSub === 'ass') {
-    leftPill = <span style={PILL_EMB}>{lang} ASS</span>
+    leftPill = <span style={PILL_EMB} title={t('subtitle_pills.sidecar_ass_tooltip', { lang })}>{t('subtitle_pills.sidecar_ass', { lang })}</span>
   } else if (existingSub === 'srt') {
-    leftPill = <span style={PILL_SRT}>{lang} SRT{upgradeCandidate ? ' ↑' : ''}</span>
+    if (upgradeCandidate) {
+      leftPill = <span style={PILL_SRT} title={t('subtitle_pills.sidecar_srt_upgrade_tooltip', { lang })}>{t('subtitle_pills.sidecar_srt_upgrade', { lang })}</span>
+    } else {
+      leftPill = <span style={PILL_SRT} title={t('subtitle_pills.sidecar_srt_tooltip', { lang })}>{t('subtitle_pills.sidecar_srt', { lang })}</span>
+    }
   } else {
-    leftPill = <span style={PILL_MISS}>{lang} ✗</span>
+    leftPill = <span style={PILL_MISS} title={t('subtitle_pills.missing_tooltip', { lang })}>{t('subtitle_pills.missing', { lang })}</span>
   }
 
   // Right group — sort sourceLanguage first, then alphabetically
@@ -110,13 +116,18 @@ export function SubtitlePresencePills({
 
   const rightContent =
     embeddedLanguages.length === 0 ? (
-      <span style={PILL_NONE}>Kein Sub</span>
+      <span style={PILL_NONE} title={t('subtitle_pills.no_embedded_tooltip')}>{t('subtitle_pills.no_embedded')}</span>
     ) : (
-      inline.map((e) => (
-        <span key={e.lang} data-testid="embedded-pill" style={PILL_OTHER}>
-          {e.lang.toUpperCase()} ↓ {e.format.toUpperCase()}
-        </span>
-      ))
+      inline.map((e) => {
+        const eLang = e.lang.toUpperCase()
+        const eFormat = e.format.toUpperCase()
+        return (
+          <span key={e.lang} data-testid="embedded-pill" style={PILL_OTHER}
+            title={t('subtitle_pills.embedded_track_tooltip', { lang: eLang, format: eFormat })}>
+            {t('subtitle_pills.embedded_track', { lang: eLang, format: eFormat })}
+          </span>
+        )
+      })
     )
 
   return (
@@ -154,11 +165,16 @@ export function SubtitlePresencePills({
                 border: '1px solid var(--border)',
               }}
             >
-              {overflow.map((e) => (
-                <span key={e.lang} data-testid="embedded-pill" style={PILL_OTHER}>
-                  {e.lang.toUpperCase()} ↓ {e.format.toUpperCase()}
-                </span>
-              ))}
+              {overflow.map((e) => {
+                const eLang = e.lang.toUpperCase()
+                const eFormat = e.format.toUpperCase()
+                return (
+                  <span key={e.lang} data-testid="embedded-pill" style={PILL_OTHER}
+                    title={t('subtitle_pills.embedded_track_tooltip', { lang: eLang, format: eFormat })}>
+                    {t('subtitle_pills.embedded_track', { lang: eLang, format: eFormat })}
+                  </span>
+                )
+              })}
             </div>
           )}
         </>

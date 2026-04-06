@@ -1,0 +1,373 @@
+<style>
+  .layouts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    margin-top: 16px;
+  }
+
+  .layout-card {
+    border: 2px solid var(--border, #333);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s;
+    background: var(--bg-card, #1a1a1a);
+  }
+  .layout-card:hover { border-color: var(--accent, #7c6af7); transform: translateY(-2px); }
+  .layout-card.selected { border-color: var(--accent, #7c6af7); box-shadow: 0 0 0 3px rgba(124,106,247,0.25); }
+
+  .layout-label {
+    padding: 10px 14px;
+    background: var(--bg-elevated, #222);
+    border-bottom: 1px solid var(--border, #333);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .layout-letter {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent, #7c6af7);
+    color: #fff;
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .layout-title { font-size: 13px; font-weight: 600; color: var(--text, #e0e0e0); }
+  .layout-subtitle { font-size: 11px; color: var(--text-muted, #888); margin-top: 2px; }
+
+  .mockup-body {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-height: 300px;
+  }
+
+  .mb { border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; }
+  .mb-header { height: 24px; background: var(--bg-elevated, #222); border: 1px solid var(--border, #333); color: var(--text-muted, #888); }
+  .mb-surface { background: var(--bg-elevated, #1e1e1e); border: 1px solid var(--border, #333); }
+  .row { display: flex; gap: 5px; }
+  .col { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+
+  /* Mission Control specific */
+  .mc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .mc-metric {
+    background: #111;
+    border: 1px solid #2a2a2a;
+    border-radius: 5px;
+    padding: 5px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+  .mc-big { font-size: 16px; font-weight: 700; line-height: 1; }
+  .mc-lbl { font-size: 7px; color: #666; text-transform: uppercase; letter-spacing: 0.3px; }
+
+  /* Heatmap specific */
+  .heatmap-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; }
+  .hm-cell {
+    aspect-ratio: 1;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 6px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+  }
+
+  /* Daily briefing specific */
+  .briefing-section {
+    background: #111;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .briefing-title { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #666; }
+  .briefing-item { font-size: 8.5px; color: #ccc; display: flex; align-items: center; gap: 5px; }
+
+  .pros-cons-mini {
+    padding: 8px 14px 10px;
+    border-top: 1px solid var(--border, #333);
+    font-size: 10px;
+    color: var(--text-muted, #888);
+    line-height: 1.6;
+  }
+  .green { color: #4ade80; }
+  .red { color: #f87171; }
+</style>
+
+<h2>Ganz andere Ansätze — 3 radikale Optionen</h2>
+<p class="subtitle">Völlig andere Denkweise als A/B/C. Klicke zum Auswählen.</p>
+
+<div class="layouts-grid">
+
+  <!-- OPTION D: Mission Control -->
+  <div class="layout-card" data-choice="d" onclick="toggleSelect(this)">
+    <div class="layout-label">
+      <div class="layout-letter">D</div>
+      <div>
+        <div class="layout-title">Mission Control</div>
+        <div class="layout-subtitle">Alles auf einen Blick — kein Scrollen</div>
+      </div>
+    </div>
+    <div class="mockup-body" style="background:#0d0d0d; gap:4px;">
+      <div class="mb mb-header" style="background:#111; border-color:#222; font-size:8px; justify-content:space-between; padding:0 8px;">
+        <span style="color:#4ade80">● AKTIV</span>
+        <span style="color:#555">Sublarr · v0.38</span>
+        <span style="color:#555">Zuletzt: vor 3 Min</span>
+      </div>
+
+      <!-- 4 grosse Metriken oben -->
+      <div class="mc-grid">
+        <div class="mc-metric">
+          <span class="mc-big" style="color:#4ade80">3.412</span>
+          <span class="mc-lbl">Untertitel</span>
+        </div>
+        <div class="mc-metric">
+          <span class="mc-big" style="color:#f5a623">2</span>
+          <span class="mc-lbl">Fehlend</span>
+        </div>
+        <div class="mc-metric">
+          <span class="mc-big" style="color:#7c6af7">97%</span>
+          <span class="mc-lbl">Erfolg</span>
+        </div>
+        <div class="mc-metric">
+          <span class="mc-big" style="color:#38bdf8">+14</span>
+          <span class="mc-lbl">Heute</span>
+        </div>
+      </div>
+
+      <!-- 2-Spalten: Live-Feed + Status-Panels -->
+      <div class="row" style="flex:1; min-height:0;">
+        <!-- Live Activity Feed links -->
+        <div class="col" style="flex:3; background:#111; border:1px solid #222; border-radius:6px; padding:6px; gap:2px; min-height:0;">
+          <div style="font-size:8px; font-weight:700; color:#555; margin-bottom:3px; text-transform:uppercase; letter-spacing:0.4px">Live Feed</div>
+          <div style="font-size:8px; color:#4ade80; display:flex; align-items:center; gap:4px"><span style="width:5px;height:5px;border-radius:50%;background:#4ade80;flex-shrink:0"></span>One Piece S01E04 · Score 91 · vor 2 Min</div>
+          <div style="font-size:8px; color:#4ade80; display:flex; align-items:center; gap:4px"><span style="width:5px;height:5px;border-radius:50%;background:#4ade80;flex-shrink:0"></span>Demon Slayer S03E01 · Score 88 · vor 7 Min</div>
+          <div style="font-size:8px; color:#f87171; display:flex; align-items:center; gap:4px"><span style="width:5px;height:5px;border-radius:50%;background:#f87171;flex-shrink:0"></span>AoT S02E01 · Kein Match</div>
+          <div style="font-size:8px; color:#f5a623; display:flex; align-items:center; gap:4px"><span style="width:5px;height:5px;border-radius:50%;background:#f5a623;flex-shrink:0"></span>Jujutsu S02E06 · Score 38 (niedrig)</div>
+          <div style="font-size:8px; color:#4ade80; display:flex; align-items:center; gap:4px"><span style="width:5px;height:5px;border-radius:50%;background:#4ade80;flex-shrink:0"></span>Bleach S01E12 · Score 94 · vor 22 Min</div>
+          <div style="font-size:8px; color:#555; margin-top:2px">··· 47 weitere heute</div>
+        </div>
+
+        <!-- Rechts: 3 Status-Panels übereinander -->
+        <div class="col" style="flex:2; gap:4px;">
+          <div style="background:#111; border:1px solid #222; border-radius:6px; padding:5px 7px; flex:1;">
+            <div style="font-size:7px; font-weight:700; color:#555; text-transform:uppercase; margin-bottom:3px">Provider</div>
+            <div style="font-size:8px; color:#4ade80">● OpenSubtitles</div>
+            <div style="font-size:8px; color:#4ade80">● Subscene</div>
+            <div style="font-size:8px; color:#f87171">● AnimeTosho (langsam)</div>
+          </div>
+          <div style="background:#111; border:1px solid #222; border-radius:6px; padding:5px 7px; flex:1;">
+            <div style="font-size:7px; font-weight:700; color:#555; text-transform:uppercase; margin-bottom:3px">Services</div>
+            <div style="font-size:8px; color:#4ade80">● Sonarr</div>
+            <div style="font-size:8px; color:#4ade80">● Radarr</div>
+            <div style="font-size:8px; color:#4ade80">● Ollama</div>
+          </div>
+          <div style="background:rgba(245,166,35,0.08); border:1px solid rgba(245,166,35,0.3); border-radius:6px; padding:5px 7px; flex:1;">
+            <div style="font-size:7px; font-weight:700; color:#f5a623; text-transform:uppercase; margin-bottom:3px">⚠ Attention (2)</div>
+            <div style="font-size:8px; color:#ccc">AoT S02E01 → Suchen</div>
+            <div style="font-size:8px; color:#ccc">Jujutsu S02E06 → Fix</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Untere Leiste: Disk + Quick Actions -->
+      <div class="row" style="height:22px;">
+        <div style="flex:2; background:#111; border:1px solid #222; border-radius:5px; display:flex; align-items:center; padding:0 7px; gap:6px;">
+          <span style="font-size:7px; color:#555; text-transform:uppercase">Disk</span>
+          <div style="flex:1; height:4px; background:#222; border-radius:2px; overflow:hidden;">
+            <div style="width:62%; height:100%; background:#7c6af7; border-radius:2px;"></div>
+          </div>
+          <span style="font-size:7px; color:#888">620 GB / 1 TB</span>
+        </div>
+        <div style="flex:1; background:#7c6af7; border-radius:5px; display:flex; align-items:center; justify-content:center;">
+          <span style="font-size:8px; font-weight:600; color:#fff">▶ Jetzt starten</span>
+        </div>
+      </div>
+    </div>
+    <div class="pros-cons-mini">
+      <span class="green">✓ </span>Kein Scrollen — alles sichtbar<br>
+      <span class="green">✓ </span>Live-Gefühl wie ein Monitoring-Tool<br>
+      <span class="green">✓ </span>Kein Widget-Chaos, klare Zonen<br>
+      <span class="red">✗ </span>Sehr dicht — nicht für jeden<br>
+      <span class="red">✗ </span>Weniger anpassbar
+    </div>
+  </div>
+
+  <!-- OPTION E: Bibliotheks-Heatmap -->
+  <div class="layout-card" data-choice="e" onclick="toggleSelect(this)">
+    <div class="layout-label">
+      <div class="layout-letter">E</div>
+      <div>
+        <div class="layout-title">Bibliotheks-Heatmap</div>
+        <div class="layout-subtitle">Deine Library als visueller Gesundheitscheck</div>
+      </div>
+    </div>
+    <div class="mockup-body" style="gap:5px;">
+      <div class="mb mb-header" style="justify-content:space-between; padding:0 8px;">
+        <span>Dashboard</span>
+        <div style="display:flex;gap:8px;font-size:8px;font-weight:500;">
+          <span style="color:#4ade80">■ Vollständig</span>
+          <span style="color:#f5a623">■ Teillücken</span>
+          <span style="color:#f87171">■ Fehlend</span>
+          <span style="color:#555">■ Ignoriert</span>
+        </div>
+      </div>
+
+      <!-- Top: Kurze Stats + Action -->
+      <div class="row" style="height:30px;">
+        <div style="flex:1;background:#1a2e1a;border:1px solid #2d4a2d;border-radius:5px;display:flex;align-items:center;justify-content:center;gap:4px;">
+          <span style="font-size:11px;font-weight:700;color:#4ade80">94%</span>
+          <span style="font-size:7px;color:#4ade80;text-transform:uppercase">Abgedeckt</span>
+        </div>
+        <div style="flex:1;background:#2a1f0a;border:1px solid #4a3510;border-radius:5px;display:flex;align-items:center;justify-content:center;gap:4px;">
+          <span style="font-size:11px;font-weight:700;color:#f5a623">47</span>
+          <span style="font-size:7px;color:#f5a623;text-transform:uppercase">Lückenhaft</span>
+        </div>
+        <div style="flex:1;background:#2a1010;border:1px solid #4a2020;border-radius:5px;display:flex;align-items:center;justify-content:center;gap:4px;">
+          <span style="font-size:11px;font-weight:700;color:#f87171">2</span>
+          <span style="font-size:7px;color:#f87171;text-transform:uppercase">Fehlend</span>
+        </div>
+      </div>
+
+      <!-- Serien-Heatmap: farbige Zellen pro Serie -->
+      <div style="background:#111;border:1px solid #222;border-radius:6px;padding:7px;flex:1;">
+        <div style="font-size:8px;font-weight:700;color:#555;text-transform:uppercase;margin-bottom:6px;">Serien (klicken für Details)</div>
+        <div class="heatmap-grid">
+          <!-- Grüne (vollständig) -->
+          <div class="hm-cell" style="background:#15532e;" title="One Piece">OP</div>
+          <div class="hm-cell" style="background:#15532e;" title="Naruto">NA</div>
+          <div class="hm-cell" style="background:#166534;" title="Bleach">BL</div>
+          <div class="hm-cell" style="background:#14532d;" title="FMA">FM</div>
+          <div class="hm-cell" style="background:#15532e;" title="Cowboy Bebop">CB</div>
+          <div class="hm-cell" style="background:#166534;" title="HxH">HH</div>
+          <!-- Orange (teillücken) -->
+          <div class="hm-cell" style="background:#78350f;" title="AoT">AT</div>
+          <div class="hm-cell" style="background:#92400e;" title="Jujutsu">JJ</div>
+          <div class="hm-cell" style="background:#78350f;" title="MHA">MH</div>
+          <div class="hm-cell" style="background:#15532e;">DS</div>
+          <div class="hm-cell" style="background:#15532e;">SP</div>
+          <div class="hm-cell" style="background:#78350f;">BC</div>
+          <!-- Rot (fehlend) -->
+          <div class="hm-cell" style="background:#7f1d1d;">DR</div>
+          <div class="hm-cell" style="background:#15532e;">VN</div>
+          <div class="hm-cell" style="background:#15532e;">TK</div>
+          <div class="hm-cell" style="background:#166534;">GS</div>
+        </div>
+
+        <div style="margin-top:8px;font-size:8px;color:#555;text-transform:uppercase;margin-bottom:4px;">Filme</div>
+        <div class="heatmap-grid">
+          <div class="hm-cell" style="background:#15532e;">M1</div>
+          <div class="hm-cell" style="background:#15532e;">M2</div>
+          <div class="hm-cell" style="background:#78350f;">M3</div>
+          <div class="hm-cell" style="background:#15532e;">M4</div>
+          <div class="hm-cell" style="background:#15532e;">M5</div>
+          <div class="hm-cell" style="background:#166534;">M6</div>
+          <div class="hm-cell" style="background:#15532e;">M7</div>
+          <div class="hm-cell" style="background:#555;">M8</div>
+        </div>
+      </div>
+
+      <!-- Unten: Needs Attention für angeklickte Serie -->
+      <div style="background:#2a1f0a;border:1px solid rgba(245,166,35,0.3);border-radius:6px;padding:5px 8px;">
+        <div style="font-size:7px;color:#f5a623;text-transform:uppercase;font-weight:700;margin-bottom:2px;">⚠ AoT — 3 Episoden fehlend</div>
+        <div style="font-size:8px;color:#ccc;">S02E01 · S02E04 · S03E12 — Suchen / Skip</div>
+      </div>
+    </div>
+    <div class="pros-cons-mini">
+      <span class="green">✓ </span>Sofort sehen wo Lücken sind<br>
+      <span class="green">✓ </span>Einzigartig — kein anderes Tool hat das<br>
+      <span class="green">✓ </span>Intuitiv für große Libraries<br>
+      <span class="red">✗ </span>Komplett neue Komponente notwendig<br>
+      <span class="red">✗ </span>Viel Backend-Arbeit (Abdeckungs-Endpoint)
+    </div>
+  </div>
+
+  <!-- OPTION F: Daily Briefing -->
+  <div class="layout-card" data-choice="f" onclick="toggleSelect(this)">
+    <div class="layout-label">
+      <div class="layout-letter">F</div>
+      <div>
+        <div class="layout-title">Daily Briefing</div>
+        <div class="layout-subtitle">"Was ist heute passiert?" — Narrativ, klar</div>
+      </div>
+    </div>
+    <div class="mockup-body" style="gap:6px;">
+      <div class="mb mb-header" style="justify-content:space-between; padding:0 8px;">
+        <span>Dashboard</span>
+        <span style="font-size:8px;color:#888">Sonntag, 5. April 2026</span>
+      </div>
+
+      <!-- Grosser Begrüssungs-Header -->
+      <div style="background:linear-gradient(135deg,rgba(124,106,247,0.15),rgba(74,222,128,0.08));border:1px solid rgba(124,106,247,0.2);border-radius:8px;padding:10px 12px;">
+        <div style="font-size:13px;font-weight:700;color:#e0e0e0;margin-bottom:2px;">Guten Morgen 👋</div>
+        <div style="font-size:9px;color:#888;">Heute Nacht wurden <span style="color:#4ade80;font-weight:600">47 Untertitel</span> heruntergeladen. Deine Bibliothek ist zu <span style="color:#4ade80;font-weight:600">94%</span> vollständig.</div>
+      </div>
+
+      <!-- Action required -->
+      <div class="briefing-section" style="background:rgba(245,166,35,0.06);border-color:rgba(245,166,35,0.25);">
+        <div class="briefing-title" style="color:#f5a623;">⚠ Deine Aufmerksamkeit benötigt (2)</div>
+        <div class="briefing-item">
+          <span style="width:6px;height:6px;border-radius:50%;background:#f87171;flex-shrink:0"></span>
+          Attack on Titan S02E01 — kein passender Untertitel gefunden
+          <span style="margin-left:auto;font-size:7px;background:#f87171;color:#fff;padding:1px 5px;border-radius:3px;">Suchen</span>
+        </div>
+        <div class="briefing-item">
+          <span style="width:6px;height:6px;border-radius:50%;background:#f5a623;flex-shrink:0"></span>
+          Jujutsu Kaisen S02E06 — Score 38 (sehr niedrig)
+          <span style="margin-left:auto;font-size:7px;background:#f5a623;color:#000;padding:1px 5px;border-radius:3px;">Besser suchen</span>
+        </div>
+      </div>
+
+      <!-- Was letzte Nacht passiert ist -->
+      <div class="briefing-section">
+        <div class="briefing-title">Letzte Nacht (00:00–06:00)</div>
+        <div class="briefing-item"><span style="color:#4ade80">✓</span> 47 Untertitel heruntergeladen</div>
+        <div class="briefing-item"><span style="color:#4ade80">✓</span> 3 Übersetzungen (EN→DE) abgeschlossen</div>
+        <div class="briefing-item"><span style="color:#f87171">✗</span> 2 Fehler (kein Match)</div>
+      </div>
+
+      <!-- System-Status kompakt -->
+      <div class="briefing-section">
+        <div class="briefing-title">System</div>
+        <div class="row" style="gap:6px;">
+          <div class="briefing-item" style="flex:1;flex-direction:column;align-items:flex-start;gap:1px;">
+            <span style="color:#4ade80">● Sonarr</span>
+            <span style="color:#4ade80">● OpenSubtitles</span>
+          </div>
+          <div class="briefing-item" style="flex:1;flex-direction:column;align-items:flex-start;gap:1px;">
+            <span style="color:#4ade80">● Radarr</span>
+            <span style="color:#f87171">● AnimeTosho (langsam)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CTA -->
+      <div style="background:#7c6af7;border-radius:6px;padding:7px 12px;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:9px;font-weight:600;color:#fff;">Scan jetzt starten</span>
+        <span style="font-size:8px;color:rgba(255,255,255,0.7)">Nächster geplant: 02:00</span>
+      </div>
+    </div>
+    <div class="pros-cons-mini">
+      <span class="green">✓ </span>Sofort verständlich ohne Einarbeitung<br>
+      <span class="green">✓ </span>Menschlich/narrativ — kein Zahlen-Overload<br>
+      <span class="green">✓ </span>Wenig Implementierungsaufwand<br>
+      <span class="red">✗ </span>Kein Widget-Grid — weniger anpassbar<br>
+      <span class="red">✗ </span>Weniger Tiefe für Power-User
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:16px;padding:10px 14px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid #2a2a2a;font-size:11px;color:#666;">
+  Du kannst auch Elemente aus verschiedenen Optionen kombinieren — z.B. Briefing-Header von F + Heatmap von E + Live-Feed von D.
+</div>
