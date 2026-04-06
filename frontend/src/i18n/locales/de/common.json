@@ -53,7 +53,8 @@
     "export": "Exportieren",
     "import": "Importieren",
     "confirm": "Bestätigen",
-    "back": "Zurück"
+    "back": "Zurück",
+    "enable": "Aktivieren"
   },
   "theme": {
     "dark": "Dunkel",
@@ -190,5 +191,118 @@
   "update": {
     "available": "verfügbar",
     "view_release": "Jetzt auf GitHub ansehen →"
+  },
+  "settings": {
+    "overview": {
+      "subtitle": "Konfiguriere Sublarr nach deinem Workflow"
+    },
+    "breadcrumb": "Einstellungen",
+    "subtitles": {
+      "scoring": {
+        "title": "Scoring",
+        "description": "Konfiguriere, wie Untertitel von Providern bewertet und ausgewählt werden."
+      },
+      "formatTools": {
+        "title": "Format & Werkzeuge",
+        "description": "Dateiformat-Präferenzen und manuelle Untertitel-Werkzeuge."
+      },
+      "embeddedExtraction": {
+        "title": "Eingebettete Extraktion",
+        "description": "Untertitel-Tracks aus Video-Dateien extrahieren.",
+        "summary": "Automatische Extraktion eingebetteter Untertitel bei Webhook-Ereignissen konfigurieren.",
+        "autoExtract": "Eingebettete Untertitel automatisch extrahieren",
+        "autoExtractHint": "Eingebettete Untertitel-Tracks beim Wanted-Scan automatisch extrahieren.",
+        "useEmbeddedSubs": "Eingebettete Untertitel verwenden",
+        "useEmbeddedSubsHint": "MKV-Dateien vor der Provider-Suche auf eingebettete Untertitel prüfen.",
+        "hiRemoval": "HI-Entfernung bei Extraktion",
+        "hiRemovalHint": "Hörgeschädigten-Tags aus extrahierten Untertitel-Tracks entfernen.",
+        "skipSrtOnNoAss": "SRT überspringen wenn kein ASS gefunden",
+        "skipSrtOnNoAssHint": "SRT-Extraktion überspringen, wenn in den ersten zwei Schritten kein ASS/SSA-Track gefunden wurde.",
+        "saved": "Einstellung gespeichert",
+        "saveFailed": "Speichern fehlgeschlagen"
+      },
+      "languageProfiles": {
+        "title": "Sprachprofile",
+        "description": "Wiederverwendbare Sprach- und Übersetzungseinstellungen für Serien und Filme definieren.",
+        "summary": "Sprachprofile erstellen und verwalten, die einzelnen Serien oder Filmen zugewiesen werden können."
+      },
+      "fansubPreferences": {
+        "title": "Fansub-Einstellungen",
+        "description": "Globale Fansub-Gruppen-Präferenzen für alle Bibliothekselemente.",
+        "summary": "Bevorzugte und ausgeschlossene Fansub-Gruppen für die Untertitelauswahl. Serienspezifische Überschreibungen haben Priorität."
+      },
+      "subtitleNaming": {
+        "title": "Untertitel-Benennung",
+        "description": "Sprachcode-Format und Suffix-Konventionen für gespeicherte Untertiteldateien.",
+        "langCodeFormat": "Sprachcode-Format",
+        "langCodeFormatHint": "Format für das Sprachsuffix in Untertiteldateinamen",
+        "suffixSeparator": "Suffix-Trennzeichen",
+        "suffixSeparatorHint": "Zeichen zwischen Dateiname und Sprachsuffix",
+        "hiSuffix": "HI-Untertitel-Suffix",
+        "hiSuffixHint": "Suffix für Hörgeschädigten-Untertiteldateien",
+        "forcedSuffix": "Forced-Untertitel-Suffix",
+        "forcedSuffixHint": "Suffix für Forced-Untertiteldateien"
+      },
+      "scanFilters": {
+        "title": "Scan-Filter",
+        "description": "Dateien und Sprachen vom Untertitel-Scan ausschließen.",
+        "ignorePatterns": "Ignorier-Muster",
+        "ignorePatternsHint": "JSON-Array von Glob-Mustern, die beim Scan übersprungen werden",
+        "minFileSize": "Minimale Dateigröße (MB)",
+        "minFileSizeHint": "Mediendateien kleiner als dieser Wert beim Scan überspringen",
+        "ignoreLanguages": "Sprachen ignorieren",
+        "ignoreLanguagesHint": "JSON-Array von ISO-639-1-Codes, die vom Scan ausgeschlossen werden"
+      },
+      "perLanguageScores": {
+        "title": "Sprachspezifische Score-Schwellwerte",
+        "description": "Den globalen Mindest-Score für bestimmte Sprachen überschreiben.",
+        "label": "Score-Schwellwerte (JSON)",
+        "hint": "JSON-Objekt mit ISO-639-1-Code als Schlüssel und Mindest-Score als Wert. Leeres Objekt verwendet den globalen Schwellwert.",
+        "example": "Beispiel: {\"de\": 80, \"fr\": 70} — Deutsche Untertitel erfordern Score ≥ 80, Französische ≥ 70.",
+        "fallback": "Leer lassen {} um den globalen Schwellwert für alle Sprachen zu verwenden."
+      }
+    },
+    "categories": {
+      "general": {
+        "title": "Allgemein",
+        "description": "Sprache, Pfade, Protokollierung"
+      },
+      "connections": {
+        "title": "Verbindungen",
+        "description": "Sonarr, Radarr, Medienserver"
+      },
+      "subtitles": {
+        "title": "Untertitel",
+        "description": "Scoring, Format, Bereinigung"
+      },
+      "providers": {
+        "title": "Provider",
+        "description": "Download-Quellen"
+      },
+      "automation": {
+        "title": "Automatisierung",
+        "description": "Zeitplanung, Upgrades"
+      },
+      "translation": {
+        "title": "Übersetzung",
+        "description": "KI-Übersetzungs-Backends"
+      },
+      "notifications": {
+        "title": "Benachrichtigungen",
+        "description": "Kanäle, Vorlagen"
+      },
+      "system": {
+        "title": "System",
+        "description": "Sicherheit, Backup, Logs"
+      },
+      "cleanup": {
+        "title": "Bereinigung",
+        "description": "Sprachfilter, Format-Upgrades, Waisendateien"
+      },
+      "about": {
+        "title": "Über",
+        "description": "Version, GitHub, Spenden"
+      }
+    }
   }
 }

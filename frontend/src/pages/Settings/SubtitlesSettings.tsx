@@ -65,6 +65,7 @@ const SUFFIX_SEPARATORS = [
 // ─── Subtitle Naming Section ──────────────────────────────────────────────────
 
 function SubtitleNamingContent() {
+  const { t } = useTranslation('common')
   const { data: config, isLoading } = useConfig()
   const { mutate: updateConfig, isPending } = useUpdateConfig()
   const save = (patch: Record<string, unknown>) => updateConfig(patch)
@@ -74,8 +75,8 @@ function SubtitleNamingContent() {
   return (
     <div data-testid="subtitle-naming-content">
       <FormGroup
-        label="Language Code Format"
-        hint="Format used for the language suffix in subtitle filenames"
+        label={t('settings.subtitles.subtitleNaming.langCodeFormat')}
+        hint={t('settings.subtitles.subtitleNaming.langCodeFormatHint')}
         htmlFor="subtitle-language-code-format"
         data-testid="form-group-subtitle-language-code-format"
       >
@@ -96,8 +97,8 @@ function SubtitleNamingContent() {
       </FormGroup>
 
       <FormGroup
-        label="Suffix Separator"
-        hint="Character between the base filename and the language suffix"
+        label={t('settings.subtitles.subtitleNaming.suffixSeparator')}
+        hint={t('settings.subtitles.subtitleNaming.suffixSeparatorHint')}
         htmlFor="subtitle-suffix-separator"
         data-testid="form-group-subtitle-suffix-separator"
       >
@@ -118,8 +119,8 @@ function SubtitleNamingContent() {
       </FormGroup>
 
       <FormGroup
-        label="HI Subtitle Suffix"
-        hint="Suffix appended to hearing-impaired subtitle filenames"
+        label={t('settings.subtitles.subtitleNaming.hiSuffix')}
+        hint={t('settings.subtitles.subtitleNaming.hiSuffixHint')}
         htmlFor="subtitle-hi-suffix"
         data-testid="form-group-subtitle-hi-suffix"
       >
@@ -136,8 +137,8 @@ function SubtitleNamingContent() {
       </FormGroup>
 
       <FormGroup
-        label="Forced Subtitle Suffix"
-        hint="Suffix appended to forced subtitle filenames"
+        label={t('settings.subtitles.subtitleNaming.forcedSuffix')}
+        hint={t('settings.subtitles.subtitleNaming.forcedSuffixHint')}
         htmlFor="subtitle-forced-suffix"
         data-testid="form-group-subtitle-forced-suffix"
       >
@@ -159,6 +160,7 @@ function SubtitleNamingContent() {
 // ─── Scan Filters Section ─────────────────────────────────────────────────────
 
 function ScanFiltersContent() {
+  const { t } = useTranslation('common')
   const { data: config, isLoading } = useConfig()
   const { mutate: updateConfig, isPending } = useUpdateConfig()
   const save = (patch: Record<string, unknown>) => updateConfig(patch)
@@ -181,8 +183,8 @@ function ScanFiltersContent() {
   return (
     <div data-testid="scan-filters-content">
       <FormGroup
-        label="Ignore Patterns"
-        hint='JSON array of glob patterns to skip during scan'
+        label={t('settings.subtitles.scanFilters.ignorePatterns')}
+        hint={t('settings.subtitles.scanFilters.ignorePatternsHint')}
         data-testid="form-group-scan-ignore-patterns"
       >
         <textarea
@@ -197,8 +199,8 @@ function ScanFiltersContent() {
       </FormGroup>
 
       <FormGroup
-        label="Minimum File Size (MB)"
-        hint="Skip media files smaller than this size during scan"
+        label={t('settings.subtitles.scanFilters.minFileSize')}
+        hint={t('settings.subtitles.scanFilters.minFileSizeHint')}
         htmlFor="scan-min-file-size-mb"
         data-testid="form-group-scan-min-file-size-mb"
       >
@@ -216,8 +218,8 @@ function ScanFiltersContent() {
       </FormGroup>
 
       <FormGroup
-        label="Ignore Languages"
-        hint='JSON array of ISO-639-1 codes to exclude from scan'
+        label={t('settings.subtitles.scanFilters.ignoreLanguages')}
+        hint={t('settings.subtitles.scanFilters.ignoreLanguagesHint')}
         data-testid="form-group-scan-ignore-languages"
       >
         <textarea
@@ -237,6 +239,7 @@ function ScanFiltersContent() {
 // ─── Per-Language Score Thresholds Section ────────────────────────────────────
 
 function PerLanguageScoresContent() {
+  const { t } = useTranslation('common')
   const { data: config, isLoading } = useConfig()
   const { mutate: updateConfig, isPending } = useUpdateConfig()
   const save = (patch: Record<string, unknown>) => updateConfig(patch)
@@ -259,8 +262,8 @@ function PerLanguageScoresContent() {
   return (
     <div data-testid="per-language-scores-content">
       <FormGroup
-        label="Score Thresholds (JSON)"
-        hint='JSON object mapping ISO-639-1 code to minimum score. Empty object uses global threshold for all languages.'
+        label={t('settings.subtitles.perLanguageScores.label')}
+        hint={t('settings.subtitles.perLanguageScores.hint')}
         data-testid="form-group-score-threshold-per-language"
       >
         <textarea
@@ -274,9 +277,9 @@ function PerLanguageScoresContent() {
         />
       </FormGroup>
       <p style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '6px' }}>
-        {`Example: {"de": 80, "fr": 70} — German subtitles require score ≥ 80, French ≥ 70.`}
+        {t('settings.subtitles.perLanguageScores.example')}
         <br />
-        Leave as {'{}'} to use the global threshold for all languages.
+        {t('settings.subtitles.perLanguageScores.fallback')}
       </p>
     </div>
   )
@@ -434,11 +437,8 @@ export function SubtitlesSettings() {
 
   return (
     <SettingsDetailLayout
-      title={t('settings.categories.subtitles.title', 'Subtitles')}
-      subtitle={t(
-        'settings.categories.subtitles.description',
-        'Scoring, format, cleanup, and extraction settings',
-      )}
+      title={t('settings.categories.subtitles.title')}
+      subtitle={t('settings.categories.subtitles.description')}
     >
       {/* 1. Scoring */}
       <div data-testid="section-scoring">
@@ -552,8 +552,8 @@ export function SubtitlesSettings() {
       {/* 7. Subtitle Naming (Step 38) */}
       <div data-testid="section-subtitle-naming">
         <SettingsSection
-          title="Subtitle Naming"
-          description="Language code format and suffix conventions for saved subtitle files."
+          title={t('settings.subtitles.subtitleNaming.title')}
+          description={t('settings.subtitles.subtitleNaming.description')}
           icon={<Tag size={16} style={{ color: 'var(--accent)' }} />}
         >
           <SubtitleNamingContent />
@@ -563,8 +563,8 @@ export function SubtitlesSettings() {
       {/* 8. Scan Filters (Step 42) */}
       <div data-testid="section-scan-filters">
         <SettingsSection
-          title="Scan Filters"
-          description="Exclude files and languages from subtitle scans."
+          title={t('settings.subtitles.scanFilters.title')}
+          description={t('settings.subtitles.scanFilters.description')}
           icon={<Filter size={16} style={{ color: 'var(--accent)' }} />}
         >
           <ScanFiltersContent />
@@ -574,8 +574,8 @@ export function SubtitlesSettings() {
       {/* 9. Per-Language Score Thresholds (Step 43) */}
       <div data-testid="section-per-language-scores">
         <SettingsSection
-          title="Per-Language Score Thresholds"
-          description="Override the global minimum score for specific languages."
+          title={t('settings.subtitles.perLanguageScores.title')}
+          description={t('settings.subtitles.perLanguageScores.description')}
           icon={<Sliders size={16} style={{ color: 'var(--accent)' }} />}
         >
           <PerLanguageScoresContent />

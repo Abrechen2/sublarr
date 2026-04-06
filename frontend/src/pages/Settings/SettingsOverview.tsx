@@ -10,7 +10,7 @@ export function SettingsOverview() {
     <div data-testid="settings-overview" className="flex flex-col gap-6">
       <PageHeader
         title={t('nav.settings')}
-        subtitle={t('settings.overview.subtitle', 'Configure Sublarr to fit your workflow')}
+        subtitle={t('settings.overview.subtitle')}
         actions={<SettingsSearch className="w-[260px]" />}
       />
       <SettingsGrid />

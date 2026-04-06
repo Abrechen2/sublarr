@@ -53,7 +53,8 @@
     "export": "Export",
     "import": "Import",
     "confirm": "Confirm",
-    "back": "Back"
+    "back": "Back",
+    "enable": "Enable"
   },
   "theme": {
     "dark": "Dark",
@@ -190,5 +191,118 @@
   "update": {
     "available": "available",
     "view_release": "View on GitHub →"
+  },
+  "settings": {
+    "overview": {
+      "subtitle": "Configure Sublarr to fit your workflow"
+    },
+    "breadcrumb": "Settings",
+    "subtitles": {
+      "scoring": {
+        "title": "Scoring",
+        "description": "Configure how subtitles are ranked and selected from providers."
+      },
+      "formatTools": {
+        "title": "Format & Tools",
+        "description": "Subtitle file format preferences and manual subtitle tools."
+      },
+      "embeddedExtraction": {
+        "title": "Embedded Extraction",
+        "description": "Extract subtitle tracks embedded directly in video files.",
+        "summary": "Configure automatic embedded subtitle extraction triggered by webhook events.",
+        "autoExtract": "Auto-Extract Embedded Subtitles",
+        "autoExtractHint": "Automatically extract embedded subtitle tracks during the wanted scan.",
+        "useEmbeddedSubs": "Use Embedded Subtitles",
+        "useEmbeddedSubsHint": "Check for embedded subtitle streams in MKV files before searching providers.",
+        "hiRemoval": "HI Removal on Extraction",
+        "hiRemovalHint": "Strip hearing-impaired tags from extracted subtitle tracks.",
+        "skipSrtOnNoAss": "Skip SRT if No ASS Found",
+        "skipSrtOnNoAssHint": "Skip SRT extraction steps if no ASS/SSA track was found in the first two steps.",
+        "saved": "Setting saved",
+        "saveFailed": "Failed to save"
+      },
+      "languageProfiles": {
+        "title": "Language Profiles",
+        "description": "Define reusable language and translation settings for series and movies.",
+        "summary": "Create and manage language profiles that can be assigned to individual series or movies."
+      },
+      "fansubPreferences": {
+        "title": "Fansub Preferences",
+        "description": "Set global fansub group preferences applied across all library items.",
+        "summary": "Preferred and excluded fansub groups for subtitle selection. Per-series overrides take priority."
+      },
+      "subtitleNaming": {
+        "title": "Subtitle Naming",
+        "description": "Language code format and suffix conventions for saved subtitle files.",
+        "langCodeFormat": "Language Code Format",
+        "langCodeFormatHint": "Format used for the language suffix in subtitle filenames",
+        "suffixSeparator": "Suffix Separator",
+        "suffixSeparatorHint": "Character between the base filename and the language suffix",
+        "hiSuffix": "HI Subtitle Suffix",
+        "hiSuffixHint": "Suffix appended to hearing-impaired subtitle filenames",
+        "forcedSuffix": "Forced Subtitle Suffix",
+        "forcedSuffixHint": "Suffix appended to forced subtitle filenames"
+      },
+      "scanFilters": {
+        "title": "Scan Filters",
+        "description": "Exclude files and languages from subtitle scans.",
+        "ignorePatterns": "Ignore Patterns",
+        "ignorePatternsHint": "JSON array of glob patterns to skip during scan",
+        "minFileSize": "Minimum File Size (MB)",
+        "minFileSizeHint": "Skip media files smaller than this size during scan",
+        "ignoreLanguages": "Ignore Languages",
+        "ignoreLanguagesHint": "JSON array of ISO-639-1 codes to exclude from scan"
+      },
+      "perLanguageScores": {
+        "title": "Per-Language Score Thresholds",
+        "description": "Override the global minimum score for specific languages.",
+        "label": "Score Thresholds (JSON)",
+        "hint": "JSON object mapping ISO-639-1 code to minimum score. Empty object uses global threshold for all languages.",
+        "example": "Example: {\"de\": 80, \"fr\": 70} — German subtitles require score ≥ 80, French ≥ 70.",
+        "fallback": "Leave as {} to use the global threshold for all languages."
+      }
+    },
+    "categories": {
+      "general": {
+        "title": "General",
+        "description": "Language, paths, logging"
+      },
+      "connections": {
+        "title": "Connections",
+        "description": "Sonarr, Radarr, Media Servers"
+      },
+      "subtitles": {
+        "title": "Subtitles",
+        "description": "Scoring, format, cleanup"
+      },
+      "providers": {
+        "title": "Providers",
+        "description": "Download sources"
+      },
+      "automation": {
+        "title": "Automation",
+        "description": "Scheduling, upgrades"
+      },
+      "translation": {
+        "title": "Translation",
+        "description": "AI translation backends"
+      },
+      "notifications": {
+        "title": "Notifications",
+        "description": "Channels, templates"
+      },
+      "system": {
+        "title": "System",
+        "description": "Security, backup, logs"
+      },
+      "cleanup": {
+        "title": "Cleanup",
+        "description": "Language filters, format upgrades, orphan removal"
+      },
+      "about": {
+        "title": "About",
+        "description": "Version, GitHub, donate"
+      }
+    }
   }
 }

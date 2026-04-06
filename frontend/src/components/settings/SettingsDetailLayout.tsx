@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { cn } from '@/lib/utils'
 
@@ -24,8 +25,9 @@ export function SettingsDetailLayout({
   children,
   className,
 }: SettingsDetailLayoutProps) {
+  const { t } = useTranslation('common')
   const resolvedBreadcrumb: readonly BreadcrumbItem[] = breadcrumb ?? [
-    { label: 'Settings', href: '/settings' },
+    { label: t('settings.breadcrumb'), href: '/settings' },
     { label: title },
   ]
 

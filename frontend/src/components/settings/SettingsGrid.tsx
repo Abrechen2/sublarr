@@ -208,7 +208,7 @@ function CategoryCard({
               color: translationEnabled ? 'var(--success)' : 'var(--accent)',
             }}
           >
-            {translationEnabled ? 'Enabled' : 'Requires Enable'}
+            {translationEnabled ? t('status.enabled') : t('actions.enable')}
           </span>
         </div>
       ) : (
