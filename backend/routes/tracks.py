@@ -401,14 +401,29 @@ def batch_extract_series_tracks(series_id):
                     stream_info = {"sub_index": track["sub_index"], "format": ext}
                     try:
                         extract_subtitle_stream(video_path, stream_info, output_path)
-                        logger.debug(
-                            "[batch-extract-tracks] extracted %s (track %d)",
-                            output_path,
-                            track["index"],
-                        )
-                        succeeded += 1
-                        file_extracted += 1
-                        extracted_streams.append((track["index"], track["sub_index"]))
+                        sidecar_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
+                        if sidecar_size < 10:
+                            logger.warning(
+                                "[batch-extract-tracks] sidecar %s is empty (%d bytes) — skipping removal for track %d",
+                                output_path,
+                                sidecar_size,
+                                track["index"],
+                            )
+                            try:
+                                os.unlink(output_path)
+                            except OSError:
+                                pass
+                            failed += 1
+                        else:
+                            logger.debug(
+                                "[batch-extract-tracks] extracted %s (%d bytes, track %d)",
+                                output_path,
+                                sidecar_size,
+                                track["index"],
+                            )
+                            succeeded += 1
+                            file_extracted += 1
+                            extracted_streams.append((track["index"], track["sub_index"]))
                     except Exception as exc:
                         logger.warning(
                             "[batch-extract-tracks] extract failed (%s track %d): %s",
