@@ -113,6 +113,15 @@
     "history": "History",
     "back_to_library": "Back to Library"
   },
+  "series_settings_panel": {
+    "section_language": "Language",
+    "section_subtitles": "Subtitles",
+    "section_tools": "Tools",
+    "tooltip_export_zip": "Download all sidecar subtitles for this series as a ZIP file — useful as backup or for sharing.",
+    "tooltip_extract_embedded": "Save embedded subtitle streams from all episodes as sidecar files and remove them from the video container.",
+    "tooltip_cleanup": "Filter sidecar subtitles by language or format and move them to trash (recoverable).",
+    "tooltip_fansub": "Set preferred fansub provider for this series. Overrides global provider priority."
+  },
   "interactive_search": {
     "title": "Interactive Search",
     "retry": "Search again",

@@ -1,5 +1,6 @@
 import type React from 'react'
 import type { SeriesDetail } from '@/lib/types'
+import { useTranslation } from 'react-i18next'
 import { Tooltip } from '@/components/shared/Tooltip'
 
 interface SeriesSettingsPanelProps {
@@ -52,6 +53,8 @@ export function SeriesSettingsPanel({
   updatePending,
   refreshPending,
 }: SeriesSettingsPanelProps) {
+  const { t } = useTranslation('library')
+
   return (
     <div
       style={{
@@ -67,7 +70,7 @@ export function SeriesSettingsPanel({
     >
       {/* Language section */}
       <div>
-        <div style={sectionLabelStyle}>Language</div>
+        <div style={sectionLabelStyle}>{t('series_settings_panel.section_language')}</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
           {series.profile_name && (
             <span
@@ -119,7 +122,7 @@ export function SeriesSettingsPanel({
 
       {/* Subtitles section */}
       <div>
-        <div style={sectionLabelStyle}>Subtitles</div>
+        <div style={sectionLabelStyle}>{t('series_settings_panel.section_subtitles')}</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
           {/* Glossary toggle */}
           <button
@@ -177,10 +180,10 @@ export function SeriesSettingsPanel({
 
       {/* Tools section */}
       <div>
-        <div style={sectionLabelStyle}>Tools</div>
+        <div style={sectionLabelStyle}>{t('series_settings_panel.section_tools')}</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
           {/* Untertitel exportieren */}
-          <Tooltip content="Alle Sidecar-Untertitel dieser Serie als ZIP-Datei herunterladen — praktisch als Backup oder zur Weitergabe.">
+          <Tooltip content={t('series_settings_panel.tooltip_export_zip')}>
             <button
               onClick={onExport}
               style={{
@@ -196,7 +199,7 @@ export function SeriesSettingsPanel({
           </Tooltip>
 
           {/* Embedded extrahieren */}
-          <Tooltip content="Eingebettete Untertitel-Streams aus allen Episoden als Sidecar-Dateien speichern und aus dem Videocontainer entfernen.">
+          <Tooltip content={t('series_settings_panel.tooltip_extract_embedded')}>
             <button
               onClick={onExtract}
               disabled={isExtracting}
@@ -217,7 +220,7 @@ export function SeriesSettingsPanel({
           </Tooltip>
 
           {/* Sidecar bereinigen */}
-          <Tooltip content="Sidecar-Untertitel nach Sprache oder Format filtern und in den Papierkorb verschieben (wiederherstellbar).">
+          <Tooltip content={t('series_settings_panel.tooltip_cleanup')}>
             <button
               onClick={onCleanup}
               style={{
@@ -233,7 +236,7 @@ export function SeriesSettingsPanel({
           </Tooltip>
 
           {/* Fansub-Override */}
-          <Tooltip content="Bevorzugten Fansub-Anbieter für diese Serie festlegen. Überschreibt die globale Anbieter-Priorität.">
+          <Tooltip content={t('series_settings_panel.tooltip_fansub')}>
             <button
               onClick={onFansub}
               style={{
