@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Loader2, RotateCcw } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useNotificationHistory, useResendNotification } from '@/hooks/useSystemApi'
 import { toast } from '@/components/shared/Toast'
 
 // ─── NotificationHistoryTab ───────────────────────────────────────────────────
 
 export function NotificationHistoryTab() {
+  const { t } = useTranslation('settings')
   const [page, setPage] = useState(1)
   const [eventFilter, setEventFilter] = useState<string | undefined>(undefined)
   const { data, isLoading } = useNotificationHistory(page, eventFilter)
@@ -16,8 +18,8 @@ export function NotificationHistoryTab() {
 
   const handleResend = (id: number) => {
     resendMut.mutate(id, {
-      onSuccess: () => toast('Notification resent'),
-      onError: () => toast('Resend failed', 'error'),
+      onSuccess: () => toast(t('notification_history.resent')),
+      onError: () => toast(t('notification_history.resend_failed'), 'error'),
     })
   }
 
@@ -36,7 +38,7 @@ export function NotificationHistoryTab() {
         className="rounded-lg p-6 text-center text-sm"
         style={{ color: 'var(--text-muted)', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
-        No notification history yet.
+        {t('notification_history.empty')}
       </div>
     )
   }
@@ -46,11 +48,11 @@ export function NotificationHistoryTab() {
       {/* Event filter */}
       <div className="flex items-center gap-2">
         <label className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          Filter by event:
+          {t('notification_history.filter_label')}
         </label>
         <input
           type="text"
-          placeholder="e.g. subtitle_found"
+          placeholder={t('notification_history.filter_placeholder')}
           value={eventFilter ?? ''}
           onChange={(e) => { setEventFilter(e.target.value || undefined); setPage(1) }}
           className="px-2 py-1 rounded text-xs focus:outline-none"
@@ -69,11 +71,11 @@ export function NotificationHistoryTab() {
         <table className="w-full text-xs">
           <thead>
             <tr style={{ backgroundColor: 'var(--bg-surface-hover)', color: 'var(--text-muted)' }}>
-              <th className="px-3 py-2 text-left font-medium">Timestamp</th>
-              <th className="px-3 py-2 text-left font-medium">Event</th>
-              <th className="px-3 py-2 text-left font-medium">Channel</th>
-              <th className="px-3 py-2 text-left font-medium">Status</th>
-              <th className="px-3 py-2 text-left font-medium">Action</th>
+              <th className="px-3 py-2 text-left font-medium">{t('notification_history.col_timestamp')}</th>
+              <th className="px-3 py-2 text-left font-medium">{t('notification_history.col_event')}</th>
+              <th className="px-3 py-2 text-left font-medium">{t('notification_history.col_channel')}</th>
+              <th className="px-3 py-2 text-left font-medium">{t('notification_history.col_status')}</th>
+              <th className="px-3 py-2 text-left font-medium">{t('notification_history.col_action')}</th>
             </tr>
           </thead>
           <tbody>
@@ -113,7 +115,7 @@ export function NotificationHistoryTab() {
                     disabled={resendMut.isPending}
                   >
                     <RotateCcw size={10} />
-                    Resend
+                    {t('notification_history.resend')}
                   </button>
                 </td>
               </tr>
@@ -137,7 +139,7 @@ export function NotificationHistoryTab() {
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             data-testid="history-prev-btn"
           >
-            Prev
+            {t('notification_history.prev')}
           </button>
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
             {page} / {totalPages}
@@ -154,7 +156,7 @@ export function NotificationHistoryTab() {
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             data-testid="history-next-btn"
           >
-            Next
+            {t('notification_history.next')}
           </button>
         </div>
       )}

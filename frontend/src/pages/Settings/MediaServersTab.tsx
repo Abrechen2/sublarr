@@ -3,30 +3,14 @@ import {
   useMediaServerTypes, useMediaServerInstances, useSaveMediaServerInstances, useTestMediaServer,
 } from '@/hooks/useApi'
 import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Trash2, Plus, Eye, EyeOff } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { toast } from '@/components/shared/Toast'
 import { Toggle } from '@/components/shared/Toggle'
 import { SettingRow } from '@/components/shared/SettingRow'
 import type { MediaServerType, MediaServerInstance, MediaServerTestResult } from '@/lib/types'
 
-
-/** Returns a description string for a known config field key. */
-function getFieldDescription(fieldKey: string, serverDisplayName: string): string {
-  switch (fieldKey) {
-    case 'url':
-      return `Adresse der ${serverDisplayName}-Instanz inkl. Port, z.B. http://localhost:8096`
-    case 'api_key':
-    case 'token':
-    case 'x_plex_token':
-      return `In ${serverDisplayName} unter Settings → API Keys erstellen`
-    case 'username':
-      return `Benutzername des ${serverDisplayName}-Kontos`
-    case 'password':
-      return `Passwort des ${serverDisplayName}-Kontos`
-    default:
-      return ''
-  }
-}
 export function MediaServersTab() {
+  const { t } = useTranslation('settings')
   const { data: typesData, isLoading: typesLoading } = useMediaServerTypes()
   const { data: instancesData, isLoading: instancesLoading } = useMediaServerInstances()
   const saveMut = useSaveMediaServerInstances()
@@ -40,6 +24,24 @@ export function MediaServersTab() {
 
   const types = typesData ?? []
 
+  /** Returns a localised description for a known config field key. */
+  const getFieldDescription = (fieldKey: string, serverDisplayName: string): string => {
+    switch (fieldKey) {
+      case 'url':
+        return t('media_servers.field_desc_url', { name: serverDisplayName })
+      case 'api_key':
+      case 'token':
+      case 'x_plex_token':
+        return t('media_servers.field_desc_api_key', { name: serverDisplayName })
+      case 'username':
+        return t('media_servers.field_desc_username', { name: serverDisplayName })
+      case 'password':
+        return t('media_servers.field_desc_password', { name: serverDisplayName })
+      default:
+        return ''
+    }
+  }
+
   // Sync from server data
   useEffect(() => {
     if (instancesData) {
@@ -50,8 +52,8 @@ export function MediaServersTab() {
   const saveInstances = (updated: MediaServerInstance[]) => {
     setLocalInstances(updated)
     saveMut.mutate(updated, {
-      onSuccess: () => toast('Media servers saved'),
-      onError: () => toast('Failed to save media servers', 'error'),
+      onSuccess: () => toast(t('media_servers.saved')),
+      onError: () => toast(t('media_servers.save_failed'), 'error'),
     })
   }
 
@@ -130,8 +132,10 @@ export function MediaServersTab() {
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
           {localInstances.length > 0
-            ? `${localInstances.length} media server${localInstances.length !== 1 ? 's' : ''} configured`
-            : 'No media servers configured'}
+            ? localInstances.length === 1
+              ? t('media_servers.configured_one')
+              : t('media_servers.configured_other', { count: localInstances.length })
+            : t('media_servers.none_configured')}
         </span>
         <div className="relative">
           <button
@@ -140,17 +144,17 @@ export function MediaServersTab() {
             style={{ backgroundColor: 'var(--accent)' }}
           >
             <Plus size={12} />
-            Add Server
+            {t('media_servers.add_server')}
           </button>
           {showAddDropdown && (
             <div
               className="absolute right-0 top-full mt-1 z-10 rounded-lg py-1 min-w-[180px] shadow-lg"
               style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
             >
-              {types.map((t) => (
+              {types.map((serverType) => (
                 <button
-                  key={t.name}
-                  onClick={() => addInstance(t)}
+                  key={serverType.name}
+                  onClick={() => addInstance(serverType)}
                   className="w-full text-left px-3 py-2 text-sm transition-colors"
                   style={{ color: 'var(--text-primary)' }}
                   onMouseEnter={(e) => {
@@ -160,7 +164,7 @@ export function MediaServersTab() {
                     e.currentTarget.style.backgroundColor = 'transparent'
                   }}
                 >
-                  {t.display_name}
+                  {serverType.display_name}
                 </button>
               ))}
             </div>
@@ -193,7 +197,7 @@ export function MediaServersTab() {
             >
               <div className="flex items-center gap-3 min-w-0">
                 <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  {inst.name || 'Unnamed'}
+                  {inst.name || t('media_servers.unnamed')}
                 </span>
                 <span
                   className="px-2 py-0.5 rounded-full text-[10px] font-medium"
@@ -212,7 +216,7 @@ export function MediaServersTab() {
                     className="w-1.5 h-1.5 rounded-full shrink-0"
                     style={{ backgroundColor: inst.enabled ? 'var(--success)' : 'var(--text-muted)' }}
                   />
-                  {inst.enabled ? 'Enabled' : 'Disabled'}
+                  {inst.enabled ? t('media_servers.status_enabled') : t('media_servers.status_disabled')}
                 </span>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -226,8 +230,8 @@ export function MediaServersTab() {
                 {/* Name field */}
                 <div className="pt-3">
                   <SettingRow
-                    label="Name"
-                    description="Anzeigename für diese Instanz"
+                    label={t('media_servers.field_name')}
+                    description={t('media_servers.field_name_desc')}
                   >
                     <input
                       type="text"
@@ -293,9 +297,9 @@ export function MediaServersTab() {
 
                 {/* Path Mapping field */}
                 <SettingRow
-                  label="Path Mapping"
-                  description="Container-Pfad → Media-Server-Pfad Mapping, z.B. /media:/data"
-                  helpText="Map container paths to media server paths, e.g. /media:/data"
+                  label={t('media_servers.field_path_mapping')}
+                  description={t('media_servers.field_path_mapping_desc')}
+                  helpText={t('media_servers.field_path_mapping_help')}
                 >
                   <input
                     type="text"
@@ -314,8 +318,8 @@ export function MediaServersTab() {
 
                 {/* Enabled toggle */}
                 <SettingRow
-                  label="Enabled"
-                  description={`${serverDisplayName}-Integration für Library-Benachrichtigungen aktivieren`}
+                  label={t('media_servers.field_enabled')}
+                  description={t('media_servers.field_enabled_desc', { name: serverDisplayName })}
                 >
                   <Toggle
                     checked={inst.enabled}
@@ -347,7 +351,7 @@ export function MediaServersTab() {
                     ) : (
                       <TestTube size={12} />
                     )}
-                    Test Connection
+                    {t('media_servers.btn_test')}
                   </button>
 
                   <button
@@ -361,7 +365,7 @@ export function MediaServersTab() {
                     ) : (
                       <Save size={12} />
                     )}
-                    Save
+                    {t('media_servers.btn_save')}
                   </button>
 
                   <button
@@ -374,13 +378,13 @@ export function MediaServersTab() {
                     }}
                   >
                     <Trash2 size={12} />
-                    Remove
+                    {t('media_servers.btn_remove')}
                   </button>
 
                   {/* Test result inline */}
                   {testResult && testResult !== 'testing' && (
                     <span className="text-xs" style={{ color: testResult.healthy ? 'var(--success)' : 'var(--error)' }}>
-                      {testResult.healthy ? 'OK' : 'Error'}: {testResult.message}
+                      {testResult.healthy ? t('media_servers.test_ok') : t('media_servers.test_error')}: {testResult.message}
                     </span>
                   )}
                 </div>
@@ -393,7 +397,7 @@ export function MediaServersTab() {
       {/* Empty state */}
       {localInstances.length === 0 && (
         <div className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>
-          No media servers configured. Add one to enable library refresh notifications after subtitle downloads.
+          {t('media_servers.empty')}
         </div>
       )}
     </div>

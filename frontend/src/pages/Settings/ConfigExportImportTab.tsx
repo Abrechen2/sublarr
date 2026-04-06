@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { Upload, Download } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { toast } from '@/components/shared/Toast'
 import { useExportConfig, useImportConfig } from '@/hooks/useSystemApi'
@@ -7,6 +8,8 @@ import { useExportConfig, useImportConfig } from '@/hooks/useSystemApi'
 // ─── ConfigExportImportTab ────────────────────────────────────────────────────
 
 export function ConfigExportImportTab() {
+  const { t } = useTranslation('settings')
+  const { t: tC } = useTranslation('common')
   const exportMut = useExportConfig()
   const importMut = useImportConfig()
 
@@ -27,7 +30,7 @@ export function ConfigExportImportTab() {
         a.click()
         URL.revokeObjectURL(url)
       },
-      onError: () => toast('Export failed', 'error'),
+      onError: () => toast(t('config_export_import.export_failed'), 'error'),
     })
   }
 
@@ -43,7 +46,7 @@ export function ConfigExportImportTab() {
         setImportKeyCount(Object.keys(parsed).length)
         setShowConfirm(true)
       } catch {
-        toast('Invalid JSON file', 'error')
+        toast(t('config_export_import.invalid_json'), 'error')
       }
       // Reset file input so same file can be selected again
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -55,12 +58,12 @@ export function ConfigExportImportTab() {
     if (!importData) return
     importMut.mutate(importData, {
       onSuccess: (result) => {
-        toast(`Imported ${result.imported_keys.length} settings`)
+        toast(t('config_export_import.imported', { count: result.imported_keys.length }))
         setShowConfirm(false)
         setImportData(null)
       },
       onError: () => {
-        toast('Import failed', 'error')
+        toast(t('config_export_import.export_failed'), 'error')
         setShowConfirm(false)
         setImportData(null)
       },
@@ -76,8 +79,8 @@ export function ConfigExportImportTab() {
     <div>
       {/* Export row */}
       <SettingRow
-        label="Export settings"
-        description="Download all config keys as JSON."
+        label={t('config_export_import.export_label')}
+        description={t('config_export_import.export_desc')}
       >
         <button
           className="btn-secondary flex items-center gap-1.5"
@@ -86,14 +89,14 @@ export function ConfigExportImportTab() {
           data-testid="export-config-btn"
         >
           <Download size={14} />
-          {exportMut.isPending ? 'Exporting…' : 'Export'}
+          {exportMut.isPending ? t('config_export_import.exporting') : t('config_export_import.export_btn')}
         </button>
       </SettingRow>
 
       {/* Import row */}
       <SettingRow
-        label="Import settings"
-        description="Restore settings from a previously exported JSON backup. Secrets are skipped."
+        label={t('config_export_import.import_label')}
+        description={t('config_export_import.import_desc')}
       >
         <div className="flex items-center gap-2">
           <input
@@ -111,7 +114,7 @@ export function ConfigExportImportTab() {
             style={{ userSelect: 'none' }}
           >
             <Upload size={14} />
-            Choose file
+            {t('config_export_import.choose_file')}
           </label>
         </div>
       </SettingRow>
@@ -129,11 +132,10 @@ export function ConfigExportImportTab() {
             style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
           >
             <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-              Import {importKeyCount} settings?
+              {t('config_export_import.import_confirm_title', { count: importKeyCount })}
             </h3>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              This will overwrite existing settings. Secret fields (passwords, API keys) will be
-              skipped.
+              {t('config_export_import.import_confirm_body')}
             </p>
             <div className="flex gap-2 justify-end">
               <button
@@ -141,7 +143,7 @@ export function ConfigExportImportTab() {
                 onClick={handleCancelImport}
                 data-testid="import-cancel-btn"
               >
-                Cancel
+                {tC('actions.cancel')}
               </button>
               <button
                 className="btn-primary text-sm"
@@ -149,7 +151,7 @@ export function ConfigExportImportTab() {
                 disabled={importMut.isPending}
                 data-testid="import-confirm-btn"
               >
-                {importMut.isPending ? 'Importing…' : 'Import'}
+                {importMut.isPending ? t('config_export_import.importing') : t('config_export_import.import_btn')}
               </button>
             </div>
           </div>

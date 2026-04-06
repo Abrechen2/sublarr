@@ -1,5 +1,6 @@
 import { Heart, Github, AlertCircle, Info } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { getHealth } from '@/api/client'
@@ -7,6 +8,7 @@ import { getHealth } from '@/api/client'
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function AboutSettings() {
+  const { t } = useTranslation('settings')
   const { data: health } = useQuery({
     queryKey: ['health'],
     queryFn: getHealth,
@@ -17,16 +19,16 @@ export function AboutSettings() {
 
   return (
     <SettingsDetailLayout
-      title="About"
-      subtitle="Version, support, and project links"
+      title={t('about_page.title')}
+      subtitle={t('about_page.subtitle')}
     >
       <div data-testid="about-settings" className="space-y-4">
 
         {/* ── Version ───────────────────────────────────────────────────── */}
         <div data-testid="section-version">
           <SettingsSection
-            title="Version"
-            description="Currently running Sublarr build"
+            title={t('about_page.version_title')}
+            description={t('about_page.version_desc')}
             icon={<Info size={16} style={{ color: 'var(--accent)' }} />}
           >
             <div
@@ -60,8 +62,8 @@ export function AboutSettings() {
         {/* ── Links ─────────────────────────────────────────────────────── */}
         <div data-testid="section-links">
           <SettingsSection
-            title="Support the Project"
-            description="Star the repo, report issues, or buy a coffee"
+            title={t('about_page.support_title')}
+            description={t('about_page.support_desc')}
             icon={<Heart size={16} style={{ color: 'var(--accent)' }} />}
           >
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
@@ -97,7 +99,7 @@ export function AboutSettings() {
                 }}
               >
                 <Github size={15} />
-                Star on GitHub
+                {t('about_page.star_github')}
               </a>
 
               {/* Donate */}
@@ -125,7 +127,7 @@ export function AboutSettings() {
                 onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
               >
                 <Heart size={15} />
-                Donate
+                {t('about_page.donate')}
               </a>
 
               {/* Report Issue */}
@@ -159,7 +161,7 @@ export function AboutSettings() {
                 }}
               >
                 <AlertCircle size={15} />
-                Report Issue
+                {t('about_page.report_issue')}
               </a>
             </div>
           </SettingsSection>

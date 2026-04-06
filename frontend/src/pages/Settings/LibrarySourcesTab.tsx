@@ -16,6 +16,7 @@ import {
   FolderOpen,
   RefreshCw,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { toast } from '@/components/shared/Toast'
 import type { WatchedFolder } from '@/lib/types'
 import type { FieldConfig } from './LegacySettings'
@@ -33,6 +34,7 @@ export function LibrarySourcesTab({
   onFieldChange: (key: string, value: string) => void
   fields: FieldConfig[]
 }) {
+  const { t } = useTranslation('settings')
   const { data: folders, isLoading: foldersLoading } = useWatchedFolders()
   const saveFolder = useSaveWatchedFolder()
   const removeFolder = useDeleteWatchedFolder()
@@ -59,9 +61,9 @@ export function LibrarySourcesTab({
           setNewLabel('')
           setNewMediaType('auto')
           setShowAdd(false)
-          toast('Folder added')
+          toast(t('library_sources.folder_added'))
         },
-        onError: () => toast('Failed to add folder', 'error'),
+        onError: () => toast(t('library_sources.folder_add_failed'), 'error'),
       },
     )
   }
@@ -80,9 +82,9 @@ export function LibrarySourcesTab({
       {
         onSuccess: () => {
           setEditingId(null)
-          toast('Folder updated')
+          toast(t('library_sources.folder_updated'))
         },
-        onError: () => toast('Failed to update folder', 'error'),
+        onError: () => toast(t('library_sources.folder_update_failed'), 'error'),
       },
     )
   }
@@ -95,15 +97,15 @@ export function LibrarySourcesTab({
 
   const handleDelete = (folderId: number) => {
     removeFolder.mutate(folderId, {
-      onSuccess: () => toast('Folder removed'),
-      onError: () => toast('Failed to remove folder', 'error'),
+      onSuccess: () => toast(t('library_sources.folder_removed')),
+      onError: () => toast(t('library_sources.folder_remove_failed'), 'error'),
     })
   }
 
   const handleScanAll = () => {
     scanAll.mutate(undefined, {
-      onSuccess: () => toast('Scan started'),
-      onError: () => toast('Failed to start scan', 'error'),
+      onSuccess: () => toast(t('library_sources.scan_started')),
+      onError: () => toast(t('library_sources.scan_failed'), 'error'),
     })
   }
 
@@ -157,7 +159,7 @@ export function LibrarySourcesTab({
           <div className="flex items-center gap-2">
             <FolderOpen size={16} style={{ color: 'var(--accent)' }} />
             <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-              Watched Folders
+              {t('library_sources.watched_folders')}
             </h3>
             {standaloneStatus && (
               <span
@@ -171,7 +173,7 @@ export function LibrarySourcesTab({
                   className="w-1.5 h-1.5 rounded-full shrink-0"
                   style={{ backgroundColor: standaloneStatus.watcher_running ? 'var(--success)' : 'var(--text-muted)' }}
                 />
-                {standaloneStatus.watcher_running ? 'Watching' : 'Stopped'}
+                {standaloneStatus.watcher_running ? t('library_sources.watcher_watching') : t('library_sources.watcher_stopped')}
               </span>
             )}
           </div>
@@ -192,7 +194,7 @@ export function LibrarySourcesTab({
               ) : (
                 <RefreshCw size={12} />
               )}
-              {standaloneStatus?.scanner_scanning ? 'Scanning…' : 'Scan All'}
+              {standaloneStatus?.scanner_scanning ? t('library_sources.scanning') : t('library_sources.scan_all')}
             </button>
             <button
               onClick={() => setShowAdd(true)}
@@ -200,7 +202,7 @@ export function LibrarySourcesTab({
               style={{ color: 'var(--accent)', border: '1px solid var(--accent-dim)' }}
             >
               <Plus size={12} />
-              Add Folder
+              {t('library_sources.add_folder')}
             </button>
           </div>
         </div>
@@ -245,7 +247,7 @@ export function LibrarySourcesTab({
                           type="text"
                           value={editLabel}
                           onChange={(e) => setEditLabel(e.target.value)}
-                          placeholder="Label (optional)"
+                          placeholder={t('library_sources.label_placeholder')}
                           className="flex-1 px-2.5 py-1.5 rounded text-sm focus:outline-none"
                           style={{
                             backgroundColor: 'var(--bg-surface)',
@@ -307,7 +309,7 @@ export function LibrarySourcesTab({
                         <div className="flex items-center gap-3 mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
                           {folder.label && <span>{folder.label}</span>}
                           {folder.last_scan_at && (
-                            <span>Last scan: {new Date(folder.last_scan_at).toLocaleString()}</span>
+                            <span>{t('library_sources.last_scan')} {new Date(folder.last_scan_at).toLocaleString()}</span>
                           )}
                         </div>
                       </div>
@@ -321,7 +323,7 @@ export function LibrarySourcesTab({
                             border: '1px solid ' + (folder.enabled ? 'var(--accent-dim)' : 'var(--border)'),
                           }}
                         >
-                          {folder.enabled ? 'Enabled' : 'Disabled'}
+                          {folder.enabled ? t('library_sources.folder_enabled') : t('library_sources.folder_disabled')}
                         </button>
                         <button
                           onClick={() => handleEditFolder(folder)}
@@ -348,7 +350,7 @@ export function LibrarySourcesTab({
               ))
             ) : (
               <div className="text-center py-4 text-xs" style={{ color: 'var(--text-muted)' }}>
-                No watched folders configured. Add a folder to start scanning for media.
+                {t('library_sources.no_folders')}
               </div>
             )}
           </div>
