@@ -11,6 +11,7 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { Command } from 'cmdk'
 import { useNavigate } from 'react-router-dom'
 import { Search, Tv, Film, FileText, Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useGlobalSearch } from '@/hooks/useApi'
 
 interface Props {
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function GlobalSearchModal({ open, onOpenChange }: Props) {
+  const { t } = useTranslation('common')
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebounce(query, 300)
   const navigate = useNavigate()
@@ -47,7 +49,7 @@ export function GlobalSearchModal({ open, onOpenChange }: Props) {
       open={open}
       onOpenChange={handleOpenChange}
       shouldFilter={false}
-      label="Global search"
+      label={t('search.aria_label')}
       overlayClassName="fixed inset-0 bg-black/50 backdrop-blur-sm"
       contentClassName="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]"
     >
@@ -57,13 +59,13 @@ export function GlobalSearchModal({ open, onOpenChange }: Props) {
         aria-labelledby="global-search-title"
         className="w-full max-w-lg rounded-xl border border-border bg-background shadow-2xl overflow-hidden"
       >
-        <h2 id="global-search-title" className="sr-only">Global Search</h2>
+        <h2 id="global-search-title" className="sr-only">{t('search.heading')}</h2>
         <div className="flex items-center gap-2 px-4 border-b border-border">
           <Search className="h-4 w-4 text-muted-foreground shrink-0" />
           <Command.Input
             value={query}
             onValueChange={setQuery}
-            placeholder="Search series, episodes, subtitles..."
+            placeholder={t('search.placeholder')}
             className="flex-1 h-12 bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
           />
           {isFetching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />}
@@ -73,17 +75,17 @@ export function GlobalSearchModal({ open, onOpenChange }: Props) {
         <Command.List className="max-h-80 overflow-y-auto p-2">
           {query.length < 2 && (
             <Command.Empty className="py-8 text-center text-sm text-muted-foreground">
-              Type at least 2 characters to search...
+              {t('search.minChars')}
             </Command.Empty>
           )}
           {showEmpty && (
             <Command.Empty className="py-8 text-center text-sm text-muted-foreground">
-              No results for &quot;{query}&quot;
+              {t('search.noResults', { query })}
             </Command.Empty>
           )}
 
           {hasSeries && (
-            <Command.Group heading="Series" className="text-xs font-semibold text-muted-foreground px-2 py-1">
+            <Command.Group heading={t('search.series')} className="text-xs font-semibold text-muted-foreground px-2 py-1">
               {data!.series.map((s) => (
                 <Command.Item
                   key={`series-${s.id}`}
@@ -99,7 +101,7 @@ export function GlobalSearchModal({ open, onOpenChange }: Props) {
           )}
 
           {hasEpisodes && (
-            <Command.Group heading="Episodes" className="text-xs font-semibold text-muted-foreground px-2 py-1">
+            <Command.Group heading={t('search.episodes')} className="text-xs font-semibold text-muted-foreground px-2 py-1">
               {data!.episodes.map((ep) => (
                 <Command.Item
                   key={`ep-${ep.id}`}
@@ -118,7 +120,7 @@ export function GlobalSearchModal({ open, onOpenChange }: Props) {
           )}
 
           {hasSubtitles && (
-            <Command.Group heading="Subtitles" className="text-xs font-semibold text-muted-foreground px-2 py-1">
+            <Command.Group heading={t('search.subtitles')} className="text-xs font-semibold text-muted-foreground px-2 py-1">
               {data!.subtitles.map((sub) => (
                 <Command.Item
                   key={`sub-${sub.id}`}
