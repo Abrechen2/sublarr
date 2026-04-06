@@ -78,6 +78,10 @@ vi.mock('@/pages/Blacklist', () => ({
   BlacklistPage: () => <div data-testid="blacklist-page-content">Blacklist Content</div>,
 }))
 
+vi.mock('@/pages/History', () => ({
+  HistoryPage: () => <div data-testid="history-page-content">History Content</div>,
+}))
+
 vi.mock('@/components/activity/TranslationsTab', () => ({
   TranslationsTab: () => <div data-testid="translations-page-content">Translations Content</div>,
 }))
@@ -200,7 +204,7 @@ describe('ActivityPage', () => {
   it('renders history tab content when tab=history', () => {
     renderWithProviders('/activity?tab=history')
 
-    expect(screen.getByTestId('activity-log-tab')).toBeInTheDocument()
+    expect(screen.getByTestId('history-page-content')).toBeInTheDocument()
     expect(screen.queryByTestId('queue-page-content')).not.toBeInTheDocument()
   })
 
@@ -223,7 +227,7 @@ describe('ActivityPage', () => {
 
     fireEvent.click(screen.getByTestId('tab-history'))
 
-    expect(screen.getByTestId('activity-log-tab')).toBeInTheDocument()
+    expect(screen.getByTestId('history-page-content')).toBeInTheDocument()
     expect(screen.queryByTestId('tab-content-queue')).not.toBeInTheDocument()
   })
 
