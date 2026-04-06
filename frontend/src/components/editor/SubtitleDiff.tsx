@@ -1,5 +1,6 @@
 import { ArrowLeft, Check, CheckSquare, Loader2, SquareX, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { applySubtitleDiff, computeSubtitleDiff } from '../../api/client'
 import { useSubtitleBackup } from '../../hooks/useApi'
 import type { SubtitleDiffEntry, SubtitleDiffResult } from '../../lib/types'
@@ -39,6 +40,7 @@ export default function SubtitleDiff({
   onBackToEditor,
   onApplied,
 }: SubtitleDiffProps) {
+  const { t } = useTranslation('editor')
   const { data: backup, isLoading: backupLoading } = useSubtitleBackup(filePath)
 
   const [diffResult, setDiffResult] = useState<SubtitleDiffResult | null>(null)
@@ -208,7 +210,7 @@ export default function SubtitleDiff({
                 onClick={acceptAll}
                 className="flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors"
                 style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--success)', border: '1px solid var(--border)' }}
-                title="Accept all changes"
+                title={t('accept_all')}
               >
                 <CheckSquare size={12} />
                 Accept All
@@ -217,7 +219,7 @@ export default function SubtitleDiff({
                 onClick={rejectAll}
                 className="flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors"
                 style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--error)', border: '1px solid var(--border)' }}
-                title="Reject all changes"
+                title={t('reject_all')}
               >
                 <SquareX size={12} />
                 Reject All
@@ -391,6 +393,7 @@ function DiffHeader({
   onClose?: () => void
   onBackToEditor?: () => void
 }) {
+  const { t } = useTranslation('editor')
   return (
     <div
       className="flex items-center gap-2 px-3 py-1.5 flex-shrink-0"
@@ -405,7 +408,7 @@ function DiffHeader({
           onClick={onBackToEditor}
           className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm transition-colors"
           style={{ color: 'var(--text-secondary)' }}
-          title="Back to editor"
+          title={t('back_to_editor')}
           onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
           onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
         >
@@ -419,7 +422,7 @@ function DiffHeader({
           onClick={onClose}
           className="rounded p-1.5 transition-colors"
           style={{ color: 'var(--text-muted)' }}
-          title="Close"
+          title={t('close')}
           onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)' }}
           onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
         >

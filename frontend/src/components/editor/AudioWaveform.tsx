@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useWaveform } from '@/hooks/useApi'
 import { Loader2, ZoomIn, ZoomOut, Maximize2, Minimize2 } from 'lucide-react'
 
@@ -26,6 +27,7 @@ export function AudioWaveform({
   onTimeSelect,
   className = '',
 }: AudioWaveformProps) {
+  const { t } = useTranslation('editor')
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [zoom, setZoom] = useState(1)
@@ -231,7 +233,7 @@ export function AudioWaveform({
           <button
             onClick={handleZoomOut}
             className="p-1 hover:bg-gray-800 rounded"
-            title="Zoom Out"
+            title={t('zoom_out')}
           >
             <ZoomOut className="w-4 h-4" />
           </button>
@@ -239,21 +241,21 @@ export function AudioWaveform({
           <button
             onClick={handleZoomIn}
             className="p-1 hover:bg-gray-800 rounded"
-            title="Zoom In"
+            title={t('zoom_in')}
           >
             <ZoomIn className="w-4 h-4" />
           </button>
           <button
             onClick={handlePanLeft}
             className="px-2 py-1 text-sm hover:bg-gray-800 rounded"
-            title="Pan Left"
+            title={t('pan_left')}
           >
             ←
           </button>
           <button
             onClick={handlePanRight}
             className="px-2 py-1 text-sm hover:bg-gray-800 rounded"
-            title="Pan Right"
+            title={t('pan_right')}
           >
             →
           </button>

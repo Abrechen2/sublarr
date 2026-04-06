@@ -27,5 +27,12 @@
   "validating": "Validating...",
   "valid": "Valid",
   "invalid": "Invalid",
-  "unsaved_changes": "Unsaved changes"
+  "unsaved_changes": "Unsaved changes",
+  "accept_all": "Accept all changes",
+  "reject_all": "Reject all changes",
+  "back_to_editor": "Back to editor",
+  "zoom_out": "Zoom Out",
+  "zoom_in": "Zoom In",
+  "pan_left": "Pan Left",
+  "pan_right": "Pan Right"
 }
