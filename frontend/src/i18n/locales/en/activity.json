@@ -5,8 +5,13 @@
     "queue": "Queue",
     "translations": "Translations",
     "history": "History",
-    "activity": "Activity Log",
     "blacklist": "Blacklist"
+  },
+  "history": {
+    "filter_downloads": "Downloads",
+    "filter_extract": "Extractions",
+    "filter_delete": "Deletions",
+    "filter_scan": "Scans"
   },
   "translations": {
     "no_active": "No active translation jobs",

@@ -90,10 +90,10 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
 
 const EVENT_TYPES = ['download', 'extract', 'delete', 'scan'] as const
 
-export function ActivityLogTab() {
+export function ActivityLogTab({ defaultFilter }: { defaultFilter?: string }) {
   const { t } = useTranslation('activity')
   const [page, setPage] = useState(1)
-  const [typeFilter, setTypeFilter] = useState<string | undefined>(undefined)
+  const [typeFilter, setTypeFilter] = useState<string | undefined>(defaultFilter)
 
   const { data, isLoading } = useActivity(page, PER_PAGE, typeFilter)
   const entries = data?.data ?? []

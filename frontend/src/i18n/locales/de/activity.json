@@ -5,8 +5,13 @@
     "queue": "Warteschlange",
     "translations": "Übersetzungen",
     "history": "Verlauf",
-    "activity": "Aktivitätslog",
     "blacklist": "Sperrliste"
+  },
+  "history": {
+    "filter_downloads": "Downloads",
+    "filter_extract": "Extraktionen",
+    "filter_delete": "Löschungen",
+    "filter_scan": "Scans"
   },
   "translations": {
     "no_active": "Keine aktiven Übersetzungsjobs",
