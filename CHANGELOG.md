@@ -5,6 +5,19 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.44.0-beta] - 2026-04-06
+
+### Added
+- **Unified History Tab** — Verlauf und Aktivitätslog wurden zu einem einzigen Tab zusammengeführt. Sub-Filter (Downloads / Extraktionen / Löschungen / Scans) wechseln zwischen den Ansichten.
+- **Lesbare Untertitel-Pills im Wanted-Bereich** — Pills zeigen jetzt klaren Text (z.B. „DE fehlt", „DE ASS ⬇") statt kryptischer Symbole, mit erklärenden Tooltips bei Hover.
+
+### Fixed
+- **Doppelter Voreinstellungen-Button** — Der Preset-Button wurde im Wanted-Filterbereich doppelt gerendert; einer wurde entfernt.
+- **Filter-Dropdown transparent** — Popover für „Filter hinzufügen" und „Voreinstellungen" hatte keinen sichtbaren Hintergrund und schloss sich nicht beim Klick außerhalb; beides behoben.
+- **Filterfeldnamen auf Englisch** — Feldbezeichnungen im Filter-Dropdown (Status, Typ, Untertitel-Typ, Titel) werden jetzt korrekt übersetzt.
+- **Aktivität-Tab i18n** — Doppelter JSON-Key `history` in activity.json überschrieb die Filter-Labels; zusammengeführt. Zweite Filterleiste im ActivityLogTab bei Nutzung aus UnifiedHistoryTab unterdrückt.
+- **Seitenuntertitel Wanted** — „Subtitles missing from your library" wird jetzt als „Fehlende Untertitel in deiner Bibliothek" angezeigt.
+
 ## [0.43.0-beta] - 2026-04-06
 
 ### Added
