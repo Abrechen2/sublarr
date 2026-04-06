@@ -96,6 +96,9 @@
       "search_count": "Search count"
     }
   },
+  "health_check_scope_entire": "Entire Library",
+  "health_check_scope_series": "Single Series",
+  "engine_default": "Default engine",
   "episode_actions": {
     "preview_subtitle": "Preview Subtitle",
     "edit_subtitle": "Edit Subtitle",

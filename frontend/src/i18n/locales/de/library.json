@@ -96,6 +96,9 @@
       "search_count": "Anzahl Suchen"
     }
   },
+  "health_check_scope_entire": "Gesamte Bibliothek",
+  "health_check_scope_series": "Einzelne Serie",
+  "engine_default": "Standard-Engine",
   "episode_actions": {
     "preview_subtitle": "Untertitel-Vorschau",
     "edit_subtitle": "Untertitel bearbeiten",

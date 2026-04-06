@@ -118,6 +118,7 @@ function BulkSyncPanel({
   onProgress: (d: SyncBatchProgress) => void
   onComplete: (d: SyncBatchComplete) => void
 }) {
+  const { t } = useTranslation('library')
   const [scope, setScope] = useState<'series' | 'library'>('library')
   const [selectedSeriesId, setSelectedSeriesId] = useState<number | ''>('')
   const [engine, setEngine] = useState<'' | 'alass' | 'ffsubsync'>('')
@@ -201,8 +202,8 @@ function BulkSyncPanel({
               border: '1px solid var(--border)',
             }}
           >
-            <option value="library">Entire Library</option>
-            <option value="series">Single Series</option>
+            <option value="library">{t('health_check_scope_entire')}</option>
+            <option value="series">{t('health_check_scope_series')}</option>
           </select>
 
           {/* Series picker */}
@@ -235,7 +236,7 @@ function BulkSyncPanel({
               border: '1px solid var(--border)',
             }}
           >
-            <option value="">Default engine</option>
+            <option value="">{t('engine_default')}</option>
             <option value="alass">alass</option>
             <option value="ffsubsync">ffsubsync</option>
           </select>
