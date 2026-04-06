@@ -28,11 +28,22 @@
   },
   "general": {
     "port": "Port",
+    "port_hint": "TCP port the Sublarr server listens on. Requires restart to take effect.",
     "api_key": "API Key",
     "api_key_placeholder": "Leave empty to disable",
+    "api_key_hint": "Protects all API endpoints. Leave empty to disable authentication.",
     "log_level": "Log Level",
+    "log_level_hint": "Controls server log verbosity. Use DEBUG only for troubleshooting — it generates large log files.",
     "media_path": "Media Path",
-    "db_path": "Database Path"
+    "media_path_hint": "Root directory where your media library is stored.",
+    "db_path": "Database Path",
+    "db_path_hint": "Path to the SQLite database file. Changing this requires manually moving the existing file.",
+    "scan_engine_hint": "Tool used to probe video file metadata. Auto selects the best available.",
+    "log_format_hint": "json is useful for log aggregation tools. text is human-readable.",
+    "cors_origins_hint": "Comma-separated list of allowed CORS origins. Only needed when accessing Sublarr from a different domain.",
+    "db_pool_size_hint": "Maximum number of SQLite connections in the pool.",
+    "redis_url_hint": "Redis connection URL. Leave empty to use the built-in in-memory queue.",
+    "plugins_dir_hint": "Directory where Sublarr looks for installed plugins."
   },
   "translation": {
     "source_language_code": "Source Language Code",
@@ -43,23 +54,39 @@
   },
   "automation": {
     "upgrade_enabled": "Upgrade Enabled",
+    "upgrade_enabled_hint": "Automatically replace subtitles with better-scoring ones when found.",
     "prefer_ass": "Prefer ASS over SRT",
+    "prefer_ass_hint": "Prefer ASS format over SRT when upgrading. ASS supports styled text, useful for anime.",
     "min_score_delta": "Min Score Delta",
+    "min_score_delta_hint": "Minimum score improvement required to replace an existing subtitle.",
     "upgrade_window": "Upgrade Window (days)",
+    "upgrade_window_hint": "Only upgrade subtitles downloaded within this many days.",
     "webhook_delay": "Webhook Delay (minutes)",
     "auto_scan": "Auto-Scan after Download",
     "auto_search": "Auto-Search Providers",
     "auto_translate": "Auto-Translate Found Subs",
     "search_interval": "Search Interval (hours, 0=disabled)",
     "search_on_startup": "Search on Startup",
-    "max_items_per_run": "Max Items per Search Run"
+    "max_items_per_run": "Max Items per Search Run",
+    "upgrade_scan_interval_hint": "How often to scan for upgrade opportunities."
   },
   "wanted_tab": {
     "scan_interval": "Scan Interval (hours, 0=disabled)",
+    "scan_interval_hint": "How often Sublarr scans the library for new media without subtitles. Set to 0 to disable.",
+    "scan_on_startup": "Scan on Startup",
+    "scan_on_startup_hint": "Immediately scan the entire library when Sublarr starts.",
+    "search_interval_hint": "How often Sublarr searches providers for items in the Wanted list. Set to 0 to disable.",
+    "search_on_startup_hint": "Search providers for all Wanted items when Sublarr starts.",
     "anime_only": "Anime Only (Sonarr)",
     "anime_movies_only": "Anime Movies Only (Radarr)",
-    "scan_on_startup": "Scan on Startup",
-    "max_search_attempts": "Max Search Attempts"
+    "max_search_attempts": "Max Search Attempts",
+    "max_search_attempts_hint": "Stop automatically searching after this many failed attempts. The item stays in Wanted and can be searched manually.",
+    "skip_srt_hint": "When no ASS subtitle is found, do not download an SRT fallback. Useful for anime.",
+    "anime_only_hint": "Restrict library scanning to Sonarr entries tagged as anime.",
+    "anime_movies_hint": "Include Radarr entries tagged as anime in anime-only scans.",
+    "max_items_per_run_hint": "Limit how many Wanted items are processed per search cycle.",
+    "backoff_base_hint": "Multiplier for wait time between retries. Higher values mean longer gaps.",
+    "backoff_cap_hint": "Maximum wait time in hours between retry attempts."
   },
   "sonarr": {
     "url": "Sonarr URL",
@@ -788,8 +815,26 @@
     "title": "Post-Processing",
     "subtitle": "Automatically apply fixes, sync and cleanup after subtitle download"
   },
+  "post_processing": {
+    "enabled_hint": "Enable the post-processing pipeline. When disabled, no automatic fixes are applied after download.",
+    "auto_sync_hint": "Automatically synchronize subtitle timing to the video after download.",
+    "sync_engine_hint": "Synchronization tool: alass aligns by audio similarity, ffsubsync by speech detection.",
+    "common_fixes_hint": "Apply common subtitle fixes: remove duplicate lines, fix encoding, normalize formatting.",
+    "hi_removal_hint": "Automatically remove Hearing Impaired tags from downloaded subtitles.",
+    "credit_removal_hint": "Remove translator credit lines at the start or end of subtitle files.",
+    "post_command_hint": "Shell command executed after every successful subtitle download. Use %path% for the subtitle path, %media% for the video path.",
+    "sync_threshold_hint": "Minimum confidence score for auto-sync to apply changes.",
+    "sync_fallback_engine_hint": "If the primary sync engine fails, try this engine as fallback."
+  },
   "system_hooks_page": {
     "title": "Hooks & Webhooks",
     "subtitle": "Shell hooks and incoming webhook endpoints for Sonarr, Radarr and Jellyfin"
+  },
+  "subtitles": {
+    "primary_language": "Primary Language",
+    "primary_language_hint": "The main subtitle language. Sublarr always searches for this first.",
+    "additional_languages": "Additional Languages",
+    "additional_languages_hint": "More languages to search for alongside the primary. Searched after the primary language.",
+    "add_language_placeholder": "— Add language —"
   }
 }
