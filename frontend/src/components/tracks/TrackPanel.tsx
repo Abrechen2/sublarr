@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Loader2, Download, FileText, AlertTriangle, Trash2 } from 'lucide-react'
 import { listEpisodeTracks, extractTrack, convertSubtitle, removeTrackFromContainer, getRemuxJob, restoreRemuxBackup } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
@@ -17,6 +18,7 @@ function codecColor(codecType: 'audio' | 'subtitle', codec: string): { bg: strin
 }
 
 function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track; episodeId: number; videoPath: string; onOpenEditor: (p: string) => void }) {
+  const { t } = useTranslation('library')
   const [extracting, setExtracting] = useState(false)
   const [usingAsSource, setUsingAsSource] = useState(false)
   const [converting, setConverting] = useState(false)
@@ -172,7 +174,7 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
                 border: '1px solid var(--border)',
                 opacity: extracting ? 0.6 : 1,
               }}
-              title="Als Sidecar-Datei extrahieren"
+              title={t('extract_sidecar')}
             >
               {extracting ? <Loader2 size={10} className="animate-spin" /> : <Download size={10} />}
               Extrahieren
@@ -240,7 +242,7 @@ function TrackRow({ track, episodeId, videoPath, onOpenEditor }: { track: Track;
                       color: 'var(--warning)',
                       border: '1px solid rgba(245,158,11,0.3)',
                     }}
-                    title="Stream aus Backup wiederherstellen (Remux rückgängig machen)"
+                    title={t('restore_from_backup')}
                   >
                     <Trash2 size={10} />
                     Rückgängig
