@@ -22,6 +22,7 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { FormSkeleton } from '@/components/shared/PageSkeleton'
 import { AdvancedSettingsProvider } from '@/contexts/AdvancedSettingsContext'
+import { SettingsShell } from '@/components/settings/SettingsShell'
 
 // Re-export legacy types/constants needed by other files
 export { NAV_GROUPS } from './settingsFields'
@@ -80,28 +81,30 @@ const CleanupSettings = lazy(() =>
 export function SettingsPage() {
   return (
     <AdvancedSettingsProvider>
-    <Suspense fallback={<FormSkeleton />}>
-      <Routes>
-        <Route index element={<SettingsOverview />} />
-        <Route path="general" element={<GeneralSettings />} />
-        <Route path="connections" element={<ConnectionsSettings />} />
-        <Route path="connections/metadata" element={<ConnectionsMetadataPage />} />
-        <Route path="subtitles" element={<SubtitlesSettings />} />
-        <Route path="subtitles/stream-management" element={<SubtitlesStreamManagementPage />} />
-        <Route path="providers" element={<ProvidersSettings />} />
-        <Route path="providers/transcription" element={<ProvidersTranscriptionPage />} />
-        <Route path="automation" element={<AutomationSettings />} />
-        <Route path="automation/post-processing" element={<AutomationPostProcessingPage />} />
-        <Route path="translation" element={<TranslationSettings />} />
-        <Route path="notifications" element={<NotificationsSettings />} />
-        <Route path="system" element={<SystemSettings />} />
-        <Route path="system/hooks" element={<SystemHooksPage />} />
-        <Route path="about" element={<AboutSettings />} />
-        <Route path="cleanup" element={<Suspense fallback={<FormSkeleton />}><CleanupSettings /></Suspense>} />
-        <Route path="hooks" element={<Navigate to="/settings/system/hooks" replace />} />
-        <Route path="webhooks" element={<Navigate to="/settings/system/hooks" replace />} />
-      </Routes>
-    </Suspense>
+      <Suspense fallback={<FormSkeleton />}>
+        <SettingsShell>
+          <Routes>
+            <Route index element={<SettingsOverview />} />
+            <Route path="general" element={<GeneralSettings />} />
+            <Route path="connections" element={<ConnectionsSettings />} />
+            <Route path="connections/metadata" element={<ConnectionsMetadataPage />} />
+            <Route path="subtitles" element={<SubtitlesSettings />} />
+            <Route path="subtitles/stream-management" element={<SubtitlesStreamManagementPage />} />
+            <Route path="providers" element={<ProvidersSettings />} />
+            <Route path="providers/transcription" element={<ProvidersTranscriptionPage />} />
+            <Route path="automation" element={<AutomationSettings />} />
+            <Route path="automation/post-processing" element={<AutomationPostProcessingPage />} />
+            <Route path="translation" element={<TranslationSettings />} />
+            <Route path="notifications" element={<NotificationsSettings />} />
+            <Route path="system" element={<SystemSettings />} />
+            <Route path="system/hooks" element={<SystemHooksPage />} />
+            <Route path="about" element={<AboutSettings />} />
+            <Route path="cleanup" element={<Suspense fallback={<FormSkeleton />}><CleanupSettings /></Suspense>} />
+            <Route path="hooks" element={<Navigate to="/settings/system/hooks" replace />} />
+            <Route path="webhooks" element={<Navigate to="/settings/system/hooks" replace />} />
+          </Routes>
+        </SettingsShell>
+      </Suspense>
     </AdvancedSettingsProvider>
   )
 }
