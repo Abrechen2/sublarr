@@ -157,5 +157,9 @@
     "select_all": "Alle auswählen",
     "health_check": "Qualitätsprüfung",
     "no_actions": "Keine Aktionen für diese Seite"
+  },
+  "plugins": {
+    "marketplace_title": "Plugin-Marktplatz",
+    "all_categories": "Alle Kategorien"
   }
 }
