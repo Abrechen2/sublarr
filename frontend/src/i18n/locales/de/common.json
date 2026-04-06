@@ -186,5 +186,9 @@
     "video_backups": "Video-Backups (Remux)",
     "original_not_found": "Original nicht gefunden",
     "expires_label": "läuft ab"
+  },
+  "update": {
+    "available": "verfügbar",
+    "view_release": "Jetzt auf GitHub ansehen →"
   }
 }
