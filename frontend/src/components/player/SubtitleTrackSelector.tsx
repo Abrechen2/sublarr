@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { ChevronDown } from 'lucide-react'
 import type { PlayerSubtitleTrack } from '@/lib/types'
 
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export function SubtitleTrackSelector({ tracks, activeIndex, onChange }: Props) {
+  const { t } = useTranslation('common')
   if (tracks.length === 0) return null
 
   return (
@@ -19,7 +21,7 @@ export function SubtitleTrackSelector({ tracks, activeIndex, onChange }: Props) 
           onChange(val === -1 ? null : val)
         }}
         className="appearance-none bg-transparent text-sm text-[var(--text-muted)] pr-6 cursor-pointer hover:text-[var(--text-primary)] transition-colors"
-        aria-label="Subtitle track"
+        aria-label={t('subtitle_track_label')}
       >
         <option value={-1}>Off</option>
         {tracks.map((t, i) => (

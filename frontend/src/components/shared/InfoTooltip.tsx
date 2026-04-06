@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useId } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Info } from 'lucide-react'
 
 interface InfoTooltipProps {
@@ -7,6 +8,7 @@ interface InfoTooltipProps {
 }
 
 export function InfoTooltip({ text, className = '' }: InfoTooltipProps) {
+  const { t } = useTranslation('common')
   const [visible, setVisible] = useState(false)
   const ref = useRef<HTMLButtonElement>(null)
   const tooltipId = useId()
@@ -25,7 +27,7 @@ export function InfoTooltip({ text, className = '' }: InfoTooltipProps) {
       <button
         ref={ref}
         type="button"
-        aria-label="More information"
+        aria-label={t('more_info')}
         aria-describedby={visible ? tooltipId : undefined}
         className="inline-flex items-center justify-center w-4 h-4 rounded-full motion-safe:transition-colors motion-safe:duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] cursor-pointer"
         style={{ color: visible ? 'var(--accent)' : 'var(--text-muted)' }}

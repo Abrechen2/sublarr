@@ -222,6 +222,9 @@
   },
   "interjection_placeholder": "Eine Interjektion pro Zeile",
   "more_info": "Mehr Informationen",
+  "timestamp_seconds_placeholder": "Zeitstempel (Sekunden)",
+  "subtitle_track_label": "Untertitel-Track",
+  "close_player": "Player schließen",
   "update": {
     "available": "verfügbar",
     "view_release": "Jetzt auf GitHub ansehen →"

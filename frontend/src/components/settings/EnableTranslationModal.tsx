@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { FlaskConical, X } from 'lucide-react'
 import { useUpdateConfig } from '@/hooks/useApi'
 
@@ -7,6 +8,7 @@ interface EnableTranslationModalProps {
 }
 
 export function EnableTranslationModal({ onClose }: EnableTranslationModalProps) {
+  const { t } = useTranslation('editor')
   const [understood, setUnderstood] = useState(false)
   const updateConfig = useUpdateConfig()
 
@@ -35,7 +37,7 @@ export function EnableTranslationModal({ onClose }: EnableTranslationModalProps)
           onClick={onClose}
           className="absolute top-4 right-4 p-1 rounded"
           style={{ color: 'var(--text-muted)' }}
-          aria-label="Close"
+          aria-label={t('close')}
         >
           <X size={16} />
         </button>

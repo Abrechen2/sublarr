@@ -11,6 +11,7 @@
  */
 
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Timer, X } from 'lucide-react'
 import { useAdvancedSync, useVideoChapters } from '@/hooks/useApi'
 import { SyncPreview } from './SyncPreview'
@@ -33,6 +34,7 @@ interface SyncControlsProps {
 }
 
 export function SyncControls({ filePath, videoPath, onSynced, onClose }: SyncControlsProps) {
+  const { t } = useTranslation('editor')
   const [activeTab, setActiveTab] = useState<SyncOperation>('offset')
   const [offsetMs, setOffsetMs] = useState(0)
   const [speedFactor, setSpeedFactor] = useState(1.0)
@@ -173,7 +175,7 @@ export function SyncControls({ filePath, videoPath, onSynced, onClose }: SyncCon
             onClick={onClose}
             className="rounded p-1.5 transition-colors"
             style={{ color: 'var(--text-muted)' }}
-            title="Close"
+            title={t('close')}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = 'var(--error)'
             }}

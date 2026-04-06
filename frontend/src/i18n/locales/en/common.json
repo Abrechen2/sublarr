@@ -222,6 +222,9 @@
   },
   "interjection_placeholder": "One interjection per line",
   "more_info": "More information",
+  "timestamp_seconds_placeholder": "Timestamp (seconds)",
+  "subtitle_track_label": "Subtitle track",
+  "close_player": "Close player",
   "update": {
     "available": "available",
     "view_release": "View on GitHub →"

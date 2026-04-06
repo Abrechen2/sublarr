@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useExtractOCR, usePreviewOCRFrame } from '@/hooks/useApi'
 import { Loader2, Play, Eye, AlertCircle, CheckCircle } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
@@ -26,6 +27,7 @@ export function OCRExtractor({
   onExtracted,
   className = '',
 }: OCRExtractorProps) {
+  const { t } = useTranslation('common')
   const [isExtracting, setIsExtracting] = useState(false)
   const [previewFrame, setPreviewFrame] = useState<OCRPreviewResult | null>(null)
   const [extractResult, setExtractResult] = useState<OCRExtractResult | null>(null)
@@ -83,7 +85,7 @@ export function OCRExtractor({
             value={timestamp}
             onChange={(e) => setTimestamp(parseFloat(e.target.value) || 0)}
             className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm"
-            placeholder="Timestamp (seconds)"
+            placeholder={t('timestamp_seconds_placeholder')}
             step="0.1"
           />
           <button

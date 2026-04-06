@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import type { PlayerSubtitleTrack } from '@/lib/types'
@@ -22,6 +23,7 @@ export function PlayerModal({
   onClose,
   onSeekReady,
 }: Props) {
+  const { t } = useTranslation('common')
   const [activeIndex, setActiveIndex] = useState<number | null>(
     subtitleTracks.length > 0 ? initialTrackIndex : null,
   )
@@ -80,7 +82,7 @@ export function PlayerModal({
               autoFocus
               onClick={onClose}
               className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-              aria-label="Close player"
+              aria-label={t('close_player')}
             >
               <X size={18} />
             </button>
