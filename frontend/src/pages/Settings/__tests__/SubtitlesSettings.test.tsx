@@ -16,6 +16,31 @@ import { SubtitlesSettings } from '../SubtitlesSettings'
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
+import enCommon from '../../../i18n/locales/en/common.json'
+import enSettings from '../../../i18n/locales/en/settings.json'
+
+function lookupKey(ns: Record<string, unknown>, key: string): string | undefined {
+  const parts = key.split('.')
+  let v: unknown = ns
+  for (const p of parts) {
+    if (typeof v !== 'object' || v === null) return undefined
+    v = (v as Record<string, unknown>)[p]
+  }
+  return typeof v === 'string' ? v : undefined
+}
+
+vi.mock('react-i18next', () => ({
+  useTranslation: (ns?: string) => ({
+    t: (key: string, opts?: string | Record<string, unknown>) => {
+      if (typeof opts === 'string') return opts
+      if (opts !== undefined && typeof opts === 'object' && 'count' in opts)
+        return `${key}:${String(opts.count)}`
+      const dict = ns === 'settings' ? enSettings : enCommon
+      return lookupKey(dict, key) ?? key
+    },
+  }),
+}))
+
 // Mock heavy lazy-loaded sub-tabs so tests don't require real API calls
 vi.mock('@/pages/Settings/ScoringTab', () => ({
   ScoringTab: () => <div data-testid="mock-scoring-tab">Scoring Tab</div>,

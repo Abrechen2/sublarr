@@ -18,7 +18,14 @@ import { TranslationSettings } from '../TranslationSettings'
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string, fallback?: string) => fallback ?? key }),
+  useTranslation: () => ({
+    t: (key: string, opts?: string | Record<string, unknown>) => {
+      if (typeof opts === 'string') return opts
+      if (opts !== undefined && typeof opts === 'object' && 'count' in opts)
+        return `${key}:${String(opts.count)}`
+      return key
+    },
+  }),
 }))
 
 vi.mock('../TranslationTab', () => ({
@@ -174,11 +181,10 @@ describe('TranslationSettings', () => {
     expect(title).toHaveTextContent('Sync Engine')
   })
 
-  it('shows "Whisper (Speech-to-Text)" section title', () => {
+  it('Whisper nav card renders a Configure link', () => {
     renderPage()
     const wrapper = screen.getByTestId('section-whisper')
-    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
-    expect(title).toHaveTextContent('Whisper')
+    expect(wrapper.querySelector('a')).toBeInTheDocument()
   })
 
   // ── Non-advanced sections do NOT have an advanced toggle ─────────────────
@@ -225,12 +231,10 @@ describe('TranslationSettings', () => {
     expect(wrapper.querySelector('[data-testid="settings-section-advanced-content"]')).toBeNull()
   })
 
-  it('Whisper advanced content is collapsed by default', () => {
+  it('Whisper nav card does not have an advanced toggle', () => {
     renderPage()
     const wrapper = screen.getByTestId('section-whisper')
-    const toggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]')
-    expect(toggle).toBeInTheDocument()
-    expect(wrapper.querySelector('[data-testid="settings-section-advanced-content"]')).toBeNull()
+    expect(wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]')).toBeNull()
   })
 
   // ── Expanding advanced sections ───────────────────────────────────────────
@@ -259,18 +263,6 @@ describe('TranslationSettings', () => {
     ).toBeInTheDocument()
   })
 
-  it('Whisper expands and shows content after clicking toggle', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('section-whisper')
-    const toggle = wrapper.querySelector(
-      '[data-testid="settings-section-advanced-toggle"]',
-    ) as HTMLElement
-    fireEvent.click(toggle)
-    expect(
-      wrapper.querySelector('[data-testid="settings-section-advanced-content"]'),
-    ).toBeInTheDocument()
-  })
-
   // ── Summary text for advanced sections ───────────────────────────────────
 
   it('shows a summary description inside the Context & Quality section', () => {
@@ -283,17 +275,12 @@ describe('TranslationSettings', () => {
     expect(screen.getByTestId('sync-engine-summary')).toBeInTheDocument()
   })
 
-  it('shows a summary description inside the Whisper section', () => {
-    renderPage()
-    expect(screen.getByTestId('whisper-summary')).toBeInTheDocument()
-  })
-
   // ── All sections exist ────────────────────────────────────────────────────
 
-  it('renders exactly 7 settings sections', () => {
+  it('renders exactly 6 settings sections (Whisper is nav card)', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections).toHaveLength(7)
+    expect(sections).toHaveLength(6)
   })
 
   // ── Disable Translation ────────────────────────────────────────────────────

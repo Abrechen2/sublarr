@@ -19,7 +19,14 @@ import { AutomationSettings } from '../AutomationSettings'
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string, fallback?: string) => fallback ?? key }),
+  useTranslation: () => ({
+    t: (key: string, opts?: string | Record<string, unknown>) => {
+      if (typeof opts === 'string') return opts
+      if (opts !== undefined && typeof opts === 'object' && 'count' in opts)
+        return `${key}:${String(opts.count)}`
+      return key
+    },
+  }),
 }))
 
 vi.mock('@/pages/Settings/EventsTab', () => ({
@@ -123,10 +130,10 @@ describe('AutomationSettings', () => {
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
   })
 
-  it('renders exactly 6 settings sections', () => {
+  it('renders exactly 4 settings sections', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections).toHaveLength(6)
+    expect(sections).toHaveLength(4)
   })
 
   // ── Section presence ─────────────────────────────────────────────────────
@@ -177,11 +184,10 @@ describe('AutomationSettings', () => {
     expect(title).toHaveTextContent('Upgrade Rules')
   })
 
-  it('shows "Processing Pipeline" section title', () => {
+  it('Processing Pipeline nav card renders a Configure link', () => {
     renderPage()
     const wrapper = screen.getByTestId('section-processing-pipeline')
-    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
-    expect(title).toHaveTextContent('Processing Pipeline')
+    expect(wrapper.querySelector('a')).toBeInTheDocument()
   })
 
   it('shows "Scheduled Tasks" section title', () => {
@@ -216,23 +222,23 @@ describe('AutomationSettings', () => {
 
   // ── Non-advanced sections do NOT have an advanced toggle ─────────────────
 
-  it('Search & Scan section does not have an advanced toggle', () => {
+  it('Search & Scan section has an advanced toggle (advancedCount=5)', () => {
     renderPage()
     const wrapper = screen.getByTestId('section-search-scan')
     expect(
       wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]'),
-    ).toBeNull()
+    ).toBeInTheDocument()
   })
 
-  it('Upgrade Rules section does not have an advanced toggle', () => {
+  it('Upgrade Rules section has an advanced toggle (advancedCount=1)', () => {
     renderPage()
     const wrapper = screen.getByTestId('section-upgrade-rules')
     expect(
       wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]'),
-    ).toBeNull()
+    ).toBeInTheDocument()
   })
 
-  it('Processing Pipeline section does not have an advanced toggle', () => {
+  it('Processing Pipeline nav card does not have an advanced toggle', () => {
     renderPage()
     const wrapper = screen.getByTestId('section-processing-pipeline')
     expect(
@@ -284,14 +290,20 @@ describe('AutomationSettings', () => {
     expect(mockMutate).toHaveBeenCalledWith({ wanted_search_on_startup: true })
   })
 
-  it('displays wanted_search_max_items_per_run value from config', () => {
+  it('displays wanted_search_max_items_per_run value from config (in advanced)', () => {
     renderPage()
+    const wrapper = screen.getByTestId('section-search-scan')
+    const toggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    fireEvent.click(toggle)
     const input = screen.getByTestId('input-wanted-search-max-items-per-run') as HTMLInputElement
     expect(input.value).toBe('50')
   })
 
-  it('calls updateConfig with wanted_search_max_items_per_run as number on change', () => {
+  it('calls updateConfig with wanted_search_max_items_per_run as number on change (in advanced)', () => {
     renderPage()
+    const wrapper = screen.getByTestId('section-search-scan')
+    const toggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    fireEvent.click(toggle)
     const input = screen.getByTestId('input-wanted-search-max-items-per-run')
     fireEvent.change(input, { target: { value: '100' } })
     expect(mockMutate).toHaveBeenCalledWith({ wanted_search_max_items_per_run: 100 })
@@ -318,16 +330,22 @@ describe('AutomationSettings', () => {
     expect(mockMutate).toHaveBeenCalledWith({ wanted_auto_extract: true })
   })
 
-  it('calls updateConfig with wanted_anime_only=true when toggled', () => {
+  it('calls updateConfig with wanted_anime_only=true when toggled (in advanced)', () => {
     renderPage()
+    const wrapper = screen.getByTestId('section-search-scan')
+    const advToggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    fireEvent.click(advToggle)
     const fg = screen.getByTestId('form-group-wanted-anime-only')
     const toggle = fg.querySelector('[role="switch"]') as HTMLElement
     fireEvent.click(toggle)
     expect(mockMutate).toHaveBeenCalledWith({ wanted_anime_only: true })
   })
 
-  it('calls updateConfig with wanted_anime_movies_only=true when toggled', () => {
+  it('calls updateConfig with wanted_anime_movies_only=true when toggled (in advanced)', () => {
     renderPage()
+    const wrapper = screen.getByTestId('section-search-scan')
+    const advToggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    fireEvent.click(advToggle)
     const fg = screen.getByTestId('form-group-wanted-anime-movies-only')
     const toggle = fg.querySelector('[role="switch"]') as HTMLElement
     fireEvent.click(toggle)
@@ -342,8 +360,11 @@ describe('AutomationSettings', () => {
     expect(mockMutate).toHaveBeenCalledWith({ wanted_skip_srt_on_no_ass: true })
   })
 
-  it('calls updateConfig with wanted_adaptive_backoff_enabled=true when toggled', () => {
+  it('calls updateConfig with wanted_adaptive_backoff_enabled=true when toggled (in advanced)', () => {
     renderPage()
+    const wrapper = screen.getByTestId('section-search-scan')
+    const advToggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+    fireEvent.click(advToggle)
     const fg = screen.getByTestId('form-group-wanted-adaptive-backoff-enabled')
     const toggle = fg.querySelector('[role="switch"]') as HTMLElement
     fireEvent.click(toggle)
@@ -438,131 +459,24 @@ describe('AutomationSettings', () => {
     expect(mockMutate).toHaveBeenCalledWith({ webhook_auto_translate: true })
   })
 
-  // ── Processing Pipeline interactions ──────────────────────────────────────
+  // ── Processing Pipeline nav card — renders a Configure link ─────────────────
 
-  it('wanted_auto_translate toggle reflects config value (false)', () => {
+  it('Processing Pipeline nav card renders a link to /settings/automation/post-processing', () => {
     renderPage()
-    const formGroup = screen.getByTestId('form-group-wanted-auto-translate')
-    const toggle = formGroup.querySelector('[role="switch"]')
-    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    const wrapper = screen.getByTestId('section-processing-pipeline')
+    const link = wrapper.querySelector('a')
+    expect(link).toBeInTheDocument()
+    expect(link).toHaveAttribute('href', '/settings/automation/post-processing')
   })
 
-  it('calls updateConfig with wanted_auto_translate=true when toggle is clicked', () => {
-    renderPage()
-    const formGroup = screen.getByTestId('form-group-wanted-auto-translate')
-    const toggle = formGroup.querySelector('[role="switch"]') as HTMLElement
-    fireEvent.click(toggle)
-    expect(mockMutate).toHaveBeenCalledWith({ wanted_auto_translate: true })
-  })
+  // ── Cleanup nav card — renders a Configure link ───────────────────────────
 
-  it('calls updateConfig with auto_sync_after_download=true when toggle is clicked', () => {
+  it('Cleanup nav card renders a link to /settings/cleanup', () => {
     renderPage()
-    const formGroup = screen.getByTestId('form-group-auto-sync-after-download')
-    const toggle = formGroup.querySelector('[role="switch"]') as HTMLElement
-    fireEvent.click(toggle)
-    expect(mockMutate).toHaveBeenCalledWith({ auto_sync_after_download: true })
-  })
-
-  it('calls updateConfig with auto_cleanup_after_extract=true when toggle is clicked', () => {
-    renderPage()
-    const formGroup = screen.getByTestId('form-group-auto-cleanup-after-extract')
-    const toggle = formGroup.querySelector('[role="switch"]') as HTMLElement
-    fireEvent.click(toggle)
-    expect(mockMutate).toHaveBeenCalledWith({ auto_cleanup_after_extract: true })
-  })
-
-  it('calls updateConfig with auto_process_common_fixes=true when toggled', () => {
-    renderPage()
-    const fg = screen.getByTestId('form-group-auto-process-common-fixes')
-    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
-    fireEvent.click(toggle)
-    expect(mockMutate).toHaveBeenCalledWith({ auto_process_common_fixes: true })
-  })
-
-  it('calls updateConfig with auto_process_hi_removal=true when toggled', () => {
-    renderPage()
-    const fg = screen.getByTestId('form-group-auto-process-hi-removal')
-    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
-    fireEvent.click(toggle)
-    expect(mockMutate).toHaveBeenCalledWith({ auto_process_hi_removal: true })
-  })
-
-  it('calls updateConfig with auto_process_credit_removal=true when toggled', () => {
-    renderPage()
-    const fg = screen.getByTestId('form-group-auto-process-credit-removal')
-    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
-    fireEvent.click(toggle)
-    expect(mockMutate).toHaveBeenCalledWith({ auto_process_credit_removal: true })
-  })
-
-  it('displays auto_process_sync_threshold value from config', () => {
-    renderPage()
-    const input = screen.getByTestId('input-auto-process-sync-threshold') as HTMLInputElement
-    expect(input.value).toBe('80')
-  })
-
-  it('calls updateConfig with auto_process_sync_threshold as number on change', () => {
-    renderPage()
-    const input = screen.getByTestId('input-auto-process-sync-threshold')
-    fireEvent.change(input, { target: { value: '90' } })
-    expect(mockMutate).toHaveBeenCalledWith({ auto_process_sync_threshold: 90 })
-  })
-
-  it('calls updateConfig with auto_nfo_export=true when toggled', () => {
-    renderPage()
-    const fg = screen.getByTestId('form-group-auto-nfo-export')
-    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
-    fireEvent.click(toggle)
-    expect(mockMutate).toHaveBeenCalledWith({ auto_nfo_export: true })
-  })
-
-  it('calls updateConfig with jellyfin_play_translate_enabled=true when toggled', () => {
-    renderPage()
-    const fg = screen.getByTestId('form-group-jellyfin-play-translate-enabled')
-    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
-    fireEvent.click(toggle)
-    expect(mockMutate).toHaveBeenCalledWith({ jellyfin_play_translate_enabled: true })
-  })
-
-  // ── Cleanup interactions ───────────────────────────────────────────────────
-
-  it('displays auto_cleanup_keep_languages value from config', () => {
-    renderPage()
-    const input = screen.getByTestId('input-auto-cleanup-keep-languages') as HTMLInputElement
-    expect(input.value).toBe('de,en')
-  })
-
-  it('calls updateConfig with auto_cleanup_keep_languages on change', () => {
-    renderPage()
-    const input = screen.getByTestId('input-auto-cleanup-keep-languages')
-    fireEvent.change(input, { target: { value: 'de' } })
-    expect(mockMutate).toHaveBeenCalledWith({ auto_cleanup_keep_languages: 'de' })
-  })
-
-  it('displays auto_cleanup_keep_formats value from config', () => {
-    renderPage()
-    const input = screen.getByTestId('input-auto-cleanup-keep-formats') as HTMLInputElement
-    expect(input.value).toBe('ass,srt')
-  })
-
-  it('calls updateConfig with auto_cleanup_keep_formats on change', () => {
-    renderPage()
-    const input = screen.getByTestId('input-auto-cleanup-keep-formats')
-    fireEvent.change(input, { target: { value: 'ass' } })
-    expect(mockMutate).toHaveBeenCalledWith({ auto_cleanup_keep_formats: 'ass' })
-  })
-
-  it('displays subtitle_trash_retention_days value from config', () => {
-    renderPage()
-    const input = screen.getByTestId('input-subtitle-trash-retention-days') as HTMLInputElement
-    expect(input.value).toBe('30')
-  })
-
-  it('calls updateConfig with subtitle_trash_retention_days as number on change', () => {
-    renderPage()
-    const input = screen.getByTestId('input-subtitle-trash-retention-days')
-    fireEvent.change(input, { target: { value: '14' } })
-    expect(mockMutate).toHaveBeenCalledWith({ subtitle_trash_retention_days: 14 })
+    const wrapper = screen.getByTestId('section-cleanup')
+    const link = wrapper.querySelector('a')
+    expect(link).toBeInTheDocument()
+    expect(link).toHaveAttribute('href', '/settings/cleanup')
   })
 
   // ── Search & Scan — sub-group headings ────────────────────────────────────
@@ -639,83 +553,6 @@ describe('AutomationSettings', () => {
       await user.clear(input)
       await user.type(input, '0')
       expect(mockMutate).toHaveBeenCalledWith({ wanted_scan_interval_hours: 0 })
-    })
-  })
-
-  // ── Processing Pipeline — sync fallback engine ────────────────────────────
-
-  describe('Processing Pipeline — sync fallback engine', () => {
-    it('renders form-group for auto_process_sync_fallback_engine', () => {
-      renderPage()
-      expect(screen.getByTestId('form-group-auto-process-sync-fallback-engine')).toBeInTheDocument()
-    })
-
-    it('renders a <select> for auto_process_sync_fallback_engine', () => {
-      renderPage()
-      expect(screen.getByTestId('select-auto-process-sync-fallback-engine')).toBeInTheDocument()
-    })
-
-    it('select contains options "ffsubsync" and "alass"', () => {
-      renderPage()
-      const select = screen.getByTestId('select-auto-process-sync-fallback-engine') as HTMLSelectElement
-      const options = Array.from(select.options).map((o) => o.value)
-      expect(options).toContain('ffsubsync')
-      expect(options).toContain('alass')
-    })
-
-    it('select shows the config value (ffsubsync)', () => {
-      renderPage()
-      const select = screen.getByTestId('select-auto-process-sync-fallback-engine') as HTMLSelectElement
-      expect(select.value).toBe('ffsubsync')
-    })
-
-    it('calls updateConfig with auto_process_sync_fallback_engine on change', () => {
-      renderPage()
-      const select = screen.getByTestId('select-auto-process-sync-fallback-engine')
-      fireEvent.change(select, { target: { value: 'alass' } })
-      expect(mockMutate).toHaveBeenCalledWith({ auto_process_sync_fallback_engine: 'alass' })
-    })
-
-    it('select appears after input-auto-process-sync-threshold in the DOM', () => {
-      renderPage()
-      const section = screen.getByTestId('section-processing-pipeline')
-      const threshold = section.querySelector('[data-testid="input-auto-process-sync-threshold"]')!
-      const select = section.querySelector('[data-testid="select-auto-process-sync-fallback-engine"]')!
-      expect(threshold.compareDocumentPosition(select) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    })
-  })
-
-  // ── Processing Pipeline — streaming ───────────────────────────────────────
-
-  describe('Processing Pipeline — streaming', () => {
-    it('renders form-group for streaming_enabled', () => {
-      renderPage()
-      expect(screen.getByTestId('form-group-streaming-enabled')).toBeInTheDocument()
-    })
-
-    it('streaming_enabled toggle reflects config value (false)', () => {
-      renderPage()
-      const fg = screen.getByTestId('form-group-streaming-enabled')
-      const toggle = fg.querySelector('[role="switch"]')
-      expect(toggle).toHaveAttribute('aria-checked', 'false')
-    })
-
-    it('calls updateConfig with streaming_enabled=true when toggled', () => {
-      renderPage()
-      const fg = screen.getByTestId('form-group-streaming-enabled')
-      const toggle = fg.querySelector('[role="switch"]') as HTMLElement
-      fireEvent.click(toggle)
-      expect(mockMutate).toHaveBeenCalledWith({ streaming_enabled: true })
-    })
-
-    it('post_download_command form-group is the last element inside processing-pipeline-content', () => {
-      renderPage()
-      const content = screen.getByTestId('processing-pipeline-content')
-      const formGroups = content.querySelectorAll(
-        '[data-testid^="form-group-"]:not([data-testid="form-group-control"]):not([data-testid="form-group-label"]):not([data-testid="form-group-hint"])',
-      )
-      const last = formGroups[formGroups.length - 1]
-      expect(last).toHaveAttribute('data-testid', 'form-group-post-download-command')
     })
   })
 
