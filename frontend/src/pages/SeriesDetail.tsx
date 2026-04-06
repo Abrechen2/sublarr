@@ -190,6 +190,10 @@ export function SeriesDetailPage() {
     if (!seriesId) return
     startSeriesSearch.mutate({ seriesId }, {
       onSuccess: (data) => {
+        if (data.total_items === 0) {
+          toast('Keine ausstehenden Einträge in der Wanted-Liste für diese Serie', 'info')
+          return
+        }
         setSeriesSearchStarted(true)
         toast(`Suche gestartet für ${data.total_items} Episoden`, 'success')
       },

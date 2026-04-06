@@ -27,15 +27,15 @@ def process_wanted_batch(item_ids=None, app=None):
     settings = get_settings()
     max_attempts = settings.wanted_max_search_attempts
 
-    if item_ids:
+    if item_ids is None:
+        result = get_wanted_items(page=1, per_page=10000, status="wanted")
+        items = result.get("data", [])
+    else:
         items = []
         for iid in item_ids:
             item = get_wanted_item(iid)
             if item:
                 items.append(item)
-    else:
-        result = get_wanted_items(page=1, per_page=10000, status="wanted")
-        items = result.get("data", [])
 
     # Filter out items that exceeded max search attempts
     items = [i for i in items if i["search_count"] < max_attempts]

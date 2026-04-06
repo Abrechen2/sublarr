@@ -195,8 +195,12 @@ def wanted_batch_search():
             item_ids = [
                 item["id"]
                 for item in series_items
-                if item.get("status") not in ("downloading", "translating")
+                if item.get("status") in ("wanted", "failed")
             ]
+            # No searchable items for this series — return early instead of falling
+            # through to "search all wanted items globally".
+            if not item_ids:
+                return jsonify({"status": "no_items", "total_items": 0}), 200
 
         # If series_ids (plural) provided, resolve to item IDs across all listed series
         series_ids = data.get("series_ids", [])
@@ -211,8 +215,10 @@ def wanted_batch_search():
                 collected.extend(
                     item["id"]
                     for item in series_items
-                    if item.get("status") not in ("downloading", "translating")
+                    if item.get("status") in ("wanted", "failed")
                 )
+            if not collected:
+                return jsonify({"status": "no_items", "total_items": 0}), 200
             item_ids = collected
 
         # Determine total count upfront — inside lock to prevent TOCTOU
