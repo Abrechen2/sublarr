@@ -71,26 +71,26 @@ export function FailureReasonRow({ error, retryAfter, searchCount }: FailureReas
 
 const SCOPE = 'wanted' as const
 
-const WANTED_FILTERS: FilterDef[] = [
-  { key: 'status', label: 'Status', type: 'select' as const, options: [
-    { value: 'wanted', label: 'Wanted' },
-    { value: 'ignored', label: 'Ignored' },
-    { value: 'failed', label: 'Failed' },
-    { value: 'found', label: 'Found' },
-  ]},
-  { key: 'item_type', label: 'Type', type: 'select' as const, options: [
-    { value: 'episode', label: 'Episode' },
-    { value: 'movie', label: 'Movie' },
-  ]},
-  { key: 'subtitle_type', label: 'Subtitle Type', type: 'select' as const, options: [
-    { value: 'full', label: 'Full' },
-    { value: 'forced', label: 'Forced' },
-  ]},
-  { key: 'title', label: 'Title', type: 'text' as const },
-]
-
 export function WantedPage() {
   const { t } = useTranslation('library')
+
+  const wantedFilters = useMemo<FilterDef[]>(() => [
+    { key: 'status', label: t('wanted.status_col'), type: 'select' as const, options: [
+      { value: 'wanted', label: t('wanted.wanted_status') },
+      { value: 'ignored', label: t('wanted.ignored') },
+      { value: 'failed', label: t('wanted.failed') },
+      { value: 'found', label: t('wanted.found') },
+    ]},
+    { key: 'item_type', label: t('wanted.type_col', 'Type'), type: 'select' as const, options: [
+      { value: 'episode', label: t('wanted.episodes') },
+      { value: 'movie', label: t('wanted.movie') },
+    ]},
+    { key: 'subtitle_type', label: t('wanted.subtitle_type_col', 'Subtitle Type'), type: 'select' as const, options: [
+      { value: 'full', label: t('wanted.subtitle_type_full') },
+      { value: 'forced', label: t('wanted.subtitle_type_forced') },
+    ]},
+    { key: 'title', label: t('wanted.title_col'), type: 'text' as const },
+  ], [t])
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const [typeFilter, setTypeFilter] = useState<string | undefined>()
   const [subtitleTypeFilter, setSubtitleTypeFilter] = useState<string | undefined>()
@@ -451,7 +451,7 @@ export function WantedPage() {
       {/* Filter Panel: Summary Cards + Filters + Search + Sort + FilterBar */}
       <WantedFilterPanel
         scope={SCOPE}
-        wantedFilters={WANTED_FILTERS}
+        wantedFilters={wantedFilters}
         totalWanted={totalWanted}
         totalEpisodes={totalEpisodes}
         totalMovies={totalMovies}

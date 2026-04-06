@@ -83,6 +83,8 @@
     "title_col": "Titel",
     "se_col": "S/E",
     "status_col": "Status",
+    "type_col": "Typ",
+    "subtitle_type_col": "Untertitel-Typ",
     "existing_col": "Untertitel",
     "searches_col": "Suchen",
     "last_search_col": "Letzte Suche",
