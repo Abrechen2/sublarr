@@ -7,6 +7,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { searchSettings, type SettingsEntry } from './settingsRegistry'
 
@@ -15,6 +16,7 @@ interface SettingsSearchProps {
 }
 
 export function SettingsSearch({ className }: SettingsSearchProps) {
+  const { t } = useTranslation('common')
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<readonly SettingsEntry[]>([])
@@ -98,7 +100,7 @@ export function SettingsSearch({ className }: SettingsSearchProps) {
             if (query.length > 0 && results.length > 0) setIsOpen(true)
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Search settings..."
+          placeholder={t('settings_search.placeholder')}
           className="flex-1 bg-transparent text-[13px] outline-none"
           style={{ color: 'var(--text-primary)' }}
           aria-label="Search settings"
@@ -116,7 +118,7 @@ export function SettingsSearch({ className }: SettingsSearchProps) {
               inputRef.current?.focus()
             }}
             className="flex items-center justify-center"
-            aria-label="Clear search"
+            aria-label={t('settings_search.clear')}
           >
             <X size={14} style={{ color: 'var(--text-muted)' }} />
           </button>
