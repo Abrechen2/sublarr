@@ -386,5 +386,23 @@
   },
   "legacy": {
     "import_preview": "Import-Vorschau"
+  },
+  "system_tab": {
+    "auto_backup": "Automatisches Backup",
+    "auto_backup_hint": "Automatisch Backups nach Zeitplan erstellen",
+    "backup_interval": "Backup-Intervall (Stunden)",
+    "backup_interval_hint": "Wie oft automatisch ein Backup erstellt wird",
+    "backup_on_startup": "Backup beim Start",
+    "backup_on_startup_hint": "Bei jedem Start von Sublarr ein Backup erstellen",
+    "notify_on_failure": "Bei Fehler benachrichtigen",
+    "notify_on_failure_hint": "Benachrichtigung wenn ein Backup fehlschlägt",
+    "disk_warning_threshold": "Warnschwelle (%)",
+    "disk_warning_threshold_hint": "Warnung wenn Festplattennutzung diesen Prozentwert überschreitet",
+    "notify_on_warning": "Bei Warnung benachrichtigen",
+    "notify_on_warning_hint": "Benachrichtigung wenn die Warnschwelle erreicht wird",
+    "disk_monitoring_title": "Festplattenüberwachung",
+    "disk_monitoring_desc": "Warnung wenn Festplattennutzung einen Schwellenwert überschreitet.",
+    "cache_management_title": "Cache-Verwaltung",
+    "cache_management_desc": "Anwendungscaches und Datenbankwartung verwalten."
   }
 }

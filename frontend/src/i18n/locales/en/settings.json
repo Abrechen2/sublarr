@@ -386,5 +386,23 @@
   },
   "legacy": {
     "import_preview": "Import Preview"
+  },
+  "system_tab": {
+    "auto_backup": "Auto Backup",
+    "auto_backup_hint": "Automatically create backups on a schedule",
+    "backup_interval": "Backup Interval (hours)",
+    "backup_interval_hint": "How often to automatically create a backup",
+    "backup_on_startup": "Backup on Startup",
+    "backup_on_startup_hint": "Create a backup each time Sublarr starts",
+    "notify_on_failure": "Notify on Failure",
+    "notify_on_failure_hint": "Send a notification when a backup fails",
+    "disk_warning_threshold": "Warning Threshold (%)",
+    "disk_warning_threshold_hint": "Send an alert when disk usage exceeds this percentage",
+    "notify_on_warning": "Notify on Warning",
+    "notify_on_warning_hint": "Send a notification when the disk warning threshold is reached",
+    "disk_monitoring_title": "Disk Monitoring",
+    "disk_monitoring_desc": "Alert when disk usage exceeds a threshold.",
+    "cache_management_title": "Cache Management",
+    "cache_management_desc": "Manage application caches and database maintenance."
   }
 }
