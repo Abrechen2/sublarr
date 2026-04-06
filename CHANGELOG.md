@@ -5,6 +5,31 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.45.0-beta] - 2026-04-06
+
+### Added
+- **Settings redesign — advanced fields system** — FormGroup now supports
+  an `advanced` prop that renders an amber "Erweitert" badge and tooltip
+  instead of an inline hint, reducing visual clutter for power-user options.
+  SettingsSection displays a collapsible "N erweiterte Einstellungen" toggle
+  when advanced fields are present.
+- **LanguagePillSelector component** — Multi-language selection in Language
+  Profiles now uses interactive pills with a dropdown, replacing free-text
+  comma-separated input. Includes full LANGUAGE_OPTIONS list (20 languages).
+- **Dedicated settings sub-pages** — Five settings areas extracted into their
+  own routes for cleaner navigation: Post-Processing (`/automation/post-processing`),
+  Hooks & Webhooks (`/system/hooks`), Metadata/AniDB (`/connections/metadata`),
+  Stream Management/Remux (`/subtitles/stream-management`), and Transcription/Whisper
+  (`/providers/transcription`). Old `/settings/hooks` and `/settings/webhooks`
+  routes redirect automatically.
+- **Settings i18n — hint text and advanced keys** — All settings fields now
+  have translated hint/description text. Advanced toggle labels and section
+  titles are fully localised in EN and DE.
+
+### Fixed
+- **Unused import removed** — Stale `Workflow` import cleaned up from
+  AutomationSettings after the Post-Processing extraction.
+
 ## [0.44.0-beta] - 2026-04-06
 
 ### Added
