@@ -19,7 +19,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { toast } from '@/components/shared/Toast'
 import type { WatchedFolder } from '@/lib/types'
-import type { FieldConfig } from './LegacySettings'
+import type { FieldConfig } from './settingsFields'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
 

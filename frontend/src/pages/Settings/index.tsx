@@ -24,8 +24,8 @@ import { FormSkeleton } from '@/components/shared/PageSkeleton'
 import { AdvancedSettingsProvider } from '@/contexts/AdvancedSettingsContext'
 
 // Re-export legacy types/constants needed by other files
-export { NAV_GROUPS } from './LegacySettings'
-export type { FieldConfig } from './LegacySettings'
+export { NAV_GROUPS } from './settingsFields'
+export type { FieldConfig } from './settingsFields'
 
 // Lazy-load each settings category page
 const SettingsOverview = lazy(() =>
