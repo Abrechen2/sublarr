@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ChevronDown, Search } from 'lucide-react'
 import { useSupportedLanguages } from '@/hooks/useApi'
 
@@ -9,6 +10,7 @@ interface LanguageSelectProps {
 }
 
 export function LanguageSelect({ value, onChange, placeholder = 'Sprache wählen…' }: LanguageSelectProps) {
+  const { t } = useTranslation('common')
   const { data: languages = [] } = useSupportedLanguages()
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -77,7 +79,7 @@ export function LanguageSelect({ value, onChange, placeholder = 'Sprache wählen
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Suchen…"
+              placeholder={`${t('actions.search')}…`}
               className="flex-1 bg-transparent text-[12px] focus:outline-none"
               style={{ color: 'var(--text-primary)' }}
             />

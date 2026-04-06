@@ -220,6 +220,8 @@
     "original_not_found": "Original not found",
     "expires_label": "expires"
   },
+  "interjection_placeholder": "One interjection per line",
+  "more_info": "More information",
   "update": {
     "available": "available",
     "view_release": "View on GitHub →"

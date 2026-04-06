@@ -202,7 +202,7 @@ export function VirtualLibraryTable({
                     checked={allSelected}
                     onChange={() => (allSelected ? onClearSelection() : onSelectAll())}
                     className="rounded"
-                    title="Select all visible"
+                    title={t('select_all_visible')}
                     style={{ accentColor: 'var(--accent)' }}
                   />
                 </th>

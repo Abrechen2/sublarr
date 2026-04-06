@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getInterjections, putInterjections } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 
 export function InterjectionListEditor() {
+  const { t } = useTranslation('common')
   const [text, setText] = useState('')
   const [isCustom, setIsCustom] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -56,7 +58,7 @@ export function InterjectionListEditor() {
         value={text}
         onChange={e => setText(e.target.value)}
         className="w-full h-32 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded p-2 text-zinc-200"
-        placeholder="Eine Interjektion pro Zeile"
+        placeholder={t('interjection_placeholder')}
       />
       <button
         onClick={handleSave}

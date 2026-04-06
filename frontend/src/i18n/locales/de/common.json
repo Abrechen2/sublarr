@@ -220,6 +220,8 @@
     "original_not_found": "Original nicht gefunden",
     "expires_label": "läuft ab"
   },
+  "interjection_placeholder": "Eine Interjektion pro Zeile",
+  "more_info": "Mehr Informationen",
   "update": {
     "available": "verfügbar",
     "view_release": "Jetzt auf GitHub ansehen →"
