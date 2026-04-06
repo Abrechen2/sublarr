@@ -8,6 +8,12 @@ import { AdvancedSettingsProvider } from '@/contexts/AdvancedSettingsContext'
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, fallback?: string) => fallback ?? key,
+  }),
+}))
+
 const mutateMock = vi.fn()
 
 vi.mock('@/hooks/useApi', () => ({
@@ -49,12 +55,12 @@ describe('BackupTab — Retention Policy fields', () => {
 
   it('renders the Retention Policy heading', () => {
     renderTab()
-    expect(screen.getByText('Retention Policy')).toBeInTheDocument()
+    expect(screen.getByText('backup_tab.retention_title')).toBeInTheDocument()
   })
 
   it('renders Backup Directory label', () => {
     renderTab()
-    expect(screen.getByText('Backup Directory')).toBeInTheDocument()
+    expect(screen.getByText('backup_tab.backup_dir')).toBeInTheDocument()
   })
 
   it('renders Backup Directory input with value from config', () => {
@@ -66,7 +72,7 @@ describe('BackupTab — Retention Policy fields', () => {
 
   it('renders Daily Backups number input with value from config', () => {
     renderTab()
-    expect(screen.getByText('Daily Backups')).toBeInTheDocument()
+    expect(screen.getByText('backup_tab.daily_backups')).toBeInTheDocument()
     const spinners = screen.getAllByRole('spinbutton')
     const daily = spinners.find((el) => (el as HTMLInputElement).value === '7')
     expect(daily).toBeDefined()
@@ -74,7 +80,7 @@ describe('BackupTab — Retention Policy fields', () => {
 
   it('renders Weekly Backups number input with value from config', () => {
     renderTab()
-    expect(screen.getByText('Weekly Backups')).toBeInTheDocument()
+    expect(screen.getByText('backup_tab.weekly_backups')).toBeInTheDocument()
     const spinners = screen.getAllByRole('spinbutton')
     const weekly = spinners.find((el) => (el as HTMLInputElement).value === '4')
     expect(weekly).toBeDefined()
@@ -82,7 +88,7 @@ describe('BackupTab — Retention Policy fields', () => {
 
   it('renders Monthly Backups number input with value from config', () => {
     renderTab()
-    expect(screen.getByText('Monthly Backups')).toBeInTheDocument()
+    expect(screen.getByText('backup_tab.monthly_backups')).toBeInTheDocument()
     const spinners = screen.getAllByRole('spinbutton')
     const monthly = spinners.find((el) => (el as HTMLInputElement).value === '3')
     expect(monthly).toBeDefined()

@@ -571,13 +571,13 @@ describe('AutomationSettings', () => {
     it('renders "Bibliotheks-Scan" sub-group heading inside section-search-scan', () => {
       renderPage()
       const section = screen.getByTestId('section-search-scan')
-      expect(section).toHaveTextContent('Bibliotheks-Scan')
+      expect(section).toHaveTextContent('automation_page.subheading_library_scan')
     })
 
     it('renders "Untertitel-Suche" sub-group heading inside section-search-scan', () => {
       renderPage()
       const section = screen.getByTestId('section-search-scan')
-      expect(section).toHaveTextContent('Untertitel-Suche')
+      expect(section).toHaveTextContent('automation_page.subheading_subtitle_search')
     })
 
     it('"Bibliotheks-Scan" heading appears before "Untertitel-Suche" heading in the DOM', () => {
