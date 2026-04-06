@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
+import { useUpdateInfo } from '@/hooks/useApi'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -11,7 +12,7 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('@/hooks/useApi', () => ({
   useHealth: () => ({ data: { status: 'healthy', version: '0.33.0' } }),
-  useUpdateInfo: () => ({ data: null }),
+  useUpdateInfo: vi.fn(() => ({ data: null })),
 }))
 
 vi.mock('@/hooks/useWantedApi', () => ({
@@ -31,6 +32,10 @@ function renderWithRouter(ui: React.ReactElement, { route = '/' } = {}) {
 }
 
 describe('IconSidebar', () => {
+  beforeEach(() => {
+    vi.mocked(useUpdateInfo).mockReturnValue({ data: null })
+  })
+
   it('renders the logo image', () => {
     renderWithRouter(<IconSidebar />)
     const logo = screen.getByTestId('sidebar-logo')
@@ -97,5 +102,32 @@ describe('IconSidebar', () => {
   it('renders version text', () => {
     renderWithRouter(<IconSidebar />)
     expect(screen.getByTestId('sidebar-version')).toHaveTextContent('0.33.0')
+  })
+
+  it('shows update dot on settings icon when update available', () => {
+    vi.mocked(useUpdateInfo).mockReturnValue({
+      data: { available: true, latest: '0.42.0', current: '0.41.8', url: 'https://github.com/abrechen2/sublarr/releases/tag/v0.42.0' },
+    })
+    renderWithRouter(<IconSidebar />)
+    expect(screen.getByTestId('settings-update-dot')).toBeInTheDocument()
+  })
+
+  it('does not show update dot when no update available', () => {
+    renderWithRouter(<IconSidebar />)
+    expect(screen.queryByTestId('settings-update-dot')).not.toBeInTheDocument()
+  })
+
+  it('shows update chip next to version when update available', () => {
+    vi.mocked(useUpdateInfo).mockReturnValue({
+      data: { available: true, latest: '0.42.0', current: '0.41.8', url: 'https://github.com/abrechen2/sublarr/releases/tag/v0.42.0' },
+    })
+    renderWithRouter(<IconSidebar />)
+    expect(screen.getByTestId('sidebar-update-chip')).toBeInTheDocument()
+    expect(screen.getByTestId('sidebar-update-chip')).toHaveTextContent('0.42.0')
+  })
+
+  it('does not show update chip when no update available', () => {
+    renderWithRouter(<IconSidebar />)
+    expect(screen.queryByTestId('sidebar-update-chip')).not.toBeInTheDocument()
   })
 })

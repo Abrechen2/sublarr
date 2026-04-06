@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { LayoutDashboard, BookOpen, Bell, Settings, Search, Trash2, ScrollText } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useHealth } from '@/hooks/useApi'
+import { useHealth, useUpdateInfo } from '@/hooks/useApi'
 import { useWantedSummary } from '@/hooks/useWantedApi'
 import { ThemeToggle } from '@/components/shared/ThemeToggle'
 
@@ -31,6 +31,8 @@ export function IconSidebar() {
   const { t } = useTranslation('common')
   const { data: health } = useHealth()
   const { data: wantedSummary } = useWantedSummary()
+  const { data: updateInfo } = useUpdateInfo()
+  const hasUpdate = updateInfo?.available === true
 
   const wantedCount = wantedSummary?.total ?? 0
 
@@ -65,13 +67,24 @@ export function IconSidebar() {
           >
             Sublarr
           </span>
-          <span
-            data-testid="sidebar-version"
-            className="text-[10px] truncate"
-            style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
-          >
-            v{health?.version ?? '...'}
-          </span>
+          <div className="flex items-center">
+            <span
+              data-testid="sidebar-version"
+              className="text-[10px] truncate"
+              style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
+            >
+              v{health?.version ?? '...'}
+            </span>
+            {hasUpdate && (
+              <span
+                data-testid="sidebar-update-chip"
+                className="sidebar-label text-[10px] px-1 rounded font-mono ml-1 shrink-0"
+                style={{ backgroundColor: 'rgba(251,191,36,0.2)', color: 'rgb(251,191,36)' }}
+              >
+                ↑ v{updateInfo?.latest}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -102,6 +115,7 @@ export function IconSidebar() {
             item={item}
             label={t(item.labelKey)}
             badgeCount={0}
+            showUpdateDot={item.to === '/settings' && hasUpdate}
           />
         ))}
         <div className="flex items-center justify-center py-1">
@@ -116,9 +130,10 @@ interface SidebarNavItemProps {
   readonly item: NavItem
   readonly label: string
   readonly badgeCount: number
+  readonly showUpdateDot?: boolean
 }
 
-function SidebarNavItem({ item, label, badgeCount }: SidebarNavItemProps) {
+function SidebarNavItem({ item, label, badgeCount, showUpdateDot = false }: SidebarNavItemProps) {
   const { to, icon: Icon, testId } = item
 
   return (
@@ -147,7 +162,22 @@ function SidebarNavItem({ item, label, badgeCount }: SidebarNavItemProps) {
               style={{ backgroundColor: 'var(--accent)' }}
             />
           )}
-          <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} className="shrink-0" />
+          <div className="relative shrink-0">
+              <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} />
+              {showUpdateDot && (
+                <>
+                  <span
+                    data-testid="settings-update-dot"
+                    className="absolute top-0 right-0 w-2 h-2 rounded-full animate-ping opacity-75"
+                    style={{ backgroundColor: 'rgb(251,191,36)' }}
+                  />
+                  <span
+                    className="absolute top-0 right-0 w-2 h-2 rounded-full"
+                    style={{ backgroundColor: 'rgb(251,191,36)' }}
+                  />
+                </>
+              )}
+            </div>
           <span className="sidebar-label text-[13px] font-medium truncate opacity-0 transition-opacity duration-200">
             {label}
           </span>
