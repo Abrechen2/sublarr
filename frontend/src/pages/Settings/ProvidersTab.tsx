@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   useProviders, useTestProvider, useProviderStats, useClearProviderCache,
 } from '@/hooks/useApi'
@@ -28,6 +29,7 @@ export function ProvidersTab({
   onFieldChange: (key: string, value: string) => void
   onSave: (changed: Record<string, unknown>) => void
 }) {
+  const { t } = useTranslation('settings')
   const { data: providersData, isLoading: providersLoading } = useProviders()
   const { data: statsData } = useProviderStats()
   const { data: healthData } = useProviderHealth()
@@ -266,7 +268,7 @@ export function ProvidersTab({
                     <span style={{ color: 'var(--warning)' }}>Circuit: {health.circuit_state}</span>
                   )}
                   {health.rate_limited && (
-                    <span style={{ color: 'var(--warning)' }}>Rate limited</span>
+                    <span style={{ color: 'var(--warning)' }}>{t('providers_tab.rate_limited')}</span>
                   )}
                 </div>
               )

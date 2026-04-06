@@ -164,7 +164,8 @@
     "cache_entries": "Cache-Einträge",
     "clear_cache": "Cache leeren",
     "re_enable": "Wieder aktivieren",
-    "auto_disabled": "Automatisch deaktiviert"
+    "auto_disabled": "Automatisch deaktiviert",
+    "rate_limited": "Rate-limitiert"
   },
   "config_export": {
     "title": "Konfigurationsverwaltung",
@@ -364,5 +365,16 @@
     "lockout_duration": "Sperrdauer",
     "lockout_duration_hint": "Dauer der Kontosperrung nach zu vielen Fehlversuchen",
     "allowed_ip_ranges": "Erlaubte IP-Bereiche"
+  },
+  "whisper_tab": {
+    "enable_whisper": "Whisper aktivieren",
+    "active_backend": "Aktives Backend",
+    "max_concurrent_jobs": "Max. gleichzeitige Jobs",
+    "fallback_min_score": "Fallback-Mindestscore",
+    "approx_size": "Ungefähre Größe"
+  },
+  "subtitle_tools_tab": {
+    "common_fixes": "Allgemeine Korrektionen",
+    "preview_subtitle": "Untertitel-Vorschau"
   }
 }

@@ -164,7 +164,8 @@
     "cache_entries": "cache entries",
     "clear_cache": "Clear Cache",
     "re_enable": "Re-enable",
-    "auto_disabled": "Auto-disabled"
+    "auto_disabled": "Auto-disabled",
+    "rate_limited": "Rate limited"
   },
   "config_export": {
     "title": "Configuration Management",
@@ -364,5 +365,16 @@
     "lockout_duration": "Lockout Duration",
     "lockout_duration_hint": "Duration of account lockout after exceeding max attempts",
     "allowed_ip_ranges": "Allowed IP Ranges"
+  },
+  "whisper_tab": {
+    "enable_whisper": "Enable Whisper",
+    "active_backend": "Active Backend",
+    "max_concurrent_jobs": "Max Concurrent Jobs",
+    "fallback_min_score": "Fallback Min Score",
+    "approx_size": "Approx Size"
+  },
+  "subtitle_tools_tab": {
+    "common_fixes": "Common Fixes",
+    "preview_subtitle": "Preview Subtitle"
   }
 }
