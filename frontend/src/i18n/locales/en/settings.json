@@ -259,6 +259,8 @@
   },
   "integrations": {
     "title": "Integrations",
+    "not_configured": "Not configured",
+    "media_servers_label": "Media Servers",
     "bazarr": {
       "title": "Bazarr Migration",
       "dbPath": "Bazarr Database Path",
@@ -292,6 +294,9 @@
     "export": {
       "title": "Export Configuration",
       "format": "Export Format",
+      "format_bazarr": "Bazarr Compatible",
+      "format_plex": "Plex Manifest",
+      "format_generic": "Generic JSON",
       "includeSecrets": "Include secrets (API keys, passwords)",
       "secretsWarning": "Warning: exported file will contain sensitive credentials",
       "export": "Export",

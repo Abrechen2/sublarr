@@ -428,7 +428,7 @@ function HealthServiceCard({ name, check }: { name: string; check: ExtendedHealt
               {check.webhook_status.sublarr_webhooks.length} Sublarr webhook(s)
             </span>
           ) : (
-            <span style={{ color: 'var(--text-muted)' }}>Not configured</span>
+            <span style={{ color: 'var(--text-muted)' }}>{t('integrations.not_configured')}</span>
           )}
         </div>
       )}
@@ -510,7 +510,7 @@ function ExtendedHealthSection() {
           {/* Media Servers */}
           {healthData.media_servers.length > 0 && (
             <div className="space-y-2">
-              <h4 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Media Servers</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>{t('integrations.media_servers_label')}</h4>
               {healthData.media_servers.map((ms, i) => (
                 <HealthServiceCard key={i} name={`${ms.name} (${ms.type})`} check={ms} />
               ))}
@@ -588,10 +588,10 @@ function ExportConfigSection() {
             className="w-full px-3 py-2 rounded-md text-sm focus:outline-none"
             style={inputStyle}
           >
-            <option value="bazarr">Bazarr Compatible</option>
-            <option value="plex">Plex Manifest</option>
+            <option value="bazarr">{t('integrations.export.format_bazarr')}</option>
+            <option value="plex">{t('integrations.export.format_plex')}</option>
             <option value="kodi">Kodi</option>
-            <option value="generic">Generic JSON</option>
+            <option value="generic">{t('integrations.export.format_generic')}</option>
           </select>
         </div>
         <div className="space-y-1.5">
