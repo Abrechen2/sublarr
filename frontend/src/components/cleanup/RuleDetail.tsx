@@ -1,4 +1,5 @@
 import { Play, Eye, Trash2, Power } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { CleanupRule } from '@/types/system'
 import { LanguageFilterConfig } from './LanguageFilterConfig'
 import { FormatUpgradeConfig } from './FormatUpgradeConfig'
@@ -87,6 +88,7 @@ export function RuleDetail({
   onDelete,
   onUpdate,
 }: RuleDetailProps) {
+  const { t } = useTranslation('common')
   const config = rule.config_json as Record<string, unknown>
 
   const updateConfig = (patch: Record<string, unknown>) =>
@@ -162,7 +164,7 @@ export function RuleDetail({
             className="w-2 h-2 rounded-full flex-shrink-0"
             style={{ background: 'var(--success)' }}
           />
-          <span style={{ color: 'var(--success)' }}>Letzter Lauf erfolgreich</span>
+          <span style={{ color: 'var(--success)' }}>{t('cleanup_detail.last_run_success')}</span>
           <span className="ml-auto" style={{ color: 'var(--text-muted)' }}>
             {new Date(rule.last_run_at).toLocaleString('de-DE')}
           </span>
@@ -171,7 +173,7 @@ export function RuleDetail({
 
       {/* Type-specific config */}
       {rule.rule_type === 'language_filter' && (
-        <ConfigSection title="Erlaubte Sprachen" icon="🌐">
+        <ConfigSection title={t('cleanup_detail.allowed_langs')} icon="🌐">
           <LanguageFilterConfig
             value={(config.keep_languages as string[]) ?? []}
             onChange={(langs) => updateConfig({ keep_languages: langs })}
@@ -180,7 +182,7 @@ export function RuleDetail({
       )}
 
       {rule.rule_type === 'format_upgrade' && (
-        <ConfigSection title="Format-Präferenz" icon="📄">
+        <ConfigSection title={t('cleanup_detail.format_pref')} icon="📄">
           <FormatUpgradeConfig
             value={(config.keep_format as 'any' | 'ass' | 'srt') ?? 'any'}
             onChange={(fmt) => updateConfig({ keep_format: fmt })}
@@ -189,13 +191,13 @@ export function RuleDetail({
       )}
 
       {/* Schedule (all types) */}
-      <ConfigSection title="Zeitplan" icon="🕐">
+      <ConfigSection title={t('cleanup_detail.schedule')} icon="🕐">
         <SchedulePicker value={rule.schedule} onChange={(s) => onUpdate({ schedule: s })} />
       </ConfigSection>
 
       {/* Preview result */}
       {previewResult && (
-        <ConfigSection title="Vorschau" icon="👁️">
+        <ConfigSection title={t('cleanup_detail.preview')} icon="👁️">
           <div className="space-y-1.5">
             {Object.entries(previewResult).map(([key, val]) => (
               <div key={key} className="flex justify-between text-xs">
