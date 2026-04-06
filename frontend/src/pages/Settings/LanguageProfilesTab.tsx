@@ -112,7 +112,7 @@ export function LanguageProfilesTab() {
     const targetLangs = form.target_languages
     const targetNames = targetLangs.map(getLangLabel)
     if (!form.name || targetLangs.length === 0) {
-      toast('Name and at least one target language required', 'error')
+      toast('Profilname und mindestens eine Zielsprache erforderlich', 'error')
       return
     }
 
@@ -129,21 +129,21 @@ export function LanguageProfilesTab() {
 
     if (editingId) {
       updateProfile.mutate({ id: editingId, data: payload }, {
-        onSuccess: () => { toast('Profile updated'); resetForm() },
-        onError: () => toast('Failed to update profile', 'error'),
+        onSuccess: () => { toast('Profil gespeichert'); resetForm() },
+        onError: () => toast('Profil konnte nicht gespeichert werden', 'error'),
       })
     } else {
       createProfile.mutate(payload, {
-        onSuccess: () => { toast('Profile created'); resetForm() },
-        onError: () => toast('Failed to create profile', 'error'),
+        onSuccess: () => { toast('Profil erstellt'); resetForm() },
+        onError: () => toast('Profil konnte nicht erstellt werden', 'error'),
       })
     }
   }
 
   const handleDelete = (id: number) => {
     deleteProfile.mutate(id, {
-      onSuccess: () => toast('Profile deleted'),
-      onError: () => toast('Cannot delete default profile', 'error'),
+      onSuccess: () => toast('Profil gelöscht'),
+      onError: () => toast('Standard-Profil kann nicht gelöscht werden', 'error'),
     })
   }
 
@@ -159,7 +159,7 @@ export function LanguageProfilesTab() {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-          Language profiles define which languages to translate for each series/movie
+          Sprachprofile legen fest, welche Untertitelsprachen pro Serie/Film gesucht werden.
         </span>
         <button
           onClick={() => { setShowAdd(true); setEditingId(null); setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: [], translation_backend: '', fallback_chain: [], forced_preference: 'disabled' }) }}
@@ -167,7 +167,7 @@ export function LanguageProfilesTab() {
           style={{ border: '1px solid var(--accent-dim)', color: 'var(--accent)', backgroundColor: 'var(--accent-bg)' }}
         >
           <Plus size={12} />
-          Add Profile
+          Profil hinzufügen
         </button>
       </div>
 
@@ -178,79 +178,91 @@ export function LanguageProfilesTab() {
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--accent-dim)' }}
         >
           <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {editingId ? 'Edit Profile' : 'New Profile'}
+            {editingId ? 'Profil bearbeiten' : 'Neues Profil'}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Name</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Profilname</label>
               <input
                 type="text" value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. German Only"
+                placeholder="z.B. Deutsch"
                 className="w-full px-2.5 py-1.5 rounded text-xs"
                 style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Source Language Code</label>
-              <input
-                type="text" value={form.source_language}
-                onChange={(e) => setForm((f) => ({ ...f, source_language: e.target.value }))}
-                placeholder="en"
-                className="w-full px-2.5 py-1.5 rounded text-xs"
-                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Source Language Name</label>
-              <input
-                type="text" value={form.source_language_name}
-                onChange={(e) => setForm((f) => ({ ...f, source_language_name: e.target.value }))}
-                placeholder="English"
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Originalsprache des Mediums
+                <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: 'var(--warning, #f59e0b)', border: '1px solid rgba(245,158,11,0.3)' }}>
+                  Erweitert
+                </span>
+              </label>
+              <select
+                value={form.source_language}
+                onChange={(e) => {
+                  const opt = LANGUAGE_OPTIONS.find((o) => o.value === e.target.value)
+                  setForm((f) => ({ ...f, source_language: e.target.value, source_language_name: opt?.label ?? e.target.value }))
+                }}
                 className="w-full px-2.5 py-1.5 rounded text-xs"
                 style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-              />
+              >
+                {LANGUAGE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                Sprache des Originals (z.B. Japanisch für Anime). Nur ändern wenn nötig.
+              </p>
             </div>
             <div className="space-y-1 md:col-span-2">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Target Languages</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Zielsprachen
+                <span className="ml-1.5 text-[10px] font-normal" style={{ color: 'var(--text-muted)' }}>
+                  1. = Primär · 2. = Fallback · 3. = weiterer Fallback
+                </span>
+              </label>
               <LanguagePillSelector
                 value={form.target_languages}
                 options={LANGUAGE_OPTIONS}
                 onChange={(langs) => setForm((f) => ({ ...f, target_languages: langs }))}
-                placeholder="— Add target language —"
+                placeholder="— Sprache hinzufügen —"
               />
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                Sublarr sucht Untertitel in dieser Reihenfolge. Die erste verfügbare Sprache wird verwendet.
+              </p>
             </div>
 
             {/* Forced Subtitles Preference */}
             <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('language_profiles.forced_subtitles')}</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Erzwungene Untertitel</label>
               <select
                 value={form.forced_preference}
                 onChange={(e) => setForm((f) => ({ ...f, forced_preference: e.target.value as 'disabled' | 'separate' | 'auto' }))}
                 className="w-full px-2.5 py-1.5 rounded text-xs"
                 style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               >
-                <option value="disabled">Disabled</option>
-                <option value="separate">Separate</option>
-                <option value="auto">Auto</option>
+                <option value="disabled">Deaktiviert</option>
+                <option value="separate">Separat suchen</option>
+                <option value="auto">Automatisch erkennen</option>
               </select>
               <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                {form.forced_preference === 'disabled' && 'Do not manage forced/signs subtitles'}
-                {form.forced_preference === 'separate' && 'Actively search and track forced subtitles separately'}
-                {form.forced_preference === 'auto' && 'Detect forced subtitles if found, but don\'t actively search'}
+                {form.forced_preference === 'disabled' && 'Forced/Signs-Untertitel werden ignoriert'}
+                {form.forced_preference === 'separate' && 'Forced-Untertitel werden aktiv gesucht und separat verwaltet'}
+                {form.forced_preference === 'auto' && 'Forced-Untertitel werden erkannt wenn vorhanden, aber nicht aktiv gesucht'}
               </p>
             </div>
 
             {/* Translation Backend Selector */}
             <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('language_profiles.translation_backend')}</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Übersetzungs-Backend</label>
               <select
                 value={form.translation_backend}
                 onChange={(e) => setForm((f) => ({ ...f, translation_backend: e.target.value }))}
                 className="w-full px-2.5 py-1.5 rounded text-xs"
                 style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               >
-                <option value="">Default (Ollama)</option>
+                <option value="">Standard (Ollama)</option>
                 {backends.map((b) => (
                   <option key={b.name} value={b.name}>{b.display_name}</option>
                 ))}
@@ -259,7 +271,10 @@ export function LanguageProfilesTab() {
 
             {/* Fallback Chain Editor */}
             <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('language_profiles.fallback_chain')}</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Backend-Fallback-Kette
+                <span className="ml-1.5 text-[10px] font-normal" style={{ color: 'var(--text-muted)' }}>(Übersetzung)</span>
+              </label>
               <div className="space-y-1.5">
                 {form.fallback_chain.length > 0 ? (
                   form.fallback_chain.map((name, idx) => {
@@ -276,7 +291,7 @@ export function LanguageProfilesTab() {
                           }}
                         >
                           {idx + 1}. {backends.find((b) => b.name === name)?.display_name || name}
-                          {isPrimary && ' (primary)'}
+                          {isPrimary && ' (primär)'}
                         </span>
                         <button
                           onClick={() => handleFallbackMove(idx, 'up')}
@@ -308,10 +323,9 @@ export function LanguageProfilesTab() {
                   })
                 ) : (
                   <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                    No fallback chain configured. Add backends below.
+                    Keine Fallback-Kette konfiguriert.
                   </span>
                 )}
-                {/* Add backend to chain */}
                 {backends.filter((b) => !form.fallback_chain.includes(b.name)).length > 0 && (
                   <select
                     value=""
@@ -319,7 +333,7 @@ export function LanguageProfilesTab() {
                     className="w-full px-2.5 py-1 rounded text-xs"
                     style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
                   >
-                    <option value="">+ Add backend to fallback chain...</option>
+                    <option value="">+ Backend zur Fallback-Kette hinzufügen...</option>
                     {backends
                       .filter((b) => !form.fallback_chain.includes(b.name))
                       .map((b) => (
@@ -342,10 +356,10 @@ export function LanguageProfilesTab() {
               ) : (
                 <Check size={12} />
               )}
-              Save
+              Speichern
             </button>
             <button onClick={resetForm} className="flex items-center gap-1 px-3 py-1.5 rounded text-xs" style={{ color: 'var(--text-muted)' }}>
-              <X size={12} /> Cancel
+              <X size={12} /> Abbrechen
             </button>
           </div>
         </div>
@@ -367,7 +381,7 @@ export function LanguageProfilesTab() {
                   className="px-1.5 py-0.5 rounded text-[10px] font-medium"
                   style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
                 >
-                  Default
+                  Standard
                 </span>
               )}
             </div>
@@ -394,10 +408,10 @@ export function LanguageProfilesTab() {
             </div>
           </div>
           <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            <span>Source: <code style={{ fontFamily: 'var(--font-mono)' }}>{p.source_language}</code> ({p.source_language_name})</span>
+            <span>Original: <code style={{ fontFamily: 'var(--font-mono)' }}>{p.source_language}</code> ({p.source_language_name})</span>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Targets:</span>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Zielsprachen:</span>
             {p.target_languages.map((lang, i) => (
               <span
                 key={lang}
@@ -412,17 +426,17 @@ export function LanguageProfilesTab() {
           <div className="flex items-center gap-4 flex-wrap text-xs" style={{ color: 'var(--text-secondary)' }}>
             {p.translation_backend && (
               <span>
-                Backend: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.translation_backend}</code>
+                Übersetzung: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.translation_backend}</code>
               </span>
             )}
             {p.fallback_chain && p.fallback_chain.length > 0 && (
               <span>
-                Fallback: <code style={{ fontFamily: 'var(--font-mono)' }}>{p.fallback_chain.join(' > ')}</code>
+                Fallback-Kette: <code style={{ fontFamily: 'var(--font-mono)' }}>{p.fallback_chain.join(' > ')}</code>
               </span>
             )}
             {p.forced_preference && p.forced_preference !== 'disabled' && (
               <span>
-                Forced: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.forced_preference}</code>
+                Erzwungen: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.forced_preference}</code>
               </span>
             )}
           </div>
@@ -431,7 +445,7 @@ export function LanguageProfilesTab() {
 
       {(!profiles || profiles.length === 0) && !showAdd && (
         <div className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>
-          No language profiles configured. A default profile will be created automatically.
+          Keine Sprachprofile konfiguriert. Ein Standard-Profil wird automatisch erstellt.
         </div>
       )}
     </div>
