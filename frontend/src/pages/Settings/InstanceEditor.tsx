@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface InstanceEntry {
   name: string
@@ -17,6 +18,7 @@ export function InstanceEditor({
   value: string
   onChange: (val: string) => void
 }) {
+  const { t } = useTranslation('settings')
   const [instances, setInstances] = useState<InstanceEntry[]>(() => {
     try {
       const parsed = JSON.parse(value || '[]')
@@ -57,7 +59,7 @@ export function InstanceEditor({
     <div className="pt-3 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-          {label} Instances
+          {t('instance_editor.instances_label', { label })}
         </h3>
         <button
           onClick={addInstance}
@@ -65,11 +67,11 @@ export function InstanceEditor({
           style={{ color: 'var(--accent)', border: '1px solid var(--accent-dim)' }}
         >
           <Plus size={12} />
-          Add Instance
+          {t('instance_editor.add_instance')}
         </button>
       </div>
       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-        Configure multiple {label} instances. If empty, the legacy URL/Key above is used.
+        {t('instance_editor.configure_hint', { label })}
       </p>
       {instances.map((inst, idx) => (
         <div
@@ -79,7 +81,7 @@ export function InstanceEditor({
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-              Instance {idx + 1}
+              {t('instance_editor.instance_n', { n: idx + 1 })}
             </span>
             <button
               onClick={() => removeInstance(idx)}
@@ -92,7 +94,7 @@ export function InstanceEditor({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <input
               type="text"
-              placeholder="Name (e.g. Main)"
+              placeholder={t('instance_editor.name_placeholder')}
               value={inst.name}
               onChange={(e) => updateField(idx, 'name', e.target.value)}
               className="w-full px-2.5 py-1.5 rounded text-sm focus:outline-none"
@@ -100,7 +102,7 @@ export function InstanceEditor({
             />
             <input
               type="text"
-              placeholder="URL (e.g. http://localhost:8989)"
+              placeholder={t('instance_editor.url_placeholder')}
               value={inst.url}
               onChange={(e) => updateField(idx, 'url', e.target.value)}
               className="w-full px-2.5 py-1.5 rounded text-sm focus:outline-none"
@@ -116,7 +118,7 @@ export function InstanceEditor({
             />
             <input
               type="text"
-              placeholder="Path Mapping (optional)"
+              placeholder={t('instance_editor.path_mapping_placeholder')}
               value={inst.path_mapping || ''}
               onChange={(e) => updateField(idx, 'path_mapping', e.target.value)}
               className="w-full px-2.5 py-1.5 rounded text-sm focus:outline-none"

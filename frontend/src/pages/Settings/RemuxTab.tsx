@@ -3,12 +3,14 @@
  * Configures trash directory, backup retention, reflink, and Arr pause behavior.
  */
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
 import { toast } from '@/components/shared/Toast'
 
 export function RemuxTab() {
+  const { t } = useTranslation('settings')
   const { data: config } = useConfig()
   const updateConfig = useUpdateConfig()
   const cfg = (config ?? {}) as Record<string, unknown>
@@ -27,8 +29,8 @@ export function RemuxTab() {
     updateConfig.mutate(
       { [key]: String(value) },
       {
-        onSuccess: () => toast('Setting saved'),
-        onError: () => toast('Failed to save setting', 'error'),
+        onSuccess: () => toast(t('setting_saved')),
+        onError: () => toast(t('setting_save_failed'), 'error'),
       },
     )
   }
@@ -37,8 +39,8 @@ export function RemuxTab() {
     updateConfig.mutate(
       { [key]: value },
       {
-        onSuccess: () => toast('Setting saved'),
-        onError: () => toast('Failed to save setting', 'error'),
+        onSuccess: () => toast(t('setting_saved')),
+        onError: () => toast(t('setting_save_failed'), 'error'),
       },
     )
   }
@@ -46,8 +48,8 @@ export function RemuxTab() {
   return (
     <div className="space-y-3">
       <SettingRow
-        label="Trash Directory"
-        description="Path for remux trash/originals"
+        label={t('remux_tab.trash_dir')}
+        description={t('remux_tab.trash_dir_desc')}
       >
         <input
           type="text"
@@ -66,8 +68,8 @@ export function RemuxTab() {
       </SettingRow>
 
       <SettingRow
-        label="Backup Retention (days)"
-        description="Days to keep remux backups"
+        label={t('remux_tab.retention_days')}
+        description={t('remux_tab.retention_days_desc')}
       >
         <input
           type="number"
@@ -86,8 +88,8 @@ export function RemuxTab() {
       </SettingRow>
 
       <SettingRow
-        label="Use Reflink"
-        description="Use CoW reflink copies instead of full copies"
+        label={t('remux_tab.use_reflink')}
+        description={t('remux_tab.use_reflink_desc')}
       >
         <Toggle
           checked={useReflink}
@@ -97,8 +99,8 @@ export function RemuxTab() {
       </SettingRow>
 
       <SettingRow
-        label="Pause Arr on Remux"
-        description="Pause Sonarr/Radarr during remux operations"
+        label={t('remux_tab.arr_pause')}
+        description={t('remux_tab.arr_pause_desc')}
       >
         <Toggle
           checked={arrPauseEnabled}

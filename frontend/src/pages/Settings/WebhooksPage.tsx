@@ -1,4 +1,5 @@
 import { Copy, Webhook } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { SettingRow } from '@/components/shared/SettingRow'
@@ -7,30 +8,19 @@ import { toast } from '@/components/shared/Toast'
 // ─── WebhooksPage ──────────────────────────────────────────────────────────────
 
 const WEBHOOKS = [
-  {
-    service: 'Sonarr',
-    path: '/api/v1/webhook/sonarr',
-    description: 'Paste into Sonarr → Settings → Connect → Webhook',
-  },
-  {
-    service: 'Radarr',
-    path: '/api/v1/webhook/radarr',
-    description: 'Paste into Radarr → Settings → Connect → Webhook',
-  },
-  {
-    service: 'Jellyfin',
-    path: '/api/v1/webhook/jellyfin',
-    description: 'Paste into Jellyfin → Dashboard → Webhooks plugin',
-  },
+  { service: 'Sonarr', path: '/api/v1/webhook/sonarr', descKey: 'webhooks_page.sonarr_desc' },
+  { service: 'Radarr', path: '/api/v1/webhook/radarr', descKey: 'webhooks_page.radarr_desc' },
+  { service: 'Jellyfin', path: '/api/v1/webhook/jellyfin', descKey: 'webhooks_page.jellyfin_desc' },
 ] as const
 
 export function WebhooksPage() {
+  const { t } = useTranslation('settings')
   const baseUrl = window.location.origin
 
   return (
     <SettingsDetailLayout
-        title="Incoming Webhooks"
-        subtitle="Copy these URLs into your media server webhook settings."
+        title={t('webhooks_page.title')}
+        subtitle={t('webhooks_page.subtitle')}
       >
         <div className="space-y-4">
           {WEBHOOKS.map((w) => {
@@ -39,10 +29,10 @@ export function WebhooksPage() {
               <SettingsSection
                 key={w.service}
                 title={w.service}
-                description={w.description}
+                description={t(w.descKey)}
                 icon={<Webhook size={16} style={{ color: 'var(--accent)' }} />}
               >
-                <SettingRow label="Webhook URL">
+                <SettingRow label={t('webhooks_page.webhook_url_label')}>
                   <div
                     className="flex items-center gap-2"
                     style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)' }}
@@ -60,10 +50,10 @@ export function WebhooksPage() {
                           document.execCommand('copy')
                           document.body.removeChild(el)
                         }
-                        toast('Copied!')
+                        toast(t('webhooks_page.copied'))
                       }}
                       className="p-1 rounded transition-colors hover:opacity-80"
-                      title="Copy URL"
+                      title={t('webhooks_page.copy_url_title')}
                       style={{ color: 'var(--text-secondary)', flexShrink: 0 }}
                       data-testid={`webhook-copy-${w.service.toLowerCase()}`}
                     >

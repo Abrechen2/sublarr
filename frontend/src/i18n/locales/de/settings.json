@@ -670,6 +670,45 @@
     "status_enabled": "Aktiviert",
     "status_disabled": "Deaktiviert"
   },
+  "setting_saved": "Einstellung gespeichert",
+  "setting_save_failed": "Fehler beim Speichern der Einstellung",
+  "remux_tab": {
+    "trash_dir": "Papierkorb-Verzeichnis",
+    "trash_dir_desc": "Pfad für Remux-Papierkorb und Originale",
+    "retention_days": "Backup-Aufbewahrung (Tage)",
+    "retention_days_desc": "Tage für die Remux-Backups aufbewahrt werden",
+    "use_reflink": "Reflink verwenden",
+    "use_reflink_desc": "CoW-Reflink-Kopien statt vollständiger Kopien verwenden",
+    "arr_pause": "Arr während Remux pausieren",
+    "arr_pause_desc": "Sonarr/Radarr während Remux-Operationen pausieren"
+  },
+  "standalone_tab": {
+    "scan_interval": "Scan-Intervall (Stunden)",
+    "scan_interval_desc": "Wie oft der Standalone-Watcher neu scannt",
+    "debounce": "Debounce (Sekunden)",
+    "debounce_desc": "Sekunden nach einem Dateiereignis warten bevor verarbeitet wird",
+    "skip_extras": "Extras überspringen",
+    "skip_extras_desc": "Extras/Specials beim Standalone-Scan überspringen"
+  },
+  "webhooks_page": {
+    "title": "Eingehende Webhooks",
+    "subtitle": "Diese URLs in die Medienserver-Webhook-Einstellungen einfügen.",
+    "webhook_url_label": "Webhook URL",
+    "copy_url_title": "URL kopieren",
+    "copied": "Kopiert!",
+    "sonarr_desc": "In Sonarr einfügen → Settings → Connect → Webhook",
+    "radarr_desc": "In Radarr einfügen → Settings → Connect → Webhook",
+    "jellyfin_desc": "In Jellyfin einfügen → Dashboard → Webhooks-Plugin"
+  },
+  "instance_editor": {
+    "instances_label": "{{label}}-Instanzen",
+    "add_instance": "Instanz hinzufügen",
+    "configure_hint": "Mehrere {{label}}-Instanzen konfigurieren. Wenn leer, wird die ältere URL/Key oben verwendet.",
+    "instance_n": "Instanz {{n}}",
+    "name_placeholder": "Name (z.B. Haupt)",
+    "url_placeholder": "URL (z.B. http://localhost:8989)",
+    "path_mapping_placeholder": "Pfad-Mapping (optional)"
+  },
   "library_sources": {
     "watched_folders": "Überwachte Ordner",
     "watcher_watching": "Überwacht",

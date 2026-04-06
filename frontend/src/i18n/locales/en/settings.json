@@ -670,6 +670,45 @@
     "status_enabled": "Enabled",
     "status_disabled": "Disabled"
   },
+  "setting_saved": "Setting saved",
+  "setting_save_failed": "Failed to save setting",
+  "remux_tab": {
+    "trash_dir": "Trash Directory",
+    "trash_dir_desc": "Path for remux trash/originals",
+    "retention_days": "Backup Retention (days)",
+    "retention_days_desc": "Days to keep remux backups",
+    "use_reflink": "Use Reflink",
+    "use_reflink_desc": "Use CoW reflink copies instead of full copies",
+    "arr_pause": "Pause Arr on Remux",
+    "arr_pause_desc": "Pause Sonarr/Radarr during remux operations"
+  },
+  "standalone_tab": {
+    "scan_interval": "Scan Interval (hours)",
+    "scan_interval_desc": "How often the standalone watcher rescans",
+    "debounce": "Debounce (seconds)",
+    "debounce_desc": "Seconds to wait after a file event before processing",
+    "skip_extras": "Skip Extras",
+    "skip_extras_desc": "Skip extras/specials during standalone scan"
+  },
+  "webhooks_page": {
+    "title": "Incoming Webhooks",
+    "subtitle": "Copy these URLs into your media server webhook settings.",
+    "webhook_url_label": "Webhook URL",
+    "copy_url_title": "Copy URL",
+    "copied": "Copied!",
+    "sonarr_desc": "Paste into Sonarr → Settings → Connect → Webhook",
+    "radarr_desc": "Paste into Radarr → Settings → Connect → Webhook",
+    "jellyfin_desc": "Paste into Jellyfin → Dashboard → Webhooks plugin"
+  },
+  "instance_editor": {
+    "instances_label": "{{label}} Instances",
+    "add_instance": "Add Instance",
+    "configure_hint": "Configure multiple {{label}} instances. If empty, the legacy URL/Key above is used.",
+    "instance_n": "Instance {{n}}",
+    "name_placeholder": "Name (e.g. Main)",
+    "url_placeholder": "URL (e.g. http://localhost:8989)",
+    "path_mapping_placeholder": "Path Mapping (optional)"
+  },
   "library_sources": {
     "watched_folders": "Watched Folders",
     "watcher_watching": "Watching",

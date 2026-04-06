@@ -3,12 +3,14 @@
  * Configures scan interval, debounce, and extras skip behavior.
  */
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
 import { toast } from '@/components/shared/Toast'
 
 export function StandaloneSettingsTab() {
+  const { t } = useTranslation('settings')
   const { data: config } = useConfig()
   const updateConfig = useUpdateConfig()
   const cfg = (config ?? {}) as Record<string, unknown>
@@ -26,8 +28,8 @@ export function StandaloneSettingsTab() {
     updateConfig.mutate(
       { [key]: String(value) },
       {
-        onSuccess: () => toast('Setting saved'),
-        onError: () => toast('Failed to save setting', 'error'),
+        onSuccess: () => toast(t('setting_saved')),
+        onError: () => toast(t('setting_save_failed'), 'error'),
       },
     )
   }
@@ -36,8 +38,8 @@ export function StandaloneSettingsTab() {
     updateConfig.mutate(
       { [key]: value },
       {
-        onSuccess: () => toast('Setting saved'),
-        onError: () => toast('Failed to save setting', 'error'),
+        onSuccess: () => toast(t('setting_saved')),
+        onError: () => toast(t('setting_save_failed'), 'error'),
       },
     )
   }
@@ -45,8 +47,8 @@ export function StandaloneSettingsTab() {
   return (
     <div className="space-y-3">
       <SettingRow
-        label="Scan Interval (hours)"
-        description="How often the standalone watcher rescans"
+        label={t('standalone_tab.scan_interval')}
+        description={t('standalone_tab.scan_interval_desc')}
       >
         <input
           type="number"
@@ -65,8 +67,8 @@ export function StandaloneSettingsTab() {
       </SettingRow>
 
       <SettingRow
-        label="Debounce (seconds)"
-        description="Seconds to wait after a file event before processing"
+        label={t('standalone_tab.debounce')}
+        description={t('standalone_tab.debounce_desc')}
       >
         <input
           type="number"
@@ -85,8 +87,8 @@ export function StandaloneSettingsTab() {
       </SettingRow>
 
       <SettingRow
-        label="Skip Extras"
-        description="Skip extras/specials during standalone scan"
+        label={t('standalone_tab.skip_extras')}
+        description={t('standalone_tab.skip_extras_desc')}
       >
         <Toggle
           checked={skipExtras}
