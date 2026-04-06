@@ -345,5 +345,10 @@
     "outgoing_webhooks": "Outgoing Webhooks",
     "all_events": "All Events",
     "execution_log": "Execution Log"
+  },
+  "language_profiles": {
+    "forced_subtitles": "Forced Subtitles",
+    "translation_backend": "Translation Backend",
+    "fallback_chain": "Fallback Chain"
   }
 }

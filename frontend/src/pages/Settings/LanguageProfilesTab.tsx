@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   useLanguageProfiles,
   useCreateProfile,
@@ -22,6 +23,7 @@ import type { LanguageProfile } from '@/lib/types'
 // ─── Language Profiles Tab ────────────────────────────────────────────────────
 
 export function LanguageProfilesTab() {
+  const { t } = useTranslation('settings')
   const { data: profiles, isLoading } = useLanguageProfiles()
   const { data: backendsData } = useBackends()
   const createProfile = useCreateProfile()
@@ -210,7 +212,7 @@ export function LanguageProfilesTab() {
 
             {/* Forced Subtitles Preference */}
             <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Forced Subtitles</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('language_profiles.forced_subtitles')}</label>
               <select
                 value={form.forced_preference}
                 onChange={(e) => setForm((f) => ({ ...f, forced_preference: e.target.value as 'disabled' | 'separate' | 'auto' }))}
@@ -230,7 +232,7 @@ export function LanguageProfilesTab() {
 
             {/* Translation Backend Selector */}
             <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Translation Backend</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('language_profiles.translation_backend')}</label>
               <select
                 value={form.translation_backend}
                 onChange={(e) => setForm((f) => ({ ...f, translation_backend: e.target.value }))}
@@ -246,7 +248,7 @@ export function LanguageProfilesTab() {
 
             {/* Fallback Chain Editor */}
             <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Fallback Chain</label>
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{t('language_profiles.fallback_chain')}</label>
               <div className="space-y-1.5">
                 {form.fallback_chain.length > 0 ? (
                   form.fallback_chain.map((name, idx) => {

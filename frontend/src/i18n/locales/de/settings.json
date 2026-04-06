@@ -345,5 +345,10 @@
     "outgoing_webhooks": "Ausgehende Webhooks",
     "all_events": "Alle Events",
     "execution_log": "Ausführungsprotokoll"
+  },
+  "language_profiles": {
+    "forced_subtitles": "Erzwungene Untertitel",
+    "translation_backend": "Übersetzungs-Backend",
+    "fallback_chain": "Fallback-Kette"
   }
 }
