@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.43.0-beta] - 2026-04-06
+
+### Added
+- **Vollständige UI-Lokalisierung (i18n)** — Alle sichtbaren Strings der Oberfläche wurden in das react-i18next-System überführt. Sprache kann jetzt über die Einstellungen zwischen Deutsch und Englisch gewechselt werden. Betrifft alle Seiten (Library, Wanted, History, Logs, Plugins, Setup, Settings) und Komponenten (BatchActionBar, SpellCheckPanel, SubtitleEditor, Charts, Standalone-Modus-Status, Cleanup-Regeln u.v.m.).
+
 ## [0.42.0-beta] - 2026-04-06
 
 ### Added
