@@ -8,6 +8,7 @@
  * 4. Processing Pipeline    – post-download pipeline (translate, sync, cleanup)
  * 5. Scheduled Tasks (adv.) – read-only placeholder linking to Tasks page
  */
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Search, ArrowUpCircle, Workflow, Clock, Zap } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
@@ -398,220 +399,6 @@ function UpgradeRulesContent() {
   )
 }
 
-// ─── Processing Pipeline Section ──────────────────────────────────────────────
-
-function ProcessingPipelineContent() {
-  const { t } = useTranslation('common')
-  const { t: tS } = useTranslation('settings')
-  const { data: config, isLoading } = useConfig()
-  const updateConfig = useUpdateConfig()
-
-  const save = (patch: Record<string, unknown>) => updateConfig.mutate(patch)
-
-  if (isLoading) return <SectionSkeleton />
-
-  return (
-    <div data-testid="processing-pipeline-content">
-      <FormGroup
-        label={t('settings.automation.pipeline.autoTranslate', 'Auto-Translate')}
-        hint={t(
-          'settings.automation.pipeline.autoTranslateHint',
-          'Automatically translate downloaded subtitles to the target language.',
-        )}
-        data-testid="form-group-wanted-auto-translate"
-      >
-        <Toggle
-          checked={boolVal(config, 'wanted_auto_translate', false)}
-          onChange={(v) => save({ wanted_auto_translate: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={t('settings.automation.pipeline.autoSync', 'Auto-Sync')}
-        hint={t(
-          'settings.automation.pipeline.autoSyncHint',
-          'Automatically synchronise subtitles to video timing after download.',
-        )}
-        data-testid="form-group-auto-sync-after-download"
-      >
-        <Toggle
-          checked={boolVal(config, 'auto_sync_after_download', false)}
-          onChange={(v) => save({ auto_sync_after_download: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={t('settings.automation.pipeline.autoCleanup', 'Auto-Cleanup')}
-        hint={t(
-          'settings.automation.pipeline.autoCleanupHint',
-          'Remove duplicate and redundant subtitle files automatically after extract.',
-        )}
-        data-testid="form-group-auto-cleanup-after-extract"
-      >
-        <Toggle
-          checked={boolVal(config, 'auto_cleanup_after_extract', false)}
-          onChange={(v) => save({ auto_cleanup_after_extract: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.auto_common_fixes')}
-        hint={tS('automation_page.auto_common_fixes_hint')}
-        data-testid="form-group-auto-process-common-fixes"
-      >
-        <Toggle
-          checked={boolVal(config, 'auto_process_common_fixes', false)}
-          onChange={(v) => save({ auto_process_common_fixes: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.auto_hi_removal')}
-        hint={tS('automation_page.auto_hi_removal_hint')}
-        data-testid="form-group-auto-process-hi-removal"
-      >
-        <Toggle
-          checked={boolVal(config, 'auto_process_hi_removal', false)}
-          onChange={(v) => save({ auto_process_hi_removal: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.auto_credit_removal')}
-        hint={tS('automation_page.auto_credit_removal_hint')}
-        data-testid="form-group-auto-process-credit-removal"
-      >
-        <Toggle
-          checked={boolVal(config, 'auto_process_credit_removal', false)}
-          onChange={(v) => save({ auto_process_credit_removal: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.sync_threshold')}
-        hint={tS('automation_page.sync_threshold_hint')}
-        htmlFor="auto-process-sync-threshold"
-        data-testid="form-group-auto-process-sync-threshold"
-      >
-        <input
-          id="auto-process-sync-threshold"
-          type="number"
-          data-testid="input-auto-process-sync-threshold"
-          style={{ ...inputStyle, maxWidth: '120px' }}
-          value={strVal(config, 'auto_process_sync_threshold', '80')}
-          onChange={(e) => save({ auto_process_sync_threshold: Number(e.target.value) })}
-          disabled={updateConfig.isPending}
-          min={0}
-          max={100}
-          placeholder="80"
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.sync_fallback_engine')}
-        hint={tS('automation_page.sync_fallback_engine_hint')}
-        htmlFor="auto-process-sync-fallback-engine"
-        data-testid="form-group-auto-process-sync-fallback-engine"
-      >
-        <select
-          id="auto-process-sync-fallback-engine"
-          data-testid="select-auto-process-sync-fallback-engine"
-          style={{
-            ...inputStyle,
-            maxWidth: '160px',
-            cursor: 'pointer',
-          }}
-          value={strVal(config, 'auto_process_sync_fallback_engine', 'ffsubsync')}
-          onChange={(e) => save({ auto_process_sync_fallback_engine: e.target.value })}
-          disabled={updateConfig.isPending}
-        >
-          <option value="ffsubsync">ffsubsync</option>
-          <option value="alass">alass</option>
-        </select>
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.nfo_export')}
-        hint={tS('automation_page.nfo_export_hint')}
-        data-testid="form-group-auto-nfo-export"
-      >
-        <Toggle
-          checked={boolVal(config, 'auto_nfo_export', false)}
-          onChange={(v) => save({ auto_nfo_export: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.jellyfin_translate')}
-        hint={tS('automation_page.jellyfin_translate_hint')}
-        data-testid="form-group-jellyfin-play-translate-enabled"
-      >
-        <Toggle
-          checked={boolVal(config, 'jellyfin_play_translate_enabled', false)}
-          onChange={(v) => save({ jellyfin_play_translate_enabled: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.streaming_enabled')}
-        hint={tS('automation_page.streaming_enabled_hint')}
-        data-testid="form-group-streaming-enabled"
-      >
-        <Toggle
-          checked={boolVal(config, 'streaming_enabled', false)}
-          onChange={(v) => save({ streaming_enabled: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.post_processing_enabled')}
-        hint={tS('automation_page.post_processing_enabled_hint')}
-        data-testid="form-group-post-processing-enabled"
-      >
-        <Toggle
-          checked={boolVal(config, 'post_processing_enabled', false)}
-          onChange={(v) => save({ post_processing_enabled: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.post_download_command')}
-        hint={tS('automation_page.post_download_command_hint')}
-        htmlFor="post-download-command"
-        data-testid="form-group-post-download-command"
-      >
-        <textarea
-          id="post-download-command"
-          data-testid="input-post-download-command"
-          style={{
-            ...settingsInputStyle,
-            width: '100%',
-            minHeight: '60px',
-            resize: 'vertical',
-            fontFamily: 'monospace',
-            fontSize: '12px',
-          }}
-          value={strVal(config, 'post_download_command', '')}
-          onChange={(e) => save({ post_download_command: e.target.value })}
-          disabled={updateConfig.isPending}
-          placeholder="z.B. curl -s http://localhost:7878/api/refreshMonitor"
-          spellCheck={false}
-        />
-      </FormGroup>
-    </div>
-  )
-}
-
 // ─── Webhook Section ──────────────────────────────────────────────────────────
 
 function WebhookContent() {
@@ -824,18 +611,33 @@ export function AutomationSettings() {
         </SettingsSection>
       </div>
 
-      {/* 4. Processing Pipeline */}
-      <div data-testid="section-processing-pipeline">
-        <SettingsSection
-          title={t('settings.automation.pipeline.title', 'Processing Pipeline')}
-          description={t(
-            'settings.automation.pipeline.description',
-            'Control post-download processing: translation, synchronisation, and cleanup.',
-          )}
-          icon={<Workflow size={16} style={{ color: 'var(--accent)' }} />}
+      {/* 4. Processing Pipeline — navigates to dedicated page */}
+      <div
+        data-testid="section-processing-pipeline"
+        style={{
+          padding: '14px 18px',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-lg)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <div>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+            {tS('post_processing_page.title')}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>
+            {tS('post_processing_page.subtitle')}
+          </div>
+        </div>
+        <Link
+          to="/settings/automation/post-processing"
+          style={{ fontSize: '12px', color: 'var(--accent)' }}
         >
-          <ProcessingPipelineContent />
-        </SettingsSection>
+          Configure →
+        </Link>
       </div>
 
       {/* 5. Cleanup */}
