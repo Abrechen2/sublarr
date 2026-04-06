@@ -8,6 +8,29 @@ import { MovieDetailPage } from '../MovieDetail'
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const translations: Record<string, string> = {
+        'title': 'Library',
+        'movie_detail.back_to_library': 'Back to Library',
+        'movie_detail.load_error': 'Failed to load movie',
+        'movie_detail.file_info': 'File Info',
+        'movie_detail.path': 'Path',
+        'movie_detail.subtitles': 'Subtitles',
+        'movie_detail.no_missing': 'No missing subtitles',
+        'movie_detail.search': 'Search',
+        'movie_detail.skip': 'Skip',
+        'movie_detail.re_enable': 'Re-enable',
+        'movie_detail.searches': 'searches',
+        'movie_detail.missing': 'Missing',
+      }
+      return translations[key] ?? key.split('.').pop() ?? key
+    },
+    i18n: { language: 'de', changeLanguage: vi.fn() },
+  }),
+}))
+
 const mockUseMovieDetail = vi.fn()
 const mockUseWantedItems = vi.fn()
 const mockUseSearchWantedItem = vi.fn()

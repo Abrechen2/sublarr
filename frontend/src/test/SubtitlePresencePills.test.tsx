@@ -1,6 +1,38 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { SubtitlePresencePills } from '@/pages/wanted/SubtitlePresencePills'
+
+// Mock react-i18next — interpolate {{lang}} and {{format}} from options
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, opts?: Record<string, string>) => {
+      const templates: Record<string, string> = {
+        'subtitle_pills.missing': '{{lang}} fehlt',
+        'subtitle_pills.missing_tooltip': 'Kein {{lang}}-Untertitel',
+        'subtitle_pills.embedded_ass': '{{lang}} ASS ⬇',
+        'subtitle_pills.embedded_ass_tooltip': 'Eingebetteter ASS-Track',
+        'subtitle_pills.embedded_srt': '{{lang}} SRT ⬇',
+        'subtitle_pills.embedded_srt_tooltip': 'Eingebetteter SRT-Track',
+        'subtitle_pills.sidecar_ass': '{{lang}} ASS',
+        'subtitle_pills.sidecar_ass_tooltip': 'ASS-Untertitel',
+        'subtitle_pills.sidecar_srt': '{{lang}} SRT',
+        'subtitle_pills.sidecar_srt_tooltip': 'SRT-Untertitel',
+        'subtitle_pills.sidecar_srt_upgrade': '{{lang}} SRT ↑',
+        'subtitle_pills.sidecar_srt_upgrade_tooltip': 'SRT Upgrade',
+        'subtitle_pills.no_embedded': 'Nicht eingebettet',
+        'subtitle_pills.no_embedded_tooltip': 'Keine eingebetteten Tracks',
+        'subtitle_pills.embedded_track': '{{lang}} {{format}} ⬇',
+        'subtitle_pills.embedded_track_tooltip': 'Eingebetteter Track',
+      }
+      let tpl = templates[key] ?? key
+      if (opts) {
+        Object.entries(opts).forEach(([k, v]) => { tpl = tpl.replaceAll(`{{${k}}}`, v) })
+      }
+      return tpl
+    },
+    i18n: { language: 'de', changeLanguage: vi.fn() },
+  }),
+}))
 
 const noEmbedded: Array<{ lang: string; format: string }> = []
 const enAss = [{ lang: 'eng', format: 'ass' }]
@@ -12,7 +44,7 @@ const threeLangs = [
 ]
 
 describe('SubtitlePresencePills', () => {
-  it('shows DE ✗ when existingSub is empty', () => {
+  it('shows DE fehlt when existingSub is empty', () => {
     render(
       <SubtitlePresencePills
         existingSub=""
@@ -21,10 +53,10 @@ describe('SubtitlePresencePills', () => {
         embeddedLanguages={noEmbedded}
       />
     )
-    expect(screen.getByText('DE ✗')).toBeTruthy()
+    expect(screen.getByText('DE fehlt')).toBeTruthy()
   })
 
-  it('shows Kein Sub when nothing embedded', () => {
+  it('shows Nicht eingebettet when nothing embedded', () => {
     render(
       <SubtitlePresencePills
         existingSub=""
@@ -33,7 +65,7 @@ describe('SubtitlePresencePills', () => {
         embeddedLanguages={noEmbedded}
       />
     )
-    expect(screen.getByText('Kein Sub')).toBeTruthy()
+    expect(screen.getByText('Nicht eingebettet')).toBeTruthy()
   })
 
   it('shows DE SRT ↑ for srt existing_sub when upgrade enabled', () => {
@@ -49,7 +81,7 @@ describe('SubtitlePresencePills', () => {
     expect(screen.getByText('DE SRT ↑')).toBeTruthy()
   })
 
-  it('shows DE ↓ ASS for embedded_ass', () => {
+  it('shows DE ASS ⬇ for embedded_ass', () => {
     render(
       <SubtitlePresencePills
         existingSub="embedded_ass"
@@ -58,10 +90,10 @@ describe('SubtitlePresencePills', () => {
         embeddedLanguages={enAss}
       />
     )
-    expect(screen.getByText('DE ↓ ASS')).toBeTruthy()
+    expect(screen.getByText('DE ASS ⬇')).toBeTruthy()
   })
 
-  it('shows DE ↓ SRT for embedded_srt', () => {
+  it('shows DE SRT ⬇ for embedded_srt', () => {
     render(
       <SubtitlePresencePills
         existingSub="embedded_srt"
@@ -70,7 +102,7 @@ describe('SubtitlePresencePills', () => {
         embeddedLanguages={noEmbedded}
       />
     )
-    expect(screen.getByText('DE ↓ SRT')).toBeTruthy()
+    expect(screen.getByText('DE SRT ⬇')).toBeTruthy()
   })
 
   it('shows DE ASS for ass sidecar existing_sub', () => {
@@ -94,7 +126,7 @@ describe('SubtitlePresencePills', () => {
         embeddedLanguages={enAss}
       />
     )
-    expect(screen.getByText('ENG ↓ ASS')).toBeTruthy()
+    expect(screen.getByText('ENG ASS ⬇')).toBeTruthy()
   })
 
   it('shows +N button when more than 2 embedded', () => {
@@ -120,7 +152,7 @@ describe('SubtitlePresencePills', () => {
     )
     const btn = screen.getByText('+1 ▾')
     fireEvent.click(btn)
-    expect(screen.getByText('FRA ↓ SRT')).toBeTruthy()
+    expect(screen.getByText('FRA SRT ⬇')).toBeTruthy()
   })
 
   it('sorts sourceLanguage first in right group (ISO 639-1 to 639-2 mapping)', () => {
@@ -133,8 +165,8 @@ describe('SubtitlePresencePills', () => {
       />
     )
     const pills = document.querySelectorAll('[data-testid="embedded-pill"]')
-    expect(pills[0].textContent).toBe('SPA ↓ ASS')
-    expect(pills[1].textContent).toBe('JPN ↓ SRT')
+    expect(pills[0].textContent).toBe('SPA ASS ⬇')
+    expect(pills[1].textContent).toBe('JPN SRT ⬇')
   })
 
   it('sorts eng first when sourceLanguage is en', () => {
@@ -147,8 +179,8 @@ describe('SubtitlePresencePills', () => {
       />
     )
     const pills = document.querySelectorAll('[data-testid="embedded-pill"]')
-    expect(pills[0].textContent).toBe('ENG ↓ ASS')
-    expect(pills[1].textContent).toBe('JPN ↓ SRT')
+    expect(pills[0].textContent).toBe('ENG ASS ⬇')
+    expect(pills[1].textContent).toBe('JPN SRT ⬇')
   })
 
   it('shows SRT without arrow when upgrade is disabled', () => {
@@ -164,7 +196,7 @@ describe('SubtitlePresencePills', () => {
     expect(screen.getByText('DE SRT')).toBeTruthy()
   })
 
-  it('shows SRT ↑ when upgrade is enabled', () => {
+  it('shows DE SRT ↑ when upgrade is enabled', () => {
     render(
       <SubtitlePresencePills
         existingSub="srt"
