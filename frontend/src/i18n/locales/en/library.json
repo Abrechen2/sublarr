@@ -113,6 +113,19 @@
     "history": "History",
     "back_to_library": "Back to Library"
   },
+  "movie_detail": {
+    "missing": "Missing",
+    "load_error": "Failed to load movie",
+    "back_to_library": "Back to Library",
+    "file_info": "File Info",
+    "path": "Path",
+    "subtitles": "Subtitles",
+    "no_missing": "No missing subtitles",
+    "search": "Search",
+    "skip": "Skip",
+    "re_enable": "Re-enable",
+    "searches": "searches"
+  },
   "series_detail": {
     "back_to_library": "Back to Library",
     "failed_to_load": "Failed to load series details.",

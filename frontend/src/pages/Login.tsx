@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Lock, Eye, EyeOff } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { login } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
 
 export function LoginPage() {
+  const { t } = useTranslation('common')
   const navigate = useNavigate()
   const location = useLocation()
   const queryClient = useQueryClient()
@@ -19,7 +21,7 @@ export function LoginPage() {
       queryClient.invalidateQueries({ queryKey: ['auth-status'] })
       navigate(from, { replace: true })
     },
-    onError: () => toast('Invalid password', 'error'),
+    onError: () => toast(t('login.invalid_password'), 'error'),
   })
 
   function handleSubmit(e: React.FormEvent) {
@@ -35,7 +37,7 @@ export function LoginPage() {
             <Lock size={24} style={{ color: 'var(--accent)' }} />
           </div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Sublarr</h1>
-          <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>Enter your password to continue</p>
+          <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>{t('login.subtitle')}</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="relative">
@@ -43,7 +45,7 @@ export function LoginPage() {
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
+              placeholder={t('login.password_placeholder')}
               className="w-full rounded-lg px-3 py-2 pr-10 text-sm"
               style={{
                 backgroundColor: 'var(--bg-input)',
@@ -62,7 +64,7 @@ export function LoginPage() {
           <button type="submit" disabled={isPending || !password}
             className="w-full rounded-lg py-2 text-sm font-semibold transition-opacity disabled:opacity-50"
             style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>
-            {isPending ? 'Logging in…' : 'Log In'}
+            {isPending ? t('login.logging_in') : t('login.log_in')}
           </button>
         </form>
       </div>

@@ -348,6 +348,8 @@
     "execution_log": "Execution Log"
   },
   "language_profiles": {
+    "title": "Language Profiles",
+    "description": "Configure language profiles for subtitle search and translation.",
     "forced_subtitles": "Forced Subtitles",
     "translation_backend": "Translation Backend",
     "fallback_chain": "Fallback Chain"

@@ -113,6 +113,19 @@
     "history": "Verlauf",
     "back_to_library": "Zurück zur Bibliothek"
   },
+  "movie_detail": {
+    "missing": "Fehlend",
+    "load_error": "Film konnte nicht geladen werden",
+    "back_to_library": "Zurück zur Bibliothek",
+    "file_info": "Dateiinformationen",
+    "path": "Pfad",
+    "subtitles": "Untertitel",
+    "no_missing": "Keine fehlenden Untertitel",
+    "search": "Suchen",
+    "skip": "Überspringen",
+    "re_enable": "Aktivieren",
+    "searches": "Suchen"
+  },
   "series_detail": {
     "back_to_library": "Zurück zur Bibliothek",
     "failed_to_load": "Seriendetails konnten nicht geladen werden.",

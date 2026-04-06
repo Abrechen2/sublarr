@@ -4,6 +4,7 @@
  */
 import { useParams, useNavigate } from 'react-router-dom'
 import { Loader2, FileVideo, ArrowLeft, Film, Search, SkipForward, RotateCcw } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useMovieDetail, useWantedItems, useSearchWantedItem, useUpdateWantedStatus } from '@/hooks/useApi'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import type { MovieDetail, WantedItem } from '@/lib/types'
@@ -11,6 +12,8 @@ import type { MovieDetail, WantedItem } from '@/lib/types'
 // ─── MovieHero ────────────────────────────────────────────────────────────────
 
 function MovieHero({ movie }: { movie: MovieDetail }) {
+  const { t } = useTranslation('library')
+
   return (
     <div
       className="rounded-lg overflow-hidden relative"
@@ -61,7 +64,7 @@ function MovieHero({ movie }: { movie: MovieDetail }) {
               className="px-3 py-1.5 rounded-md text-xs font-medium"
               style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
             >
-              <span style={{ color: 'var(--text-muted)' }}>Missing</span>
+              <span style={{ color: 'var(--text-muted)' }}>{t('movie_detail.missing')}</span>
               <span className="ml-1.5 font-semibold" style={{ color: 'var(--warning)' }}>
                 {movie.wanted_count ?? 0}
               </span>
@@ -76,6 +79,7 @@ function MovieHero({ movie }: { movie: MovieDetail }) {
 // ─── MovieWantedSection ───────────────────────────────────────────────────────
 
 function MovieWantedSection({ movieId }: { movieId: number }) {
+  const { t } = useTranslation('library')
   const { data: wanted, isLoading } = useWantedItems(
     1, 50, 'movie', undefined, undefined, false, movieId
   )
@@ -103,12 +107,12 @@ function MovieWantedSection({ movieId }: { movieId: number }) {
       data-testid="movie-wanted-section"
     >
       <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-        Subtitles
+        {t('movie_detail.subtitles')}
       </h2>
 
       {items.length === 0 ? (
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          No missing subtitles
+          {t('movie_detail.no_missing')}
         </p>
       ) : (
         <div className="space-y-2">
@@ -130,7 +134,7 @@ function MovieWantedSection({ movieId }: { movieId: number }) {
                 </span>
                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                   {item.status}
-                  {item.search_count > 0 && ` · ${item.search_count} searches`}
+                  {item.search_count > 0 && ` · ${item.search_count} ${t('movie_detail.searches')}`}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -148,7 +152,7 @@ function MovieWantedSection({ movieId }: { movieId: number }) {
                       }}
                     >
                       <Search size={10} />
-                      Search
+                      {t('movie_detail.search')}
                     </button>
                     <button
                       onClick={() => updateStatus.mutate({ itemId: item.id, status: 'ignored' })}
@@ -161,7 +165,7 @@ function MovieWantedSection({ movieId }: { movieId: number }) {
                       }}
                     >
                       <SkipForward size={10} />
-                      Skip
+                      {t('movie_detail.skip')}
                     </button>
                   </>
                 )}
@@ -177,7 +181,7 @@ function MovieWantedSection({ movieId }: { movieId: number }) {
                     }}
                   >
                     <RotateCcw size={10} />
-                    Re-enable
+                    {t('movie_detail.re_enable')}
                   </button>
                 )}
               </div>
@@ -192,6 +196,7 @@ function MovieWantedSection({ movieId }: { movieId: number }) {
 // ─── MovieDetailPage ─────────────────────────────────────────────────────────
 
 export function MovieDetailPage() {
+  const { t } = useTranslation('library')
   const { id } = useParams<{ id: string }>()
   const movieId = id && !isNaN(Number(id)) ? Number(id) : null
   const { data: movie, isLoading, error } = useMovieDetail(movieId)
@@ -214,14 +219,14 @@ export function MovieDetailPage() {
           style={{ color: 'var(--text-secondary)' }}
         >
           <ArrowLeft size={14} />
-          Back to Library
+          {t('movie_detail.back_to_library')}
         </button>
         <div
           className="rounded-lg p-8 text-center"
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
         >
           <FileVideo size={32} className="mx-auto mb-3" style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
-          <p style={{ color: 'var(--error)' }}>Failed to load movie</p>
+          <p style={{ color: 'var(--error)' }}>{t('movie_detail.load_error')}</p>
         </div>
       </div>
     )
@@ -230,7 +235,7 @@ export function MovieDetailPage() {
   return (
     <div className="space-y-4 animate-in">
       {/* Breadcrumb navigation */}
-      <Breadcrumb items={[{ label: 'Library', to: '/library' }, { label: movie.title }]} />
+      <Breadcrumb items={[{ label: t('title'), to: '/library' }, { label: movie.title }]} />
 
       {/* Hero Header */}
       <MovieHero movie={movie} />
@@ -241,12 +246,12 @@ export function MovieDetailPage() {
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
         <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-          File Info
+          {t('movie_detail.file_info')}
         </h2>
         <div className="space-y-2">
           <div className="flex items-start gap-2">
             <span className="text-xs font-medium w-24 flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
-              Path
+              {t('movie_detail.path')}
             </span>
             <span
               className="text-xs break-all"

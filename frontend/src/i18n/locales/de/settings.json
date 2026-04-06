@@ -348,6 +348,8 @@
     "execution_log": "Ausführungsprotokoll"
   },
   "language_profiles": {
+    "title": "Sprachprofile",
+    "description": "Sprachprofile für die Untertitelsuche und Übersetzung konfigurieren.",
     "forced_subtitles": "Erzwungene Untertitel",
     "translation_backend": "Übersetzungs-Backend",
     "fallback_chain": "Fallback-Kette"

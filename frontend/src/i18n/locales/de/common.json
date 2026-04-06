@@ -126,6 +126,19 @@
     "export": "Exportieren",
     "clearSelection": "Auswahl aufheben"
   },
+  "login": {
+    "subtitle": "Passwort eingeben um fortzufahren",
+    "password_placeholder": "Passwort",
+    "logging_in": "Anmelden…",
+    "log_in": "Anmelden",
+    "invalid_password": "Falsches Passwort"
+  },
+  "not_found": {
+    "title": "Seite nicht gefunden",
+    "message": "Die gesuchte Seite existiert nicht oder wurde verschoben.",
+    "go_back": "Zurück",
+    "go_dashboard": "Zum Dashboard"
+  },
   "search": {
     "placeholder": "Serien, Episoden, Untertitel suchen...",
     "shortcut": "Strg+K",
@@ -133,7 +146,24 @@
     "minChars": "Mindestens 2 Zeichen eingeben...",
     "series": "Serien",
     "episodes": "Episoden",
-    "subtitles": "Untertitel"
+    "subtitles": "Untertitel",
+    "aria_label": "Globale Suche",
+    "heading": "Globale Suche"
+  },
+  "settings_search": {
+    "placeholder": "Einstellungen suchen...",
+    "clear": "Suche löschen"
+  },
+  "cleanup_detail": {
+    "last_run_success": "Letzter Lauf erfolgreich",
+    "allowed_langs": "Erlaubte Sprachen",
+    "format_pref": "Format-Präferenz",
+    "schedule": "Zeitplan",
+    "preview": "Vorschau"
+  },
+  "health": {
+    "running": "Systemprüfung läuft...",
+    "close": "Schließen"
   },
   "shortcuts": {
     "title": "Tastenkürzel",

@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import { Home, ArrowLeft } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 export function NotFoundPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation('common')
 
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
@@ -16,9 +18,9 @@ export function NotFoundPage() {
         >
           404
         </div>
-        <h1 className="text-lg font-semibold mb-2">Page Not Found</h1>
+        <h1 className="text-lg font-semibold mb-2">{t('not_found.title')}</h1>
         <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
-          The page you're looking for doesn't exist or has been moved.
+          {t('not_found.message')}
         </p>
         <div className="flex justify-center flex-wrap gap-4">
           <button
@@ -28,7 +30,7 @@ export function NotFoundPage() {
             style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
           >
             <ArrowLeft size={14} />
-            Go Back
+            {t('not_found.go_back')}
           </button>
           <button
             onClick={() => navigate('/')}
@@ -36,7 +38,7 @@ export function NotFoundPage() {
             style={{ backgroundColor: 'var(--accent)' }}
           >
             <Home size={14} />
-            Go to Dashboard
+            {t('not_found.go_dashboard')}
           </button>
         </div>
       </div>

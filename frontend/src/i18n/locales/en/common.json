@@ -126,6 +126,19 @@
     "export": "Export",
     "clearSelection": "Clear selection"
   },
+  "login": {
+    "subtitle": "Enter your password to continue",
+    "password_placeholder": "Password",
+    "logging_in": "Logging in…",
+    "log_in": "Log In",
+    "invalid_password": "Invalid password"
+  },
+  "not_found": {
+    "title": "Page Not Found",
+    "message": "The page you're looking for doesn't exist or has been moved.",
+    "go_back": "Go Back",
+    "go_dashboard": "Go to Dashboard"
+  },
   "search": {
     "placeholder": "Search series, episodes, subtitles...",
     "shortcut": "Ctrl+K",
@@ -133,7 +146,24 @@
     "minChars": "Type at least 2 characters to search...",
     "series": "Series",
     "episodes": "Episodes",
-    "subtitles": "Subtitles"
+    "subtitles": "Subtitles",
+    "aria_label": "Global search",
+    "heading": "Global Search"
+  },
+  "settings_search": {
+    "placeholder": "Search settings...",
+    "clear": "Clear search"
+  },
+  "cleanup_detail": {
+    "last_run_success": "Last run successful",
+    "allowed_langs": "Allowed Languages",
+    "format_pref": "Format Preference",
+    "schedule": "Schedule",
+    "preview": "Preview"
+  },
+  "health": {
+    "running": "Running health checks...",
+    "close": "Close"
   },
   "shortcuts": {
     "title": "Keyboard Shortcuts",
