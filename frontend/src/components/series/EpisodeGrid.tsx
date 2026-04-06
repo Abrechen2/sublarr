@@ -1,4 +1,5 @@
 import type React from 'react'
+import { useTranslation } from 'react-i18next'
 import type { EpisodeRowStatus } from '@/components/library/EpisodeRow'
 
 /** CSS grid template matching the mockup exactly */
@@ -153,6 +154,7 @@ interface EpisodeInlineActionsProps {
 export function EpisodeInlineActions({
   status, isSearching, onSearch, onSkip, onFindBetter, onAccept, onSync, onDelete: _onDelete, onMore
 }: EpisodeInlineActionsProps) {
+  const { t } = useTranslation('library')
   if (isSearching) {
     return (
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -211,7 +213,7 @@ export function EpisodeInlineActions({
     <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end', alignItems: 'center' }}>
       <button
         onClick={onSync}
-        title="Auto-sync"
+        title={t('auto_sync')}
         style={{
           padding: '4px', borderRadius: '4px', border: 'none', cursor: 'pointer',
           backgroundColor: 'transparent', color: 'var(--text-muted)',
@@ -221,7 +223,7 @@ export function EpisodeInlineActions({
       >↻</button>
       <button
         onClick={onMore}
-        title="More actions"
+        title={t('more_actions')}
         style={{
           padding: '4px', border: 'none', cursor: 'pointer',
           backgroundColor: 'var(--accent)',

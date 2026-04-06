@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   useSeriesFansubPrefs,
   useSetSeriesFansubPrefs,
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
+  const { t } = useTranslation('library')
   const { data: prefs, isLoading } = useSeriesFansubPrefs(seriesId)
   const setPrefs = useSetSeriesFansubPrefs(seriesId)
   const deletePrefs = useDeleteSeriesFansubPrefs(seriesId)
@@ -102,7 +104,7 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
                 type="text"
                 value={preferred}
                 onChange={(e) => setPreferred(e.target.value)}
-                placeholder="SubsPlease, Erai-raws"
+                placeholder={t('fansub_preferred_placeholder')}
                 style={{
                   width: '100%', boxSizing: 'border-box',
                   background: 'var(--bg-input)', border: '1px solid var(--border)',
@@ -119,7 +121,7 @@ export function FansubOverrideModal({ seriesId, open, onClose }: Props) {
                 type="text"
                 value={excluded}
                 onChange={(e) => setExcluded(e.target.value)}
-                placeholder="HorribleSubs, CoalGirls"
+                placeholder={t('fansub_blocked_placeholder')}
                 style={{
                   width: '100%', boxSizing: 'border-box',
                   background: 'var(--bg-input)', border: '1px solid var(--border)',

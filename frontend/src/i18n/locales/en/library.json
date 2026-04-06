@@ -96,6 +96,15 @@
       "search_count": "Search count"
     }
   },
+  "auto_sync": "Auto-sync",
+  "more_actions": "More actions",
+  "fansub_preferred_placeholder": "e.g. SubsPlease, Erai-raws",
+  "fansub_blocked_placeholder": "e.g. HorribleSubs, CoalGirls",
+  "audio_track_title": "Preferred audio track for Whisper transcription",
+  "audio_track_auto": "Auto (by language)",
+  "extract_sidecar": "Extract as sidecar file",
+  "restore_from_backup": "Restore stream from backup (undo remux)",
+  "select_all_visible": "Select all visible",
   "health_check_scope_entire": "Entire Library",
   "health_check_scope_series": "Single Series",
   "engine_default": "Default engine",

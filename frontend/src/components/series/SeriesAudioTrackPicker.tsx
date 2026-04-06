@@ -7,6 +7,7 @@
  */
 
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Loader2, Music } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { listEpisodeTracks } from '@/api/client'
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function SeriesAudioTrackPicker({ seriesId, episodes }: Props) {
+  const { t } = useTranslation('library')
   const [open, setOpen] = useState(false)
 
   const firstEpId = episodes.find(e => e.id != null)?.id ?? null
@@ -68,7 +70,7 @@ export function SeriesAudioTrackPicker({ seriesId, episodes }: Props) {
           fontSize: '0.7rem',
           fontWeight: 500,
         }}
-        title="Preferred audio track for Whisper transcription"
+        title={t('audio_track_title')}
         onMouseEnter={(e) => {
           if (currentIndex === null) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
         }}
@@ -112,7 +114,7 @@ export function SeriesAudioTrackPicker({ seriesId, episodes }: Props) {
               <>
                 <DropdownItem
                   active={currentIndex === null}
-                  label="Auto (by language)"
+                  label={t('audio_track_auto')}
                   onClick={() => handleSelect(null)}
                   pending={setAudioPref.isPending}
                 />

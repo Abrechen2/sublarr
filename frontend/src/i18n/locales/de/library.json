@@ -96,6 +96,15 @@
       "search_count": "Anzahl Suchen"
     }
   },
+  "auto_sync": "Auto-Sync",
+  "more_actions": "Weitere Aktionen",
+  "fansub_preferred_placeholder": "z.B. SubsPlease, Erai-raws",
+  "fansub_blocked_placeholder": "z.B. HorribleSubs, CoalGirls",
+  "audio_track_title": "Bevorzugter Audio-Track für Whisper-Transkription",
+  "audio_track_auto": "Automatisch (nach Sprache)",
+  "extract_sidecar": "Als Sidecar-Datei extrahieren",
+  "restore_from_backup": "Stream aus Backup wiederherstellen (Remux rückgängig machen)",
+  "select_all_visible": "Alle sichtbaren auswählen",
   "health_check_scope_entire": "Gesamte Bibliothek",
   "health_check_scope_series": "Einzelne Serie",
   "engine_default": "Standard-Engine",
