@@ -5,6 +5,16 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.46.0-beta] - 2026-04-06
+
+### Added
+- **Persistente Einstellungs-Navigation** — Alle Settings-Seiten haben jetzt eine permanente Sidebar-Navigation (SettingsNav + SettingsShell), die auf jeder Unterseite sichtbar bleibt.
+
+### Fixed
+- **Sprachprofile prominent platziert** — Language Profiles stehen jetzt als erste Section auf der Untertitel-Seite und sind direkt sichtbar statt tief versteckt im Collapsed-Bereich.
+- **Sprachprofil-Formular vollständig übersetzt** — Alle UI-Strings im Language-Profiles-Formular sind jetzt auf Deutsch (Speichern, Abbrechen, Zielsprachen, Profilname etc.).
+- **Batch-Extract entfernt Untertitel nicht mehr ohne Sidecar** — Wenn die Extraktion eine leere Sidecar-Datei produziert, wird der embedded Subtitle-Stream nicht aus der MKV entfernt. Verhindert Datenverlust bei fehlgeschlagener Extraktion.
+
 ## [0.45.0-beta] - 2026-04-06
 
 ### Added
