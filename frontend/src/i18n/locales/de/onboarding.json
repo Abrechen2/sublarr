@@ -1,4 +1,5 @@
 {
+  "confirm_password": "Passwort bestätigen",
   "welcome": {
     "title": "Willkommen bei Sublarr",
     "subtitle": "Lass uns deinen Untertitel-Manager in wenigen Schritten einrichten."

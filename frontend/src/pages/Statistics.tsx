@@ -30,6 +30,7 @@ function ScoreBar({ pct }: { pct: number }) {
 }
 
 function SeriesQualityTable({ data }: { data: SeriesQuality[] }) {
+  const { t } = useTranslation('statistics')
   const [sortBy, setSortBy] = useState<'avg_score' | 'download_count'>('download_count')
   const sorted = [...data].sort((a, b) => b[sortBy] - a[sortBy])
   return (
@@ -53,7 +54,7 @@ function SeriesQualityTable({ data }: { data: SeriesQuality[] }) {
             >
               Downloads {sortBy === 'download_count' ? '▼' : ''}
             </th>
-            <th className="text-left py-2 pl-3 font-medium">Last Download</th>
+            <th className="text-left py-2 pl-3 font-medium">{t('last_download')}</th>
           </tr>
         </thead>
         <tbody>
