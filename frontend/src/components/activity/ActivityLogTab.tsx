@@ -76,7 +76,7 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
           </>
         ) : (
           <span style={{ color: 'var(--text-muted)' }}>
-            {t('activity.scanEvent', 'Wanted scan')}
+            {t('queue.scanner_running', 'Wanted scan')}
           </span>
         )}
       </span>
@@ -90,7 +90,14 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
 
 const EVENT_TYPES = ['download', 'extract', 'delete', 'scan'] as const
 
-export function ActivityLogTab({ defaultFilter }: { defaultFilter?: string }) {
+const EVENT_TYPE_I18N_KEYS: Record<string, string> = {
+  download: 'history.filter_downloads',
+  extract: 'history.filter_extract',
+  delete: 'history.filter_delete',
+  scan: 'history.filter_scan',
+}
+
+export function ActivityLogTab({ defaultFilter, hideFilter }: { defaultFilter?: string; hideFilter?: boolean }) {
   const { t } = useTranslation('activity')
   const [page, setPage] = useState(1)
   const [typeFilter, setTypeFilter] = useState<string | undefined>(defaultFilter)
@@ -111,40 +118,41 @@ export function ActivityLogTab({ defaultFilter }: { defaultFilter?: string }) {
   return (
     <div data-testid="activity-log-tab">
       {/* Filter bar */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
-        <button
-          onClick={() => { setTypeFilter(undefined); setPage(1) }}
-          style={{
-            padding: '4px 10px',
-            borderRadius: '4px',
-            border: '1px solid var(--border)',
-            background: typeFilter === undefined ? 'var(--accent)' : 'transparent',
-            color: typeFilter === undefined ? '#fff' : 'var(--text-secondary)',
-            cursor: 'pointer',
-            fontSize: '12px',
-          }}
-        >
-          {t('activity.filterAll', 'All')}
-        </button>
-        {EVENT_TYPES.map((type) => (
+      {!hideFilter && (
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
           <button
-            key={type}
-            onClick={() => { setTypeFilter(type); setPage(1) }}
+            onClick={() => { setTypeFilter(undefined); setPage(1) }}
             style={{
               padding: '4px 10px',
               borderRadius: '4px',
               border: '1px solid var(--border)',
-              background: typeFilter === type ? 'var(--accent)' : 'transparent',
-              color: typeFilter === type ? '#fff' : 'var(--text-secondary)',
+              background: typeFilter === undefined ? 'var(--accent)' : 'transparent',
+              color: typeFilter === undefined ? '#fff' : 'var(--text-secondary)',
               cursor: 'pointer',
               fontSize: '12px',
-              textTransform: 'capitalize',
             }}
           >
-            {type}
+            {t('filter.all', 'All')}
           </button>
-        ))}
-      </div>
+          {EVENT_TYPES.map((type) => (
+            <button
+              key={type}
+              onClick={() => { setTypeFilter(type); setPage(1) }}
+              style={{
+                padding: '4px 10px',
+                borderRadius: '4px',
+                border: '1px solid var(--border)',
+                background: typeFilter === type ? 'var(--accent)' : 'transparent',
+                color: typeFilter === type ? '#fff' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontSize: '12px',
+              }}
+            >
+              {t(EVENT_TYPE_I18N_KEYS[type], type)}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Table */}
       <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
@@ -153,7 +161,7 @@ export function ActivityLogTab({ defaultFilter }: { defaultFilter?: string }) {
             data-testid="activity-empty"
             style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}
           >
-            {t('activity.empty', 'No activity recorded yet.')}
+            {t('log_empty', 'No activity recorded yet.')}
           </div>
         ) : (
           entries.map((entry) => <ActivityRow key={entry.id} entry={entry} />)
@@ -172,7 +180,7 @@ export function ActivityLogTab({ defaultFilter }: { defaultFilter?: string }) {
             ←
           </button>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            {page} / {totalPages} ({total} {t('activity.events', 'events')})
+            {page} / {totalPages} ({total} {t('log_events', 'events')})
           </span>
           <button
             disabled={page >= totalPages}

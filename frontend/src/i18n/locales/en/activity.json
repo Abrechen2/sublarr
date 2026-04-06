@@ -7,12 +7,6 @@
     "history": "History",
     "blacklist": "Blacklist"
   },
-  "history": {
-    "filter_downloads": "Downloads",
-    "filter_extract": "Extractions",
-    "filter_delete": "Deletions",
-    "filter_scan": "Scans"
-  },
   "translations": {
     "no_active": "No active translation jobs",
     "no_queued": "No queued translation jobs",
@@ -50,6 +44,8 @@
     "lines": "lines"
   },
   "no_jobs": "No jobs found",
+  "log_empty": "No activity recorded yet.",
+  "log_events": "events",
   "retry_started": "Retry started",
   "retry_failed": "Retry failed",
   "retry_job": "Retry job",
@@ -80,6 +76,10 @@
     "no_queued": "No queued jobs"
   },
   "history": {
+    "filter_downloads": "Downloads",
+    "filter_extract": "Extractions",
+    "filter_delete": "Deletions",
+    "filter_scan": "Scans",
     "title": "Downloads",
     "subtitle": "Subtitle download history across all providers",
     "total_downloads": "Total Downloads",

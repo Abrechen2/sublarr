@@ -7,12 +7,6 @@
     "history": "Verlauf",
     "blacklist": "Sperrliste"
   },
-  "history": {
-    "filter_downloads": "Downloads",
-    "filter_extract": "Extraktionen",
-    "filter_delete": "Löschungen",
-    "filter_scan": "Scans"
-  },
   "translations": {
     "no_active": "Keine aktiven Übersetzungsjobs",
     "no_queued": "Keine wartenden Übersetzungsjobs",
@@ -50,6 +44,8 @@
     "lines": "Zeilen"
   },
   "no_jobs": "Keine Aufgaben gefunden",
+  "log_empty": "Noch keine Aktivität aufgezeichnet.",
+  "log_events": "Einträge",
   "retry_started": "Wiederholung gestartet",
   "retry_failed": "Wiederholung fehlgeschlagen",
   "retry_job": "Aufgabe wiederholen",
@@ -80,6 +76,10 @@
     "no_queued": "Keine wartenden Aufgaben"
   },
   "history": {
+    "filter_downloads": "Downloads",
+    "filter_extract": "Extraktionen",
+    "filter_delete": "Löschungen",
+    "filter_scan": "Scans",
     "title": "Downloads",
     "subtitle": "Untertitel-Download-Verlauf aller Provider",
     "total_downloads": "Downloads gesamt",
