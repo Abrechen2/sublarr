@@ -12,9 +12,9 @@
  * Danger Zone: Disable Translation button (not a SettingsSection, styled separately)
  */
 import { lazy, Suspense, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Server, MessageSquare, BookOpen, Settings2, RefreshCw, Mic, Layers, FlaskConical, AlertTriangle } from 'lucide-react'
+import { Server, MessageSquare, BookOpen, Settings2, RefreshCw, Layers, FlaskConical, AlertTriangle } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { EpisodeContextSection } from './TranslationTab'
@@ -46,10 +46,6 @@ const DefaultSyncEngineRow = lazy(() =>
 const AutoSyncSection = lazy(() =>
   import('./TranslationTab').then((m) => ({ default: m.AutoSyncSection })),
 )
-const WhisperTab = lazy(() =>
-  import('./WhisperTab').then((m) => ({ default: m.WhisperTab })),
-)
-
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function SectionSkeleton() {
@@ -70,6 +66,7 @@ function SectionSkeleton() {
 
 export function TranslationSettings() {
   const { t } = useTranslation('common')
+  const { t: tTranslation } = useTranslation('settings')
   const navigate = useNavigate()
   const [showDisableConfirm, setShowDisableConfirm] = useState(false)
   const disableTranslation = useDisableTranslation()
@@ -224,31 +221,33 @@ export function TranslationSettings() {
         </SettingsSection>
       </div>
 
-      {/* 6. Whisper (Speech-to-Text) (advanced — collapsed by default) */}
-      <div data-testid="section-whisper">
-        <SettingsSection
-          title={t('settings.translation.whisper.title', 'Whisper (Speech-to-Text)')}
-          description={t(
-            'settings.translation.whisper.description',
-            'Configure the Whisper speech-to-text engine for generating subtitles from audio.',
-          )}
-          icon={<Mic size={16} style={{ color: 'var(--accent)' }} />}
-          advanced={
-            <Suspense fallback={<SectionSkeleton />}>
-              <WhisperTab />
-            </Suspense>
-          }
+      {/* 6. Whisper — navigates to dedicated Transcription page */}
+      <div
+        data-testid="section-whisper"
+        style={{
+          padding: '14px 18px',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-lg)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <div>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+            {tTranslation('transcription_page.title')}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>
+            {tTranslation('transcription_page.subtitle')}
+          </div>
+        </div>
+        <Link
+          to="/settings/providers/transcription"
+          style={{ fontSize: '12px', color: 'var(--accent)' }}
         >
-          <p
-            className="text-[12px] text-[var(--text-muted)] py-2"
-            data-testid="whisper-summary"
-          >
-            {t(
-              'settings.translation.whisper.summary',
-              'Generate subtitles directly from audio tracks using the OpenAI Whisper speech recognition model.',
-            )}
-          </p>
-        </SettingsSection>
+          Configure →
+        </Link>
       </div>
       {/* 7. Episode Context (Step 45) */}
       <div data-testid="section-translation-context-wrapper">

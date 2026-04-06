@@ -13,7 +13,7 @@
 import { lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Shield, Archive, Webhook, FileText, Puzzle, Database, Key, Tv2, HardDrive, ScanLine, Download } from 'lucide-react'
+import { Shield, Archive, Webhook, FileText, Puzzle, Database, Key, HardDrive, ScanLine, Download } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
@@ -41,12 +41,6 @@ const MigrationTab = lazy(() =>
 )
 const ApiKeysTab = lazy(() =>
   import('./ApiKeysTab').then((m) => ({ default: m.ApiKeysTab })),
-)
-const AnidbTab = lazy(() =>
-  import('./AnidbTab').then((m) => ({ default: m.AnidbTab })),
-)
-const RemuxTab = lazy(() =>
-  import('./RemuxTab').then((m) => ({ default: m.RemuxTab })),
 )
 const StandaloneSettingsTab = lazy(() =>
   import('./StandaloneSettingsTab').then((m) => ({ default: m.StandaloneSettingsTab })),
@@ -371,40 +365,62 @@ export function SystemSettings() {
           </p>
         </SettingsSection>
       </div>
-      {/* 8. AniDB */}
-      <div data-testid="section-anidb">
-        <SettingsSection
-          title={t('settings.system.anidb.title', 'AniDB')}
-          description={t(
-            'settings.system.anidb.description',
-            'AniDB integration for anime metadata and mapping.',
-          )}
-          icon={<Tv2 size={16} style={{ color: 'var(--accent)' }} />}
-        >
-          <div data-testid="anidb-content">
-            <Suspense fallback={<SectionSkeleton />}>
-              <AnidbTab />
-            </Suspense>
+      {/* 8. AniDB — navigates to dedicated page */}
+      <div
+        data-testid="section-anidb"
+        style={{
+          padding: '14px 18px',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-lg)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <div>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+            {tSettings('metadata_page.title')}
           </div>
-        </SettingsSection>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>
+            {tSettings('metadata_page.subtitle')}
+          </div>
+        </div>
+        <Link
+          to="/settings/connections/metadata"
+          style={{ fontSize: '12px', color: 'var(--accent)' }}
+        >
+          Configure →
+        </Link>
       </div>
 
-      {/* 9. Remux */}
-      <div data-testid="section-remux">
-        <SettingsSection
-          title={t('settings.system.remux.title', 'Remux')}
-          description={t(
-            'settings.system.remux.description',
-            'Settings for remux operations and backup retention.',
-          )}
-          icon={<HardDrive size={16} style={{ color: 'var(--accent)' }} />}
-        >
-          <div data-testid="remux-content">
-            <Suspense fallback={<SectionSkeleton />}>
-              <RemuxTab />
-            </Suspense>
+      {/* 9. Remux — navigates to dedicated page */}
+      <div
+        data-testid="section-remux"
+        style={{
+          padding: '14px 18px',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-lg)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <div>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+            {tSettings('stream_management_page.title')}
           </div>
-        </SettingsSection>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>
+            {tSettings('stream_management_page.subtitle')}
+          </div>
+        </div>
+        <Link
+          to="/settings/subtitles/stream-management"
+          style={{ fontSize: '12px', color: 'var(--accent)' }}
+        >
+          Configure →
+        </Link>
       </div>
 
       {/* 10. Standalone Mode */}

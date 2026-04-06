@@ -101,7 +101,7 @@ describe('GeneralSettings', () => {
 
   it('displays the target language value from config', () => {
     renderWithProviders(<GeneralSettings />)
-    const input = screen.getByTestId('input-target-language')
+    const input = screen.getByTestId('select-target-language')
     expect(input).toHaveValue('de')
   })
 
@@ -126,7 +126,7 @@ describe('GeneralSettings', () => {
 
   it('calls updateConfig with target_language on change', () => {
     renderWithProviders(<GeneralSettings />)
-    const input = screen.getByTestId('input-target-language')
+    const input = screen.getByTestId('select-target-language')
     fireEvent.change(input, { target: { value: 'fr' } })
     expect(mockMutate).toHaveBeenCalledWith({ target_language: 'fr' })
   })

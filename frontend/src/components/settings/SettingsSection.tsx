@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
 interface SettingsSectionProps {
@@ -7,6 +8,7 @@ interface SettingsSectionProps {
   readonly icon?: React.ReactNode
   readonly children: React.ReactNode
   readonly advanced?: React.ReactNode
+  readonly advancedCount?: number
   readonly className?: string
 }
 
@@ -16,8 +18,10 @@ export function SettingsSection({
   icon,
   children,
   advanced,
+  advancedCount,
   className,
 }: SettingsSectionProps) {
+  const { t } = useTranslation('settings')
   const [advancedOpen, setAdvancedOpen] = useState(false)
 
   return (
@@ -88,7 +92,11 @@ export function SettingsSection({
             >
               &#9654;
             </span>
-            <span>Advanced</span>
+            <span>
+              {advancedCount !== undefined
+                ? t('advanced_toggle', { count: advancedCount })
+                : t('advanced_toggle', { count: 0 })}
+            </span>
           </button>
 
           {advancedOpen && (

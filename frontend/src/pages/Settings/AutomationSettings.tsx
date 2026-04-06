@@ -8,8 +8,9 @@
  * 4. Processing Pipeline    – post-download pipeline (translate, sync, cleanup)
  * 5. Scheduled Tasks (adv.) – read-only placeholder linking to Tasks page
  */
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Search, ArrowUpCircle, Workflow, Clock, Zap } from 'lucide-react'
+import { Search, ArrowUpCircle, Clock, Zap } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
@@ -37,6 +38,122 @@ function SectionSkeleton() {
 }
 
 // ─── Search & Scan Section ────────────────────────────────────────────────────
+
+function SearchScanAdvancedContent() {
+  const { t: tS } = useTranslation('settings')
+  const { data: config, isLoading } = useConfig()
+  const updateConfig = useUpdateConfig()
+  const save = (patch: Record<string, unknown>) => updateConfig.mutate(patch)
+
+  if (isLoading) return <SectionSkeleton />
+
+  return (
+    <div data-testid="search-scan-advanced-content">
+      <FormGroup
+        label={tS('automation_page.anime_series_only')}
+        hint={tS('automation_page.anime_series_only_hint')}
+        advanced
+        data-testid="form-group-wanted-anime-only"
+      >
+        <Toggle
+          checked={boolVal(config, 'wanted_anime_only', false)}
+          onChange={(v) => save({ wanted_anime_only: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label={tS('automation_page.anime_movies_only')}
+        hint={tS('automation_page.anime_movies_only_hint')}
+        advanced
+        data-testid="form-group-wanted-anime-movies-only"
+      >
+        <Toggle
+          checked={boolVal(config, 'wanted_anime_movies_only', false)}
+          onChange={(v) => save({ wanted_anime_movies_only: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      <FormGroup
+        label={tS('automation_page.max_items_per_run')}
+        hint={tS('automation_page.max_items_per_run_hint')}
+        htmlFor="wanted-search-max-items-per-run"
+        advanced
+        data-testid="form-group-wanted-search-max-items-per-run"
+      >
+        <input
+          id="wanted-search-max-items-per-run"
+          type="number"
+          data-testid="input-wanted-search-max-items-per-run"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={strVal(config, 'wanted_search_max_items_per_run', '50')}
+          onChange={(e) => save({ wanted_search_max_items_per_run: Number(e.target.value) })}
+          disabled={updateConfig.isPending}
+          min={1}
+          placeholder="50"
+        />
+      </FormGroup>
+
+      <FormGroup
+        label={tS('automation_page.adaptive_backoff')}
+        hint={tS('automation_page.adaptive_backoff_hint')}
+        advanced
+        data-testid="form-group-wanted-adaptive-backoff-enabled"
+      >
+        <Toggle
+          checked={boolVal(config, 'wanted_adaptive_backoff_enabled', false)}
+          onChange={(v) => save({ wanted_adaptive_backoff_enabled: v })}
+          disabled={updateConfig.isPending}
+        />
+      </FormGroup>
+
+      {boolVal(config, 'wanted_adaptive_backoff_enabled', false) && (
+        <>
+          <FormGroup
+            label={tS('automation_page.backoff_base')}
+            hint={tS('automation_page.backoff_base_hint')}
+            htmlFor="wanted-backoff-base-hours"
+            advanced
+            data-testid="form-group-wanted-backoff-base-hours"
+          >
+            <input
+              id="wanted-backoff-base-hours"
+              type="number"
+              data-testid="input-wanted-backoff-base-hours"
+              style={{ ...inputStyle, maxWidth: '120px' }}
+              value={strVal(config, 'wanted_backoff_base_hours', '1')}
+              onChange={(e) => save({ wanted_backoff_base_hours: Number(e.target.value) })}
+              disabled={updateConfig.isPending}
+              min={1}
+              placeholder="1"
+            />
+          </FormGroup>
+
+          <FormGroup
+            label={tS('automation_page.backoff_cap')}
+            hint={tS('automation_page.backoff_cap_hint')}
+            htmlFor="wanted-backoff-cap-hours"
+            advanced
+            data-testid="form-group-wanted-backoff-cap-hours"
+          >
+            <input
+              id="wanted-backoff-cap-hours"
+              type="number"
+              data-testid="input-wanted-backoff-cap-hours"
+              style={{ ...inputStyle, maxWidth: '120px' }}
+              value={strVal(config, 'wanted_backoff_cap_hours', '24')}
+              onChange={(e) => save({ wanted_backoff_cap_hours: Number(e.target.value) })}
+              disabled={updateConfig.isPending}
+              min={1}
+              placeholder="24"
+            />
+          </FormGroup>
+        </>
+      )}
+    </div>
+  )
+}
 
 function SearchScanContent() {
   const { t } = useTranslation('common')
@@ -149,25 +266,6 @@ function SearchScanContent() {
       </FormGroup>
 
       <FormGroup
-        label={tS('automation_page.max_items_per_run')}
-        hint={tS('automation_page.max_items_per_run_hint')}
-        htmlFor="wanted-search-max-items-per-run"
-        data-testid="form-group-wanted-search-max-items-per-run"
-      >
-        <input
-          id="wanted-search-max-items-per-run"
-          type="number"
-          data-testid="input-wanted-search-max-items-per-run"
-          style={{ ...inputStyle, maxWidth: '120px' }}
-          value={strVal(config, 'wanted_search_max_items_per_run', '50')}
-          onChange={(e) => save({ wanted_search_max_items_per_run: Number(e.target.value) })}
-          disabled={updateConfig.isPending}
-          min={1}
-          placeholder="50"
-        />
-      </FormGroup>
-
-      <FormGroup
         label={tS('automation_page.max_search_attempts')}
         hint={tS('automation_page.max_search_attempts_hint')}
         htmlFor="wanted-max-search-attempts"
@@ -199,30 +297,6 @@ function SearchScanContent() {
       </FormGroup>
 
       <FormGroup
-        label={tS('automation_page.anime_series_only')}
-        hint={tS('automation_page.anime_series_only_hint')}
-        data-testid="form-group-wanted-anime-only"
-      >
-        <Toggle
-          checked={boolVal(config, 'wanted_anime_only', false)}
-          onChange={(v) => save({ wanted_anime_only: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.anime_movies_only')}
-        hint={tS('automation_page.anime_movies_only_hint')}
-        data-testid="form-group-wanted-anime-movies-only"
-      >
-        <Toggle
-          checked={boolVal(config, 'wanted_anime_movies_only', false)}
-          onChange={(v) => save({ wanted_anime_movies_only: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
         label={tS('automation_page.skip_srt_no_ass')}
         hint={tS('automation_page.skip_srt_no_ass_hint')}
         data-testid="form-group-wanted-skip-srt-on-no-ass"
@@ -233,65 +307,47 @@ function SearchScanContent() {
           disabled={updateConfig.isPending}
         />
       </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.adaptive_backoff')}
-        hint={tS('automation_page.adaptive_backoff_hint')}
-        data-testid="form-group-wanted-adaptive-backoff-enabled"
-      >
-        <Toggle
-          checked={boolVal(config, 'wanted_adaptive_backoff_enabled', false)}
-          onChange={(v) => save({ wanted_adaptive_backoff_enabled: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      {boolVal(config, 'wanted_adaptive_backoff_enabled', false) && (
-        <>
-          <FormGroup
-            label={tS('automation_page.backoff_base')}
-            hint={tS('automation_page.backoff_base_hint')}
-            htmlFor="wanted-backoff-base-hours"
-            data-testid="form-group-wanted-backoff-base-hours"
-          >
-            <input
-              id="wanted-backoff-base-hours"
-              type="number"
-              data-testid="input-wanted-backoff-base-hours"
-              style={{ ...inputStyle, maxWidth: '120px' }}
-              value={strVal(config, 'wanted_backoff_base_hours', '1')}
-              onChange={(e) => save({ wanted_backoff_base_hours: Number(e.target.value) })}
-              disabled={updateConfig.isPending}
-              min={1}
-              placeholder="1"
-            />
-          </FormGroup>
-
-          <FormGroup
-            label={tS('automation_page.backoff_cap')}
-            hint={tS('automation_page.backoff_cap_hint')}
-            htmlFor="wanted-backoff-cap-hours"
-            data-testid="form-group-wanted-backoff-cap-hours"
-          >
-            <input
-              id="wanted-backoff-cap-hours"
-              type="number"
-              data-testid="input-wanted-backoff-cap-hours"
-              style={{ ...inputStyle, maxWidth: '120px' }}
-              value={strVal(config, 'wanted_backoff_cap_hours', '24')}
-              onChange={(e) => save({ wanted_backoff_cap_hours: Number(e.target.value) })}
-              disabled={updateConfig.isPending}
-              min={1}
-              placeholder="24"
-            />
-          </FormGroup>
-        </>
-      )}
     </div>
   )
 }
 
 // ─── Upgrade Rules Section ────────────────────────────────────────────────────
+
+function UpgradeRulesAdvancedContent() {
+  const { t } = useTranslation('common')
+  const { data: config, isLoading } = useConfig()
+  const updateConfig = useUpdateConfig()
+  const save = (patch: Record<string, unknown>) => updateConfig.mutate(patch)
+
+  if (isLoading) return <SectionSkeleton />
+
+  return (
+    <div data-testid="upgrade-rules-advanced-content">
+      <FormGroup
+        label={t('settings.automation.upgradeRules.checkInterval', 'Upgrade Scan Interval (hours)')}
+        hint={t(
+          'settings.automation.upgradeRules.checkIntervalHint',
+          'How often (in hours) existing subtitles are checked for upgrade candidates.',
+        )}
+        htmlFor="upgrade-scan-interval-hours"
+        advanced
+        data-testid="form-group-upgrade-scan-interval-hours"
+      >
+        <input
+          id="upgrade-scan-interval-hours"
+          type="number"
+          data-testid="input-upgrade-scan-interval-hours"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={strVal(config, 'upgrade_scan_interval_hours', '24')}
+          onChange={(e) => save({ upgrade_scan_interval_hours: Number(e.target.value) })}
+          disabled={updateConfig.isPending}
+          min={1}
+          placeholder="24"
+        />
+      </FormGroup>
+    </div>
+  )
+}
 
 function UpgradeRulesContent() {
   const { t } = useTranslation('common')
@@ -343,28 +399,6 @@ function UpgradeRulesContent() {
       </FormGroup>
 
       <FormGroup
-        label={t('settings.automation.upgradeRules.checkInterval', 'Upgrade Scan Interval (hours)')}
-        hint={t(
-          'settings.automation.upgradeRules.checkIntervalHint',
-          'How often (in hours) existing subtitles are checked for upgrade candidates.',
-        )}
-        htmlFor="upgrade-scan-interval-hours"
-        data-testid="form-group-upgrade-scan-interval-hours"
-      >
-        <input
-          id="upgrade-scan-interval-hours"
-          type="number"
-          data-testid="input-upgrade-scan-interval-hours"
-          style={{ ...inputStyle, maxWidth: '120px' }}
-          value={strVal(config, 'upgrade_scan_interval_hours', '24')}
-          onChange={(e) => save({ upgrade_scan_interval_hours: Number(e.target.value) })}
-          disabled={updateConfig.isPending}
-          min={1}
-          placeholder="24"
-        />
-      </FormGroup>
-
-      <FormGroup
         label={tS('automation_page.upgrade_window')}
         hint={tS('automation_page.upgrade_window_hint')}
         htmlFor="upgrade-window-days"
@@ -392,220 +426,6 @@ function UpgradeRulesContent() {
           checked={boolVal(config, 'upgrade_prefer_ass', false)}
           onChange={(v) => save({ upgrade_prefer_ass: v })}
           disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-    </div>
-  )
-}
-
-// ─── Processing Pipeline Section ──────────────────────────────────────────────
-
-function ProcessingPipelineContent() {
-  const { t } = useTranslation('common')
-  const { t: tS } = useTranslation('settings')
-  const { data: config, isLoading } = useConfig()
-  const updateConfig = useUpdateConfig()
-
-  const save = (patch: Record<string, unknown>) => updateConfig.mutate(patch)
-
-  if (isLoading) return <SectionSkeleton />
-
-  return (
-    <div data-testid="processing-pipeline-content">
-      <FormGroup
-        label={t('settings.automation.pipeline.autoTranslate', 'Auto-Translate')}
-        hint={t(
-          'settings.automation.pipeline.autoTranslateHint',
-          'Automatically translate downloaded subtitles to the target language.',
-        )}
-        data-testid="form-group-wanted-auto-translate"
-      >
-        <Toggle
-          checked={boolVal(config, 'wanted_auto_translate', false)}
-          onChange={(v) => save({ wanted_auto_translate: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={t('settings.automation.pipeline.autoSync', 'Auto-Sync')}
-        hint={t(
-          'settings.automation.pipeline.autoSyncHint',
-          'Automatically synchronise subtitles to video timing after download.',
-        )}
-        data-testid="form-group-auto-sync-after-download"
-      >
-        <Toggle
-          checked={boolVal(config, 'auto_sync_after_download', false)}
-          onChange={(v) => save({ auto_sync_after_download: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={t('settings.automation.pipeline.autoCleanup', 'Auto-Cleanup')}
-        hint={t(
-          'settings.automation.pipeline.autoCleanupHint',
-          'Remove duplicate and redundant subtitle files automatically after extract.',
-        )}
-        data-testid="form-group-auto-cleanup-after-extract"
-      >
-        <Toggle
-          checked={boolVal(config, 'auto_cleanup_after_extract', false)}
-          onChange={(v) => save({ auto_cleanup_after_extract: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.auto_common_fixes')}
-        hint={tS('automation_page.auto_common_fixes_hint')}
-        data-testid="form-group-auto-process-common-fixes"
-      >
-        <Toggle
-          checked={boolVal(config, 'auto_process_common_fixes', false)}
-          onChange={(v) => save({ auto_process_common_fixes: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.auto_hi_removal')}
-        hint={tS('automation_page.auto_hi_removal_hint')}
-        data-testid="form-group-auto-process-hi-removal"
-      >
-        <Toggle
-          checked={boolVal(config, 'auto_process_hi_removal', false)}
-          onChange={(v) => save({ auto_process_hi_removal: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.auto_credit_removal')}
-        hint={tS('automation_page.auto_credit_removal_hint')}
-        data-testid="form-group-auto-process-credit-removal"
-      >
-        <Toggle
-          checked={boolVal(config, 'auto_process_credit_removal', false)}
-          onChange={(v) => save({ auto_process_credit_removal: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.sync_threshold')}
-        hint={tS('automation_page.sync_threshold_hint')}
-        htmlFor="auto-process-sync-threshold"
-        data-testid="form-group-auto-process-sync-threshold"
-      >
-        <input
-          id="auto-process-sync-threshold"
-          type="number"
-          data-testid="input-auto-process-sync-threshold"
-          style={{ ...inputStyle, maxWidth: '120px' }}
-          value={strVal(config, 'auto_process_sync_threshold', '80')}
-          onChange={(e) => save({ auto_process_sync_threshold: Number(e.target.value) })}
-          disabled={updateConfig.isPending}
-          min={0}
-          max={100}
-          placeholder="80"
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.sync_fallback_engine')}
-        hint={tS('automation_page.sync_fallback_engine_hint')}
-        htmlFor="auto-process-sync-fallback-engine"
-        data-testid="form-group-auto-process-sync-fallback-engine"
-      >
-        <select
-          id="auto-process-sync-fallback-engine"
-          data-testid="select-auto-process-sync-fallback-engine"
-          style={{
-            ...inputStyle,
-            maxWidth: '160px',
-            cursor: 'pointer',
-          }}
-          value={strVal(config, 'auto_process_sync_fallback_engine', 'ffsubsync')}
-          onChange={(e) => save({ auto_process_sync_fallback_engine: e.target.value })}
-          disabled={updateConfig.isPending}
-        >
-          <option value="ffsubsync">ffsubsync</option>
-          <option value="alass">alass</option>
-        </select>
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.nfo_export')}
-        hint={tS('automation_page.nfo_export_hint')}
-        data-testid="form-group-auto-nfo-export"
-      >
-        <Toggle
-          checked={boolVal(config, 'auto_nfo_export', false)}
-          onChange={(v) => save({ auto_nfo_export: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.jellyfin_translate')}
-        hint={tS('automation_page.jellyfin_translate_hint')}
-        data-testid="form-group-jellyfin-play-translate-enabled"
-      >
-        <Toggle
-          checked={boolVal(config, 'jellyfin_play_translate_enabled', false)}
-          onChange={(v) => save({ jellyfin_play_translate_enabled: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.streaming_enabled')}
-        hint={tS('automation_page.streaming_enabled_hint')}
-        data-testid="form-group-streaming-enabled"
-      >
-        <Toggle
-          checked={boolVal(config, 'streaming_enabled', false)}
-          onChange={(v) => save({ streaming_enabled: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.post_processing_enabled')}
-        hint={tS('automation_page.post_processing_enabled_hint')}
-        data-testid="form-group-post-processing-enabled"
-      >
-        <Toggle
-          checked={boolVal(config, 'post_processing_enabled', false)}
-          onChange={(v) => save({ post_processing_enabled: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.post_download_command')}
-        hint={tS('automation_page.post_download_command_hint')}
-        htmlFor="post-download-command"
-        data-testid="form-group-post-download-command"
-      >
-        <textarea
-          id="post-download-command"
-          data-testid="input-post-download-command"
-          style={{
-            ...settingsInputStyle,
-            width: '100%',
-            minHeight: '60px',
-            resize: 'vertical',
-            fontFamily: 'monospace',
-            fontSize: '12px',
-          }}
-          value={strVal(config, 'post_download_command', '')}
-          onChange={(e) => save({ post_download_command: e.target.value })}
-          disabled={updateConfig.isPending}
-          placeholder="z.B. curl -s http://localhost:7878/api/refreshMonitor"
-          spellCheck={false}
         />
       </FormGroup>
     </div>
@@ -683,77 +503,6 @@ function WebhookContent() {
   )
 }
 
-// ─── Cleanup Section ──────────────────────────────────────────────────────────
-
-function CleanupContent() {
-  const { t } = useTranslation('settings')
-  const { data: config, isLoading } = useConfig()
-  const updateConfig = useUpdateConfig()
-
-  const save = (patch: Record<string, unknown>) => updateConfig.mutate(patch)
-
-  if (isLoading) return <SectionSkeleton />
-
-  return (
-    <div data-testid="cleanup-content">
-      <FormGroup
-        label={t('automation_page.keep_languages')}
-        hint={t('automation_page.keep_languages_hint')}
-        htmlFor="auto-cleanup-keep-languages"
-        data-testid="form-group-auto-cleanup-keep-languages"
-      >
-        <input
-          id="auto-cleanup-keep-languages"
-          type="text"
-          data-testid="input-auto-cleanup-keep-languages"
-          style={inputStyle}
-          value={strVal(config, 'auto_cleanup_keep_languages', '')}
-          onChange={(e) => save({ auto_cleanup_keep_languages: e.target.value })}
-          disabled={updateConfig.isPending}
-          placeholder="de,en"
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={t('automation_page.keep_formats')}
-        hint={t('automation_page.keep_formats_hint')}
-        htmlFor="auto-cleanup-keep-formats"
-        data-testid="form-group-auto-cleanup-keep-formats"
-      >
-        <input
-          id="auto-cleanup-keep-formats"
-          type="text"
-          data-testid="input-auto-cleanup-keep-formats"
-          style={inputStyle}
-          value={strVal(config, 'auto_cleanup_keep_formats', '')}
-          onChange={(e) => save({ auto_cleanup_keep_formats: e.target.value })}
-          disabled={updateConfig.isPending}
-          placeholder="ass,srt"
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={t('automation_page.trash_retention')}
-        hint={t('automation_page.trash_retention_hint')}
-        htmlFor="subtitle-trash-retention-days"
-        data-testid="form-group-subtitle-trash-retention-days"
-      >
-        <input
-          id="subtitle-trash-retention-days"
-          type="number"
-          data-testid="input-subtitle-trash-retention-days"
-          style={{ ...inputStyle, maxWidth: '120px' }}
-          value={strVal(config, 'subtitle_trash_retention_days', '30')}
-          onChange={(e) => save({ subtitle_trash_retention_days: Number(e.target.value) })}
-          disabled={updateConfig.isPending}
-          min={0}
-          placeholder="30"
-        />
-      </FormGroup>
-    </div>
-  )
-}
-
 // ─── Scheduled Tasks Section (advanced placeholder) ───────────────────────────
 
 function ScheduledTasksContent() {
@@ -794,6 +543,8 @@ export function AutomationSettings() {
             'Configure how often Sublarr searches for missing subtitles and scans the library.',
           )}
           icon={<Search size={16} style={{ color: 'var(--accent)' }} />}
+          advanced={<SearchScanAdvancedContent />}
+          advancedCount={5}
         >
           <SearchScanContent />
         </SettingsSection>
@@ -808,6 +559,8 @@ export function AutomationSettings() {
             'Define when and how existing subtitles should be replaced with better ones.',
           )}
           icon={<ArrowUpCircle size={16} style={{ color: 'var(--accent)' }} />}
+          advanced={<UpgradeRulesAdvancedContent />}
+          advancedCount={1}
         >
           <UpgradeRulesContent />
         </SettingsSection>
@@ -824,29 +577,62 @@ export function AutomationSettings() {
         </SettingsSection>
       </div>
 
-      {/* 4. Processing Pipeline */}
-      <div data-testid="section-processing-pipeline">
-        <SettingsSection
-          title={t('settings.automation.pipeline.title', 'Processing Pipeline')}
-          description={t(
-            'settings.automation.pipeline.description',
-            'Control post-download processing: translation, synchronisation, and cleanup.',
-          )}
-          icon={<Workflow size={16} style={{ color: 'var(--accent)' }} />}
+      {/* 4. Processing Pipeline — navigates to dedicated page */}
+      <div
+        data-testid="section-processing-pipeline"
+        style={{
+          padding: '14px 18px',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-lg)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <div>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+            {tS('post_processing_page.title')}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>
+            {tS('post_processing_page.subtitle')}
+          </div>
+        </div>
+        <Link
+          to="/settings/automation/post-processing"
+          style={{ fontSize: '12px', color: 'var(--accent)' }}
         >
-          <ProcessingPipelineContent />
-        </SettingsSection>
+          Configure →
+        </Link>
       </div>
 
-      {/* 5. Cleanup */}
-      <div data-testid="section-cleanup">
-        <SettingsSection
-          title={tS('automation_page.cleanup_section')}
-          description={tS('automation_page.cleanup_section_desc')}
-          icon={<Workflow size={16} style={{ color: 'var(--accent)' }} />}
+      {/* 5. Cleanup — navigates to dedicated cleanup page */}
+      <div
+        data-testid="section-cleanup"
+        style={{
+          padding: '14px 18px',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-lg)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <div>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+            {tS('automation_page.cleanup_section')}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>
+            {tS('automation_page.cleanup_section_desc')}
+          </div>
+        </div>
+        <Link
+          to="/settings/cleanup"
+          style={{ fontSize: '12px', color: 'var(--accent)' }}
         >
-          <CleanupContent />
-        </SettingsSection>
+          Configure →
+        </Link>
       </div>
 
       {/* 6. Scheduled Tasks (advanced — collapsed by default) */}
