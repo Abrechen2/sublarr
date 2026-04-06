@@ -59,7 +59,7 @@ export function PluginsPage() {
       <div>
         <h1 className="text-3xl font-bold mb-2">{t('plugins.marketplace_title')}</h1>
         <p className="text-gray-400">
-          Browse and install community-provided plugins to extend Sublarr's functionality.
+          {t('plugins.description')}
         </p>
       </div>
 
@@ -69,7 +69,7 @@ export function PluginsPage() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search plugins..."
+            placeholder={t('plugins.search_placeholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-gray-900 border border-gray-700 rounded text-white placeholder-gray-500"
@@ -81,9 +81,9 @@ export function PluginsPage() {
           className="px-4 py-2 bg-gray-900 border border-gray-700 rounded text-white"
         >
           <option value="all">{t('plugins.all_categories')}</option>
-          <option value="provider">Providers</option>
-          <option value="translation">Translation</option>
-          <option value="tool">Tools</option>
+          <option value="provider">{t('plugins.category_providers')}</option>
+          <option value="translation">{t('plugins.category_translation')}</option>
+          <option value="tool">{t('plugins.category_tools')}</option>
         </select>
       </div>
 
@@ -122,8 +122,8 @@ export function PluginsPage() {
               <p className="text-gray-300 mb-4 text-sm">{plugin.description}</p>
 
               <div className="flex items-center justify-between text-xs text-gray-400 mb-4">
-                <span>By {plugin.author}</span>
-                {plugin.downloads && <span>{plugin.downloads} downloads</span>}
+                <span>{t('plugins.by_author', { author: plugin.author })}</span>
+                {plugin.downloads && <span>{t('plugins.downloads_count', { count: plugin.downloads })}</span>}
               </div>
 
               <div className="flex gap-2">
@@ -133,7 +133,7 @@ export function PluginsPage() {
                     className="flex-1 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded flex items-center justify-center gap-2"
                   >
                     <Trash2 className="w-4 h-4" />
-                    Uninstall
+                    {t('plugins.uninstall')}
                   </button>
                 ) : (
                   <button
@@ -146,13 +146,13 @@ export function PluginsPage() {
                     ) : (
                       <Download className="w-4 h-4" />
                     )}
-                    Install
+                    {t('plugins.install')}
                   </button>
                 )}
                 <button
                   onClick={() => window.open(plugin.url, '_blank')}
                   className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded"
-                  title="View on GitHub"
+                  title={t('plugins.view_on_github')}
                 >
                   <ExternalLink className="w-4 h-4" />
                 </button>

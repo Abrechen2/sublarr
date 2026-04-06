@@ -124,14 +124,22 @@
     "unignore": "Unignore",
     "blacklist": "Blacklist",
     "export": "Export",
-    "clearSelection": "Clear selection"
+    "clearSelection": "Clear selection",
+    "extract": "Extract",
+    "translate": "Translate",
+    "extract_failed": "Batch extract failed",
+    "translate_failed": "Batch translate failed",
+    "queued_translation": "{{count}} queued for translation",
+    "items_updated": "{{count}} items updated"
   },
   "login": {
     "subtitle": "Enter your password to continue",
     "password_placeholder": "Password",
     "logging_in": "Logging in…",
     "log_in": "Log In",
-    "invalid_password": "Invalid password"
+    "invalid_password": "Invalid password",
+    "hide_password": "Hide password",
+    "show_password": "Show password"
   },
   "not_found": {
     "title": "Page Not Found",
@@ -193,7 +201,17 @@
   },
   "plugins": {
     "marketplace_title": "Plugin Marketplace",
-    "all_categories": "All Categories"
+    "all_categories": "All Categories",
+    "search_placeholder": "Search plugins...",
+    "category_providers": "Providers",
+    "category_translation": "Translation",
+    "category_tools": "Tools",
+    "by_author": "By {{author}}",
+    "downloads_count": "{{count}} downloads",
+    "install": "Install",
+    "uninstall": "Uninstall",
+    "view_on_github": "View on GitHub",
+    "description": "Browse and install community-provided plugins to extend Sublarr's functionality."
   },
   "trash": {
     "page_title": "Trash",

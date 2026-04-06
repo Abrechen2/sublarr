@@ -506,6 +506,7 @@ function RadarrMultiInstanceSection() {
 // ─── Standalone Section ───────────────────────────────────────────────────────
 
 function StandaloneSection() {
+  const { t } = useTranslation('settings')
   const { data: status } = useStandaloneStatus()
   const scan = useTriggerStandaloneScan()
 
@@ -517,10 +518,10 @@ function StandaloneSection() {
   function handleScan() {
     scan.mutate(undefined, {
       onSuccess: () => {
-        toast.success('Scan gestartet')
+        toast(t('connections.standalone.scan_started'), 'success')
       },
       onError: () => {
-        toast.error('Scan konnte nicht gestartet werden')
+        toast(t('connections.standalone.scan_failed'), 'error')
       },
     })
   }
@@ -538,12 +539,12 @@ function StandaloneSection() {
               color: isActive ? 'var(--accent)' : 'var(--muted-foreground)',
             }}
           >
-            {isAutoActivated ? 'Auto-aktiv' : isActive ? 'Aktiv' : 'Inaktiv'}
+            {isAutoActivated ? t('connections.standalone.status_auto') : isActive ? t('connections.standalone.status_active') : t('connections.standalone.status_inactive')}
           </span>
           <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
             {foldersCount > 0
-              ? `${foldersCount} Ordner überwacht`
-              : 'Keine Ordner konfiguriert'}
+              ? t('connections.standalone.folders_count', { count: foldersCount })
+              : t('connections.standalone.no_folders')}
           </span>
         </div>
 
@@ -563,16 +564,16 @@ function StandaloneSection() {
           ) : (
             <ScanLine size={14} />
           )}
-          {isScanning ? 'Scannt…' : 'Bibliothek jetzt scannen'}
+          {isScanning ? t('connections.standalone.scanning') : t('connections.standalone.scan_btn')}
         </button>
       </div>
 
       <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
         {isAutoActivated
-          ? 'Kein Sonarr/Radarr konfiguriert — Standalone-Modus läuft automatisch. Watched Folders unter Einstellungen → Advanced → Library Sources konfigurieren.'
+          ? t('connections.standalone.desc_auto')
           : isActive
-          ? 'Standalone-Modus ist manuell aktiviert.'
-          : 'Sonarr/Radarr konfiguriert — Standalone-Modus ist inaktiv. Kann unter Advanced → Library Sources manuell aktiviert werden.'}
+          ? t('connections.standalone.desc_active')
+          : t('connections.standalone.desc_inactive')}
       </p>
     </div>
   )
@@ -581,13 +582,12 @@ function StandaloneSection() {
 // ─── Exported Sections (used by ConnectionsSettings orchestrator) ─────────────
 
 export function SonarrSection() {
-  const { t } = useTranslation('common')
-  void t
+  const { t } = useTranslation('settings')
   return (
     <SettingsSection
       data-testid="sonarr-section"
       title="Sonarr"
-      description="TV series library management and download client integration"
+      description={t('connections.sonarr.section_desc')}
       icon={<Link size={16} style={{ color: 'var(--accent)' }} />}
     >
       <div className="py-3">
@@ -598,11 +598,12 @@ export function SonarrSection() {
 }
 
 export function RadarrSection() {
+  const { t } = useTranslation('settings')
   return (
     <SettingsSection
       data-testid="radarr-section"
       title="Radarr"
-      description="Movie library management and download client integration"
+      description={t('connections.radarr.section_desc')}
       icon={<PlugZap size={16} style={{ color: 'var(--accent)' }} />}
     >
       <div className="py-3">
@@ -613,11 +614,12 @@ export function RadarrSection() {
 }
 
 export function MediaServersSection() {
+  const { t } = useTranslation('settings')
   return (
     <SettingsSection
       data-testid="media-servers-section"
       title="Media Servers"
-      description="Jellyfin, Plex, and Kodi instances for library refresh notifications"
+      description={t('connections.media_servers.section_desc')}
       icon={<Server size={16} style={{ color: 'var(--accent)' }} />}
     >
       <div className="py-3">
@@ -630,10 +632,11 @@ export function MediaServersSection() {
 }
 
 export function StandaloneModeSection() {
+  const { t } = useTranslation('settings')
   return (
     <SettingsSection
-      title="Standalone-Modus"
-      description="Bibliothek ohne Sonarr/Radarr verwalten"
+      title={t('connections.standalone.section_title')}
+      description={t('connections.standalone.section_desc')}
       icon={<ScanLine size={16} style={{ color: 'var(--accent)' }} />}
     >
       <div className="py-3">

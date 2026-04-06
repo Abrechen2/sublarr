@@ -124,14 +124,22 @@
     "unignore": "Aktivieren",
     "blacklist": "Sperrliste",
     "export": "Exportieren",
-    "clearSelection": "Auswahl aufheben"
+    "clearSelection": "Auswahl aufheben",
+    "extract": "Extrahieren",
+    "translate": "Übersetzen",
+    "extract_failed": "Batch-Extraktion fehlgeschlagen",
+    "translate_failed": "Batch-Übersetzung fehlgeschlagen",
+    "queued_translation": "{{count}} zur Übersetzung eingereiht",
+    "items_updated": "{{count}} Einträge aktualisiert"
   },
   "login": {
     "subtitle": "Passwort eingeben um fortzufahren",
     "password_placeholder": "Passwort",
     "logging_in": "Anmelden…",
     "log_in": "Anmelden",
-    "invalid_password": "Falsches Passwort"
+    "invalid_password": "Falsches Passwort",
+    "hide_password": "Passwort ausblenden",
+    "show_password": "Passwort anzeigen"
   },
   "not_found": {
     "title": "Seite nicht gefunden",
@@ -193,7 +201,17 @@
   },
   "plugins": {
     "marketplace_title": "Plugin-Marktplatz",
-    "all_categories": "Alle Kategorien"
+    "all_categories": "Alle Kategorien",
+    "search_placeholder": "Plugins suchen...",
+    "category_providers": "Provider",
+    "category_translation": "Übersetzung",
+    "category_tools": "Werkzeuge",
+    "by_author": "Von {{author}}",
+    "downloads_count": "{{count}} Downloads",
+    "install": "Installieren",
+    "uninstall": "Deinstallieren",
+    "view_on_github": "Auf GitHub ansehen",
+    "description": "Community-Plugins für Sublarr durchsuchen und installieren."
   },
   "trash": {
     "page_title": "Papierkorb",

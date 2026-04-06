@@ -92,6 +92,8 @@
       "actions": "Actions"
     },
     "no_history": "No download history yet",
+    "preview_subtitle": "Preview subtitle",
+    "view_diff": "View diff with backup",
     "add_to_blacklist": "Add to blacklist",
     "blacklisted_from_history": "Blacklisted from history",
     "blacklist_confirm_title": "Add to Blacklist",

@@ -256,6 +256,16 @@
       "confirm": "Löschen bestätigen",
       "confirming": "Wird gelöscht...",
       "cancel": "Abbrechen"
+    },
+    "new_rule": {
+      "title": "Neue Cleanup-Regel",
+      "create": "Erstellen"
+    },
+    "rule_types": {
+      "language_filter": { "label": "Sprach-Filter", "desc": "Löscht Sidecars in nicht erlaubten Sprachen" },
+      "format_upgrade": { "label": "Format-Upgrade", "desc": "Löscht SRT wenn ASS für gleiche Episode existiert" },
+      "orphan_files": { "label": "Verwaiste Dateien", "desc": "Löscht Subtitle-Sidecars ohne Video auf Disk" },
+      "orphan_db": { "label": "DB-Bereinigung", "desc": "Entfernt DB-Einträge ohne Datei auf Disk" }
     }
   },
   "integrations": {
@@ -731,5 +741,32 @@
     "folder_remove_failed": "Fehler beim Entfernen des Ordners",
     "scan_started": "Scan gestartet",
     "scan_failed": "Fehler beim Starten des Scans"
+  },
+  "connections": {
+    "standalone": {
+      "status_auto": "Auto-aktiv",
+      "status_active": "Aktiv",
+      "status_inactive": "Inaktiv",
+      "folders_count": "{{count}} Ordner überwacht",
+      "no_folders": "Keine Ordner konfiguriert",
+      "scan_btn": "Bibliothek jetzt scannen",
+      "scanning": "Scannt…",
+      "scan_started": "Scan gestartet",
+      "scan_failed": "Scan konnte nicht gestartet werden",
+      "desc_auto": "Kein Sonarr/Radarr konfiguriert — Standalone-Modus läuft automatisch. Watched Folders unter Einstellungen → Advanced → Library Sources konfigurieren.",
+      "desc_active": "Standalone-Modus ist manuell aktiviert.",
+      "desc_inactive": "Sonarr/Radarr konfiguriert — Standalone-Modus ist inaktiv. Kann unter Advanced → Library Sources manuell aktiviert werden.",
+      "section_title": "Standalone-Modus",
+      "section_desc": "Bibliothek ohne Sonarr/Radarr verwalten"
+    },
+    "sonarr": {
+      "section_desc": "TV-Serien-Bibliothek und Download-Client-Integration"
+    },
+    "radarr": {
+      "section_desc": "Film-Bibliothek und Download-Client-Integration"
+    },
+    "media_servers": {
+      "section_desc": "Jellyfin-, Plex- und Kodi-Instanzen für automatische Bibliotheksaktualisierung"
+    }
   }
 }

@@ -175,7 +175,7 @@ export function LogsPage() {
               color: 'var(--text-secondary)',
               backgroundColor: 'var(--bg-surface)',
             }}
-            title="Download log file"
+            title={t('download_log_file')}
           >
             <Download size={14} />
           </button>

@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSpellCheck, useSpellDictionaries } from '@/hooks/useApi'
 import { CheckCircle, X, AlertCircle, Loader2, RefreshCw } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
@@ -32,6 +33,7 @@ export function SpellCheckPanel({
   const [isChecking, setIsChecking] = useState(false)
   const [selectedError, setSelectedError] = useState<SpellCheckError | null>(null)
 
+  const { t } = useTranslation('editor')
   const spellCheckMutation = useSpellCheck()
   const { data: _dictionaries } = useSpellDictionaries()
 
@@ -51,7 +53,7 @@ export function SpellCheckPanel({
       })
       setErrors(result.errors || [])
     } catch (_err) {
-      toast('Spell check failed', 'error')
+      toast(t('spell_check.failed'), 'error')
       setErrors([])
     } finally {
       setIsChecking(false)
@@ -79,7 +81,7 @@ export function SpellCheckPanel({
       }
       // Remove error from list
       setErrors((prev) => prev.filter((e) => e !== error))
-      toast(`Replaced "${error.word}" with "${suggestion}"`, 'success')
+      toast(t('spell_check.replaced', { word: error.word, suggestion }), 'success')
     },
     [onWordReplace],
   )
@@ -94,7 +96,7 @@ export function SpellCheckPanel({
       <div className={`p-4 bg-gray-900 rounded border border-gray-700 ${className}`}>
         <div className="flex items-center gap-2 text-green-500">
           <CheckCircle className="w-5 h-5" />
-          <span className="text-sm font-medium">No spelling errors found</span>
+          <span className="text-sm font-medium">{t('spell_check.no_errors')}</span>
         </div>
       </div>
     )
@@ -108,13 +110,13 @@ export function SpellCheckPanel({
           {isChecking ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin text-teal-500" />
-              <span className="text-sm text-gray-400">Checking spelling...</span>
+              <span className="text-sm text-gray-400">{t('spell_check.checking')}</span>
             </>
           ) : (
             <>
               <AlertCircle className="w-4 h-4 text-yellow-500" />
               <span className="text-sm font-medium">
-                {errors.length} error{errors.length !== 1 ? 's' : ''} found
+                {t(errors.length === 1 ? 'spell_check.errors_found_one' : 'spell_check.errors_found_other', { count: errors.length })}
               </span>
             </>
           )}
@@ -122,7 +124,7 @@ export function SpellCheckPanel({
         <button
           onClick={runSpellCheck}
           className="p-1 hover:bg-gray-800 rounded"
-          title="Re-check spelling"
+          title={t('spell_check.recheck')}
           disabled={isChecking}
         >
           <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
@@ -145,7 +147,7 @@ export function SpellCheckPanel({
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-medium text-red-400">{error.word}</span>
                     {error.line && (
-                      <span className="text-xs text-gray-500">Line {error.line}</span>
+                      <span className="text-xs text-gray-500">{t('spell_check.line', { n: error.line })}</span>
                     )}
                   </div>
                   {error.text && (
@@ -162,7 +164,7 @@ export function SpellCheckPanel({
                           handleReplace(error, suggestion)
                         }}
                         className="px-2 py-1 text-xs bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 rounded"
-                        title={`Replace with "${suggestion}"`}
+                        title={t('spell_check.replace_with', { suggestion })}
                       >
                         {suggestion}
                       </button>
@@ -173,7 +175,7 @@ export function SpellCheckPanel({
                         handleIgnore(error)
                       }}
                       className="p-1 hover:bg-gray-700 rounded"
-                      title="Ignore"
+                      title={t('spell_check.ignore')}
                     >
                       <X className="w-3 h-3" />
                     </button>

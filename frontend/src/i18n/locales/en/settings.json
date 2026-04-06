@@ -256,6 +256,16 @@
       "confirm": "Confirm Delete",
       "confirming": "Deleting...",
       "cancel": "Cancel"
+    },
+    "new_rule": {
+      "title": "New Cleanup Rule",
+      "create": "Create"
+    },
+    "rule_types": {
+      "language_filter": { "label": "Language Filter", "desc": "Deletes sidecars in disallowed languages" },
+      "format_upgrade": { "label": "Format Upgrade", "desc": "Deletes SRT when ASS exists for the same episode" },
+      "orphan_files": { "label": "Orphan Files", "desc": "Deletes subtitle sidecars with no video on disk" },
+      "orphan_db": { "label": "DB Cleanup", "desc": "Removes DB entries with no file on disk" }
     }
   },
   "integrations": {
@@ -731,5 +741,32 @@
     "folder_remove_failed": "Failed to remove folder",
     "scan_started": "Scan started",
     "scan_failed": "Failed to start scan"
+  },
+  "connections": {
+    "standalone": {
+      "status_auto": "Auto-active",
+      "status_active": "Active",
+      "status_inactive": "Inactive",
+      "folders_count": "{{count}} folders watched",
+      "no_folders": "No folders configured",
+      "scan_btn": "Scan library now",
+      "scanning": "Scanning…",
+      "scan_started": "Scan started",
+      "scan_failed": "Could not start scan",
+      "desc_auto": "No Sonarr/Radarr configured — standalone mode is running automatically. Configure watched folders under Settings → Advanced → Library Sources.",
+      "desc_active": "Standalone mode is manually enabled.",
+      "desc_inactive": "Sonarr/Radarr configured — standalone mode is inactive. Can be manually enabled under Advanced → Library Sources.",
+      "section_title": "Standalone Mode",
+      "section_desc": "Manage library without Sonarr/Radarr"
+    },
+    "sonarr": {
+      "section_desc": "TV series library management and download client integration"
+    },
+    "radarr": {
+      "section_desc": "Movie library management and download client integration"
+    },
+    "media_servers": {
+      "section_desc": "Jellyfin, Plex, and Kodi instances for library refresh notifications"
+    }
   }
 }

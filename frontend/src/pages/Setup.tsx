@@ -57,28 +57,28 @@ export function SetupPage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: 'var(--accent-muted)' }}>
             <Lock size={24} style={{ color: 'var(--accent)' }} />
           </div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Welcome to Sublarr</h1>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{t('setup.title')}</h1>
           <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-            Set a password to protect the UI, or leave it open.
+            {t('setup.subtitle')}
           </p>
         </div>
 
         <form onSubmit={handleSetPassword} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Password</label>
+            <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{t('setup.password_label')}</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter a password…"
+                placeholder={t('setup.password_placeholder')}
                 className="w-full rounded-lg px-3 py-2 pr-10 text-sm"
                 style={inputStyle}
                 autoFocus
               />
               <button type="button" onClick={() => setShowPassword((v) => !v)}
                 className="absolute right-2 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                aria-label={showPassword ? t('setup.hide_password') : t('setup.show_password')}>
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
@@ -89,7 +89,7 @@ export function SetupPage() {
               type={showPassword ? 'text' : 'password'}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              placeholder="Repeat password…"
+              placeholder={t('setup.confirm_placeholder')}
               className="w-full rounded-lg px-3 py-2 text-sm"
               style={inputStyle}
             />
@@ -98,14 +98,14 @@ export function SetupPage() {
           <button type="submit" disabled={isPending || !password}
             className="w-full rounded-lg py-2 text-sm font-semibold transition-opacity disabled:opacity-50"
             style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>
-            {isPending ? 'Setting up…' : 'Set Password & Continue'}
+            {isPending ? t('setup.setting_up') : t('setup.set_password_btn')}
           </button>
         </form>
 
         <div className="mt-4">
           <div className="relative my-4 flex items-center">
             <div className="flex-1" style={{ borderTop: '1px solid var(--border)' }} />
-            <span className="mx-3 text-xs" style={{ color: 'var(--text-muted)' }}>or</span>
+            <span className="mx-3 text-xs" style={{ color: 'var(--text-muted)' }}>{t('setup.or')}</span>
             <div className="flex-1" style={{ borderTop: '1px solid var(--border)' }} />
           </div>
           <button type="button" onClick={handleDisable} disabled={isPending}

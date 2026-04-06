@@ -4,5 +4,6 @@
   "auto_scroll_on": "Auto-Scrollen AN",
   "auto_scroll_off": "Auto-Scrollen AUS",
   "no_logs": "Keine Protokolleinträge",
-  "no_logs_for_level": "Keine Protokolleinträge für Stufe {{level}}"
+  "no_logs_for_level": "Keine Protokolleinträge für Stufe {{level}}",
+  "download_log_file": "Protokolldatei herunterladen"
 }

@@ -34,5 +34,17 @@
   "zoom_out": "Herauszoomen",
   "zoom_in": "Hineinzoomen",
   "pan_left": "Nach links",
-  "pan_right": "Nach rechts"
+  "pan_right": "Nach rechts",
+  "spell_check": {
+    "failed": "Rechtschreibprüfung fehlgeschlagen",
+    "replaced": "\"{{word}}\" durch \"{{suggestion}}\" ersetzt",
+    "no_errors": "Keine Rechtschreibfehler gefunden",
+    "checking": "Rechtschreibung wird geprüft...",
+    "errors_found_one": "{{count}} Fehler gefunden",
+    "errors_found_other": "{{count}} Fehler gefunden",
+    "recheck": "Erneut prüfen",
+    "ignore": "Ignorieren",
+    "replace_with": "Durch \"{{suggestion}}\" ersetzen",
+    "line": "Zeile {{n}}"
+  }
 }

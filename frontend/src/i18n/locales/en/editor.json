@@ -34,5 +34,17 @@
   "zoom_out": "Zoom Out",
   "zoom_in": "Zoom In",
   "pan_left": "Pan Left",
-  "pan_right": "Pan Right"
+  "pan_right": "Pan Right",
+  "spell_check": {
+    "failed": "Spell check failed",
+    "replaced": "Replaced \"{{word}}\" with \"{{suggestion}}\"",
+    "no_errors": "No spelling errors found",
+    "checking": "Checking spelling...",
+    "errors_found_one": "{{count}} error found",
+    "errors_found_other": "{{count}} errors found",
+    "recheck": "Re-check spelling",
+    "ignore": "Ignore",
+    "replace_with": "Replace with \"{{suggestion}}\"",
+    "line": "Line {{n}}"
+  }
 }

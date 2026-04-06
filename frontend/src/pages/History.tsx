@@ -151,7 +151,7 @@ const HistoryTableRow = memo(function HistoryTableRow({
                   onPreview(`${base}.${entry.language}.${entry.format}`)
                 }}
                 className="p-1 rounded transition-colors duration-150"
-                title="Preview subtitle"
+                title={t('history.preview_subtitle')}
                 style={{ color: 'var(--text-muted)' }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
                 onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
@@ -165,7 +165,7 @@ const HistoryTableRow = memo(function HistoryTableRow({
                   onDiff(`${base}.${entry.language}.${entry.format}`)
                 }}
                 className="p-1 rounded transition-colors duration-150"
-                title="View diff with backup"
+                title={t('history.view_diff')}
                 style={{ color: 'var(--text-muted)' }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
                 onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}

@@ -88,5 +88,17 @@
   },
   "errors": {
     "save_failed": "Failed to save settings"
+  },
+  "setup": {
+    "title": "Welcome to Sublarr",
+    "subtitle": "Set a password to protect the UI, or leave it open.",
+    "password_label": "Password",
+    "password_placeholder": "Enter a password…",
+    "confirm_placeholder": "Repeat password…",
+    "hide_password": "Hide password",
+    "show_password": "Show password",
+    "or": "or",
+    "setting_up": "Setting up…",
+    "set_password_btn": "Set Password & Continue"
   }
 }

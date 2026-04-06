@@ -6,6 +6,7 @@
  */
 import { useState, useRef, useEffect } from 'react'
 import { X, EyeOff, Eye, Ban, Download, Layers, Languages } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useBatchAction, useBatchTranslate } from '@/hooks/useApi'
 import { batchExtractEmbedded } from '@/api/client'
@@ -26,16 +27,8 @@ interface Props {
   onActionComplete?: (action: BatchAction, result: unknown) => void
 }
 
-const ACTION_DEFS: BatchActionDef[] = [
-  { action: 'ignore',    label: 'Ignore',    icon: <EyeOff className="h-3.5 w-3.5" /> },
-  { action: 'unignore',  label: 'Unignore',  icon: <Eye className="h-3.5 w-3.5" /> },
-  { action: 'blacklist', label: 'Blacklist',  icon: <Ban className="h-3.5 w-3.5" />, variant: 'destructive' },
-  { action: 'export',    label: 'Export',     icon: <Download className="h-3.5 w-3.5" /> },
-  { action: 'extract',   label: 'Extract',    icon: <Layers className="h-3.5 w-3.5" /> },
-  { action: 'translate', label: 'Translate',  icon: <Languages className="h-3.5 w-3.5" /> },
-]
-
 export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blacklist', 'export', 'extract', 'translate'], onActionComplete }: Props) {
+  const { t } = useTranslation('common')
   const count = useSelectionStore((s) => s.getCount(scope))
   const getSelectedArray = useSelectionStore((s) => s.getSelectedArray)
   const clearSelection = useSelectionStore((s) => s.clearSelection)
@@ -43,6 +36,15 @@ export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blackl
   const translateMutation = useBatchTranslate()
   const [lastResult, setLastResult] = useState<string | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const ACTION_DEFS: BatchActionDef[] = [
+    { action: 'ignore',    label: t('batch.ignore'),    icon: <EyeOff className="h-3.5 w-3.5" /> },
+    { action: 'unignore',  label: t('batch.unignore'),  icon: <Eye className="h-3.5 w-3.5" /> },
+    { action: 'blacklist', label: t('batch.blacklist'),  icon: <Ban className="h-3.5 w-3.5" />, variant: 'destructive' },
+    { action: 'export',    label: t('batch.export'),     icon: <Download className="h-3.5 w-3.5" /> },
+    { action: 'extract',   label: t('batch.extract'),    icon: <Layers className="h-3.5 w-3.5" /> },
+    { action: 'translate', label: t('batch.translate'),  icon: <Languages className="h-3.5 w-3.5" /> },
+  ]
 
   // Fix 1: Clean up pending setTimeout on unmount to avoid state update on unmounted component
   useEffect(() => {
@@ -63,19 +65,19 @@ export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blackl
         clearSelection(scope)
         onActionComplete?.(action, { queued: ids.length })
       } catch {
-        toast('Batch extract failed', 'error')
+        toast(t('batch.extract_failed'), 'error')
       }
       return
     }
     if (action === 'translate') {
       try {
         const result = await translateMutation.mutateAsync(ids)
-        setLastResult(`${result.queued} queued for translation`)
+        setLastResult(t('batch.queued_translation', { count: result.queued }))
         timeoutRef.current = setTimeout(() => setLastResult(null), 3000)
         clearSelection(scope)
         onActionComplete?.(action, result)
       } catch {
-        toast('Batch translate failed', 'error')
+        toast(t('batch.translate_failed'), 'error')
       }
       return
     }
@@ -95,7 +97,7 @@ export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blackl
     }
 
     const result = await batchMutation.mutateAsync({ itemIds: ids, action })
-    setLastResult(`${result.affected} items updated`)
+    setLastResult(t('batch.items_updated', { count: result.affected }))
     timeoutRef.current = setTimeout(() => setLastResult(null), 3000)
     clearSelection(scope)
     onActionComplete?.(action, result)
@@ -106,7 +108,7 @@ export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blackl
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-4 py-2.5 bg-background border border-border rounded-full shadow-2xl shadow-black/20">
       <span className="text-sm font-medium text-foreground mr-1">
-        {count} selected
+        {t('batch.itemsSelected', { count })}
       </span>
       <div className="h-4 w-px bg-border mx-1" />
 
@@ -134,7 +136,7 @@ export function BatchActionBar({ scope, actions = ['ignore', 'unignore', 'blackl
       <button
         onClick={() => clearSelection(scope)}
         className="p-1 text-muted-foreground hover:text-foreground rounded-full"
-        aria-label="Clear selection"
+        aria-label={t('batch.clearSelection')}
       >
         <X className="h-4 w-4" />
       </button>

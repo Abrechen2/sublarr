@@ -33,12 +33,7 @@ function formatBytes(bytes: number): string {
 
 // ─── Rule Type Options (for new rule modal) ──────────────────────────────────
 
-const RULE_TYPES = [
-  { value: 'language_filter', label: 'Sprach-Filter', desc: 'Löscht Sidecars in nicht erlaubten Sprachen' },
-  { value: 'format_upgrade', label: 'Format-Upgrade', desc: 'Löscht SRT wenn ASS für gleiche Episode existiert' },
-  { value: 'orphan_files', label: 'Verwaiste Dateien', desc: 'Löscht Subtitle-Sidecars ohne Video auf Disk' },
-  { value: 'orphan_db', label: 'DB-Bereinigung', desc: 'Entfernt DB-Einträge ohne Datei auf Disk' },
-]
+const RULE_TYPE_VALUES = ['language_filter', 'format_upgrade', 'orphan_files', 'orphan_db'] as const
 
 // ─── New Rule Modal ──────────────────────────────────────────────────────────
 
@@ -49,6 +44,7 @@ function NewRuleModal({
   onClose: () => void
   onCreate: (name: string, ruleType: string) => void
 }) {
+  const { t } = useTranslation('settings')
   const [name, setName] = useState('')
   const [ruleType, setRuleType] = useState('language_filter')
 
@@ -59,13 +55,13 @@ function NewRuleModal({
         style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
       >
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Neue Cleanup-Regel
+          {t('cleanup.new_rule.title')}
         </h3>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Regelname"
+          placeholder={t('cleanup.rules.namePlaceholder')}
           className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
           style={{
             background: 'var(--bg-primary)',
@@ -74,29 +70,29 @@ function NewRuleModal({
           }}
         />
         <div className="space-y-2">
-          {RULE_TYPES.map((rt) => (
+          {RULE_TYPE_VALUES.map((value) => (
             <label
-              key={rt.value}
+              key={value}
               className="flex items-start gap-3 p-3 rounded-lg cursor-pointer"
               style={{
-                background: ruleType === rt.value ? 'var(--accent-bg)' : 'var(--bg-primary)',
-                border: `1px solid ${ruleType === rt.value ? 'var(--accent)' : 'var(--border)'}`,
+                background: ruleType === value ? 'var(--accent-bg)' : 'var(--bg-primary)',
+                border: `1px solid ${ruleType === value ? 'var(--accent)' : 'var(--border)'}`,
               }}
             >
               <input
                 type="radio"
                 name="ruleType"
-                value={rt.value}
-                checked={ruleType === rt.value}
-                onChange={() => setRuleType(rt.value)}
+                value={value}
+                checked={ruleType === value}
+                onChange={() => setRuleType(value)}
                 className="mt-0.5"
               />
               <div>
                 <div className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  {rt.label}
+                  {t(`cleanup.rule_types.${value}.label`)}
                 </div>
                 <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                  {rt.desc}
+                  {t(`cleanup.rule_types.${value}.desc`)}
                 </div>
               </div>
             </label>
@@ -108,7 +104,7 @@ function NewRuleModal({
             className="px-3 py-1.5 rounded text-xs"
             style={{ color: 'var(--text-muted)' }}
           >
-            Abbrechen
+            {t('cleanup.rules.cancel')}
           </button>
           <button
             onClick={() => {
@@ -118,7 +114,7 @@ function NewRuleModal({
             className="px-4 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50"
             style={{ background: 'var(--accent)' }}
           >
-            Erstellen
+            {t('cleanup.new_rule.create')}
           </button>
         </div>
       </div>
@@ -151,7 +147,13 @@ function HistorySection() {
         <table className="w-full text-xs">
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              {['Datum', 'Aktion', 'Verarbeitet', 'Gelöscht', 'Freigegeben'].map((h) => (
+              {[
+                t('cleanup.history.date'),
+                t('cleanup.history.action'),
+                t('cleanup.history.processed'),
+                t('cleanup.history.deleted'),
+                t('cleanup.history.freed'),
+              ].map((h) => (
                 <th
                   key={h}
                   className="py-2 px-3 text-left font-medium"
@@ -207,7 +209,7 @@ function HistorySection() {
             className="px-2 py-1 rounded text-xs disabled:opacity-40"
             style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
           >
-            Zurück
+            {t('cleanup.history.prev')}
           </button>
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
             {page} / {Math.ceil(total / 50)}
@@ -218,7 +220,7 @@ function HistorySection() {
             className="px-2 py-1 rounded text-xs disabled:opacity-40"
             style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
           >
-            Weiter
+            {t('cleanup.history.next')}
           </button>
         </div>
       )}

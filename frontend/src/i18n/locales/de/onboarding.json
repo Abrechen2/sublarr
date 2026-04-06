@@ -88,5 +88,17 @@
   },
   "errors": {
     "save_failed": "Einstellungen konnten nicht gespeichert werden"
+  },
+  "setup": {
+    "title": "Willkommen bei Sublarr",
+    "subtitle": "Setze ein Passwort zum Schutz der Oberfläche, oder lasse es offen.",
+    "password_label": "Passwort",
+    "password_placeholder": "Passwort eingeben…",
+    "confirm_placeholder": "Passwort wiederholen…",
+    "hide_password": "Passwort ausblenden",
+    "show_password": "Passwort anzeigen",
+    "or": "oder",
+    "setting_up": "Wird eingerichtet…",
+    "set_password_btn": "Passwort setzen & Weiter"
   }
 }
