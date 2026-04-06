@@ -771,5 +771,25 @@
     "media_servers": {
       "section_desc": "Jellyfin-, Plex- und Kodi-Instanzen für automatische Bibliotheksaktualisierung"
     }
+  },
+  "metadata_page": {
+    "title": "Metadaten",
+    "subtitle": "AniDB-ID-Auflösung und Scan-Engine-Konfiguration"
+  },
+  "stream_management_page": {
+    "title": "Stream-Verwaltung",
+    "subtitle": "Untertitel-Streams aus Video-Containern extrahieren und verwalten"
+  },
+  "transcription_page": {
+    "title": "Transkription",
+    "subtitle": "Speech-to-Text-Backends zur Untertitel-Generierung aus Audio"
+  },
+  "post_processing_page": {
+    "title": "Post-Processing",
+    "subtitle": "Automatisch Fixes, Sync und Bereinigung nach dem Untertitel-Download"
+  },
+  "system_hooks_page": {
+    "title": "Hooks & Webhooks",
+    "subtitle": "Shell-Hooks und eingehende Webhook-Endpunkte für Sonarr, Radarr und Jellyfin"
   }
 }

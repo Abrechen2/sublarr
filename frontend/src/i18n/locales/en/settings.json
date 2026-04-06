@@ -771,5 +771,25 @@
     "media_servers": {
       "section_desc": "Jellyfin, Plex, and Kodi instances for library refresh notifications"
     }
+  },
+  "metadata_page": {
+    "title": "Metadata",
+    "subtitle": "AniDB ID resolution and scan engine configuration"
+  },
+  "stream_management_page": {
+    "title": "Stream Management",
+    "subtitle": "Remux subtitle streams from video containers"
+  },
+  "transcription_page": {
+    "title": "Transcription",
+    "subtitle": "Speech-to-text backends for generating subtitles from audio"
+  },
+  "post_processing_page": {
+    "title": "Post-Processing",
+    "subtitle": "Automatically apply fixes, sync and cleanup after subtitle download"
+  },
+  "system_hooks_page": {
+    "title": "Hooks & Webhooks",
+    "subtitle": "Shell hooks and incoming webhook endpoints for Sonarr, Radarr and Jellyfin"
   }
 }
