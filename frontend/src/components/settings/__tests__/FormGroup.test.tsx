@@ -1,6 +1,10 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { FormGroup } from '../FormGroup'
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}))
 
 describe('FormGroup', () => {
   it('renders with data-testid="form-group" by default', () => {
@@ -88,5 +92,36 @@ describe('FormGroup', () => {
       </FormGroup>,
     )
     expect(screen.getByTestId('form-group')).toHaveClass('custom-class')
+  })
+
+  it('renders badge and no inline hint when advanced is true', () => {
+    render(
+      <FormGroup label="My Field" hint="Tooltip text" advanced>
+        <input />
+      </FormGroup>,
+    )
+    expect(screen.queryByTestId('form-group-hint')).not.toBeInTheDocument()
+    expect(screen.getByTestId('form-group-advanced-badge')).toBeInTheDocument()
+    expect(screen.getByTestId('form-group-info-icon')).toBeInTheDocument()
+  })
+
+  it('renders no badge when advanced is false (default)', () => {
+    render(
+      <FormGroup label="My Field" hint="Inline hint">
+        <input />
+      </FormGroup>,
+    )
+    expect(screen.getByTestId('form-group-hint')).toBeInTheDocument()
+    expect(screen.queryByTestId('form-group-advanced-badge')).not.toBeInTheDocument()
+  })
+
+  it('renders nothing for badge/info when advanced is true and no hint provided', () => {
+    render(
+      <FormGroup label="My Field" advanced>
+        <input />
+      </FormGroup>,
+    )
+    expect(screen.queryByTestId('form-group-hint')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('form-group-tooltip')).not.toBeInTheDocument()
   })
 })
