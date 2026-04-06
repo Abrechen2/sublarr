@@ -163,7 +163,9 @@
   },
   "health": {
     "running": "Running health checks...",
-    "close": "Close"
+    "close": "Close",
+    "score_not_checked": "Quality Score: Not checked",
+    "score_value": "Quality Score: {{score}}/100"
   },
   "shortcuts": {
     "title": "Keyboard Shortcuts",

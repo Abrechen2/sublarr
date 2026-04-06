@@ -3,6 +3,7 @@ import {
   Loader2, RefreshCw, Wrench, XCircle, AlertTriangle, Info,
   CheckCircle2, X,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useHealthCheck, useHealthFix } from '@/hooks/useApi'
 import { HealthBadge } from './HealthBadge'
 import { toast } from '@/components/shared/Toast'
@@ -34,6 +35,7 @@ function severityOrder(severity: HealthIssue['severity']): number {
 }
 
 export function HealthCheckPanel({ filePath, onClose, onFixed }: HealthCheckPanelProps) {
+  const { t } = useTranslation('common')
   const { data, isLoading, refetch } = useHealthCheck(filePath)
   const healthFix = useHealthFix()
   const [showConfirm, setShowConfirm] = useState(false)
@@ -122,7 +124,7 @@ export function HealthCheckPanel({ filePath, onClose, onFixed }: HealthCheckPane
               onClick={onClose}
               className="p-1.5 rounded transition-colors"
               style={{ color: 'var(--text-muted)' }}
-              title="Close"
+              title={t('health.close')}
               onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--error)' }}
               onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
             >
@@ -136,7 +138,7 @@ export function HealthCheckPanel({ filePath, onClose, onFixed }: HealthCheckPane
       {isLoading && (
         <div className="flex items-center justify-center gap-2 py-8" style={{ color: 'var(--text-secondary)' }}>
           <Loader2 size={16} className="animate-spin" />
-          <span className="text-sm">Running health checks...</span>
+          <span className="text-sm">{t('health.running')}</span>
         </div>
       )}
 

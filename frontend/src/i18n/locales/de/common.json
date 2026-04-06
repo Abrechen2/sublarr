@@ -163,7 +163,9 @@
   },
   "health": {
     "running": "Systemprüfung läuft...",
-    "close": "Schließen"
+    "close": "Schließen",
+    "score_not_checked": "Qualitäts-Score: Nicht geprüft",
+    "score_value": "Qualitäts-Score: {{score}}/100"
   },
   "shortcuts": {
     "title": "Tastenkürzel",

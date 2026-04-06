@@ -1,4 +1,5 @@
 import { ShieldCheck } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface HealthBadgeProps {
   score: number | null
@@ -12,6 +13,7 @@ function getScoreColor(score: number): string {
 }
 
 export function HealthBadge({ score, size = 'sm' }: HealthBadgeProps) {
+  const { t } = useTranslation('common')
   if (score === null) {
     // Not yet checked
     if (size === 'sm') {
@@ -25,7 +27,7 @@ export function HealthBadge({ score, size = 'sm' }: HealthBadgeProps) {
             color: 'var(--text-muted)',
             border: '1px solid var(--border)',
           }}
-          title="Quality Score: Not checked"
+          title={t('health.score_not_checked')}
         >
           ?
         </span>
@@ -39,7 +41,7 @@ export function HealthBadge({ score, size = 'sm' }: HealthBadgeProps) {
           color: 'var(--text-muted)',
           border: '1px solid var(--border)',
         }}
-        title="Quality Score: Not checked"
+        title={t('health.score_not_checked')}
       >
         <ShieldCheck size={12} />
         Score: ?
@@ -59,7 +61,7 @@ export function HealthBadge({ score, size = 'sm' }: HealthBadgeProps) {
           backgroundColor: `${color}18`,
           color,
         }}
-        title={`Quality Score: ${score}/100`}
+        title={t('health.score_value', { score })}
       >
         {score}
       </span>
@@ -74,7 +76,7 @@ export function HealthBadge({ score, size = 'sm' }: HealthBadgeProps) {
         color,
         border: `1px solid ${color}30`,
       }}
-      title={`Quality Score: ${score}/100`}
+      title={t('health.score_value', { score })}
     >
       <ShieldCheck size={12} />
       Score: {score}
