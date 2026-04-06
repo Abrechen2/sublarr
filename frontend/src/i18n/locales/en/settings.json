@@ -517,6 +517,26 @@
     "monthly_backups": "Monthly Backups",
     "monthly_backups_desc": "Number of monthly backups to keep"
   },
+  "anidb_tab": {
+    "enable": "Enable AniDB",
+    "enable_desc": "Use AniDB for anime metadata lookups",
+    "cache_ttl": "Cache TTL (days)",
+    "cache_ttl_desc": "Days to cache AniDB responses",
+    "custom_field": "Custom Field Name",
+    "custom_field_desc": "Custom metadata field name for AniDB ID",
+    "fallback_mapping": "Fallback to Mapping",
+    "fallback_mapping_desc": "Use AniDB-to-Sonarr mapping when direct lookup fails"
+  },
+  "cache_tab": {
+    "ffprobe_label": "ffprobe cache",
+    "ffprobe_cleanup_btn": "Clean up stale entries",
+    "vacuum_label": "Database vacuum",
+    "vacuum_desc": "Reclaim unused space and defragment the SQLite database.",
+    "vacuum_confirm_title": "Run database VACUUM?",
+    "vacuum_confirm_desc": "This may take a moment on large databases. The app remains available.",
+    "vacuum_cancel": "Cancel",
+    "vacuum_run": "Run VACUUM"
+  },
   "general_page": {
     "title": "General",
     "subtitle": "Interface, server, and logging configuration",

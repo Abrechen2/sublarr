@@ -517,6 +517,26 @@
     "monthly_backups": "Monatliche Backups",
     "monthly_backups_desc": "Anzahl der monatlich zu behaltenden Backups"
   },
+  "anidb_tab": {
+    "enable": "AniDB aktivieren",
+    "enable_desc": "AniDB für Anime-Metadaten-Lookups verwenden",
+    "cache_ttl": "Cache-TTL (Tage)",
+    "cache_ttl_desc": "Tage für die AniDB-Antworten gecacht werden",
+    "custom_field": "Benutzerdefinierter Feldname",
+    "custom_field_desc": "Benutzerdefinierter Metadaten-Feldname für AniDB-ID",
+    "fallback_mapping": "Fallback auf Mapping",
+    "fallback_mapping_desc": "AniDB-zu-Sonarr-Mapping verwenden wenn direkte Suche fehlschlägt"
+  },
+  "cache_tab": {
+    "ffprobe_label": "ffprobe-Cache",
+    "ffprobe_cleanup_btn": "Veraltete Einträge bereinigen",
+    "vacuum_label": "Datenbank-Vacuum",
+    "vacuum_desc": "Ungenutzten Speicher freigeben und die SQLite-Datenbank defragmentieren.",
+    "vacuum_confirm_title": "Datenbank-VACUUM ausführen?",
+    "vacuum_confirm_desc": "Dies kann bei großen Datenbanken einen Moment dauern. Die App bleibt verfügbar.",
+    "vacuum_cancel": "Abbrechen",
+    "vacuum_run": "VACUUM ausführen"
+  },
   "general_page": {
     "title": "Allgemein",
     "subtitle": "Oberfläche, Server und Protokoll-Einstellungen",

@@ -3,6 +3,7 @@
  * Provides toggle, cache TTL, custom field name, and fallback mapping config.
  */
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
@@ -10,6 +11,7 @@ import { toast } from '@/components/shared/Toast'
 
 export function AnidbTab() {
   const { data: config } = useConfig()
+  const { t } = useTranslation('settings')
   const updateConfig = useUpdateConfig()
   const cfg = (config ?? {}) as Record<string, unknown>
 
@@ -46,8 +48,8 @@ export function AnidbTab() {
   return (
     <div className="space-y-3">
       <SettingRow
-        label="Enable AniDB"
-        description="Use AniDB for anime metadata lookups"
+        label={t('anidb_tab.enable')}
+        description={t('anidb_tab.enable_desc')}
       >
         <Toggle
           checked={anidbEnabled}
@@ -57,8 +59,8 @@ export function AnidbTab() {
       </SettingRow>
 
       <SettingRow
-        label="Cache TTL (days)"
-        description="Days to cache AniDB responses"
+        label={t('anidb_tab.cache_ttl')}
+        description={t('anidb_tab.cache_ttl_desc')}
       >
         <input
           type="number"
@@ -77,8 +79,8 @@ export function AnidbTab() {
       </SettingRow>
 
       <SettingRow
-        label="Custom Field Name"
-        description="Custom metadata field name for AniDB ID"
+        label={t('anidb_tab.custom_field')}
+        description={t('anidb_tab.custom_field_desc')}
       >
         <input
           type="text"
@@ -97,8 +99,8 @@ export function AnidbTab() {
       </SettingRow>
 
       <SettingRow
-        label="Fallback to Mapping"
-        description="Use AniDB-to-Sonarr mapping when direct lookup fails"
+        label={t('anidb_tab.fallback_mapping')}
+        description={t('anidb_tab.fallback_mapping_desc')}
       >
         <Toggle
           checked={anidbFallback}
