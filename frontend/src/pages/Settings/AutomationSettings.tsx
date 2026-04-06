@@ -402,6 +402,7 @@ function UpgradeRulesContent() {
 
 function ProcessingPipelineContent() {
   const { t } = useTranslation('common')
+  const { t: tS } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const updateConfig = useUpdateConfig()
 
@@ -457,8 +458,8 @@ function ProcessingPipelineContent() {
       </FormGroup>
 
       <FormGroup
-        label="Auto Common Fixes"
-        hint="Apply common subtitle formatting fixes automatically after download."
+        label={tS('automation_page.auto_common_fixes')}
+        hint={tS('automation_page.auto_common_fixes_hint')}
         data-testid="form-group-auto-process-common-fixes"
       >
         <Toggle
@@ -469,8 +470,8 @@ function ProcessingPipelineContent() {
       </FormGroup>
 
       <FormGroup
-        label="Auto HI Removal"
-        hint="Remove hearing-impaired tags from subtitles automatically after download."
+        label={tS('automation_page.auto_hi_removal')}
+        hint={tS('automation_page.auto_hi_removal_hint')}
         data-testid="form-group-auto-process-hi-removal"
       >
         <Toggle
@@ -481,8 +482,8 @@ function ProcessingPipelineContent() {
       </FormGroup>
 
       <FormGroup
-        label="Auto Credit Removal"
-        hint="Remove credit lines (translator notes, group ads) from subtitles automatically."
+        label={tS('automation_page.auto_credit_removal')}
+        hint={tS('automation_page.auto_credit_removal_hint')}
         data-testid="form-group-auto-process-credit-removal"
       >
         <Toggle
@@ -493,8 +494,8 @@ function ProcessingPipelineContent() {
       </FormGroup>
 
       <FormGroup
-        label="Auto-Sync Score Threshold"
-        hint="Minimum subtitle score required to trigger auto-sync after download."
+        label={tS('automation_page.sync_threshold')}
+        hint={tS('automation_page.sync_threshold_hint')}
         htmlFor="auto-process-sync-threshold"
         data-testid="form-group-auto-process-sync-threshold"
       >
@@ -513,8 +514,8 @@ function ProcessingPipelineContent() {
       </FormGroup>
 
       <FormGroup
-        label="Sync Fallback Engine"
-        hint="Synchronisation engine used when the primary sync attempt fails. ffsubsync is audio-based; alass is AI-based."
+        label={tS('automation_page.sync_fallback_engine')}
+        hint={tS('automation_page.sync_fallback_engine_hint')}
         htmlFor="auto-process-sync-fallback-engine"
         data-testid="form-group-auto-process-sync-fallback-engine"
       >
@@ -536,8 +537,8 @@ function ProcessingPipelineContent() {
       </FormGroup>
 
       <FormGroup
-        label="Export NFO Sidecar"
-        hint="Write an NFO metadata sidecar file alongside each downloaded subtitle."
+        label={tS('automation_page.nfo_export')}
+        hint={tS('automation_page.nfo_export_hint')}
         data-testid="form-group-auto-nfo-export"
       >
         <Toggle
@@ -548,8 +549,8 @@ function ProcessingPipelineContent() {
       </FormGroup>
 
       <FormGroup
-        label="Translate on Jellyfin Playback"
-        hint="Automatically translate subtitles when Jellyfin starts playback of a new episode."
+        label={tS('automation_page.jellyfin_translate')}
+        hint={tS('automation_page.jellyfin_translate_hint')}
         data-testid="form-group-jellyfin-play-translate-enabled"
       >
         <Toggle
@@ -560,8 +561,8 @@ function ProcessingPipelineContent() {
       </FormGroup>
 
       <FormGroup
-        label="Streaming aktiviert"
-        hint="Subtitle-Streaming-Modus aktivieren (experimentell). Erlaubt Live-Übertragung von Untertiteln an kompatible Player."
+        label={tS('automation_page.streaming_enabled')}
+        hint={tS('automation_page.streaming_enabled_hint')}
         data-testid="form-group-streaming-enabled"
       >
         <Toggle
@@ -572,8 +573,8 @@ function ProcessingPipelineContent() {
       </FormGroup>
 
       <FormGroup
-        label="Post-Processing aktiviert"
-        hint="Führt nach jedem erfolgreichen Subtitle-Download den konfigurierten Shell-Befehl aus."
+        label={tS('automation_page.post_processing_enabled')}
+        hint={tS('automation_page.post_processing_enabled_hint')}
         data-testid="form-group-post-processing-enabled"
       >
         <Toggle
@@ -584,8 +585,8 @@ function ProcessingPipelineContent() {
       </FormGroup>
 
       <FormGroup
-        label="Post-Download-Befehl"
-        hint="Shell-Befehl nach Subtitle-Download. Variablen: {subtitle_path}, {path}, {language}, {provider}, {score}, {media_type}, {video_path}"
+        label={tS('automation_page.post_download_command')}
+        hint={tS('automation_page.post_download_command_hint')}
         htmlFor="post-download-command"
         data-testid="form-group-post-download-command"
       >
@@ -614,6 +615,7 @@ function ProcessingPipelineContent() {
 // ─── Webhook Section ──────────────────────────────────────────────────────────
 
 function WebhookContent() {
+  const { t } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const updateConfig = useUpdateConfig()
 
@@ -624,8 +626,8 @@ function WebhookContent() {
   return (
     <div data-testid="webhook-content">
       <FormGroup
-        label="Webhook Delay (minutes)"
-        hint="Wait this many minutes after a Sonarr/Radarr webhook before searching. Allows time for the file to appear."
+        label={t('automation_page.webhook_delay')}
+        hint={t('automation_page.webhook_delay_hint')}
         htmlFor="webhook-delay-minutes"
         data-testid="form-group-webhook-delay-minutes"
       >
@@ -643,8 +645,8 @@ function WebhookContent() {
       </FormGroup>
 
       <FormGroup
-        label="Auto-Scan on Webhook"
-        hint="Trigger a library scan automatically when a Sonarr/Radarr webhook is received."
+        label={t('automation_page.webhook_auto_scan')}
+        hint={t('automation_page.webhook_auto_scan_hint')}
         data-testid="form-group-webhook-auto-scan"
       >
         <Toggle
@@ -655,8 +657,8 @@ function WebhookContent() {
       </FormGroup>
 
       <FormGroup
-        label="Auto-Search on Webhook"
-        hint="Trigger a subtitle search automatically when a download webhook is received."
+        label={t('automation_page.webhook_auto_search')}
+        hint={t('automation_page.webhook_auto_search_hint')}
         data-testid="form-group-webhook-auto-search"
       >
         <Toggle
@@ -667,8 +669,8 @@ function WebhookContent() {
       </FormGroup>
 
       <FormGroup
-        label="Auto-Translate on Webhook"
-        hint="Automatically translate subtitles found via a webhook-triggered search."
+        label={t('automation_page.webhook_auto_translate')}
+        hint={t('automation_page.webhook_auto_translate_hint')}
         data-testid="form-group-webhook-auto-translate"
       >
         <Toggle
@@ -684,6 +686,7 @@ function WebhookContent() {
 // ─── Cleanup Section ──────────────────────────────────────────────────────────
 
 function CleanupContent() {
+  const { t } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()
   const updateConfig = useUpdateConfig()
 
@@ -694,8 +697,8 @@ function CleanupContent() {
   return (
     <div data-testid="cleanup-content">
       <FormGroup
-        label="Keep Languages"
-        hint="Comma-separated language codes to keep when cleaning up duplicates (e.g. de,en)."
+        label={t('automation_page.keep_languages')}
+        hint={t('automation_page.keep_languages_hint')}
         htmlFor="auto-cleanup-keep-languages"
         data-testid="form-group-auto-cleanup-keep-languages"
       >
@@ -712,8 +715,8 @@ function CleanupContent() {
       </FormGroup>
 
       <FormGroup
-        label="Keep Formats"
-        hint="Comma-separated subtitle formats to keep during cleanup (e.g. ass,srt)."
+        label={t('automation_page.keep_formats')}
+        hint={t('automation_page.keep_formats_hint')}
         htmlFor="auto-cleanup-keep-formats"
         data-testid="form-group-auto-cleanup-keep-formats"
       >
@@ -730,8 +733,8 @@ function CleanupContent() {
       </FormGroup>
 
       <FormGroup
-        label="Trash Retention (days)"
-        hint="Keep deleted subtitles in trash for this many days before permanent removal."
+        label={t('automation_page.trash_retention')}
+        hint={t('automation_page.trash_retention_hint')}
         htmlFor="subtitle-trash-retention-days"
         data-testid="form-group-subtitle-trash-retention-days"
       >
@@ -772,6 +775,7 @@ function ScheduledTasksContent() {
 
 export function AutomationSettings() {
   const { t } = useTranslation('common')
+  const { t: tS } = useTranslation('settings')
 
   return (
     <SettingsDetailLayout
@@ -812,8 +816,8 @@ export function AutomationSettings() {
       {/* 3. Webhook */}
       <div data-testid="section-webhook">
         <SettingsSection
-          title="Webhook"
-          description="Control what happens automatically when Sonarr/Radarr sends a download notification."
+          title={tS('automation_page.webhook_section')}
+          description={tS('automation_page.webhook_section_desc')}
           icon={<Zap size={16} style={{ color: 'var(--accent)' }} />}
         >
           <WebhookContent />
@@ -837,8 +841,8 @@ export function AutomationSettings() {
       {/* 5. Cleanup */}
       <div data-testid="section-cleanup">
         <SettingsSection
-          title="Subtitle Cleanup"
-          description="Control which subtitles are kept during cleanup and how long deleted files are retained."
+          title={tS('automation_page.cleanup_section')}
+          description={tS('automation_page.cleanup_section_desc')}
           icon={<Workflow size={16} style={{ color: 'var(--accent)' }} />}
         >
           <CleanupContent />
