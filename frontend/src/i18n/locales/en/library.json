@@ -49,6 +49,7 @@
   "no_items": "No {{type}} found. Configure {{source}} in Settings.",
   "wanted": {
     "title": "Wanted",
+    "page_subtitle": "Subtitles missing from your library",
     "items_missing": "{{count}} items missing subtitles",
     "search_all": "Search All",
     "searching": "Searching...",

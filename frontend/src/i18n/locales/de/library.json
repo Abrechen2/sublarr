@@ -49,6 +49,7 @@
   "no_items": "Keine {{type}} gefunden. Konfiguriere {{source}} in den Einstellungen.",
   "wanted": {
     "title": "Gesucht",
+    "page_subtitle": "Fehlende Untertitel in deiner Bibliothek",
     "items_missing": "{{count}} Einträge ohne Untertitel",
     "search_all": "Alle durchsuchen",
     "searching": "Suche...",
