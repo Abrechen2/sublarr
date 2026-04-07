@@ -1,4 +1,4 @@
-import { Globe, HardDrive, FileText, Monitor } from 'lucide-react'
+import { HardDrive, FileText, Monitor } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
@@ -15,29 +15,6 @@ const LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR'] as const
 const LOG_FORMATS = ['text', 'json'] as const
 const SCAN_ENGINES = ['auto', 'ffprobe', 'mediainfo'] as const
 
-const LANGUAGE_OPTIONS = [
-  { value: 'de', label: 'Deutsch' },
-  { value: 'en', label: 'English' },
-  { value: 'fr', label: 'Français' },
-  { value: 'ja', label: 'Japanese' },
-  { value: 'es', label: 'Español' },
-  { value: 'it', label: 'Italiano' },
-  { value: 'pt', label: 'Português' },
-  { value: 'nl', label: 'Nederlands' },
-  { value: 'pl', label: 'Polski' },
-  { value: 'ru', label: 'Русский' },
-  { value: 'ko', label: '한국어' },
-  { value: 'zh', label: '中文' },
-  { value: 'ar', label: 'العربية' },
-  { value: 'tr', label: 'Türkçe' },
-  { value: 'sv', label: 'Svenska' },
-  { value: 'da', label: 'Dansk' },
-  { value: 'fi', label: 'Suomi' },
-  { value: 'no', label: 'Norsk' },
-  { value: 'cs', label: 'Čeština' },
-  { value: 'hu', label: 'Magyar' },
-] as const
-
 const LIBRARY_VIEWS = ['grid', 'list'] as const
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -47,18 +24,6 @@ export function GeneralSettings() {
   const { mutate: updateConfig, isPending } = useUpdateConfig()
   const { t } = useTranslation('settings')
 
-  const hiOptions = [
-    { value: 'include', label: t('general_page.hi_include') },
-    { value: 'prefer',  label: t('general_page.hi_prefer') },
-    { value: 'exclude', label: t('general_page.hi_exclude') },
-    { value: 'only',    label: t('general_page.hi_only') },
-  ]
-  const forcedOptions = [
-    { value: 'include', label: t('general_page.forced_include') },
-    { value: 'prefer',  label: t('general_page.forced_prefer') },
-    { value: 'exclude', label: t('general_page.forced_exclude') },
-    { value: 'only',    label: t('general_page.forced_only') },
-  ]
   const librarySorts = [
     { value: 'alpha', label: t('general_page.sort_alpha') },
     { value: 'date',  label: t('general_page.sort_date') },
@@ -100,99 +65,6 @@ export function GeneralSettings() {
       subtitle={t('general_page.subtitle')}
     >
       <div data-testid="general-settings" className="space-y-4">
-
-        {/* ── Interface ────────────────────────────────────────────────── */}
-        <div data-testid="section-interface">
-          <SettingsSection
-            title={t('general_page.interface_section')}
-            description={t('general_page.interface_desc')}
-            icon={<Globe size={16} style={{ color: 'var(--accent)' }} />}
-          >
-            <FormGroup
-              label={t('general_page.source_language')}
-              hint={t('general_page.source_language_hint')}
-              htmlFor="source-language"
-              data-testid="form-group-source-language"
-            >
-              <input
-                id="source-language"
-                type="text"
-                data-testid="input-source-language"
-                style={inputStyle}
-                value={strVal(config, 'source_language', 'en')}
-                onChange={(e) => save({ source_language: e.target.value })}
-                disabled={isPending}
-                placeholder="en"
-              />
-            </FormGroup>
-
-            <FormGroup
-              label={t('general_page.target_language')}
-              hint={t('general_page.target_language_hint')}
-              htmlFor="target-language"
-              data-testid="form-group-target-language"
-            >
-              <select
-                id="target-language"
-                data-testid="select-target-language"
-                style={inputStyle}
-                value={strVal(config, 'target_language', 'de')}
-                onChange={(e) => save({ target_language: e.target.value })}
-                disabled={isPending}
-              >
-                {LANGUAGE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </FormGroup>
-
-            <FormGroup
-              label={t('general_page.hi_preference')}
-              hint={t('general_page.hi_preference_hint')}
-              htmlFor="hi-preference"
-              data-testid="form-group-hi-preference"
-            >
-              <select
-                id="hi-preference"
-                data-testid="select-hi-preference"
-                style={inputStyle}
-                value={strVal(config, 'hi_preference', 'include')}
-                onChange={(e) => save({ hi_preference: e.target.value })}
-                disabled={isPending}
-              >
-                {hiOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </FormGroup>
-
-            <FormGroup
-              label={t('general_page.forced_preference')}
-              hint={t('general_page.forced_preference_hint')}
-              htmlFor="forced-preference"
-              data-testid="form-group-forced-preference"
-            >
-              <select
-                id="forced-preference"
-                data-testid="select-forced-preference"
-                style={inputStyle}
-                value={strVal(config, 'forced_preference', 'include')}
-                onChange={(e) => save({ forced_preference: e.target.value })}
-                disabled={isPending}
-              >
-                {forcedOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </FormGroup>
-          </SettingsSection>
-        </div>
 
         {/* ── Interface Preferences ─────────────────────────────────────── */}
         <div data-testid="section-interface-preferences">
