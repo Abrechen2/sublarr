@@ -38,6 +38,7 @@ def load_profile_filters(profile) -> dict:
         must_not_contain: list[str]
         cutoff_language: str  (empty = no cutoff)
         audio_exclude_languages: list[str]
+        hi_preference: str  (include | prefer | exclude | only)
     """
     if profile is None:
         return {
@@ -45,6 +46,7 @@ def load_profile_filters(profile) -> dict:
             "must_not_contain": [],
             "cutoff_language": "",
             "audio_exclude_languages": [],
+            "hi_preference": "include",
         }
 
     def _load(attr: str, default: str = "[]") -> list:
@@ -60,4 +62,5 @@ def load_profile_filters(profile) -> dict:
         "must_not_contain": _load("must_not_contain_json"),
         "cutoff_language": getattr(profile, "cutoff_language", "") or "",
         "audio_exclude_languages": _load("audio_exclude_languages_json"),
+        "hi_preference": getattr(profile, "hi_preference", "include") or "include",
     }

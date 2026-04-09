@@ -147,6 +147,7 @@ def process_wanted_item(item_id: int) -> dict:
     # Step 1: Try to find target language ASS directly from providers (Priority 1)
     query = build_query_from_wanted(item)
     query.languages = [item_lang]
+    query.hi_preference = _pf.get("hi_preference", "include")
 
     try:
         result = manager.search_and_download_best(

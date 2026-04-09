@@ -91,6 +91,9 @@ class VideoQuery:
     # Forced/signs subtitle search
     forced_only: bool = False  # When True, providers filter for forced/signs subtitles
 
+    # HI preference from the language profile — controls scoring bonus/penalty
+    hi_preference: str = "include"  # include | prefer | exclude | only
+
     @property
     def is_episode(self) -> bool:
         return self.season is not None and self.episode is not None
@@ -300,11 +303,12 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
     if result.provider_name == "opensubtitles" and result.uploader_trust > 0:
         breakdown["uploader_trust"] = int(result.uploader_trust)
 
-    # HI preference modifier
-    from config import get_settings  # local import to avoid circular deps
-
-    settings = get_settings()
-    hi_pref = getattr(settings, "hi_preference", "include")
+    # HI preference modifier — use profile value from query, fall back to global settings
+    hi_pref = getattr(query, "hi_preference", None)
+    if not hi_pref or hi_pref == "include":
+        # Only load global settings when the query carries no override
+        from config import get_settings  # local import to avoid circular deps
+        hi_pref = getattr(get_settings(), "hi_preference", "include")
     if hi_pref == "prefer" and result.hearing_impaired:
         breakdown["hi_preference"] = 30
     elif (
@@ -315,8 +319,9 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
     ):
         breakdown["hi_preference"] = -999
 
-    # Forced subtitle preference modifier
-    forced_pref = getattr(settings, "forced_preference", "include")
+    # Forced subtitle preference modifier (global setting — no per-profile UI yet)
+    from config import get_settings as _get_settings
+    forced_pref = getattr(_get_settings(), "forced_preference", "include")
     if forced_pref == "prefer" and result.forced:
         breakdown["forced_preference"] = 30
     elif forced_pref == "exclude" and result.forced or forced_pref == "only" and not result.forced:
