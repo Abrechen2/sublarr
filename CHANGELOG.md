@@ -5,6 +5,27 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.47.0-beta] - 2026-04-09
+
+### Added
+- **Movie Subtitle Management** — Existing subtitle sidecar files are now displayed on the Movie detail page with a full actions menu (HI removal, common fixes, timing offset).
+- **Timing Offset Tool** — The subtitle actions menu now includes a "Shift Timing" option that applies a millisecond offset to any sidecar subtitle file directly from the UI.
+- **Forced Scoring per Language Profile** — Language profiles can now specify include / prefer / exclude / only for forced subtitles, wiring directly into the scoring pipeline.
+- **Cutoff Language in Profile Editor** — Language profiles now expose the cutoff_language field, allowing per-profile cutoff configuration.
+- **74 Language Options** — The language selector was expanded from 20 to 74 supported languages.
+- **HI Preference in Profiles** — Language profiles now carry a hearing-impaired preference (prefer / avoid / only) that feeds directly into subtitle scoring.
+
+### Fixed
+- **Toggle Revert Bug** — Settings toggles (AniDB, Standalone, Remux) were reverting to OFF immediately after click because of a `=== 'true'` string comparison against boolean values returned by the backend. All affected tabs now use `boolVal()`.
+- **Optimistic Toggle Updates** — Config toggles now update the cache immediately on click, so the UI feels instant instead of waiting for the GET refetch.
+- **HI/Forced Preference Migration** — Source/target language and HI/forced preference settings were moved from the General page to the Subtitles page where they belong.
+- **Advanced Settings Label** — The collapsible advanced section now shows "Erweiterte Einstellungen" instead of "0 erweiterte Einstellungen" when no count is provided.
+- **German Locale Encoding** — 90 broken UTF-8 sequences (Ã¤, Ãœ, ÃŸ, etc.) in de/common.json were corrected to proper umlauts (ä, Ü, ß, …).
+
+### Changed
+- **Settings Information Architecture** — Settings fields were consolidated into their correct sub-pages (ffmpeg_timeout moved to Automation → Search & Scan; format tools section removed).
+- **Language Profile Editor** — Translation fields removed from the profile editor; language options deduplicated and expanded.
+
 ## [0.46.0-beta] - 2026-04-06
 
 ### Added
