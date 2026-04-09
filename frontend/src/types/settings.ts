@@ -12,6 +12,7 @@ export interface LanguageProfile {
   fallback_chain: string[]
   forced_preference: 'disabled' | 'separate' | 'auto'
   hi_preference: 'include' | 'prefer' | 'exclude' | 'only'
+  cutoff_language: string
 }
 
 // ─── Events & Hooks ──────────────────────────────────────────────────────────

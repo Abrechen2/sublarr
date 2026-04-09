@@ -42,10 +42,11 @@ export function LanguageProfilesTab() {
     target_languages: [] as string[],
     forced_preference: 'disabled' as 'disabled' | 'separate' | 'auto',
     hi_preference: 'include' as 'include' | 'prefer' | 'exclude' | 'only',
+    cutoff_language: '',
   })
 
   const resetForm = () => {
-    setForm({ name: '', target_languages: [], forced_preference: 'disabled', hi_preference: 'include' })
+    setForm({ name: '', target_languages: [], forced_preference: 'disabled', hi_preference: 'include', cutoff_language: '' })
     setEditingId(null)
     setShowAdd(false)
   }
@@ -56,6 +57,7 @@ export function LanguageProfilesTab() {
       target_languages: p.target_languages,
       forced_preference: p.forced_preference || 'disabled',
       hi_preference: p.hi_preference || 'include',
+      cutoff_language: p.cutoff_language || '',
     })
     setEditingId(p.id)
     setShowAdd(false)
@@ -75,6 +77,7 @@ export function LanguageProfilesTab() {
       target_language_names: targetNames,
       forced_preference: form.forced_preference,
       hi_preference: form.hi_preference,
+      cutoff_language: form.cutoff_language,
     }
 
     if (editingId) {
@@ -112,7 +115,7 @@ export function LanguageProfilesTab() {
           Sprachprofile legen fest, welche Untertitelsprachen pro Serie/Film gesucht werden.
         </span>
         <button
-          onClick={() => { setShowAdd(true); setEditingId(null); setForm({ name: '', target_languages: [], forced_preference: 'disabled', hi_preference: 'include' }) }}
+          onClick={() => { setShowAdd(true); setEditingId(null); setForm({ name: '', target_languages: [], forced_preference: 'disabled', hi_preference: 'include', cutoff_language: '' }) }}
           className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all duration-150"
           style={{ border: '1px solid var(--accent-dim)', color: 'var(--accent)', backgroundColor: 'var(--accent-bg)' }}
         >
@@ -155,7 +158,12 @@ export function LanguageProfilesTab() {
               <LanguagePillSelector
                 value={form.target_languages}
                 options={LANGUAGE_OPTIONS}
-                onChange={(langs) => setForm((f) => ({ ...f, target_languages: langs }))}
+                onChange={(langs) => setForm((f) => ({
+                  ...f,
+                  target_languages: langs,
+                  // reset cutoff if the selected language was removed
+                  cutoff_language: langs.includes(f.cutoff_language) ? f.cutoff_language : '',
+                }))}
                 placeholder="— Sprache hinzufügen —"
               />
               <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
@@ -202,6 +210,33 @@ export function LanguageProfilesTab() {
                 {form.hi_preference === 'prefer' && 'HI-Untertitel werden bevorzugt, falls verfügbar'}
                 {form.hi_preference === 'exclude' && 'HI-Untertitel werden übersprungen'}
                 {form.hi_preference === 'only' && 'Nur HI-Untertitel werden akzeptiert'}
+              </p>
+            </div>
+
+            {/* Cutoff Language */}
+            <div className="space-y-1 md:col-span-2">
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Cutoff-Sprache
+              </label>
+              <select
+                value={form.cutoff_language}
+                onChange={(e) => setForm((f) => ({ ...f, cutoff_language: e.target.value }))}
+                className="w-full px-2.5 py-1.5 rounded text-xs"
+                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                disabled={form.target_languages.length === 0}
+              >
+                <option value="">Keine — alle Sprachen immer suchen</option>
+                {form.target_languages.map((lang) => {
+                  const label = LANGUAGE_OPTIONS.find((o) => o.value === lang)?.label ?? lang
+                  return (
+                    <option key={lang} value={lang}>{label}</option>
+                  )
+                })}
+              </select>
+              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                {form.cutoff_language
+                  ? `Sobald ein ${LANGUAGE_OPTIONS.find((o) => o.value === form.cutoff_language)?.label ?? form.cutoff_language}-Untertitel vorhanden ist, werden keine weiteren Sprachen gesucht.`
+                  : 'Sublarr sucht Untertitel für alle Zielsprachen — unabhängig davon, was bereits vorhanden ist.'}
               </p>
             </div>
 
@@ -311,6 +346,13 @@ export function LanguageProfilesTab() {
             {p.hi_preference && p.hi_preference !== 'include' && (
               <span>
                 HI: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.hi_preference}</code>
+              </span>
+            )}
+            {p.cutoff_language && (
+              <span>
+                Cutoff: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
+                  {LANGUAGE_OPTIONS.find((o) => o.value === p.cutoff_language)?.label ?? p.cutoff_language}
+                </code>
               </span>
             )}
           </div>
