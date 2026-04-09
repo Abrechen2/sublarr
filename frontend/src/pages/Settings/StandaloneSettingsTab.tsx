@@ -8,25 +8,26 @@ import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
 import { toast } from '@/components/shared/Toast'
+import { boolVal } from '@/lib/configUtils'
 
 export function StandaloneSettingsTab() {
   const { t } = useTranslation('settings')
   const { data: config } = useConfig()
   const updateConfig = useUpdateConfig()
-  const cfg = (config ?? {}) as Record<string, unknown>
 
-  const skipExtras = cfg['standalone_skip_extras'] === 'true'
+  const skipExtras = boolVal(config, 'standalone_skip_extras', false)
   const [localScanInterval, setLocalScanInterval] = useState<string>('24')
   const [localDebounce, setLocalDebounce] = useState<string>('30')
 
   useEffect(() => {
+    const cfg = (config ?? {}) as Record<string, unknown>
     setLocalScanInterval(String(cfg['standalone_scan_interval_hours'] ?? '24'))
     setLocalDebounce(String(cfg['standalone_debounce_seconds'] ?? '30'))
   }, [config]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveToggle = (key: string, value: boolean) => {
     updateConfig.mutate(
-      { [key]: String(value) },
+      { [key]: value },
       {
         onSuccess: () => toast(t('setting_saved')),
         onError: () => toast(t('setting_save_failed'), 'error'),

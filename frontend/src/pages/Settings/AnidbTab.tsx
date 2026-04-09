@@ -8,26 +8,27 @@ import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
 import { toast } from '@/components/shared/Toast'
+import { boolVal } from '@/lib/configUtils'
 
 export function AnidbTab() {
   const { data: config } = useConfig()
   const { t } = useTranslation('settings')
   const updateConfig = useUpdateConfig()
-  const cfg = (config ?? {}) as Record<string, unknown>
 
-  const anidbEnabled = cfg['anidb_enabled'] === 'true'
-  const anidbFallback = cfg['anidb_fallback_to_mapping'] === 'true'
+  const anidbEnabled = boolVal(config, 'anidb_enabled', false)
+  const anidbFallback = boolVal(config, 'anidb_fallback_to_mapping', false)
   const [localCacheTtl, setLocalCacheTtl] = useState<string>('7')
   const [localCustomField, setLocalCustomField] = useState<string>('')
 
   useEffect(() => {
+    const cfg = (config ?? {}) as Record<string, unknown>
     setLocalCacheTtl(String(cfg['anidb_cache_ttl_days'] ?? '7'))
     setLocalCustomField(String(cfg['anidb_custom_field_name'] ?? ''))
   }, [config]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveToggle = (key: string, value: boolean) => {
     updateConfig.mutate(
-      { [key]: String(value) },
+      { [key]: value },
       {
         onSuccess: () => toast('Setting saved'),
         onError: () => toast('Failed to save setting', 'error'),

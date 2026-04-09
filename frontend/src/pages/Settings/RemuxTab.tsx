@@ -8,26 +8,27 @@ import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { Toggle } from '@/components/shared/Toggle'
 import { toast } from '@/components/shared/Toast'
+import { boolVal } from '@/lib/configUtils'
 
 export function RemuxTab() {
   const { t } = useTranslation('settings')
   const { data: config } = useConfig()
   const updateConfig = useUpdateConfig()
-  const cfg = (config ?? {}) as Record<string, unknown>
 
-  const useReflink = cfg['remux_use_reflink'] === 'true'
-  const arrPauseEnabled = cfg['remux_arr_pause_enabled'] === 'true'
+  const useReflink = boolVal(config, 'remux_use_reflink', false)
+  const arrPauseEnabled = boolVal(config, 'remux_arr_pause_enabled', false)
   const [localTrashDir, setLocalTrashDir] = useState<string>('')
   const [localRetentionDays, setLocalRetentionDays] = useState<string>('7')
 
   useEffect(() => {
+    const cfg = (config ?? {}) as Record<string, unknown>
     setLocalTrashDir(String(cfg['remux_trash_dir'] ?? ''))
     setLocalRetentionDays(String(cfg['remux_backup_retention_days'] ?? '7'))
   }, [config]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveToggle = (key: string, value: boolean) => {
     updateConfig.mutate(
-      { [key]: String(value) },
+      { [key]: value },
       {
         onSuccess: () => toast(t('setting_saved')),
         onError: () => toast(t('setting_save_failed'), 'error'),
