@@ -3,7 +3,7 @@
     "dashboard": "Dashboard",
     "library": "Bibliothek",
     "wanted": "Gesucht",
-    "activity": "Aktivität",
+    "activity": "AktivitÃ¤t",
     "queue": "Warteschlange",
     "history": "Downloads",
     "blacklist": "Sperrliste",
@@ -16,7 +16,7 @@
   },
   "nav_groups": {
     "content": "Inhalte",
-    "activity": "Aktivität",
+    "activity": "AktivitÃ¤t",
     "system": "System"
   },
   "status": {
@@ -26,25 +26,25 @@
     "offline": "Offline",
     "enabled": "Aktiviert",
     "disabled": "Deaktiviert",
-    "running": "Läuft",
+    "running": "LÃ¤uft",
     "completed": "Abgeschlossen",
     "failed": "Fehlgeschlagen",
     "queued": "Wartend",
     "wanted": "Gesucht",
-    "searching": "Suche läuft",
+    "searching": "Suche lÃ¤uft",
     "found": "Gefunden",
     "extracted": "Extrahiert",
     "ignored": "Ignoriert",
     "not_configured": "Nicht konfiguriert",
-    "skipped": "Übersprungen",
+    "skipped": "Ãœbersprungen",
     "forced": "Erzwungen"
   },
   "actions": {
     "save": "Speichern",
     "cancel": "Abbrechen",
-    "delete": "Löschen",
+    "delete": "LÃ¶schen",
     "edit": "Bearbeiten",
-    "add": "Hinzufügen",
+    "add": "HinzufÃ¼gen",
     "test": "Testen",
     "download": "Herunterladen",
     "upload": "Hochladen",
@@ -52,8 +52,8 @@
     "search": "Suchen",
     "export": "Exportieren",
     "import": "Importieren",
-    "confirm": "Bestätigen",
-    "back": "Zurück",
+    "confirm": "BestÃ¤tigen",
+    "back": "ZurÃ¼ck",
     "enable": "Aktivieren"
   },
   "theme": {
@@ -73,7 +73,7 @@
   "pagination": {
     "showing": "Zeige",
     "of": "von",
-    "items": "Einträge"
+    "items": "EintrÃ¤ge"
   },
   "time": {
     "just_now": "Gerade eben",
@@ -83,17 +83,17 @@
   },
   "confirm": {
     "title": "Bist du sicher?",
-    "message": "Diese Aktion kann nicht rückgängig gemacht werden.",
+    "message": "Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden.",
     "yes": "Ja",
     "no": "Nein"
   },
   "tasks": {
     "title": "Aufgaben",
     "run_now": "Jetzt starten",
-    "running": "Läuft",
+    "running": "LÃ¤uft",
     "idle": "Bereit",
     "last_run": "Letzter Lauf",
-    "next_run": "Nächster Lauf",
+    "next_run": "NÃ¤chster Lauf",
     "interval": "Intervall",
     "status": "Status",
     "no_tasks": "Keine Hintergrundaufgaben konfiguriert",
@@ -103,7 +103,7 @@
     "every_minutes": "Alle {{count}} Min.",
     "every_hour": "Jede Stunde",
     "every_hours": "Alle {{count}} Stunden",
-    "every_day": "Täglich",
+    "every_day": "TÃ¤glich",
     "triggered": "{{name}} gestartet",
     "trigger_failed": "{{name}} konnte nicht gestartet werden",
     "cancel": "Abbrechen",
@@ -111,34 +111,34 @@
     "cancel_failed": "{{name}} konnte nicht abgebrochen werden"
   },
   "filters": {
-    "addFilter": "Filter hinzufügen",
-    "clearAll": "Alle löschen",
+    "addFilter": "Filter hinzufÃ¼gen",
+    "clearAll": "Alle lÃ¶schen",
     "presets": "Voreinstellungen",
     "saveCurrentFilters": "Aktuelle Filter speichern",
     "presetName": "Name der Voreinstellung...",
     "noPresets": "Keine Voreinstellungen gespeichert",
-    "pickField": "Feld auswählen...",
-    "pickValue": "Wert auswählen...",
+    "pickField": "Feld auswÃ¤hlen...",
+    "pickValue": "Wert auswÃ¤hlen...",
     "enterValue": "{{field}} eingeben..."
   },
   "batch": {
-    "itemsSelected": "{{count}} ausgewählt",
+    "itemsSelected": "{{count}} ausgewÃ¤hlt",
     "ignore": "Ignorieren",
     "unignore": "Aktivieren",
     "blacklist": "Sperrliste",
     "export": "Exportieren",
     "clearSelection": "Auswahl aufheben",
     "extract": "Extrahieren",
-    "translate": "Übersetzen",
+    "translate": "Ãœbersetzen",
     "extract_failed": "Batch-Extraktion fehlgeschlagen",
-    "translate_failed": "Batch-Übersetzung fehlgeschlagen",
-    "queued_translation": "{{count}} zur Übersetzung eingereiht",
-    "items_updated": "{{count}} Einträge aktualisiert"
+    "translate_failed": "Batch-Ãœbersetzung fehlgeschlagen",
+    "queued_translation": "{{count}} zur Ãœbersetzung eingereiht",
+    "items_updated": "{{count}} EintrÃ¤ge aktualisiert"
   },
   "login": {
     "subtitle": "Passwort eingeben um fortzufahren",
     "password_placeholder": "Passwort",
-    "logging_in": "Anmelden…",
+    "logging_in": "Anmeldenâ€¦",
     "log_in": "Anmelden",
     "invalid_password": "Falsches Passwort",
     "hide_password": "Passwort ausblenden",
@@ -147,13 +147,13 @@
   "not_found": {
     "title": "Seite nicht gefunden",
     "message": "Die gesuchte Seite existiert nicht oder wurde verschoben.",
-    "go_back": "Zurück",
+    "go_back": "ZurÃ¼ck",
     "go_dashboard": "Zum Dashboard"
   },
   "search": {
     "placeholder": "Serien, Episoden, Untertitel suchen...",
     "shortcut": "Strg+K",
-    "noResults": "Keine Ergebnisse für \"{{query}}\"",
+    "noResults": "Keine Ergebnisse fÃ¼r \"{{query}}\"",
     "minChars": "Mindestens 2 Zeichen eingeben...",
     "series": "Serien",
     "episodes": "Episoden",
@@ -163,23 +163,23 @@
   },
   "settings_search": {
     "placeholder": "Einstellungen suchen...",
-    "clear": "Suche löschen"
+    "clear": "Suche lÃ¶schen"
   },
   "cleanup_detail": {
     "last_run_success": "Letzter Lauf erfolgreich",
     "allowed_langs": "Erlaubte Sprachen",
-    "format_pref": "Format-Präferenz",
+    "format_pref": "Format-PrÃ¤ferenz",
     "schedule": "Zeitplan",
     "preview": "Vorschau"
   },
   "health": {
-    "running": "Systemprüfung läuft...",
-    "close": "Schließen",
-    "score_not_checked": "Qualitäts-Score: Nicht geprüft",
-    "score_value": "Qualitäts-Score: {{score}}/100"
+    "running": "SystemprÃ¼fung lÃ¤uft...",
+    "close": "SchlieÃŸen",
+    "score_not_checked": "QualitÃ¤ts-Score: Nicht geprÃ¼ft",
+    "score_value": "QualitÃ¤ts-Score: {{score}}/100"
   },
   "shortcuts": {
-    "title": "Tastenkürzel",
+    "title": "TastenkÃ¼rzel",
     "navigation": "Navigation",
     "global": "Global",
     "page_actions": "Seitenaktionen",
@@ -187,68 +187,68 @@
     "go_library": "Zur Bibliothek",
     "go_wanted": "Zu Gesucht",
     "go_settings": "Zu Einstellungen",
-    "go_activity": "Zur Aktivität",
+    "go_activity": "Zur AktivitÃ¤t",
     "go_history": "Zum Verlauf",
     "search": "Globale Suche",
-    "help": "Kürzel anzeigen",
-    "no_page_actions": "Keine Kürzel für diese Seite"
+    "help": "KÃ¼rzel anzeigen",
+    "no_page_actions": "Keine KÃ¼rzel fÃ¼r diese Seite"
   },
   "quick_actions": {
     "scan_library": "Bibliothek scannen",
     "search_wanted": "Gesuchte durchsuchen",
     "refresh_scan": "Scan aktualisieren",
     "search_all": "Alle durchsuchen",
-    "select_all": "Alle auswählen",
-    "health_check": "Qualitätsprüfung",
-    "no_actions": "Keine Aktionen für diese Seite"
+    "select_all": "Alle auswÃ¤hlen",
+    "health_check": "QualitÃ¤tsprÃ¼fung",
+    "no_actions": "Keine Aktionen fÃ¼r diese Seite"
   },
   "plugins": {
     "marketplace_title": "Plugin-Marktplatz",
     "all_categories": "Alle Kategorien",
     "search_placeholder": "Plugins suchen...",
     "category_providers": "Provider",
-    "category_translation": "Übersetzung",
+    "category_translation": "Ãœbersetzung",
     "category_tools": "Werkzeuge",
     "by_author": "Von {{author}}",
     "downloads_count": "{{count}} Downloads",
     "install": "Installieren",
     "uninstall": "Deinstallieren",
     "view_on_github": "Auf GitHub ansehen",
-    "description": "Community-Plugins für Sublarr durchsuchen und installieren."
+    "description": "Community-Plugins fÃ¼r Sublarr durchsuchen und installieren."
   },
   "trash": {
     "page_title": "Papierkorb",
-    "loading": "Wird geladen…",
+    "loading": "Wird geladenâ€¦",
     "empty": "Papierkorb ist leer",
     "mkv_restore_title": "Video-Backup wiederherstellen",
     "mkv_restore_desc": "Die remuxte Video-Datei wird durch die Sicherung ersetzt (atomarer Tausch).",
-    "mkv_no_video": "Original-Video nicht mehr auf Disk gefunden — Pfad kann nicht aufgelöst werden.",
-    "delete_sidecars_label": "Passende Sidecar-Batches ebenfalls löschen",
+    "mkv_no_video": "Original-Video nicht mehr auf Disk gefunden â€” Pfad kann nicht aufgelÃ¶st werden.",
+    "delete_sidecars_label": "Passende Sidecar-Batches ebenfalls lÃ¶schen",
     "cancel": "Abbrechen",
     "restore": "Wiederherstellen",
     "unknown_series": "Unbekannte Serie",
     "file_singular": "Datei",
     "file_plural": "Dateien",
-    "deleted_on": "gelöscht",
-    "expires": "läuft ab",
+    "deleted_on": "gelÃ¶scht",
+    "expires": "lÃ¤uft ab",
     "restore_btn": "Wiederherstellen",
-    "delete_btn": "Löschen",
-    "delete_confirm": "Endgültig löschen",
-    "show_files": "{{count}} Dateien anzeigen ▼",
-    "hide_files": "Dateien ausblenden ▲",
+    "delete_btn": "LÃ¶schen",
+    "delete_confirm": "EndgÃ¼ltig lÃ¶schen",
+    "show_files": "{{count}} Dateien anzeigen â–¼",
+    "hide_files": "Dateien ausblenden â–²",
     "subtitle_sidecars": "Untertitel-Sidecars",
     "video_backups": "Video-Backups (Remux)",
     "original_not_found": "Original nicht gefunden",
-    "expires_label": "läuft ab"
+    "expires_label": "lÃ¤uft ab"
   },
   "interjection_placeholder": "Eine Interjektion pro Zeile",
   "more_info": "Mehr Informationen",
   "timestamp_seconds_placeholder": "Zeitstempel (Sekunden)",
   "subtitle_track_label": "Untertitel-Track",
-  "close_player": "Player schließen",
+  "close_player": "Player schlieÃŸen",
   "update": {
-    "available": "verfügbar",
-    "view_release": "Jetzt auf GitHub ansehen →"
+    "available": "verfÃ¼gbar",
+    "view_release": "Jetzt auf GitHub ansehen â†’"
   },
   "settings": {
     "overview": {
@@ -258,11 +258,11 @@
     "subtitles": {
       "scoring": {
         "title": "Scoring",
-        "description": "Konfiguriere, wie Untertitel von Providern bewertet und ausgewählt werden."
+        "description": "Konfiguriere, wie Untertitel von Providern bewertet und ausgewÃ¤hlt werden."
       },
       "formatTools": {
         "title": "Format & Werkzeuge",
-        "description": "Dateiformat-Präferenzen und manuelle Untertitel-Werkzeuge."
+        "description": "Dateiformat-PrÃ¤ferenzen und manuelle Untertitel-Werkzeuge."
       },
       "embeddedExtraction": {
         "title": "Eingebettete Extraktion",
@@ -271,53 +271,69 @@
         "autoExtract": "Eingebettete Untertitel automatisch extrahieren",
         "autoExtractHint": "Eingebettete Untertitel-Tracks beim Wanted-Scan automatisch extrahieren.",
         "useEmbeddedSubs": "Eingebettete Untertitel verwenden",
-        "useEmbeddedSubsHint": "MKV-Dateien vor der Provider-Suche auf eingebettete Untertitel prüfen.",
+        "useEmbeddedSubsHint": "MKV-Dateien vor der Provider-Suche auf eingebettete Untertitel prÃ¼fen.",
         "hiRemoval": "HI-Entfernung bei Extraktion",
-        "hiRemovalHint": "Hörgeschädigten-Tags aus extrahierten Untertitel-Tracks entfernen.",
-        "skipSrtOnNoAss": "SRT überspringen wenn kein ASS gefunden",
-        "skipSrtOnNoAssHint": "SRT-Extraktion überspringen, wenn in den ersten zwei Schritten kein ASS/SSA-Track gefunden wurde.",
+        "hiRemovalHint": "HÃ¶rgeschÃ¤digten-Tags aus extrahierten Untertitel-Tracks entfernen.",
+        "skipSrtOnNoAss": "SRT Ã¼berspringen wenn kein ASS gefunden",
+        "skipSrtOnNoAssHint": "SRT-Extraktion Ã¼berspringen, wenn in den ersten zwei Schritten kein ASS/SSA-Track gefunden wurde.",
         "saved": "Einstellung gespeichert",
         "saveFailed": "Speichern fehlgeschlagen"
       },
       "languageProfiles": {
         "title": "Sprachprofile",
-        "description": "Wiederverwendbare Sprach- und Übersetzungseinstellungen für Serien und Filme definieren.",
-        "summary": "Sprachprofile erstellen und verwalten, die einzelnen Serien oder Filmen zugewiesen werden können."
+        "description": "Wiederverwendbare Sprach- und Ãœbersetzungseinstellungen fÃ¼r Serien und Filme definieren.",
+        "summary": "Sprachprofile erstellen und verwalten, die einzelnen Serien oder Filmen zugewiesen werden kÃ¶nnen."
       },
       "fansubPreferences": {
         "title": "Fansub-Einstellungen",
-        "description": "Globale Fansub-Gruppen-Präferenzen für alle Bibliothekselemente.",
-        "summary": "Bevorzugte und ausgeschlossene Fansub-Gruppen für die Untertitelauswahl. Serienspezifische Überschreibungen haben Priorität."
+        "description": "Globale Fansub-Gruppen-PrÃ¤ferenzen fÃ¼r alle Bibliothekselemente.",
+        "summary": "Bevorzugte und ausgeschlossene Fansub-Gruppen fÃ¼r die Untertitelauswahl. Serienspezifische Ãœberschreibungen haben PrioritÃ¤t."
       },
       "subtitleNaming": {
         "title": "Untertitel-Benennung",
-        "description": "Sprachcode-Format und Suffix-Konventionen für gespeicherte Untertiteldateien.",
+        "description": "Sprachcode-Format und Suffix-Konventionen fÃ¼r gespeicherte Untertiteldateien.",
         "langCodeFormat": "Sprachcode-Format",
-        "langCodeFormatHint": "Format für das Sprachsuffix in Untertiteldateinamen",
+        "langCodeFormatHint": "Format fÃ¼r das Sprachsuffix in Untertiteldateinamen",
         "suffixSeparator": "Suffix-Trennzeichen",
         "suffixSeparatorHint": "Zeichen zwischen Dateiname und Sprachsuffix",
         "hiSuffix": "HI-Untertitel-Suffix",
-        "hiSuffixHint": "Suffix für Hörgeschädigten-Untertiteldateien",
+        "hiSuffixHint": "Suffix fÃ¼r HÃ¶rgeschÃ¤digten-Untertiteldateien",
         "forcedSuffix": "Forced-Untertitel-Suffix",
-        "forcedSuffixHint": "Suffix für Forced-Untertiteldateien"
+        "forcedSuffixHint": "Suffix fÃ¼r Forced-Untertiteldateien"
       },
       "scanFilters": {
         "title": "Scan-Filter",
-        "description": "Dateien und Sprachen vom Untertitel-Scan ausschließen.",
+        "description": "Dateien und Sprachen vom Untertitel-Scan ausschlieÃŸen.",
         "ignorePatterns": "Ignorier-Muster",
-        "ignorePatternsHint": "JSON-Array von Glob-Mustern, die beim Scan übersprungen werden",
-        "minFileSize": "Minimale Dateigröße (MB)",
-        "minFileSizeHint": "Mediendateien kleiner als dieser Wert beim Scan überspringen",
+        "ignorePatternsHint": "JSON-Array von Glob-Mustern, die beim Scan Ã¼bersprungen werden",
+        "minFileSize": "Minimale DateigrÃ¶ÃŸe (MB)",
+        "minFileSizeHint": "Mediendateien kleiner als dieser Wert beim Scan Ã¼berspringen",
         "ignoreLanguages": "Sprachen ignorieren",
         "ignoreLanguagesHint": "JSON-Array von ISO-639-1-Codes, die vom Scan ausgeschlossen werden"
       },
       "perLanguageScores": {
         "title": "Sprachspezifische Score-Schwellwerte",
-        "description": "Den globalen Mindest-Score für bestimmte Sprachen überschreiben.",
+        "description": "Den globalen Mindest-Score fÃ¼r bestimmte Sprachen Ã¼berschreiben.",
         "label": "Score-Schwellwerte (JSON)",
-        "hint": "JSON-Objekt mit ISO-639-1-Code als Schlüssel und Mindest-Score als Wert. Leeres Objekt verwendet den globalen Schwellwert.",
-        "example": "Beispiel: {\"de\": 80, \"fr\": 70} — Deutsche Untertitel erfordern Score ≥ 80, Französische ≥ 70.",
-        "fallback": "Leer lassen {} um den globalen Schwellwert für alle Sprachen zu verwenden."
+        "hint": "JSON-Objekt mit ISO-639-1-Code als SchlÃ¼ssel und Mindest-Score als Wert. Leeres Objekt verwendet den globalen Schwellwert.",
+        "example": "Beispiel: {\"de\": 80, \"fr\": 70} â€” Deutsche Untertitel erfordern Score â‰¥ 80, FranzÃ¶sische â‰¥ 70.",
+        "fallback": "Leer lassen {} um den globalen Schwellwert fÃ¼r alle Sprachen zu verwenden."
+      },
+      "languagesPage": {
+        "title": "Sprachen & Profile",
+        "subtitle": "Konfiguriere, welche Untertitelsprachen Sublarr sucht und wie Mehrsprachigkeit verwaltet wird."
+      },
+      "defaultLanguages": {
+        "title": "Standardsprachen",
+        "description": "Primäre Suchsprache, Quellsprache für Übersetzungen sowie HI- und Forced-Einstellungen."
+      },
+      "scoringPage": {
+        "title": "Scoring",
+        "subtitle": "Konfiguriere, wie Untertitel bewertet und ausgewählt werden – Gewichte, Presets, Release-Gruppen und sprachspezifische Schwellwerte."
+      },
+      "formatPage": {
+        "title": "Format & Benennung",
+        "subtitle": "Dateiformat-Präferenzen, Benennungskonventionen, Scan-Filter und Extraktion eingebetteter Untertitel."
       }
     },
     "categories": {
@@ -342,12 +358,12 @@
         "description": "Zeitplanung, Upgrades"
       },
       "translation": {
-        "title": "Übersetzung",
-        "description": "KI-Übersetzungs-Backends"
+        "title": "Ãœbersetzung",
+        "description": "KI-Ãœbersetzungs-Backends"
       },
       "notifications": {
         "title": "Benachrichtigungen",
-        "description": "Kanäle, Vorlagen"
+        "description": "KanÃ¤le, Vorlagen"
       },
       "system": {
         "title": "System",
@@ -358,9 +374,14 @@
         "description": "Sprachfilter, Format-Upgrades, Waisendateien"
       },
       "about": {
-        "title": "Über",
+        "title": "Ãœber",
         "description": "Version, GitHub, Spenden"
       }
+    },
+    "nav": {
+      "languages_profiles": "Sprachen & Profile",
+      "scoring": "Scoring",
+      "format_naming": "Format & Benennung"
     }
   }
 }

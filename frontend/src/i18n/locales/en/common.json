@@ -138,7 +138,7 @@
   "login": {
     "subtitle": "Enter your password to continue",
     "password_placeholder": "Password",
-    "logging_in": "Logging in…",
+    "logging_in": "Logging inâ€¦",
     "log_in": "Log In",
     "invalid_password": "Invalid password",
     "hide_password": "Hide password",
@@ -218,11 +218,11 @@
   },
   "trash": {
     "page_title": "Trash",
-    "loading": "Loading…",
+    "loading": "Loadingâ€¦",
     "empty": "Trash is empty",
     "mkv_restore_title": "Restore Video Backup",
     "mkv_restore_desc": "The remuxed video file will be replaced by the backup (atomic swap).",
-    "mkv_no_video": "Original video no longer found on disk — path cannot be resolved.",
+    "mkv_no_video": "Original video no longer found on disk â€” path cannot be resolved.",
     "delete_sidecars_label": "Also delete matching sidecar batches",
     "cancel": "Cancel",
     "restore": "Restore",
@@ -234,8 +234,8 @@
     "restore_btn": "Restore",
     "delete_btn": "Delete",
     "delete_confirm": "Delete permanently",
-    "show_files": "Show {{count}} files ▼",
-    "hide_files": "Hide files ▲",
+    "show_files": "Show {{count}} files â–¼",
+    "hide_files": "Hide files â–²",
     "subtitle_sidecars": "Subtitle Sidecars",
     "video_backups": "Video Backups (Remux)",
     "original_not_found": "Original not found",
@@ -248,7 +248,7 @@
   "close_player": "Close player",
   "update": {
     "available": "available",
-    "view_release": "View on GitHub →"
+    "view_release": "View on GitHub â†’"
   },
   "settings": {
     "overview": {
@@ -316,8 +316,24 @@
         "description": "Override the global minimum score for specific languages.",
         "label": "Score Thresholds (JSON)",
         "hint": "JSON object mapping ISO-639-1 code to minimum score. Empty object uses global threshold for all languages.",
-        "example": "Example: {\"de\": 80, \"fr\": 70} — German subtitles require score ≥ 80, French ≥ 70.",
+        "example": "Example: {\"de\": 80, \"fr\": 70} â€” German subtitles require score â‰¥ 80, French â‰¥ 70.",
         "fallback": "Leave as {} to use the global threshold for all languages."
+      },
+      "languagesPage": {
+        "title": "Languages & Profiles",
+        "subtitle": "Configure which subtitle languages Sublarr searches for and how multi-language setups are managed."
+      },
+      "defaultLanguages": {
+        "title": "Default Languages",
+        "description": "Primary search language, source language for translation, and HI/forced subtitle preferences."
+      },
+      "scoringPage": {
+        "title": "Scoring",
+        "subtitle": "Configure how subtitles are ranked and selected — weights, presets, release groups, and per-language thresholds."
+      },
+      "formatPage": {
+        "title": "Format & Naming",
+        "subtitle": "Subtitle format preferences, file naming conventions, scan filters, and embedded track extraction."
       }
     },
     "categories": {
@@ -361,6 +377,11 @@
         "title": "About",
         "description": "Version, GitHub, donate"
       }
+    },
+    "nav": {
+      "languages_profiles": "Languages & Profiles",
+      "scoring": "Scoring",
+      "format_naming": "Format & Naming"
     }
   }
 }

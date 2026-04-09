@@ -1,22 +1,25 @@
 /**
  * Settings Router — maps /settings/* sub-routes to category pages.
  *
- * /settings                             → SettingsOverview (card grid)
- * /settings/general                     → GeneralSettings
- * /settings/connections                 → ConnectionsSettings
- * /settings/connections/metadata        → ConnectionsMetadataPage
- * /settings/subtitles                   → SubtitlesSettings
- * /settings/subtitles/stream-management → SubtitlesStreamManagementPage
- * /settings/providers                   → ProvidersSettings
- * /settings/providers/transcription     → ProvidersTranscriptionPage
- * /settings/automation                  → AutomationSettings
- * /settings/automation/post-processing  → AutomationPostProcessingPage
- * /settings/translation                 → TranslationSettings
- * /settings/notifications               → NotificationsSettings
- * /settings/system                      → SystemSettings
- * /settings/system/hooks                → SystemHooksPage
- * /settings/hooks                       → redirect → /settings/system/hooks
- * /settings/webhooks                    → redirect → /settings/system/hooks
+ * /settings                               → SettingsOverview (card grid)
+ * /settings/general                       → GeneralSettings
+ * /settings/connections                   → ConnectionsSettings
+ * /settings/connections/metadata          → ConnectionsMetadataPage
+ * /settings/subtitles                     → redirect → /settings/subtitles/languages
+ * /settings/subtitles/languages           → SubtitlesLanguagesPage
+ * /settings/subtitles/scoring             → SubtitlesScoringPage
+ * /settings/subtitles/format              → SubtitlesFormatPage
+ * /settings/subtitles/stream-management   → SubtitlesStreamManagementPage
+ * /settings/providers                     → ProvidersSettings
+ * /settings/providers/transcription       → ProvidersTranscriptionPage
+ * /settings/automation                    → AutomationSettings
+ * /settings/automation/post-processing    → AutomationPostProcessingPage
+ * /settings/translation                   → TranslationSettings
+ * /settings/notifications                 → NotificationsSettings
+ * /settings/system                        → SystemSettings
+ * /settings/system/hooks                  → SystemHooksPage
+ * /settings/hooks                         → redirect → /settings/system/hooks
+ * /settings/webhooks                      → redirect → /settings/system/hooks
  */
 import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
@@ -41,8 +44,14 @@ const ConnectionsSettings = lazy(() =>
 const ConnectionsMetadataPage = lazy(() =>
   import('./ConnectionsMetadataPage').then((m) => ({ default: m.ConnectionsMetadataPage })),
 )
-const SubtitlesSettings = lazy(() =>
-  import('./SubtitlesSettings').then((m) => ({ default: m.SubtitlesSettings })),
+const SubtitlesLanguagesPage = lazy(() =>
+  import('./SubtitlesLanguagesPage').then((m) => ({ default: m.SubtitlesLanguagesPage })),
+)
+const SubtitlesScoringPage = lazy(() =>
+  import('./SubtitlesScoringPage').then((m) => ({ default: m.SubtitlesScoringPage })),
+)
+const SubtitlesFormatPage = lazy(() =>
+  import('./SubtitlesFormatPage').then((m) => ({ default: m.SubtitlesFormatPage })),
 )
 const SubtitlesStreamManagementPage = lazy(() =>
   import('./SubtitlesStreamManagementPage').then((m) => ({ default: m.SubtitlesStreamManagementPage })),
@@ -88,7 +97,10 @@ export function SettingsPage() {
             <Route path="general" element={<GeneralSettings />} />
             <Route path="connections" element={<ConnectionsSettings />} />
             <Route path="connections/metadata" element={<ConnectionsMetadataPage />} />
-            <Route path="subtitles" element={<SubtitlesSettings />} />
+            <Route path="subtitles" element={<Navigate to="/settings/subtitles/languages" replace />} />
+            <Route path="subtitles/languages" element={<SubtitlesLanguagesPage />} />
+            <Route path="subtitles/scoring" element={<SubtitlesScoringPage />} />
+            <Route path="subtitles/format" element={<SubtitlesFormatPage />} />
             <Route path="subtitles/stream-management" element={<SubtitlesStreamManagementPage />} />
             <Route path="providers" element={<ProvidersSettings />} />
             <Route path="providers/transcription" element={<ProvidersTranscriptionPage />} />
