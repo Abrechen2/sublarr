@@ -21,6 +21,8 @@ import { settingsInputStyle } from '@/styles/settingsShared'
 
 const inputStyle: React.CSSProperties = { ...settingsInputStyle, width: '220px', outline: 'none' }
 
+const SCAN_ENGINES = ['auto', 'ffprobe', 'mediainfo'] as const
+
 // ─── SectionSkeleton ─────────────────────────────────────────────────────────
 
 function SectionSkeleton() {
@@ -66,6 +68,48 @@ function SearchScanAdvancedContent() {
           disabled={updateConfig.isPending}
           min={1}
           placeholder="30"
+        />
+      </FormGroup>
+
+      <FormGroup
+        label="Metadaten-Engine"
+        hint="Tool für das Auslesen von Mediendatei-Metadaten. 'auto' wählt automatisch."
+        htmlFor="scan-metadata-engine"
+        advanced
+        data-testid="form-group-scan-metadata-engine"
+      >
+        <select
+          id="scan-metadata-engine"
+          data-testid="select-scan-metadata-engine"
+          style={{ ...inputStyle, maxWidth: '160px' }}
+          value={strVal(config, 'scan_metadata_engine', 'auto')}
+          onChange={(e) => save({ scan_metadata_engine: e.target.value })}
+          disabled={updateConfig.isPending}
+        >
+          {SCAN_ENGINES.map((e) => (
+            <option key={e} value={e}>{e}</option>
+          ))}
+        </select>
+      </FormGroup>
+
+      <FormGroup
+        label="Metadaten-Worker"
+        hint="Anzahl paralleler Threads für den Metadaten-Scan."
+        htmlFor="scan-metadata-max-workers"
+        advanced
+        data-testid="form-group-scan-metadata-max-workers"
+      >
+        <input
+          id="scan-metadata-max-workers"
+          type="number"
+          data-testid="input-scan-metadata-max-workers"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={strVal(config, 'scan_metadata_max_workers', '2')}
+          onChange={(e) => save({ scan_metadata_max_workers: Number(e.target.value) })}
+          disabled={updateConfig.isPending}
+          min={1}
+          max={32}
+          placeholder="2"
         />
       </FormGroup>
 
@@ -304,29 +348,6 @@ function SearchScanContent() {
         />
       </FormGroup>
 
-      <FormGroup
-        label={tS('automation_page.auto_extract')}
-        hint={tS('automation_page.auto_extract_hint')}
-        data-testid="form-group-wanted-auto-extract"
-      >
-        <Toggle
-          checked={boolVal(config, 'wanted_auto_extract', false)}
-          onChange={(v) => save({ wanted_auto_extract: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
-
-      <FormGroup
-        label={tS('automation_page.skip_srt_no_ass')}
-        hint={tS('automation_page.skip_srt_no_ass_hint')}
-        data-testid="form-group-wanted-skip-srt-on-no-ass"
-      >
-        <Toggle
-          checked={boolVal(config, 'wanted_skip_srt_on_no_ass', false)}
-          onChange={(v) => save({ wanted_skip_srt_on_no_ass: v })}
-          disabled={updateConfig.isPending}
-        />
-      </FormGroup>
     </div>
   )
 }
@@ -564,7 +585,7 @@ export function AutomationSettings() {
           )}
           icon={<Search size={16} style={{ color: 'var(--accent)' }} />}
           advanced={<SearchScanAdvancedContent />}
-          advancedCount={6}
+          advancedCount={8}
         >
           <SearchScanContent />
         </SettingsSection>

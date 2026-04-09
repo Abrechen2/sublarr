@@ -13,7 +13,6 @@ const inputStyle: React.CSSProperties = { ...settingsInputStyle, width: '220px',
 
 const LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR'] as const
 const LOG_FORMATS = ['text', 'json'] as const
-const SCAN_ENGINES = ['auto', 'ffprobe', 'mediainfo'] as const
 const LIBRARY_VIEWS = ['grid', 'list'] as const
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -189,66 +188,6 @@ export function GeneralSettings() {
             icon={<HardDrive size={16} style={{ color: 'var(--accent)' }} />}
             advanced={
               <>
-                <FormGroup
-                  label={t('general_page.metadata_engine')}
-                  hint={t('general_page.metadata_engine_hint')}
-                  htmlFor="scan-metadata-engine"
-                  data-testid="form-group-scan-metadata-engine"
-                >
-                  <select
-                    id="scan-metadata-engine"
-                    data-testid="select-scan-metadata-engine"
-                    style={{ ...inputStyle, maxWidth: '160px' }}
-                    value={strVal(config, 'scan_metadata_engine', 'auto')}
-                    onChange={(e) => save({ scan_metadata_engine: e.target.value })}
-                    disabled={isPending}
-                  >
-                    {SCAN_ENGINES.map((e) => (
-                      <option key={e} value={e}>
-                        {e}
-                      </option>
-                    ))}
-                  </select>
-                </FormGroup>
-
-                <FormGroup
-                  label={t('general_page.translation_workers')}
-                  hint={t('general_page.translation_workers_hint')}
-                  htmlFor="translation-max-workers"
-                  data-testid="form-group-translation-max-workers"
-                >
-                  <input
-                    id="translation-max-workers"
-                    type="number"
-                    data-testid="input-translation-max-workers"
-                    style={{ ...inputStyle, maxWidth: '120px' }}
-                    value={strVal(config, 'translation_max_workers', '2')}
-                    onChange={(e) => save({ translation_max_workers: Number(e.target.value) })}
-                    disabled={isPending}
-                    min={1}
-                    max={32}
-                  />
-                </FormGroup>
-
-                <FormGroup
-                  label={t('general_page.metadata_workers')}
-                  hint={t('general_page.metadata_workers_hint')}
-                  htmlFor="scan-metadata-max-workers"
-                  data-testid="form-group-scan-metadata-max-workers"
-                >
-                  <input
-                    id="scan-metadata-max-workers"
-                    type="number"
-                    data-testid="input-scan-metadata-max-workers"
-                    style={{ ...inputStyle, maxWidth: '120px' }}
-                    value={strVal(config, 'scan_metadata_max_workers', '2')}
-                    onChange={(e) => save({ scan_metadata_max_workers: Number(e.target.value) })}
-                    disabled={isPending}
-                    min={1}
-                    max={32}
-                  />
-                </FormGroup>
-
                 <FormGroup
                   label={t('general_page.base_url')}
                   hint={t('general_page.base_url_hint')}

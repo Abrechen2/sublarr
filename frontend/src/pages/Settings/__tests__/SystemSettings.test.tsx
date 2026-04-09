@@ -77,10 +77,6 @@ vi.mock('../RemuxTab', () => ({
   RemuxTab: () => <div data-testid="remux-tab">RemuxTab</div>,
 }))
 
-vi.mock('../StandaloneSettingsTab', () => ({
-  StandaloneSettingsTab: () => <div data-testid="standalone-settings-tab">StandaloneSettingsTab</div>,
-}))
-
 vi.mock('../CacheTab', () => ({
   CacheTab: () => <div data-testid="cache-tab">CacheTab</div>,
 }))
@@ -184,10 +180,10 @@ describe('SystemSettings', () => {
 
   // ── All sections ──────────────────────────────────────────────────────────
 
-  it('renders exactly 11 settings sections', () => {
+  it('renders exactly 10 settings sections', () => {
     renderPage()
     const sections = screen.getAllByTestId('settings-section')
-    expect(sections).toHaveLength(11)
+    expect(sections).toHaveLength(10)
   })
 
   // ── Section titles ────────────────────────────────────────────────────────
@@ -380,18 +376,6 @@ describe('SystemSettings', () => {
     renderPage()
     const wrapper = screen.getByTestId('section-remux')
     expect(wrapper.querySelector('a')).toBeInTheDocument()
-  })
-
-  it('renders the Standalone Mode section', () => {
-    renderPage()
-    expect(screen.getByTestId('section-standalone')).toBeInTheDocument()
-  })
-
-  it('shows "Standalone Mode" section title', () => {
-    renderPage()
-    const wrapper = screen.getByTestId('section-standalone')
-    const title = wrapper.querySelector('[data-testid="settings-section-title"]')
-    expect(title).toHaveTextContent('Standalone Mode')
   })
 
   // ── Summary text for advanced sections ───────────────────────────────────

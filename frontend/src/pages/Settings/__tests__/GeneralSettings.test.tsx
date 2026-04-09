@@ -134,65 +134,6 @@ describe('GeneralSettings', () => {
     fireEvent.click(advancedToggle)
     expect(screen.getByTestId('input-db-path')).toBeInTheDocument()
     expect(screen.getByTestId('input-base-url')).toBeInTheDocument()
-    expect(screen.getByTestId('input-translation-max-workers')).toBeInTheDocument()
-    expect(screen.getByTestId('input-scan-metadata-max-workers')).toBeInTheDocument()
-  })
-
-  it('shows translation_max_workers and scan_metadata_max_workers in advanced section', () => {
-    renderWithProviders(<GeneralSettings />)
-    const pathsSection = screen.getByTestId('section-paths')
-    const advancedToggle = pathsSection.querySelector(
-      '[data-testid="settings-section-advanced-toggle"]',
-    ) as HTMLElement
-    fireEvent.click(advancedToggle)
-    expect(screen.getByTestId('input-translation-max-workers')).toBeInTheDocument()
-    expect(screen.getByTestId('input-scan-metadata-max-workers')).toBeInTheDocument()
-  })
-
-  it('calls updateConfig with translation_max_workers on change', () => {
-    renderWithProviders(<GeneralSettings />)
-    const pathsSection = screen.getByTestId('section-paths')
-    const advancedToggle = pathsSection.querySelector(
-      '[data-testid="settings-section-advanced-toggle"]',
-    ) as HTMLElement
-    fireEvent.click(advancedToggle)
-    const input = screen.getByTestId('input-translation-max-workers')
-    fireEvent.change(input, { target: { value: '4' } })
-    expect(mockMutate).toHaveBeenCalledWith({ translation_max_workers: 4 })
-  })
-
-  it('calls updateConfig with scan_metadata_max_workers on change', () => {
-    renderWithProviders(<GeneralSettings />)
-    const pathsSection = screen.getByTestId('section-paths')
-    const advancedToggle = pathsSection.querySelector(
-      '[data-testid="settings-section-advanced-toggle"]',
-    ) as HTMLElement
-    fireEvent.click(advancedToggle)
-    const input = screen.getByTestId('input-scan-metadata-max-workers')
-    fireEvent.change(input, { target: { value: '3' } })
-    expect(mockMutate).toHaveBeenCalledWith({ scan_metadata_max_workers: 3 })
-  })
-
-  it('shows select-scan-metadata-engine in advanced section', () => {
-    renderWithProviders(<GeneralSettings />)
-    const pathsSection = screen.getByTestId('section-paths')
-    const advancedToggle = pathsSection.querySelector(
-      '[data-testid="settings-section-advanced-toggle"]',
-    ) as HTMLElement
-    fireEvent.click(advancedToggle)
-    expect(screen.getByTestId('select-scan-metadata-engine')).toBeInTheDocument()
-  })
-
-  it('calls updateConfig with scan_metadata_engine on change', () => {
-    renderWithProviders(<GeneralSettings />)
-    const pathsSection = screen.getByTestId('section-paths')
-    const advancedToggle = pathsSection.querySelector(
-      '[data-testid="settings-section-advanced-toggle"]',
-    ) as HTMLElement
-    fireEvent.click(advancedToggle)
-    const sel = screen.getByTestId('select-scan-metadata-engine')
-    fireEvent.change(sel, { target: { value: 'mediainfo' } })
-    expect(mockMutate).toHaveBeenCalledWith({ scan_metadata_engine: 'mediainfo' })
   })
 
   it('calls updateConfig with db_path when advanced field changes', () => {

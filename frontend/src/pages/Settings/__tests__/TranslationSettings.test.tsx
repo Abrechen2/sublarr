@@ -67,7 +67,10 @@ vi.mock('../TranslationTab', () => ({
 }))
 
 const mockDisableMutate = vi.fn()
+const mockUpdateConfig = vi.fn()
 vi.mock('@/hooks/useApi', () => ({
+  useConfig: () => ({ data: { translation_max_workers: 2 }, isLoading: false }),
+  useUpdateConfig: () => ({ mutate: mockUpdateConfig, isPending: false }),
   useDisableTranslation: () => ({ mutate: mockDisableMutate, isPending: false }),
 }))
 

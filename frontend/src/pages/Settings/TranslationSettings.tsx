@@ -17,8 +17,11 @@ import { useTranslation } from 'react-i18next'
 import { Server, MessageSquare, BookOpen, Settings2, RefreshCw, Layers, FlaskConical, AlertTriangle } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
+import { FormGroup } from '@/components/settings/FormGroup'
 import { EpisodeContextSection } from './TranslationTab'
-import { useDisableTranslation } from '@/hooks/useApi'
+import { useConfig, useUpdateConfig, useDisableTranslation } from '@/hooks/useApi'
+import { strVal } from '@/lib/configUtils'
+import { settingsInputStyle } from '@/styles/settingsShared'
 
 // ─── Lazy sub-tabs ───────────────────────────────────────────────────────────
 
@@ -70,6 +73,8 @@ export function TranslationSettings() {
   const navigate = useNavigate()
   const [showDisableConfirm, setShowDisableConfirm] = useState(false)
   const disableTranslation = useDisableTranslation()
+  const { data: config } = useConfig()
+  const { mutate: updateConfig } = useUpdateConfig()
 
   function handleDisableConfirm() {
     disableTranslation.mutate(undefined, {
@@ -178,6 +183,22 @@ export function TranslationSettings() {
               <ContextWindowSizeRow />
               <TranslationQualitySection />
               <TranslationMemorySection />
+              <FormGroup
+                label="Translation Workers"
+                hint="Maximum parallel translation worker threads."
+                htmlFor="translation-max-workers"
+              >
+                <input
+                  id="translation-max-workers"
+                  type="number"
+                  data-testid="input-translation-max-workers"
+                  style={{ ...settingsInputStyle, width: '100px', outline: 'none' }}
+                  value={Number(strVal(config, 'translation_max_workers', '2'))}
+                  onChange={(e) => updateConfig({ translation_max_workers: Number(e.target.value) })}
+                  min={1}
+                  max={16}
+                />
+              </FormGroup>
             </Suspense>
           }
         >

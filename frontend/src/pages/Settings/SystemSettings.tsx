@@ -13,7 +13,7 @@
 import { lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Shield, Archive, Webhook, FileText, Puzzle, Database, Key, HardDrive, ScanLine, Download } from 'lucide-react'
+import { Shield, Archive, Webhook, FileText, Puzzle, Database, Key, HardDrive, Download } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
@@ -41,9 +41,6 @@ const MigrationTab = lazy(() =>
 )
 const ApiKeysTab = lazy(() =>
   import('./ApiKeysTab').then((m) => ({ default: m.ApiKeysTab })),
-)
-const StandaloneSettingsTab = lazy(() =>
-  import('./StandaloneSettingsTab').then((m) => ({ default: m.StandaloneSettingsTab })),
 )
 const ConfigExportImportTab = lazy(() =>
   import('./ConfigExportImportTab').then((m) => ({ default: m.ConfigExportImportTab })),
@@ -423,25 +420,7 @@ export function SystemSettings() {
         </Link>
       </div>
 
-      {/* 10. Standalone Mode */}
-      <div data-testid="section-standalone">
-        <SettingsSection
-          title={t('settings.system.standalone.title', 'Standalone Mode')}
-          description={t(
-            'settings.system.standalone.description',
-            'Configure the standalone file watcher and scan behaviour.',
-          )}
-          icon={<ScanLine size={16} style={{ color: 'var(--accent)' }} />}
-        >
-          <div data-testid="standalone-content">
-            <Suspense fallback={<SectionSkeleton />}>
-              <StandaloneSettingsTab />
-            </Suspense>
-          </div>
-        </SettingsSection>
-      </div>
-
-      {/* 11. Disk Monitoring (Step 41) */}
+      {/* 10. Disk Monitoring (Step 41) */}
       <div data-testid="section-disk-monitoring">
         <SettingsSection
           title={tSettings('system_tab.disk_monitoring_title')}

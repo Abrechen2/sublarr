@@ -17,6 +17,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection'
 
 // ─── Lazy imports for heavier sub-tabs ───────────────────────────────────────
 const MediaServersTab = lazy(() => import('../MediaServersTab').then(m => ({ default: m.MediaServersTab })))
+const StandaloneSettingsTab = lazy(() => import('../StandaloneSettingsTab').then(m => ({ default: m.StandaloneSettingsTab })))
 
 function TabSkeleton() {
   return (
@@ -638,6 +639,11 @@ export function StandaloneModeSection() {
       title={t('connections.standalone.section_title')}
       description={t('connections.standalone.section_desc')}
       icon={<ScanLine size={16} style={{ color: 'var(--accent)' }} />}
+      advanced={
+        <Suspense fallback={<TabSkeleton />}>
+          <StandaloneSettingsTab />
+        </Suspense>
+      }
     >
       <div className="py-3">
         <StandaloneSection />

@@ -222,7 +222,7 @@ describe('AutomationSettings', () => {
 
   // ── Non-advanced sections do NOT have an advanced toggle ─────────────────
 
-  it('Search & Scan section has an advanced toggle (advancedCount=5)', () => {
+  it('Search & Scan section has an advanced toggle (advancedCount=8)', () => {
     renderPage()
     const wrapper = screen.getByTestId('section-search-scan')
     expect(
@@ -322,13 +322,6 @@ describe('AutomationSettings', () => {
     expect(mockMutate).toHaveBeenCalledWith({ wanted_max_search_attempts: 5 })
   })
 
-  it('calls updateConfig with wanted_auto_extract=true when toggled', () => {
-    renderPage()
-    const fg = screen.getByTestId('form-group-wanted-auto-extract')
-    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
-    fireEvent.click(toggle)
-    expect(mockMutate).toHaveBeenCalledWith({ wanted_auto_extract: true })
-  })
 
   it('calls updateConfig with wanted_anime_only=true when toggled (in advanced)', () => {
     renderPage()
@@ -352,13 +345,6 @@ describe('AutomationSettings', () => {
     expect(mockMutate).toHaveBeenCalledWith({ wanted_anime_movies_only: true })
   })
 
-  it('calls updateConfig with wanted_skip_srt_on_no_ass=true when toggled', () => {
-    renderPage()
-    const fg = screen.getByTestId('form-group-wanted-skip-srt-on-no-ass')
-    const toggle = fg.querySelector('[role="switch"]') as HTMLElement
-    fireEvent.click(toggle)
-    expect(mockMutate).toHaveBeenCalledWith({ wanted_skip_srt_on_no_ass: true })
-  })
 
   it('calls updateConfig with wanted_adaptive_backoff_enabled=true when toggled (in advanced)', () => {
     renderPage()
