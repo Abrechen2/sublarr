@@ -1,0 +1,77 @@
+<h2>Verhalten von "Erweitert"-Feldern</h2>
+<p class="subtitle">Wie sollen erweiterte Einstellungen standardmäßig erscheinen?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Immer sichtbar, nur markiert</h3>
+      <p>Erweiterte Felder sind immer da — nur mit Badge gekennzeichnet. Kein Aufklappen nötig, kein versteckter Inhalt.</p>
+      <div style="margin-top:12px; padding:12px; background:#1a1d23; border-radius:8px; border:1px solid #2d3139">
+        <div style="margin-bottom:10px">
+          <div style="font-size:13px; font-weight:500; color:#e2e8f0; margin-bottom:2px">Suchintervall (Stunden)</div>
+          <div style="font-size:11px; color:#64748b; margin-bottom:6px">Wie oft nach fehlenden Untertiteln gesucht wird.</div>
+          <div style="background:#282c35; border:1px solid #3d4452; border-radius:4px; padding:6px 10px; color:#94a3b8; font-size:12px">12</div>
+        </div>
+        <div style="border-top:1px solid #2d3139; padding-top:10px">
+          <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px">
+            <span style="font-size:13px; font-weight:500; color:#e2e8f0">Adaptiver Backoff — Basis</span>
+            <span style="font-size:10px; color:#f59e0b; background:#2d1f00; border:1px solid #78350f; border-radius:3px; padding:1px 5px; font-weight:600">Erweitert</span>
+          </div>
+          <div style="background:#282c35; border:1px solid #3d4452; border-radius:4px; padding:6px 10px; color:#94a3b8; font-size:12px">2</div>
+        </div>
+        <div style="margin-top:10px">
+          <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px">
+            <span style="font-size:13px; font-weight:500; color:#e2e8f0">Max. Items pro Durchlauf</span>
+            <span style="font-size:10px; color:#f59e0b; background:#2d1f00; border:1px solid #78350f; border-radius:3px; padding:1px 5px; font-weight:600">Erweitert</span>
+          </div>
+          <div style="background:#282c35; border:1px solid #3d4452; border-radius:4px; padding:6px 10px; color:#94a3b8; font-size:12px">50</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Versteckt hinter "Erweitert anzeigen"</h3>
+      <p>Ein Aufklapp-Button am Ende jeder Sektion versteckt erweiterte Felder. Standard-Ansicht ist clean, Power-User klappen auf.</p>
+      <div style="margin-top:12px; padding:12px; background:#1a1d23; border-radius:8px; border:1px solid #2d3139">
+        <div style="margin-bottom:10px">
+          <div style="font-size:13px; font-weight:500; color:#e2e8f0; margin-bottom:2px">Suchintervall (Stunden)</div>
+          <div style="font-size:11px; color:#64748b; margin-bottom:6px">Wie oft nach fehlenden Untertiteln gesucht wird.</div>
+          <div style="background:#282c35; border:1px solid #3d4452; border-radius:4px; padding:6px 10px; color:#94a3b8; font-size:12px">12</div>
+        </div>
+        <div style="border-top:1px solid #2d3139; padding-top:10px">
+          <div style="display:inline-flex; align-items:center; gap:5px; font-size:11px; color:#4a90d9; cursor:pointer; padding:4px 8px; border:1px solid #2d4a6e; border-radius:4px; background:#0f1929">
+            <span>▶</span> 2 erweiterte Einstellungen anzeigen
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Globaler Toggle "Erweiterte Einstellungen"</h3>
+      <p>Ein Toggle oben auf jeder Settings-Seite schaltet ALLE erweiterten Felder ein/aus. Status wird gespeichert. Wie in macOS Systemeinstellungen.</p>
+      <div style="margin-top:12px; padding:12px; background:#1a1d23; border-radius:8px; border:1px solid #2d3139">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #2d3139">
+          <span style="font-size:12px; color:#64748b">Erweiterte Einstellungen</span>
+          <div style="width:32px; height:18px; background:#2d4a6e; border-radius:9px; position:relative; cursor:pointer">
+            <div style="width:14px; height:14px; background:#4a90d9; border-radius:50%; position:absolute; top:2px; left:2px"></div>
+          </div>
+        </div>
+        <div style="margin-bottom:10px">
+          <div style="font-size:13px; font-weight:500; color:#e2e8f0; margin-bottom:2px">Suchintervall (Stunden)</div>
+          <div style="font-size:11px; color:#64748b; margin-bottom:6px">Wie oft nach fehlenden Untertiteln gesucht wird.</div>
+          <div style="background:#282c35; border:1px solid #3d4452; border-radius:4px; padding:6px 10px; color:#94a3b8; font-size:12px">12</div>
+        </div>
+        <div style="opacity:0.4; font-size:11px; color:#64748b; text-align:center; padding:8px; border:1px dashed #2d3139; border-radius:4px">
+          Erweiterte Felder ausgeblendet — Toggle oben aktivieren
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -13,7 +13,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { strVal } from '@/lib/configUtils'
-import { settingsInputStyle } from '@/styles/settingsShared'
+import { settingsInputStyle, LANGUAGE_OPTIONS } from '@/styles/settingsShared'
 
 // ─── Lazy sub-tabs ────────────────────────────────────────────────────────────
 
@@ -38,31 +38,6 @@ function SectionSkeleton() {
 }
 
 const inputStyle: React.CSSProperties = { ...settingsInputStyle, width: '120px', outline: 'none' }
-
-// ─── Language options ─────────────────────────────────────────────────────────
-
-const LANGUAGE_OPTIONS = [
-  { value: 'de', label: 'Deutsch' },
-  { value: 'en', label: 'English' },
-  { value: 'fr', label: 'Français' },
-  { value: 'ja', label: 'Japanese' },
-  { value: 'es', label: 'Español' },
-  { value: 'it', label: 'Italiano' },
-  { value: 'pt', label: 'Português' },
-  { value: 'nl', label: 'Nederlands' },
-  { value: 'pl', label: 'Polski' },
-  { value: 'ru', label: 'Русский' },
-  { value: 'ko', label: '한국어' },
-  { value: 'zh', label: '中文' },
-  { value: 'ar', label: 'العربية' },
-  { value: 'tr', label: 'Türkçe' },
-  { value: 'sv', label: 'Svenska' },
-  { value: 'da', label: 'Dansk' },
-  { value: 'fi', label: 'Suomi' },
-  { value: 'no', label: 'Norsk' },
-  { value: 'cs', label: 'Čeština' },
-  { value: 'hu', label: 'Magyar' },
-] as const
 
 // ─── Default Languages Section ────────────────────────────────────────────────
 
