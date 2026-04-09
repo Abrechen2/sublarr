@@ -43,6 +43,10 @@ vi.mock('@/hooks/useApi', () => ({
   useUpdateWantedStatus: () => mockUseUpdateWantedStatus(),
 }))
 
+vi.mock('@/hooks/useLibraryApi', () => ({
+  useMovieSubtitles: () => ({ data: { subtitles: [], video_path: '' }, isLoading: false, refetch: vi.fn() }),
+}))
+
 vi.mock('@/components/shared/Breadcrumb', () => ({
   Breadcrumb: ({ items }: { items: { label: string; to?: string }[] }) => (
     <nav>{items.map((i) => <span key={i.label}>{i.label}</span>)}</nav>

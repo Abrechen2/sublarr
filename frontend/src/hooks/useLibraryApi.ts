@@ -17,6 +17,7 @@ import {
   getMovieDetail,
   removeTrackFromContainer,
 } from '@/api/client'
+import { listMovieSubtitles } from '@/api/library'
 import { toast } from '@/components/shared/Toast'
 import type { BatchAction } from '@/lib/types'
 
@@ -327,6 +328,14 @@ export function useMovieDetail(movieId: number | null) {
   return useQuery({
     queryKey: ['movie', movieId],
     queryFn: () => (movieId != null ? getMovieDetail(movieId) : Promise.resolve(null)),
+    enabled: movieId != null,
+  })
+}
+
+export function useMovieSubtitles(movieId: number | null) {
+  return useQuery({
+    queryKey: ['movie-subtitles', movieId],
+    queryFn: () => listMovieSubtitles(movieId!),
     enabled: movieId != null,
   })
 }

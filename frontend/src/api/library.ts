@@ -141,6 +141,11 @@ export async function listSeriesSubtitles(seriesId: number): Promise<{ subtitles
   return data
 }
 
+export async function listMovieSubtitles(movieId: number): Promise<{ subtitles: import('@/lib/types').SidecarSubtitle[]; video_path: string }> {
+  const { data } = await api.get(`/library/movies/${movieId}/subtitles`)
+  return data
+}
+
 export async function deleteSubtitles(paths: string[], blacklist = false): Promise<{ deleted: string[]; failed: { path: string; error: string }[] }> {
   const { data } = await api.delete('/library/subtitles', { data: { paths, blacklist } })
   return data

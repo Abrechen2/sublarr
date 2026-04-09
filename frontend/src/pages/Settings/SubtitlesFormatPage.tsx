@@ -7,9 +7,8 @@
  * 3. Scan Filters        — ignore patterns, minimum file size, ignore languages
  * 4. Embedded Extraction — auto-extract, embedded subs usage (advanced, collapsed)
  */
-import { lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FileType, Tag, Filter, Film } from 'lucide-react'
+import { Tag, Filter, Film } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
@@ -18,12 +17,6 @@ import { toast } from '@/components/shared/Toast'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { strVal, numVal, boolVal } from '@/lib/configUtils'
 import { settingsInputStyle } from '@/styles/settingsShared'
-
-// ─── Lazy sub-tabs ────────────────────────────────────────────────────────────
-
-const SubtitleToolsTab = lazy(() =>
-  import('./AdvancedTab').then((m) => ({ default: m.SubtitleToolsTab })),
-)
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -325,25 +318,7 @@ export function SubtitlesFormatPage() {
         'Subtitle format preferences, file naming conventions, scan filters, and embedded track extraction.',
       )}
     >
-      {/* 1. Format & Tools */}
-      <div data-testid="section-format-tools">
-        <SettingsSection
-          title={t('settings.subtitles.formatTools.title', 'Format & Tools')}
-          description={t(
-            'settings.subtitles.formatTools.description',
-            'Subtitle file format preferences and manual subtitle tools.',
-          )}
-          icon={<FileType size={16} style={{ color: 'var(--accent)' }} />}
-        >
-          <div data-testid="format-tools-content">
-            <Suspense fallback={<SectionSkeleton />}>
-              <SubtitleToolsTab />
-            </Suspense>
-          </div>
-        </SettingsSection>
-      </div>
-
-      {/* 2. Subtitle Naming */}
+      {/* 1. Subtitle Naming */}
       <div data-testid="section-subtitle-naming">
         <SettingsSection
           title={t('settings.subtitles.subtitleNaming.title')}

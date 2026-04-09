@@ -6,8 +6,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Loader2, FileVideo, ArrowLeft, Film, Search, SkipForward, RotateCcw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useMovieDetail, useWantedItems, useSearchWantedItem, useUpdateWantedStatus } from '@/hooks/useApi'
+import { useMovieSubtitles } from '@/hooks/useLibraryApi'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
+import { SubtitleActionsMenu } from '@/components/processing/SubtitleActionsMenu'
 import type { MovieDetail, WantedItem } from '@/lib/types'
+import type { SidecarSubtitle } from '@/types/library'
 
 // ─── MovieHero ────────────────────────────────────────────────────────────────
 
@@ -283,8 +286,62 @@ export function MovieDetailPage() {
         </div>
       </div>
 
-      {/* Subtitle Management */}
+      {/* Existing subtitle files */}
+      <MovieSubtitlesSection movieId={movie.id} />
+
+      {/* Missing subtitles / wanted items */}
       <MovieWantedSection movieId={movie.id} />
+    </div>
+  )
+}
+
+// ─── MovieSubtitlesSection ────────────────────────────────────────────────────
+
+function MovieSubtitlesSection({ movieId }: { movieId: number }) {
+  const { t } = useTranslation('library')
+  const { data, isLoading, refetch } = useMovieSubtitles(movieId)
+  const subtitles = data?.subtitles ?? []
+
+  if (isLoading) return null
+  if (subtitles.length === 0) return null
+
+  return (
+    <div
+      className="rounded-lg p-5"
+      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      data-testid="movie-subtitles-section"
+    >
+      <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+        {t('movie_detail.existing_subtitles', 'Vorhandene Untertitel')}
+      </h2>
+      <div className="space-y-1.5">
+        {subtitles.map((sub: SidecarSubtitle) => (
+          <div
+            key={sub.path}
+            className="flex items-center justify-between gap-3 py-2 px-3 rounded-md"
+            style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)' }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className="text-xs font-semibold px-2 py-0.5 rounded shrink-0"
+                style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
+              >
+                {sub.language.toUpperCase()}
+              </span>
+              <span
+                className="text-xs px-1.5 py-0.5 rounded shrink-0"
+                style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}
+              >
+                {sub.format.toUpperCase()}
+              </span>
+              <span className="text-xs truncate" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                {sub.path.split(/[/\\]/).pop()}
+              </span>
+            </div>
+            <SubtitleActionsMenu subtitlePath={sub.path} onRefresh={() => void refetch()} />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

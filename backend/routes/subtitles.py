@@ -6,6 +6,7 @@ subtitle sidecar files (.lang.ass, .lang.srt, etc.) next to video files.
 Endpoints:
   GET  /library/episodes/<ep_id>/subtitles              — sidecars for one episode
   GET  /library/series/<series_id>/subtitles            — sidecars for all episodes in a series
+  GET  /library/movies/<movie_id>/subtitles             — sidecars for a standalone movie
   DELETE /library/subtitles                             — move one or more sidecar files to trash
   POST /library/series/<series_id>/subtitles/batch-delete — batch-trash by language/format filter
   GET  /library/trash                                   — list all trash batches
@@ -266,6 +267,26 @@ def list_episode_subtitles(ep_id: int):
 
     sidecars = scan_subtitle_sidecars(video_path)
     return jsonify({"subtitles": sidecars, "video_path": video_path}), 200
+
+
+@bp.route("/library/movies/<int:movie_id>/subtitles", methods=["GET"])
+def list_movie_subtitles(movie_id: int):
+    """Return all subtitle sidecar files found next to this standalone movie's video file."""
+    from db.standalone import get_standalone_movies
+
+    movie = get_standalone_movies(movie_id)
+    if movie is None:
+        return jsonify({"error": "Movie not found"}), 404
+
+    file_path = movie.get("file_path") if isinstance(movie, dict) else getattr(movie, "file_path", None)
+    if not file_path:
+        return jsonify({"error": "Movie has no video file"}), 404
+
+    if not os.path.exists(file_path):
+        return jsonify({"error": f"Video file not found: {file_path}"}), 404
+
+    sidecars = scan_subtitle_sidecars(file_path)
+    return jsonify({"subtitles": sidecars, "video_path": file_path}), 200
 
 
 @bp.route("/library/series/<int:series_id>/subtitles", methods=["GET"])
