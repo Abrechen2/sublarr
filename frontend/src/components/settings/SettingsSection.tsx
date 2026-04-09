@@ -95,7 +95,7 @@ export function SettingsSection({
             <span>
               {advancedCount !== undefined
                 ? t('advanced_toggle', { count: advancedCount })
-                : t('advanced_toggle', { count: 0 })}
+                : t('advanced_toggle_label')}
             </span>
           </button>
 

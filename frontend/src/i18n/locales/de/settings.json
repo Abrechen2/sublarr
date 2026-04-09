@@ -2,6 +2,7 @@
   "title": "Einstellungen",
   "advanced_toggle_one": "1 erweiterte Einstellung",
   "advanced_toggle_other": "{{count}} erweiterte Einstellungen",
+  "advanced_toggle_label": "Erweiterte Einstellungen",
   "advanced_badge": "Erweitert",
   "tabs": {
     "general": "Allgemein",
