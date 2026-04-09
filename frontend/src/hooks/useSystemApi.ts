@@ -112,6 +112,20 @@ export function useUpdateConfig() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (values: Record<string, unknown>) => updateConfig(values),
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: ['config'] })
+      const previous = queryClient.getQueryData<Record<string, unknown>>(['config'])
+      queryClient.setQueryData<Record<string, unknown>>(['config'], (old) => ({
+        ...old,
+        ...variables,
+      }))
+      return { previous }
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(['config'], context.previous)
+      }
+    },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['config'] })
       const keys = Object.keys(variables)
