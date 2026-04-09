@@ -6,7 +6,7 @@ import {
   getScoringPresets, importScoringPreset,
   getBlacklist, addToBlacklist, removeFromBlacklist, clearBlacklist,
   getLanguageProfiles, createLanguageProfile, updateLanguageProfile,
-  deleteLanguageProfile, assignProfile,
+  deleteLanguageProfile, assignProfile, setProfileAsDefaultForAll,
   getHistory, getHistoryStats,
   episodeSearch, episodeHistory,
   searchInteractive, searchInteractiveEpisode,
@@ -198,6 +198,17 @@ export function useAssignProfile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['library'] })
       queryClient.invalidateQueries({ queryKey: ['language-profiles'] })
+    },
+  })
+}
+
+export function useSetProfileAsDefaultForAll() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => setProfileAsDefaultForAll(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['language-profiles'] })
+      queryClient.invalidateQueries({ queryKey: ['library'] })
     },
   })
 }

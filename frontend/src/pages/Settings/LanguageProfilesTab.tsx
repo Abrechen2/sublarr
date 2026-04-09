@@ -5,6 +5,7 @@ import {
   useCreateProfile,
   useUpdateProfile,
   useDeleteProfile,
+  useSetProfileAsDefaultForAll,
   useBackends,
 } from '@/hooks/useApi'
 import {
@@ -15,34 +16,13 @@ import {
   X,
   Check,
   Globe,
+  Star,
 } from 'lucide-react'
 import { ChevronUp, ChevronDown } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import type { LanguageProfile } from '@/lib/types'
 import { LanguagePillSelector } from '@/components/settings/LanguagePillSelector'
-
-const LANGUAGE_OPTIONS = [
-  { value: 'de', label: 'Deutsch' },
-  { value: 'en', label: 'English' },
-  { value: 'fr', label: 'Français' },
-  { value: 'ja', label: 'Japanese' },
-  { value: 'es', label: 'Español' },
-  { value: 'it', label: 'Italiano' },
-  { value: 'pt', label: 'Português' },
-  { value: 'nl', label: 'Nederlands' },
-  { value: 'pl', label: 'Polski' },
-  { value: 'ru', label: 'Русский' },
-  { value: 'ko', label: '한국어' },
-  { value: 'zh', label: '中文' },
-  { value: 'ar', label: 'العربية' },
-  { value: 'tr', label: 'Türkçe' },
-  { value: 'sv', label: 'Svenska' },
-  { value: 'da', label: 'Dansk' },
-  { value: 'fi', label: 'Suomi' },
-  { value: 'no', label: 'Norsk' },
-  { value: 'cs', label: 'Čeština' },
-  { value: 'hu', label: 'Magyar' },
-] as const
+import { LANGUAGE_OPTIONS } from '@/styles/settingsShared'
 
 function getLangLabel(code: string): string {
   return LANGUAGE_OPTIONS.find((o) => o.value === code)?.label ?? code
@@ -57,6 +37,7 @@ export function LanguageProfilesTab() {
   const createProfile = useCreateProfile()
   const updateProfile = useUpdateProfile()
   const deleteProfile = useDeleteProfile()
+  const setAsDefaultForAll = useSetProfileAsDefaultForAll()
   const [editingId, setEditingId] = useState<number | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({
@@ -67,12 +48,13 @@ export function LanguageProfilesTab() {
     translation_backend: '',
     fallback_chain: [] as string[],
     forced_preference: 'disabled' as 'disabled' | 'separate' | 'auto',
+    hi_preference: 'include' as 'include' | 'prefer' | 'exclude' | 'only',
   })
 
   const backends = backendsData?.backends ?? []
 
   const resetForm = () => {
-    setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: [], translation_backend: '', fallback_chain: [], forced_preference: 'disabled' })
+    setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: [], translation_backend: '', fallback_chain: [], forced_preference: 'disabled', hi_preference: 'include' })
     setEditingId(null)
     setShowAdd(false)
   }
@@ -86,6 +68,7 @@ export function LanguageProfilesTab() {
       translation_backend: p.translation_backend || '',
       fallback_chain: p.fallback_chain || [],
       forced_preference: p.forced_preference || 'disabled',
+      hi_preference: p.hi_preference || 'include',
     })
     setEditingId(p.id)
     setShowAdd(false)
@@ -125,6 +108,7 @@ export function LanguageProfilesTab() {
       translation_backend: form.translation_backend || '',
       fallback_chain: form.fallback_chain,
       forced_preference: form.forced_preference,
+      hi_preference: form.hi_preference,
     }
 
     if (editingId) {
@@ -162,7 +146,7 @@ export function LanguageProfilesTab() {
           Sprachprofile legen fest, welche Untertitelsprachen pro Serie/Film gesucht werden.
         </span>
         <button
-          onClick={() => { setShowAdd(true); setEditingId(null); setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: [], translation_backend: '', fallback_chain: [], forced_preference: 'disabled' }) }}
+          onClick={() => { setShowAdd(true); setEditingId(null); setForm({ name: '', source_language: 'en', source_language_name: 'English', target_languages: [], translation_backend: '', fallback_chain: [], forced_preference: 'disabled', hi_preference: 'include' }) }}
           className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all duration-150"
           style={{ border: '1px solid var(--accent-dim)', color: 'var(--accent)', backgroundColor: 'var(--accent-bg)' }}
         >
@@ -250,6 +234,28 @@ export function LanguageProfilesTab() {
                 {form.forced_preference === 'disabled' && 'Forced/Signs-Untertitel werden ignoriert'}
                 {form.forced_preference === 'separate' && 'Forced-Untertitel werden aktiv gesucht und separat verwaltet'}
                 {form.forced_preference === 'auto' && 'Forced-Untertitel werden erkannt wenn vorhanden, aber nicht aktiv gesucht'}
+              </p>
+            </div>
+
+            {/* HI Subtitles Preference */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Hörgeschädigten-Untertitel (HI)</label>
+              <select
+                value={form.hi_preference}
+                onChange={(e) => setForm((f) => ({ ...f, hi_preference: e.target.value as 'include' | 'prefer' | 'exclude' | 'only' }))}
+                className="w-full px-2.5 py-1.5 rounded text-xs"
+                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+              >
+                <option value="include">Einschließen</option>
+                <option value="prefer">Bevorzugen</option>
+                <option value="exclude">Ausschließen</option>
+                <option value="only">Nur HI</option>
+              </select>
+              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                {form.hi_preference === 'include' && 'HI-Untertitel werden gleichwertig eingeschlossen'}
+                {form.hi_preference === 'prefer' && 'HI-Untertitel werden bevorzugt, falls verfügbar'}
+                {form.hi_preference === 'exclude' && 'HI-Untertitel werden übersprungen'}
+                {form.hi_preference === 'only' && 'Nur HI-Untertitel werden akzeptiert'}
               </p>
             </div>
 
@@ -386,6 +392,23 @@ export function LanguageProfilesTab() {
               )}
             </div>
             <div className="flex items-center gap-1.5">
+              {!p.is_default && (
+                <button
+                  onClick={() => {
+                    setAsDefaultForAll.mutate(p.id, {
+                      onSuccess: () => toast(`"${p.name}" als Standard für alle aktiviert`),
+                      onError: () => toast('Standard konnte nicht gesetzt werden', 'error'),
+                    })
+                  }}
+                  disabled={setAsDefaultForAll.isPending}
+                  className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-all duration-150"
+                  style={{ border: '1px solid var(--accent-dim)', color: 'var(--accent)', backgroundColor: 'var(--accent-bg)' }}
+                  title="Als Standard für alle bestehenden und neuen Serien/Filme aktivieren"
+                >
+                  <Star size={11} />
+                  Als Standard
+                </button>
+              )}
               <button
                 onClick={() => startEdit(p)}
                 className="p-1.5 rounded transition-all duration-150"
@@ -437,6 +460,11 @@ export function LanguageProfilesTab() {
             {p.forced_preference && p.forced_preference !== 'disabled' && (
               <span>
                 Erzwungen: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.forced_preference}</code>
+              </span>
+            )}
+            {p.hi_preference && p.hi_preference !== 'include' && (
+              <span>
+                HI: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.hi_preference}</code>
               </span>
             )}
           </div>

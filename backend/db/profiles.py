@@ -24,6 +24,7 @@ def create_language_profile(
     translation_backend: str = "ollama",
     fallback_chain: list = None,
     forced_preference: str = "disabled",
+    hi_preference: str = "include",
     must_contain: list = None,
     must_not_contain: list = None,
     cutoff_language: str = "",
@@ -39,6 +40,7 @@ def create_language_profile(
         translation_backend,
         fallback_chain,
         forced_preference,
+        hi_preference=hi_preference,
         must_contain=must_contain,
         must_not_contain=must_not_contain,
         cutoff_language=cutoff_language,
@@ -64,6 +66,11 @@ def update_language_profile(profile_id: int, **fields):
 def delete_language_profile(profile_id: int) -> bool:
     """Delete a language profile (cannot delete default). Returns True if deleted."""
     return _get_repo().delete_profile(profile_id)
+
+
+def set_profile_as_default_for_all(profile_id: int) -> bool:
+    """Set profile as global default and clear all explicit series/movie assignments."""
+    return _get_repo().set_as_default_for_all(profile_id)
 
 
 def get_default_profile() -> dict:

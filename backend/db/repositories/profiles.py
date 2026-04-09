@@ -22,6 +22,7 @@ from db.repositories.base import BaseRepository
 logger = logging.getLogger(__name__)
 
 VALID_FORCED_PREFERENCES = ("disabled", "separate", "auto")
+VALID_HI_PREFERENCES = ("include", "prefer", "exclude", "only")
 
 
 class ProfileRepository(BaseRepository):
@@ -39,6 +40,7 @@ class ProfileRepository(BaseRepository):
         translation_backend: str = "ollama",
         fallback_chain: list = None,
         forced_preference: str = "disabled",
+        hi_preference: str = "include",
         must_contain: list = None,
         must_not_contain: list = None,
         cutoff_language: str = "",
@@ -49,6 +51,11 @@ class ProfileRepository(BaseRepository):
             raise ValueError(
                 f"Invalid forced_preference '{forced_preference}'. "
                 f"Must be one of: {VALID_FORCED_PREFERENCES}"
+            )
+        if hi_preference not in VALID_HI_PREFERENCES:
+            raise ValueError(
+                f"Invalid hi_preference '{hi_preference}'. "
+                f"Must be one of: {VALID_HI_PREFERENCES}"
             )
         if fallback_chain is None:
             fallback_chain = [translation_backend]
@@ -63,6 +70,7 @@ class ProfileRepository(BaseRepository):
             translation_backend=translation_backend,
             fallback_chain_json=json.dumps(fallback_chain),
             forced_preference=forced_preference,
+            hi_preference=hi_preference,
             is_default=0,
             created_at=now,
             updated_at=now,
@@ -136,6 +144,7 @@ class ProfileRepository(BaseRepository):
             "translation_backend",
             "fallback_chain",
             "forced_preference",
+            "hi_preference",
             "must_contain",
             "must_not_contain",
             "cutoff_language",
@@ -148,6 +157,14 @@ class ProfileRepository(BaseRepository):
             if fp not in VALID_FORCED_PREFERENCES:
                 raise ValueError(
                     f"Invalid forced_preference '{fp}'. Must be one of: {VALID_FORCED_PREFERENCES}"
+                )
+
+        # Validate hi_preference if provided
+        if "hi_preference" in fields:
+            hp = fields["hi_preference"]
+            if hp not in VALID_HI_PREFERENCES:
+                raise ValueError(
+                    f"Invalid hi_preference '{hp}'. Must be one of: {VALID_HI_PREFERENCES}"
                 )
 
         for key, value in fields.items():
@@ -171,6 +188,34 @@ class ProfileRepository(BaseRepository):
                 setattr(profile, key, value)
 
         profile.updated_at = self._now()
+        self._commit()
+        return True
+
+    def set_as_default_for_all(self, profile_id: int) -> bool:
+        """Set a profile as default and clear all explicit series/movie assignments.
+
+        This marks the given profile as the global default (is_default=1),
+        clears is_default on all other profiles, and removes all explicit
+        series_language_profiles / movie_language_profiles rows so every item
+        falls back to the new default.  Returns True if the profile was found.
+        """
+        profile = self.session.get(LanguageProfile, profile_id)
+        if not profile:
+            return False
+
+        # Clear is_default on all profiles
+        all_profiles = self.session.execute(select(LanguageProfile)).scalars().all()
+        for p in all_profiles:
+            p.is_default = 0
+
+        # Set this profile as default
+        profile.is_default = 1
+        profile.updated_at = self._now()
+
+        # Remove all explicit assignments — items will now use the default
+        self.session.execute(delete(SeriesLanguageProfile))
+        self.session.execute(delete(MovieLanguageProfile))
+
         self._commit()
         return True
 
@@ -342,6 +387,9 @@ class ProfileRepository(BaseRepository):
 
         # Forced subtitle preference (added in Phase 6)
         d["forced_preference"] = d.get("forced_preference", "disabled")
+
+        # HI subtitle preference (added with profile consolidation)
+        d["hi_preference"] = d.get("hi_preference", "include")
 
         # Profile filter fields (Phase 4)
         try:

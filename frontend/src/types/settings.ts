@@ -11,6 +11,7 @@ export interface LanguageProfile {
   translation_backend: string
   fallback_chain: string[]
   forced_preference: 'disabled' | 'separate' | 'auto'
+  hi_preference: 'include' | 'prefer' | 'exclude' | 'only'
 }
 
 // ─── Events & Hooks ──────────────────────────────────────────────────────────

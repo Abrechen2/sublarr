@@ -54,6 +54,11 @@ export async function assignProfile(type: 'series' | 'movie', arrId: number, pro
   await api.put('/language-profiles/assign', { type, arr_id: arrId, profile_id: profileId })
 }
 
+export async function setProfileAsDefaultForAll(id: number): Promise<LanguageProfile> {
+  const { data } = await api.post(`/language-profiles/${id}/set-as-default-for-all`)
+  return data.profile
+}
+
 // ─── Events & Hooks ──────────────────────────────────────────────────────
 
 export const getEventCatalog = () => api.get('/events/catalog').then(r => r.data)

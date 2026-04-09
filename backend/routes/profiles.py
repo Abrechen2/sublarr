@@ -117,6 +117,7 @@ def create_language_profile_endpoint():
     translation_backend = data.get("translation_backend", "ollama")
     fallback_chain = data.get("fallback_chain")
     forced_preference = data.get("forced_preference", "disabled")
+    hi_preference = data.get("hi_preference", "include")
     must_contain = data.get("must_contain", [])
     must_not_contain = data.get("must_not_contain", [])
     cutoff_language = data.get("cutoff_language", "")
@@ -124,6 +125,9 @@ def create_language_profile_endpoint():
 
     if forced_preference not in ("disabled", "separate", "auto"):
         return jsonify({"error": "forced_preference must be one of: disabled, separate, auto"}), 400
+
+    if hi_preference not in ("include", "prefer", "exclude", "only"):
+        return jsonify({"error": "hi_preference must be one of: include, prefer, exclude, only"}), 400
 
     try:
         profile_id = create_language_profile(
@@ -135,6 +139,7 @@ def create_language_profile_endpoint():
             translation_backend=translation_backend,
             fallback_chain=fallback_chain,
             forced_preference=forced_preference,
+            hi_preference=hi_preference,
             must_contain=must_contain if isinstance(must_contain, list) else [],
             must_not_contain=must_not_contain if isinstance(must_not_contain, list) else [],
             cutoff_language=cutoff_language if isinstance(cutoff_language, str) else "",
@@ -228,6 +233,7 @@ def update_language_profile_endpoint(profile_id):
         "translation_backend",
         "fallback_chain",
         "forced_preference",
+        "hi_preference",
         "must_contain",
         "must_not_contain",
         "cutoff_language",
@@ -245,6 +251,14 @@ def update_language_profile_endpoint(profile_id):
         "auto",
     ):
         return jsonify({"error": "forced_preference must be one of: disabled, separate, auto"}), 400
+
+    if "hi_preference" in fields and fields["hi_preference"] not in (
+        "include",
+        "prefer",
+        "exclude",
+        "only",
+    ):
+        return jsonify({"error": "hi_preference must be one of: include, prefer, exclude, only"}), 400
 
     try:
         update_language_profile(profile_id, **fields)
@@ -373,6 +387,37 @@ def assign_profile():
     return jsonify(
         {"status": "assigned", "type": item_type, "arr_id": arr_id, "profile_id": profile_id}
     )
+
+
+@bp.route("/language-profiles/<int:profile_id>/set-as-default-for-all", methods=["POST"])
+def set_profile_as_default_for_all_endpoint(profile_id):
+    """Set a profile as the global default and remove all explicit item assignments.
+
+    Marks this profile as is_default=1, clears is_default on all others, and
+    removes all series_language_profiles / movie_language_profiles rows so every
+    item falls back to the new default profile.
+    ---
+    post:
+      tags:
+        - Profiles
+      summary: Set profile as default for all items
+      description: Sets the given profile as the global default and clears all explicit series/movie profile assignments.
+      responses:
+        200:
+          description: Profile set as default for all items
+        404:
+          description: Profile not found
+    """
+    from db.profiles import get_language_profile, set_profile_as_default_for_all
+
+    profile = get_language_profile(profile_id)
+    if not profile:
+        return jsonify({"error": "Profile not found"}), 404
+
+    set_profile_as_default_for_all(profile_id)
+    invalidate_response_cache()
+    updated = get_language_profile(profile_id)
+    return jsonify({"status": "ok", "profile": updated})
 
 
 # ─── Glossary Endpoints ──────────────────────────────────────────────────────
