@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 VALID_FORCED_PREFERENCES = ("disabled", "separate", "auto")
 VALID_HI_PREFERENCES = ("include", "prefer", "exclude", "only")
+VALID_FORCED_SCORING = ("include", "prefer", "exclude", "only")
 
 
 class ProfileRepository(BaseRepository):
@@ -41,6 +42,7 @@ class ProfileRepository(BaseRepository):
         fallback_chain: list = None,
         forced_preference: str = "disabled",
         hi_preference: str = "include",
+        forced_scoring: str = "include",
         must_contain: list = None,
         must_not_contain: list = None,
         cutoff_language: str = "",
@@ -57,6 +59,11 @@ class ProfileRepository(BaseRepository):
                 f"Invalid hi_preference '{hi_preference}'. "
                 f"Must be one of: {VALID_HI_PREFERENCES}"
             )
+        if forced_scoring not in VALID_FORCED_SCORING:
+            raise ValueError(
+                f"Invalid forced_scoring '{forced_scoring}'. "
+                f"Must be one of: {VALID_FORCED_SCORING}"
+            )
         if fallback_chain is None:
             fallback_chain = [translation_backend]
         now = self._now()
@@ -71,6 +78,7 @@ class ProfileRepository(BaseRepository):
             fallback_chain_json=json.dumps(fallback_chain),
             forced_preference=forced_preference,
             hi_preference=hi_preference,
+            forced_scoring=forced_scoring,
             is_default=0,
             created_at=now,
             updated_at=now,
@@ -145,6 +153,7 @@ class ProfileRepository(BaseRepository):
             "fallback_chain",
             "forced_preference",
             "hi_preference",
+            "forced_scoring",
             "must_contain",
             "must_not_contain",
             "cutoff_language",
@@ -165,6 +174,14 @@ class ProfileRepository(BaseRepository):
             if hp not in VALID_HI_PREFERENCES:
                 raise ValueError(
                     f"Invalid hi_preference '{hp}'. Must be one of: {VALID_HI_PREFERENCES}"
+                )
+
+        # Validate forced_scoring if provided
+        if "forced_scoring" in fields:
+            fs = fields["forced_scoring"]
+            if fs not in VALID_FORCED_SCORING:
+                raise ValueError(
+                    f"Invalid forced_scoring '{fs}'. Must be one of: {VALID_FORCED_SCORING}"
                 )
 
         for key, value in fields.items():
@@ -390,6 +407,9 @@ class ProfileRepository(BaseRepository):
 
         # HI subtitle preference (added with profile consolidation)
         d["hi_preference"] = d.get("hi_preference", "include")
+
+        # Forced scoring preference (separate from forced_preference search behavior)
+        d["forced_scoring"] = d.get("forced_scoring", "include")
 
         # Profile filter fields (Phase 4)
         try:

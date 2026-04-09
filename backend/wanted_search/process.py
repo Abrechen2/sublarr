@@ -148,6 +148,7 @@ def process_wanted_item(item_id: int) -> dict:
     query = build_query_from_wanted(item)
     query.languages = [item_lang]
     query.hi_preference = _pf.get("hi_preference", "include")
+    query.forced_scoring = _pf.get("forced_scoring", "include")
 
     try:
         result = manager.search_and_download_best(

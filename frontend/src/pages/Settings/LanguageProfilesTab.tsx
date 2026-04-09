@@ -41,12 +41,13 @@ export function LanguageProfilesTab() {
     name: '',
     target_languages: [] as string[],
     forced_preference: 'disabled' as 'disabled' | 'separate' | 'auto',
+    forced_scoring: 'include' as 'include' | 'prefer' | 'exclude' | 'only',
     hi_preference: 'include' as 'include' | 'prefer' | 'exclude' | 'only',
     cutoff_language: '',
   })
 
   const resetForm = () => {
-    setForm({ name: '', target_languages: [], forced_preference: 'disabled', hi_preference: 'include', cutoff_language: '' })
+    setForm({ name: '', target_languages: [], forced_preference: 'disabled', forced_scoring: 'include', hi_preference: 'include', cutoff_language: '' })
     setEditingId(null)
     setShowAdd(false)
   }
@@ -56,6 +57,7 @@ export function LanguageProfilesTab() {
       name: p.name,
       target_languages: p.target_languages,
       forced_preference: p.forced_preference || 'disabled',
+      forced_scoring: p.forced_scoring || 'include',
       hi_preference: p.hi_preference || 'include',
       cutoff_language: p.cutoff_language || '',
     })
@@ -76,6 +78,7 @@ export function LanguageProfilesTab() {
       target_languages: targetLangs,
       target_language_names: targetNames,
       forced_preference: form.forced_preference,
+      forced_scoring: form.forced_scoring,
       hi_preference: form.hi_preference,
       cutoff_language: form.cutoff_language,
     }
@@ -115,7 +118,7 @@ export function LanguageProfilesTab() {
           Sprachprofile legen fest, welche Untertitelsprachen pro Serie/Film gesucht werden.
         </span>
         <button
-          onClick={() => { setShowAdd(true); setEditingId(null); setForm({ name: '', target_languages: [], forced_preference: 'disabled', hi_preference: 'include', cutoff_language: '' }) }}
+          onClick={() => { setShowAdd(true); setEditingId(null); setForm({ name: '', target_languages: [], forced_preference: 'disabled', forced_scoring: 'include', hi_preference: 'include', cutoff_language: '' }) }}
           className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all duration-150"
           style={{ border: '1px solid var(--accent-dim)', color: 'var(--accent)', backgroundColor: 'var(--accent-bg)' }}
         >
@@ -188,6 +191,28 @@ export function LanguageProfilesTab() {
                 {form.forced_preference === 'disabled' && 'Forced/Signs-Untertitel werden ignoriert'}
                 {form.forced_preference === 'separate' && 'Forced-Untertitel werden aktiv gesucht und separat verwaltet'}
                 {form.forced_preference === 'auto' && 'Forced-Untertitel werden erkannt wenn vorhanden, aber nicht aktiv gesucht'}
+              </p>
+            </div>
+
+            {/* Forced Subtitles Scoring */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Forced-Untertitel Wertung</label>
+              <select
+                value={form.forced_scoring}
+                onChange={(e) => setForm((f) => ({ ...f, forced_scoring: e.target.value as 'include' | 'prefer' | 'exclude' | 'only' }))}
+                className="w-full px-2.5 py-1.5 rounded text-xs"
+                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+              >
+                <option value="include">Einschließen</option>
+                <option value="prefer">Bevorzugen</option>
+                <option value="exclude">Ausschließen</option>
+                <option value="only">Nur Forced</option>
+              </select>
+              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                {form.forced_scoring === 'include' && 'Forced-Untertitel werden gleichwertig bewertet'}
+                {form.forced_scoring === 'prefer' && 'Forced-Untertitel erhalten +30 Punkte beim Scoring'}
+                {form.forced_scoring === 'exclude' && 'Forced-Untertitel werden beim Scoring auf -999 gesetzt'}
+                {form.forced_scoring === 'only' && 'Nur Forced-Untertitel werden akzeptiert (normale auf -999)'}
               </p>
             </div>
 
@@ -341,6 +366,11 @@ export function LanguageProfilesTab() {
             {p.forced_preference && p.forced_preference !== 'disabled' && (
               <span>
                 Erzwungen: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.forced_preference}</code>
+              </span>
+            )}
+            {p.forced_scoring && p.forced_scoring !== 'include' && (
+              <span>
+                Forced-Wertung: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{p.forced_scoring}</code>
               </span>
             )}
             {p.hi_preference && p.hi_preference !== 'include' && (

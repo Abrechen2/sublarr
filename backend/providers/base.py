@@ -94,6 +94,9 @@ class VideoQuery:
     # HI preference from the language profile — controls scoring bonus/penalty
     hi_preference: str = "include"  # include | prefer | exclude | only
 
+    # Forced scoring preference from the language profile
+    forced_scoring: str = "include"  # include | prefer | exclude | only
+
     @property
     def is_episode(self) -> bool:
         return self.season is not None and self.episode is not None
@@ -319,9 +322,11 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
     ):
         breakdown["hi_preference"] = -999
 
-    # Forced subtitle preference modifier (global setting — no per-profile UI yet)
-    from config import get_settings as _get_settings
-    forced_pref = getattr(_get_settings(), "forced_preference", "include")
+    # Forced scoring preference — profile value takes precedence over global setting
+    forced_pref = getattr(query, "forced_scoring", None)
+    if not forced_pref or forced_pref == "include":
+        from config import get_settings as _get_settings
+        forced_pref = getattr(_get_settings(), "forced_preference", "include")
     if forced_pref == "prefer" and result.forced:
         breakdown["forced_preference"] = 30
     elif forced_pref == "exclude" and result.forced or forced_pref == "only" and not result.forced:

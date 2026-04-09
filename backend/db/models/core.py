@@ -147,6 +147,7 @@ class LanguageProfile(db.Model):
     fallback_chain_json: Mapped[str | None] = mapped_column(Text, default='["ollama"]')
     forced_preference: Mapped[str | None] = mapped_column(Text, default="disabled")
     hi_preference: Mapped[str | None] = mapped_column(Text, default="include")
+    forced_scoring: Mapped[str | None] = mapped_column(Text, default="include")
     # Filter fields (Bazarr parity)
     must_contain_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     must_not_contain_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")

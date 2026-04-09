@@ -118,6 +118,7 @@ def create_language_profile_endpoint():
     fallback_chain = data.get("fallback_chain")
     forced_preference = data.get("forced_preference", "disabled")
     hi_preference = data.get("hi_preference", "include")
+    forced_scoring = data.get("forced_scoring", "include")
     must_contain = data.get("must_contain", [])
     must_not_contain = data.get("must_not_contain", [])
     cutoff_language = data.get("cutoff_language", "")
@@ -128,6 +129,9 @@ def create_language_profile_endpoint():
 
     if hi_preference not in ("include", "prefer", "exclude", "only"):
         return jsonify({"error": "hi_preference must be one of: include, prefer, exclude, only"}), 400
+
+    if forced_scoring not in ("include", "prefer", "exclude", "only"):
+        return jsonify({"error": "forced_scoring must be one of: include, prefer, exclude, only"}), 400
 
     try:
         profile_id = create_language_profile(
@@ -140,6 +144,7 @@ def create_language_profile_endpoint():
             fallback_chain=fallback_chain,
             forced_preference=forced_preference,
             hi_preference=hi_preference,
+            forced_scoring=forced_scoring,
             must_contain=must_contain if isinstance(must_contain, list) else [],
             must_not_contain=must_not_contain if isinstance(must_not_contain, list) else [],
             cutoff_language=cutoff_language if isinstance(cutoff_language, str) else "",
@@ -234,6 +239,7 @@ def update_language_profile_endpoint(profile_id):
         "fallback_chain",
         "forced_preference",
         "hi_preference",
+        "forced_scoring",
         "must_contain",
         "must_not_contain",
         "cutoff_language",
@@ -259,6 +265,14 @@ def update_language_profile_endpoint(profile_id):
         "only",
     ):
         return jsonify({"error": "hi_preference must be one of: include, prefer, exclude, only"}), 400
+
+    if "forced_scoring" in fields and fields["forced_scoring"] not in (
+        "include",
+        "prefer",
+        "exclude",
+        "only",
+    ):
+        return jsonify({"error": "forced_scoring must be one of: include, prefer, exclude, only"}), 400
 
     try:
         update_language_profile(profile_id, **fields)
