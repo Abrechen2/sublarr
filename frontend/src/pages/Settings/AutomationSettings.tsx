@@ -50,6 +50,26 @@ function SearchScanAdvancedContent() {
   return (
     <div data-testid="search-scan-advanced-content">
       <FormGroup
+        label="FFmpeg Timeout (Sekunden)"
+        hint="Maximale Wartezeit für ffprobe/ffmpeg-Operationen beim Scannen der Mediathek."
+        htmlFor="ffmpeg-timeout"
+        advanced
+        data-testid="form-group-ffmpeg-timeout"
+      >
+        <input
+          id="ffmpeg-timeout"
+          type="number"
+          data-testid="input-ffmpeg-timeout"
+          style={{ ...inputStyle, maxWidth: '120px' }}
+          value={strVal(config, 'ffmpeg_timeout', '30')}
+          onChange={(e) => save({ ffmpeg_timeout: Number(e.target.value) })}
+          disabled={updateConfig.isPending}
+          min={1}
+          placeholder="30"
+        />
+      </FormGroup>
+
+      <FormGroup
         label={tS('automation_page.anime_series_only')}
         hint={tS('automation_page.anime_series_only_hint')}
         advanced
@@ -544,7 +564,7 @@ export function AutomationSettings() {
           )}
           icon={<Search size={16} style={{ color: 'var(--accent)' }} />}
           advanced={<SearchScanAdvancedContent />}
-          advancedCount={5}
+          advancedCount={6}
         >
           <SearchScanContent />
         </SettingsSection>

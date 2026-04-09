@@ -263,22 +263,14 @@ describe('MetadataApiKeysSection (Step 27)', () => {
           tvdb_api_key: expect.any(String),
           tvdb_pin: expect.any(String),
           metadata_cache_ttl_days: expect.any(String),
-          ffmpeg_timeout: expect.any(String),
         }),
         expect.any(Object),
       )
     })
   })
 
-  it('ffmpeg_timeout is in collapsed advanced section', () => {
+  it('ffmpeg_timeout is not in metadata section (moved to Automation)', () => {
     renderWithProviders(<ConnectionsSettings />)
     expect(screen.queryByTestId('metadata-ffmpeg-timeout')).toBeNull()
-    const sections = screen.getAllByTestId('settings-section')
-    const metadataSection = sections[4]
-    const toggle = metadataSection.querySelector(
-      '[data-testid="settings-section-advanced-toggle"]'
-    ) as HTMLElement
-    fireEvent.click(toggle)
-    expect(screen.getByTestId('metadata-ffmpeg-timeout')).toBeInTheDocument()
   })
 })

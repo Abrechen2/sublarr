@@ -1,9 +1,11 @@
 /**
- * ConnectionsMetadata — Metadata API keys and ffmpeg timeout configuration.
+ * ConnectionsMetadata — Metadata API keys configuration.
  *
  * Extracted from ConnectionsSettings.tsx (pure file split, no functional changes).
- * All config keys (tmdb_api_key, tvdb_api_key, tvdb_pin, metadata_cache_ttl_days,
- * ffmpeg_timeout) and design patterns are unchanged.
+ * All config keys (tmdb_api_key, tvdb_api_key, tvdb_pin, metadata_cache_ttl_days)
+ * and design patterns are unchanged.
+ *
+ * Note: ffmpeg_timeout was moved to Automation → Search & Scan (Advanced).
  */
 import { useState } from 'react'
 import { Database } from 'lucide-react'
@@ -14,11 +16,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection'
 
 // ─── MetadataApiKeysSection ──────────────────────────────────────────────────
 
-interface MetadataApiKeysSectionProps {
-  ffmpegTimeout: string
-}
-
-function MetadataApiKeysSection({ ffmpegTimeout }: MetadataApiKeysSectionProps) {
+function MetadataApiKeysSection() {
   const { data: configData } = useConfig()
   const updateConfig = useUpdateConfig()
 
@@ -40,7 +38,6 @@ function MetadataApiKeysSection({ ffmpegTimeout }: MetadataApiKeysSectionProps) 
         tvdb_api_key:            tvdbKey,
         tvdb_pin:                tvdbPin,
         metadata_cache_ttl_days: cacheTtl,
-        ffmpeg_timeout:          ffmpegTimeout,
       },
       {
         onSuccess: () => toast('Metadata settings saved'),
@@ -225,70 +222,17 @@ function MetadataApiKeysSection({ ffmpegTimeout }: MetadataApiKeysSectionProps) 
   )
 }
 
-// ─── FfmpegTimeoutField ──────────────────────────────────────────────────────
-
-function FfmpegTimeoutField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <div data-testid="metadata-advanced-content" className="space-y-3">
-      <div className="flex items-center justify-between py-2">
-        <div className="flex flex-col gap-0.5">
-          <label
-            htmlFor="ffmpeg-timeout"
-            className="text-[13px] font-medium"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            FFmpeg Timeout (seconds)
-          </label>
-          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-            Maximum time for ffprobe/ffmpeg operations.
-          </span>
-        </div>
-        <input
-          id="ffmpeg-timeout"
-          data-testid="metadata-ffmpeg-timeout"
-          type="number"
-          min={1}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="focus:outline-none"
-          style={{
-            width: '100px',
-            backgroundColor: 'var(--bg-elevated)',
-            border: '1px solid var(--border)',
-            color: 'var(--text-primary)',
-            fontFamily: 'var(--font-mono)',
-            fontSize: '13px',
-            padding: '7px 12px',
-            borderRadius: '6px',
-          }}
-        />
-      </div>
-    </div>
-  )
-}
-
 // ─── MetadataSectionWrapper (exported) ──────────────────────────────────────
 
 export function MetadataSectionWrapper() {
-  const { data: configData } = useConfig()
-  const cfg = configData as Record<string, unknown> | undefined
-  const [ffmpegTimeout, setFfmpegTimeout] = useState(() => String(cfg?.ffmpeg_timeout ?? '30'))
-  const updateConfig = useUpdateConfig()
-
-  const handleFfmpegSave = (v: string) => {
-    setFfmpegTimeout(v)
-    updateConfig.mutate({ ffmpeg_timeout: v })
-  }
-
   return (
     <SettingsSection
       title="Metadata API Keys"
-      description="API keys for metadata providers (TMDB, TheTVDB) and media tooling"
+      description="API keys for metadata providers (TMDB, TheTVDB)"
       icon={<Database size={16} style={{ color: 'var(--accent)' }} />}
-      advanced={<FfmpegTimeoutField value={ffmpegTimeout} onChange={handleFfmpegSave} />}
     >
       <div className="py-1">
-        <MetadataApiKeysSection ffmpegTimeout={ffmpegTimeout} />
+        <MetadataApiKeysSection />
       </div>
     </SettingsSection>
   )

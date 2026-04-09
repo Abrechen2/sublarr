@@ -6,7 +6,7 @@
  * 2. Radarr Connection   — multi-instance (radarr_instances_json)
  * 3. Media Servers
  * 4. Standalone Mode
- * 5. Metadata API Keys   — TMDB, TheTVDB, cache TTL, ffmpeg_timeout
+ * 5. Metadata API Keys   — TMDB, TheTVDB, cache TTL
  *
  * Sub-components are extracted to connections/ for file-size compliance.
  * All config keys, design, and SettingsSection/FormGroup patterns are unchanged.
