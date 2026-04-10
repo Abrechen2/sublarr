@@ -5,6 +5,15 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.47.3-beta] - 2026-04-10
+
+### Changed
+- **Cleanup-Seite komplett überarbeitet** — Statt eines Rule-Managers mit Sidebar, Modal und beliebig benennbaren Regeln gibt es jetzt 5 fest definierte Operationen (Sprachen-Filter, Format-Upgrade, Verwaiste Dateien, Verwaiste DB-Einträge, Alte Backups) als aufklappbare Karten mit Toggle, Inline-Konfiguration und Zeitplan. Kein "Neue Regel erstellen" mehr nötig.
+
+### Fixed
+- **Vorschau zeigt jetzt konkrete Datei-Beispiele** — Der Trockenlauf liefert bis zu 20 Beispieldateien mit Pfad, Größe und Löschgrund (z.B. `lang:ja`), statt nur Zählwerte.
+- **Cleanup-UI-Korrekturen** — Dropdown-Clipping im Sprachfilter behoben, Disk-Widget kompakter, Layout und Save-Feedback überarbeitet.
+
 ## [0.47.2-beta] - 2026-04-10
 
 ### Fixed
