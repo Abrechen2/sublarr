@@ -214,7 +214,7 @@ class Settings(BaseSettings):
 
     # Wanted Search Scheduler
     wanted_search_interval_hours: int = 24  # 0 = disabled
-    wanted_search_on_startup: bool = False
+    wanted_search_on_startup: bool = True
     wanted_search_max_items_per_run: int = 50
 
     # Upgrade Scheduler

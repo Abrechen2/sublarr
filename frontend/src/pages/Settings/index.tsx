@@ -32,9 +32,6 @@ export { NAV_GROUPS } from './settingsFields'
 export type { FieldConfig } from './settingsFields'
 
 // Lazy-load each settings category page
-const SettingsOverview = lazy(() =>
-  import('./SettingsOverview').then((m) => ({ default: m.SettingsOverview })),
-)
 const GeneralSettings = lazy(() =>
   import('./GeneralSettings').then((m) => ({ default: m.GeneralSettings })),
 )
@@ -93,7 +90,7 @@ export function SettingsPage() {
       <Suspense fallback={<FormSkeleton />}>
         <SettingsShell>
           <Routes>
-            <Route index element={<SettingsOverview />} />
+            <Route index element={<Navigate to="/settings/general" replace />} />
             <Route path="general" element={<GeneralSettings />} />
             <Route path="connections" element={<ConnectionsSettings />} />
             <Route path="connections/metadata" element={<ConnectionsMetadataPage />} />

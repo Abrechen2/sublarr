@@ -716,8 +716,6 @@ def run_rule(rule_id: int):
         500:
           description: Execution error
     """
-    import os
-
     from config import get_settings
     from db.repositories.cleanup import CleanupRepository
     from dedup_engine import scan_for_duplicates, scan_orphaned_subtitles
@@ -765,24 +763,27 @@ def run_rule(rule_id: int):
                 }
             )
         elif rule_type == "old_backups":
-            bak_files = []
-            for root, _dirs, files in os.walk(media_path):
-                for filename in files:
-                    if ".bak" in filename:
-                        full_path = os.path.join(root, filename)
-                        try:
-                            size = os.path.getsize(full_path)
-                        except OSError:
-                            size = 0
-                        bak_files.append({"path": full_path, "size": size})
+            try:
+                from remux.backup_cleanup import cleanup_old_backups
+                from routes.remux import _trash_paths
+                retention_days = int(rule.get("config_json", {}).get("retention_days", 7))
+                result = cleanup_old_backups(_trash_paths(), retention_days)
+            except Exception as exc:
+                logger.error("old_backups rule failed: %s", exc)
+                return jsonify({"error": str(exc)}), 500
             repo.update_rule_last_run(rule_id)
+            repo.log_cleanup(
+                action_type=rule_type,
+                rule_id=rule_id,
+                files_deleted=result.get("deleted", 0),
+                bytes_freed=result.get("bytes_freed", 0),
+            )
             return jsonify(
                 {
                     "status": "completed",
                     "rule": rule["name"],
-                    "backup_files": bak_files,
-                    "count": len(bak_files),
-                    "total_size": sum(f["size"] for f in bak_files),
+                    "deleted": result.get("deleted", 0),
+                    "bytes_freed": result.get("bytes_freed", 0),
                 }
             )
         else:

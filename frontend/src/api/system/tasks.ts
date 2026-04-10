@@ -136,7 +136,15 @@ export async function startCleanupScan(): Promise<{ scan_id: string; message: st
 
 export async function getCleanupScanStatus(): Promise<ScanStatus> {
   const { data } = await api.get('/cleanup/scan/status')
-  return data
+  // Backend returns { running: bool, scan_id, result }
+  // Normalize to ScanStatus shape: { status: 'idle'|'scanning', ... }
+  return {
+    status: data.running ? 'scanning' : 'idle',
+    progress: data.progress ?? 0,
+    total: data.total ?? 0,
+    scan_id: data.scan_id ?? null,
+    ...data,
+  }
 }
 
 export async function getDuplicates(page = 1, perPage = 50): Promise<{ groups: DuplicateGroup[]; total: number; page: number }> {
@@ -145,7 +153,7 @@ export async function getDuplicates(page = 1, perPage = 50): Promise<{ groups: D
 }
 
 export async function deleteDuplicates(selections: { keep: string; delete: string[] }[]): Promise<{ deleted: number; bytes_freed: number }> {
-  const { data } = await api.post('/cleanup/duplicates/delete', { selections })
+  const { data } = await api.post('/cleanup/duplicates/delete', { groups: selections })
   return data
 }
 
@@ -166,7 +174,7 @@ export async function deleteOrphaned(filePaths: string[]): Promise<{ deleted: nu
 
 export async function getCleanupRules(): Promise<CleanupRule[]> {
   const { data } = await api.get('/cleanup/rules')
-  return data
+  return Array.isArray(data) ? data : (data.rules ?? [])
 }
 
 export async function createCleanupRule(rule: Omit<CleanupRule, 'id' | 'last_run_at' | 'created_at'>): Promise<CleanupRule> {
@@ -199,10 +207,23 @@ export async function previewCleanupRule(id: number): Promise<{
 
 export async function getCleanupHistory(page = 1, perPage = 50): Promise<{ entries: CleanupHistoryEntry[]; total: number; page: number }> {
   const { data } = await api.get('/cleanup/history', { params: { page, per_page: perPage } })
-  return data
+  // Backend returns { items, total, page, per_page } — normalize to { entries }
+  return { ...data, entries: data.entries ?? data.items ?? [] }
 }
 
-export async function getCleanupPreview(ruleId?: number): Promise<CleanupPreviewData> {
-  const { data } = await api.post('/cleanup/preview', { rule_id: ruleId })
-  return data
+export async function getCleanupPreview(_ruleId?: number): Promise<CleanupPreviewData> {
+  // Backend expects { action: "dedup"|"orphaned"|"rule" }
+  const { data } = await api.post('/cleanup/preview', { action: 'dedup' })
+  // Backend returns { affected_files: [{path, size, ...}], total_size, ... }
+  // Normalize to CleanupPreviewData shape
+  const files = (data.affected_files ?? []).map((f: { path: string; size?: number; size_bytes?: number }) => ({
+    path: f.path,
+    size_bytes: f.size_bytes ?? f.size ?? 0,
+    action: 'delete',
+  }))
+  return {
+    files,
+    total_size_bytes: data.total_size ?? 0,
+    total_files: files.length,
+  }
 }

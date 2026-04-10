@@ -11,6 +11,7 @@ EVENT_DOWNLOAD = "download"
 EVENT_EXTRACT = "extract"
 EVENT_DELETE = "delete"
 EVENT_SCAN = "scan"
+EVENT_SEARCH = "search"
 
 
 class ActivityLog(db.Model):

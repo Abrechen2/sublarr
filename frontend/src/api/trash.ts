@@ -54,6 +54,11 @@ export async function deleteSidecarBatch(batchId: string): Promise<{ deleted: nu
   return data
 }
 
+export async function deleteMkvBackup(backupPath: string): Promise<{ deleted: string }> {
+  const { data } = await api.post('/remux/backups/delete', { backup_path: backupPath })
+  return data
+}
+
 export async function restoreMkvBackup(
   backupPath: string,
   videoPath: string,

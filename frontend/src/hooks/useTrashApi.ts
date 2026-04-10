@@ -3,6 +3,7 @@ import {
   getTrashOverview,
   restoreSidecarBatch,
   deleteSidecarBatch,
+  deleteMkvBackup,
   restoreMkvBackup,
 } from '@/api/trash'
 import { toast } from '@/components/shared/Toast'
@@ -35,6 +36,18 @@ export function useDeleteSidecarBatch() {
     mutationFn: (batchId: string) => deleteSidecarBatch(batchId),
     onSuccess: () => {
       toast.success('Batch endgültig gelöscht')
+      qc.invalidateQueries({ queryKey: TRASH_KEY })
+    },
+    onError: () => toast.error('Löschen fehlgeschlagen'),
+  })
+}
+
+export function useDeleteMkvBackup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (backupPath: string) => deleteMkvBackup(backupPath),
+    onSuccess: () => {
+      toast.success('Backup endgültig gelöscht')
       qc.invalidateQueries({ queryKey: TRASH_KEY })
     },
     onError: () => toast.error('Löschen fehlgeschlagen'),

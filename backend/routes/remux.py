@@ -305,6 +305,35 @@ def restore_backup():
     ), 200
 
 
+@bp.route("/remux/backups/delete", methods=["POST"])
+def delete_backup():
+    """Permanently delete a single MKV backup file.
+
+    Body: { "backup_path": "/path/to/trash/..." }
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    backup_path = body.get("backup_path", "")
+
+    if not backup_path:
+        return jsonify({"error": "backup_path is required"}), 400
+
+    trash_dirs = _trash_paths()
+    if not any(is_safe_path(td, backup_path) for td in trash_dirs):
+        return jsonify({"error": "backup_path is outside the configured trash directory"}), 403
+
+    if not os.path.exists(backup_path):
+        return jsonify({"error": "Backup file not found"}), 404
+
+    try:
+        os.remove(backup_path)
+        logger.info("MKV backup deleted: %s", backup_path)
+    except OSError as exc:
+        logger.error("Failed to delete MKV backup: %s", exc)
+        return jsonify({"error": f"Delete failed: {exc}"}), 500
+
+    return jsonify({"deleted": backup_path}), 200
+
+
 def _purge_sidecars_for_video(video_path: str) -> int:
     """Delete all sidecar trash batches whose files live next to video_path.
 

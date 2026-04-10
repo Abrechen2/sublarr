@@ -5,9 +5,9 @@
  *   Left sidebar (260px): rule list + new rule button (RuleSidebar)
  *   Right main: disk space widget, rule detail, dedup section, history
  */
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Globe, ArrowUpCircle, FileX, Database, X } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { RuleSidebar } from '@/components/cleanup/RuleSidebar'
 import { RuleDetail } from '@/components/cleanup/RuleDetail'
@@ -33,7 +33,12 @@ function formatBytes(bytes: number): string {
 
 // ─── Rule Type Options (for new rule modal) ──────────────────────────────────
 
-const RULE_TYPE_VALUES = ['language_filter', 'format_upgrade', 'orphan_files', 'orphan_db'] as const
+const RULE_TYPES = [
+  { value: 'language_filter', icon: Globe },
+  { value: 'format_upgrade', icon: ArrowUpCircle },
+  { value: 'orphan_files', icon: FileX },
+  { value: 'orphan_db', icon: Database },
+] as const
 
 // ─── New Rule Modal ──────────────────────────────────────────────────────────
 
@@ -46,72 +51,141 @@ function NewRuleModal({
 }) {
   const { t } = useTranslation('settings')
   const [name, setName] = useState('')
-  const [ruleType, setRuleType] = useState('language_filter')
+  const [ruleType, setRuleType] = useState<string>('language_filter')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
+
+  const handleSubmit = () => {
+    if (name.trim()) onCreate(name.trim(), ruleType)
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.6)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
       <div
-        className="rounded-xl p-6 w-96 space-y-4"
-        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+        className="rounded-2xl w-[440px] overflow-hidden"
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', boxShadow: '0 24px 48px rgba(0,0,0,0.4)' }}
       >
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-          {t('cleanup.new_rule.title')}
-        </h3>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={t('cleanup.rules.namePlaceholder')}
-          className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
-          style={{
-            background: 'var(--bg-primary)',
-            border: '1px solid var(--border)',
-            color: 'var(--text-primary)',
-          }}
-        />
-        <div className="space-y-2">
-          {RULE_TYPE_VALUES.map((value) => (
-            <label
-              key={value}
-              className="flex items-start gap-3 p-3 rounded-lg cursor-pointer"
-              style={{
-                background: ruleType === value ? 'var(--accent-bg)' : 'var(--bg-primary)',
-                border: `1px solid ${ruleType === value ? 'var(--accent)' : 'var(--border)'}`,
-              }}
-            >
-              <input
-                type="radio"
-                name="ruleType"
-                value={value}
-                checked={ruleType === value}
-                onChange={() => setRuleType(value)}
-                className="mt-0.5"
-              />
-              <div>
-                <div className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  {t(`cleanup.rule_types.${value}.label`)}
-                </div>
-                <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                  {t(`cleanup.rule_types.${value}.desc`)}
-                </div>
-              </div>
-            </label>
-          ))}
-        </div>
-        <div className="flex gap-2 justify-end">
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-5 py-4"
+          style={{ borderBottom: '1px solid var(--border)' }}
+        >
+          <div>
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {t('cleanup.new_rule.title')}
+            </h3>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              {t('cleanup.new_rule.subtitle', 'Wähle einen Typ und vergib einen Namen')}
+            </p>
+          </div>
           <button
             onClick={onClose}
-            className="px-3 py-1.5 rounded text-xs"
+            className="rounded-lg p-1.5"
             style={{ color: 'var(--text-muted)' }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 space-y-4">
+          {/* Name input */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+              {t('cleanup.rules.nameLabel', 'Regelname')}
+            </label>
+            <input
+              ref={inputRef}
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit() }}
+              placeholder={t('cleanup.rules.namePlaceholder')}
+              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
+              style={{
+                background: 'var(--bg-primary)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+              }}
+            />
+          </div>
+
+          {/* Rule type cards */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+              {t('cleanup.new_rule.type_label', 'Regeltyp')}
+            </label>
+            <div className="space-y-1.5">
+              {RULE_TYPES.map(({ value, icon: Icon }) => {
+                const selected = ruleType === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setRuleType(value)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors"
+                    style={{
+                      background: selected ? 'color-mix(in srgb, var(--accent) 12%, transparent)' : 'var(--bg-elevated)',
+                      border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
+                    }}
+                  >
+                    <div
+                      className="flex items-center justify-center rounded-lg shrink-0"
+                      style={{
+                        width: 30,
+                        height: 30,
+                        background: selected ? 'color-mix(in srgb, var(--accent) 20%, transparent)' : 'var(--bg-primary)',
+                      }}
+                    >
+                      <Icon size={14} style={{ color: selected ? 'var(--accent)' : 'var(--text-muted)' }} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div
+                        className="text-xs font-semibold"
+                        style={{ color: selected ? 'var(--accent)' : 'var(--text-primary)' }}
+                      >
+                        {t(`cleanup.rule_types.${value}.label`)}
+                      </div>
+                      <div className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>
+                        {t(`cleanup.rule_types.${value}.desc`)}
+                      </div>
+                    </div>
+                    {selected && (
+                      <div
+                        className="shrink-0 rounded-full"
+                        style={{ width: 6, height: 6, background: 'var(--accent)' }}
+                      />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div
+          className="flex gap-2 justify-end px-5 py-4"
+          style={{ borderTop: '1px solid var(--border)' }}
+        >
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm"
+            style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
           >
             {t('cleanup.rules.cancel')}
           </button>
           <button
-            onClick={() => {
-              if (name.trim()) onCreate(name.trim(), ruleType)
-            }}
+            onClick={handleSubmit}
             disabled={!name.trim()}
-            className="px-4 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50"
+            className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40"
             style={{ background: 'var(--accent)' }}
           >
             {t('cleanup.new_rule.create')}

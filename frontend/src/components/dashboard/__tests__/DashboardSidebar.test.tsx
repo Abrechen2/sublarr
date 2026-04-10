@@ -11,8 +11,8 @@ vi.mock('@/hooks/useApi', () => ({
   useProviders: () => ({
     data: {
       providers: [
-        { name: 'OpenSubtitles', enabled: true, healthy: true, stats: { success_rate: 97 } },
-        { name: 'AnimeTosho', enabled: true, healthy: false, stats: { success_rate: 45 } },
+        { name: 'OpenSubtitles', enabled: true, healthy: true, stats: { success_rate: 0.97 } },
+        { name: 'AnimeTosho', enabled: true, healthy: false, stats: { success_rate: 0.45 } },
       ],
     },
     isLoading: false,

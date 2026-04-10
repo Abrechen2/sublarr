@@ -75,8 +75,8 @@ function ProviderHealthPanel() {
     <Panel testId="panel-providers" title={t('sidebar.providers')}>
       {providers.map(
         (p: { name: string; stats?: { success_rate?: number } }) => {
-          const healthy = (p.stats?.success_rate ?? 0) >= 80
-          const pct = Math.round(p.stats?.success_rate ?? (healthy ? 100 : 0))
+          const pct = Math.round((p.stats?.success_rate ?? 0) * 100)
+          const healthy = pct >= 80
           return (
             <div
               key={p.name}

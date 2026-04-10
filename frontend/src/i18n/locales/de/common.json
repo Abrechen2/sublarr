@@ -239,7 +239,17 @@
     "subtitle_sidecars": "Untertitel-Sidecars",
     "video_backups": "Video-Backups (Remux)",
     "original_not_found": "Original nicht gefunden",
-    "expires_label": "läuft ab"
+    "expires_label": "läuft ab",
+    "expires_in_days": "in {{count}} Tagen",
+    "expires_today": "läuft heute ab",
+    "retention_subtitle": "Aufbewahrung: {{days}} Tage",
+    "retention_mkv": "Aufbewahrung: {{days}} Tage",
+    "total_size": "{{size}} gesamt",
+    "summary": "{{sidecars}} Sidecar-{{sidecarLabel}} · {{mkv}} MKV-{{mkvLabel}} · {{size}} gesamt",
+    "sidecar_singular": "Batch",
+    "sidecar_plural": "Batches",
+    "mkv_singular": "Backup",
+    "mkv_plural": "Backups"
   },
   "interjection_placeholder": "Eine Interjektion pro Zeile",
   "more_info": "Mehr Informationen",
