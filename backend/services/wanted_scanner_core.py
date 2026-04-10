@@ -40,6 +40,19 @@ logger = logging.getLogger(__name__)
 FULL_SCAN_INTERVAL = 6
 
 
+def _search_with_ctx(app, item_id: int) -> dict:
+    """Worker wrapper: push a new Flask app context for each ThreadPoolExecutor thread.
+
+    ThreadPoolExecutor spawns daemon threads that do not inherit the calling
+    thread's Flask application context. Without this wrapper every DB access
+    inside process_wanted_item raises "Working outside of application context".
+    """
+    with app.app_context():
+        from wanted_search import process_wanted_item
+
+        return process_wanted_item(item_id)
+
+
 class WantedScanner:
     """Scans Sonarr/Radarr for episodes/movies missing target language subtitles."""
 
@@ -906,6 +919,17 @@ class WantedScanner:
         start = time.time()
 
         try:
+            from flask import current_app as _current_app
+
+            # Capture app reference for worker threads — self._app is set by the scheduler;
+            # fall back to current_app when search_all is called from a request context.
+            _app = self._app
+            if _app is None:
+                try:
+                    _app = _current_app._get_current_object()
+                except RuntimeError:
+                    _app = None
+
             settings = get_settings()
             max_items = settings.wanted_search_max_items_per_run
 
@@ -973,8 +997,6 @@ class WantedScanner:
                     len(embedded_items),
                 )
 
-            from wanted_search import process_wanted_item
-
             total = len(eligible)
             processed = 0
             found = 0
@@ -1014,9 +1036,20 @@ class WantedScanner:
             # Parallel processing with bounded ThreadPoolExecutor
             max_workers = min(4, total)
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_to_item = {
-                    executor.submit(process_wanted_item, item["id"]): item for item in eligible
-                }
+                if _app is not None:
+                    future_to_item = {
+                        executor.submit(_search_with_ctx, _app, item["id"]): item
+                        for item in eligible
+                    }
+                else:
+                    # No app reference available (should not happen in normal operation);
+                    # fall back to direct call and let Flask raise the context error.
+                    from wanted_search import process_wanted_item
+
+                    future_to_item = {
+                        executor.submit(process_wanted_item, item["id"]): item
+                        for item in eligible
+                    }
 
                 for future in as_completed(future_to_item):
                     # Check cancel flag between completions
