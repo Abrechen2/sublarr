@@ -8,21 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.47.3-beta] - 2026-04-10
 
 ### Changed
-- **Cleanup-Seite komplett überarbeitet** — Statt eines Rule-Managers mit Sidebar, Modal und beliebig benennbaren Regeln gibt es jetzt 5 fest definierte Operationen (Sprachen-Filter, Format-Upgrade, Verwaiste Dateien, Verwaiste DB-Einträge, Alte Backups) als aufklappbare Karten mit Toggle, Inline-Konfiguration und Zeitplan. Kein "Neue Regel erstellen" mehr nötig.
+- **Cleanup page completely overhauled** — Instead of a rule manager with sidebar, modal, and arbitrarily named rules, there are now 5 fixed operations (Language Filter, Format Upgrade, Orphaned Files, Orphaned DB Entries, Old Backups) as collapsible cards with toggle, inline configuration, and schedule. No more "Create new rule" required.
 
 ### Fixed
-- **Vorschau zeigt jetzt konkrete Datei-Beispiele** — Der Trockenlauf liefert bis zu 20 Beispieldateien mit Pfad, Größe und Löschgrund (z.B. `lang:ja`), statt nur Zählwerte.
-- **Cleanup-UI-Korrekturen** — Dropdown-Clipping im Sprachfilter behoben, Disk-Widget kompakter, Layout und Save-Feedback überarbeitet.
+- **Preview now shows concrete file examples** — The dry run returns up to 20 example files with path, size, and deletion reason (e.g. `lang:ja`), instead of just counts.
+- **Cleanup UI fixes** — Fixed dropdown clipping in the language filter, disk widget more compact, layout and save feedback reworked.
 
 ## [0.47.2-beta] - 2026-04-10
 
 ### Fixed
-- **FormGroup-Trenner im Light Mode** — Die Trennlinien zwischen Einstellungsfeldern verwendeten eine hartcodierte Dunkelfarbe (`rgba(42,46,56,0.5)`) statt `var(--border)` und waren im Light Mode falsch gefärbt.
-- **Wanted-Seite: doppelter Scrollbalken** — `height: calc(100vh - 40px)` ignorierte das Main-Padding (24 + 60 px), was die Tabelle 44 px über den sichtbaren Bereich hinausschob. Korrigiert auf `calc(100vh - 108px)`.
-- **Settings-Nav: zu geringer Abstand oben** — Die klebende Sidebar startete mit nur 4 px Abstand zum oberen Rand. Erhöht auf 16 px.
-- **PillTabs: unsichtbar im Light Mode** — Der Tab-Container hatte keinen Rahmen und verschwamm optisch mit dem Seitenhintergrund; Border `var(--border)` ergänzt.
-- **CleanupTab: Sektionsinhalt ohne Einrückung** — Der Inhalt klappbarer Sektionen hatte kein `pt-3`, sodass er direkt unter dem Toggle-Button begann. Oberer Innenabstand ergänzt.
-- **Logs-Seite: inkonsistenter Seitenkopf** — Rohe `<h1>`-Überschrift durch die kanonische `PageHeader`-Komponente ersetzt; Höhenberechnung von `7rem` auf `8rem` angepasst.
+- **FormGroup dividers in light mode** — The dividers between settings fields used a hardcoded dark color (`rgba(42,46,56,0.5)`) instead of `var(--border)` and were incorrectly colored in light mode.
+- **Wanted page: double scrollbar** — `height: calc(100vh - 40px)` ignored the main padding (24 + 60 px), which pushed the table 44 px past the visible area. Corrected to `calc(100vh - 108px)`.
+- **Settings nav: insufficient top spacing** — The sticky sidebar started with only 4 px spacing from the top edge. Increased to 16 px.
+- **PillTabs: invisible in light mode** — The tab container had no border and visually blended with the page background; border `var(--border)` added.
+- **CleanupTab: section content without indentation** — The content of collapsible sections had no `pt-3`, causing it to start directly below the toggle button. Top padding added.
+- **Logs page: inconsistent page header** — Raw `<h1>` heading replaced by the canonical `PageHeader` component; height calculation adjusted from `7rem` to `8rem`.
 
 ## [0.47.1-beta] - 2026-04-10
 
@@ -48,8 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Toggle Revert Bug** — Settings toggles (AniDB, Standalone, Remux) were reverting to OFF immediately after click because of a `=== 'true'` string comparison against boolean values returned by the backend. All affected tabs now use `boolVal()`.
 - **Optimistic Toggle Updates** — Config toggles now update the cache immediately on click, so the UI feels instant instead of waiting for the GET refetch.
 - **HI/Forced Preference Migration** — Source/target language and HI/forced preference settings were moved from the General page to the Subtitles page where they belong.
-- **Advanced Settings Label** — The collapsible advanced section now shows "Erweiterte Einstellungen" instead of "0 erweiterte Einstellungen" when no count is provided.
-- **German Locale Encoding** — 90 broken UTF-8 sequences (Ã¤, Ãœ, ÃŸ, etc.) in de/common.json were corrected to proper umlauts (ä, Ü, ß, …).
+- **Advanced Settings Label** — The collapsible advanced section now shows "Advanced Settings" instead of "0 advanced settings" when no count is provided.
+- **German locale encoding** — 90 broken UTF-8 sequences (Ã¤, Ãœ, ÃŸ, etc.) in de/common.json were corrected to proper umlauts (ä, Ü, ß, …).
 
 ### Changed
 - **Settings Information Architecture** — Settings fields were consolidated into their correct sub-pages (ffmpeg_timeout moved to Automation → Search & Scan; format tools section removed).
@@ -58,20 +58,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.46.0-beta] - 2026-04-06
 
 ### Added
-- **Persistente Einstellungs-Navigation** — Alle Settings-Seiten haben jetzt eine permanente Sidebar-Navigation (SettingsNav + SettingsShell), die auf jeder Unterseite sichtbar bleibt.
+- **Persistent settings navigation** — All settings pages now have a permanent sidebar navigation (SettingsNav + SettingsShell) that remains visible on every sub-page.
 
 ### Fixed
-- **Sprachprofile prominent platziert** — Language Profiles stehen jetzt als erste Section auf der Untertitel-Seite und sind direkt sichtbar statt tief versteckt im Collapsed-Bereich.
-- **Sprachprofil-Formular vollständig übersetzt** — Alle UI-Strings im Language-Profiles-Formular sind jetzt auf Deutsch (Speichern, Abbrechen, Zielsprachen, Profilname etc.).
-- **Batch-Extract entfernt Untertitel nicht mehr ohne Sidecar** — Wenn die Extraktion eine leere Sidecar-Datei produziert, wird der embedded Subtitle-Stream nicht aus der MKV entfernt. Verhindert Datenverlust bei fehlgeschlagener Extraktion.
+- **Language profiles prominently placed** — Language Profiles are now the first section on the Subtitles page and are immediately visible instead of deeply hidden in a collapsed area.
+- **Language profile form fully localized** — All UI strings in the Language Profiles form are now properly translated for both supported languages (Save, Cancel, Target Languages, Profile Name, etc.).
+- **Batch-Extract no longer removes subtitles without sidecar** — If extraction produces an empty sidecar file, the embedded subtitle stream is not removed from the MKV. Prevents data loss on failed extraction.
 
 ## [0.45.0-beta] - 2026-04-06
 
 ### Added
 - **Settings redesign — advanced fields system** — FormGroup now supports
-  an `advanced` prop that renders an amber "Erweitert" badge and tooltip
+  an `advanced` prop that renders an amber "Advanced" badge and tooltip
   instead of an inline hint, reducing visual clutter for power-user options.
-  SettingsSection displays a collapsible "N erweiterte Einstellungen" toggle
+  SettingsSection displays a collapsible "N advanced settings" toggle
   when advanced fields are present.
 - **LanguagePillSelector component** — Multi-language selection in Language
   Profiles now uses interactive pills with a dropdown, replacing free-text
@@ -93,34 +93,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.44.0-beta] - 2026-04-06
 
 ### Added
-- **Unified History Tab** — Verlauf und Aktivitätslog wurden zu einem einzigen Tab zusammengeführt. Sub-Filter (Downloads / Extraktionen / Löschungen / Scans) wechseln zwischen den Ansichten.
-- **Lesbare Untertitel-Pills im Wanted-Bereich** — Pills zeigen jetzt klaren Text (z.B. „DE fehlt", „DE ASS ⬇") statt kryptischer Symbole, mit erklärenden Tooltips bei Hover.
+- **Unified History Tab** — History and activity log merged into a single tab. Sub-filters (Downloads / Extractions / Deletions / Scans) switch between views.
+- **Readable subtitle pills in the Wanted section** — Pills now show clear text (e.g. "DE missing", "DE ASS ⬇") instead of cryptic symbols, with explanatory tooltips on hover.
 
 ### Fixed
-- **Doppelter Voreinstellungen-Button** — Der Preset-Button wurde im Wanted-Filterbereich doppelt gerendert; einer wurde entfernt.
-- **Filter-Dropdown transparent** — Popover für „Filter hinzufügen" und „Voreinstellungen" hatte keinen sichtbaren Hintergrund und schloss sich nicht beim Klick außerhalb; beides behoben.
-- **Filterfeldnamen auf Englisch** — Feldbezeichnungen im Filter-Dropdown (Status, Typ, Untertitel-Typ, Titel) werden jetzt korrekt übersetzt.
-- **Aktivität-Tab i18n** — Doppelter JSON-Key `history` in activity.json überschrieb die Filter-Labels; zusammengeführt. Zweite Filterleiste im ActivityLogTab bei Nutzung aus UnifiedHistoryTab unterdrückt.
-- **Seitenuntertitel Wanted** — „Subtitles missing from your library" wird jetzt als „Fehlende Untertitel in deiner Bibliothek" angezeigt.
+- **Duplicate presets button** — The preset button was rendered twice in the Wanted filter area; one was removed.
+- **Filter dropdown transparent** — Popover for "Add filter" and "Presets" had no visible background and did not close when clicking outside; both fixed.
+- **Filter field names** — Field labels in the filter dropdown (Status, Type, Subtitle Type, Title) are now correctly translated.
+- **Activity tab i18n** — Duplicate JSON key `history` in activity.json was overwriting the filter labels; merged. Second filter bar in ActivityLogTab suppressed when used from UnifiedHistoryTab.
+- **Wanted page subtitle** — Page description is now correctly localized via i18n.
 
 ## [0.43.0-beta] - 2026-04-06
 
 ### Added
-- **Vollständige UI-Lokalisierung (i18n)** — Alle sichtbaren Strings der Oberfläche wurden in das react-i18next-System überführt. Sprache kann jetzt über die Einstellungen zwischen Deutsch und Englisch gewechselt werden. Betrifft alle Seiten (Library, Wanted, History, Logs, Plugins, Setup, Settings) und Komponenten (BatchActionBar, SpellCheckPanel, SubtitleEditor, Charts, Standalone-Modus-Status, Cleanup-Regeln u.v.m.).
+- **Full UI localization (i18n)** — All visible strings in the interface have been migrated to the react-i18next system. The language can now be switched between German and English via settings. Covers all pages (Library, Wanted, History, Logs, Plugins, Setup, Settings) and components (BatchActionBar, SpellCheckPanel, SubtitleEditor, Charts, Standalone mode status, Cleanup rules, and many more).
 
 ## [0.42.0-beta] - 2026-04-06
 
 ### Added
-- **Update-Indikator** — Pulsierender amber Dot auf dem Settings-Icon und ein Chip (↑ vX.Y.Z) neben der Versionsnummer im Sidebar wenn ein neueres Release auf GitHub verfügbar ist. Die Versionsnummer in der StatusBar wird anklickbar und öffnet einen Popover mit Link zu GitHub Releases.
-- **Logs-Seite** — Neue Route `/logs` mit eigenem Sidebar-Icon (ScrollText) für direkten Zugriff auf Backend-Logs.
-- **Vollständige i18n-Lokalisierung** — Alle Settings-Seiten (General, Automation, Scoring, Backup, AniDB, Cache), die Trash-Seite sowie weitere UI-Seiten (Library, Plugins, Setup, Statistics u.a.) sind jetzt vollständig übersetzbar. Fallback-Sprache ist Deutsch.
+- **Update indicator** — Pulsing amber dot on the Settings icon and a chip (↑ vX.Y.Z) next to the version number in the sidebar when a newer release is available on GitHub. The version number in the StatusBar becomes clickable and opens a popover with a link to GitHub Releases.
+- **Logs page** — New route `/logs` with its own sidebar icon (ScrollText) for direct access to backend logs.
+- **Full i18n localization** — All Settings pages (General, Automation, Scoring, Backup, AniDB, Cache), the Trash page, and other UI pages (Library, Plugins, Setup, Statistics, etc.) are now fully translatable. Fallback language is German.
 
 ## [0.41.8-beta] - 2026-04-05
 
 ### Fixed
 - **Wanted items removed after download** — Wanted items are now deleted from the database immediately after a subtitle is successfully downloaded (previously they accumulated with `status = "found"` and were never removed). 71 stale entries cleaned up on deploy. The scanner will not re-add items that already have a subtitle file on disk.
-- **Dashboard metrics populated** — `UNTERTITEL GESAMT`, `B SCORE`, and `LOW SCORE` showed `—` because the `/stats` endpoint never returned these values. Now returns `total_subtitles` (count from `subtitle_downloads`), `average_score` (avg score), and `low_score_count` (upgrade candidates).
-- **Activity page: Download history restored** — The `Downloads` tab was showing the empty `ActivityLogTab` (new `activity_log` table) instead of `HistoryPage` (subtitle_downloads). Restored correctly; the `ActivityLogTab` is now its own separate `Aktivitätslog` tab.
+- **Dashboard metrics populated** — The total subtitles, average score, and low score stats showed `—` because the `/stats` endpoint never returned these values. Now returns `total_subtitles` (count from `subtitle_downloads`), `average_score` (avg score), and `low_score_count` (upgrade candidates).
+- **Activity page: Download history restored** — The `Downloads` tab was showing the empty `ActivityLogTab` (new `activity_log` table) instead of `HistoryPage` (subtitle_downloads). Restored correctly; the `ActivityLogTab` is now its own separate `Activity Log` tab.
 
 ## [0.41.6-beta] - 2026-04-05
 
@@ -650,7 +650,7 @@ Use `scripts/check_datetime_migration.py --db /config/sublarr.db --mode before/a
 - **Trash-Folder Backups — Configurable Retention** — original video moved to centralized `<media_root>/<remux_trash_dir>/trash/<YYYY-MM-DD>/<file>.<ts>.bak` before each remux (TinyMediaManager-style); absolute trash path supported; falls back to sibling `.bak` on permission error; CoW reflink attempted first on Btrfs/XFS for near-instant copies; `remux_trash_dir` (default `.sublarr`) and `remux_backup_retention_days` (default 7) configurable in Settings → Automation
 - **Async Remux Jobs** — `POST /api/v1/library/episodes/<ep_id>/tracks/<index>/remove-from-container` starts a background job; `GET /api/v1/remux/jobs` and `GET /api/v1/remux/jobs/<job_id>` expose status; real-time updates via Socket.IO `remux_job_update` events; optional Sonarr/Radarr folder-monitoring pause during remux
 - **Backup Management API** — `GET /api/v1/remux/backups` lists all `.bak` files in trash directories; `POST /api/v1/remux/backups/cleanup` deletes backups older than retention period (supports `dry_run` mode)
-- **Undo / Restore** — `POST /api/v1/remux/backups/restore` atomically restores backup to original video path via `os.replace()`; both paths validated with `is_safe_path()` to prevent path traversal; "Rückgängig" button appears in TrackPanel after successful stream removal and restores in one click
+- **Undo / Restore** — `POST /api/v1/remux/backups/restore` atomically restores backup to original video path via `os.replace()`; both paths validated with `is_safe_path()` to prevent path traversal; "Undo" button appears in TrackPanel after successful stream removal and restores in one click
 
 ---
 
@@ -672,7 +672,7 @@ Use `scripts/check_datetime_migration.py --db /config/sublarr.db --mode before/a
 - **Video Hash Pre-Compute** — `file_hash` computed once in `build_query_from_wanted()` and reused across all providers; eliminates redundant file reads when multiple providers are queried in parallel
 - **Release Group Filtering** — include/exclude subtitle results by release group, codec, or source tag; score bonus for preferred groups; release metadata auto-extracted from filename via guessit; configurable at Settings → Wanted
 - **Provider Result Re-ranking** — auto-adjusts per-provider score modifiers from download history; formula: success rate + avg score vs. global average + consecutive failure penalty; throttled hourly; preview endpoint and manual trigger available
-- **Subtitle Upgrade Scheduler** — periodic re-check for higher-quality subtitles; eligibility: score < 500 OR non-ASS format; configurable `upgrade_scan_interval_hours` at Settings → Automatisierung; manual trigger via `/tasks/upgrade-scan/trigger`
+- **Subtitle Upgrade Scheduler** — periodic re-check for higher-quality subtitles; eligibility: score < 500 OR non-ASS format; configurable `upgrade_scan_interval_hours` at Settings → Automation; manual trigger via `/tasks/upgrade-scan/trigger`
 - **Translation Quality Dashboard** — daily quality trend chart (avg score + issue count) and per-series quality table (sortable, color-coded bars) added to Statistics page
 - **Custom Post-Processing Scripts — `subtitle_downloaded` event** — `subtitle_downloaded` event now emitted from `save_subtitle()`; shell hooks at Settings → Events & Hooks receive `SUBLARR_SUBTITLE_PATH`, `SUBLARR_PROVIDER_NAME`, `SUBLARR_SCORE`, `SUBLARR_LANGUAGE`, and `SUBLARR_SERIES_TITLE` environment variables
 
@@ -748,7 +748,7 @@ Use `scripts/check_datetime_migration.py --db /config/sublarr.db --mode before/a
 ## [0.14.0-beta] — 2026-03-01
 
 ### Added
-- **Provider UI — Deaktivieren vs. Entfernen** — Power button grays out a provider tile in-grid (50% opacity, "Deaktiviert" badge) while Trash button removes it to the `+` pool entirely; new `providers_hidden` config key separates "off but visible" from "removed from grid"
+- **Provider UI — Disable vs. Remove** — Power button grays out a provider tile in-grid (50% opacity, "Disabled" badge) while Trash button removes it to the `+` pool entirely; new `providers_hidden` config key separates "off but visible" from "removed from grid"
 - **Provider — Subscene** — 55-language community subtitle database, no account required; HTML scraping with BeautifulSoup4, rate limit 10/60 s
 - **Provider — Addic7ed** — 36 languages, TV-series specialist with episode-exact matching; optional login credentials increase daily download limit; BeautifulSoup4, rate limit 10/60 s
 - **Provider — TVSubtitles** — 35 languages, TV-series only, no auth; BeautifulSoup4, rate limit 15/60 s
@@ -759,7 +759,7 @@ Use `scripts/check_datetime_migration.py --db /config/sublarr.db --mode before/a
 ### Changed
 - **Settings — source/target language** — fields now use the new `LanguageSelect` dropdown instead of plain text inputs
 - **Provider reactive health checks** — status is fetched on-demand only (no background polling); `ProviderManager.update_providers()` does selective enable/disable without full reinit; `providers_hidden` key excluded from provider reinit trigger
-- **Provider UI grid** — complete tile-grid redesign: ProviderTile shows status badge, success rate, language count, and credential type; AddProviderModal replaces flat list with searchable cards; ProviderEditModal uses structured config_fields; header shows `N aktiv / M konfiguriert` counts; `+` tile only visible when hidden providers exist
+- **Provider UI grid** — complete tile-grid redesign: ProviderTile shows status badge, success rate, language count, and credential type; AddProviderModal replaces flat list with searchable cards; ProviderEditModal uses structured config_fields; header shows `N active / M configured` counts; `+` tile only visible when hidden providers exist
 - **CI** — `actions/checkout`, `actions/setup-node`, `actions/setup-python` bumped to v6
 
 ---
@@ -840,7 +840,7 @@ Use `scripts/check_datetime_migration.py --db /config/sublarr.db --mode before/a
 - **Settings UX Redesign** — card-based sub-grouping in all tabs; each logical block has a header with icon, title, description and optional connection badge
 - **SettingsCard component** — reusable card wrapper with divided body rows and ConnectionBadge slot
 - **ConnectionBadge component** — 4-state indicator (connected/error/unconfigured/checking) for Sonarr, Radarr and media server tabs
-- **Advanced Settings toggle** — global "Erweitert" checkbox in the Settings header persisted to localStorage; hides annotated advanced fields by default with orange left-border marker
+- **Advanced Settings toggle** — global "Advanced" checkbox in the Settings header persisted to localStorage; hides annotated advanced fields by default with orange left-border marker
 - **SettingRow descriptions** — all 38 config fields now show always-visible description text beneath each label; 10 fields marked as advanced
 - **InfoTooltip improvements** — ESC-key dismiss, keyboard focus/blur handlers, full ARIA accessibility (`aria-describedby`, `role="tooltip"`, `useId`), `motion-safe:` animation prefix
 - **Dirty-state Save button** — Save button disabled and grayed when no changes exist; enabled with amber indicator when fields differ from loaded config

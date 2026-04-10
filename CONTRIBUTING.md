@@ -1,56 +1,56 @@
 # Sublarr — Development Workflow
 
-Solo-Projekt-Workflow. Pragmatisch, aber mit genug Disziplin um eine saubere
-Git-History zu behalten und keine kaputten Builds auf `master` zu haben.
-Ausführliche Contributing-Guidelines: [wiki.sublarr.de/development/contributing](https://wiki.sublarr.de/development/contributing).
+Solo project workflow. Pragmatic, but with enough discipline to maintain a clean
+Git history and avoid broken builds on `master`.
+Full contributing guidelines: [wiki.sublarr.de/development/contributing](https://wiki.sublarr.de/development/contributing).
 
 ---
 
-## Branching-Strategie
+## Branching Strategy
 
 ```
-master (stable, immer deploybar)
-  ├── feat/beschreibung    — neues Feature
-  ├── fix/beschreibung     — Bugfix
-  ├── chore/beschreibung   — Tooling, CI, Dependencies
-  ├── docs/beschreibung    — nur Dokumentation
-  └── refactor/beschreibung — Code-Umbau ohne neue Funktionalitaet
+master (stable, always deployable)
+  ├── feat/description    — new feature
+  ├── fix/description     — bug fix
+  ├── chore/description   — tooling, CI, dependencies
+  ├── docs/description    — documentation only
+  └── refactor/description — code restructuring without new functionality
 ```
 
-### Wann Branch + PR?
+### When to use a Branch + PR?
 
-| Aenderung | Branch + PR | Direkt auf master |
-|-----------|:-----------:|:-----------------:|
-| Neues Feature | Ja | - |
-| Bugfix (mehr als 1 Datei) | Ja | - |
-| Refactoring | Ja | - |
-| Security-Fix | Ja | - |
-| CI/Workflow-Aenderungen | Ja | - |
-| Version-Bump (`chore: bump version`) | - | Ja |
-| Typo in README/Docs (1-2 Zeilen) | - | Ja |
-| Hotfix (1 Datei, offensichtlich) | - | Ja, mit Begruendung |
+| Change | Branch + PR | Direct to master |
+|--------|:-----------:|:----------------:|
+| New feature | Yes | - |
+| Bug fix (more than 1 file) | Yes | - |
+| Refactoring | Yes | - |
+| Security fix | Yes | - |
+| CI/workflow changes | Yes | - |
+| Version bump (`chore: bump version`) | - | Yes |
+| Typo in README/docs (1–2 lines) | - | Yes |
+| Hotfix (1 file, obvious) | - | Yes, with justification |
 
-**Faustregel:** Wenn es mehr als 5 Minuten dauert oder mehr als 1 Datei betrifft → Branch.
+**Rule of thumb:** If it takes more than 5 minutes or touches more than 1 file → Branch.
 
 ---
 
-## Entwicklungs-Flow
+## Development Flow
 
-### 1. Vorbereitung
+### 1. Preparation
 
 ```bash
 git checkout master
 git pull origin master
-git checkout -b feat/kurze-beschreibung
+git checkout -b feat/short-description
 ```
 
-### 2. Entwicklung
+### 2. Development
 
 - Conventional Commits: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, `test:`, `security:`
-- Commit-Messages beschreiben WAS und WARUM — nicht "fix", "update", "misc"
-- Mehrere kleine Commits sind besser als ein grosser
+- Commit messages describe WHAT and WHY — not "fix", "update", "misc"
+- Multiple small commits are better than one large commit
 
-### 3. Tests lokal laufen lassen (PFLICHT vor Push)
+### 3. Run tests locally (REQUIRED before push)
 
 ```bash
 # Backend
@@ -61,107 +61,107 @@ cd frontend && npm run test -- --run
 cd frontend && npm run lint
 ```
 
-Wenn Tests fehlschlagen → fixen, nicht ignorieren. CI blockt den Merge sowieso.
+If tests fail → fix them, don't ignore them. CI blocks the merge anyway.
 
-### 4. Push + PR erstellen
+### 4. Push + create PR
 
 ```bash
-git push -u origin feat/kurze-beschreibung
-gh pr create --title "feat: kurze Beschreibung" --body "## Summary
-- Was wurde geaendert
-- Warum
+git push -u origin feat/short-description
+gh pr create --title "feat: short description" --body "## Summary
+- What was changed
+- Why
 
 ## Test plan
-- [ ] Backend-Tests gruen
-- [ ] Frontend-Tests gruen
-- [ ] Manuell getestet: ..."
+- [ ] Backend tests green
+- [ ] Frontend tests green
+- [ ] Manually tested: ..."
 ```
 
 ### 5. Self-Review
 
-Auch als Solo-Dev: Den PR-Diff einmal durchlesen.
+Even as a solo dev: read through the PR diff once.
 
-Checkliste:
-- [ ] Keine Credentials, API-Keys, Debug-Logs
-- [ ] Keine `console.log` oder `print()` Debugging-Reste
-- [ ] Commit-Messages sind verstaendlich
-- [ ] Kein versehentlich committed: `.env`, `node_modules`, `__pycache__`
+Checklist:
+- [ ] No credentials, API keys, debug logs
+- [ ] No `console.log` or `print()` debugging leftovers
+- [ ] Commit messages are understandable
+- [ ] Nothing accidentally committed: `.env`, `node_modules`, `__pycache__`
 
 ### 6. Merge
 
-- **Merge-Strategie: Squash Merge** (default)
-  - Haelt master-History sauber: 1 Feature = 1 Commit
+- **Merge strategy: Squash Merge** (default)
+  - Keeps master history clean: 1 feature = 1 commit
   - GitHub UI: "Squash and merge"
-- **Ausnahme:** Merge Commit bei grossen Features mit sinnvoller Zwischen-History
+- **Exception:** Merge commit for large features with meaningful intermediate history
 
-### 7. Aufraeumen
+### 7. Clean up
 
 ```bash
 git checkout master
 git pull origin master
-git branch -d feat/kurze-beschreibung     # lokal loeschen
+git branch -d feat/short-description     # delete locally
 ```
 
 ---
 
-## Release-Flow
+## Release Flow
 
-Releases sind entkoppelt von der taeglichen Arbeit. Nicht jeder Merge ist ein Release.
+Releases are decoupled from daily work. Not every merge is a release.
 
-### Wann releasen?
+### When to release?
 
-- **Patch** (0.12.x): Gesammelt nach 2-5 Bugfixes, oder bei kritischen Fixes sofort
-- **Minor** (0.x.0): Nach einem Feature-Milestone (z.B. alle geplanten Phases fertig)
-- **Major** (x.0.0): Breaking Changes — aktuell nicht relevant (Beta-Phase)
+- **Patch** (0.12.x): Collected after 2–5 bug fixes, or immediately for critical fixes
+- **Minor** (0.x.0): After a feature milestone (e.g., all planned phases complete)
+- **Major** (x.0.0): Breaking changes — not currently relevant (beta phase)
 
-### Release-Reihenfolge (KRITISCH — genau einhalten)
+### Release Order (CRITICAL — follow exactly)
 
 ```
-1. Alle Aenderungen auf master gemerged
-2. backend/VERSION anpassen
-3. CHANGELOG.md aktualisieren
-4. Commit: "chore: bump version to x.y.z-beta"   (direkt auf master OK)
-5. Tag + Push: git tag v0.12.3-beta && git push origin v0.12.3-beta
-6. release.yml triggert automatisch: CI → Docker Build → GitHub Release
+1. All changes merged to master
+2. Update backend/VERSION
+3. Update CHANGELOG.md
+4. Commit: "chore: bump version to x.y.z-beta"   (direct to master OK)
+5. Tag + push: git tag v0.12.3-beta && git push origin v0.12.3-beta
+6. release.yml triggers automatically: CI → Docker Build → GitHub Release
 ```
 
-**Merksatz:** Code fertig → Version bump → Tag → Release. Nie andersrum.
+**Rule:** Code done → version bump → tag → release. Never the other way around.
 
 ---
 
-## Claude Code Verhalten
+## Claude Code Behavior
 
-Wenn Claude Code in diesem Projekt arbeitet, gelten diese Regeln automatisch:
+When Claude Code works in this project, these rules apply automatically:
 
-### Vor dem Coden
-- Aktuellen Branch pruefen (`git branch --show-current`)
-- Wenn auf `master` und Aenderung ist nicht trivial → neuen Branch vorschlagen
-- Bei unklarem Scope → Plan Mode nutzen
+### Before coding
+- Check current branch (`git branch --show-current`)
+- If on `master` and the change is non-trivial → suggest a new branch
+- If scope is unclear → use Plan Mode
 
-### Waehrend dem Coden
-- Conventional Commits einhalten
-- Tests nach Aenderungen laufen lassen (Backend und/oder Frontend, je nach Scope)
-- Keine Aenderungen an CI-Workflows in Feature-PRs (eigener `chore/` Branch)
+### While coding
+- Follow Conventional Commits
+- Run tests after changes (backend and/or frontend, depending on scope)
+- No changes to CI workflows in feature PRs (use a separate `chore/` branch)
 
-### Vor dem Commit
-- `git diff` pruefen auf Credentials, Debug-Logs, ungewollte Dateien
-- Nur geaenderte Dateien stagen (kein `git add .`)
+### Before committing
+- Check `git diff` for credentials, debug logs, unwanted files
+- Stage only changed files (no `git add .`)
 
-### PR erstellen
-- Titel: Conventional Commit Format
+### Creating a PR
+- Title: Conventional Commit format
 - Body: Summary + Test Plan
-- Auf CI warten bevor Merge vorgeschlagen wird
+- Wait for CI before suggesting a merge
 
 ---
 
-## Anti-Patterns (vermeiden)
+## Anti-Patterns (avoid)
 
-| Nicht machen | Stattdessen |
+| Don't do | Instead |
 |---|---|
-| `git commit -m "fix"` | `git commit -m "fix: provider timeout bei langsamen APIs"` |
-| Direkt auf master fuer Features | Feature-Branch + PR |
-| CI-Aenderungen in Feature-PRs | Eigener `chore/ci-*` Branch |
-| Release vor Merge | Alle PRs mergen, dann releasen |
-| `git add .` | Explizit Dateien stagen |
-| Tests ueberspringen | Lokal testen, CI als Sicherheitsnetz |
-| Version bump vergessen | Gehoert zum Release-Flow, nicht zum Feature |
+| `git commit -m "fix"` | `git commit -m "fix: provider timeout on slow APIs"` |
+| Push directly to master for features | Feature branch + PR |
+| CI changes in feature PRs | Separate `chore/ci-*` branch |
+| Release before merge | Merge all PRs, then release |
+| `git add .` | Stage files explicitly |
+| Skip tests | Test locally, use CI as a safety net |
+| Forget version bump | Part of the release flow, not the feature |
