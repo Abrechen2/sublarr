@@ -72,6 +72,7 @@ def execute_language_filter(media_path: str, config: dict, dry_run: bool = False
     bytes_freed = 0
     would_delete = 0
     would_keep = 0
+    examples: list[dict] = []
 
     for path in _subtitle_files(media_path):
         fname = os.path.basename(path)
@@ -85,6 +86,8 @@ def execute_language_filter(media_path: str, config: dict, dry_run: bool = False
         file_size = os.path.getsize(path)
         if dry_run:
             would_delete += 1
+            if len(examples) < 20:
+                examples.append({"path": path, "size_bytes": file_size, "reason": f"lang:{lang}"})
             logger.debug("Would delete (language_filter): %s", path)
         else:
             try:
@@ -96,7 +99,7 @@ def execute_language_filter(media_path: str, config: dict, dry_run: bool = False
                 logger.warning("Failed to delete %s: %s", path, e)
 
     if dry_run:
-        return {"would_delete": would_delete, "would_keep": would_keep}
+        return {"would_delete": would_delete, "would_keep": would_keep, "examples": examples}
     return {"deleted": deleted, "kept": kept, "bytes_freed": bytes_freed}
 
 
@@ -138,6 +141,7 @@ def execute_format_upgrade(media_path: str, config: dict, dry_run: bool = False)
     deleted = 0
     bytes_freed = 0
     would_delete = 0
+    examples: list[dict] = []
 
     for (dirpath, base), exts in index.items():
         if preferred_ext in exts and inferior_ext in exts:
@@ -146,6 +150,13 @@ def execute_format_upgrade(media_path: str, config: dict, dry_run: bool = False)
                 file_size = os.path.getsize(inferior_path)
                 if dry_run:
                     would_delete += 1
+                    if len(examples) < 20:
+                        kept_path = path_map.get((dirpath, base, preferred_ext), "")
+                        examples.append({
+                            "path": inferior_path,
+                            "size_bytes": file_size,
+                            "reason": f"replaced by {os.path.basename(kept_path)}",
+                        })
                     logger.debug("Would delete (format_upgrade): %s", inferior_path)
                 else:
                     try:
@@ -157,7 +168,7 @@ def execute_format_upgrade(media_path: str, config: dict, dry_run: bool = False)
                         logger.warning("Failed to delete %s: %s", inferior_path, e)
 
     if dry_run:
-        return {"would_delete": would_delete}
+        return {"would_delete": would_delete, "examples": examples}
     return {"deleted": deleted, "bytes_freed": bytes_freed}
 
 
@@ -177,6 +188,7 @@ def execute_orphan_files(media_path: str, config: dict, dry_run: bool = False) -
     deleted = 0
     bytes_freed = 0
     would_delete = 0
+    examples: list[dict] = []
 
     for path in _subtitle_files(media_path):
         dirpath = os.path.dirname(path)
@@ -189,6 +201,8 @@ def execute_orphan_files(media_path: str, config: dict, dry_run: bool = False) -
             file_size = os.path.getsize(path)
             if dry_run:
                 would_delete += 1
+                if len(examples) < 20:
+                    examples.append({"path": path, "size_bytes": file_size, "reason": "no video in folder"})
                 logger.debug("Would delete (orphan_files): %s", path)
             else:
                 try:
@@ -200,7 +214,7 @@ def execute_orphan_files(media_path: str, config: dict, dry_run: bool = False) -
                     logger.warning("Failed to delete %s: %s", path, e)
 
     if dry_run:
-        return {"would_delete": would_delete}
+        return {"would_delete": would_delete, "examples": examples}
     return {"deleted": deleted, "bytes_freed": bytes_freed}
 
 
@@ -220,11 +234,14 @@ def execute_orphan_db(config: dict, dry_run: bool = False) -> dict:
     paths = repo.get_all_subtitle_paths()
     deleted = 0
     would_delete = 0
+    examples: list[dict] = []
 
     for path in paths:
         if not os.path.exists(path):
             if dry_run:
                 would_delete += 1
+                if len(examples) < 20:
+                    examples.append({"path": path, "size_bytes": 0, "reason": "file missing on disk"})
                 logger.debug("Would remove DB entry (orphan_db): %s", path)
             else:
                 repo.delete_by_path(path)
@@ -232,5 +249,5 @@ def execute_orphan_db(config: dict, dry_run: bool = False) -> dict:
                 logger.info("Removed DB entry (orphan_db): %s", path)
 
     if dry_run:
-        return {"would_delete": would_delete}
+        return {"would_delete": would_delete, "examples": examples}
     return {"deleted": deleted}
