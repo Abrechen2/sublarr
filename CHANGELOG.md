@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.47.5-beta] - 2026-04-10
+
+### Fixed
+- **Auto-extract item_id is None in batch scan** — When the wanted scanner runs in batch mode, `_commit()` is a no-op and SQLAlchemy never assigns the autoincrement PK until an explicit flush. Added `session.flush()` after `session.add()` so `item.id` is populated before being returned, eliminating the "Wanted item None not found" errors and cascading logging crashes during startup scans.
+
 ## [0.47.4-beta] - 2026-04-10
 
 ### Fixed
