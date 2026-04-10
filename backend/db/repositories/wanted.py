@@ -147,6 +147,7 @@ class WantedRepository(BaseRepository):
         )
         try:
             self.session.add(item)
+            self.session.flush()  # populate item.id even in batch mode (no-op _commit)
             self._commit()
             return item.id, False
         except IntegrityError:

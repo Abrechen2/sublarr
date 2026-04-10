@@ -565,6 +565,9 @@ class WantedScanner:
         "embedded_ass" or "embedded_srt". Errors are caught so the scanner
         never aborts due to a failed extraction.
         """
+        if item_id is None:
+            logger.warning("[Auto-Extract] Skipped — item_id is None for %s", file_path)
+            return
         try:
             settings = get_settings()
             if not getattr(settings, "wanted_auto_extract", False):
