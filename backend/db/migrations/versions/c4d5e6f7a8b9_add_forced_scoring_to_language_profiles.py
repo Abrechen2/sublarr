@@ -1,7 +1,7 @@
 """Add forced_scoring column to language_profiles
 
 Revision ID: c4d5e6f7a8b9
-Revises: b2c3d4e5f6a7
+Revises: b9c8d7e6f5a4
 Create Date: 2026-04-09
 """
 
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "c4d5e6f7a8b9"
-down_revision = "b2c3d4e5f6a7"
+down_revision = "b9c8d7e6f5a4"
 branch_labels = None
 depends_on = None
 

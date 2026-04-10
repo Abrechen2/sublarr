@@ -1,6 +1,6 @@
 """Add hi_preference column to language_profiles
 
-Revision ID: b2c3d4e5f6a7
+Revision ID: b9c8d7e6f5a4
 Revises: 9852305585cd
 Create Date: 2026-04-09
 """
@@ -8,7 +8,7 @@ Create Date: 2026-04-09
 import sqlalchemy as sa
 from alembic import op
 
-revision = "b2c3d4e5f6a7"
+revision = "b9c8d7e6f5a4"
 down_revision = "9852305585cd"
 branch_labels = None
 depends_on = None
