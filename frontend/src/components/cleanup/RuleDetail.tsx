@@ -56,7 +56,7 @@ function ConfigSection({
 }) {
   return (
     <div
-      className="rounded-xl overflow-hidden"
+      className="rounded-xl"
       style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
     >
       <div
