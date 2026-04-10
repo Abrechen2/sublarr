@@ -5,6 +5,16 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.47.1-beta] - 2026-04-10
+
+### Fixed
+- **Wanted scheduler logging** — `scan_all()` now correctly logs `EVENT_SCAN` (was silent before); `search_all()` logs `EVENT_SEARCH` instead of `EVENT_SCAN`, preventing search results from appearing as scan entries in the activity log. Search now also runs on startup by default.
+- **Dashboard provider health** — Provider success rate was treated as a 0–100 integer but the API returns a 0–1 decimal; dots and percentages now display correctly.
+- **Trash page** — Complete redesign: stats bar with total sizes and retention info, expiry badges color-coded by urgency, delete button for MKV backups, all strings via i18n.
+- **Settings navigation** — Removed the tile overview page; settings now open directly on General.
+- **Cleanup rules** — Fixed 5 API contract mismatches: `getCleanupRules` now handles `{rules:[…]}` wrapper; `deleteDuplicates` sends correct key `groups`; history normalizes `items→entries`; preview sends `{action:"dedup"}` with correct response mapping; scan status normalizes `running:bool→status:string`. The `old_backups` manual run now actually deletes files instead of just listing them.
+- **Cleanup modal** — Redesigned rule-creation dialog with icon button cards, backdrop-close, Enter-to-submit, and X close button.
+
 ## [0.47.0-beta] - 2026-04-09
 
 ### Added
