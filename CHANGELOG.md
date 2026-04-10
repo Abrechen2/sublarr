@@ -5,6 +5,12 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.47.4-beta] - 2026-04-10
+
+### Fixed
+- **Wanted search crashes on startup** — ThreadPoolExecutor worker threads now each receive their own Flask application context. Previously every parallel item search raised "Working outside of application context", causing the startup search to fail for all items silently.
+- **Language profiles blocked by duplicate Alembic revision** — A duplicate revision ID (b2c3d4e5f6a7) caused all pending migrations to be skipped on production, which prevented creation of language profiles. The hi_preference migration was renumbered, a merge migration added, and the chain restored.
+
 ## [0.47.3-beta] - 2026-04-10
 
 ### Changed
