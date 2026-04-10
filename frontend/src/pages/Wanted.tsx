@@ -322,7 +322,7 @@ export function WantedPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5" style={{ height: 'calc(100vh - 40px)' }}>
+    <div className="flex flex-col gap-5" style={{ height: 'calc(100vh - 108px)' }}>
       <PageHeader
         title={t('wanted.page_title', 'Wanted')}
         subtitle={t('wanted.page_subtitle', 'Subtitles missing from your library')}

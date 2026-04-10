@@ -5,6 +5,16 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.47.2-beta] - 2026-04-10
+
+### Fixed
+- **FormGroup-Trenner im Light Mode** — Die Trennlinien zwischen Einstellungsfeldern verwendeten eine hartcodierte Dunkelfarbe (`rgba(42,46,56,0.5)`) statt `var(--border)` und waren im Light Mode falsch gefärbt.
+- **Wanted-Seite: doppelter Scrollbalken** — `height: calc(100vh - 40px)` ignorierte das Main-Padding (24 + 60 px), was die Tabelle 44 px über den sichtbaren Bereich hinausschob. Korrigiert auf `calc(100vh - 108px)`.
+- **Settings-Nav: zu geringer Abstand oben** — Die klebende Sidebar startete mit nur 4 px Abstand zum oberen Rand. Erhöht auf 16 px.
+- **PillTabs: unsichtbar im Light Mode** — Der Tab-Container hatte keinen Rahmen und verschwamm optisch mit dem Seitenhintergrund; Border `var(--border)` ergänzt.
+- **CleanupTab: Sektionsinhalt ohne Einrückung** — Der Inhalt klappbarer Sektionen hatte kein `pt-3`, sodass er direkt unter dem Toggle-Button begann. Oberer Innenabstand ergänzt.
+- **Logs-Seite: inkonsistenter Seitenkopf** — Rohe `<h1>`-Überschrift durch die kanonische `PageHeader`-Komponente ersetzt; Höhenberechnung von `7rem` auf `8rem` angepasst.
+
 ## [0.47.1-beta] - 2026-04-10
 
 ### Fixed

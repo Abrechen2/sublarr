@@ -34,7 +34,7 @@ export function FormGroup({
       )}
       style={{
         padding: '12px 0',
-        borderBottom: '1px solid rgba(42, 46, 56, 0.5)',
+        borderBottom: '1px solid var(--border)',
       }}
     >
       {/* Label group — left side */}

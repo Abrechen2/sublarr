@@ -4,6 +4,7 @@ import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual'
 import { useLogs } from '@/hooks/useApi'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { Pause, Search, ArrowDown, Download } from 'lucide-react'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 const ROW_HEIGHT = 30
 const OVERSCAN = 10
@@ -120,10 +121,11 @@ export function LogsPage() {
   }
 
   return (
-    <div className="space-y-4 h-[calc(100vh-7rem)] flex flex-col">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1>{t('title')}</h1>
-        <div className="flex items-center gap-2">
+    <div className="space-y-4 h-[calc(100vh-8rem)] flex flex-col">
+      <PageHeader
+        title={t('title')}
+        actions={
+          <>
           {/* Level Filter */}
           <div className="flex gap-1">
             {LOG_LEVELS.map((l) => {
@@ -193,8 +195,9 @@ export function LogsPage() {
           >
             {autoScroll ? <ArrowDown size={14} /> : <Pause size={14} />}
           </button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Log viewer -- terminal style, virtualized */}
       <div

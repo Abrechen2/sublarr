@@ -12,7 +12,7 @@ interface PillTabsProps {
 
 export function PillTabs({ tabs, activeTab, onChange }: PillTabsProps) {
   return (
-    <div className="flex gap-0.5 bg-[var(--bg-surface)] rounded-[var(--radius-md)] p-[3px] w-fit">
+    <div className="flex gap-0.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-[var(--radius-md)] p-[3px] w-fit">
       {tabs.map(tab => (
         <button
           key={tab.id}

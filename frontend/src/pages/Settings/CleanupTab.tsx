@@ -53,7 +53,7 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         <h3 className="text-sm font-semibold">{title}</h3>
       </button>
-      {open && <div className="px-4 pb-4 space-y-4">{children}</div>}
+      {open && <div className="px-4 pt-3 pb-4 space-y-4">{children}</div>}
     </div>
   )
 }

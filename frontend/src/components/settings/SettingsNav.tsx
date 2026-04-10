@@ -121,7 +121,7 @@ export function SettingsNav() {
         width: 210,
         minWidth: 210,
         paddingRight: 8,
-        paddingTop: 4,
+        paddingTop: 16,
         paddingBottom: 24,
       }}
     >
