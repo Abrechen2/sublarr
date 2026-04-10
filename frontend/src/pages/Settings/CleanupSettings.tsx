@@ -370,7 +370,10 @@ export function CleanupSettings() {
       if (!selectedId) return
       updateRule.mutate(
         { id: selectedId, data: patch },
-        { onError: () => toast('Fehler beim Speichern', 'error') },
+        {
+          onSuccess: () => toast('Gespeichert', 'success'),
+          onError: () => toast('Fehler beim Speichern', 'error'),
+        },
       )
     },
     [selectedId, updateRule],
@@ -456,36 +459,44 @@ export function CleanupSettings() {
   const groups = duplicatesData?.groups ?? []
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Page header */}
-      <div className="px-6 py-5" style={{ borderBottom: '1px solid var(--border)' }}>
-        <PageHeader
-          title={t('cleanup.page.title', 'Cleanup Rules')}
-          subtitle={t(
-            'cleanup.page.subtitle',
-            'Automatisierte Bereinigung von Sidecar-Dateien und Datenbankeinträgen',
-          )}
-        />
-      </div>
+    <div className="space-y-5">
+      <PageHeader
+        title={t('cleanup.page.title', 'Cleanup Rules')}
+        subtitle={t(
+          'cleanup.page.subtitle',
+          'Automatisierte Bereinigung von Sidecar-Dateien und Datenbankeinträgen',
+        )}
+      />
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <RuleSidebar
-          rules={rules}
-          selectedId={selectedId}
-          onSelect={(id) => {
-            setSelectedId(id)
-            setPreviewResult(null)
+      {/* Disk stats — only when the scan has data */}
+      {stats && stats.total_files > 0 && <DiskSpaceWidget stats={stats} />}
+
+      {/* Two-column: sticky sidebar + rule detail */}
+      <div className="flex gap-5" style={{ alignItems: 'flex-start' }}>
+        {/* Sticky rule list */}
+        <div
+          className="rounded-xl overflow-hidden flex-shrink-0"
+          style={{
+            width: 220,
+            position: 'sticky',
+            top: 24,
+            border: '1px solid var(--border)',
+            background: 'var(--bg-surface)',
           }}
-          onNew={() => setShowNewModal(true)}
-        />
+        >
+          <RuleSidebar
+            rules={rules}
+            selectedId={selectedId}
+            onSelect={(id) => {
+              setSelectedId(id)
+              setPreviewResult(null)
+            }}
+            onNew={() => setShowNewModal(true)}
+          />
+        </div>
 
-        {/* Main content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          {/* Disk space */}
-          {stats && <DiskSpaceWidget stats={stats} />}
-
-          {/* Rule detail or empty state */}
+        {/* Rule detail or empty state */}
+        <div className="flex-1 min-w-0">
           {selectedRule ? (
             <RuleDetail
               rule={selectedRule}
@@ -506,65 +517,60 @@ export function CleanupSettings() {
                 color: 'var(--text-muted)',
               }}
             >
-              Wähle eine Regel aus der Sidebar oder erstelle eine neue.
+              {t('cleanup.no_rule_selected', 'Wähle eine Regel aus der Sidebar oder erstelle eine neue.')}
             </div>
           )}
-
-          {/* Deduplication section */}
-          <div
-            className="rounded-xl overflow-hidden"
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
-          >
-            <div
-              className="flex items-center justify-between px-4 py-3"
-              style={{ borderBottom: '1px solid var(--border)' }}
-            >
-              <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                {t('cleanup.dedup.title', 'Deduplication')}
-              </span>
-              <button
-                onClick={handleStartScan}
-                disabled={isScanning || startScan.isPending}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50"
-                style={{ background: 'var(--accent)' }}
-              >
-                {isScanning ? <Loader2 size={12} className="animate-spin" /> : null}
-                {isScanning
-                  ? 'Scannt...'
-                  : t('cleanup.dedup.scanButton', 'Scan for Duplicates')}
-              </button>
-            </div>
-            <div className="p-4">
-              {dedupPreviewData ? (
-                <CleanupPreview
-                  preview={dedupPreviewData}
-                  onConfirm={handleConfirmDedupDelete}
-                  onCancel={() => {
-                    setDedupPreviewData(null)
-                    setPendingDeleteSelections(null)
-                  }}
-                  isConfirming={deleteDuplicates.isPending}
-                />
-              ) : groups.length > 0 ? (
-                <DedupGroupList
-                  groups={groups}
-                  onDelete={handleDeleteDuplicates}
-                  isDeleting={deleteDuplicates.isPending}
-                />
-              ) : (
-                <div
-                  className="text-sm text-center py-4"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  {t('cleanup.dedup.noResults', 'No duplicates found. Run a scan to check.')}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <HistorySection />
         </div>
       </div>
+
+      {/* Deduplication section */}
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      >
+        <div
+          className="flex items-center justify-between px-4 py-3"
+          style={{ borderBottom: '1px solid var(--border)' }}
+        >
+          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {t('cleanup.dedup.title', 'Deduplication')}
+          </span>
+          <button
+            onClick={handleStartScan}
+            disabled={isScanning || startScan.isPending}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50"
+            style={{ background: 'var(--accent)' }}
+          >
+            {isScanning ? <Loader2 size={12} className="animate-spin" /> : null}
+            {isScanning ? 'Scannt...' : t('cleanup.dedup.scanButton', 'Scan for Duplicates')}
+          </button>
+        </div>
+        <div className="p-4">
+          {dedupPreviewData ? (
+            <CleanupPreview
+              preview={dedupPreviewData}
+              onConfirm={handleConfirmDedupDelete}
+              onCancel={() => {
+                setDedupPreviewData(null)
+                setPendingDeleteSelections(null)
+              }}
+              isConfirming={deleteDuplicates.isPending}
+            />
+          ) : groups.length > 0 ? (
+            <DedupGroupList
+              groups={groups}
+              onDelete={handleDeleteDuplicates}
+              isDeleting={deleteDuplicates.isPending}
+            />
+          ) : (
+            <div className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>
+              {t('cleanup.dedup.noResults', 'No duplicates found. Run a scan to check.')}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <HistorySection />
 
       {showNewModal && (
         <NewRuleModal onClose={() => setShowNewModal(false)} onCreate={handleCreate} />

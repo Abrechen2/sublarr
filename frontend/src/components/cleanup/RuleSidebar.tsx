@@ -27,10 +27,7 @@ interface RuleSidebarProps {
 
 export function RuleSidebar({ rules, selectedId, onSelect, onNew }: RuleSidebarProps) {
   return (
-    <div
-      className="flex flex-col flex-shrink-0"
-      style={{ width: 260, background: 'var(--bg-surface)', borderRight: '1px solid var(--border)' }}
-    >
+    <div className="flex flex-col w-full">
       <div className="flex items-center justify-between px-4 py-3">
         <span
           className="text-[10px] font-semibold uppercase tracking-wide"

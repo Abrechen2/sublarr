@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 
 const COMMON_LANGUAGES = [
@@ -22,19 +22,33 @@ interface LanguageFilterConfigProps {
 }
 
 export function LanguageFilterConfig({ value, onChange }: LanguageFilterConfigProps) {
+  const [localValue, setLocalValue] = useState(value)
   const [showDropdown, setShowDropdown] = useState(false)
 
+  // Sync from server after mutations settle
+  useEffect(() => {
+    setLocalValue(value)
+  }, [value])
+
   const addLang = (code: string) => {
-    if (!value.includes(code)) onChange([...value, code])
+    if (!localValue.includes(code)) {
+      const next = [...localValue, code]
+      setLocalValue(next)
+      onChange(next)
+    }
     setShowDropdown(false)
   }
 
-  const removeLang = (code: string) => onChange(value.filter((l) => l !== code))
+  const removeLang = (code: string) => {
+    const next = localValue.filter((l) => l !== code)
+    setLocalValue(next)
+    onChange(next)
+  }
 
   const getLang = (code: string) =>
     COMMON_LANGUAGES.find((l) => l.code === code) ?? { code, label: code.toUpperCase(), flag: '🌐' }
 
-  const available = COMMON_LANGUAGES.filter((l) => !value.includes(l.code))
+  const available = COMMON_LANGUAGES.filter((l) => !localValue.includes(l.code))
 
   return (
     <div className="space-y-3">
@@ -45,7 +59,7 @@ export function LanguageFilterConfig({ value, onChange }: LanguageFilterConfigPr
         Behalten
       </div>
       <div className="flex flex-wrap gap-2">
-        {value.map((code) => {
+        {localValue.map((code) => {
           const lang = getLang(code)
           return (
             <span
