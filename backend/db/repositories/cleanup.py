@@ -102,14 +102,17 @@ class CleanupRepository(BaseRepository):
         for f in all_dup_files:
             groups.setdefault(f.content_hash, []).append(
                 {
-                    "path": f.file_path,
-                    "size": f.file_size,
+                    "file_path": f.file_path,
+                    "content_hash": f.content_hash,
+                    "file_size": f.file_size,
                     "format": f.format,
                     "language": f.language,
+                    "line_count": f.line_count,
+                    "last_scanned": f.last_scanned.isoformat() if f.last_scanned else None,
                 }
             )
 
-        return [{"hash": h, "count": len(files), "files": files} for h, files in groups.items()]
+        return [{"content_hash": h, "count": len(files), "files": files} for h, files in groups.items()]
 
     def find_by_content_hash(self, content_hash: str) -> list[dict]:
         """Find all subtitle hash records matching the given SHA-256 hash.
