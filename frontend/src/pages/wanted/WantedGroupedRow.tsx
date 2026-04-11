@@ -25,6 +25,7 @@ interface WantedGroupedRowProps {
   processingItemId: number | null
   isSelected: (id: number) => boolean
   onToggleGroup: (itemIds: number[], shiftKey: boolean) => void
+  onExpand: (itemId: number | null) => void
   onProcess: (itemId: number) => void
   onExtract: (itemId: number, targetLanguage?: string) => void
   onRetranslate: (itemId: number) => void
@@ -48,6 +49,7 @@ export function WantedGroupedRow({
   processingItemId,
   isSelected,
   onToggleGroup,
+  onExpand,
   onProcess,
   onExtract,
   onRetranslate,
@@ -82,6 +84,11 @@ export function WantedGroupedRow({
                   ? '1px solid var(--border)'
                   : '1px dashed color-mix(in srgb, var(--border) 50%, transparent)',
                 animationDelay: `${Math.min(groupIndex * 30, 300)}ms`,
+                cursor: 'pointer',
+              }}
+              onClick={(e) => {
+                if ((e.target as HTMLElement).closest('button')) return
+                onExpand(expandedItem === item.id ? null : item.id)
               }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)')}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}

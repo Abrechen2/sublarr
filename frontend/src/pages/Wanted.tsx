@@ -241,10 +241,8 @@ export function WantedPage() {
       const allSel = itemIds.every((id) => isSelected(id))
       if (allSel) {
         for (const id of itemIds) {
-          if (isSelected(id)) {
-            const idx = visibleIds.indexOf(id)
-            toggleItem(SCOPE, id, idx, false, visibleIds)
-          }
+          const idx = visibleIds.indexOf(id)
+          toggleItem(SCOPE, id, idx, false, visibleIds)
         }
       } else {
         for (const id of itemIds) {
@@ -538,6 +536,7 @@ export function WantedPage() {
                       processingItemId={processingItemId}
                       isSelected={isSelected}
                       onToggleGroup={handleToggleGroup}
+                      onExpand={(id) => setExpandedItem(id)}
                       onProcess={handleProcess}
                       onExtract={handleExtract}
                       onRetranslate={(id) => retranslateItem.mutate(id)}
