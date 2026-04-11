@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 
 interface FormGroupProps {
   readonly label: string
   readonly hint?: string
   readonly htmlFor?: string
+  readonly fieldKey?: string
   readonly children: React.ReactNode
   readonly className?: string
   readonly 'data-testid'?: string
@@ -16,27 +18,31 @@ export function FormGroup({
   label,
   hint,
   htmlFor,
+  fieldKey,
   children,
   className,
   'data-testid': testId,
   advanced = false,
 }: FormGroupProps) {
   const { t } = useTranslation('settings')
+  const location = useLocation()
   const [tooltipVisible, setTooltipVisible] = useState(false)
   const [highlighted, setHighlighted] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const target = sessionStorage.getItem('highlight-setting')
-    // Match via htmlFor (e.g. "log-level") normalized to underscore ("log_level")
-    if (target && htmlFor && htmlFor.replace(/-/g, '_') === target) {
+    if (!target) return
+    const normalizedHtmlFor = htmlFor?.replace(/-/g, '_')
+    const matches = fieldKey === target || normalizedHtmlFor === target
+    if (matches) {
       sessionStorage.removeItem('highlight-setting')
       setHighlighted(true)
       wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       const timer = setTimeout(() => setHighlighted(false), 1900)
       return () => clearTimeout(timer)
     }
-  }, [htmlFor])
+  }, [htmlFor, fieldKey, location.key])
 
   return (
     <div
