@@ -137,7 +137,9 @@ def _remux_mkvmerge(video_path: str, stream_indices: list[int], output_path: str
         video_path,
     ]
     logger.debug("Remux mkvmerge: %s", " ".join(cmd))
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600
+    )
     if result.returncode not in (0, 1):  # mkvmerge exit 1 = warnings, still OK
         raise RemuxError(f"mkvmerge failed (exit {result.returncode}): {result.stderr[:500]}")
 
@@ -159,7 +161,9 @@ def _remux_ffmpeg(video_path: str, stream_indices: list[int], output_path: str) 
     cmd += ["-c", "copy", output_path]
 
     logger.debug("Remux ffmpeg: %s", " ".join(cmd))
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600
+    )
     if result.returncode != 0:
         raise RemuxError(f"ffmpeg failed (exit {result.returncode}): {result.stderr[-500:]}")
 
@@ -200,10 +204,14 @@ def _verify(original_path: str, remuxed_path: str, n_removed: int = 1) -> None:
     orig_info = _probe(original_path)
     new_info = _probe(remuxed_path)
 
-    # Duration check (±2 s)
+    # Duration check: allow ±5 s or 1 % of total duration (whichever is larger).
+    # Some MKVs have phantom trailing segments that mkvmerge trims during remux,
+    # causing ffprobe to report slightly different durations. A strict 2 s cap
+    # produces false-positive failures for long files (24-min anime = ~1 % ≈ 14 s).
     orig_dur = float(orig_info.get("format", {}).get("duration", 0))
     new_dur = float(new_info.get("format", {}).get("duration", 0))
-    if orig_dur > 0 and abs(orig_dur - new_dur) > 2.0:
+    dur_tolerance = max(5.0, orig_dur * 0.01)
+    if orig_dur > 0 and abs(orig_dur - new_dur) > dur_tolerance:
         raise RemuxError(f"Duration mismatch: original={orig_dur:.1f}s remuxed={new_dur:.1f}s")
 
     # Video + audio stream count must not decrease
@@ -215,9 +223,16 @@ def _verify(original_path: str, remuxed_path: str, n_removed: int = 1) -> None:
     if _count(new_info, "audio") < _count(orig_info, "audio"):
         raise RemuxError("Audio stream count decreased after remux")
 
-    # Subtitle count should be exactly n_removed less
+    # Subtitle count should be exactly n_removed less.
+    # If orig_subs < n_removed the container was already modified by a concurrent
+    # worker — raise a clear error so the caller can log it as a harmless skip.
     orig_subs = _count(orig_info, "subtitle")
     new_subs = _count(new_info, "subtitle")
+    if orig_subs < n_removed:
+        raise RemuxError(
+            f"Subtitle streams already removed (orig={orig_subs}, wanted to remove {n_removed})"
+            " — concurrent modification?"
+        )
     expected = orig_subs - n_removed
     if new_subs != expected:
         raise RemuxError(f"Unexpected subtitle stream count: expected {expected}, got {new_subs}")
