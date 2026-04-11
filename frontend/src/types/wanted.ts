@@ -26,6 +26,18 @@ export interface WantedItem {
   subtitle_type: 'full' | 'forced'
 }
 
+export interface WantedGroup {
+  /** Stable group identity — equals file_path. */
+  key: string
+  title: string
+  season_episode: string
+  file_path: string
+  item_type: 'episode' | 'movie'
+  instance_name?: string
+  /** One WantedItem per target_language, sorted alphabetically (de < en). */
+  languages: WantedItem[]
+}
+
 export interface PaginatedWanted {
   data: WantedItem[]
   page: number
