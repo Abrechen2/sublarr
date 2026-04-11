@@ -39,7 +39,7 @@ export function FormGroup({
       sessionStorage.removeItem('highlight-setting')
       setHighlighted(true)
       wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      const timer = setTimeout(() => setHighlighted(false), 1900)
+      const timer = setTimeout(() => setHighlighted(false), 5000)
       return () => clearTimeout(timer)
     }
   }, [htmlFor, fieldKey, location.key])
