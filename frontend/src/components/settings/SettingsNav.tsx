@@ -1,7 +1,10 @@
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink, useMatch } from 'react-router-dom'
+import { Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useConfig } from '@/hooks/useApi'
+import { SettingsSearchModal } from './SettingsSearchModal'
 
 interface NavPage {
   readonly label: string
@@ -112,8 +115,21 @@ export function SettingsNav() {
   const { data: config } = useConfig()
   const translationEnabled = Boolean(config?.translation_enabled)
   const groups = useNavGroups(translationEnabled)
+  const [searchOpen, setSearchOpen] = useState(false)
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   return (
+    <>
     <nav
       data-testid="settings-nav"
       className="shrink-0 overflow-y-auto"
@@ -125,6 +141,26 @@ export function SettingsNav() {
         paddingBottom: 24,
       }}
     >
+      {/* Search trigger */}
+      <button
+        onClick={() => setSearchOpen(true)}
+        className="flex items-center gap-2 w-full px-3 py-2 mb-4 rounded-lg text-xs transition-colors hover:opacity-80"
+        style={{
+          backgroundColor: 'var(--bg-elevated)',
+          border: '1px solid var(--border)',
+          color: 'var(--text-muted)',
+        }}
+      >
+        <Search size={12} />
+        <span className="flex-1 text-left">Suchen…</span>
+        <kbd
+          className="font-mono text-[10px] px-1 py-0.5 rounded"
+          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+        >
+          Ctrl K
+        </kbd>
+      </button>
+
       {groups.map((group) => (
         <div key={group.label} style={{ marginBottom: 20 }}>
           <div
@@ -148,5 +184,7 @@ export function SettingsNav() {
         </div>
       ))}
     </nav>
+    <SettingsSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+    </>
   )
 }
