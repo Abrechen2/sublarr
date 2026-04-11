@@ -49,7 +49,9 @@ export function groupByFilePath(items: WantedItem[]): WantedGroup[] {
     map.get(key)!.languages.push(item)
   }
   for (const group of map.values()) {
-    group.languages.sort((a, b) => a.target_language.localeCompare(b.target_language))
+    group.languages = [...group.languages].sort((a, b) =>
+      a.target_language.localeCompare(b.target_language)
+    )
   }
   return Array.from(map.values())
 }
