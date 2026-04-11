@@ -13,6 +13,27 @@ interface FormGroupProps {
   readonly advanced?: boolean
 }
 
+// Inline styles for each pulse phase — no CSS animation needed
+const HL_ON: React.CSSProperties = {
+  backgroundColor: 'var(--accent-bg)',
+  outline: '2px solid var(--accent)',
+  borderRadius: '6px',
+  transition: 'background-color 0.35s ease, outline-color 0.35s ease',
+}
+const HL_DIM: React.CSSProperties = {
+  backgroundColor: 'var(--accent-bg)',
+  outline: '2px solid var(--accent-dim)',
+  borderRadius: '6px',
+  transition: 'background-color 0.35s ease, outline-color 0.35s ease',
+}
+const HL_OFF: React.CSSProperties = {
+  backgroundColor: 'transparent',
+  outline: '2px solid transparent',
+  borderRadius: '6px',
+  transition: 'background-color 0.5s ease, outline-color 0.5s ease',
+}
+const HL_NONE: React.CSSProperties = {}
+
 export function FormGroup({
   label,
   hint,
@@ -25,29 +46,51 @@ export function FormGroup({
 }: FormGroupProps) {
   const { t } = useTranslation('settings')
   const [tooltipVisible, setTooltipVisible] = useState(false)
-  const [highlighted, setHighlighted] = useState(false)
+  const [hlStyle, setHlStyle] = useState<React.CSSProperties>(HL_NONE)
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+
+  const clearTimers = useCallback(() => {
+    timersRef.current.forEach(clearTimeout)
+    timersRef.current = []
+  }, [])
 
   const checkHighlight = useCallback(() => {
     const target = sessionStorage.getItem('highlight-setting')
     if (!target) return
     const normalizedHtmlFor = htmlFor?.replace(/-/g, '_')
-    if (fieldKey === target || normalizedHtmlFor === target) {
-      sessionStorage.removeItem('highlight-setting')
-      setHighlighted(true)
-      wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      setTimeout(() => setHighlighted(false), 5000)
+    if (fieldKey !== target && normalizedHtmlFor !== target) return
+
+    sessionStorage.removeItem('highlight-setting')
+    wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+
+    clearTimers()
+
+    // Pulse sequence: ON → DIM → ON → DIM → ON → fade OFF → reset
+    setHlStyle(HL_ON)
+    const schedule = (fn: () => void, ms: number) => {
+      const id = setTimeout(fn, ms)
+      timersRef.current.push(id)
     }
-  }, [htmlFor, fieldKey])
+    schedule(() => setHlStyle(HL_DIM), 1000)
+    schedule(() => setHlStyle(HL_ON),  2000)
+    schedule(() => setHlStyle(HL_DIM), 3000)
+    schedule(() => setHlStyle(HL_ON),  4000)
+    schedule(() => setHlStyle(HL_OFF), 4500)
+    schedule(() => setHlStyle(HL_NONE), 5100)
+  }, [htmlFor, fieldKey, clearTimers])
 
   // Cross-page navigation: run on mount
   useEffect(() => { checkHighlight() }, [checkHighlight])
 
-  // Same-page navigation: listen for custom event dispatched by search modal
+  // Same-page navigation: custom event from search modal
   useEffect(() => {
     window.addEventListener('settings-highlight-request', checkHighlight)
     return () => window.removeEventListener('settings-highlight-request', checkHighlight)
   }, [checkHighlight])
+
+  // Cleanup timers on unmount
+  useEffect(() => clearTimers, [clearTimers])
 
   return (
     <div
@@ -56,12 +99,12 @@ export function FormGroup({
       className={cn(
         'flex flex-col md:flex-row md:items-start md:justify-between gap-2',
         'last:border-b-0 last:pb-0 first:pt-0',
-        highlighted && 'settings-highlight',
         className,
       )}
       style={{
         padding: '12px 0',
         borderBottom: '1px solid var(--border)',
+        ...hlStyle,
       }}
     >
       {/* Label group — left side */}
