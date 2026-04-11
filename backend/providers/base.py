@@ -311,6 +311,7 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
     if not hi_pref or hi_pref == "include":
         # Only load global settings when the query carries no override
         from config import get_settings  # local import to avoid circular deps
+
         hi_pref = getattr(get_settings(), "hi_preference", "include")
     if hi_pref == "prefer" and result.hearing_impaired:
         breakdown["hi_preference"] = 30
@@ -326,6 +327,7 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
     forced_pref = getattr(query, "forced_scoring", None)
     if not forced_pref or forced_pref == "include":
         from config import get_settings as _get_settings
+
         forced_pref = getattr(_get_settings(), "forced_preference", "include")
     if forced_pref == "prefer" and result.forced:
         breakdown["forced_preference"] = 30

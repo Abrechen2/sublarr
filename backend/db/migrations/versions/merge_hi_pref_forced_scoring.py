@@ -10,8 +10,6 @@ b9c8d7e6f5a4 and forced_scoring updated to follow it. This merge
 connects those two new migrations to the main branch head.
 """
 
-from alembic import op
-
 revision = "merge_hi_pref_forced_scoring"
 down_revision = ("e4f5a6b7c8d9", "c4d5e6f7a8b9")
 branch_labels = None

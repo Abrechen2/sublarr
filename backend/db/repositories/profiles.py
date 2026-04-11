@@ -56,13 +56,11 @@ class ProfileRepository(BaseRepository):
             )
         if hi_preference not in VALID_HI_PREFERENCES:
             raise ValueError(
-                f"Invalid hi_preference '{hi_preference}'. "
-                f"Must be one of: {VALID_HI_PREFERENCES}"
+                f"Invalid hi_preference '{hi_preference}'. Must be one of: {VALID_HI_PREFERENCES}"
             )
         if forced_scoring not in VALID_FORCED_SCORING:
             raise ValueError(
-                f"Invalid forced_scoring '{forced_scoring}'. "
-                f"Must be one of: {VALID_FORCED_SCORING}"
+                f"Invalid forced_scoring '{forced_scoring}'. Must be one of: {VALID_FORCED_SCORING}"
             )
         if fallback_chain is None:
             fallback_chain = [translation_backend]

@@ -1050,8 +1050,7 @@ class WantedScanner:
                     from wanted_search import process_wanted_item
 
                     future_to_item = {
-                        executor.submit(process_wanted_item, item["id"]): item
-                        for item in eligible
+                        executor.submit(process_wanted_item, item["id"]): item for item in eligible
                     }
 
                 for future in as_completed(future_to_item):

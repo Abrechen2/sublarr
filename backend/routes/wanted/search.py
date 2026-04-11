@@ -193,9 +193,7 @@ def wanted_batch_search():
 
             series_items = get_wanted_for_series(series_id)
             item_ids = [
-                item["id"]
-                for item in series_items
-                if item.get("status") in ("wanted", "failed")
+                item["id"] for item in series_items if item.get("status") in ("wanted", "failed")
             ]
             # No searchable items for this series — return early instead of falling
             # through to "search all wanted items globally".

@@ -152,11 +152,13 @@ def execute_format_upgrade(media_path: str, config: dict, dry_run: bool = False)
                     would_delete += 1
                     if len(examples) < 20:
                         kept_path = path_map.get((dirpath, base, preferred_ext), "")
-                        examples.append({
-                            "path": inferior_path,
-                            "size_bytes": file_size,
-                            "reason": f"replaced by {os.path.basename(kept_path)}",
-                        })
+                        examples.append(
+                            {
+                                "path": inferior_path,
+                                "size_bytes": file_size,
+                                "reason": f"replaced by {os.path.basename(kept_path)}",
+                            }
+                        )
                     logger.debug("Would delete (format_upgrade): %s", inferior_path)
                 else:
                     try:
@@ -202,7 +204,9 @@ def execute_orphan_files(media_path: str, config: dict, dry_run: bool = False) -
             if dry_run:
                 would_delete += 1
                 if len(examples) < 20:
-                    examples.append({"path": path, "size_bytes": file_size, "reason": "no video in folder"})
+                    examples.append(
+                        {"path": path, "size_bytes": file_size, "reason": "no video in folder"}
+                    )
                 logger.debug("Would delete (orphan_files): %s", path)
             else:
                 try:
@@ -241,7 +245,9 @@ def execute_orphan_db(config: dict, dry_run: bool = False) -> dict:
             if dry_run:
                 would_delete += 1
                 if len(examples) < 20:
-                    examples.append({"path": path, "size_bytes": 0, "reason": "file missing on disk"})
+                    examples.append(
+                        {"path": path, "size_bytes": 0, "reason": "file missing on disk"}
+                    )
                 logger.debug("Would remove DB entry (orphan_db): %s", path)
             else:
                 repo.delete_by_path(path)

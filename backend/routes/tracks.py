@@ -401,7 +401,9 @@ def batch_extract_series_tracks(series_id):
                     stream_info = {"sub_index": track["sub_index"], "format": ext}
                     try:
                         extract_subtitle_stream(video_path, stream_info, output_path)
-                        sidecar_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
+                        sidecar_size = (
+                            os.path.getsize(output_path) if os.path.exists(output_path) else 0
+                        )
                         if sidecar_size < 10:
                             logger.warning(
                                 "[batch-extract-tracks] sidecar %s is empty (%d bytes) — skipping removal for track %d",

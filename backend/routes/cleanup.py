@@ -766,6 +766,7 @@ def run_rule(rule_id: int):
             try:
                 from remux.backup_cleanup import cleanup_old_backups
                 from routes.remux import _trash_paths
+
                 retention_days = int(rule.get("config_json", {}).get("retention_days", 7))
                 result = cleanup_old_backups(_trash_paths(), retention_days)
             except Exception as exc:

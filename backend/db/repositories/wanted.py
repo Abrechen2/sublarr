@@ -237,7 +237,11 @@ class WantedRepository(BaseRepository):
         order = asc(sort_col) if sort_dir == "asc" else desc(sort_col)
 
         # Data query
-        data_stmt = select(WantedItem).order_by(order, WantedItem.file_path).limit(per_page).offset(offset)
+        # Secondary sort by file_path (always asc) keeps language pairs for the same
+        # episode adjacent regardless of the primary sort direction.
+        data_stmt = (
+            select(WantedItem).order_by(order, WantedItem.file_path).limit(per_page).offset(offset)
+        )
         if conditions:
             data_stmt = data_stmt.where(*conditions)
         rows = self.session.execute(data_stmt).scalars().all()

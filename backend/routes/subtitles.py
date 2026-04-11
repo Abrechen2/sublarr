@@ -278,7 +278,9 @@ def list_movie_subtitles(movie_id: int):
     if movie is None:
         return jsonify({"error": "Movie not found"}), 404
 
-    file_path = movie.get("file_path") if isinstance(movie, dict) else getattr(movie, "file_path", None)
+    file_path = (
+        movie.get("file_path") if isinstance(movie, dict) else getattr(movie, "file_path", None)
+    )
     if not file_path:
         return jsonify({"error": "Movie has no video file"}), 404
 

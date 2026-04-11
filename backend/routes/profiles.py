@@ -128,10 +128,14 @@ def create_language_profile_endpoint():
         return jsonify({"error": "forced_preference must be one of: disabled, separate, auto"}), 400
 
     if hi_preference not in ("include", "prefer", "exclude", "only"):
-        return jsonify({"error": "hi_preference must be one of: include, prefer, exclude, only"}), 400
+        return jsonify(
+            {"error": "hi_preference must be one of: include, prefer, exclude, only"}
+        ), 400
 
     if forced_scoring not in ("include", "prefer", "exclude", "only"):
-        return jsonify({"error": "forced_scoring must be one of: include, prefer, exclude, only"}), 400
+        return jsonify(
+            {"error": "forced_scoring must be one of: include, prefer, exclude, only"}
+        ), 400
 
     try:
         profile_id = create_language_profile(
@@ -264,7 +268,9 @@ def update_language_profile_endpoint(profile_id):
         "exclude",
         "only",
     ):
-        return jsonify({"error": "hi_preference must be one of: include, prefer, exclude, only"}), 400
+        return jsonify(
+            {"error": "hi_preference must be one of: include, prefer, exclude, only"}
+        ), 400
 
     if "forced_scoring" in fields and fields["forced_scoring"] not in (
         "include",
@@ -272,7 +278,9 @@ def update_language_profile_endpoint(profile_id):
         "exclude",
         "only",
     ):
-        return jsonify({"error": "forced_scoring must be one of: include, prefer, exclude, only"}), 400
+        return jsonify(
+            {"error": "forced_scoring must be one of: include, prefer, exclude, only"}
+        ), 400
 
     try:
         update_language_profile(profile_id, **fields)
