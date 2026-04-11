@@ -28,14 +28,15 @@ export function FormGroup({
 
   useEffect(() => {
     const target = sessionStorage.getItem('highlight-setting')
-    if (target && target === label) {
+    // Match via htmlFor (e.g. "log-level") normalized to underscore ("log_level")
+    if (target && htmlFor && htmlFor.replace(/-/g, '_') === target) {
       sessionStorage.removeItem('highlight-setting')
       setHighlighted(true)
       wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       const timer = setTimeout(() => setHighlighted(false), 1900)
       return () => clearTimeout(timer)
     }
-  }, [label])
+  }, [htmlFor])
 
   return (
     <div

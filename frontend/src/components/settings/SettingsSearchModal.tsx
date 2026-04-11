@@ -11,6 +11,7 @@ type SearchEntry = {
   sublabel: string
   searchText: string
   href: string
+  fieldKey?: string
 }
 
 const TAB_TO_ROUTE: Record<string, string> = {
@@ -73,6 +74,7 @@ const FIELD_ENTRIES: SearchEntry[] = FIELDS.map((f) => ({
   sublabel: TAB_TO_LABEL[f.tab] ?? f.tab,
   searchText: [f.label, f.description ?? '', f.tab].join(' ').toLowerCase(),
   href: TAB_TO_ROUTE[f.tab] ?? '/settings/general',
+  fieldKey: f.key,
 }))
 
 const ALL_ENTRIES: SearchEntry[] = [...PAGES, ...FIELD_ENTRIES]
@@ -109,8 +111,8 @@ export function SettingsSearchModal({ open, onClose }: SettingsSearchModalProps)
   }, [open])
 
   const handleSelect = (entry: SearchEntry) => {
-    if (entry.type === 'setting') {
-      sessionStorage.setItem('highlight-setting', entry.label)
+    if (entry.type === 'setting' && entry.fieldKey) {
+      sessionStorage.setItem('highlight-setting', entry.fieldKey)
     }
     navigate(entry.href)
     onClose()
