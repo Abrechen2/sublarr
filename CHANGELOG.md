@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.49.0-beta] - 2026-04-11
+
+### Added
+- **Wanted list visual redesign** — Multi-language groups now have a purple left accent border and a darker header row to clearly separate groups. Language tag suffixes (e.g. `[EN]`, `[DE]`) are stripped from titles since the language badge on each sub-row already conveys that information. A status legend showing all six possible states is displayed above the table.
+
+### Fixed
+- **"No embedded subtitles" pill hidden when empty** — The "nicht eingebettet" pill and its separator are no longer shown when a video file has no embedded subtitle tracks, reducing visual noise in the Existing column.
+
 ## [0.48.0-beta] - 2026-04-11
 
 ### Added
