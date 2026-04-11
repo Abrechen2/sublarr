@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.47.7-beta] - 2026-04-11
+
+### Fixed
+- **Auto-extract reliability** — Four recurring failures in the embedded subtitle extraction pipeline have been resolved: (1) Duration mismatch false-positives on MKVs with phantom trailing segments are fixed by widening the remux tolerance from ±2 s to max(5 s, 1 % of file duration). (2) Non-UTF-8 bytes in file paths or ffmpeg stderr no longer crash extraction — all subprocess calls now use `errors="replace"`. (3) Race condition where two workers processed the same file concurrently now produces a clear log message instead of a cryptic "expected -1, got 0" error. (4) Default ffmpeg timeout for subtitle extraction raised from 120 s to 300 s, preventing spurious timeouts on large files over NFS.
+
 ## [0.47.6-beta] - 2026-04-11
 
 ### Fixed
