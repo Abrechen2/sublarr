@@ -7,6 +7,7 @@ import {
 import { StatusBadge, SubtitleTypeBadge } from '@/components/shared/StatusBadge'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
 import type { WantedSearchResponse } from '@/lib/types'
+import type { WantedItem } from '@/types/wanted'
 import { SubtitlePresencePills } from '@/pages/wanted/SubtitlePresencePills'
 
 export function formatRetryCountdown(retryAfter: string | null): string | null {
@@ -182,25 +183,6 @@ export function SearchResultsRow({ results, isLoading, onBlacklist, t }: SearchR
   )
 }
 
-export interface WantedItem {
-  id: number
-  title: string
-  file_path: string
-  item_type: string
-  status: string
-  season_episode: string | null
-  existing_sub: string
-  embedded_languages: Array<{ lang: string; format: string }>
-  target_language: string
-  subtitle_type: string
-  instance_name: string
-  search_count: number
-  last_search_at: string | null
-  added_at: string | null
-  upgrade_candidate: number
-  error: string
-  retry_after: string | null
-}
 
 export interface WantedTableRowProps {
   item: WantedItem

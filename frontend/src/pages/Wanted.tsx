@@ -24,6 +24,7 @@ import { getConfig } from '@/api/settings'
 import { WantedToolbar } from './wanted/WantedToolbar'
 import { WantedFilterPanel } from './wanted/WantedFilterPanel'
 import { WantedTableRow } from './wanted/WantedTableRow'
+// Re-exported for backward compat — existing tests import from here.
 export { FailureReasonRow, formatRetryCountdown } from './wanted/WantedTableRow'
 
 const SCOPE = 'wanted' as const
