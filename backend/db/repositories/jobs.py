@@ -282,7 +282,7 @@ class JobRepository(BaseRepository):
             self.session.execute(
                 select(func.count())
                 .select_from(WantedItem)
-                .where(WantedItem.upgrade_candidate == True)  # noqa: E712
+                .where(WantedItem.upgrade_candidate == 1)
             ).scalar()
             or 0
         )

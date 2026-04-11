@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.47.6-beta] - 2026-04-11
+
+### Fixed
+- **Dashboard stats PostgreSQL error** — Fixed a type mismatch where the `upgrade_candidate` column (integer) was compared to a boolean `True`, causing PostgreSQL to throw "operator does not exist: integer = boolean" on every dashboard load. Query now uses `== 1` to match the integer column type.
+
 ## [0.47.5-beta] - 2026-04-10
 
 ### Fixed
