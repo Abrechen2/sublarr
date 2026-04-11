@@ -405,10 +405,9 @@ a:hover {
 /* Settings search highlight */
 @keyframes settings-highlight {
   0%   { background-color: var(--accent-bg); outline: 2px solid var(--accent); border-radius: 6px; }
-  20%  { background-color: var(--accent-subtle); outline: 2px solid var(--accent-dim); border-radius: 6px; }
-  40%  { background-color: var(--accent-bg); outline: 2px solid var(--accent); border-radius: 6px; }
-  60%  { background-color: var(--accent-subtle); outline: 2px solid var(--accent-dim); border-radius: 6px; }
-  80%  { background-color: var(--accent-bg); outline: 2px solid var(--accent); border-radius: 6px; }
+  30%  { background-color: var(--accent-bg); outline: 2px solid var(--accent-dim); border-radius: 6px; }
+  60%  { background-color: var(--accent-bg); outline: 2px solid var(--accent); border-radius: 6px; }
+  80%  { background-color: var(--accent-bg); outline: 2px solid var(--accent-dim); border-radius: 6px; }
   100% { background-color: transparent; outline: 2px solid transparent; border-radius: 6px; }
 }
 .settings-highlight {

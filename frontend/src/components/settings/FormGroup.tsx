@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 
 interface FormGroupProps {
@@ -25,24 +24,30 @@ export function FormGroup({
   advanced = false,
 }: FormGroupProps) {
   const { t } = useTranslation('settings')
-  const location = useLocation()
   const [tooltipVisible, setTooltipVisible] = useState(false)
   const [highlighted, setHighlighted] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
+  const checkHighlight = useCallback(() => {
     const target = sessionStorage.getItem('highlight-setting')
     if (!target) return
     const normalizedHtmlFor = htmlFor?.replace(/-/g, '_')
-    const matches = fieldKey === target || normalizedHtmlFor === target
-    if (matches) {
+    if (fieldKey === target || normalizedHtmlFor === target) {
       sessionStorage.removeItem('highlight-setting')
       setHighlighted(true)
       wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      const timer = setTimeout(() => setHighlighted(false), 5000)
-      return () => clearTimeout(timer)
+      setTimeout(() => setHighlighted(false), 5000)
     }
-  }, [htmlFor, fieldKey, location.key])
+  }, [htmlFor, fieldKey])
+
+  // Cross-page navigation: run on mount
+  useEffect(() => { checkHighlight() }, [checkHighlight])
+
+  // Same-page navigation: listen for custom event dispatched by search modal
+  useEffect(() => {
+    window.addEventListener('settings-highlight-request', checkHighlight)
+    return () => window.removeEventListener('settings-highlight-request', checkHighlight)
+  }, [checkHighlight])
 
   return (
     <div

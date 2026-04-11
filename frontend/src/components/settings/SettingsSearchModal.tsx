@@ -113,6 +113,10 @@ export function SettingsSearchModal({ open, onClose }: SettingsSearchModalProps)
   const handleSelect = (entry: SearchEntry) => {
     if (entry.type === 'setting' && entry.fieldKey) {
       sessionStorage.setItem('highlight-setting', entry.fieldKey)
+      // For same-page navigation (FormGroups don't remount): dispatch event after render
+      requestAnimationFrame(() =>
+        window.dispatchEvent(new CustomEvent('settings-highlight-request'))
+      )
     }
     navigate(entry.href)
     onClose()
