@@ -109,6 +109,9 @@ export function SettingsSearchModal({ open, onClose }: SettingsSearchModalProps)
   }, [open])
 
   const handleSelect = (entry: SearchEntry) => {
+    if (entry.type === 'setting') {
+      sessionStorage.setItem('highlight-setting', entry.label)
+    }
     navigate(entry.href)
     onClose()
   }

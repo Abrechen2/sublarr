@@ -402,6 +402,16 @@ a:hover {
   padding: 1px 6px;
 }
 
+/* Settings search highlight */
+@keyframes settings-highlight {
+  0%   { background-color: var(--accent-bg); outline: 2px solid var(--accent); border-radius: 6px; }
+  60%  { background-color: var(--accent-bg); outline: 2px solid var(--accent); border-radius: 6px; }
+  100% { background-color: transparent; outline: 2px solid transparent; border-radius: 6px; }
+}
+.settings-highlight {
+  animation: settings-highlight 1.8s ease-out forwards;
+}
+
 /* Respect user motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *,

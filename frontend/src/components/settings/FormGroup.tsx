@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
@@ -23,13 +23,28 @@ export function FormGroup({
 }: FormGroupProps) {
   const { t } = useTranslation('settings')
   const [tooltipVisible, setTooltipVisible] = useState(false)
+  const [highlighted, setHighlighted] = useState(false)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const target = sessionStorage.getItem('highlight-setting')
+    if (target && target === label) {
+      sessionStorage.removeItem('highlight-setting')
+      setHighlighted(true)
+      wrapperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      const timer = setTimeout(() => setHighlighted(false), 1900)
+      return () => clearTimeout(timer)
+    }
+  }, [label])
 
   return (
     <div
+      ref={wrapperRef}
       data-testid={testId ?? 'form-group'}
       className={cn(
         'flex flex-col md:flex-row md:items-start md:justify-between gap-2',
         'last:border-b-0 last:pb-0 first:pt-0',
+        highlighted && 'settings-highlight',
         className,
       )}
       style={{
