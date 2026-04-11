@@ -104,6 +104,7 @@ Replaces `WantedTableRow` as the render unit. Layout:
 | Case | Behavior |
 |------|----------|
 | Single-language profile | Group has 1 sub-row; renders like current layout, just wrapped in group structure |
+| 3+ language profile | Group renders N sub-rows (one per language). Shared columns use `rowSpan={languages.length}`. No code-level limit — `languages.map()` handles any count |
 | Infinite scroll page boundary | `groupByFilePath` recalculates across all accumulated pages; secondary backend sort guarantees pairs are adjacent so no split-group visible to user |
 | Empty state / no results | Unchanged — empty `WantedGroup[]` falls through to existing empty-state UI |
 | Movie items | `item_type === 'movie'` grouped same way; usually one language per movie but structure handles N |
