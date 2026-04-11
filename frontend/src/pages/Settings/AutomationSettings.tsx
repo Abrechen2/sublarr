@@ -117,6 +117,7 @@ function SearchScanAdvancedContent() {
         label={tS('automation_page.anime_series_only')}
         hint={tS('automation_page.anime_series_only_hint')}
         advanced
+        htmlFor="wanted-anime-only"
         data-testid="form-group-wanted-anime-only"
       >
         <Toggle
@@ -130,6 +131,7 @@ function SearchScanAdvancedContent() {
         label={tS('automation_page.anime_movies_only')}
         hint={tS('automation_page.anime_movies_only_hint')}
         advanced
+        htmlFor="wanted-anime-movies-only"
         data-testid="form-group-wanted-anime-movies-only"
       >
         <Toggle
@@ -163,6 +165,7 @@ function SearchScanAdvancedContent() {
         label={tS('automation_page.adaptive_backoff')}
         hint={tS('automation_page.adaptive_backoff_hint')}
         advanced
+        htmlFor="wanted-adaptive-backoff-enabled"
         data-testid="form-group-wanted-adaptive-backoff-enabled"
       >
         <Toggle
@@ -268,6 +271,7 @@ function SearchScanContent() {
       <FormGroup
         label={tS('automation_page.scan_on_startup')}
         hint={tS('automation_page.scan_on_startup_hint')}
+        htmlFor="wanted-scan-on-startup"
         data-testid="form-group-wanted-scan-on-startup"
       >
         <Toggle
@@ -320,6 +324,7 @@ function SearchScanContent() {
           'settings.automation.searchScan.searchOnStartupHint',
           'Run a wanted search every time Sublarr starts.',
         )}
+        htmlFor="wanted-search-on-startup"
         data-testid="form-group-wanted-search-on-startup"
       >
         <Toggle
@@ -408,6 +413,7 @@ function UpgradeRulesContent() {
           'settings.automation.upgradeRules.enabledHint',
           'Automatically replace existing subtitles when a higher-scoring one is found.',
         )}
+        htmlFor="upgrade-enabled"
         data-testid="form-group-upgrade-enabled"
       >
         <Toggle
@@ -461,6 +467,7 @@ function UpgradeRulesContent() {
       <FormGroup
         label={tS('automation_page.prefer_ass')}
         hint={tS('automation_page.prefer_ass_hint')}
+        htmlFor="upgrade-prefer-ass"
         data-testid="form-group-upgrade-prefer-ass"
       >
         <Toggle
@@ -508,6 +515,7 @@ function WebhookContent() {
       <FormGroup
         label={t('automation_page.webhook_auto_scan')}
         hint={t('automation_page.webhook_auto_scan_hint')}
+        htmlFor="webhook-auto-scan"
         data-testid="form-group-webhook-auto-scan"
       >
         <Toggle
@@ -520,6 +528,7 @@ function WebhookContent() {
       <FormGroup
         label={t('automation_page.webhook_auto_search')}
         hint={t('automation_page.webhook_auto_search_hint')}
+        htmlFor="webhook-auto-search"
         data-testid="form-group-webhook-auto-search"
       >
         <Toggle
@@ -532,6 +541,7 @@ function WebhookContent() {
       <FormGroup
         label={t('automation_page.webhook_auto_translate')}
         hint={t('automation_page.webhook_auto_translate_hint')}
+        htmlFor="webhook-auto-translate"
         data-testid="form-group-webhook-auto-translate"
       >
         <Toggle

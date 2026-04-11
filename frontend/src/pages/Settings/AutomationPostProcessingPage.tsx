@@ -97,6 +97,7 @@ function ProcessingPipelineContent() {
           'settings.automation.pipeline.autoTranslateHint',
           'Automatically translate downloaded subtitles to the target language.',
         )}
+        htmlFor="wanted-auto-translate"
         data-testid="form-group-wanted-auto-translate"
       >
         <Toggle
@@ -112,6 +113,7 @@ function ProcessingPipelineContent() {
           'settings.automation.pipeline.autoSyncHint',
           'Automatically synchronise subtitles to video timing after download.',
         )}
+        htmlFor="auto-sync-after-download"
         data-testid="form-group-auto-sync-after-download"
       >
         <Toggle
@@ -127,6 +129,7 @@ function ProcessingPipelineContent() {
           'settings.automation.pipeline.autoCleanupHint',
           'Remove duplicate and redundant subtitle files automatically after extract.',
         )}
+        htmlFor="auto-cleanup-after-extract"
         data-testid="form-group-auto-cleanup-after-extract"
       >
         <Toggle
@@ -175,6 +178,7 @@ function ProcessingPipelineContent() {
       <FormGroup
         label={tS('automation_page.nfo_export')}
         hint={tS('automation_page.nfo_export_hint')}
+        htmlFor="auto-nfo-export"
         data-testid="form-group-auto-nfo-export"
       >
         <Toggle
@@ -199,6 +203,7 @@ function ProcessingPipelineContent() {
       <FormGroup
         label={tS('automation_page.streaming_enabled')}
         hint={tS('automation_page.streaming_enabled_hint')}
+        htmlFor="streaming-enabled"
         data-testid="form-group-streaming-enabled"
       >
         <Toggle

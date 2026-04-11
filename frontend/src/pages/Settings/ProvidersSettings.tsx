@@ -436,6 +436,7 @@ export function ProvidersSettings() {
               <FormGroup
                 label="Provider Reranking"
                 hint="Reorder provider results based on historical download success rates."
+                htmlFor="provider-reranking-enabled"
                 data-testid="form-group-provider-reranking-enabled"
               >
                 <div data-testid="toggle-provider-reranking-enabled">
