@@ -24,50 +24,7 @@ import { getConfig } from '@/api/settings'
 import { WantedToolbar } from './wanted/WantedToolbar'
 import { WantedFilterPanel } from './wanted/WantedFilterPanel'
 import { WantedTableRow } from './wanted/WantedTableRow'
-
-export function formatRetryCountdown(retryAfter: string | null): string | null {
-  if (!retryAfter) return null
-  const diff = new Date(retryAfter).getTime() - Date.now()
-  if (diff <= 0) return null
-  const totalMinutes = Math.floor(diff / 60_000)
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
-}
-
-interface FailureReasonRowProps {
-  error: string
-  retryAfter: string | null
-  searchCount: number
-}
-
-export function FailureReasonRow({ error, retryAfter, searchCount }: FailureReasonRowProps) {
-  if (!error) return null
-  const countdown = formatRetryCountdown(retryAfter)
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'flex-start', gap: '8px',
-      padding: '5px 10px', marginTop: '4px',
-      background: 'color-mix(in srgb, var(--error) 8%, transparent)',
-      borderLeft: '3px solid var(--error)',
-      borderRadius: '0 4px 4px 0', fontSize: '12px',
-      color: 'var(--text-secondary)',
-    }}>
-      <span style={{ color: 'var(--error)', flexShrink: 0 }}>✗</span>
-      <div>
-        {error}
-        <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
-          ({searchCount} attempt{searchCount !== 1 ? 's' : ''})
-        </span>
-        {countdown && (
-          <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
-            · Next retry in {countdown}
-          </span>
-        )}
-      </div>
-    </div>
-  )
-}
+export { FailureReasonRow, formatRetryCountdown } from './wanted/WantedTableRow'
 
 const SCOPE = 'wanted' as const
 

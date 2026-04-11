@@ -6,9 +6,52 @@ import {
 } from 'lucide-react'
 import { StatusBadge, SubtitleTypeBadge } from '@/components/shared/StatusBadge'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
-import { FailureReasonRow } from '@/pages/Wanted'
 import type { WantedSearchResponse } from '@/lib/types'
 import { SubtitlePresencePills } from '@/pages/wanted/SubtitlePresencePills'
+
+export function formatRetryCountdown(retryAfter: string | null): string | null {
+  if (!retryAfter) return null
+  const diff = new Date(retryAfter).getTime() - Date.now()
+  if (diff <= 0) return null
+  const totalMinutes = Math.floor(diff / 60_000)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+}
+
+interface FailureReasonRowProps {
+  error: string
+  retryAfter: string | null
+  searchCount: number
+}
+
+export function FailureReasonRow({ error, retryAfter, searchCount }: FailureReasonRowProps) {
+  if (!error) return null
+  const countdown = formatRetryCountdown(retryAfter)
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: '8px',
+      padding: '5px 10px', marginTop: '4px',
+      background: 'color-mix(in srgb, var(--error) 8%, transparent)',
+      borderLeft: '3px solid var(--error)',
+      borderRadius: '0 4px 4px 0', fontSize: '12px',
+      color: 'var(--text-secondary)',
+    }}>
+      <span style={{ color: 'var(--error)', flexShrink: 0 }}>✗</span>
+      <div>
+        {error}
+        <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
+          ({searchCount} attempt{searchCount !== 1 ? 's' : ''})
+        </span>
+        {countdown && (
+          <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
+            · Next retry in {countdown}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
 
 interface SearchResultsRowProps {
   results: WantedSearchResponse | null
@@ -29,7 +72,7 @@ function ScoreBadge({ score }: { score: number }) {
   )
 }
 
-function SearchResultsRow({ results, isLoading, onBlacklist, t }: SearchResultsRowProps) {
+export function SearchResultsRow({ results, isLoading, onBlacklist, t }: SearchResultsRowProps) {
   if (isLoading) {
     return (
       <tr style={{ backgroundColor: 'var(--bg-primary)' }}>
@@ -192,6 +235,126 @@ function deriveSubtitlePath(mediaPath: string, lang: string, format: string): st
   return `${base}.${lang}.${format}`
 }
 
+interface WantedRowActionsProps {
+  item: WantedItem
+  processingItemId: number | null
+  extractingItemId: number | null
+  processPending: boolean
+  retranslatePending: boolean
+  translationEnabled: boolean
+  onProcess: (itemId: number) => void
+  onExtract: (itemId: number, targetLanguage?: string) => void
+  onRetranslate: (itemId: number) => void
+  onUpdateStatus: (itemId: number, status: string) => void
+  onPreview: (filePath: string) => void
+  onInteractiveSearch: (item: { id: number; title: string }) => void
+}
+
+export function WantedRowActions({
+  item,
+  processingItemId,
+  extractingItemId,
+  processPending,
+  retranslatePending,
+  translationEnabled,
+  onProcess,
+  onExtract,
+  onRetranslate,
+  onUpdateStatus,
+  onPreview,
+  onInteractiveSearch,
+}: WantedRowActionsProps) {
+  const { t } = useTranslation('library')
+  return (
+    <div className="flex items-center justify-end gap-1">
+      {(item.existing_sub === 'ass' || item.existing_sub === 'srt') && item.file_path && item.target_language && (
+        <button
+          onClick={() => onPreview(deriveSubtitlePath(item.file_path, item.target_language, item.existing_sub))}
+          className="p-1 rounded transition-colors duration-150"
+          title="Preview subtitle"
+          style={{ color: 'var(--text-muted)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+        >
+          <Eye size={14} />
+        </button>
+      )}
+      <button
+        data-testid="wanted-search-btn"
+        onClick={() => onProcess(item.id)}
+        disabled={processingItemId === item.id}
+        className="p-1 rounded transition-colors duration-150"
+        title={t('wanted.search_providers')}
+        style={{ color: 'var(--text-muted)' }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+      >
+        {processingItemId === item.id
+          ? <Loader2 size={14} className="animate-spin" />
+          : <Search size={14} />}
+      </button>
+      {(item.existing_sub === 'embedded_ass' || item.existing_sub === 'embedded_srt') && (
+        <button
+          onClick={() => onExtract(item.id, item.target_language)}
+          disabled={extractingItemId === item.id}
+          className="p-1 rounded transition-colors duration-150"
+          title={t('wanted.extract_embedded')}
+          style={{ color: 'var(--text-muted)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+        >
+          {extractingItemId === item.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+        </button>
+      )}
+      <button
+        onClick={() => onInteractiveSearch({ id: item.id, title: item.title })}
+        className="p-1 rounded transition-colors duration-150"
+        title="Interaktive Suche"
+        style={{ color: 'var(--text-muted)' }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+      >
+        <ScanSearch size={14} />
+      </button>
+      <button
+        data-testid="wanted-process-btn"
+        onClick={() => onProcess(item.id)}
+        disabled={processPending || item.status === 'searching'}
+        className="p-1 rounded transition-colors duration-150"
+        title={t('wanted.download_translate')}
+        style={{ color: 'var(--text-muted)' }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--success)')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+      >
+        <Play size={14} />
+      </button>
+      {translationEnabled && (
+        <button
+          onClick={() => onRetranslate(item.id)}
+          disabled={retranslatePending}
+          className="p-1 rounded transition-colors duration-150"
+          title={t('wanted.re_translate')}
+          style={{ color: 'var(--text-muted)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--warning)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+        >
+          <RefreshCw size={14} />
+        </button>
+      )}
+      <button
+        onClick={() => onUpdateStatus(item.id, item.status === 'ignored' ? 'wanted' : 'ignored')}
+        className="p-1 rounded transition-colors duration-150"
+        title={item.status === 'ignored' ? t('wanted.un_ignore_action') : t('wanted.ignore_action')}
+        style={{ color: 'var(--text-muted)' }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+      >
+        {item.status === 'ignored' ? <Eye size={14} /> : <EyeOff size={14} />}
+      </button>
+    </div>
+  )
+}
+
 export function WantedTableRow({
   item,
   itemIndex,
@@ -327,93 +490,20 @@ export function WantedTableRow({
           {item.added_at ? formatRelativeTime(item.added_at) : ''}
         </td>
         <td className="px-4 py-2.5 text-right" style={{ position: 'sticky', right: 0, backgroundColor: 'var(--bg-elevated)' }}>
-          <div className="flex items-center justify-end gap-1">
-            {(item.existing_sub === 'ass' || item.existing_sub === 'srt') && item.file_path && item.target_language && (
-              <button
-                onClick={() => onPreview(deriveSubtitlePath(item.file_path, item.target_language, item.existing_sub))}
-                className="p-1 rounded transition-colors duration-150"
-                title="Preview subtitle"
-                style={{ color: 'var(--text-muted)' }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-              >
-                <Eye size={14} />
-              </button>
-            )}
-            <button
-              data-testid="wanted-search-btn"
-              onClick={() => onProcess(item.id)}
-              disabled={processingItemId === item.id}
-              className="p-1 rounded transition-colors duration-150"
-              title={t('wanted.search_providers')}
-              style={{ color: 'var(--text-muted)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-            >
-              {processingItemId === item.id
-                ? <Loader2 size={14} className="animate-spin" />
-                : <Search size={14} />
-              }
-            </button>
-            {(item.existing_sub === 'embedded_ass' || item.existing_sub === 'embedded_srt') && (
-              <button
-                onClick={() => onExtract(item.id, item.target_language)}
-                disabled={extractingItemId === item.id}
-                className="p-1 rounded transition-colors duration-150"
-                title={t('wanted.extract_embedded')}
-                style={{ color: 'var(--text-muted)' }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-              >
-                {extractingItemId === item.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-              </button>
-            )}
-            <button
-              onClick={() => onInteractiveSearch({ id: item.id, title: item.title })}
-              className="p-1 rounded transition-colors duration-150"
-              title="Interaktive Suche"
-              style={{ color: 'var(--text-muted)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-            >
-              <ScanSearch size={14} />
-            </button>
-            <button
-              data-testid="wanted-process-btn"
-              onClick={() => onProcess(item.id)}
-              disabled={processPending || item.status === 'searching'}
-              className="p-1 rounded transition-colors duration-150"
-              title={t('wanted.download_translate')}
-              style={{ color: 'var(--text-muted)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--success)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-            >
-              <Play size={14} />
-            </button>
-            {translationEnabled && (
-              <button
-                onClick={() => onRetranslate(item.id)}
-                disabled={retranslatePending}
-                className="p-1 rounded transition-colors duration-150"
-                title={t('wanted.re_translate')}
-                style={{ color: 'var(--text-muted)' }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--warning)')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-              >
-                <RefreshCw size={14} />
-              </button>
-            )}
-            <button
-              onClick={() => onUpdateStatus(item.id, item.status === 'ignored' ? 'wanted' : 'ignored')}
-              className="p-1 rounded transition-colors duration-150"
-              title={item.status === 'ignored' ? t('wanted.un_ignore_action') : t('wanted.ignore_action')}
-              style={{ color: 'var(--text-muted)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-            >
-              {item.status === 'ignored' ? <Eye size={14} /> : <EyeOff size={14} />}
-            </button>
-          </div>
+          <WantedRowActions
+            item={item}
+            processingItemId={processingItemId}
+            extractingItemId={extractingItemId}
+            processPending={processPending}
+            retranslatePending={retranslatePending}
+            translationEnabled={translationEnabled}
+            onProcess={onProcess}
+            onExtract={onExtract}
+            onRetranslate={onRetranslate}
+            onUpdateStatus={onUpdateStatus}
+            onPreview={onPreview}
+            onInteractiveSearch={onInteractiveSearch}
+          />
         </td>
       </tr>
       {/* Expandable search results */}
