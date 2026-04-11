@@ -13,6 +13,7 @@ import { toast } from '@/components/shared/Toast'
 import type { WantedSearchResponse } from '@/lib/types'
 import type { WantedItem } from '@/types/wanted'
 import { Loader2, CheckSquare, Square, MinusSquare, Download } from 'lucide-react'
+import { StatusBadge } from '@/components/shared/StatusBadge'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { InteractiveSearchModal } from '@/components/wanted/InteractiveSearchModal'
@@ -473,6 +474,19 @@ export function WantedPage() {
         onSortDir={setSortDir}
         onSearchText={setSearchText}
       />
+
+      {/* Status Legend */}
+      <div
+        className="flex items-center flex-wrap gap-2 px-3 py-2 rounded-md"
+        style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      >
+        <span className="text-xs font-medium shrink-0" style={{ color: 'var(--text-muted)' }}>
+          Legende:
+        </span>
+        {(['wanted', 'searching', 'found', 'extracted', 'failed', 'ignored'] as const).map((s) => (
+          <StatusBadge key={s} status={s} />
+        ))}
+      </div>
 
       {/* Table */}
       <div

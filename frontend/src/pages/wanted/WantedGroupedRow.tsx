@@ -1,5 +1,9 @@
 import { Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
+
+function stripLangSuffix(title: string): string {
+  return title.replace(/\s*\[[A-Z]{2,3}\]\s*$/, '').trim()
+}
 import { CheckSquare, Square, MinusSquare } from 'lucide-react'
 import { formatRelativeTime, truncatePath } from '@/lib/utils'
 import { StatusBadge, SubtitleTypeBadge } from '@/components/shared/StatusBadge'
@@ -74,6 +78,8 @@ export function WantedGroupedRow({
         const isFirst = langIdx === 0
         const isLast = langIdx === lastIdx
 
+        const restingBg = isFirst ? 'var(--bg-elevated)' : 'transparent'
+
         return (
           <Fragment key={item.id}>
             <tr
@@ -85,16 +91,25 @@ export function WantedGroupedRow({
                   : '1px dashed color-mix(in srgb, var(--border) 50%, transparent)',
                 animationDelay: `${Math.min(groupIndex * 30, 300)}ms`,
                 cursor: 'pointer',
+                backgroundColor: restingBg,
               }}
               onClick={(e) => {
                 if ((e.target as HTMLElement).closest('button')) return
                 onExpand(expandedItem === item.id ? null : item.id)
               }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = restingBg)}
             >
               {/* Checkbox — first sub-row only */}
-              <td className="px-3 py-2.5 w-8" style={{ verticalAlign: 'top' }}>
+              <td
+                className="px-3 py-2.5 w-8"
+                style={{
+                  verticalAlign: 'top',
+                  borderLeft: isFirst
+                    ? '2px solid #3730a3'
+                    : '2px solid rgba(55, 48, 163, 0.18)',
+                }}
+              >
                 {isFirst && (
                   <button
                     onClick={(e) =>
@@ -125,7 +140,7 @@ export function WantedGroupedRow({
                       className="truncate max-w-xs text-sm"
                       style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}
                     >
-                      {group.title || truncatePath(group.file_path)}
+                      {stripLangSuffix(group.title) || truncatePath(group.file_path)}
                     </span>
                     {group.instance_name && (
                       <span
