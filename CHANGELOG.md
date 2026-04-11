@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.48.0-beta] - 2026-04-11
+
+### Added
+- **Wanted: grouped episode rows** — Episodes with multiple target languages now appear as a single row with one language sub-row per language, instead of a separate row for each. The title, S/E number, and "Added" date render once per episode group; the language badge, status, subtitle presence, search count, last-search time, and action buttons appear per language sub-row. Supports any number of target languages (DE + EN + JP etc.).
+
+### Fixed
+- **Wanted: search results panel restored** — Clicking a row in the Wanted list now correctly opens the inline search-results expansion panel for that item. The panel was previously disconnected and could never be shown.
+
 ## [0.47.7-beta] - 2026-04-11
 
 ### Fixed
