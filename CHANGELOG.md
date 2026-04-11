@@ -5,6 +5,16 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.50.0-beta] - 2026-04-11
+
+### Added
+- **Settings search (Ctrl+K)** — Spotlight-style modal lets users search all settings pages and individual fields by name or description. Selecting a result navigates to the correct page and highlights the matched field with a 5-second pulsing glow.
+
+### Fixed
+- **Duplicate groups crash** — Backend returned `hash`/`path`/`size` keys instead of `content_hash`/`file_path`/`file_size`; the Cleanup page now loads without a TypeError.
+- **Settings highlight not firing** — Fixed field matching via `htmlFor` normalisation and a custom-event mechanism for same-page navigation. Added missing `htmlFor` attributes to all Toggle-based FormGroups so every searchable field can be highlighted.
+- **Highlight animation invisible** — Replaced broken CSS `@keyframes` (silently ignored by the browser) with JS-driven inline-style transitions, giving a reliable 5-second pulse sequence.
+
 ## [0.49.0-beta] - 2026-04-11
 
 ### Added
