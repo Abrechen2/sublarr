@@ -115,9 +115,7 @@ export function SubtitlePresencePills({
   const overflow = sorted.slice(INLINE_LIMIT)
 
   const rightContent =
-    embeddedLanguages.length === 0 ? (
-      <span style={PILL_NONE} title={t('subtitle_pills.no_embedded_tooltip')}>{t('subtitle_pills.no_embedded')}</span>
-    ) : (
+    embeddedLanguages.length === 0 ? null : (
       inline.map((e) => {
         const eLang = e.lang.toUpperCase()
         const eFormat = e.format.toUpperCase()
@@ -133,9 +131,9 @@ export function SubtitlePresencePills({
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
       {leftPill}
-      <span
-        style={{ width: 1, height: 14, background: 'var(--border)', margin: '0 2px', flexShrink: 0 }}
-      />
+      {rightContent !== null && (
+        <span style={{ width: 1, height: 14, background: 'var(--border)', margin: '0 2px', flexShrink: 0 }} />
+      )}
       {rightContent}
       {overflow.length > 0 && (
         <>
