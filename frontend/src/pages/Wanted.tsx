@@ -3,7 +3,7 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { useTranslation } from 'react-i18next'
 import {
   useInfiniteWantedItems, useWantedSummary, useRefreshWanted, useUpdateWantedStatus,
-  useSearchWantedItem, useProcessWantedItem, useStartWantedBatch, useWantedBatchStatus,
+  useProcessWantedItem, useStartWantedBatch, useWantedBatchStatus,
   useWantedBatchExtractStatus, useWantedBatchProbeStatus, useStartBatchProbe,
   useRetranslateSingle, useAddToBlacklist, useExtractEmbeddedSub,
   useCleanupSidecars, useTranslationEnabled,
@@ -11,6 +11,7 @@ import {
 import { useBatchTranslate } from '@/hooks/useTranslationApi'
 import { toast } from '@/components/shared/Toast'
 import type { WantedSearchResponse } from '@/lib/types'
+import type { WantedItem } from '@/types/wanted'
 import { Loader2, CheckSquare, Square, MinusSquare, Download } from 'lucide-react'
 import SubtitleEditorModal from '@/components/editor/SubtitleEditorModal'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -23,11 +24,35 @@ import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { getConfig } from '@/api/settings'
 import { WantedToolbar } from './wanted/WantedToolbar'
 import { WantedFilterPanel } from './wanted/WantedFilterPanel'
-import { WantedTableRow } from './wanted/WantedTableRow'
+import { WantedGroupedRow } from './wanted/WantedGroupedRow'
+import type { WantedGroup } from '@/types/wanted'
 // Re-exported for backward compat — existing tests import from here.
 export { FailureReasonRow, formatRetryCountdown } from './wanted/WantedTableRow'
 
 const SCOPE = 'wanted' as const
+
+export function groupByFilePath(items: WantedItem[]): WantedGroup[] {
+  const map = new Map<string, WantedGroup>()
+  for (const item of items) {
+    const key = item.file_path
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        title: item.title,
+        season_episode: item.season_episode,
+        file_path: item.file_path,
+        item_type: item.item_type,
+        instance_name: item.instance_name,
+        languages: [],
+      })
+    }
+    map.get(key)!.languages.push(item)
+  }
+  for (const group of map.values()) {
+    group.languages.sort((a, b) => a.target_language.localeCompare(b.target_language))
+  }
+  return Array.from(map.values())
+}
 
 export function WantedPage() {
   const { t } = useTranslation('library')
@@ -85,7 +110,6 @@ export function WantedPage() {
   } = useInfiniteWantedItems(typeFilter, statusFilter, subtitleTypeFilter, debouncedSearch, sortBy, sortDir)
   const refreshWanted = useRefreshWanted()
   const updateStatus = useUpdateWantedStatus()
-  const searchItem = useSearchWantedItem()
   const processItem = useProcessWantedItem()
   const extractItem = useExtractEmbeddedSub()
   const [extractingItemId, setExtractingItemId] = useState<number | null>(null)
@@ -176,6 +200,9 @@ export function WantedPage() {
     return data
   }, [wantedData, upgradeFilter, languageFilter])
 
+  // Group filtered flat items by file_path for grouped row display
+  const filteredGroups = useMemo(() => groupByFilePath(filteredData), [filteredData])
+
   // Infinite scroll sentinel
   const sentinelRef = useRef<HTMLTableRowElement>(null)
   useEffect(() => {
@@ -194,7 +221,10 @@ export function WantedPage() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   // Bulk selection helpers
-  const visibleIds = useMemo(() => filteredData?.map((d) => d.id) ?? [], [filteredData])
+  const visibleIds = useMemo(
+    () => filteredGroups.flatMap((g) => g.languages.map((l) => l.id)),
+    [filteredGroups]
+  )
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => isSelected(id))
   const someSelected = visibleIds.some((id) => isSelected(id))
 
@@ -205,6 +235,28 @@ export function WantedPage() {
       selectAll(SCOPE, visibleIds)
     }
   }, [allSelected, visibleIds, clearSelection, selectAll])
+
+  const handleToggleGroup = useCallback(
+    (itemIds: number[], _shiftKey: boolean) => {
+      const allSel = itemIds.every((id) => isSelected(id))
+      if (allSel) {
+        for (const id of itemIds) {
+          if (isSelected(id)) {
+            const idx = visibleIds.indexOf(id)
+            toggleItem(SCOPE, id, idx, false, visibleIds)
+          }
+        }
+      } else {
+        for (const id of itemIds) {
+          if (!isSelected(id)) {
+            const idx = visibleIds.indexOf(id)
+            toggleItem(SCOPE, id, idx, false, visibleIds)
+          }
+        }
+      }
+    },
+    [isSelected, toggleItem, visibleIds]
+  )
 
   const handleFiltersChange = useCallback((filters: ActiveFilter[]) => {
     setActiveFilters(filters)
@@ -217,20 +269,6 @@ export function WantedPage() {
     const titleVal = filters.find(f => f.key === 'title')?.value
     setSearchText(titleVal ?? '')
   }, [])
-
-  const handleSearch = (itemId: number) => {
-    if (expandedItem === itemId) {
-      setExpandedItem(null)
-      return
-    }
-    setExpandedItem(itemId)
-    setSearchingItems((prev) => { const next = new Set(prev); next.add(itemId); return next })
-    searchItem.mutate(itemId, {
-      onError: () => {
-        setSearchingItems((prev) => { const next = new Set(prev); next.delete(itemId); return next })
-      },
-    })
-  }
 
   const handleProcess = (itemId: number) => {
     setProcessingItemId(itemId)
@@ -482,28 +520,24 @@ export function WantedPage() {
                     <td className="px-4 py-3"><div className="skeleton h-6 w-6 rounded ml-auto" /></td>
                   </tr>
                 ))
-              ) : filteredData?.length ? (
+              ) : filteredGroups.length ? (
                 <>
-                  {filteredData.map((item, i) => (
-                    <WantedTableRow
-                      key={item.id}
-                      item={item}
-                      itemIndex={i}
-                      isSelected={isSelected(item.id)}
+                  {filteredGroups.map((group, i) => (
+                    <WantedGroupedRow
+                      key={group.key}
+                      group={group}
+                      groupIndex={i}
                       expandedItem={expandedItem}
                       sourceLanguage={sourceLanguage}
                       searchingItems={searchingItems}
                       searchResults={searchResults}
                       extractingItemId={extractingItemId}
-                      searchPending={searchItem.isPending}
                       processPending={processItem.isPending}
                       retranslatePending={retranslateItem.isPending}
                       translationEnabled={!!translationEnabled}
-                      visibleIds={visibleIds}
-                      scope={SCOPE}
-                      onToggleItem={toggleItem}
-                      onSearch={handleSearch}
                       processingItemId={processingItemId}
+                      isSelected={isSelected}
+                      onToggleGroup={handleToggleGroup}
                       onProcess={handleProcess}
                       onExtract={handleExtract}
                       onRetranslate={(id) => retranslateItem.mutate(id)}
@@ -511,7 +545,7 @@ export function WantedPage() {
                       onPreview={setPreviewFilePath}
                       onInteractiveSearch={setInteractiveItem}
                       onBlacklist={(itemId, providerName, subtitleId, language) => {
-                        const item = filteredData.find(d => d.id === itemId)
+                        const item = wantedData.find(d => d.id === itemId)
                         addBlacklist.mutate({
                           provider_name: providerName,
                           subtitle_id: subtitleId,
