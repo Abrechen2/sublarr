@@ -56,7 +56,7 @@ describe('SubtitlePresencePills', () => {
     expect(screen.getByText('DE fehlt')).toBeTruthy()
   })
 
-  it('shows Nicht eingebettet when nothing embedded', () => {
+  it('does not show embedded pills when nothing embedded', () => {
     render(
       <SubtitlePresencePills
         existingSub=""
@@ -65,7 +65,9 @@ describe('SubtitlePresencePills', () => {
         embeddedLanguages={noEmbedded}
       />
     )
-    expect(screen.getByText('Nicht eingebettet')).toBeTruthy()
+    // v0.49.0: "Nicht eingebettet" pill was removed to reduce visual noise
+    expect(screen.queryByText('Nicht eingebettet')).toBeNull()
+    expect(screen.queryAllByTestId('embedded-pill')).toHaveLength(0)
   })
 
   it('shows DE SRT ↑ for srt existing_sub when upgrade enabled', () => {

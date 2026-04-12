@@ -41,16 +41,18 @@ function wrap(ui: React.ReactElement) {
 describe('CleanupSettings', () => {
   it('renders the page heading', () => {
     wrap(<CleanupSettings />)
-    expect(screen.getByText(/Cleanup Rules/i)).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1 })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Bereinigung')
   })
 
-  it('shows empty state when no rules exist', () => {
+  it('shows the automatic cleanup section', () => {
     wrap(<CleanupSettings />)
-    expect(screen.getAllByText(/Noch keine Regeln/i).length).toBeGreaterThan(0)
+    expect(screen.getByText('Automatische Bereinigung')).toBeTruthy()
   })
 
-  it('shows "+ Neu" button in sidebar', () => {
+  it('renders the 5 fixed operation cards', () => {
     wrap(<CleanupSettings />)
-    expect(screen.getByText('Neu')).toBeTruthy()
+    expect(screen.getByText(/Sprachen-Filter/i)).toBeTruthy()
+    expect(screen.getByText(/Format-Upgrade/i)).toBeTruthy()
   })
 })

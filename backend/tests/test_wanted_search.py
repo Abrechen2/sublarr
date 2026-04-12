@@ -235,6 +235,7 @@ class TestSearchWantedItem:
 
         de_result = _make_subtitle_result(language="de", score=80, fmt_value="ass")
         en_result = _make_subtitle_result(language="en", score=75, fmt_value="ass")
+        en_result.subtitle_id = "sub456"  # distinct ID to survive dedup
 
         mock_mgr = MagicMock()
         # First call (target ASS) returns de, second (source ASS) returns en, rest empty

@@ -106,7 +106,7 @@ def test_verify_fails_duration_mismatch(tmp_path):
             "remux._probe",
             side_effect=[
                 _make_probe(3600, subtitle=2),
-                _make_probe(3605, subtitle=1),  # >2s diff
+                _make_probe(3650, subtitle=1),  # 50s diff > max(5, 3600*0.01=36)
             ],
         ),
         pytest.raises(RemuxError, match="Duration mismatch"),
