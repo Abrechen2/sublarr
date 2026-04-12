@@ -716,95 +716,22 @@ def run_rule(rule_id: int):
         500:
           description: Execution error
     """
-    from config import get_settings
-    from db.repositories.cleanup import CleanupRepository
-    from dedup_engine import scan_for_duplicates, scan_orphaned_subtitles
     from extensions import socketio
-    from services.cleanup_executors import (
-        execute_format_upgrade,
-        execute_language_filter,
-        execute_orphan_db,
-        execute_orphan_files,
-    )
-
-    repo = CleanupRepository()
-    rule = repo.get_rule(rule_id)
-
-    if rule is None:
-        return jsonify({"error": "Rule not found"}), 404
-
-    settings = get_settings()
-    media_path = settings.media_path
-    rule_type = rule["rule_type"]
-    config = rule.get("config_json", {})
+    from services.cleanup_rule_runner import execute_rule
 
     try:
-        if rule_type == "language_filter":
-            result = execute_language_filter(media_path, config, dry_run=False)
-        elif rule_type == "format_upgrade":
-            result = execute_format_upgrade(media_path, config, dry_run=False)
-        elif rule_type == "orphan_files":
-            result = execute_orphan_files(media_path, config, dry_run=False)
-        elif rule_type == "orphan_db":
-            result = execute_orphan_db(config, dry_run=False)
-        elif rule_type == "dedup":
-            result = scan_for_duplicates(media_path, socketio=socketio)
-            repo.update_rule_last_run(rule_id)
-            return jsonify({"status": "completed", "rule": rule["name"], "result": result})
-        elif rule_type == "orphaned":
-            result = scan_orphaned_subtitles(media_path)
-            repo.update_rule_last_run(rule_id)
-            return jsonify(
-                {
-                    "status": "completed",
-                    "rule": rule["name"],
-                    "orphaned": result,
-                    "count": len(result),
-                }
-            )
-        elif rule_type == "old_backups":
-            try:
-                from remux.backup_cleanup import cleanup_old_backups
-                from routes.remux import _trash_paths
-
-                retention_days = int(rule.get("config_json", {}).get("retention_days", 7))
-                result = cleanup_old_backups(_trash_paths(), retention_days)
-            except Exception as exc:
-                logger.error("old_backups rule failed: %s", exc)
-                return jsonify({"error": str(exc)}), 500
-            repo.update_rule_last_run(rule_id)
-            repo.log_cleanup(
-                action_type=rule_type,
-                rule_id=rule_id,
-                files_deleted=result.get("deleted", 0),
-                bytes_freed=result.get("bytes_freed", 0),
-            )
-            return jsonify(
-                {
-                    "status": "completed",
-                    "rule": rule["name"],
-                    "deleted": result.get("deleted", 0),
-                    "bytes_freed": result.get("bytes_freed", 0),
-                }
-            )
-        else:
-            return jsonify({"error": f"Unknown rule type: {rule_type}"}), 400
-
-        repo.update_rule_last_run(rule_id)
-        repo.log_cleanup(
-            action_type=rule_type,
-            rule_id=rule_id,
-            files_deleted=result.get("deleted", 0),
-            bytes_freed=result.get("bytes_freed", 0),
-        )
-        return jsonify({"status": "ok", "result": result})
+        result = execute_rule(rule_id, socketio=socketio)
+        return jsonify(result)
+    except ValueError as e:
+        code = 404 if "not found" in str(e) else 400
+        return jsonify({"error": str(e)}), code
     except Exception as e:
-        logger.error("Rule %d (%s) failed: %s", rule_id, rule_type, e)
+        logger.error("Rule %d failed: %s", rule_id, e)
         return jsonify({"error": str(e)}), 500
 
 
 @bp.route("/rules/<int:rule_id>/preview", methods=["POST"])
-def preview_rule(rule_id: int):
+def preview_rule_endpoint(rule_id: int):
     """Dry-run a cleanup rule — return what would be deleted without deleting.
     ---
     post:
@@ -828,38 +755,14 @@ def preview_rule(rule_id: int):
         500:
           description: Preview error
     """
-    from config import get_settings
-    from db.repositories.cleanup import CleanupRepository
-    from services.cleanup_executors import (
-        execute_format_upgrade,
-        execute_language_filter,
-        execute_orphan_db,
-        execute_orphan_files,
-    )
-
-    repo = CleanupRepository()
-    rule = repo.get_rule(rule_id)
-    if not rule:
-        return jsonify({"error": "Rule not found"}), 404
-
-    settings = get_settings()
-    media_path = settings.media_path
-    rule_type = rule["rule_type"]
-    config = rule.get("config_json", {})
+    from services.cleanup_rule_runner import preview_rule
 
     try:
-        if rule_type == "language_filter":
-            result = execute_language_filter(media_path, config, dry_run=True)
-        elif rule_type == "format_upgrade":
-            result = execute_format_upgrade(media_path, config, dry_run=True)
-        elif rule_type == "orphan_files":
-            result = execute_orphan_files(media_path, config, dry_run=True)
-        elif rule_type == "orphan_db":
-            result = execute_orphan_db(config, dry_run=True)
-        else:
-            return jsonify({"error": f"Preview not supported for rule type: {rule_type}"}), 400
-
-        return jsonify({"rule_id": rule_id, "rule_type": rule_type, "preview": result})
+        result = preview_rule(rule_id)
+        return jsonify(result)
+    except ValueError as e:
+        code = 404 if "not found" in str(e) else 400
+        return jsonify({"error": str(e)}), code
     except Exception as e:
         logger.error("Preview for rule %d failed: %s", rule_id, e)
         return jsonify({"error": str(e)}), 500
@@ -1008,106 +911,18 @@ def preview_cleanup():
         400:
           description: Invalid action
     """
-    from config import get_settings
-    from db.repositories.cleanup import CleanupRepository
+    from services.cleanup_rule_runner import preview_cleanup_action
 
     data = request.get_json() or {}
     action = data.get("action", "")
     params = data.get("params", {})
 
-    valid_actions = {"dedup", "orphaned", "rule"}
-    if action not in valid_actions:
-        return jsonify({"error": f"action must be one of: {sorted(valid_actions)}"}), 400
-
-    settings = get_settings()
-    media_path = settings.media_path
-
     try:
-        if action == "dedup":
-            repo = CleanupRepository()
-            groups = repo.get_duplicate_groups()
-
-            affected = []
-            for g in groups:
-                # Preview: mark all but the largest file as removable
-                sorted_files = sorted(g["files"], key=lambda f: f["size"], reverse=True)
-                for f in sorted_files[1:]:
-                    affected.append(f)
-
-            return jsonify(
-                {
-                    "action": "dedup",
-                    "affected_files": affected,
-                    "total_size": sum(f["size"] for f in affected),
-                    "groups": len(groups),
-                }
-            )
-
-        elif action == "orphaned":
-            from dedup_engine import scan_orphaned_subtitles
-
-            orphaned = scan_orphaned_subtitles(media_path)
-
-            return jsonify(
-                {
-                    "action": "orphaned",
-                    "affected_files": orphaned,
-                    "total_size": sum(f["size"] for f in orphaned),
-                    "count": len(orphaned),
-                }
-            )
-
-        elif action == "rule":
-            rule_id = params.get("rule_id")
-            if not rule_id:
-                return jsonify({"error": "params.rule_id is required for rule preview"}), 400
-
-            repo = CleanupRepository()
-            rule = repo.get_rule(int(rule_id))
-            if rule is None:
-                return jsonify({"error": "Rule not found"}), 404
-
-            # Preview based on rule type
-            if rule["rule_type"] == "dedup":
-                groups = repo.get_duplicate_groups()
-                affected = []
-                for g in groups:
-                    sorted_files = sorted(g["files"], key=lambda f: f["size"], reverse=True)
-                    for f in sorted_files[1:]:
-                        affected.append(f)
-                return jsonify(
-                    {
-                        "action": "rule",
-                        "rule": rule["name"],
-                        "affected_files": affected,
-                        "total_size": sum(f["size"] for f in affected),
-                    }
-                )
-
-            elif rule["rule_type"] == "orphaned":
-                from dedup_engine import scan_orphaned_subtitles
-
-                orphaned = scan_orphaned_subtitles(media_path)
-                return jsonify(
-                    {
-                        "action": "rule",
-                        "rule": rule["name"],
-                        "affected_files": orphaned,
-                        "total_size": sum(f["size"] for f in orphaned),
-                    }
-                )
-
-            else:
-                return jsonify(
-                    {
-                        "action": "rule",
-                        "rule": rule["name"],
-                        "affected_files": [],
-                        "total_size": 0,
-                        "message": f"Preview not available for rule type: {rule['rule_type']}",
-                    }
-                )
-
+        result = preview_cleanup_action(action, params)
+        return jsonify(result)
+    except ValueError as e:
+        code = 404 if "not found" in str(e) else 400
+        return jsonify({"error": str(e)}), code
     except Exception as e:
         logger.error("Preview failed: %s", e)
         return jsonify({"error": str(e)}), 500

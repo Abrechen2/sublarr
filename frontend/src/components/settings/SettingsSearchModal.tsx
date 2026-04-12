@@ -112,10 +112,8 @@ export function SettingsSearchModal({ open, onClose }: SettingsSearchModalProps)
 
   const handleSelect = (entry: SearchEntry) => {
     if (entry.type === 'setting' && entry.fieldKey) {
-      console.log('[HL] storing fieldKey:', entry.fieldKey, '→', entry.href)
       sessionStorage.setItem('highlight-setting', entry.fieldKey)
       requestAnimationFrame(() => {
-        console.log('[HL] dispatching settings-highlight-request event')
         window.dispatchEvent(new CustomEvent('settings-highlight-request'))
       })
     }
