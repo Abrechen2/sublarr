@@ -266,7 +266,7 @@ class TestPutInterjections:
 
     def test_200_empty_items_resets(self, client):
         with (
-            patch("db.config.save_config_entry") as mock_save,
+            patch("db.config.save_config_entry"),
             patch("db.config.get_all_config_entries", return_value={}),
             patch("config.reload_settings"),
         ):
