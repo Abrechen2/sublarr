@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.1-beta] - 2026-04-12
+
+### Fixed
+- **Graceful shutdown** — Background threads (wanted scanner, upgrade scheduler) now stop cleanly on SIGTERM instead of blocking container shutdown for up to 60 seconds.
+
+### Tests
+- **Full module coverage achieved** — Added 1,290 new tests across 10 files covering all previously untested modules: forced detection, mediainfo utils, download manager, HTTP session, spell checker, OCR service, retranslation, audio visualizer, OpenAPI spec, translation repository, track routes, and standalone scanner. Backend test suite now at 2,793 passing tests with 100% module coverage.
+
 ## [0.51.0-beta] - 2026-04-12
 
 ### Added
