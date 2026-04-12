@@ -30,6 +30,65 @@ Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,-1,0,0,0,100
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 `
 
+/** True if the browser is Firefox (libass-wasm createTrack crashes in Firefox). */
+export const isFirefox = /Firefox\//i.test(navigator.userAgent)
+
+/** Convert ASS timestamp "H:MM:SS.cc" to VTT timestamp "HH:MM:SS.ccc". */
+function assTimestampToVtt(ass: string): string {
+  const parts = ass.trim().split(':')
+  if (parts.length !== 3) return '00:00:00.000'
+  const [h, m, rest] = parts
+  const [s, cs] = rest.split('.')
+  return `${h.padStart(2, '0')}:${m}:${s}.${(cs ?? '0').padEnd(3, '0')}`
+}
+
+/** Convert SRT timestamp "HH:MM:SS,mmm" to VTT timestamp "HH:MM:SS.mmm". */
+function srtTimestampToVtt(srt: string): string {
+  return srt.replace(',', '.')
+}
+
+/** Convert ASS/SSA subtitle content to WebVTT for native browser rendering. */
+export function assToVtt(ass: string): string {
+  const lines: string[] = ['WEBVTT', '']
+  const dialogueRe =
+    /^Dialogue:\s*\d+,\s*([^,]+),\s*([^,]+),\s*[^,]*,\s*[^,]*,\s*\d+,\s*\d+,\s*\d+,\s*[^,]*,(.*)/
+  for (const line of ass.split(/\r?\n/)) {
+    const m = line.match(dialogueRe)
+    if (!m) continue
+    const start = assTimestampToVtt(m[1])
+    const end = assTimestampToVtt(m[2])
+    const text = m[3]
+      .replace(/\\N/g, '\n')
+      .replace(/\\n/g, '\n')
+      .replace(/\{[^}]*\}/g, '') // strip ASS override tags
+      .trim()
+    if (!text) continue
+    lines.push(`${start} --> ${end}`, text, '')
+  }
+  return lines.join('\n')
+}
+
+/** Convert SRT subtitle content to WebVTT for native browser rendering. */
+export function srtToVtt(srt: string): string {
+  const lines: string[] = ['WEBVTT', '']
+  for (const block of srt.trim().split(/\r?\n\r?\n/)) {
+    const blockLines = block.trim().split(/\r?\n/)
+    if (blockLines.length < 3) continue
+    const tcMatch = blockLines[1].match(
+      /^(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})/,
+    )
+    if (!tcMatch) continue
+    const start = srtTimestampToVtt(tcMatch[1])
+    const end = srtTimestampToVtt(tcMatch[2])
+    const text = blockLines
+      .slice(2)
+      .join('\n')
+      .replace(/<[^>]+>/g, '')
+    lines.push(`${start} --> ${end}`, text, '')
+  }
+  return lines.join('\n')
+}
+
 /** Convert SRT subtitle content to ASS format compatible with libass-wasm. */
 export function srtToAss(srt: string): string {
   const dialogues = srt

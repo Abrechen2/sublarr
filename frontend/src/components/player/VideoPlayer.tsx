@@ -2,7 +2,7 @@ import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import type { PlayerSubtitleTrack } from '@/lib/types'
 import { SubtitleOctopus, type ISubtitleOctopus } from '@/lib/subtitleOctopus'
 import { getMediaStreamUrl } from '@/api/client'
-import { isSrt, srtToAss } from '@/lib/subtitleUtils'
+import { isSrt, srtToAss, isFirefox, assToVtt, srtToVtt } from '@/lib/subtitleUtils'
 
 export interface VideoPlayerHandle {
   seek: (seconds: number) => void
@@ -25,6 +25,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(
   ({ src, activeTrack }, ref) => {
     const videoRef = useRef<HTMLVideoElement>(null)
     const octopusRef = useRef<ISubtitleOctopus | null>(null)
+    const trackBlobRef = useRef<string | null>(null)
 
     // Expose seek() to parent
     useImperativeHandle(ref, () => ({
@@ -35,11 +36,73 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(
       },
     }))
 
-    // Manage subtitle track changes without restarting the worker.
+    // Clean up any previously created blob URL
+    const revokeTrackBlob = () => {
+      if (trackBlobRef.current) {
+        URL.revokeObjectURL(trackBlobRef.current)
+        trackBlobRef.current = null
+      }
+    }
+
+    // Firefox fallback: use native <track> with WebVTT since libass-wasm
+    // createTrack/createTrackMem both crash in Firefox (ass_read_file returns NULL).
+    // ASS styling features are lost, but subtitles render correctly.
+    useEffect(() => {
+      if (!isFirefox) return
+      if (!videoRef.current) return
+
+      // Remove any existing track elements
+      revokeTrackBlob()
+      const video = videoRef.current
+      for (const track of Array.from(video.querySelectorAll('track'))) {
+        track.remove()
+      }
+
+      if (!activeTrack) return
+
+      const url = getMediaStreamUrl(activeTrack.path)
+      const controller = new AbortController()
+
+      const loadVtt = async () => {
+        try {
+          const resp = await fetch(url, { signal: controller.signal })
+          const raw = await resp.text()
+          const vtt = isSrt(raw) ? srtToVtt(raw) : assToVtt(raw)
+
+          const blob = new Blob([vtt], { type: 'text/vtt' })
+          const blobUrl = URL.createObjectURL(blob)
+          trackBlobRef.current = blobUrl
+
+          const track = document.createElement('track')
+          track.kind = 'subtitles'
+          track.label = 'Subtitles'
+          track.srclang = 'und'
+          track.src = blobUrl
+          track.default = true
+          video.appendChild(track)
+
+          // Activate the track
+          if (video.textTracks.length > 0) {
+            video.textTracks[0].mode = 'showing'
+          }
+        } catch (err) {
+          if ((err as Error).name !== 'AbortError') {
+            // subtitle load failed silently
+          }
+        }
+      }
+
+      loadVtt()
+      return () => {
+        controller.abort()
+      }
+    }, [activeTrack])
+
+    // Non-Firefox: use SubtitleOctopus (libass-wasm) for full ASS rendering.
     //
+    // Manage subtitle track changes without restarting the worker.
     // Fetch content client-side so we can detect SRT and convert to ASS before
-    // passing to libass-wasm (which only supports ASS/SSA). Without this, Firefox
-    // crashes the worker when ass_read_file receives SRT; Chrome silently fails.
+    // passing to libass-wasm (which only supports ASS/SSA).
     //
     // On first load: create instance with a placeholder ASS (so worker init succeeds),
     //   then immediately call setTrack() with the converted content.
@@ -47,6 +110,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(
     // On toggle-on: instance already exists → setTrack() with new content.
     // After onError clears the ref: fall through to create a fresh instance.
     useEffect(() => {
+      if (isFirefox) return
       if (!videoRef.current) return
 
       if (!activeTrack) {
@@ -92,6 +156,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(
       return () => {
         octopusRef.current?.dispose()
         octopusRef.current = null
+        revokeTrackBlob()
       }
     }, [src])
 
