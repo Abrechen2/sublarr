@@ -5,9 +5,11 @@ configures the application, initializes extensions, registers blueprints,
 and starts background schedulers.
 """
 
+import atexit
 import hmac
 import logging
 import os
+import signal
 
 from flask import Flask
 
@@ -529,7 +531,65 @@ def create_app(testing=False):
         app.extensions["wanted_scanner"] = _gs()
         app.extensions["provider_manager"] = _gpm()
 
+        # Register graceful shutdown handler (SIGTERM from Docker/Gunicorn)
+        if not testing:
+            _register_shutdown_handler(app)
+
     return app
+
+
+def _register_shutdown_handler(app):
+    """Register handlers for graceful shutdown on SIGTERM/SIGINT.
+
+    Docker sends SIGTERM when stopping a container. Gunicorn forwards it
+    to workers. Without this handler, background threads (scanner, search,
+    standalone watcher) keep running and prevent clean process exit,
+    causing Docker to escalate to SIGKILL which fails in unprivileged LXC.
+    """
+    logger = logging.getLogger(__name__)
+
+    def _graceful_shutdown(signum=None, frame=None):
+        sig_name = signal.Signals(signum).name if signum else "atexit"
+        logger.info("Graceful shutdown initiated (%s)", sig_name)
+
+        # 1. Cancel any running wanted search (sets cancel_event)
+        try:
+            scanner = app.extensions.get("wanted_scanner")
+            if scanner:
+                scanner.cancel_search()
+                scanner.stop_scheduler()
+                logger.info("Wanted scanner stopped")
+        except Exception as e:
+            logger.debug("Scanner shutdown error: %s", e)
+
+        # 2. Stop standalone watcher
+        try:
+            from standalone import get_standalone_manager
+
+            get_standalone_manager().stop()
+            logger.info("Standalone watcher stopped")
+        except Exception:
+            pass
+
+        # 3. Stop cleanup/upgrade schedulers (APScheduler)
+        try:
+            from cleanup_scheduler import stop_cleanup_scheduler
+
+            stop_cleanup_scheduler()
+        except Exception:
+            pass
+        try:
+            from upgrade_scheduler import stop_upgrade_scheduler
+
+            stop_upgrade_scheduler()
+        except Exception:
+            pass
+
+        logger.info("Graceful shutdown complete")
+
+    # Register for both SIGTERM (Docker stop) and atexit (normal exit)
+    signal.signal(signal.SIGTERM, _graceful_shutdown)
+    atexit.register(_graceful_shutdown)
 
 
 def _register_app_routes(app):
