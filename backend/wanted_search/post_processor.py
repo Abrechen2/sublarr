@@ -312,20 +312,21 @@ def download_specific_for_item(
                     arr_context=arr_context or None,
                 )
         except Exception as e:
+            error_msg = str(e)
             logger.error(
                 "Translation failed in download_specific for wanted %d: %s",
                 item_id,
-                e,
+                error_msg,
                 exc_info=True,
             )
-            update_job(job["id"], "failed", error=str(e))
+            update_job(job["id"], "failed", error=error_msg)
             record_stat(success=False)
             try:
                 if os.path.exists(actual_source_path):
                     os.remove(actual_source_path)
-            except OSError as e:
-                logger.debug("Temp file cleanup failed: %s", e)
-            return {"success": False, "error": f"Translation failed: {e}"}
+            except OSError as cleanup_err:
+                logger.debug("Temp file cleanup failed: %s", cleanup_err)
+            return {"success": False, "error": f"Translation failed: {error_msg}"}
 
         try:
             if os.path.exists(actual_source_path):
