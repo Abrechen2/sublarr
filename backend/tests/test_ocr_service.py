@@ -12,7 +12,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # extract_frame
 # ---------------------------------------------------------------------------
@@ -166,9 +165,11 @@ class TestOcrSubtitleStream:
         original = oe.TESSERACT_AVAILABLE
         oe.TESSERACT_AVAILABLE = True
         try:
-            with patch("services.audio_visualizer.get_audio_duration", return_value=10.0):
-                with pytest.raises(RuntimeError, match="No frames"):
-                    oe.ocr_subtitle_stream("/video.mkv", 0)
+            with (
+                patch("services.audio_visualizer.get_audio_duration", return_value=10.0),
+                pytest.raises(RuntimeError, match="No frames"),
+            ):
+                oe.ocr_subtitle_stream("/video.mkv", 0)
         finally:
             oe.TESSERACT_AVAILABLE = original
 
@@ -178,10 +179,12 @@ class TestOcrSubtitleStream:
         original = oe.TESSERACT_AVAILABLE
         oe.TESSERACT_AVAILABLE = True
         try:
-            with patch("services.audio_visualizer.get_audio_duration", return_value=0):
-                with patch("ass_utils.run_ffprobe", return_value={"format": {"duration": "0"}}):
-                    with pytest.raises(RuntimeError, match="Invalid video duration"):
-                        oe.ocr_subtitle_stream("/video.mkv", 0)
+            with (
+                patch("services.audio_visualizer.get_audio_duration", return_value=0),
+                patch("ass_utils.run_ffprobe", return_value={"format": {"duration": "0"}}),
+                pytest.raises(RuntimeError, match="Invalid video duration"),
+            ):
+                oe.ocr_subtitle_stream("/video.mkv", 0)
         finally:
             oe.TESSERACT_AVAILABLE = original
 
@@ -210,9 +213,7 @@ class TestBatchOcrTrack:
         original = oe.TESSERACT_AVAILABLE
         oe.TESSERACT_AVAILABLE = True
         try:
-            mock_run.return_value = MagicMock(
-                returncode=1, stderr=b"extraction error"
-            )
+            mock_run.return_value = MagicMock(returncode=1, stderr=b"extraction error")
             with pytest.raises(RuntimeError, match="ffmpeg subtitle extraction failed"):
                 oe.batch_ocr_track("/video.mkv", 0)
         finally:
@@ -300,16 +301,12 @@ class TestOcrRoutes:
 
     def test_preview_file_not_found(self, client):
         media = os.environ.get("SUBLARR_MEDIA_PATH", "/tmp")
-        resp = client.get(
-            f"/api/v1/ocr/preview?file_path={media}/nonexistent.mkv&timestamp=5"
-        )
+        resp = client.get(f"/api/v1/ocr/preview?file_path={media}/nonexistent.mkv&timestamp=5")
         assert resp.status_code == 404
 
     @patch("routes.ocr.is_safe_path", return_value=False)
     def test_preview_path_traversal(self, _mock, client):
-        resp = client.get(
-            "/api/v1/ocr/preview?file_path=/etc/passwd&timestamp=5"
-        )
+        resp = client.get("/api/v1/ocr/preview?file_path=/etc/passwd&timestamp=5")
         assert resp.status_code == 403
 
     def test_batch_extract_missing_params(self, client):

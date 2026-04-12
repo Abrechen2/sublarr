@@ -9,7 +9,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ===========================================================================
 # services/audio_visualizer.py
 # ===========================================================================
@@ -177,9 +176,7 @@ class TestGenerateWaveformJson:
     @patch("services.audio_visualizer._generate_waveform_simple")
     @patch("services.audio_visualizer.get_audio_duration", return_value=5.0)
     @patch("services.audio_visualizer.extract_audio_track", return_value="/tmp/audio.wav")
-    def test_successful_generation(
-        self, _extract, _duration, mock_waveform, _unlink, _exists
-    ):
+    def test_successful_generation(self, _extract, _duration, mock_waveform, _unlink, _exists):
         from services.audio_visualizer import generate_waveform_json
 
         mock_waveform.return_value = [{"time": 0, "amplitude": 0.5}]

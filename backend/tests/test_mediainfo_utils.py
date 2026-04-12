@@ -18,7 +18,6 @@ from mediainfo_utils import (
     run_mediainfo,
 )
 
-
 # ---------------------------------------------------------------------------
 # _map_codec
 # ---------------------------------------------------------------------------
@@ -251,9 +250,7 @@ class TestRunMediainfo:
                 ]
             }
         }
-        mock_run.return_value = MagicMock(
-            returncode=0, stdout=json.dumps(raw_output), stderr=""
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout=json.dumps(raw_output), stderr="")
         result = run_mediainfo("/video.mkv")
         assert len(result["streams"]) == 1
         assert result["streams"][0]["codec_name"] == "aac"

@@ -15,8 +15,12 @@ import pytest
 from app import create_app
 from config import reload_settings
 from db import close_db, init_db
-from routes.tracks import _build_track_list, _cleanup_series_sidecars, _find_track, _normalise_stream
-
+from routes.tracks import (
+    _build_track_list,
+    _cleanup_series_sidecars,
+    _find_track,
+    _normalise_stream,
+)
 
 # ---------------------------------------------------------------------------
 # Sample ffprobe stream data
@@ -202,7 +206,13 @@ class TestBuildTrackList:
 
     def test_only_video_streams(self):
         streams = [
-            {"index": 0, "codec_type": "video", "codec_name": "h264", "tags": {}, "disposition": {}},
+            {
+                "index": 0,
+                "codec_type": "video",
+                "codec_name": "h264",
+                "tags": {},
+                "disposition": {},
+            },
         ]
         assert _build_track_list(streams) == []
 
@@ -820,21 +830,18 @@ class TestBatchExtractSeriesTracks:
             patch("routes.tracks.os.path.getsize", return_value=500),
             patch("db.jobs.create_job", return_value={"id": "abc123"}),
             patch("db.jobs.update_job"),
+            patch("routes.tracks.threading.Thread") as mock_thread,
         ):
-            # Capture the thread target and run it synchronously
-            with patch("routes.tracks.threading.Thread") as mock_thread:
-                mock_thread.return_value.start = MagicMock()
-                resp = client.post("/api/v1/library/series/1/batch-extract-tracks")
+            mock_thread.return_value.start = MagicMock()
+            resp = client.post("/api/v1/library/series/1/batch-extract-tracks")
 
-                assert resp.status_code == 202
+            assert resp.status_code == 202
 
-                # Extract the _run function and call it
-                call_args = mock_thread.call_args
-                target_fn = call_args[1]["target"] if "target" in call_args[1] else call_args[0][0]
-                app_arg = (
-                    call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
-                )
-                target_fn(app_arg)
+            # Extract the _run function and call it
+            call_args = mock_thread.call_args
+            target_fn = call_args[1]["target"] if "target" in call_args[1] else call_args[0][0]
+            app_arg = call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
+            target_fn(app_arg)
 
     def test_background_sonarr_error_emits_event(self, client):
         """When Sonarr raises an exception, emit completed event with zero counts."""
@@ -844,17 +851,15 @@ class TestBatchExtractSeriesTracks:
         with (
             patch("sonarr_client.get_sonarr_client", return_value=mock_client),
             patch("routes.tracks.emit_event") as mock_emit,
+            patch("routes.tracks.threading.Thread") as mock_thread,
         ):
-            with patch("routes.tracks.threading.Thread") as mock_thread:
-                mock_thread.return_value.start = MagicMock()
-                resp = client.post("/api/v1/library/series/1/batch-extract-tracks")
+            mock_thread.return_value.start = MagicMock()
+            client.post("/api/v1/library/series/1/batch-extract-tracks")
 
-                call_args = mock_thread.call_args
-                target_fn = call_args[1]["target"] if "target" in call_args[1] else call_args[0][0]
-                app_arg = (
-                    call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
-                )
-                target_fn(app_arg)
+            call_args = mock_thread.call_args
+            target_fn = call_args[1]["target"] if "target" in call_args[1] else call_args[0][0]
+            app_arg = call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
+            target_fn(app_arg)
 
         # Check that batch_extract_completed was emitted with zeros
         completed_calls = [
@@ -874,17 +879,15 @@ class TestBatchExtractSeriesTracks:
             patch("sonarr_client.get_sonarr_client", return_value=mock_client),
             patch("routes.tracks.emit_event") as mock_emit,
             patch("routes.tracks.map_path", side_effect=lambda p: p),
+            patch("routes.tracks.threading.Thread") as mock_thread,
         ):
-            with patch("routes.tracks.threading.Thread") as mock_thread:
-                mock_thread.return_value.start = MagicMock()
-                resp = client.post("/api/v1/library/series/1/batch-extract-tracks")
+            mock_thread.return_value.start = MagicMock()
+            client.post("/api/v1/library/series/1/batch-extract-tracks")
 
-                call_args = mock_thread.call_args
-                target_fn = call_args[1]["target"] if "target" in call_args[1] else call_args[0][0]
-                app_arg = (
-                    call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
-                )
-                target_fn(app_arg)
+            call_args = mock_thread.call_args
+            target_fn = call_args[1]["target"] if "target" in call_args[1] else call_args[0][0]
+            app_arg = call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
+            target_fn(app_arg)
 
         completed_calls = [
             c for c in mock_emit.call_args_list if c[0][0] == "batch_extract_completed"
@@ -907,17 +910,15 @@ class TestBatchExtractSeriesTracks:
             patch("routes.tracks.os.path.exists", return_value=False),
             patch("db.jobs.create_job", return_value={"id": "j1"}),
             patch("db.jobs.update_job"),
+            patch("routes.tracks.threading.Thread") as mock_thread,
         ):
-            with patch("routes.tracks.threading.Thread") as mock_thread:
-                mock_thread.return_value.start = MagicMock()
-                client.post("/api/v1/library/series/1/batch-extract-tracks")
+            mock_thread.return_value.start = MagicMock()
+            client.post("/api/v1/library/series/1/batch-extract-tracks")
 
-                call_args = mock_thread.call_args
-                target_fn = call_args[1]["target"] if "target" in call_args[1] else call_args[0][0]
-                app_arg = (
-                    call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
-                )
-                target_fn(app_arg)
+            call_args = mock_thread.call_args
+            target_fn = call_args[1]["target"] if "target" in call_args[1] else call_args[0][0]
+            app_arg = call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
+            target_fn(app_arg)
 
         progress_calls = [
             c for c in mock_emit.call_args_list if c[0][0] == "batch_extract_progress"
@@ -944,17 +945,15 @@ class TestBatchExtractSeriesTracks:
             patch("routes.tracks.os.path.exists", return_value=True),
             patch("db.jobs.create_job", return_value={"id": "j1"}),
             patch("db.jobs.update_job"),
+            patch("routes.tracks.threading.Thread") as mock_thread,
         ):
-            with patch("routes.tracks.threading.Thread") as mock_thread:
-                mock_thread.return_value.start = MagicMock()
-                client.post("/api/v1/library/series/1/batch-extract-tracks")
+            mock_thread.return_value.start = MagicMock()
+            client.post("/api/v1/library/series/1/batch-extract-tracks")
 
-                call_args = mock_thread.call_args
-                target_fn = call_args[1]["target"] if "target" in call_args[1] else call_args[0][0]
-                app_arg = (
-                    call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
-                )
-                target_fn(app_arg)
+            call_args = mock_thread.call_args
+            target_fn = call_args[1]["target"] if "target" in call_args[1] else call_args[0][0]
+            app_arg = call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
+            target_fn(app_arg)
 
         progress_calls = [
             c for c in mock_emit.call_args_list if c[0][0] == "batch_extract_progress"
@@ -1003,17 +1002,15 @@ class TestBatchExtractSeriesTracks:
             patch("routes.tracks.emit_event") as mock_emit,
             patch("db.jobs.create_job", return_value={"id": "j1"}),
             patch("db.jobs.update_job") as mock_update_job,
+            patch("routes.tracks.threading.Thread") as mock_thread,
         ):
-            with patch("routes.tracks.threading.Thread") as mock_thread:
-                mock_thread.return_value.start = MagicMock()
-                client.post("/api/v1/library/series/1/batch-extract-tracks")
+            mock_thread.return_value.start = MagicMock()
+            client.post("/api/v1/library/series/1/batch-extract-tracks")
 
-                call_args = mock_thread.call_args
-                target_fn = call_args[1]["target"] if "target" in call_args[1] else call_args[0][0]
-                app_arg = (
-                    call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
-                )
-                target_fn(app_arg)
+            call_args = mock_thread.call_args
+            target_fn = call_args[1]["target"] if "target" in call_args[1] else call_args[0][0]
+            app_arg = call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
+            target_fn(app_arg)
 
         completed_calls = [
             c for c in mock_emit.call_args_list if c[0][0] == "batch_extract_completed"
@@ -1059,17 +1056,15 @@ class TestBatchExtractSeriesTracks:
             patch("routes.tracks.emit_event") as mock_emit,
             patch("db.jobs.create_job", return_value={"id": "j1"}),
             patch("db.jobs.update_job"),
+            patch("routes.tracks.threading.Thread") as mock_thread,
         ):
-            with patch("routes.tracks.threading.Thread") as mock_thread:
-                mock_thread.return_value.start = MagicMock()
-                client.post("/api/v1/library/series/1/batch-extract-tracks")
+            mock_thread.return_value.start = MagicMock()
+            client.post("/api/v1/library/series/1/batch-extract-tracks")
 
-                call_args = mock_thread.call_args
-                target_fn = call_args[1]["target"] if "target" in call_args[1] else call_args[0][0]
-                app_arg = (
-                    call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
-                )
-                target_fn(app_arg)
+            call_args = mock_thread.call_args
+            target_fn = call_args[1]["target"] if "target" in call_args[1] else call_args[0][0]
+            app_arg = call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
+            target_fn(app_arg)
 
         completed_calls = [
             c for c in mock_emit.call_args_list if c[0][0] == "batch_extract_completed"
@@ -1121,17 +1116,15 @@ class TestBatchExtractSeriesTracks:
             patch("routes.tracks.emit_event") as mock_emit,
             patch("db.jobs.create_job", return_value={"id": "j1"}),
             patch("db.jobs.update_job"),
+            patch("routes.tracks.threading.Thread") as mock_thread,
         ):
-            with patch("routes.tracks.threading.Thread") as mock_thread:
-                mock_thread.return_value.start = MagicMock()
-                client.post("/api/v1/library/series/1/batch-extract-tracks")
+            mock_thread.return_value.start = MagicMock()
+            client.post("/api/v1/library/series/1/batch-extract-tracks")
 
-                call_args = mock_thread.call_args
-                target_fn = call_args[1]["target"] if "target" in call_args[1] else call_args[0][0]
-                app_arg = (
-                    call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
-                )
-                target_fn(app_arg)
+            call_args = mock_thread.call_args
+            target_fn = call_args[1]["target"] if "target" in call_args[1] else call_args[0][0]
+            app_arg = call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
+            target_fn(app_arg)
 
         # Should still complete successfully despite RemuxError
         completed_calls = [
@@ -1172,9 +1165,7 @@ class TestBatchExtractSeriesTracks:
 
                 call_args = mock_thread.call_args
                 target_fn = call_args[1]["target"] if "target" in call_args[1] else call_args[0][0]
-                app_arg = (
-                    call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
-                )
+                app_arg = call_args[1]["args"][0] if "args" in call_args[1] else call_args[0][1][0]
                 target_fn(app_arg)
 
             mock_cleanup.assert_called_once()

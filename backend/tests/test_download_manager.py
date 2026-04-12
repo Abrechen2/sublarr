@@ -15,7 +15,6 @@ from providers.download_manager import (
     search_and_download_best,
 )
 
-
 # ---------------------------------------------------------------------------
 # _stream_download
 # ---------------------------------------------------------------------------
@@ -113,9 +112,7 @@ class TestDownloadSubtitle:
         result = self._make_result("test")
         rate_checker = MagicMock(return_value=False)
 
-        ret = download_subtitle(
-            {"test": provider}, {}, rate_checker, result
-        )
+        ret = download_subtitle({"test": provider}, {}, rate_checker, result)
         assert ret is None
         provider.download.assert_not_called()
 
@@ -124,9 +121,7 @@ class TestDownloadSubtitle:
         provider.download.return_value = b"subtitle content"
         result = self._make_result("test")
 
-        ret = download_subtitle(
-            {"test": provider}, {}, lambda x: True, result
-        )
+        ret = download_subtitle({"test": provider}, {}, lambda x: True, result)
         assert ret == b"subtitle content"
         assert result.content == b"subtitle content"
 
@@ -135,9 +130,7 @@ class TestDownloadSubtitle:
         provider.download.side_effect = Exception("network error")
         result = self._make_result("test")
 
-        ret = download_subtitle(
-            {"test": provider}, {}, lambda x: True, result
-        )
+        ret = download_subtitle({"test": provider}, {}, lambda x: True, result)
         assert ret is None
 
 

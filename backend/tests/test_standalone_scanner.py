@@ -22,34 +22,37 @@ import pytest
 
 from standalone.scanner import StandaloneScanner, _is_extra_file
 
-
 # ---------------------------------------------------------------------------
 # _is_extra_file
 # ---------------------------------------------------------------------------
 
+
 class TestIsExtraFile:
     """Verify extra-file detection by stem and suffix."""
 
-    @pytest.mark.parametrize("filename,expected", [
-        ("trailer.mkv", True),
-        ("sample.mp4", True),
-        ("tvshow.avi", True),
-        ("movie.mkv", True),
-        ("episode01-trailer.mkv", True),
-        ("behind-behindthescenes.mp4", True),
-        ("deleted-deleted.mkv", True),
-        ("special-featurette.avi", True),
-        ("my-interview.mkv", True),
-        ("bonus-scene.mp4", True),
-        ("intro-short.avi", True),
-        ("clip-sample.mkv", True),
-        ("opening-theme.mp4", True),
-        # NOT extras
-        ("My.Show.S01E01.mkv", False),
-        ("Attack on Titan - 01.mkv", False),
-        ("Movie.2024.1080p.mkv", False),
-        ("trailer_park_boys.mkv", False),  # stem is 'trailer_park_boys'
-    ])
+    @pytest.mark.parametrize(
+        "filename,expected",
+        [
+            ("trailer.mkv", True),
+            ("sample.mp4", True),
+            ("tvshow.avi", True),
+            ("movie.mkv", True),
+            ("episode01-trailer.mkv", True),
+            ("behind-behindthescenes.mp4", True),
+            ("deleted-deleted.mkv", True),
+            ("special-featurette.avi", True),
+            ("my-interview.mkv", True),
+            ("bonus-scene.mp4", True),
+            ("intro-short.avi", True),
+            ("clip-sample.mkv", True),
+            ("opening-theme.mp4", True),
+            # NOT extras
+            ("My.Show.S01E01.mkv", False),
+            ("Attack on Titan - 01.mkv", False),
+            ("Movie.2024.1080p.mkv", False),
+            ("trailer_park_boys.mkv", False),  # stem is 'trailer_park_boys'
+        ],
+    )
     def test_detection(self, filename, expected):
         assert _is_extra_file(f"/media/{filename}") is expected
 
@@ -57,6 +60,7 @@ class TestIsExtraFile:
 # ---------------------------------------------------------------------------
 # _find_common_parent
 # ---------------------------------------------------------------------------
+
 
 class TestFindCommonParent:
     """Series-root normalization logic."""
@@ -133,16 +137,15 @@ class TestFindCommonParent:
 # _get_target_languages
 # ---------------------------------------------------------------------------
 
-class TestGetTargetLanguages:
 
+class TestGetTargetLanguages:
     def test_returns_profile_languages(self):
-        scanner = StandaloneScanner()
-        with patch("standalone.scanner.StandaloneScanner._get_target_languages") as mock_method:
+        StandaloneScanner()
+        with patch("standalone.scanner.StandaloneScanner._get_target_languages"):
             # Direct test of internal method via real logic
             pass
 
         # Test the real method with mocked imports
-        mock_profile = {"target_languages": ["de", "en"]}
         with patch.dict("sys.modules", {}):
             pass  # Can't easily re-import; use monkeypatch approach
 
@@ -163,8 +166,10 @@ class TestGetTargetLanguages:
         mock_profile = {"target_languages": []}
         mock_settings = MagicMock()
         mock_settings.target_language = "ja"
-        with patch("db.profiles.get_default_profile", return_value=mock_profile), \
-             patch("config.get_settings", return_value=mock_settings):
+        with (
+            patch("db.profiles.get_default_profile", return_value=mock_profile),
+            patch("config.get_settings", return_value=mock_settings),
+        ):
             result = scanner._get_target_languages()
             assert result == ["ja"]
 
@@ -172,15 +177,19 @@ class TestGetTargetLanguages:
         scanner = StandaloneScanner()
         mock_settings = MagicMock()
         mock_settings.target_language = "fr"
-        with patch("db.profiles.get_default_profile", return_value=None), \
-             patch("config.get_settings", return_value=mock_settings):
+        with (
+            patch("db.profiles.get_default_profile", return_value=None),
+            patch("config.get_settings", return_value=mock_settings),
+        ):
             result = scanner._get_target_languages()
             assert result == ["fr"]
 
     def test_all_fallbacks_exhausted_returns_de(self):
         scanner = StandaloneScanner()
-        with patch("db.profiles.get_default_profile", side_effect=Exception("no DB")), \
-             patch("config.get_settings", side_effect=Exception("no config")):
+        with (
+            patch("db.profiles.get_default_profile", side_effect=Exception("no DB")),
+            patch("config.get_settings", side_effect=Exception("no config")),
+        ):
             result = scanner._get_target_languages()
             assert result == ["de"]
 
@@ -189,8 +198,8 @@ class TestGetTargetLanguages:
 # _check_existing_subtitle
 # ---------------------------------------------------------------------------
 
-class TestCheckExistingSubtitle:
 
+class TestCheckExistingSubtitle:
     def test_returns_ass_when_found(self):
         scanner = StandaloneScanner()
         with patch("translator.detect_existing_target_for_lang", return_value="ass"):
@@ -220,8 +229,8 @@ class TestCheckExistingSubtitle:
 # scan_all_folders — orchestration
 # ---------------------------------------------------------------------------
 
-class TestScanAllFolders:
 
+class TestScanAllFolders:
     def test_no_enabled_folders_returns_zero_summary(self):
         scanner = StandaloneScanner()
         with patch("db.standalone.get_watched_folders", return_value=[]):
@@ -243,10 +252,12 @@ class TestScanAllFolders:
         scanner = StandaloneScanner()
         folders = [{"path": "/media/anime", "label": "Anime", "media_type": "series"}]
 
-        with patch("db.standalone.get_watched_folders", return_value=folders), \
-             patch.object(scanner, "_scan_folder", return_value=(2, 0, 5)), \
-             patch.object(scanner, "_cleanup_stale_series"), \
-             patch.object(scanner, "_cleanup_stale_wanted"):
+        with (
+            patch("db.standalone.get_watched_folders", return_value=folders),
+            patch.object(scanner, "_scan_folder", return_value=(2, 0, 5)),
+            patch.object(scanner, "_cleanup_stale_series"),
+            patch.object(scanner, "_cleanup_stale_wanted"),
+        ):
             result = scanner.scan_all_folders()
 
             assert result["folders_scanned"] == 1
@@ -267,10 +278,12 @@ class TestScanAllFolders:
                 raise RuntimeError("disk error")
             return (1, 0, 2)
 
-        with patch("db.standalone.get_watched_folders", return_value=folders), \
-             patch.object(scanner, "_scan_folder", side_effect=side_effect), \
-             patch.object(scanner, "_cleanup_stale_series"), \
-             patch.object(scanner, "_cleanup_stale_wanted"):
+        with (
+            patch("db.standalone.get_watched_folders", return_value=folders),
+            patch.object(scanner, "_scan_folder", side_effect=side_effect),
+            patch.object(scanner, "_cleanup_stale_series"),
+            patch.object(scanner, "_cleanup_stale_wanted"),
+        ):
             result = scanner.scan_all_folders()
 
             # Only the good folder counted
@@ -299,8 +312,8 @@ class TestScanAllFolders:
 # _scan_folder
 # ---------------------------------------------------------------------------
 
-class TestScanFolder:
 
+class TestScanFolder:
     def test_nonexistent_folder_returns_zeros(self):
         scanner = StandaloneScanner()
         folder = {"path": "/nonexistent/path"}
@@ -330,14 +343,17 @@ class TestScanFolder:
         mock_settings = MagicMock()
         mock_settings.standalone_skip_extras = True
 
-        series_groups = {"show": [{"file_path": str(ep1), "title": "Show", "season": 1, "episode": 1}]}
-        movie_files = []
+        series_groups = {
+            "show": [{"file_path": str(ep1), "title": "Show", "season": 1, "episode": 1}]
+        }
 
-        with patch("config.get_settings", return_value=mock_settings), \
-             patch("standalone.parser.is_video_file", return_value=True), \
-             patch("standalone.parser.group_files_by_series", return_value=series_groups), \
-             patch("standalone.parser.parse_media_file", return_value={"type": "episode"}), \
-             patch.object(scanner, "_process_series_group", return_value=3):
+        with (
+            patch("config.get_settings", return_value=mock_settings),
+            patch("standalone.parser.is_video_file", return_value=True),
+            patch("standalone.parser.group_files_by_series", return_value=series_groups),
+            patch("standalone.parser.parse_media_file", return_value={"type": "episode"}),
+            patch.object(scanner, "_process_series_group", return_value=3),
+        ):
             s, m, w = scanner._scan_folder(folder)
             assert s == 1
             assert w == 3
@@ -352,9 +368,11 @@ class TestScanFolder:
         mock_settings = MagicMock()
         mock_settings.standalone_skip_extras = True
 
-        with patch("config.get_settings", return_value=mock_settings), \
-             patch("standalone.parser.is_video_file", return_value=True), \
-             patch("standalone.parser.group_files_by_series", return_value={}):
+        with (
+            patch("config.get_settings", return_value=mock_settings),
+            patch("standalone.parser.is_video_file", return_value=True),
+            patch("standalone.parser.group_files_by_series", return_value={}),
+        ):
             result = scanner._scan_folder(folder)
             assert result == (0, 0, 0)
 
@@ -363,8 +381,8 @@ class TestScanFolder:
 # _process_series_group
 # ---------------------------------------------------------------------------
 
-class TestProcessSeriesGroup:
 
+class TestProcessSeriesGroup:
     def _make_scanner(self):
         resolver = MagicMock()
         resolver.resolve_series.return_value = {
@@ -388,15 +406,26 @@ class TestProcessSeriesGroup:
             {"file_path": "/media/Show/S01/ep01.mkv", "title": "Show", "season": 1, "episode": 1},
         ]
         folder = {"path": "/media/Show"}
-        nfo = {"title": "Show NFO", "tvdb_id": 99, "tmdb_id": None, "imdb_id": "", "anilist_id": None, "local_poster": "", "year": 2023, "is_anime": False}
+        nfo = {
+            "title": "Show NFO",
+            "tvdb_id": 99,
+            "tmdb_id": None,
+            "imdb_id": "",
+            "anilist_id": None,
+            "local_poster": "",
+            "year": 2023,
+            "is_anime": False,
+        }
 
-        with patch("standalone.nfo_parser.parse_series_nfo", return_value=nfo), \
-             patch("standalone.nfo_parser.find_local_poster", return_value=None), \
-             patch("db.standalone.upsert_standalone_series", return_value=42), \
-             patch("db.wanted.upsert_wanted_item"), \
-             patch.object(scanner, "_get_target_languages", return_value=["de"]), \
-             patch.object(scanner, "_check_existing_subtitle", return_value=None), \
-             patch.object(scanner, "_find_common_parent", return_value="/media/Show"):
+        with (
+            patch("standalone.nfo_parser.parse_series_nfo", return_value=nfo),
+            patch("standalone.nfo_parser.find_local_poster", return_value=None),
+            patch("db.standalone.upsert_standalone_series", return_value=42),
+            patch("db.wanted.upsert_wanted_item"),
+            patch.object(scanner, "_get_target_languages", return_value=["de"]),
+            patch.object(scanner, "_check_existing_subtitle", return_value=None),
+            patch.object(scanner, "_find_common_parent", return_value="/media/Show"),
+        ):
             wanted = scanner._process_series_group("show", files, folder)
 
             # Resolver should NOT have been called (NFO had tvdb_id)
@@ -410,15 +439,26 @@ class TestProcessSeriesGroup:
             {"file_path": "/media/Show/ep01.mkv", "title": "Show", "season": 1, "episode": 1},
         ]
         folder = {"path": "/media/Show"}
-        nfo = {"title": "Show Title", "tvdb_id": None, "tmdb_id": None, "imdb_id": "", "anilist_id": None, "local_poster": "", "year": 2024, "is_anime": False}
+        nfo = {
+            "title": "Show Title",
+            "tvdb_id": None,
+            "tmdb_id": None,
+            "imdb_id": "",
+            "anilist_id": None,
+            "local_poster": "",
+            "year": 2024,
+            "is_anime": False,
+        }
 
-        with patch("standalone.nfo_parser.parse_series_nfo", return_value=nfo), \
-             patch("standalone.nfo_parser.find_local_poster", return_value=None), \
-             patch("db.standalone.upsert_standalone_series", return_value=42), \
-             patch("db.wanted.upsert_wanted_item"), \
-             patch.object(scanner, "_get_target_languages", return_value=["de"]), \
-             patch.object(scanner, "_check_existing_subtitle", return_value=None), \
-             patch.object(scanner, "_find_common_parent", return_value="/media/Show"):
+        with (
+            patch("standalone.nfo_parser.parse_series_nfo", return_value=nfo),
+            patch("standalone.nfo_parser.find_local_poster", return_value=None),
+            patch("db.standalone.upsert_standalone_series", return_value=42),
+            patch("db.wanted.upsert_wanted_item"),
+            patch.object(scanner, "_get_target_languages", return_value=["de"]),
+            patch.object(scanner, "_check_existing_subtitle", return_value=None),
+            patch.object(scanner, "_find_common_parent", return_value="/media/Show"),
+        ):
             wanted = scanner._process_series_group("show", files, folder)
             resolver.resolve_series.assert_called_once()
             assert wanted == 1
@@ -427,17 +467,26 @@ class TestProcessSeriesGroup:
         """When no NFO found, resolver is used directly."""
         scanner, resolver = self._make_scanner()
         files = [
-            {"file_path": "/media/Show/ep01.mkv", "title": "Show", "season": 1, "episode": 1, "is_anime": True, "year": 2024},
+            {
+                "file_path": "/media/Show/ep01.mkv",
+                "title": "Show",
+                "season": 1,
+                "episode": 1,
+                "is_anime": True,
+                "year": 2024,
+            },
         ]
         folder = {"path": "/media/Show"}
 
-        with patch("standalone.nfo_parser.parse_series_nfo", return_value=None), \
-             patch("standalone.nfo_parser.find_local_poster", return_value=None), \
-             patch("db.standalone.upsert_standalone_series", return_value=42), \
-             patch("db.wanted.upsert_wanted_item"), \
-             patch.object(scanner, "_get_target_languages", return_value=["de"]), \
-             patch.object(scanner, "_check_existing_subtitle", return_value=None), \
-             patch.object(scanner, "_find_common_parent", return_value="/media/Show"):
+        with (
+            patch("standalone.nfo_parser.parse_series_nfo", return_value=None),
+            patch("standalone.nfo_parser.find_local_poster", return_value=None),
+            patch("db.standalone.upsert_standalone_series", return_value=42),
+            patch("db.wanted.upsert_wanted_item"),
+            patch.object(scanner, "_get_target_languages", return_value=["de"]),
+            patch.object(scanner, "_check_existing_subtitle", return_value=None),
+            patch.object(scanner, "_find_common_parent", return_value="/media/Show"),
+        ):
             wanted = scanner._process_series_group("show", files, folder)
             resolver.resolve_series.assert_called_once()
             assert wanted == 1
@@ -450,13 +499,15 @@ class TestProcessSeriesGroup:
         ]
         folder = {"path": "/media/Show"}
 
-        with patch("standalone.nfo_parser.parse_series_nfo", return_value=None), \
-             patch("standalone.nfo_parser.find_local_poster", return_value=None), \
-             patch("db.standalone.upsert_standalone_series", return_value=42), \
-             patch("db.wanted.upsert_wanted_item") as mock_upsert, \
-             patch.object(scanner, "_get_target_languages", return_value=["de"]), \
-             patch.object(scanner, "_check_existing_subtitle", return_value="ass"), \
-             patch.object(scanner, "_find_common_parent", return_value="/media/Show"):
+        with (
+            patch("standalone.nfo_parser.parse_series_nfo", return_value=None),
+            patch("standalone.nfo_parser.find_local_poster", return_value=None),
+            patch("db.standalone.upsert_standalone_series", return_value=42),
+            patch("db.wanted.upsert_wanted_item") as mock_upsert,
+            patch.object(scanner, "_get_target_languages", return_value=["de"]),
+            patch.object(scanner, "_check_existing_subtitle", return_value="ass"),
+            patch.object(scanner, "_find_common_parent", return_value="/media/Show"),
+        ):
             wanted = scanner._process_series_group("show", files, folder)
             mock_upsert.assert_not_called()
             assert wanted == 0
@@ -469,13 +520,15 @@ class TestProcessSeriesGroup:
         ]
         folder = {"path": "/media/Show"}
 
-        with patch("standalone.nfo_parser.parse_series_nfo", return_value=None), \
-             patch("standalone.nfo_parser.find_local_poster", return_value=None), \
-             patch("db.standalone.upsert_standalone_series", return_value=42), \
-             patch("db.wanted.upsert_wanted_item") as mock_upsert, \
-             patch.object(scanner, "_get_target_languages", return_value=["de"]), \
-             patch.object(scanner, "_check_existing_subtitle", return_value=None), \
-             patch.object(scanner, "_find_common_parent", return_value="/media/Show"):
+        with (
+            patch("standalone.nfo_parser.parse_series_nfo", return_value=None),
+            patch("standalone.nfo_parser.find_local_poster", return_value=None),
+            patch("db.standalone.upsert_standalone_series", return_value=42),
+            patch("db.wanted.upsert_wanted_item") as mock_upsert,
+            patch.object(scanner, "_get_target_languages", return_value=["de"]),
+            patch.object(scanner, "_check_existing_subtitle", return_value=None),
+            patch.object(scanner, "_find_common_parent", return_value="/media/Show"),
+        ):
             scanner._process_series_group("show", files, folder)
 
             call_kwargs = mock_upsert.call_args[1]
@@ -490,13 +543,15 @@ class TestProcessSeriesGroup:
         ]
         folder = {"path": "/media/Show"}
 
-        with patch("standalone.nfo_parser.parse_series_nfo", return_value=None), \
-             patch("standalone.nfo_parser.find_local_poster", return_value=None), \
-             patch("db.standalone.upsert_standalone_series", return_value=42), \
-             patch("db.wanted.upsert_wanted_item") as mock_upsert, \
-             patch.object(scanner, "_get_target_languages", return_value=["de"]), \
-             patch.object(scanner, "_check_existing_subtitle", return_value=None), \
-             patch.object(scanner, "_find_common_parent", return_value="/media/Show"):
+        with (
+            patch("standalone.nfo_parser.parse_series_nfo", return_value=None),
+            patch("standalone.nfo_parser.find_local_poster", return_value=None),
+            patch("db.standalone.upsert_standalone_series", return_value=42),
+            patch("db.wanted.upsert_wanted_item") as mock_upsert,
+            patch.object(scanner, "_get_target_languages", return_value=["de"]),
+            patch.object(scanner, "_check_existing_subtitle", return_value=None),
+            patch.object(scanner, "_find_common_parent", return_value="/media/Show"),
+        ):
             scanner._process_series_group("show", files, folder)
 
             call_kwargs = mock_upsert.call_args[1]
@@ -507,8 +562,8 @@ class TestProcessSeriesGroup:
 # _process_movie
 # ---------------------------------------------------------------------------
 
-class TestProcessMovie:
 
+class TestProcessMovie:
     def _make_scanner(self):
         resolver = MagicMock()
         resolver.resolve_movie.return_value = {
@@ -524,29 +579,47 @@ class TestProcessMovie:
     def test_nfo_with_tmdb_id_skips_resolver(self):
         scanner, resolver = self._make_scanner()
         parsed = {"title": "Movie", "year": 2024}
-        nfo = {"title": "Movie NFO", "tmdb_id": 999, "imdb_id": "tt999", "local_poster": "", "year": 2024}
+        nfo = {
+            "title": "Movie NFO",
+            "tmdb_id": 999,
+            "imdb_id": "tt999",
+            "local_poster": "",
+            "year": 2024,
+        }
 
-        with patch("standalone.nfo_parser.parse_movie_nfo", return_value=nfo), \
-             patch("standalone.nfo_parser.find_local_poster", return_value=None), \
-             patch("db.standalone.upsert_standalone_movie", return_value=10), \
-             patch("db.wanted.upsert_wanted_item"), \
-             patch.object(scanner, "_get_target_languages", return_value=["de"]), \
-             patch.object(scanner, "_check_existing_subtitle", return_value=None):
-            wanted = scanner._process_movie(parsed, "/media/Movie/movie.mkv", {"path": "/media/Movie"})
+        with (
+            patch("standalone.nfo_parser.parse_movie_nfo", return_value=nfo),
+            patch("standalone.nfo_parser.find_local_poster", return_value=None),
+            patch("db.standalone.upsert_standalone_movie", return_value=10),
+            patch("db.wanted.upsert_wanted_item"),
+            patch.object(scanner, "_get_target_languages", return_value=["de"]),
+            patch.object(scanner, "_check_existing_subtitle", return_value=None),
+        ):
+            wanted = scanner._process_movie(
+                parsed, "/media/Movie/movie.mkv", {"path": "/media/Movie"}
+            )
             resolver.resolve_movie.assert_not_called()
             assert wanted == 1
 
     def test_nfo_without_ids_calls_resolver(self):
         scanner, resolver = self._make_scanner()
         parsed = {"title": "Movie", "year": 2024}
-        nfo = {"title": "Movie Title", "tmdb_id": None, "imdb_id": "", "local_poster": "", "year": 2024}
+        nfo = {
+            "title": "Movie Title",
+            "tmdb_id": None,
+            "imdb_id": "",
+            "local_poster": "",
+            "year": 2024,
+        }
 
-        with patch("standalone.nfo_parser.parse_movie_nfo", return_value=nfo), \
-             patch("standalone.nfo_parser.find_local_poster", return_value=None), \
-             patch("db.standalone.upsert_standalone_movie", return_value=10), \
-             patch("db.wanted.upsert_wanted_item"), \
-             patch.object(scanner, "_get_target_languages", return_value=["de"]), \
-             patch.object(scanner, "_check_existing_subtitle", return_value=None):
+        with (
+            patch("standalone.nfo_parser.parse_movie_nfo", return_value=nfo),
+            patch("standalone.nfo_parser.find_local_poster", return_value=None),
+            patch("db.standalone.upsert_standalone_movie", return_value=10),
+            patch("db.wanted.upsert_wanted_item"),
+            patch.object(scanner, "_get_target_languages", return_value=["de"]),
+            patch.object(scanner, "_check_existing_subtitle", return_value=None),
+        ):
             scanner._process_movie(parsed, "/media/Movie/movie.mkv", {"path": "/media/Movie"})
             resolver.resolve_movie.assert_called_once()
 
@@ -554,12 +627,14 @@ class TestProcessMovie:
         scanner, resolver = self._make_scanner()
         parsed = {"title": "Untitled", "year": None}
 
-        with patch("standalone.nfo_parser.parse_movie_nfo", return_value=None), \
-             patch("standalone.nfo_parser.find_local_poster", return_value=None), \
-             patch("db.standalone.upsert_standalone_movie", return_value=10), \
-             patch("db.wanted.upsert_wanted_item"), \
-             patch.object(scanner, "_get_target_languages", return_value=["de"]), \
-             patch.object(scanner, "_check_existing_subtitle", return_value=None):
+        with (
+            patch("standalone.nfo_parser.parse_movie_nfo", return_value=None),
+            patch("standalone.nfo_parser.find_local_poster", return_value=None),
+            patch("db.standalone.upsert_standalone_movie", return_value=10),
+            patch("db.wanted.upsert_wanted_item"),
+            patch.object(scanner, "_get_target_languages", return_value=["de"]),
+            patch.object(scanner, "_check_existing_subtitle", return_value=None),
+        ):
             scanner._process_movie(parsed, "/media/movie.mkv", {"path": "/media"})
             resolver.resolve_movie.assert_called_once()
 
@@ -567,12 +642,14 @@ class TestProcessMovie:
         scanner, _ = self._make_scanner()
         parsed = {"title": "Movie", "year": 2024}
 
-        with patch("standalone.nfo_parser.parse_movie_nfo", return_value=None), \
-             patch("standalone.nfo_parser.find_local_poster", return_value=None), \
-             patch("db.standalone.upsert_standalone_movie", return_value=10), \
-             patch("db.wanted.upsert_wanted_item") as mock_upsert, \
-             patch.object(scanner, "_get_target_languages", return_value=["de"]), \
-             patch.object(scanner, "_check_existing_subtitle", return_value="ass"):
+        with (
+            patch("standalone.nfo_parser.parse_movie_nfo", return_value=None),
+            patch("standalone.nfo_parser.find_local_poster", return_value=None),
+            patch("db.standalone.upsert_standalone_movie", return_value=10),
+            patch("db.wanted.upsert_wanted_item") as mock_upsert,
+            patch.object(scanner, "_get_target_languages", return_value=["de"]),
+            patch.object(scanner, "_check_existing_subtitle", return_value="ass"),
+        ):
             wanted = scanner._process_movie(parsed, "/media/movie.mkv", {"path": "/media"})
             mock_upsert.assert_not_called()
             assert wanted == 0
@@ -582,12 +659,14 @@ class TestProcessMovie:
         scanner, _ = self._make_scanner()
         parsed = {"title": "Movie", "year": 2024}
 
-        with patch("standalone.nfo_parser.parse_movie_nfo", return_value=None), \
-             patch("standalone.nfo_parser.find_local_poster", return_value=None), \
-             patch("db.standalone.upsert_standalone_movie", return_value=10), \
-             patch("db.wanted.upsert_wanted_item") as mock_upsert, \
-             patch.object(scanner, "_get_target_languages", return_value=["de", "en"]), \
-             patch.object(scanner, "_check_existing_subtitle", return_value=None):
+        with (
+            patch("standalone.nfo_parser.parse_movie_nfo", return_value=None),
+            patch("standalone.nfo_parser.find_local_poster", return_value=None),
+            patch("db.standalone.upsert_standalone_movie", return_value=10),
+            patch("db.wanted.upsert_wanted_item") as mock_upsert,
+            patch.object(scanner, "_get_target_languages", return_value=["de", "en"]),
+            patch.object(scanner, "_check_existing_subtitle", return_value=None),
+        ):
             wanted = scanner._process_movie(parsed, "/media/movie.mkv", {"path": "/media"})
             assert wanted == 2
             assert mock_upsert.call_count == 2
@@ -597,8 +676,8 @@ class TestProcessMovie:
 # process_single_file
 # ---------------------------------------------------------------------------
 
-class TestProcessSingleFile:
 
+class TestProcessSingleFile:
     def _make_scanner(self):
         resolver = MagicMock()
         resolver.resolve_series.return_value = {
@@ -626,34 +705,54 @@ class TestProcessSingleFile:
         scanner = self._make_scanner()
         parsed = {"type": "movie", "title": "Film", "year": 2024}
 
-        with patch("standalone.parser.parse_media_file", return_value=parsed), \
-             patch.object(scanner, "_process_movie", return_value=1):
+        with (
+            patch("standalone.parser.parse_media_file", return_value=parsed),
+            patch.object(scanner, "_process_movie", return_value=1),
+        ):
             result = scanner.process_single_file("/media/film.mkv")
             assert result["type"] == "movie"
             assert result["wanted"] is True
 
     def test_episode_file(self):
         scanner = self._make_scanner()
-        parsed = {"type": "episode", "title": "Anime", "season": 1, "episode": 5, "is_anime": True, "year": 2024}
+        parsed = {
+            "type": "episode",
+            "title": "Anime",
+            "season": 1,
+            "episode": 5,
+            "is_anime": True,
+            "year": 2024,
+        }
 
-        with patch("standalone.parser.parse_media_file", return_value=parsed), \
-             patch("db.standalone.upsert_standalone_series", return_value=42), \
-             patch("db.wanted.upsert_wanted_item"), \
-             patch.object(scanner, "_get_target_languages", return_value=["de"]), \
-             patch.object(scanner, "_check_existing_subtitle", return_value=None):
+        with (
+            patch("standalone.parser.parse_media_file", return_value=parsed),
+            patch("db.standalone.upsert_standalone_series", return_value=42),
+            patch("db.wanted.upsert_wanted_item"),
+            patch.object(scanner, "_get_target_languages", return_value=["de"]),
+            patch.object(scanner, "_check_existing_subtitle", return_value=None),
+        ):
             result = scanner.process_single_file("/media/Anime/ep05.mkv")
             assert result["type"] == "episode"
             assert result["wanted"] is True
 
     def test_episode_with_existing_ass_not_wanted(self):
         scanner = self._make_scanner()
-        parsed = {"type": "episode", "title": "Anime", "season": 1, "episode": 5, "is_anime": False, "year": None}
+        parsed = {
+            "type": "episode",
+            "title": "Anime",
+            "season": 1,
+            "episode": 5,
+            "is_anime": False,
+            "year": None,
+        }
 
-        with patch("standalone.parser.parse_media_file", return_value=parsed), \
-             patch("db.standalone.upsert_standalone_series", return_value=42), \
-             patch("db.wanted.upsert_wanted_item") as mock_upsert, \
-             patch.object(scanner, "_get_target_languages", return_value=["de"]), \
-             patch.object(scanner, "_check_existing_subtitle", return_value="ass"):
+        with (
+            patch("standalone.parser.parse_media_file", return_value=parsed),
+            patch("db.standalone.upsert_standalone_series", return_value=42),
+            patch("db.wanted.upsert_wanted_item") as mock_upsert,
+            patch.object(scanner, "_get_target_languages", return_value=["de"]),
+            patch.object(scanner, "_check_existing_subtitle", return_value="ass"),
+        ):
             result = scanner.process_single_file("/media/Anime/ep05.mkv")
             assert result["type"] == "episode"
             assert result["wanted"] is False
@@ -670,13 +769,22 @@ class TestProcessSingleFile:
     def test_episode_season_episode_formatting(self):
         """S01E05 format in wanted title for single file processing."""
         scanner = self._make_scanner()
-        parsed = {"type": "episode", "title": "Show", "season": 1, "episode": 5, "is_anime": False, "year": None}
+        parsed = {
+            "type": "episode",
+            "title": "Show",
+            "season": 1,
+            "episode": 5,
+            "is_anime": False,
+            "year": None,
+        }
 
-        with patch("standalone.parser.parse_media_file", return_value=parsed), \
-             patch("db.standalone.upsert_standalone_series", return_value=42), \
-             patch("db.wanted.upsert_wanted_item") as mock_upsert, \
-             patch.object(scanner, "_get_target_languages", return_value=["de"]), \
-             patch.object(scanner, "_check_existing_subtitle", return_value="srt"):
+        with (
+            patch("standalone.parser.parse_media_file", return_value=parsed),
+            patch("db.standalone.upsert_standalone_series", return_value=42),
+            patch("db.wanted.upsert_wanted_item") as mock_upsert,
+            patch.object(scanner, "_get_target_languages", return_value=["de"]),
+            patch.object(scanner, "_check_existing_subtitle", return_value="srt"),
+        ):
             scanner.process_single_file("/media/Show/ep05.mkv")
             call_kwargs = mock_upsert.call_args[1]
             assert call_kwargs["season_episode"] == "S01E05"
@@ -685,13 +793,22 @@ class TestProcessSingleFile:
     def test_episode_without_season(self):
         """Episode without season number uses E## format."""
         scanner = self._make_scanner()
-        parsed = {"type": "episode", "title": "Anime", "season": None, "episode": 12, "is_anime": True, "year": None}
+        parsed = {
+            "type": "episode",
+            "title": "Anime",
+            "season": None,
+            "episode": 12,
+            "is_anime": True,
+            "year": None,
+        }
 
-        with patch("standalone.parser.parse_media_file", return_value=parsed), \
-             patch("db.standalone.upsert_standalone_series", return_value=42), \
-             patch("db.wanted.upsert_wanted_item") as mock_upsert, \
-             patch.object(scanner, "_get_target_languages", return_value=["de"]), \
-             patch.object(scanner, "_check_existing_subtitle", return_value=None):
+        with (
+            patch("standalone.parser.parse_media_file", return_value=parsed),
+            patch("db.standalone.upsert_standalone_series", return_value=42),
+            patch("db.wanted.upsert_wanted_item") as mock_upsert,
+            patch.object(scanner, "_get_target_languages", return_value=["de"]),
+            patch.object(scanner, "_check_existing_subtitle", return_value=None),
+        ):
             scanner.process_single_file("/media/Anime/ep12.mkv")
             call_kwargs = mock_upsert.call_args[1]
             assert call_kwargs["season_episode"] == "E12"
@@ -701,8 +818,8 @@ class TestProcessSingleFile:
 # _cleanup_stale_series
 # ---------------------------------------------------------------------------
 
-class TestCleanupStaleSeries:
 
+class TestCleanupStaleSeries:
     def test_removes_nonexistent_folders(self):
         scanner = StandaloneScanner()
         series_list = [
@@ -710,8 +827,10 @@ class TestCleanupStaleSeries:
             {"id": 2, "folder_path": "/also/missing"},
         ]
 
-        with patch("db.standalone.get_standalone_series", return_value=series_list), \
-             patch("db.standalone.delete_standalone_series") as mock_delete:
+        with (
+            patch("db.standalone.get_standalone_series", return_value=series_list),
+            patch("db.standalone.delete_standalone_series") as mock_delete,
+        ):
             removed = scanner._cleanup_stale_series()
             assert removed == 2
             assert mock_delete.call_count == 2
@@ -726,8 +845,10 @@ class TestCleanupStaleSeries:
             {"id": 1, "folder_path": str(season_dir)},
         ]
 
-        with patch("db.standalone.get_standalone_series", return_value=series_list), \
-             patch("db.standalone.delete_standalone_series") as mock_delete:
+        with (
+            patch("db.standalone.get_standalone_series", return_value=series_list),
+            patch("db.standalone.delete_standalone_series") as mock_delete,
+        ):
             removed = scanner._cleanup_stale_series()
             assert removed == 1
             mock_delete.assert_called_once_with(1)
@@ -741,8 +862,10 @@ class TestCleanupStaleSeries:
             {"id": 1, "folder_path": str(series_dir)},
         ]
 
-        with patch("db.standalone.get_standalone_series", return_value=series_list), \
-             patch("db.standalone.delete_standalone_series") as mock_delete:
+        with (
+            patch("db.standalone.get_standalone_series", return_value=series_list),
+            patch("db.standalone.delete_standalone_series") as mock_delete,
+        ):
             removed = scanner._cleanup_stale_series()
             assert removed == 0
             mock_delete.assert_not_called()
@@ -762,8 +885,8 @@ class TestCleanupStaleSeries:
 # _cleanup_stale_wanted
 # ---------------------------------------------------------------------------
 
-class TestCleanupStaleWanted:
 
+class TestCleanupStaleWanted:
     def test_removes_missing_files(self, tmp_path):
         scanner = StandaloneScanner()
         mock_settings = MagicMock()
@@ -777,9 +900,11 @@ class TestCleanupStaleWanted:
         # Create the existing file
         (tmp_path / "exists.mkv").write_bytes(b"\x00")
 
-        with patch("config.get_settings", return_value=mock_settings), \
-             patch("db.get_db", return_value=mock_db), \
-             patch("db.wanted.delete_wanted_items_by_ids") as mock_delete:
+        with (
+            patch("config.get_settings", return_value=mock_settings),
+            patch("db.get_db", return_value=mock_db),
+            patch("db.wanted.delete_wanted_items_by_ids") as mock_delete,
+        ):
             removed = scanner._cleanup_stale_wanted()
             assert removed == 1
             mock_delete.assert_called_once_with([1])
@@ -797,9 +922,11 @@ class TestCleanupStaleWanted:
             (1, str(trailer)),
         ]
 
-        with patch("config.get_settings", return_value=mock_settings), \
-             patch("db.get_db", return_value=mock_db), \
-             patch("db.wanted.delete_wanted_items_by_ids") as mock_delete:
+        with (
+            patch("config.get_settings", return_value=mock_settings),
+            patch("db.get_db", return_value=mock_db),
+            patch("db.wanted.delete_wanted_items_by_ids") as mock_delete,
+        ):
             removed = scanner._cleanup_stale_wanted()
             assert removed == 1
             mock_delete.assert_called_once_with([1])
@@ -817,8 +944,10 @@ class TestCleanupStaleWanted:
             (1, str(existing)),
         ]
 
-        with patch("config.get_settings", return_value=mock_settings), \
-             patch("db.get_db", return_value=mock_db):
+        with (
+            patch("config.get_settings", return_value=mock_settings),
+            patch("db.get_db", return_value=mock_db),
+        ):
             removed = scanner._cleanup_stale_wanted()
             assert removed == 0
 
@@ -832,8 +961,8 @@ class TestCleanupStaleWanted:
 # _get_resolver
 # ---------------------------------------------------------------------------
 
-class TestGetResolver:
 
+class TestGetResolver:
     def test_returns_injected_resolver(self):
         resolver = MagicMock()
         scanner = StandaloneScanner(metadata_resolver=resolver)
@@ -847,9 +976,11 @@ class TestGetResolver:
         mock_settings.tvdb_pin = "pin"
 
         mock_resolver_class = MagicMock()
-        with patch("config.get_settings", return_value=mock_settings), \
-             patch("metadata.MetadataResolver", mock_resolver_class):
-            result = scanner._get_resolver()
+        with (
+            patch("config.get_settings", return_value=mock_settings),
+            patch("metadata.MetadataResolver", mock_resolver_class),
+        ):
+            scanner._get_resolver()
             mock_resolver_class.assert_called_once_with(
                 tmdb_key="key1", tvdb_key="key2", tvdb_pin="pin"
             )
@@ -857,9 +988,11 @@ class TestGetResolver:
     def test_fallback_on_settings_error(self):
         scanner = StandaloneScanner()
         mock_resolver_class = MagicMock()
-        with patch("config.get_settings", side_effect=Exception("no config")), \
-             patch("metadata.MetadataResolver", mock_resolver_class):
-            result = scanner._get_resolver()
+        with (
+            patch("config.get_settings", side_effect=Exception("no config")),
+            patch("metadata.MetadataResolver", mock_resolver_class),
+        ):
+            scanner._get_resolver()
             # Fallback: MetadataResolver() with no args
             mock_resolver_class.assert_called_with()
 
@@ -868,8 +1001,8 @@ class TestGetResolver:
 # is_scanning property
 # ---------------------------------------------------------------------------
 
-class TestIsScanning:
 
+class TestIsScanning:
     def test_default_false(self):
         scanner = StandaloneScanner()
         assert scanner.is_scanning is False

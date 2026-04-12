@@ -12,7 +12,6 @@ import requests
 
 from providers.http_session import RetryingSession, create_session
 
-
 # ---------------------------------------------------------------------------
 # create_session
 # ---------------------------------------------------------------------------

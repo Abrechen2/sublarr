@@ -13,7 +13,6 @@ from forced_detection import (
     is_forced_external_sub,
 )
 
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -148,18 +147,14 @@ class TestDetectSubtitleTypeMultiSignal:
     def test_disposition_plus_filename_forced(self):
         """Two forced signals -> forced with highest confidence."""
         stream = {"disposition": {"forced": 1}}
-        stype, conf = detect_subtitle_type(
-            stream_info=stream, file_path="/media/show.forced.srt"
-        )
+        stype, conf = detect_subtitle_type(stream_info=stream, file_path="/media/show.forced.srt")
         assert stype == "forced"
         assert conf == 1.0  # highest confidence from disposition
 
     def test_filename_plus_title_signs(self):
         """Filename signs + title sign -> signs with 0.9 (filename confidence)."""
         stream = {"tags": {"title": "Signs/Songs"}}
-        stype, conf = detect_subtitle_type(
-            stream_info=stream, file_path="/media/show.signs.srt"
-        )
+        stype, conf = detect_subtitle_type(stream_info=stream, file_path="/media/show.signs.srt")
         assert stype == "signs"
         assert conf == 0.9
 
@@ -172,9 +167,7 @@ class TestDetectSubtitleTypeMultiSignal:
 
     def test_filename_forced_and_signs(self):
         """Filename with both .forced. and .signs. -> both signals, single signal each."""
-        stype, conf = detect_subtitle_type(
-            file_path="/media/show.forced.signs.srt"
-        )
+        stype, conf = detect_subtitle_type(file_path="/media/show.forced.signs.srt")
         # Both forced and signs get one signal each, highest confidence wins
         assert stype in ("forced", "signs")
         assert conf == 0.9
@@ -207,9 +200,7 @@ class TestDetectSubtitleTypeMultiSignal:
         mock_ass = type("SSAFile", (), {"styles": {}})()
         import unittest.mock as mock
 
-        with mock.patch(
-            "ass_utils.classify_styles", side_effect=Exception("parse error")
-        ):
+        with mock.patch("ass_utils.classify_styles", side_effect=Exception("parse error")):
             stype, conf = detect_subtitle_type(ass_content=mock_ass)
             assert stype == "full"
             assert conf == 1.0

@@ -114,9 +114,7 @@ class TestGlossaryCRUD:
 
     def test_update_glossary_entry_all_fields(self, repo):
         """Updating all fields on a glossary entry succeeds."""
-        entry_id = repo.add_glossary_entry(
-            series_id=1, source_term="Old", target_term="Alt"
-        )
+        entry_id = repo.add_glossary_entry(series_id=1, source_term="Old", target_term="Alt")
         result = repo.update_glossary_entry(
             entry_id,
             source_term=" New ",
@@ -166,9 +164,7 @@ class TestGlossaryCRUD:
 
     def test_update_glossary_entry_no_changes(self, repo):
         """Calling update with no fields returns False."""
-        entry_id = repo.add_glossary_entry(
-            series_id=1, source_term="X", target_term="Y"
-        )
+        entry_id = repo.add_glossary_entry(series_id=1, source_term="X", target_term="Y")
         # All kwargs at their default sentinel values -> no update
         result = repo.update_glossary_entry(entry_id)
         assert result is False
@@ -179,9 +175,7 @@ class TestGlossaryCRUD:
 
     def test_delete_glossary_entry(self, repo):
         """Deleting an entry removes it from the database."""
-        entry_id = repo.add_glossary_entry(
-            series_id=1, source_term="Del", target_term="Weg"
-        )
+        entry_id = repo.add_glossary_entry(series_id=1, source_term="Del", target_term="Weg")
         assert repo.delete_glossary_entry(entry_id) is True
         assert repo.get_glossary_entry(entry_id) is None
 
@@ -263,12 +257,8 @@ class TestMergedGlossary:
 
     def test_merged_glossary_series_overrides_global(self, repo):
         """Series entry overrides global entry with same source_term."""
-        repo.add_glossary_entry(
-            series_id=None, source_term="Attack", target_term="Angriff"
-        )
-        repo.add_glossary_entry(
-            series_id=1, source_term="Attack", target_term="Attacke"
-        )
+        repo.add_glossary_entry(series_id=None, source_term="Attack", target_term="Angriff")
+        repo.add_glossary_entry(series_id=1, source_term="Attack", target_term="Attacke")
 
         result = repo.get_merged_glossary_for_series(1)
         assert len(result) == 1
@@ -276,12 +266,8 @@ class TestMergedGlossary:
 
     def test_merged_glossary_case_insensitive_override(self, repo):
         """Override matching is case-insensitive on source_term."""
-        repo.add_glossary_entry(
-            series_id=None, source_term="HELLO", target_term="Hallo"
-        )
-        repo.add_glossary_entry(
-            series_id=1, source_term="hello", target_term="Hi"
-        )
+        repo.add_glossary_entry(series_id=None, source_term="HELLO", target_term="Hallo")
+        repo.add_glossary_entry(series_id=1, source_term="hello", target_term="Hi")
 
         result = repo.get_merged_glossary_for_series(1)
         assert len(result) == 1
@@ -289,12 +275,8 @@ class TestMergedGlossary:
 
     def test_merged_glossary_combined(self, repo):
         """Merged glossary combines global and series entries."""
-        repo.add_glossary_entry(
-            series_id=None, source_term="GlobalOnly", target_term="NurGlobal"
-        )
-        repo.add_glossary_entry(
-            series_id=1, source_term="SeriesOnly", target_term="NurSerie"
-        )
+        repo.add_glossary_entry(series_id=None, source_term="GlobalOnly", target_term="NurGlobal")
+        repo.add_glossary_entry(series_id=1, source_term="SeriesOnly", target_term="NurSerie")
 
         result = repo.get_merged_glossary_for_series(1)
         terms = {r["source_term"] for r in result}
@@ -333,21 +315,15 @@ class TestGlossarySearch:
 
     def test_search_by_target_term(self, repo):
         """Search matches target_term substring."""
-        repo.add_glossary_entry(
-            series_id=1, source_term="Fire", target_term="Feuer"
-        )
+        repo.add_glossary_entry(series_id=1, source_term="Fire", target_term="Feuer")
         results = repo.search_glossary_terms(series_id=1, query="euer")
         assert len(results) == 1
         assert results[0]["target_term"] == "Feuer"
 
     def test_search_global_entries(self, repo):
         """Search with series_id=None searches global entries."""
-        repo.add_glossary_entry(
-            series_id=None, source_term="GlobalTerm", target_term="GlobalZiel"
-        )
-        repo.add_glossary_entry(
-            series_id=1, source_term="GlobalTerm", target_term="SeriesZiel"
-        )
+        repo.add_glossary_entry(series_id=None, source_term="GlobalTerm", target_term="GlobalZiel")
+        repo.add_glossary_entry(series_id=1, source_term="GlobalTerm", target_term="SeriesZiel")
 
         results = repo.search_glossary_terms(series_id=None, query="Global")
         assert len(results) == 1

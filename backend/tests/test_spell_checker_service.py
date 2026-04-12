@@ -10,7 +10,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helper: inject a fake enchant module so SpellChecker can be instantiated
 # ---------------------------------------------------------------------------
@@ -288,7 +287,11 @@ class TestSpellRoutes:
     def test_spell_check_file_not_found(self, client):
         resp = client.post(
             "/api/v1/spell/check",
-            json={"file_path": os.path.join(os.environ.get("SUBLARR_MEDIA_PATH", "/tmp"), "nonexistent.srt")},
+            json={
+                "file_path": os.path.join(
+                    os.environ.get("SUBLARR_MEDIA_PATH", "/tmp"), "nonexistent.srt"
+                )
+            },
         )
         assert resp.status_code == 404
 
