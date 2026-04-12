@@ -399,7 +399,7 @@ class CleanupRepository(BaseRepository):
         # Estimate savings: total dup size - keep one per group
         potential_savings = 0
         for g in groups:
-            sizes = sorted(f["size"] for f in g["files"])
+            sizes = sorted(f["file_size"] for f in g["files"])
             # Keep largest, remove rest
             potential_savings += sum(sizes[:-1])
 
