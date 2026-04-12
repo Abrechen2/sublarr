@@ -190,97 +190,47 @@ class ProviderManager(SearchCoordinatorMixin):
         except Exception as e:
             logger.debug("Plugin loading skipped: %s", e)
 
+    # Built-in provider module names — imported dynamically to trigger @register_provider.
+    _BUILTIN_PROVIDERS = (
+        "opensubtitles",
+        "jimaku",
+        "animetosho",
+        "subdl",
+        "subsdump",
+        "gestdown",
+        "podnapisi",
+        "kitsunekko",
+        "napisy24",
+        "titrari",
+        "legendasdivx",
+        "subscene",
+        "addic7ed",
+        "tvsubtitles",
+        "turkcealtyazi",
+        "subsource",
+        "subf2m",
+        "yifysubtitles",
+        "zimuku",
+        "betaseries",
+        "titlovi",
+        "embedded",
+    )
+
+    @staticmethod
+    def _import_builtin_providers():
+        """Import all built-in provider modules to trigger @register_provider decorators."""
+        import importlib
+
+        for name in ProviderManager._BUILTIN_PROVIDERS:
+            try:
+                importlib.import_module(f"providers.{name}")
+            except ImportError as e:
+                logger.debug("Provider %s not available: %s", name, e)
+
     def _init_providers(self):
         """Initialize enabled providers based on config."""
         # Import providers to trigger registration
-        try:
-            from providers import opensubtitles  # noqa: F401
-        except ImportError as e:
-            logger.debug("OpenSubtitles provider not available: %s", e)
-        try:
-            from providers import jimaku  # noqa: F401
-        except ImportError as e:
-            logger.debug("Jimaku provider not available: %s", e)
-        try:
-            from providers import animetosho  # noqa: F401
-        except ImportError as e:
-            logger.debug("AnimeTosho provider not available: %s", e)
-        try:
-            from providers import subdl  # noqa: F401
-        except ImportError as e:
-            logger.debug("SubDL provider not available: %s", e)
-        try:
-            from providers import subsdump  # noqa: F401
-        except ImportError as e:
-            logger.debug("SubsDump provider not available: %s", e)
-        try:
-            from providers import gestdown  # noqa: F401
-        except ImportError as e:
-            logger.debug("Gestdown provider not available: %s", e)
-        try:
-            from providers import podnapisi  # noqa: F401
-        except ImportError as e:
-            logger.debug("Podnapisi provider not available: %s", e)
-        try:
-            from providers import kitsunekko  # noqa: F401
-        except ImportError as e:
-            logger.debug("Kitsunekko provider not available: %s", e)
-        try:
-            from providers import napisy24  # noqa: F401
-        except ImportError as e:
-            logger.debug("Napisy24 provider not available: %s", e)
-        try:
-            from providers import titrari  # noqa: F401
-        except ImportError as e:
-            logger.debug("Titrari provider not available: %s", e)
-        try:
-            from providers import legendasdivx  # noqa: F401
-        except ImportError as e:
-            logger.debug("LegendasDivx provider not available: %s", e)
-        try:
-            from providers import subscene  # noqa: F401
-        except ImportError as e:
-            logger.debug("Subscene provider not available: %s", e)
-        try:
-            from providers import addic7ed  # noqa: F401
-        except ImportError as e:
-            logger.debug("Addic7ed provider not available: %s", e)
-        try:
-            from providers import tvsubtitles  # noqa: F401
-        except ImportError as e:
-            logger.debug("TVSubtitles provider not available: %s", e)
-        try:
-            from providers import turkcealtyazi  # noqa: F401
-        except ImportError as e:
-            logger.debug("Turkcealtyazi provider not available: %s", e)
-        try:
-            from providers import subsource  # noqa: F401
-        except ImportError as e:
-            logger.debug("Subsource provider not available: %s", e)
-        try:
-            from providers import subf2m  # noqa: F401
-        except ImportError as e:
-            logger.debug("Subf2m provider not available: %s", e)
-        try:
-            from providers import yifysubtitles  # noqa: F401
-        except ImportError as e:
-            logger.debug("YifySubtitles provider not available: %s", e)
-        try:
-            from providers import zimuku  # noqa: F401
-        except ImportError as e:
-            logger.debug("Zimuku provider not available: %s", e)
-        try:
-            from providers import betaseries  # noqa: F401
-        except ImportError as e:
-            logger.debug("BetaSeries provider not available: %s", e)
-        try:
-            from providers import titlovi  # noqa: F401
-        except ImportError as e:
-            logger.debug("Titlovi provider not available: %s", e)
-        try:
-            from providers import embedded  # noqa: F401
-        except ImportError as e:
-            logger.debug("Embedded subtitle provider not available: %s", e)
+        self._import_builtin_providers()
 
         # Load plugin providers (from plugins directory)
         self._load_plugins()

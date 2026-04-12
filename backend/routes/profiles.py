@@ -2,9 +2,26 @@
 
 import logging
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request
 
 from cache_response import cached_get, invalidate_response_cache
+from services.profile_service import (
+    ProfileConflictError,
+    ProfileNotFoundError,
+    ProfileValidationError,
+    assign_profile_to_item,
+    create_glossary,
+    create_preset,
+    create_profile,
+    delete_glossary,
+    delete_preset,
+    delete_profile,
+    export_glossary_as_tsv,
+    set_default_for_all,
+    update_glossary,
+    update_preset,
+    update_profile,
+)
 
 bp = Blueprint("profiles", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
@@ -98,70 +115,15 @@ def create_language_profile_endpoint():
         409:
           description: Profile name already exists
     """
-    from db.profiles import create_language_profile, get_language_profile
-
-    data = request.get_json() or {}
-
-    name = data.get("name", "").strip()
-    if not name:
-        return jsonify({"error": "name is required"}), 400
-
-    source_lang = data.get("source_language", "en")
-    source_name = data.get("source_language_name", "English")
-    target_langs = data.get("target_languages", ["de"])
-    target_names = data.get("target_language_names", ["German"])
-
-    if not target_langs:
-        return jsonify({"error": "At least one target language is required"}), 400
-
-    translation_backend = data.get("translation_backend", "ollama")
-    fallback_chain = data.get("fallback_chain")
-    forced_preference = data.get("forced_preference", "disabled")
-    hi_preference = data.get("hi_preference", "include")
-    forced_scoring = data.get("forced_scoring", "include")
-    must_contain = data.get("must_contain", [])
-    must_not_contain = data.get("must_not_contain", [])
-    cutoff_language = data.get("cutoff_language", "")
-    audio_exclude_languages = data.get("audio_exclude_languages", [])
-
-    if forced_preference not in ("disabled", "separate", "auto"):
-        return jsonify({"error": "forced_preference must be one of: disabled, separate, auto"}), 400
-
-    if hi_preference not in ("include", "prefer", "exclude", "only"):
-        return jsonify(
-            {"error": "hi_preference must be one of: include, prefer, exclude, only"}
-        ), 400
-
-    if forced_scoring not in ("include", "prefer", "exclude", "only"):
-        return jsonify(
-            {"error": "forced_scoring must be one of: include, prefer, exclude, only"}
-        ), 400
-
     try:
-        profile_id = create_language_profile(
-            name,
-            source_lang,
-            source_name,
-            target_langs,
-            target_names,
-            translation_backend=translation_backend,
-            fallback_chain=fallback_chain,
-            forced_preference=forced_preference,
-            hi_preference=hi_preference,
-            forced_scoring=forced_scoring,
-            must_contain=must_contain if isinstance(must_contain, list) else [],
-            must_not_contain=must_not_contain if isinstance(must_not_contain, list) else [],
-            cutoff_language=cutoff_language if isinstance(cutoff_language, str) else "",
-            audio_exclude_languages=(
-                audio_exclude_languages if isinstance(audio_exclude_languages, list) else []
-            ),
-        )
-    except Exception as e:
-        if "UNIQUE constraint" in str(e):
-            return jsonify({"error": f"Profile name '{name}' already exists"}), 409
-        return jsonify({"error": str(e)}), 500
+        profile = create_profile(request.get_json() or {})
+    except ProfileValidationError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except ProfileConflictError as exc:
+        return jsonify({"error": str(exc)}), 409
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
 
-    profile = get_language_profile(profile_id)
     invalidate_response_cache()
     return jsonify(profile), 201
 
@@ -225,71 +187,17 @@ def update_language_profile_endpoint(profile_id):
         409:
           description: Profile name already exists
     """
-    from db.profiles import get_language_profile, update_language_profile
-
-    profile = get_language_profile(profile_id)
-    if not profile:
-        return jsonify({"error": "Profile not found"}), 404
-
-    data = request.get_json() or {}
-    fields = {}
-    for key in (
-        "name",
-        "source_language",
-        "source_language_name",
-        "target_languages",
-        "target_language_names",
-        "translation_backend",
-        "fallback_chain",
-        "forced_preference",
-        "hi_preference",
-        "forced_scoring",
-        "must_contain",
-        "must_not_contain",
-        "cutoff_language",
-        "audio_exclude_languages",
-    ):
-        if key in data:
-            fields[key] = data[key]
-
-    if not fields:
-        return jsonify({"error": "No fields to update"}), 400
-
-    if "forced_preference" in fields and fields["forced_preference"] not in (
-        "disabled",
-        "separate",
-        "auto",
-    ):
-        return jsonify({"error": "forced_preference must be one of: disabled, separate, auto"}), 400
-
-    if "hi_preference" in fields and fields["hi_preference"] not in (
-        "include",
-        "prefer",
-        "exclude",
-        "only",
-    ):
-        return jsonify(
-            {"error": "hi_preference must be one of: include, prefer, exclude, only"}
-        ), 400
-
-    if "forced_scoring" in fields and fields["forced_scoring"] not in (
-        "include",
-        "prefer",
-        "exclude",
-        "only",
-    ):
-        return jsonify(
-            {"error": "forced_scoring must be one of: include, prefer, exclude, only"}
-        ), 400
-
     try:
-        update_language_profile(profile_id, **fields)
-    except Exception as e:
-        if "UNIQUE constraint" in str(e):
-            return jsonify({"error": f"Profile name '{data.get('name')}' already exists"}), 409
-        return jsonify({"error": str(e)}), 500
+        updated = update_profile(profile_id, request.get_json() or {})
+    except ProfileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except ProfileValidationError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except ProfileConflictError as exc:
+        return jsonify({"error": str(exc)}), 409
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
 
-    updated = get_language_profile(profile_id)
     invalidate_response_cache()
     return jsonify(updated)
 
@@ -324,13 +232,13 @@ def delete_language_profile_endpoint(profile_id):
         400:
           description: Profile not found or is the default profile
     """
-    from db.profiles import delete_language_profile
-
-    deleted = delete_language_profile(profile_id)
-    if not deleted:
+    try:
+        result = delete_profile(profile_id)
+    except ProfileNotFoundError:
         return jsonify({"error": "Profile not found or is the default profile"}), 400
+
     invalidate_response_cache()
-    return jsonify({"status": "deleted", "id": profile_id})
+    return jsonify(result)
 
 
 @bp.route("/language-profiles/assign", methods=["PUT"])
@@ -383,32 +291,14 @@ def assign_profile():
         404:
           description: Profile not found
     """
-    from db.profiles import assign_movie_profile, assign_series_profile, get_language_profile
+    try:
+        result = assign_profile_to_item(request.get_json() or {})
+    except ProfileValidationError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except ProfileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 404
 
-    data = request.get_json() or {}
-
-    item_type = data.get("type")
-    arr_id = data.get("arr_id")
-    profile_id = data.get("profile_id")
-
-    if not item_type or arr_id is None or profile_id is None:
-        return jsonify({"error": "type, arr_id, and profile_id are required"}), 400
-
-    # Verify profile exists
-    profile = get_language_profile(profile_id)
-    if not profile:
-        return jsonify({"error": "Profile not found"}), 404
-
-    if item_type == "series":
-        assign_series_profile(arr_id, profile_id)
-    elif item_type == "movie":
-        assign_movie_profile(arr_id, profile_id)
-    else:
-        return jsonify({"error": "type must be 'series' or 'movie'"}), 400
-
-    return jsonify(
-        {"status": "assigned", "type": item_type, "arr_id": arr_id, "profile_id": profile_id}
-    )
+    return jsonify(result)
 
 
 @bp.route("/language-profiles/<int:profile_id>/set-as-default-for-all", methods=["POST"])
@@ -430,16 +320,13 @@ def set_profile_as_default_for_all_endpoint(profile_id):
         404:
           description: Profile not found
     """
-    from db.profiles import get_language_profile, set_profile_as_default_for_all
+    try:
+        result = set_default_for_all(profile_id)
+    except ProfileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 404
 
-    profile = get_language_profile(profile_id)
-    if not profile:
-        return jsonify({"error": "Profile not found"}), 404
-
-    set_profile_as_default_for_all(profile_id)
     invalidate_response_cache()
-    updated = get_language_profile(profile_id)
-    return jsonify({"status": "ok", "profile": updated})
+    return jsonify(result)
 
 
 # ─── Glossary Endpoints ──────────────────────────────────────────────────────
@@ -538,30 +425,11 @@ def create_glossary_entry():
         400:
           description: Missing required fields
     """
-    from db.translation import add_glossary_entry, get_glossary_entry
+    try:
+        entry = create_glossary(request.get_json() or {})
+    except ProfileValidationError as exc:
+        return jsonify({"error": str(exc)}), 400
 
-    data = request.get_json() or {}
-    series_id = data.get("series_id")  # None for global entry
-    source_term = data.get("source_term", "").strip()
-    target_term = data.get("target_term", "").strip()
-    notes = data.get("notes", "").strip()
-    term_type = data.get("term_type", "other")
-    confidence = data.get("confidence", None)
-    approved = data.get("approved", 1)
-
-    if not source_term or not target_term:
-        return jsonify({"error": "source_term and target_term are required"}), 400
-
-    entry_id = add_glossary_entry(
-        series_id,
-        source_term,
-        target_term,
-        notes,
-        term_type=term_type,
-        confidence=confidence,
-        approved=approved,
-    )
-    entry = get_glossary_entry(entry_id)
     return jsonify(entry), 201
 
 
@@ -605,38 +473,14 @@ def update_glossary_entry_endpoint(entry_id):
         404:
           description: Entry not found
     """
-    from db.translation import get_glossary_entry, update_glossary_entry
+    try:
+        entry = update_glossary(entry_id, request.get_json() or {})
+    except ProfileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except ProfileValidationError as exc:
+        return jsonify({"error": str(exc)}), 400
 
-    entry = get_glossary_entry(entry_id)
-    if not entry:
-        return jsonify({"error": "Entry not found"}), 404
-
-    data = request.get_json() or {}
-    source_term = data.get("source_term")
-    target_term = data.get("target_term")
-    notes = data.get("notes")
-    term_type = data.get("term_type")
-    approved = data.get("approved")
-
-    # confidence uses Ellipsis as sentinel: omit key = unchanged, explicit None = clear it
-    _sentinel = ...
-    confidence = data.get("confidence", _sentinel) if "confidence" in data else _sentinel
-
-    updated = update_glossary_entry(
-        entry_id,
-        source_term=source_term,
-        target_term=target_term,
-        notes=notes,
-        term_type=term_type,
-        confidence=confidence,
-        approved=approved,
-    )
-
-    if not updated:
-        return jsonify({"error": "No fields to update"}), 400
-
-    updated_entry = get_glossary_entry(entry_id)
-    return jsonify(updated_entry)
+    return jsonify(entry)
 
 
 @bp.route("/glossary/<int:entry_id>", methods=["DELETE"])
@@ -669,12 +513,12 @@ def delete_glossary_entry_endpoint(entry_id):
         404:
           description: Entry not found
     """
-    from db.translation import delete_glossary_entry
+    try:
+        result = delete_glossary(entry_id)
+    except ProfileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 404
 
-    deleted = delete_glossary_entry(entry_id)
-    if not deleted:
-        return jsonify({"error": "Entry not found"}), 404
-    return jsonify({"status": "deleted", "id": entry_id})
+    return jsonify(result)
 
 
 @bp.route("/glossary/export", methods=["GET"])
@@ -703,30 +547,8 @@ def export_glossary_tsv():
               schema:
                 type: string
     """
-    import io
-
-    from flask import Response
-
-    from db.translation import get_glossary_entries
-
     series_id = request.args.get("series_id", type=int)
-    entries = get_glossary_entries(series_id)
-
-    output = io.StringIO()
-    output.write("source_term\ttarget_term\tterm_type\tnotes\n")
-    for entry in entries:
-        source_term = (entry.get("source_term") or "").replace("\t", " ")
-        target_term = (entry.get("target_term") or "").replace("\t", " ")
-        term_type = (entry.get("term_type") or "").replace("\t", " ")
-        notes = (entry.get("notes") or "").replace("\t", " ")
-        output.write(f"{source_term}\t{target_term}\t{term_type}\t{notes}\n")
-
-    tsv_content = output.getvalue()
-
-    if series_id is not None:
-        filename = f"glossary_series_{series_id}.tsv"
-    else:
-        filename = "glossary_global.tsv"
+    tsv_content, filename = export_glossary_as_tsv(series_id)
 
     return Response(
         tsv_content,
@@ -830,25 +652,10 @@ def create_prompt_preset():
         400:
           description: Missing name or prompt_template
     """
-    from config import reload_settings
-    from db.config import get_all_config_entries
-    from db.translation import add_prompt_preset, get_prompt_preset
-
-    data = request.get_json() or {}
-    name = data.get("name", "").strip()
-    prompt_template = data.get("prompt_template", "").strip()
-    is_default = data.get("is_default", False)
-
-    if not name or not prompt_template:
-        return jsonify({"error": "name and prompt_template are required"}), 400
-
-    preset_id = add_prompt_preset(name, prompt_template, is_default)
-    preset = get_prompt_preset(preset_id)
-
-    # Reload settings if default preset was created
-    if is_default:
-        all_overrides = get_all_config_entries()
-        reload_settings(all_overrides)
+    try:
+        preset = create_preset(request.get_json() or {})
+    except ProfileValidationError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     return jsonify(preset), 201
 
@@ -893,37 +700,14 @@ def update_prompt_preset_endpoint(preset_id):
         404:
           description: Preset not found
     """
-    from config import reload_settings
-    from db.config import get_all_config_entries
-    from db.translation import get_prompt_preset, update_prompt_preset
+    try:
+        preset = update_preset(preset_id, request.get_json() or {})
+    except ProfileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except ProfileValidationError as exc:
+        return jsonify({"error": str(exc)}), 400
 
-    preset = get_prompt_preset(preset_id)
-    if not preset:
-        return jsonify({"error": "Preset not found"}), 404
-
-    data = request.get_json() or {}
-    name = data.get("name")
-    prompt_template = data.get("prompt_template")
-    is_default = data.get("is_default")
-
-    updated = update_prompt_preset(
-        preset_id,
-        name=name,
-        prompt_template=prompt_template,
-        is_default=is_default,
-    )
-
-    if not updated:
-        return jsonify({"error": "No fields to update"}), 400
-
-    updated_preset = get_prompt_preset(preset_id)
-
-    # Reload settings if default preset was updated
-    if is_default or preset.get("is_default"):
-        all_overrides = get_all_config_entries()
-        reload_settings(all_overrides)
-
-    return jsonify(updated_preset)
+    return jsonify(preset)
 
 
 @bp.route("/prompt-presets/<int:preset_id>", methods=["DELETE"])
@@ -956,9 +740,9 @@ def delete_prompt_preset_endpoint(preset_id):
         404:
           description: Preset not found or cannot delete last preset
     """
-    from db.translation import delete_prompt_preset
+    try:
+        result = delete_preset(preset_id)
+    except ProfileNotFoundError as exc:
+        return jsonify({"error": str(exc)}), 404
 
-    deleted = delete_prompt_preset(preset_id)
-    if not deleted:
-        return jsonify({"error": "Preset not found or cannot delete last preset"}), 404
-    return jsonify({"status": "deleted", "id": preset_id})
+    return jsonify(result)

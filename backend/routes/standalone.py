@@ -2,14 +2,15 @@
 
 Manages watched folders, standalone series/movies, metadata refresh,
 and scanner control for folder-watch mode without Sonarr/Radarr.
+
+Business logic lives in ``services.standalone_manager``; this module
+contains only thin HTTP adapter handlers and OpenAPI docstrings.
 """
 
 import logging
 import os
-import threading
 
 from flask import Blueprint, current_app, jsonify, redirect, request, send_file
-from sqlalchemy import text
 
 bp = Blueprint("standalone", __name__, url_prefix="/api/v1/standalone")
 logger = logging.getLogger(__name__)
@@ -277,24 +278,12 @@ def list_series():
         500:
           description: Server error
     """
-    from db import get_db
     from db.standalone import get_standalone_series
+    from services.standalone_manager import enrich_series_list
 
     try:
         series_list = get_standalone_series()
-
-        # Enrich with wanted counts from wanted_items table
-        db = get_db()
-        for series in series_list:
-            row = db.execute(
-                text(
-                    "SELECT COUNT(*) FROM wanted_items WHERE standalone_series_id=:sid AND status='wanted'"
-                ),
-                {"sid": series["id"]},
-            ).fetchone()
-            series["wanted_count"] = row[0] if row else 0
-
-        return jsonify(series_list)
+        return jsonify(enrich_series_list(series_list))
     except Exception as e:
         logger.error("Failed to list standalone series: %s", e)
         return jsonify({"error": "Failed to list standalone series"}), 500
@@ -327,23 +316,15 @@ def get_series(series_id):
         500:
           description: Server error
     """
-    from db import get_db
     from db.standalone import get_standalone_series
+    from services.standalone_manager import enrich_series_detail
 
     try:
         series = get_standalone_series(series_id)
         if not series:
             return jsonify({"error": "Series not found"}), 404
 
-        # Get wanted items for this series
-        db = get_db()
-        rows = db.execute(
-            text("SELECT * FROM wanted_items WHERE standalone_series_id=:sid ORDER BY file_path"),
-            {"sid": series_id},
-        ).fetchall()
-        series["wanted_items"] = [dict(row._mapping) for row in rows]
-
-        return jsonify(series)
+        return jsonify(enrich_series_detail(series, series_id))
     except Exception as e:
         logger.error("Failed to get standalone series %d: %s", series_id, e)
         return jsonify({"error": "Failed to get standalone series"}), 500
@@ -357,33 +338,20 @@ def series_poster(series_id):
     during scanning. Falls back to 404 if no local poster is stored.
     """
     from db.standalone import get_standalone_series
-    from security_utils import is_safe_path
+    from services.standalone_manager import resolve_poster_path
 
     series = get_standalone_series(series_id)
     if not series:
         return jsonify({"error": "Series not found"}), 404
 
-    poster_path = series.get("poster_url", "")
-    if not poster_path:
-        return jsonify({"error": "No local poster available"}), 404
+    poster_path, error, status = resolve_poster_path(
+        series, folder_key="folder_path", use_parent=False
+    )
+    if error:
+        return jsonify({"error": error}), status
 
-    # Remote URL from MetadataResolver — redirect the browser directly
     if poster_path.startswith(("http://", "https://")):
         return redirect(poster_path)
-
-    if not os.path.isfile(poster_path):
-        return jsonify({"error": "No local poster available"}), 404
-
-    # Security: poster must reside inside the series folder or its parent
-    # (poster.jpg often lives in the series root while folder_path may point
-    # to a Season subfolder)
-    series_folder = series.get("folder_path", "")
-    if series_folder:
-        allowed = is_safe_path(poster_path, series_folder) or is_safe_path(
-            poster_path, os.path.dirname(series_folder)
-        )
-        if not allowed:
-            return jsonify({"error": "Forbidden"}), 403
 
     try:
         return send_file(poster_path)
@@ -422,23 +390,15 @@ def delete_series(series_id):
         500:
           description: Server error
     """
-    from db import get_db
-    from db.standalone import delete_standalone_series, get_standalone_series
+    from db.standalone import get_standalone_series
+    from services.standalone_manager import delete_series_cascade
 
     series = get_standalone_series(series_id)
     if not series:
         return jsonify({"error": "Series not found"}), 404
 
     try:
-        # Delete associated wanted items first
-        db = get_db()
-        db.execute(
-            text("DELETE FROM wanted_items WHERE standalone_series_id=:sid"),
-            {"sid": series_id},
-        )
-        db.commit()
-
-        delete_standalone_series(series_id)
+        delete_series_cascade(series_id)
         return jsonify({"success": True})
     except Exception as e:
         logger.error("Failed to delete standalone series %d: %s", series_id, e)
@@ -471,24 +431,12 @@ def list_movies():
         500:
           description: Server error
     """
-    from db import get_db
     from db.standalone import get_standalone_movies
+    from services.standalone_manager import enrich_movie_list
 
     try:
         movies = get_standalone_movies()
-
-        # Enrich with wanted status
-        db = get_db()
-        for movie in movies:
-            row = db.execute(
-                text(
-                    "SELECT COUNT(*) FROM wanted_items WHERE standalone_movie_id=:mid AND status='wanted'"
-                ),
-                {"mid": movie["id"]},
-            ).fetchone()
-            movie["wanted_count"] = row[0] if row else 0
-
-        return jsonify(movies)
+        return jsonify(enrich_movie_list(movies))
     except Exception as e:
         logger.error("Failed to list standalone movies: %s", e)
         return jsonify({"error": "Failed to list standalone movies"}), 500
@@ -521,52 +469,18 @@ def get_movie(movie_id):
         500:
           description: Server error
     """
-    from db import get_db
     from db.standalone import get_standalone_movies
+    from services.standalone_manager import enrich_movie_detail, get_radarr_movie_fallback
 
     movie = get_standalone_movies(movie_id)
     if not movie:
-        # Fallback: try Radarr for library movies
-        try:
-            from radarr_client import get_radarr_client
-
-            radarr = get_radarr_client()
-            if radarr:
-                radarr_movie = radarr.get_movie_by_id(movie_id)
-                if radarr_movie:
-                    poster = next(
-                        (
-                            img.get("remoteUrl", "")
-                            for img in radarr_movie.get("images", [])
-                            if img.get("coverType") == "poster"
-                        ),
-                        "",
-                    )
-                    return jsonify(
-                        {
-                            "id": radarr_movie.get("id"),
-                            "title": radarr_movie.get("title"),
-                            "year": radarr_movie.get("year"),
-                            "poster_url": poster,
-                            "file_path": radarr_movie.get("path", ""),
-                            "wanted_count": 0,
-                            "source": "radarr",
-                        }
-                    )
-        except Exception as e:
-            logger.debug("Radarr fallback failed for movie %d: %s", movie_id, e)
+        fallback = get_radarr_movie_fallback(movie_id)
+        if fallback:
+            return jsonify(fallback)
         return jsonify({"error": "Movie not found"}), 404
 
     try:
-        db = get_db()
-        row = db.execute(
-            text(
-                "SELECT COUNT(*) FROM wanted_items WHERE standalone_movie_id=:mid AND status='wanted'"
-            ),
-            {"mid": movie_id},
-        ).fetchone()
-        movie["wanted_count"] = row[0] if row else 0
-        return jsonify(movie)
+        return jsonify(enrich_movie_detail(movie, movie_id))
     except Exception as e:
         logger.error("Failed to get movie %d: %s", movie_id, e)
         return jsonify({"error": "Failed to get movie"}), 500
@@ -576,31 +490,18 @@ def get_movie(movie_id):
 def movie_poster(movie_id):
     """Serve the local poster image for a standalone movie."""
     from db.standalone import get_standalone_movies
-    from security_utils import is_safe_path
+    from services.standalone_manager import resolve_poster_path
 
     movie = get_standalone_movies(movie_id)
     if not movie:
         return jsonify({"error": "Movie not found"}), 404
 
-    poster_path = movie.get("poster_url", "")
-    if not poster_path:
-        return jsonify({"error": "No local poster available"}), 404
+    poster_path, error, status = resolve_poster_path(movie, folder_key="file_path", use_parent=True)
+    if error:
+        return jsonify({"error": error}), status
 
-    # Remote URL from MetadataResolver — redirect the browser directly
     if poster_path.startswith(("http://", "https://")):
         return redirect(poster_path)
-
-    if not os.path.isfile(poster_path):
-        return jsonify({"error": "No local poster available"}), 404
-
-    # Security: poster must reside inside the movie folder or its parent
-    movie_folder = os.path.dirname(movie.get("file_path", ""))
-    if movie_folder:
-        allowed = is_safe_path(poster_path, movie_folder) or is_safe_path(
-            poster_path, os.path.dirname(movie_folder)
-        )
-        if not allowed:
-            return jsonify({"error": "Forbidden"}), 403
 
     try:
         return send_file(poster_path)
@@ -639,23 +540,15 @@ def delete_movie(movie_id):
         500:
           description: Server error
     """
-    from db import get_db
-    from db.standalone import delete_standalone_movie, get_standalone_movies
+    from db.standalone import get_standalone_movies
+    from services.standalone_manager import delete_movie_cascade
 
     movie = get_standalone_movies(movie_id)
     if not movie:
         return jsonify({"error": "Movie not found"}), 404
 
     try:
-        # Delete associated wanted items first
-        db = get_db()
-        db.execute(
-            text("DELETE FROM wanted_items WHERE standalone_movie_id=:mid"),
-            {"mid": movie_id},
-        )
-        db.commit()
-
-        delete_standalone_movie(movie_id)
+        delete_movie_cascade(movie_id)
         return jsonify({"success": True})
     except Exception as e:
         logger.error("Failed to delete standalone movie %d: %s", movie_id, e)
@@ -689,20 +582,10 @@ def scan_all():
                   message:
                     type: string
     """
+    from services.standalone_manager import launch_full_scan
 
     app = current_app._get_current_object()
-
-    def _run_scan():
-        with app.app_context():
-            try:
-                from standalone.scanner import StandaloneScanner
-
-                scanner = StandaloneScanner()
-                scanner.scan_all_folders()
-            except Exception as e:
-                logger.error("Standalone scan failed: %s", e)
-
-    threading.Thread(target=_run_scan, daemon=True).start()
+    launch_full_scan(app)
     return jsonify({"message": "Scan started"}), 202
 
 
@@ -737,24 +620,14 @@ def scan_folder(folder_id):
           description: Folder not found
     """
     from db.standalone import get_watched_folder
+    from services.standalone_manager import launch_folder_scan
 
     folder = get_watched_folder(folder_id)
     if not folder:
         return jsonify({"error": "Folder not found"}), 404
 
     app = current_app._get_current_object()
-
-    def _run_scan():
-        with app.app_context():
-            try:
-                from standalone.scanner import StandaloneScanner
-
-                scanner = StandaloneScanner()
-                scanner.scan_folder(folder["path"])
-            except Exception as e:
-                logger.error("Standalone scan for folder %d failed: %s", folder_id, e)
-
-    threading.Thread(target=_run_scan, daemon=True).start()
+    launch_folder_scan(app, folder_id, folder["path"])
     return jsonify({"message": f"Scan started for folder {folder_id}"}), 202
 
 
@@ -786,14 +659,11 @@ def get_status():
         500:
           description: Server error
     """
-    try:
-        from standalone import get_standalone_manager
+    from services.standalone_manager import get_standalone_status
 
-        manager = get_standalone_manager()
-        status = manager.get_status()
-        return jsonify(status)
+    try:
+        return jsonify(get_standalone_status())
     except ImportError:
-        # StandaloneManager not yet implemented
         return jsonify(
             {
                 "status": "not_implemented",
@@ -843,35 +713,14 @@ def scan_series(series_id):
           description: Scan failed
     """
     from db.standalone import get_standalone_series
+    from services.standalone_manager import scan_series_or_fallback
 
     series = get_standalone_series(series_id)
     if not series:
         return jsonify({"error": "Series not found"}), 404
 
     try:
-        # Try standalone manager first
-        try:
-            from standalone import get_standalone_manager
-
-            manager = get_standalone_manager()
-            if hasattr(manager, "scan_series"):
-                manager.scan_series(series_id)
-                return jsonify({"message": "Scan started", "series_id": series_id})
-        except (ImportError, AttributeError):
-            pass
-
-        # Fallback: refresh wanted items for this series
-        from db import get_db
-
-        db = get_db()
-        db.execute(
-            text(
-                "UPDATE wanted_items SET status='wanted' WHERE standalone_series_id=:sid"
-                " AND status NOT IN ('downloaded','blacklisted')"
-            ),
-            {"sid": series_id},
-        )
-        db.commit()
+        scan_series_or_fallback(series_id)
         return jsonify({"message": "Scan started", "series_id": series_id})
     except Exception as e:
         logger.error("Failed to scan series %d: %s", series_id, e)
@@ -918,47 +767,17 @@ def refresh_series_metadata(series_id):
           description: Server error
     """
     from db.standalone import get_standalone_series
+    from services.standalone_manager import refresh_series_metadata_sync
 
     series = get_standalone_series(series_id)
     if not series:
         return jsonify({"error": "Series not found"}), 404
 
     try:
-        from metadata import MetadataResolver
-
-        resolver = MetadataResolver()
-
-        # Clear cached metadata for this series
-        title = series.get("title", "")
-        year = series.get("year")
-
-        # Re-resolve metadata
-        result = resolver.resolve_series(title, year=year, is_anime=bool(series.get("is_anime")))
-
-        if result:
-            # Update the series record with new metadata
-            from db.standalone import upsert_standalone_series
-
-            upsert_standalone_series(
-                title=result.get("title", title),
-                folder_path=series["folder_path"],
-                year=result.get("year", year),
-                tmdb_id=result.get("tmdb_id"),
-                tvdb_id=result.get("tvdb_id"),
-                anilist_id=result.get("anilist_id"),
-                imdb_id=result.get("imdb_id", ""),
-                poster_url=result.get("poster_url", ""),
-                is_anime=bool(series.get("is_anime")),
-                episode_count=series.get("episode_count", 0),
-                season_count=series.get("season_count", 0),
-                metadata_source=result.get("metadata_source", ""),
-            )
-
-            updated = get_standalone_series(series_id)
+        updated = refresh_series_metadata_sync(series_id)
+        if updated:
             return jsonify({"success": True, "series": updated})
-        else:
-            return jsonify({"success": False, "message": "No metadata found"}), 404
-
+        return jsonify({"success": False, "message": "No metadata found"}), 404
     except ImportError as e:
         logger.warning("Metadata resolver not available: %s", e)
         return jsonify({"error": "Metadata resolver not available"}), 500
