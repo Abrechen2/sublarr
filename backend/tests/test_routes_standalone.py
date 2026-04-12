@@ -452,7 +452,9 @@ class TestScanSeries:
         series = {"id": 1, "title": "Naruto"}
         with (
             patch(f"{DB_STANDALONE}.get_standalone_series", return_value=series),
-            patch(f"{SVC_STANDALONE}.scan_series_or_fallback", side_effect=RuntimeError("scan err")),
+            patch(
+                f"{SVC_STANDALONE}.scan_series_or_fallback", side_effect=RuntimeError("scan err")
+            ),
         ):
             resp = client.post("/api/v1/standalone/series/1/scan")
         assert resp.status_code == 500

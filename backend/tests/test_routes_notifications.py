@@ -314,7 +314,9 @@ class TestPreviewTemplate:
 
         with (
             patch(REPO_PATCH, return_value=mock_repo),
-            patch("notifier.get_sample_payload", return_value={"title": "Naruto", "language": "de"}),
+            patch(
+                "notifier.get_sample_payload", return_value={"title": "Naruto", "language": "de"}
+            ),
             patch("notifier.render_template", side_effect=lambda tpl, vars: tpl),
         ):
             resp = client.post("/api/v1/notifications/templates/1/preview", json={})

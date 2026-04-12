@@ -445,7 +445,11 @@ class TestSaveWhisperConfig:
 
 class TestWhisperStats:
     def test_returns_stats(self, client):
-        stats = {"total": 42, "by_status": {"completed": 30, "failed": 12}, "avg_processing_time": 5.3}
+        stats = {
+            "total": 42,
+            "by_status": {"completed": 30, "failed": 12},
+            "avg_processing_time": 5.3,
+        }
         with patch("db.whisper.get_whisper_stats", return_value=stats):
             resp = client.get("/api/v1/whisper/stats")
         assert resp.status_code == 200
