@@ -119,6 +119,7 @@ def webhook_sonarr():
     """Handle Sonarr webhook (OnDownload event).
     ---
     post:
+      security: []
       tags:
         - Webhooks
       summary: Sonarr webhook endpoint
@@ -235,6 +236,7 @@ def webhook_radarr():
     """Handle Radarr webhook (OnDownload and MovieFileDelete events).
     ---
     post:
+      security: []
       tags:
         - Webhooks
       summary: Radarr webhook endpoint
@@ -384,6 +386,7 @@ def webhook_jellyfin():
     """Handle Jellyfin Webhook Plugin notifications (PlaybackStart).
     ---
     post:
+      security: []
       tags:
         - Webhooks
       summary: Jellyfin webhook endpoint

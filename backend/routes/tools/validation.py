@@ -19,6 +19,8 @@ def validate_content():
     """Validate subtitle structure via pysubs2.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Tools
       summary: Validate subtitle content
@@ -138,6 +140,8 @@ def parse_cues():
     """Extract structured cue data for timeline visualization.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Tools
       summary: Parse subtitle cues
@@ -291,6 +295,8 @@ def health_check():
     """Run health checks on one or more subtitle files and persist results.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Tools
       summary: Run subtitle health checks
@@ -475,6 +481,8 @@ def health_fix():
     """Apply auto-fixes for detected health issues and re-check quality.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Tools
       summary: Auto-fix subtitle health issues

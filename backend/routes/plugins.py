@@ -16,6 +16,8 @@ def list_plugins():
         {"plugins": [...]} or {"plugins": [], "error": "..."} if no plugin manager.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Plugins
       summary: List loaded plugins
@@ -65,6 +67,8 @@ def reload_plugins():
         {"loaded": [...], "errors": [...]}
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Plugins
       summary: Reload plugins
@@ -119,6 +123,8 @@ def get_plugin_config(name):
         {"config": {...}} with the plugin's current config values.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Plugins
       summary: Get plugin config
@@ -184,6 +190,8 @@ def update_plugin_config(name):
         {"status": "updated", "keys": [...]}
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - Plugins
       summary: Update plugin config

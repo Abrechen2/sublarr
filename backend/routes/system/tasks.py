@@ -345,6 +345,8 @@ def cancel_task(name):
     """Cancel a running background task by name.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - System
       summary: Cancel running task
@@ -382,6 +384,8 @@ def trigger_cleanup():
     """Manually trigger the cleanup task.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - System
       summary: Trigger cleanup
@@ -417,6 +421,8 @@ def trigger_upgrade_scan():
     """Manually trigger the subtitle upgrade scan.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - System
       summary: Trigger upgrade scan
@@ -450,6 +456,8 @@ def trigger_cleanup_jobs():
     """Delete completed/failed translation jobs older than N days.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - System
       summary: Cleanup old jobs

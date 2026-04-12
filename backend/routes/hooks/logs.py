@@ -12,6 +12,8 @@ def list_hook_logs():
     """List hook execution logs with optional filters.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: List hook execution logs
@@ -57,6 +59,8 @@ def clear_logs():
     """Clear all hook logs.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Clear hook logs

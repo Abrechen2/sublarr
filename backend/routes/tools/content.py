@@ -19,6 +19,8 @@ def preview_file():
     """Preview the first 100 lines of a subtitle file.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Tools
       summary: Preview subtitle file
@@ -110,6 +112,8 @@ def get_file_content():
     """Read full subtitle file content for editing.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Tools
       summary: Read full subtitle content
@@ -200,6 +204,8 @@ def save_file_content():
     """Save edited subtitle content with optimistic concurrency check.
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - Tools
       summary: Save edited subtitle content
@@ -308,6 +314,8 @@ def get_backup_content():
     """Read backup file content for diff comparison.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Tools
       summary: Read backup file content

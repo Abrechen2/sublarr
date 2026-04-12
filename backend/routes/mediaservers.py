@@ -14,6 +14,8 @@ def list_server_types():
     """Return all registered media server type info (name, display_name, config_fields).
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - MediaServers
       summary: List media server types
@@ -51,6 +53,8 @@ def get_instances():
     Masks password/token fields in the response (show only last 4 chars).
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - MediaServers
       summary: List media server instances
@@ -110,6 +114,8 @@ def save_instances():
     After saving, invalidates and reloads the media server manager.
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - MediaServers
       summary: Save media server instances
@@ -180,6 +186,8 @@ def test_instance():
     Does NOT persist anything -- this is for the "Test" button in UI.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - MediaServers
       summary: Test media server connection
@@ -242,6 +250,8 @@ def health():
     """Get health status of all configured media server instances.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - MediaServers
       summary: Check media server health

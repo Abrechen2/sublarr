@@ -18,6 +18,8 @@ def compute_diff():
     """Compute a cue-level diff between two subtitle file contents.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       summary: Diff two subtitle files
       requestBody:
         required: true
@@ -133,6 +135,8 @@ def apply_diff():
     created before the write.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       summary: Apply diff to subtitle file
       requestBody:
         required: true

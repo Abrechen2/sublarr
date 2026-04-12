@@ -249,6 +249,8 @@ def batch_extract():
     """Start an async batch OCR job for an entire PGS/VobSub subtitle track.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       summary: Batch OCR subtitle track
       requestBody:
         required: true
@@ -326,6 +328,8 @@ def batch_extract_status(job_id: str):
     """Get status of a batch OCR job.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       summary: Batch OCR job status
       parameters:
         - in: path

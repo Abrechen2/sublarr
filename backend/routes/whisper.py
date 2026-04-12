@@ -51,6 +51,8 @@ def transcribe():
     Returns 202 with job_id and status.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Whisper
       summary: Submit transcription job
@@ -143,6 +145,8 @@ def list_queue():
     Optional query params: status (filter), limit (default 50).
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Whisper
       summary: List transcription queue
@@ -185,6 +189,8 @@ def get_job(job_id):
     """Get a specific job's status and result.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Whisper
       summary: Get transcription job
@@ -221,6 +227,8 @@ def delete_job(job_id):
     If job is completed/failed: delete from DB.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Whisper
       summary: Cancel or delete transcription job
@@ -280,6 +288,8 @@ def list_backends():
     """List available Whisper backends with config.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Whisper
       summary: List Whisper backends
@@ -309,6 +319,8 @@ def test_backend(name):
     """Test a specific Whisper backend.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Whisper
       summary: Test Whisper backend
@@ -354,6 +366,8 @@ def get_backend_config(name):
     Masks password fields.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Whisper
       summary: Get Whisper backend config
@@ -422,6 +436,8 @@ def save_backend_config(name):
     Invalidates cached backend instance.
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - Whisper
       summary: Save Whisper backend config
@@ -488,6 +504,8 @@ def get_whisper_config():
     """Get global Whisper config.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Whisper
       summary: Get global Whisper config
@@ -522,6 +540,8 @@ def save_whisper_config():
     Accepts JSON: {"whisper_backend": str, "max_concurrent_whisper": int, "whisper_enabled": bool}
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - Whisper
       summary: Save global Whisper config
@@ -588,6 +608,8 @@ def whisper_stats():
     """Get Whisper statistics.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Whisper
       summary: Get Whisper statistics

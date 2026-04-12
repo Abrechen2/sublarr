@@ -39,6 +39,8 @@ def list_templates():
     """List all notification templates.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Notifications
       summary: List notification templates
@@ -66,6 +68,8 @@ def create_template():
     """Create a new notification template.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Notifications
       summary: Create notification template
@@ -133,6 +137,8 @@ def get_template(template_id):
     """Get a single notification template.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Notifications
       summary: Get notification template
@@ -162,6 +168,8 @@ def update_template(template_id):
     """Update a notification template.
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - Notifications
       summary: Update notification template
@@ -216,6 +224,8 @@ def delete_template(template_id):
     """Delete a notification template.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Notifications
       summary: Delete notification template
@@ -245,6 +255,8 @@ def preview_template(template_id):
     """Preview a template rendered with sample data.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Notifications
       summary: Preview template rendering
@@ -312,6 +324,8 @@ def list_variables():
     """List all available template variables grouped by event type.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Notifications
       summary: List template variables
@@ -337,6 +351,8 @@ def get_variables(event_type):
     """Get template variables for a specific event type.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Notifications
       summary: Get event variables
@@ -376,6 +392,8 @@ def list_quiet_hours():
     """List all quiet hours configurations.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Notifications
       summary: List quiet hours configs
@@ -395,6 +413,8 @@ def create_quiet_hours():
     """Create a quiet hours configuration.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Notifications
       summary: Create quiet hours config
@@ -469,6 +489,8 @@ def update_quiet_hours(config_id):
     """Update a quiet hours configuration.
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - Notifications
       summary: Update quiet hours config
@@ -510,6 +532,8 @@ def delete_quiet_hours(config_id):
     """Delete a quiet hours configuration.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Notifications
       summary: Delete quiet hours config
@@ -542,6 +566,8 @@ def list_history():
     """Get paginated notification history.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Notifications
       summary: Get notification history
@@ -580,6 +606,8 @@ def resend_notification(notification_id):
     """Re-send a historical notification.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Notifications
       summary: Re-send notification
@@ -618,6 +646,8 @@ def clear_history():
     """Clear notification history.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Notifications
       summary: Clear notification history
@@ -647,6 +677,8 @@ def get_filters():
     """Get current notification event filter configuration.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Notifications
       summary: Get notification filters
@@ -676,6 +708,8 @@ def update_filters():
     """Update notification event filter configuration.
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - Notifications
       summary: Update notification filters

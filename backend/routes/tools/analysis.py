@@ -44,6 +44,8 @@ def compare_files():
     """Compare 2-4 subtitle files side by side.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Tools
       summary: Compare subtitle files
@@ -157,6 +159,8 @@ def quality_trends():
     """Get quality score trends over time.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Tools
       summary: Get quality trends
@@ -213,6 +217,8 @@ def overlap_fix():
     """Trim overlapping cue end times so consecutive cues no longer overlap.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       summary: Fix subtitle overlaps
       requestBody:
         required: true
@@ -262,6 +268,8 @@ def timing_normalize():
     """Extend too-short cues and report too-long cues.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       summary: Normalize subtitle timing
       requestBody:
         required: true
@@ -310,6 +318,8 @@ def merge_lines():
     """Merge consecutive cues separated by a short gap.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       summary: Merge consecutive subtitle lines
       requestBody:
         required: true
@@ -362,6 +372,8 @@ def split_lines():
     r"""Split cues containing \N or exceeding max_chars at natural boundaries.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       summary: Split long subtitle lines
       requestBody:
         required: true

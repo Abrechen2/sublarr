@@ -34,6 +34,8 @@ def trigger_refresh():
     immediately. Poll GET /status to track progress.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags: [AniDB]
       summary: Trigger AniDB mapping sync
       responses:
@@ -63,6 +65,8 @@ def get_status():
     """Return the current AniDB sync state.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags: [AniDB]
       summary: AniDB sync status
       responses:
@@ -98,6 +102,8 @@ def get_series_mappings(tvdb_id: int):
     """Return all absolute episode mappings for a TVDB series.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags: [AniDB]
       parameters:
         - name: tvdb_id
@@ -120,6 +126,8 @@ def clear_series_mappings(tvdb_id: int):
     """Delete all absolute episode mappings for a TVDB series.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags: [AniDB]
       parameters:
         - name: tvdb_id
@@ -147,6 +155,8 @@ def get_series_settings(sonarr_series_id: int):
     """Return series-level settings including absolute_order flag.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags: [AniDB]
       parameters:
         - name: sonarr_series_id
@@ -176,6 +186,8 @@ def update_series_settings(sonarr_series_id: int):
       { "absolute_order": true | false }
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags: [AniDB]
       parameters:
         - name: sonarr_series_id

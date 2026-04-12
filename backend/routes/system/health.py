@@ -121,6 +121,7 @@ def health():
     """Health check endpoint (no auth required).
     ---
     get:
+      security: []
       tags:
         - System
       summary: Basic health check
@@ -205,6 +206,7 @@ def check_update():
     any error so the UI degrades gracefully.
     ---
     get:
+      security: []
       tags:
         - System
       summary: Check for updates

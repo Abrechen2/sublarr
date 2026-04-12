@@ -194,6 +194,8 @@ def cleanup_sidecars():
     """Delete non-target-language subtitle sidecars next to extracted media files.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Wanted
       summary: Cleanup non-target sidecar subtitles

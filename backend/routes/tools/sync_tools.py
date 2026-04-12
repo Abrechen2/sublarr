@@ -116,6 +116,8 @@ def advanced_sync():
     """Apply advanced sync operations (offset, speed, framerate) via pysubs2.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Tools
       summary: Advanced subtitle sync

@@ -33,6 +33,8 @@ def list_language_profiles():
     """Get all language profiles.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Profiles
       summary: List all language profiles
@@ -61,6 +63,8 @@ def create_language_profile_endpoint():
     """Create a new language profile.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Profiles
       summary: Create a language profile
@@ -133,6 +137,8 @@ def update_language_profile_endpoint(profile_id):
     """Update a language profile.
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - Profiles
       summary: Update a language profile
@@ -207,6 +213,8 @@ def delete_language_profile_endpoint(profile_id):
     """Delete a language profile (cannot delete default).
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Profiles
       summary: Delete a language profile
@@ -248,6 +256,8 @@ def assign_profile():
     Body: { type: "series"|"movie", arr_id: int, profile_id: int }
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - Profiles
       summary: Assign profile to series or movie
@@ -310,6 +320,8 @@ def set_profile_as_default_for_all_endpoint(profile_id):
     item falls back to the new default profile.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Profiles
       summary: Set profile as default for all items
@@ -337,6 +349,8 @@ def list_glossary():
     """Get glossary entries for a series or global glossary.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Profiles
       summary: List glossary entries
@@ -389,6 +403,8 @@ def create_glossary_entry():
     """Create a new glossary entry (per-series or global).
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Profiles
       summary: Create a glossary entry
@@ -438,6 +454,8 @@ def update_glossary_entry_endpoint(entry_id):
     """Update a glossary entry.
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - Profiles
       summary: Update a glossary entry
@@ -488,6 +506,8 @@ def delete_glossary_entry_endpoint(entry_id):
     """Delete a glossary entry.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Profiles
       summary: Delete a glossary entry
@@ -526,6 +546,8 @@ def export_glossary_tsv():
     """Export glossary entries as a TSV file download.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Profiles
       summary: Export glossary as TSV
@@ -566,6 +588,8 @@ def list_prompt_presets():
     """Get all prompt presets.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Profiles
       summary: List prompt presets
@@ -594,6 +618,8 @@ def get_default_preset():
     """Get the default prompt preset.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Profiles
       summary: Get default prompt preset
@@ -621,6 +647,8 @@ def create_prompt_preset():
     """Create a new prompt preset.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Profiles
       summary: Create a prompt preset
@@ -665,6 +693,8 @@ def update_prompt_preset_endpoint(preset_id):
     """Update a prompt preset.
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - Profiles
       summary: Update a prompt preset
@@ -715,6 +745,8 @@ def delete_prompt_preset_endpoint(preset_id):
     """Delete a prompt preset.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Profiles
       summary: Delete a prompt preset

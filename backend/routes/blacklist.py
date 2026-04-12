@@ -13,6 +13,8 @@ def list_blacklist():
     """Get paginated blacklist entries.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Blacklist
       summary: List blacklist entries
@@ -63,6 +65,8 @@ def add_to_blacklist():
     """Add a subtitle to the blacklist.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Blacklist
       summary: Add subtitle to blacklist
@@ -130,6 +134,8 @@ def delete_blacklist_entry(entry_id):
     """Remove a single blacklist entry.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Blacklist
       summary: Remove blacklist entry
@@ -168,6 +174,8 @@ def clear_all_blacklist():
     """Clear all blacklist entries. Requires ?confirm=true.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Blacklist
       summary: Clear all blacklist entries
@@ -210,6 +218,8 @@ def blacklist_count():
     """Get blacklist entry count.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Blacklist
       summary: Get blacklist count
@@ -238,6 +248,8 @@ def list_history():
     """Get paginated download history.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Blacklist
       summary: List download history
@@ -353,6 +365,8 @@ def history_stats():
     """Get aggregated download statistics.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Blacklist
       summary: Get download statistics

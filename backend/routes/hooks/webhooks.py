@@ -19,6 +19,8 @@ def list_webhooks():
     """List all webhook configs, optionally filtered by event_name.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: List outgoing webhooks
@@ -51,6 +53,8 @@ def create_webhook():
     """Create a new webhook config.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Create an outgoing webhook
@@ -129,6 +133,8 @@ def get_webhook(webhook_id):
     """Get a single webhook config by ID.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Get webhook config
@@ -162,6 +168,8 @@ def update_webhook(webhook_id):
     """Update a webhook config.
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Update an outgoing webhook
@@ -246,6 +254,8 @@ def delete_webhook(webhook_id):
     """Delete a webhook config.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Delete an outgoing webhook
@@ -271,6 +281,8 @@ def test_webhook(webhook_id):
     """Test-fire a webhook with sample payload (blocking).
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Test an outgoing webhook

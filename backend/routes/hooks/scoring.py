@@ -12,6 +12,8 @@ def get_weights():
     """Return all scoring weights (episode + movie) merged with defaults.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Get scoring weights
@@ -64,6 +66,8 @@ def update_weights():
     """Update scoring weights for episode and/or movie types.
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Update scoring weights
@@ -123,6 +127,8 @@ def reset_weights():
     """Reset all scoring weights to defaults.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Reset scoring weights
@@ -147,6 +153,8 @@ def get_modifiers():
     """Return all provider score modifiers.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Get provider score modifiers
@@ -172,6 +180,8 @@ def update_modifiers():
     """Update provider modifiers from a dict of {provider_name: modifier}.
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Update provider score modifiers
@@ -216,6 +226,8 @@ def delete_modifier(provider_name):
     """Delete a single provider modifier.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Delete a provider score modifier
@@ -246,6 +258,8 @@ def list_presets():
     """Return metadata for all bundled scoring presets.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: List scoring presets
@@ -264,6 +278,8 @@ def get_preset(name: str):
     """Return a single bundled preset by name.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Get scoring preset
@@ -294,6 +310,8 @@ def import_preset():
     Accepts a preset JSON body. Writes weights and provider modifiers to DB.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Import scoring preset

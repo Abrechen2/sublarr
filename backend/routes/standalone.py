@@ -26,6 +26,8 @@ def list_folders():
     """List all watched folders (enabled_only=False for settings display).
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Standalone
       summary: List watched folders
@@ -71,6 +73,8 @@ def add_folder():
     Body: {path: str, label?: str, media_type?: str}
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Standalone
       summary: Add a watched folder
@@ -140,6 +144,8 @@ def update_folder(folder_id):
     Body: {path?: str, label?: str, media_type?: str, enabled?: bool}
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - Standalone
       summary: Update a watched folder
@@ -213,6 +219,8 @@ def delete_folder(folder_id):
     """Delete a watched folder.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Standalone
       summary: Delete a watched folder
@@ -262,6 +270,8 @@ def list_series():
     """List all standalone series with episode counts and wanted counts.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Standalone
       summary: List standalone series
@@ -294,6 +304,8 @@ def get_series(series_id):
     """Get a single standalone series with its files and wanted status.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Standalone
       summary: Get standalone series detail
@@ -365,6 +377,8 @@ def delete_series(series_id):
     """Delete a standalone series and its wanted items.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Standalone
       summary: Delete standalone series
@@ -415,6 +429,8 @@ def list_movies():
     """List all standalone movies with wanted status.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Standalone
       summary: List standalone movies
@@ -447,6 +463,8 @@ def get_movie(movie_id):
     """Get a single standalone movie by ID.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Standalone
       summary: Get standalone movie
@@ -515,6 +533,8 @@ def delete_movie(movie_id):
     """Delete a standalone movie and its wanted items.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Standalone
       summary: Delete standalone movie
@@ -567,6 +587,8 @@ def scan_all():
     Runs in a background thread. Returns 202 immediately.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Standalone
       summary: Scan all watched folders
@@ -596,6 +618,8 @@ def scan_folder(folder_id):
     Runs in a background thread. Returns 202 immediately.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Standalone
       summary: Scan a single folder
@@ -636,6 +660,8 @@ def get_status():
     """Get standalone mode status from StandaloneManager.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Standalone
       summary: Get standalone mode status
@@ -685,6 +711,8 @@ def scan_series(series_id):
     """Trigger a re-scan of a single standalone series.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Standalone
       summary: Re-scan standalone series
@@ -739,6 +767,8 @@ def refresh_series_metadata(series_id):
     Clears cache and re-fetches from TMDB/AniList/TVDB.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Standalone
       summary: Refresh series metadata

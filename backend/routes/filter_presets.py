@@ -12,6 +12,8 @@ def list_filter_presets():
     """List filter presets by scope.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - FilterPresets
       summary: List filter presets
@@ -54,6 +56,8 @@ def create_filter_preset():
     """Create a new filter preset.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - FilterPresets
       summary: Create filter preset
@@ -105,6 +109,8 @@ def update_filter_preset(preset_id: int):
     """Update an existing filter preset.
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - FilterPresets
       summary: Update filter preset
@@ -153,6 +159,8 @@ def delete_filter_preset(preset_id: int):
     """Delete a filter preset.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - FilterPresets
       summary: Delete filter preset

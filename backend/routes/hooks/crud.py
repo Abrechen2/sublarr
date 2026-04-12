@@ -12,6 +12,8 @@ def list_hooks():
     """List all hook configs, optionally filtered by event_name.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: List shell hooks
@@ -44,6 +46,8 @@ def create_hook():
     """Create a new hook config.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Create a shell hook
@@ -112,6 +116,8 @@ def get_hook(hook_id):
     """Get a single hook config by ID.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Get hook config
@@ -145,6 +151,8 @@ def update_hook(hook_id):
     """Update a hook config.
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Update a shell hook
@@ -215,6 +223,8 @@ def delete_hook(hook_id):
     """Delete a hook config.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Delete a shell hook
@@ -240,6 +250,8 @@ def test_hook(hook_id):
     """Test-fire a hook with sample event data (blocking).
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Test a shell hook

@@ -37,6 +37,8 @@ def spell_check():
     """Spell-check a subtitle file using hunspell. Returns misspelled words.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       summary: Spell-check subtitle
       requestBody:
         required: true
@@ -93,6 +95,8 @@ def convert_format():
     """Convert a subtitle file to a different format via pysubs2.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       summary: Convert subtitle format
       requestBody:
         required: true
@@ -205,6 +209,8 @@ def waveform_extract():
     """Extract audio from a video file as Opus for waveform display.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       summary: Extract waveform audio
       requestBody:
         required: true

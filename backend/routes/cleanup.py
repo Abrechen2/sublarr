@@ -45,6 +45,8 @@ def start_scan():
     """Start a background deduplication scan.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Cleanup
       summary: Start dedup scan
@@ -114,6 +116,8 @@ def scan_status():
     """Get current scan status.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Cleanup
       summary: Get scan status
@@ -149,6 +153,8 @@ def get_duplicates():
     """Get duplicate groups from the last scan.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Cleanup
       summary: List duplicate groups
@@ -205,6 +211,8 @@ def delete_duplicates():
     """Delete selected files from duplicate groups.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Cleanup
       summary: Delete duplicates
@@ -302,6 +310,8 @@ def scan_orphaned():
     """Scan for orphaned subtitle files.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Cleanup
       summary: Scan for orphans
@@ -354,6 +364,8 @@ def get_orphaned():
     """Get list of orphaned subtitle files from the last scan.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Cleanup
       summary: List orphaned files
@@ -392,6 +404,8 @@ def delete_orphaned():
     """Delete selected orphaned subtitle files.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Cleanup
       summary: Delete orphaned files
@@ -493,6 +507,8 @@ def list_rules():
     """List all cleanup rules.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Cleanup
       summary: List cleanup rules
@@ -520,6 +536,8 @@ def create_rule():
     """Create a new cleanup rule.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Cleanup
       summary: Create cleanup rule
@@ -602,6 +620,8 @@ def update_rule(rule_id: int):
     """Update a cleanup rule.
     ---
     put:
+      security:
+        - apiKeyAuth: []
       tags:
         - Cleanup
       summary: Update cleanup rule
@@ -665,6 +685,8 @@ def delete_rule(rule_id: int):
     """Delete a cleanup rule.
     ---
     delete:
+      security:
+        - apiKeyAuth: []
       tags:
         - Cleanup
       summary: Delete cleanup rule
@@ -698,6 +720,8 @@ def run_rule(rule_id: int):
     """Execute a cleanup rule manually.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Cleanup
       summary: Run cleanup rule
@@ -735,6 +759,8 @@ def preview_rule_endpoint(rule_id: int):
     """Dry-run a cleanup rule — return what would be deleted without deleting.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Cleanup
       summary: Preview cleanup rule
@@ -777,6 +803,8 @@ def cleanup_stats():
     """Get disk space analysis and cleanup statistics.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Cleanup
       summary: Cleanup statistics
@@ -826,6 +854,8 @@ def cleanup_history():
     """Get cleanup execution history.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Cleanup
       summary: Cleanup history
@@ -876,6 +906,8 @@ def preview_cleanup():
     """Preview what a cleanup operation would do without executing.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Cleanup
       summary: Preview cleanup operation

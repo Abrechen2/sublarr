@@ -12,6 +12,8 @@ def global_search():
     """Full-text search across series, episodes, and subtitles.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Search
       summary: Global search
@@ -65,6 +67,8 @@ def rebuild_index():
     """Rebuild FTS5 search index from current DB state.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Search
       summary: Rebuild search index

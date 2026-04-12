@@ -52,6 +52,8 @@ def remove_hi():
     """Remove hearing-impaired markers from a subtitle file.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Tools
       summary: Remove HI markers
@@ -151,6 +153,8 @@ def remove_credits():
     """Remove staff credit lines from a subtitle file.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Tools
       summary: Remove credit lines
@@ -266,6 +270,8 @@ def detect_opening_ending():
     """Detect OP/ED cue regions in a subtitle file.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Tools
       summary: Detect OP/ED regions
@@ -333,6 +339,8 @@ def adjust_timing():
     """Shift subtitle timestamps by offset_ms.
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Tools
       summary: Adjust subtitle timing
@@ -467,6 +475,8 @@ def common_fixes():
     """Apply common subtitle fixes (encoding, whitespace, linebreaks, empty_lines).
     ---
     post:
+      security:
+        - apiKeyAuth: []
       tags:
         - Tools
       summary: Apply common fixes

@@ -13,6 +13,8 @@ def get_languages():
     """Return the list of supported languages for the UI language picker.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Config
       summary: Supported languages

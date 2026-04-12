@@ -12,6 +12,8 @@ def get_event_catalog():
     """Return the EVENT_CATALOG as a JSON list for UI dropdowns.
     ---
     get:
+      security:
+        - apiKeyAuth: []
       tags:
         - Events
       summary: Get event catalog
