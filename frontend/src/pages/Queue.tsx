@@ -1,14 +1,35 @@
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useWantedBatchStatus, useWantedBatchProbeStatus, useScannerStatus } from '@/hooks/useApi'
+import { useWebSocket } from '@/hooks/useWebSocket'
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { truncatePath } from '@/lib/utils'
 import { Layers, ListVideo, ScanSearch, Search } from 'lucide-react'
+
+interface ProviderSummary {
+  active: number
+  throttled: number
+  circuit_open: number
+  throttled_providers: { name: string; remaining_seconds: number }[]
+}
 
 export function QueuePage() {
   const { t } = useTranslation('activity')
   const { data: wantedBatch } = useWantedBatchStatus()
   const { data: probe } = useWantedBatchProbeStatus()
   const { data: scanner } = useScannerStatus()
+
+  // Track provider summary from WebSocket search progress events
+  const [providerSummary, setProviderSummary] = useState<ProviderSummary | null>(null)
+  const handleSearchProgress = useCallback((data: unknown) => {
+    const d = data as { provider_summary?: ProviderSummary }
+    if (d?.provider_summary) setProviderSummary(d.provider_summary)
+  }, [])
+  const handleSearchCompleted = useCallback(() => setProviderSummary(null), [])
+  useWebSocket({
+    onWantedSearchProgress: handleSearchProgress,
+    onWantedSearchCompleted: handleSearchCompleted,
+  })
 
   const isActive = wantedBatch?.running || probe?.running || scanner?.is_scanning || scanner?.is_searching
 
@@ -58,6 +79,9 @@ export function QueuePage() {
             >
               {t('queue.current')}: {truncatePath(wantedBatch.current_item, 80)}
             </div>
+          )}
+          {providerSummary && (
+            <ProviderStatusLine summary={providerSummary} />
           )}
         </div>
       )}
@@ -150,6 +174,11 @@ export function QueuePage() {
         </div>
       )}
 
+      {/* Scanner provider status (if search running but no batch) */}
+      {scanner?.is_searching && !wantedBatch?.running && providerSummary && (
+        <ProviderStatusLine summary={providerSummary} />
+      )}
+
       {/* Empty state */}
       {!isActive && (
         <div
@@ -161,6 +190,51 @@ export function QueuePage() {
             {t('queue.empty', 'No active subtitle searches. Use "Search All" on the Wanted page to start.')}
           </p>
         </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Provider Status Line ────────────────────────────────────────────────────
+
+function ProviderStatusLine({ summary }: { summary: ProviderSummary }) {
+  const { throttled, circuit_open, active, throttled_providers } = summary
+  const problemCount = throttled + circuit_open
+
+  if (problemCount === 0) {
+    return (
+      <div className="mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+        <span style={{ color: 'var(--success)' }}>&#9889;</span>{' '}
+        {active} Provider aktiv
+      </div>
+    )
+  }
+
+  const isMostlyThrottled = problemCount > active
+
+  // Show up to 3 throttled provider names with remaining seconds
+  const throttledNames = throttled_providers
+    .filter((p) => p.remaining_seconds > 0)
+    .slice(0, 3)
+    .map((p) => `${p.name} ${p.remaining_seconds}s`)
+    .join(', ')
+
+  return (
+    <div className="mt-3 text-xs" style={{ color: isMostlyThrottled ? 'var(--warning)' : 'var(--text-muted)' }}>
+      {isMostlyThrottled ? (
+        <>
+          <span>&#9888;&#65039;</span> {active} aktiv &middot; {problemCount} gedrosselt &mdash; Suche verlangsamt
+        </>
+      ) : (
+        <>
+          <span style={{ color: 'var(--warning)' }}>&#9203;</span>{' '}
+          {active} aktiv &middot; {problemCount} gedrosselt
+          {throttledNames && (
+            <span style={{ color: 'var(--text-muted)', marginLeft: '4px' }}>
+              ({throttledNames})
+            </span>
+          )}
+        </>
       )}
     </div>
   )

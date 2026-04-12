@@ -37,6 +37,7 @@ hook_executed = sublarr_signals.signal("hook_executed")
 standalone_scan_complete = sublarr_signals.signal("standalone_scan_complete")
 standalone_file_detected = sublarr_signals.signal("standalone_file_detected")
 wanted_item_searched = sublarr_signals.signal("wanted_item_searched")
+provider_state_changed = sublarr_signals.signal("provider_state_changed")
 
 # ---- Catalog dict (machine-readable metadata) ----------------------------------
 
@@ -285,6 +286,18 @@ EVENT_CATALOG: dict[str, dict] = {
             "status",
             "found",
             "error",
+        ],
+    },
+    "provider_state_changed": {
+        "signal": provider_state_changed,
+        "label": "Provider State Changed",
+        "description": "A provider was throttled, circuit-broken, or re-activated.",
+        "payload_keys": [
+            "provider",
+            "state",
+            "reason",
+            "until",
+            "remaining_seconds",
         ],
     },
 }

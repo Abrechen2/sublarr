@@ -191,6 +191,24 @@ class SearchCoordinatorMixin:
 
         return [], 0.0
 
+    @staticmethod
+    def _emit_provider_state(name: str, state: str, reason: str, remaining_seconds: int = 0):
+        """Emit a provider_state_changed WebSocket event."""
+        try:
+            from events import emit_event
+
+            emit_event(
+                "provider_state_changed",
+                {
+                    "provider": name,
+                    "state": state,
+                    "reason": reason,
+                    "remaining_seconds": remaining_seconds,
+                },
+            )
+        except Exception:
+            pass
+
     def _check_auto_disable(self, name: str):
         """Check if a provider should be auto-disabled based on consecutive failures.
 
@@ -412,6 +430,7 @@ class SearchCoordinatorMixin:
                                     )
                                 except Exception as _pe:
                                     logger.debug("CB persistence failed: %s", _pe)
+                                self._emit_provider_state(name, "circuit_open", "timeout", cb.cooldown_seconds)
                         update_provider_stats(name, success=False, score=0)
                         self._check_auto_disable(name)
                     except Exception as e:
@@ -429,6 +448,7 @@ class SearchCoordinatorMixin:
                                     )
                                 except Exception as _pe:
                                     logger.debug("CB persistence failed: %s", _pe)
+                                self._emit_provider_state(name, "circuit_open", "failures", cb.cooldown_seconds)
                         # Rate-limit exception → extended throttle (Bazarr throttle_map parity)
                         if isinstance(e, ProviderRateLimitError):
                             throttle_min = getattr(
@@ -443,6 +463,20 @@ class SearchCoordinatorMixin:
                                     name,
                                     throttle_min,
                                 )
+                                try:
+                                    from events import emit_event
+
+                                    emit_event(
+                                        "provider_state_changed",
+                                        {
+                                            "provider": name,
+                                            "state": "throttled",
+                                            "reason": "rate_limited",
+                                            "remaining_seconds": throttle_min * 60,
+                                        },
+                                    )
+                                except Exception:
+                                    pass
                             except Exception as _te:
                                 logger.debug("Rate-limit throttle persistence failed: %s", _te)
                         update_provider_stats(name, success=False, score=0)

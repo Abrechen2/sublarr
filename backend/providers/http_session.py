@@ -46,6 +46,13 @@ class RetryingSession(requests.Session):
         self.default_timeout = timeout
         self._rate_limit_until: float | None = None
 
+    @property
+    def rate_limit_remaining_seconds(self) -> float:
+        """Seconds until rate limit expires, or 0 if not throttled."""
+        if self._rate_limit_until and time.time() < self._rate_limit_until:
+            return self._rate_limit_until - time.time()
+        return 0.0
+
     def request(self, method, url, **kwargs):
         # Apply default timeout
         if "timeout" not in kwargs:

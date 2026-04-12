@@ -449,6 +449,9 @@ def provider_health():
                 "disabled_until": stats.get("disabled_until", ""),
                 "consecutive_failures": stats.get("consecutive_failures", 0),
                 "total_searches": stats.get("total_searches", 0),
+                "circuit_breaker_state": s.get("circuit_breaker_state", "closed"),
+                "throttled_until": s.get("throttled_until"),
+                "throttle_reason": s.get("throttle_reason"),
             }
         )
 

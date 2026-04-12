@@ -671,12 +671,40 @@ class ProviderManager(SearchCoordinatorMixin):
             }
 
             provider = self._providers.get(name)
+
+            # Circuit breaker + rate limit state
+            cb_state = "closed"
+            throttled_until = None
+            throttle_reason = None
+
+            cb = self._circuit_breakers.get(name)
+            if cb:
+                cb_state = cb.state
+
+            if provider and hasattr(provider, "session"):
+                remaining = getattr(provider.session, "rate_limit_remaining_seconds", 0.0)
+                if remaining > 0:
+                    import time as _time
+                    from datetime import UTC, datetime
+
+                    throttled_until = datetime.fromtimestamp(
+                        _time.time() + remaining, tz=UTC
+                    ).isoformat()
+                    throttle_reason = "rate_limited"
+
+            if auto_disabled:
+                disabled_until_str = perf_stats.get("disabled_until", "") or ""
+                if disabled_until_str:
+                    throttled_until = disabled_until_str
+                throttle_reason = "auto_disabled"
+
             if provider:
                 # Derive health from cached DB stats — no live HTTP requests.
-                # Matches Bazarr's reactive approach: healthy until proven otherwise.
                 consecutive_failures = perf_stats.get("consecutive_failures", 0) or 0
                 if auto_disabled:
                     healthy, msg = False, "Auto-disabled"
+                elif cb_state == "open":
+                    healthy, msg = False, "Circuit breaker open"
                 elif consecutive_failures >= 3:
                     healthy, msg = False, f"{consecutive_failures} consecutive failures"
                 else:
@@ -692,6 +720,9 @@ class ProviderManager(SearchCoordinatorMixin):
                         "downloads": downloads,
                         "config_fields": config_fields,
                         "stats": stats_dict,
+                        "circuit_breaker_state": cb_state,
+                        "throttled_until": throttled_until,
+                        "throttle_reason": throttle_reason,
                     }
                 )
             else:
@@ -706,12 +737,68 @@ class ProviderManager(SearchCoordinatorMixin):
                         "downloads": downloads,
                         "config_fields": config_fields,
                         "stats": stats_dict,
+                        "circuit_breaker_state": cb_state,
+                        "throttled_until": throttled_until,
+                        "throttle_reason": throttle_reason,
                     }
                 )
 
         # Sort by priority
         statuses.sort(key=lambda s: s["priority"])
         return statuses
+
+    def get_provider_summary(self) -> dict:
+        """Return aggregate counts of provider states for search progress UI."""
+        import time as _time
+
+        active = 0
+        throttled = 0
+        circuit_open = 0
+        throttled_providers = []
+
+        enabled_str = getattr(self.settings, "providers_enabled", "")
+        if enabled_str:
+            enabled_set = {p.strip() for p in enabled_str.split(",") if p.strip()}
+        else:
+            enabled_set = set(_PROVIDER_CLASSES.keys())
+
+        for name in enabled_set:
+            provider = self._providers.get(name)
+            if not provider:
+                continue
+
+            cb = self._circuit_breakers.get(name)
+            cb_state = cb.state if cb else "closed"
+
+            if cb_state == "open":
+                circuit_open += 1
+                continue
+
+            remaining = 0.0
+            if hasattr(provider, "session"):
+                remaining = getattr(provider.session, "rate_limit_remaining_seconds", 0.0)
+
+            if remaining > 0:
+                throttled += 1
+                throttled_providers.append(
+                    {"name": name, "remaining_seconds": round(remaining)}
+                )
+            else:
+                # Check auto-disabled
+                from db.providers import is_provider_auto_disabled
+
+                if is_provider_auto_disabled(name):
+                    throttled += 1
+                    throttled_providers.append({"name": name, "remaining_seconds": 0})
+                else:
+                    active += 1
+
+        return {
+            "active": active,
+            "throttled": throttled,
+            "circuit_open": circuit_open,
+            "throttled_providers": throttled_providers,
+        }
 
     @staticmethod
     def _get_provider_config_fields(name: str) -> list[dict]:

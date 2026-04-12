@@ -48,10 +48,72 @@ function Panel({ testId, title, children }: PanelProps) {
 
 // ─── Provider Health Panel ────────────────────────────────────────────────────
 
+interface ProviderStatus {
+  name: string
+  enabled: boolean
+  healthy: boolean
+  stats?: { success_rate?: number; auto_disabled?: boolean }
+  circuit_breaker_state?: string
+  throttled_until?: string | null
+  throttle_reason?: string | null
+}
+
+function getProviderVisual(p: ProviderStatus): {
+  dot: string
+  dotColor: string
+  label: string
+  labelColor: string
+  sortKey: number
+} {
+  const cbState = p.circuit_breaker_state ?? 'closed'
+  const isThrottled = !!p.throttled_until
+  const isAutoDisabled = !!p.stats?.auto_disabled
+
+  if (isAutoDisabled || (p.throttle_reason === 'auto_disabled')) {
+    return { dot: '✕', dotColor: 'var(--error)', label: 'Disabled', labelColor: 'var(--error)', sortKey: 0 }
+  }
+  if (cbState === 'open') {
+    return { dot: '◆', dotColor: 'var(--warning)', label: 'Circuit Open', labelColor: 'var(--warning)', sortKey: 1 }
+  }
+  if (isThrottled && p.throttle_reason === 'rate_limited') {
+    return { dot: '◆', dotColor: 'var(--warning)', label: '', labelColor: 'var(--warning)', sortKey: 2 }
+  }
+  if (cbState === 'half_open') {
+    return { dot: '◆', dotColor: 'var(--warning)', label: 'Recovering', labelColor: 'var(--warning)', sortKey: 3 }
+  }
+
+  const pct = Math.round((p.stats?.success_rate ?? 0) * 100)
+  return { dot: '●', dotColor: pct >= 80 ? 'var(--success)' : 'var(--error)', label: `${pct}%`, labelColor: 'var(--text-muted)', sortKey: 10 }
+}
+
+function ThrottleCountdown({ until }: { until: string }) {
+  const [remaining, setRemaining] = React.useState(0)
+
+  React.useEffect(() => {
+    const target = new Date(until).getTime()
+    const tick = () => setRemaining(Math.max(0, Math.round((target - Date.now()) / 1000)))
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [until])
+
+  if (remaining <= 0) return null
+  return <span style={{ fontSize: '11px', color: 'var(--warning)' }}>Throttled {remaining}s</span>
+}
+
 function ProviderHealthPanel() {
   const { t } = useTranslation('dashboard')
   const { data: providersData, isLoading } = useProviders()
-  const providers = (providersData?.providers ?? []).filter((p: { enabled: boolean }) => p.enabled).slice(0, 5)
+  const allEnabled = (providersData?.providers ?? []).filter((p: ProviderStatus) => p.enabled) as ProviderStatus[]
+
+  // Sort: problems first, then by success rate descending
+  const sorted = [...allEnabled].sort((a, b) => {
+    const va = getProviderVisual(a)
+    const vb = getProviderVisual(b)
+    if (va.sortKey !== vb.sortKey) return va.sortKey - vb.sortKey
+    return ((b.stats?.success_rate ?? 0) - (a.stats?.success_rate ?? 0))
+  })
+  const providers = sorted.slice(0, 7)
 
   if (isLoading) {
     return (
@@ -73,34 +135,40 @@ function ProviderHealthPanel() {
 
   return (
     <Panel testId="panel-providers" title={t('sidebar.providers')}>
-      {providers.map(
-        (p: { name: string; stats?: { success_rate?: number } }) => {
-          const pct = Math.round((p.stats?.success_rate ?? 0) * 100)
-          const healthy = pct >= 80
-          return (
-            <div
-              key={p.name}
-              style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '5px' }}
+      {providers.map((p) => {
+        const vis = getProviderVisual(p)
+        return (
+          <div
+            key={p.name}
+            style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '5px' }}
+          >
+            <span
+              data-testid={`provider-dot-${p.name}`}
+              data-healthy={String(p.healthy)}
+              style={{
+                width: vis.dot === '●' ? 6 : 'auto',
+                height: vis.dot === '●' ? 6 : 'auto',
+                borderRadius: vis.dot === '●' ? '50%' : undefined,
+                background: vis.dot === '●' ? vis.dotColor : undefined,
+                color: vis.dotColor,
+                fontSize: vis.dot !== '●' ? '10px' : undefined,
+                lineHeight: 1,
+                flexShrink: 0,
+              }}
             >
-              <span
-                data-testid={`provider-dot-${p.name}`}
-                data-healthy={String(healthy)}
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  background: healthy ? 'var(--success)' : 'var(--error)',
-                  flexShrink: 0,
-                }}
-              />
-              <span style={{ flex: 1, fontSize: '12px', color: 'var(--text-secondary)' }}>
-                {p.name}
-              </span>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{pct}%</span>
-            </div>
-          )
-        }
-      )}
+              {vis.dot !== '●' ? vis.dot : ''}
+            </span>
+            <span style={{ flex: 1, fontSize: '12px', color: 'var(--text-secondary)' }}>
+              {p.name}
+            </span>
+            {p.throttled_until && p.throttle_reason === 'rate_limited' ? (
+              <ThrottleCountdown until={p.throttled_until} />
+            ) : (
+              <span style={{ fontSize: '11px', color: vis.labelColor }}>{vis.label}</span>
+            )}
+          </div>
+        )
+      })}
     </Panel>
   )
 }

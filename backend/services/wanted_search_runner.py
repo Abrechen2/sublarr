@@ -137,16 +137,20 @@ def run_wanted_search(
                 logger.warning("Search-all: error on item %d: %s", item["id"], e)
 
             if socketio:
-                socketio.emit(
-                    "wanted_search_progress",
-                    {
-                        "processed": processed,
-                        "total": total,
-                        "found": found,
-                        "failed": failed,
-                        "current_item": item.get("title", str(item["id"])),
-                    },
-                )
+                progress_data = {
+                    "processed": processed,
+                    "total": total,
+                    "found": found,
+                    "failed": failed,
+                    "current_item": item.get("title", str(item["id"])),
+                }
+                try:
+                    from providers import get_provider_manager
+
+                    progress_data["provider_summary"] = get_provider_manager().get_provider_summary()
+                except Exception:
+                    pass
+                socketio.emit("wanted_search_progress", progress_data)
 
     duration = round(time.time() - start, 1)
 
