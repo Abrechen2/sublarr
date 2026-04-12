@@ -5,6 +5,19 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.2-beta] - 2026-04-12
+
+### Fixed
+- **Firefox subtitle rendering** — libass-wasm createTrack crashes in Firefox (ass_read_file returns NULL). Added WebVTT fallback: Firefox now uses native `<track>` elements with ASS→VTT conversion. Chrome/Edge/Safari keep full ASS rendering via SubtitleOctopus.
+- **OpenAPI security declarations** — All 286 API routes now have explicit security declarations in the OpenAPI spec. Previously 165 routes appeared public in the spec despite being protected by runtime auth hooks.
+
+### Docs
+- **SECURITY.md** — New security policy documenting threat model, 3 pentest rounds (25 findings, all CRITICAL/HIGH resolved), accepted risks, and production security checklist.
+- **MIGRATION.md** — New upgrade guide covering beta-to-V1 migration path with version-specific breaking changes and troubleshooting.
+
+### Tests
+- **737 new backend tests** — 27 new test files covering routes (standalone, notifications, whisper, webhooks, subtitle processor), services (wanted scanner, video player, cleanup, marketplace, standalone manager, NFO parser, file watcher), translator package (core, manager, jobs, helpers, cache), translation backends (DeepL, Google, LibreTranslate, Ollama, OpenAI), and DB repositories (standalone, hooks, jobs, library, whisper). Added Locust load testing configuration.
+
 ## [0.51.1-beta] - 2026-04-12
 
 ### Fixed
