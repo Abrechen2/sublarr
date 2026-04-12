@@ -127,14 +127,15 @@ def _get_service_info(service_name: str) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def _test_sonarr() -> dict:
-    """Test Sonarr connection."""
+def _test_arr_client(module: str, getter: str, label: str) -> dict:
+    """Test an *arr client (Sonarr/Radarr) connection."""
     try:
-        from sonarr_client import get_sonarr_client
+        import importlib
 
-        client = get_sonarr_client()
+        mod = importlib.import_module(module)
+        client = getattr(mod, getter)()
         if client is None:
-            return {"success": False, "message": "Sonarr client not configured"}
+            return {"success": False, "message": f"{label} client not configured"}
         result = client.test_connection()
         return (
             result
@@ -143,24 +144,16 @@ def _test_sonarr() -> dict:
         )
     except Exception as e:
         return {"success": False, "message": str(e)}
+
+
+def _test_sonarr() -> dict:
+    """Test Sonarr connection."""
+    return _test_arr_client("sonarr_client", "get_sonarr_client", "Sonarr")
 
 
 def _test_radarr() -> dict:
     """Test Radarr connection."""
-    try:
-        from radarr_client import get_radarr_client
-
-        client = get_radarr_client()
-        if client is None:
-            return {"success": False, "message": "Radarr client not configured"}
-        result = client.test_connection()
-        return (
-            result
-            if isinstance(result, dict)
-            else {"success": bool(result), "message": "OK" if result else "Failed"}
-        )
-    except Exception as e:
-        return {"success": False, "message": str(e)}
+    return _test_arr_client("radarr_client", "get_radarr_client", "Radarr")
 
 
 def _test_provider(service_name: str) -> dict:

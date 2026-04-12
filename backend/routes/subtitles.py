@@ -403,7 +403,9 @@ def delete_subtitles():
             continue
 
         if do_blacklist:
-            _blacklist_subtitle(path)
+            from db.blacklist import blacklist_subtitle_sidecar
+
+            blacklist_subtitle_sidecar(path)
 
         trash_path, err = _trash_sidecar(path, media_path, batch_dir)
         if err:
@@ -428,47 +430,6 @@ def delete_subtitles():
         _write_manifest(batch_dir, batch_id, manifest_files)
 
     return jsonify({"batch_id": batch_id, "deleted": deleted, "failed": failed}), 200
-
-
-def _blacklist_subtitle(subtitle_path: str) -> None:
-    """Add a subtitle sidecar to the blacklist (best-effort, never raises).
-
-    Derives the video base path from the subtitle path (strips lang + ext),
-    then looks up provider/subtitle_id in subtitle_downloads.
-    """
-    try:
-        from db.blacklist import add_blacklist_entry  # noqa: I001
-        from extensions import db as sa_db  # noqa: I001
-        from sqlalchemy import text as _text  # noqa: I001
-
-        parts = os.path.basename(subtitle_path).split(".")
-        if len(parts) < 3:
-            return
-        lang = parts[-2]
-        base_name = ".".join(parts[:-2])
-        base_path = os.path.join(os.path.dirname(subtitle_path), base_name)
-
-        with sa_db.engine.connect() as conn:
-            row = conn.execute(
-                _text(
-                    "SELECT provider_name, subtitle_id, language"
-                    " FROM subtitle_downloads"
-                    " WHERE file_path LIKE :p AND language = :lang"
-                    " ORDER BY downloaded_at DESC LIMIT 1"
-                ),
-                {"p": base_path + ".%", "lang": lang},
-            ).fetchone()
-
-        if row:
-            add_blacklist_entry(
-                provider_name=row[0] or "manual",
-                subtitle_id=row[1] or "",
-                language=row[2] or lang,
-                file_path=subtitle_path,
-                reason="Deleted from library",
-            )
-    except Exception as exc:
-        logger.debug("Could not add blacklist entry for %s: %s", subtitle_path, exc)
 
 
 @bp.route("/library/series/<int:series_id>/subtitles/batch-delete", methods=["POST"])
