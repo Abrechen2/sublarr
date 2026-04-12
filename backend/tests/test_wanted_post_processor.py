@@ -13,7 +13,6 @@ import pytest
 from error_handler import DuplicateSubtitleError
 from providers.base import SubtitleFormat, SubtitleResult
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -112,11 +111,11 @@ class TestTryAutoSync:
 
         mock_sync_module = MagicMock()
 
-        class FakeSyncUnavailable(Exception):
+        class FakeSyncUnavailableError(Exception):
             pass
 
-        mock_sync_module.SyncUnavailableError = FakeSyncUnavailable
-        mock_sync_module.sync_with_ffsubsync.side_effect = FakeSyncUnavailable("not installed")
+        mock_sync_module.SyncUnavailableError = FakeSyncUnavailableError
+        mock_sync_module.sync_with_ffsubsync.side_effect = FakeSyncUnavailableError("not installed")
 
         with patch.dict("sys.modules", {"services.video_sync": mock_sync_module}):
             import wanted_search.post_processor as mod
@@ -160,9 +159,7 @@ class TestTryAutoSync:
 class TestProcessForcedWantedItem:
     """Tests for _process_forced_wanted_item — forced subtitle search + download."""
 
-    def test_target_lang_found_ass(
-        self, mock_build, mock_forced_path, mock_record, mock_delete
-    ):
+    def test_target_lang_found_ass(self, mock_build, mock_forced_path, mock_record, mock_delete):
         """First ASS search succeeds -> returns 'found' with forced=True."""
         from wanted_search.post_processor import _process_forced_wanted_item
 
@@ -279,10 +276,12 @@ class TestProcessForcedWantedItem:
         manager = MagicMock()
         manager.search_and_download_best.side_effect = RuntimeError("network error")
 
-        with patch("wanted_search.post_processor.get_settings", return_value=_make_settings()):
-            with patch("wanted_search.post_processor.update_wanted_status"):
-                item = _make_wanted_item()
-                out = _process_forced_wanted_item(item, 1, "de", manager)
+        with (
+            patch("wanted_search.post_processor.get_settings", return_value=_make_settings()),
+            patch("wanted_search.post_processor.update_wanted_status"),
+        ):
+            item = _make_wanted_item()
+            out = _process_forced_wanted_item(item, 1, "de", manager)
 
         assert out["status"] == "failed"
 
@@ -406,7 +405,10 @@ class TestProcessForcedWantedItem:
         manager = MagicMock()
         # Target: None x2; Source ASS: exception; Source SRT: found
         manager.search_and_download_best.side_effect = [
-            None, None, RuntimeError("network"), srt_result
+            None,
+            None,
+            RuntimeError("network"),
+            srt_result,
         ]
         manager.save_subtitle.return_value = "/out/forced.en.srt"
 
@@ -450,9 +452,11 @@ class TestDownloadSpecificForItem:
 
     def test_item_not_found(self):
         """Returns error when wanted item does not exist."""
-        with self._patched_module() as mod:
-            with patch.object(mod, "get_wanted_item", return_value=None):
-                out = mod.download_specific_for_item(999, "prov", "sub1", "en", False)
+        with (
+            self._patched_module() as mod,
+            patch.object(mod, "get_wanted_item", return_value=None),
+        ):
+            out = mod.download_specific_for_item(999, "prov", "sub1", "en", False)
 
         assert out["success"] is False
         assert "not found" in out["error"].lower()
@@ -462,12 +466,14 @@ class TestDownloadSpecificForItem:
         manager = MagicMock()
         manager.search.side_effect = RuntimeError("timeout")
 
-        with self._patched_module() as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()), \
-                 patch.object(mod, "get_settings", return_value=_make_settings()), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager):
-                out = mod.download_specific_for_item(1, "prov", "sub1", "en", False)
+        with (
+            self._patched_module() as mod,
+            patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()),
+            patch.object(mod, "get_settings", return_value=_make_settings()),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+        ):
+            out = mod.download_specific_for_item(1, "prov", "sub1", "en", False)
 
         assert out["success"] is False
         assert "Search failed" in out["error"]
@@ -479,12 +485,14 @@ class TestDownloadSpecificForItem:
         manager.search.return_value = [other]
         manager.download.return_value = b"content"
 
-        with self._patched_module() as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()), \
-                 patch.object(mod, "get_settings", return_value=_make_settings()), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
+        with (
+            self._patched_module() as mod,
+            patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()),
+            patch.object(mod, "get_settings", return_value=_make_settings()),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
 
         assert out["success"] is False
         assert "not found" in out["error"].lower()
@@ -496,12 +504,14 @@ class TestDownloadSpecificForItem:
         manager.search.return_value = [result]
         manager.download.return_value = None
 
-        with self._patched_module() as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()), \
-                 patch.object(mod, "get_settings", return_value=_make_settings()), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
+        with (
+            self._patched_module() as mod,
+            patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()),
+            patch.object(mod, "get_settings", return_value=_make_settings()),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
 
         assert out["success"] is False
         assert "Download failed" in out["error"]
@@ -521,15 +531,17 @@ class TestDownloadSpecificForItem:
         mock_sync = MagicMock()
         mock_record = MagicMock()
 
-        with self._patched_module(mock_translator) as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()), \
-                 patch.object(mod, "get_settings", return_value=_make_settings()), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager), \
-                 patch.object(mod, "delete_wanted_item", mock_delete), \
-                 patch.object(mod, "_try_auto_sync", mock_sync), \
-                 patch.object(mod, "record_subtitle_download", mock_record):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
+        with (
+            self._patched_module(mock_translator) as mod,
+            patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()),
+            patch.object(mod, "get_settings", return_value=_make_settings()),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "delete_wanted_item", mock_delete),
+            patch.object(mod, "_try_auto_sync", mock_sync),
+            patch.object(mod, "record_subtitle_download", mock_record),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
 
         assert out["success"] is True
         assert out["translated"] is False
@@ -549,15 +561,19 @@ class TestDownloadSpecificForItem:
         manager.download.return_value = result.content
         manager.save_subtitle.return_value = "/out/sub.de.srt"
 
-        with self._patched_module(mock_translator) as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")), \
-                 patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager), \
-                 patch.object(mod, "delete_wanted_item"), \
-                 patch.object(mod, "_try_auto_sync"), \
-                 patch.object(mod, "record_subtitle_download"):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "de", True)
+        with (
+            self._patched_module(mock_translator) as mod,
+            patch.object(
+                mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")
+            ),
+            patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "delete_wanted_item"),
+            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "record_subtitle_download"),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "de", True)
 
         assert out["success"] is True
         assert out["translated"] is False
@@ -577,15 +593,17 @@ class TestDownloadSpecificForItem:
         mock_delete = MagicMock()
         mock_sync = MagicMock()
 
-        with self._patched_module(mock_translator) as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()), \
-                 patch.object(mod, "get_settings", return_value=_make_settings()), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager), \
-                 patch.object(mod, "delete_wanted_item", mock_delete), \
-                 patch.object(mod, "_try_auto_sync", mock_sync), \
-                 patch.object(mod, "record_subtitle_download"):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
+        with (
+            self._patched_module(mock_translator) as mod,
+            patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()),
+            patch.object(mod, "get_settings", return_value=_make_settings()),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "delete_wanted_item", mock_delete),
+            patch.object(mod, "_try_auto_sync", mock_sync),
+            patch.object(mod, "record_subtitle_download"),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
 
         assert out["success"] is True
         assert out["duplicate_skipped"] is True
@@ -604,13 +622,15 @@ class TestDownloadSpecificForItem:
         manager.download.return_value = result.content
         manager.save_subtitle.side_effect = OSError("permission denied")
 
-        with self._patched_module(mock_translator) as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()), \
-                 patch.object(mod, "get_settings", return_value=_make_settings()), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager), \
-                 patch.object(mod, "record_subtitle_download"):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
+        with (
+            self._patched_module(mock_translator) as mod,
+            patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()),
+            patch.object(mod, "get_settings", return_value=_make_settings()),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "record_subtitle_download"),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
 
         assert out["success"] is False
         assert "save subtitle" in out["error"].lower()
@@ -635,20 +655,24 @@ class TestDownloadSpecificForItem:
         mock_delete = MagicMock()
         mock_sync = MagicMock()
 
-        with self._patched_module(mock_translator) as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")), \
-                 patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager), \
-                 patch.object(mod, "record_subtitle_download"), \
-                 patch.object(mod, "delete_wanted_item", mock_delete), \
-                 patch.object(mod, "_try_auto_sync", mock_sync), \
-                 patch.object(mod, "create_job", return_value={"id": "job1"}), \
-                 patch.object(mod, "update_job"), \
-                 patch.object(mod, "record_stat"), \
-                 patch("os.path.exists", return_value=True), \
-                 patch("os.remove"):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
+        with (
+            self._patched_module(mock_translator) as mod,
+            patch.object(
+                mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")
+            ),
+            patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "record_subtitle_download"),
+            patch.object(mod, "delete_wanted_item", mock_delete),
+            patch.object(mod, "_try_auto_sync", mock_sync),
+            patch.object(mod, "create_job", return_value={"id": "job1"}),
+            patch.object(mod, "update_job"),
+            patch.object(mod, "record_stat"),
+            patch("os.path.exists", return_value=True),
+            patch("os.remove"),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
 
         assert out["success"] is True
         assert out["translated"] is True
@@ -673,20 +697,24 @@ class TestDownloadSpecificForItem:
         manager.download.return_value = result.content
         manager.save_subtitle.return_value = "/tmp/source.en.ass"
 
-        with self._patched_module(mock_translator) as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")), \
-                 patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager), \
-                 patch.object(mod, "record_subtitle_download"), \
-                 patch.object(mod, "delete_wanted_item"), \
-                 patch.object(mod, "_try_auto_sync"), \
-                 patch.object(mod, "create_job", return_value={"id": "job1"}), \
-                 patch.object(mod, "update_job"), \
-                 patch.object(mod, "record_stat"), \
-                 patch("os.path.exists", return_value=True), \
-                 patch("os.remove"):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
+        with (
+            self._patched_module(mock_translator) as mod,
+            patch.object(
+                mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")
+            ),
+            patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "record_subtitle_download"),
+            patch.object(mod, "delete_wanted_item"),
+            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "create_job", return_value={"id": "job1"}),
+            patch.object(mod, "update_job"),
+            patch.object(mod, "record_stat"),
+            patch("os.path.exists", return_value=True),
+            patch("os.remove"),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
 
         assert out["success"] is True
         assert out["translated"] is True
@@ -706,20 +734,24 @@ class TestDownloadSpecificForItem:
         mock_update_job = MagicMock()
         mock_record_stat = MagicMock()
 
-        with self._patched_module(mock_translator) as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")), \
-                 patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager), \
-                 patch.object(mod, "record_subtitle_download"), \
-                 patch.object(mod, "delete_wanted_item"), \
-                 patch.object(mod, "_try_auto_sync"), \
-                 patch.object(mod, "create_job", return_value={"id": "job1"}), \
-                 patch.object(mod, "update_job", mock_update_job), \
-                 patch.object(mod, "record_stat", mock_record_stat), \
-                 patch("os.path.exists", return_value=True), \
-                 patch("os.remove"):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
+        with (
+            self._patched_module(mock_translator) as mod,
+            patch.object(
+                mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")
+            ),
+            patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "record_subtitle_download"),
+            patch.object(mod, "delete_wanted_item"),
+            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "create_job", return_value={"id": "job1"}),
+            patch.object(mod, "update_job", mock_update_job),
+            patch.object(mod, "record_stat", mock_record_stat),
+            patch("os.path.exists", return_value=True),
+            patch("os.remove"),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
 
         assert out["success"] is False
         assert "Translation failed" in out["error"]
@@ -742,20 +774,24 @@ class TestDownloadSpecificForItem:
 
         mock_record_stat = MagicMock()
 
-        with self._patched_module(mock_translator) as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")), \
-                 patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager), \
-                 patch.object(mod, "record_subtitle_download"), \
-                 patch.object(mod, "delete_wanted_item"), \
-                 patch.object(mod, "_try_auto_sync"), \
-                 patch.object(mod, "create_job", return_value={"id": "job1"}), \
-                 patch.object(mod, "update_job"), \
-                 patch.object(mod, "record_stat", mock_record_stat), \
-                 patch("os.path.exists", return_value=False), \
-                 patch("os.remove"):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
+        with (
+            self._patched_module(mock_translator) as mod,
+            patch.object(
+                mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")
+            ),
+            patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "record_subtitle_download"),
+            patch.object(mod, "delete_wanted_item"),
+            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "create_job", return_value={"id": "job1"}),
+            patch.object(mod, "update_job"),
+            patch.object(mod, "record_stat", mock_record_stat),
+            patch("os.path.exists", return_value=False),
+            patch("os.remove"),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
 
         assert out["success"] is False
         assert "Low quality translation" in out["error"]
@@ -773,20 +809,24 @@ class TestDownloadSpecificForItem:
         manager.download.return_value = result.content
         manager.save_subtitle.return_value = "/tmp/source.en.srt"
 
-        with self._patched_module(mock_translator) as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")), \
-                 patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager), \
-                 patch.object(mod, "record_subtitle_download"), \
-                 patch.object(mod, "delete_wanted_item"), \
-                 patch.object(mod, "_try_auto_sync"), \
-                 patch.object(mod, "create_job", return_value={"id": "job1"}), \
-                 patch.object(mod, "update_job"), \
-                 patch.object(mod, "record_stat"), \
-                 patch("os.path.exists", return_value=False), \
-                 patch("os.remove"):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
+        with (
+            self._patched_module(mock_translator) as mod,
+            patch.object(
+                mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")
+            ),
+            patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "record_subtitle_download"),
+            patch.object(mod, "delete_wanted_item"),
+            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "create_job", return_value={"id": "job1"}),
+            patch.object(mod, "update_job"),
+            patch.object(mod, "record_stat"),
+            patch("os.path.exists", return_value=False),
+            patch("os.remove"),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
 
         assert out["success"] is False
         assert "Translation failed" in out["error"]
@@ -809,20 +849,24 @@ class TestDownloadSpecificForItem:
         manager.download.return_value = result.content
         manager.save_subtitle.side_effect = dup
 
-        with self._patched_module(mock_translator) as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")), \
-                 patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager), \
-                 patch.object(mod, "record_subtitle_download"), \
-                 patch.object(mod, "delete_wanted_item"), \
-                 patch.object(mod, "_try_auto_sync"), \
-                 patch.object(mod, "create_job", return_value={"id": "job1"}), \
-                 patch.object(mod, "update_job"), \
-                 patch.object(mod, "record_stat"), \
-                 patch("os.path.exists", return_value=True), \
-                 patch("os.remove"):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
+        with (
+            self._patched_module(mock_translator) as mod,
+            patch.object(
+                mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")
+            ),
+            patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "record_subtitle_download"),
+            patch.object(mod, "delete_wanted_item"),
+            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "create_job", return_value={"id": "job1"}),
+            patch.object(mod, "update_job"),
+            patch.object(mod, "record_stat"),
+            patch("os.path.exists", return_value=True),
+            patch("os.remove"),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
 
         assert out["success"] is True
         assert out["translated"] is True
@@ -835,13 +879,17 @@ class TestDownloadSpecificForItem:
         manager.download.return_value = result.content
         manager.save_subtitle.side_effect = RuntimeError("write error")
 
-        with self._patched_module() as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")), \
-                 patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager), \
-                 patch.object(mod, "record_subtitle_download"):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
+        with (
+            self._patched_module() as mod,
+            patch.object(
+                mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")
+            ),
+            patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "record_subtitle_download"),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
 
         assert out["success"] is False
         assert "save subtitle" in out["error"].lower()
@@ -857,15 +905,17 @@ class TestDownloadSpecificForItem:
         manager.download.return_value = result.content
         manager.save_subtitle.return_value = "/out/sub.srt"
 
-        with self._patched_module(mock_translator) as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()), \
-                 patch.object(mod, "get_settings", return_value=_make_settings()), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager), \
-                 patch.object(mod, "delete_wanted_item"), \
-                 patch.object(mod, "_try_auto_sync"), \
-                 patch.object(mod, "record_subtitle_download"):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
+        with (
+            self._patched_module(mock_translator) as mod,
+            patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()),
+            patch.object(mod, "get_settings", return_value=_make_settings()),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "delete_wanted_item"),
+            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "record_subtitle_download"),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
 
         assert out["success"] is True
         assert out["format"] == "srt"
@@ -881,15 +931,19 @@ class TestDownloadSpecificForItem:
         manager.download.return_value = result.content
         manager.save_subtitle.return_value = "/out/sub.srt"
 
-        with self._patched_module(mock_translator) as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item(target_language=None)), \
-                 patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager), \
-                 patch.object(mod, "delete_wanted_item"), \
-                 patch.object(mod, "_try_auto_sync"), \
-                 patch.object(mod, "record_subtitle_download"):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
+        with (
+            self._patched_module(mock_translator) as mod,
+            patch.object(
+                mod, "get_wanted_item", return_value=_make_wanted_item(target_language=None)
+            ),
+            patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "delete_wanted_item"),
+            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "record_subtitle_download"),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
 
         assert out["success"] is True
 
@@ -905,20 +959,24 @@ class TestDownloadSpecificForItem:
         manager.download.return_value = result.content
         manager.save_subtitle.return_value = "/tmp/source.en.srt"
 
-        with self._patched_module(mock_translator) as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")), \
-                 patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager), \
-                 patch.object(mod, "record_subtitle_download"), \
-                 patch.object(mod, "delete_wanted_item"), \
-                 patch.object(mod, "_try_auto_sync"), \
-                 patch.object(mod, "create_job", return_value={"id": "job1"}), \
-                 patch.object(mod, "update_job"), \
-                 patch.object(mod, "record_stat"), \
-                 patch("os.path.exists", return_value=True), \
-                 patch("os.remove", side_effect=OSError("locked")):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
+        with (
+            self._patched_module(mock_translator) as mod,
+            patch.object(
+                mod, "get_wanted_item", return_value=_make_wanted_item(target_language="de")
+            ),
+            patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "record_subtitle_download"),
+            patch.object(mod, "delete_wanted_item"),
+            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "create_job", return_value={"id": "job1"}),
+            patch.object(mod, "update_job"),
+            patch.object(mod, "record_stat"),
+            patch("os.path.exists", return_value=True),
+            patch("os.remove", side_effect=OSError("locked")),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
 
         assert out["success"] is False
         assert "Translation failed" in out["error"]
@@ -942,26 +1000,37 @@ class TestDownloadSpecificForItem:
 
         mock_create_job = MagicMock(return_value={"id": "job1"})
 
-        with self._patched_module(mock_translator) as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item(
-                    target_language="de", sonarr_series_id=10, sonarr_episode_id=100)), \
-                 patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager), \
-                 patch.object(mod, "record_subtitle_download"), \
-                 patch.object(mod, "delete_wanted_item"), \
-                 patch.object(mod, "_try_auto_sync"), \
-                 patch.object(mod, "create_job", mock_create_job), \
-                 patch.object(mod, "update_job"), \
-                 patch.object(mod, "record_stat"), \
-                 patch("os.path.exists", return_value=True), \
-                 patch("os.remove"):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
+        with (
+            self._patched_module(mock_translator) as mod,
+            patch.object(
+                mod,
+                "get_wanted_item",
+                return_value=_make_wanted_item(
+                    target_language="de", sonarr_series_id=10, sonarr_episode_id=100
+                ),
+            ),
+            patch.object(mod, "get_settings", return_value=_make_settings(target_language="de")),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "record_subtitle_download"),
+            patch.object(mod, "delete_wanted_item"),
+            patch.object(mod, "_try_auto_sync"),
+            patch.object(mod, "create_job", mock_create_job),
+            patch.object(mod, "update_job"),
+            patch.object(mod, "record_stat"),
+            patch("os.path.exists", return_value=True),
+            patch("os.remove"),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", True)
 
         assert out["success"] is True
         # Verify arr_context was passed
         call_args = mock_create_job.call_args
-        arr_ctx = call_args[1].get("arr_context") or call_args[0][2] if len(call_args[0]) > 2 else call_args[1].get("arr_context")
+        arr_ctx = (
+            call_args[1].get("arr_context") or call_args[0][2]
+            if len(call_args[0]) > 2
+            else call_args[1].get("arr_context")
+        )
         assert arr_ctx is not None
         assert "sonarr_series_id" in arr_ctx
 
@@ -976,13 +1045,15 @@ class TestDownloadSpecificForItem:
         manager.download.return_value = result.content
         manager.save_subtitle.side_effect = RuntimeError("file system error")
 
-        with self._patched_module(mock_translator) as mod:
-            with patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()), \
-                 patch.object(mod, "get_settings", return_value=_make_settings()), \
-                 patch.object(mod, "build_query_from_wanted", return_value=MagicMock()), \
-                 patch.object(mod, "get_provider_manager", return_value=manager), \
-                 patch.object(mod, "record_subtitle_download"):
-                out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
+        with (
+            self._patched_module(mock_translator) as mod,
+            patch.object(mod, "get_wanted_item", return_value=_make_wanted_item()),
+            patch.object(mod, "get_settings", return_value=_make_settings()),
+            patch.object(mod, "build_query_from_wanted", return_value=MagicMock()),
+            patch.object(mod, "get_provider_manager", return_value=manager),
+            patch.object(mod, "record_subtitle_download"),
+        ):
+            out = mod.download_specific_for_item(1, "test_provider", "sub123", "en", False)
 
         assert out["success"] is False
         assert "save subtitle" in out["error"].lower()

@@ -558,7 +558,9 @@ class TestRemoveStreamFromContainer:
             patch(P_GET_SETTINGS) as mock_settings,
             patch(P_REMOVE_STREAM, return_value="/backup/path") as mock_remove,
         ):
-            mock_settings.return_value = MagicMock(remux_use_reflink=True, remux_trash_dir=".sublarr")
+            mock_settings.return_value = MagicMock(
+                remux_use_reflink=True, remux_trash_dir=".sublarr"
+            )
             _remove_stream_from_container("/fake/video.mkv", stream_info)
 
         mock_remove.assert_called_once_with(
@@ -578,7 +580,9 @@ class TestRemoveStreamFromContainer:
             patch(P_GET_SETTINGS) as mock_settings,
             patch(P_REMOVE_STREAM, side_effect=RemuxError("ffmpeg fail")),
         ):
-            mock_settings.return_value = MagicMock(remux_use_reflink=True, remux_trash_dir=".sublarr")
+            mock_settings.return_value = MagicMock(
+                remux_use_reflink=True, remux_trash_dir=".sublarr"
+            )
             # Should not raise
             _remove_stream_from_container("/fake/video.mkv", stream_info)
 
@@ -590,7 +594,9 @@ class TestRemoveStreamFromContainer:
             patch(P_GET_SETTINGS) as mock_settings,
             patch(P_REMOVE_STREAM, side_effect=OSError("disk fail")),
         ):
-            mock_settings.return_value = MagicMock(remux_use_reflink=True, remux_trash_dir=".sublarr")
+            mock_settings.return_value = MagicMock(
+                remux_use_reflink=True, remux_trash_dir=".sublarr"
+            )
             # Should not raise
             _remove_stream_from_container("/fake/video.mkv", stream_info)
 
@@ -603,7 +609,9 @@ class TestRemoveStreamFromContainer:
             patch(P_GET_SETTINGS) as mock_settings,
             patch(P_REMOVE_STREAM, return_value="/bak") as mock_remove,
         ):
-            mock_settings.return_value = MagicMock(remux_use_reflink=True, remux_trash_dir=".sublarr")
+            mock_settings.return_value = MagicMock(
+                remux_use_reflink=True, remux_trash_dir=".sublarr"
+            )
             _remove_stream_from_container("/fake/video.mkv", stream_info)
 
         assert mock_remove.call_args[1]["subtitle_track_index"] == 0
@@ -621,19 +629,23 @@ class TestExtractEmbeddedSubHelper:
         app, _ = app_client
         from routes.wanted.extract import _extract_embedded_sub
 
-        with app.app_context():
-            with patch(P_GET_WANTED_ITEM, return_value=None):
-                with pytest.raises(ValueError, match="not found"):
-                    _extract_embedded_sub(999, "/fake/file.mkv")
+        with (
+            app.app_context(),
+            patch(P_GET_WANTED_ITEM, return_value=None),
+            pytest.raises(ValueError, match="not found"),
+        ):
+            _extract_embedded_sub(999, "/fake/file.mkv")
 
     def test_file_not_found_raises(self, app_client):
         app, _ = app_client
         from routes.wanted.extract import _extract_embedded_sub
 
-        with app.app_context():
-            with patch(P_GET_WANTED_ITEM, return_value={"id": 1, "target_language": "de"}):
-                with pytest.raises(FileNotFoundError):
-                    _extract_embedded_sub(1, "/nonexistent/file.mkv")
+        with (
+            app.app_context(),
+            patch(P_GET_WANTED_ITEM, return_value={"id": 1, "target_language": "de"}),
+            pytest.raises(FileNotFoundError),
+        ):
+            _extract_embedded_sub(1, "/nonexistent/file.mkv")
 
     def test_non_video_raises(self, app_client, tmp_path):
         app, _ = app_client
@@ -642,10 +654,12 @@ class TestExtractEmbeddedSubHelper:
         txt = tmp_path / "notes.txt"
         txt.write_text("hi")
 
-        with app.app_context():
-            with patch(P_GET_WANTED_ITEM, return_value={"id": 1, "target_language": "de"}):
-                with pytest.raises(ValueError, match="not a video container"):
-                    _extract_embedded_sub(1, str(txt))
+        with (
+            app.app_context(),
+            patch(P_GET_WANTED_ITEM, return_value={"id": 1, "target_language": "de"}),
+            pytest.raises(ValueError, match="not a video container"),
+        ):
+            _extract_embedded_sub(1, str(txt))
 
     def test_no_subtitle_stream_raises(self, app_client, tmp_path):
         app, _ = app_client
@@ -654,14 +668,14 @@ class TestExtractEmbeddedSubHelper:
         mkv = tmp_path / "video.mkv"
         mkv.write_bytes(b"\x1a\x45\xdf\xa3")
 
-        with app.app_context():
-            with (
-                patch(P_GET_WANTED_ITEM, return_value={"id": 1, "target_language": "de"}),
-                patch(P_GET_MEDIA, return_value={"streams": []}),
-                patch(P_SELECT_BEST, return_value=None),
-            ):
-                with pytest.raises(LookupError, match="No suitable subtitle"):
-                    _extract_embedded_sub(1, str(mkv))
+        with (
+            app.app_context(),
+            patch(P_GET_WANTED_ITEM, return_value={"id": 1, "target_language": "de"}),
+            patch(P_GET_MEDIA, return_value={"streams": []}),
+            patch(P_SELECT_BEST, return_value=None),
+            pytest.raises(LookupError, match="No suitable subtitle"),
+        ):
+            _extract_embedded_sub(1, str(mkv))
 
     def test_successful_extraction(self, app_client, tmp_path):
         app, _ = app_client
@@ -672,20 +686,20 @@ class TestExtractEmbeddedSubHelper:
 
         stream_info = {"sub_index": 0, "stream_index": 2, "format": "ass", "language": "eng"}
 
-        with app.app_context():
-            with (
-                patch(P_GET_WANTED_ITEM, return_value={"id": 1, "target_language": "de"}),
-                patch(P_GET_MEDIA, return_value={"streams": []}),
-                patch(P_SELECT_BEST, return_value=stream_info),
-                patch(P_OUTPUT_FOR_LANG, return_value="/out/video.de.ass"),
-                patch(P_EXTRACT_STREAM),
-                patch(P_REMOVE_STREAM, return_value="/bak"),
-                patch(P_UPDATE_EXISTING_SUB),
-                patch(P_UPDATE_STATUS),
-                patch(P_EMIT_EVENT),
-                patch(P_LOG_ACTIVITY),
-            ):
-                result = _extract_embedded_sub(1, str(mkv))
+        with (
+            app.app_context(),
+            patch(P_GET_WANTED_ITEM, return_value={"id": 1, "target_language": "de"}),
+            patch(P_GET_MEDIA, return_value={"streams": []}),
+            patch(P_SELECT_BEST, return_value=stream_info),
+            patch(P_OUTPUT_FOR_LANG, return_value="/out/video.de.ass"),
+            patch(P_EXTRACT_STREAM),
+            patch(P_REMOVE_STREAM, return_value="/bak"),
+            patch(P_UPDATE_EXISTING_SUB),
+            patch(P_UPDATE_STATUS),
+            patch(P_EMIT_EVENT),
+            patch(P_LOG_ACTIVITY),
+        ):
+            result = _extract_embedded_sub(1, str(mkv))
 
         assert result["status"] == "extracted"
         assert result["format"] == "ass"
@@ -701,22 +715,22 @@ class TestExtractEmbeddedSubHelper:
 
         stream_info = {"sub_index": 0, "stream_index": 2, "format": "srt", "language": "eng"}
 
-        with app.app_context():
-            with (
-                patch(P_GET_WANTED_ITEM, return_value={"id": 1, "target_language": "de"}),
-                patch(P_GET_MEDIA, return_value={"streams": []}),
-                patch(P_SELECT_BEST, return_value=stream_info),
-                patch(P_OUTPUT_FOR_LANG, return_value="/out/video.de.srt"),
-                patch(P_EXTRACT_STREAM),
-                patch(P_REMOVE_STREAM, return_value="/bak"),
-                patch(P_UPDATE_EXISTING_SUB),
-                patch(P_UPDATE_STATUS),
-                patch(P_EMIT_EVENT),
-                patch(P_LOG_ACTIVITY),
-                patch("threading.Thread") as mock_thread,
-            ):
-                mock_thread.return_value = MagicMock()
-                result = _extract_embedded_sub(1, str(mkv), auto_translate=True)
+        with (
+            app.app_context(),
+            patch(P_GET_WANTED_ITEM, return_value={"id": 1, "target_language": "de"}),
+            patch(P_GET_MEDIA, return_value={"streams": []}),
+            patch(P_SELECT_BEST, return_value=stream_info),
+            patch(P_OUTPUT_FOR_LANG, return_value="/out/video.de.srt"),
+            patch(P_EXTRACT_STREAM),
+            patch(P_REMOVE_STREAM, return_value="/bak"),
+            patch(P_UPDATE_EXISTING_SUB),
+            patch(P_UPDATE_STATUS),
+            patch(P_EMIT_EVENT),
+            patch(P_LOG_ACTIVITY),
+            patch("threading.Thread") as mock_thread,
+        ):
+            mock_thread.return_value = MagicMock()
+            result = _extract_embedded_sub(1, str(mkv), auto_translate=True)
 
         assert result["format"] == "srt"
         mock_thread.assert_called_once()
@@ -732,21 +746,21 @@ class TestExtractEmbeddedSubHelper:
 
         stream_info = {"sub_index": 0, "stream_index": 2, "format": "ass", "language": "eng"}
 
-        with app.app_context():
-            with (
-                patch(P_GET_WANTED_ITEM, return_value={"id": 1, "target_language": "de"}),
-                patch(P_GET_MEDIA, return_value={"streams": []}),
-                patch(P_SELECT_BEST, return_value=stream_info),
-                patch(P_OUTPUT_FOR_LANG, return_value="/out/video.de.ass"),
-                patch(P_EXTRACT_STREAM),
-                patch(P_REMOVE_STREAM, return_value="/bak"),
-                patch(P_UPDATE_EXISTING_SUB),
-                patch(P_UPDATE_STATUS),
-                patch(P_EMIT_EVENT),
-                patch(P_LOG_ACTIVITY),
-                patch("threading.Thread") as mock_thread,
-            ):
-                _extract_embedded_sub(1, str(mkv), auto_translate=True)
+        with (
+            app.app_context(),
+            patch(P_GET_WANTED_ITEM, return_value={"id": 1, "target_language": "de"}),
+            patch(P_GET_MEDIA, return_value={"streams": []}),
+            patch(P_SELECT_BEST, return_value=stream_info),
+            patch(P_OUTPUT_FOR_LANG, return_value="/out/video.de.ass"),
+            patch(P_EXTRACT_STREAM),
+            patch(P_REMOVE_STREAM, return_value="/bak"),
+            patch(P_UPDATE_EXISTING_SUB),
+            patch(P_UPDATE_STATUS),
+            patch(P_EMIT_EVENT),
+            patch(P_LOG_ACTIVITY),
+            patch("threading.Thread") as mock_thread,
+        ):
+            _extract_embedded_sub(1, str(mkv), auto_translate=True)
 
         mock_thread.assert_not_called()
 
@@ -754,10 +768,12 @@ class TestExtractEmbeddedSubHelper:
         app, _ = app_client
         from routes.wanted.extract import _extract_embedded_sub
 
-        with app.app_context():
-            with patch(P_GET_WANTED_ITEM, return_value={"id": 1, "target_language": "de"}):
-                with pytest.raises(FileNotFoundError):
-                    _extract_embedded_sub(1, "")
+        with (
+            app.app_context(),
+            patch(P_GET_WANTED_ITEM, return_value={"id": 1, "target_language": "de"}),
+            pytest.raises(FileNotFoundError),
+        ):
+            _extract_embedded_sub(1, "")
 
 
 # ===========================================================================
@@ -775,8 +791,8 @@ class TestRunBatchExtract:
         with (
             patch(P_GET_WANTED_ITEM, return_value={"id": 1, "title": "Ep", "file_path": "/f.mkv"}),
             patch("routes.wanted.extract._extract_embedded_sub") as mock_extract,
-            patch(P_SOCKETIO) as mock_sio,
-            patch(P_EMIT_EVENT) as mock_emit,
+            patch(P_SOCKETIO),
+            patch(P_EMIT_EVENT),
         ):
             _run_batch_extract([1], False, app)
 
@@ -792,7 +808,9 @@ class TestRunBatchExtract:
 
         with (
             patch(P_GET_WANTED_ITEM, return_value={"id": 1, "title": "Ep", "file_path": "/f.mkv"}),
-            patch("routes.wanted.extract._extract_embedded_sub", side_effect=LookupError("no stream")),
+            patch(
+                "routes.wanted.extract._extract_embedded_sub", side_effect=LookupError("no stream")
+            ),
             patch(P_UPDATE_EXISTING_SUB) as mock_clear,
             patch(P_UPDATE_STATUS) as mock_status,
             patch(P_SOCKETIO),
@@ -811,7 +829,9 @@ class TestRunBatchExtract:
 
         with (
             patch(P_GET_WANTED_ITEM, return_value={"id": 1, "title": "Ep", "file_path": ""}),
-            patch("routes.wanted.extract._extract_embedded_sub", side_effect=FileNotFoundError("gone")),
+            patch(
+                "routes.wanted.extract._extract_embedded_sub", side_effect=FileNotFoundError("gone")
+            ),
             patch(P_UPDATE_EXISTING_SUB) as mock_clear,
             patch(P_UPDATE_STATUS) as mock_status,
             patch(P_SOCKETIO),
@@ -894,7 +914,9 @@ class TestRunBatchExtract:
 
         with (
             patch(P_GET_WANTED_ITEM, return_value={"id": 1, "title": "Ep", "file_path": "/f.mkv"}),
-            patch("routes.wanted.extract._extract_embedded_sub", side_effect=LookupError("no stream")),
+            patch(
+                "routes.wanted.extract._extract_embedded_sub", side_effect=LookupError("no stream")
+            ),
             patch(P_UPDATE_EXISTING_SUB, side_effect=Exception("db down")),
             patch(P_UPDATE_STATUS),
             patch(P_SOCKETIO),
@@ -943,9 +965,7 @@ class TestRunBatchProbe:
         items = [{"id": 1, "file_path": "/f.mkv", "title": "Ep", "target_language": "de"}]
         # Only PGS subtitle (not text-based)
         probe_data = {
-            "streams": [
-                {"codec_type": "subtitle", "codec_name": "hdmv_pgs_subtitle", "index": 2}
-            ]
+            "streams": [{"codec_type": "subtitle", "codec_name": "hdmv_pgs_subtitle", "index": 2}]
         }
 
         with (
@@ -992,7 +1012,7 @@ class TestRunBatchProbe:
             patch(P_GET_SUB_OUT_PATH, return_value=str(tmp_path / "out.ass")),
             patch(P_OUTPUT_FOR_LANG, side_effect=fake_output_path),
             patch(P_UPDATE_EXISTING_SUB) as mock_update,
-            patch(P_REMOVE_STREAMS) as mock_remux,
+            patch(P_REMOVE_STREAMS),
             patch(P_SOCKETIO),
             patch(P_EMIT_EVENT),
         ):

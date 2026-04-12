@@ -67,15 +67,11 @@ def validate_create_profile_data(data: dict) -> dict:
 
     forced_preference = data.get("forced_preference", "disabled")
     if forced_preference not in VALID_FORCED_PREFERENCES:
-        raise ProfileValidationError(
-            "forced_preference must be one of: disabled, separate, auto"
-        )
+        raise ProfileValidationError("forced_preference must be one of: disabled, separate, auto")
 
     hi_preference = data.get("hi_preference", "include")
     if hi_preference not in VALID_HI_PREFERENCES:
-        raise ProfileValidationError(
-            "hi_preference must be one of: include, prefer, exclude, only"
-        )
+        raise ProfileValidationError("hi_preference must be one of: include, prefer, exclude, only")
 
     forced_scoring = data.get("forced_scoring", "include")
     if forced_scoring not in VALID_FORCED_SCORING:
@@ -121,9 +117,7 @@ def create_profile(data: dict) -> dict:
         profile_id = create_language_profile(**kwargs)
     except Exception as exc:
         if "UNIQUE constraint" in str(exc):
-            raise ProfileConflictError(
-                f"Profile name '{kwargs['name']}' already exists"
-            ) from exc
+            raise ProfileConflictError(f"Profile name '{kwargs['name']}' already exists") from exc
         raise
 
     return get_language_profile(profile_id)
@@ -140,15 +134,14 @@ def validate_update_profile_fields(data: dict) -> dict:
     if not fields:
         raise ProfileValidationError("No fields to update")
 
-    if "forced_preference" in fields and fields["forced_preference"] not in VALID_FORCED_PREFERENCES:
-        raise ProfileValidationError(
-            "forced_preference must be one of: disabled, separate, auto"
-        )
+    if (
+        "forced_preference" in fields
+        and fields["forced_preference"] not in VALID_FORCED_PREFERENCES
+    ):
+        raise ProfileValidationError("forced_preference must be one of: disabled, separate, auto")
 
     if "hi_preference" in fields and fields["hi_preference"] not in VALID_HI_PREFERENCES:
-        raise ProfileValidationError(
-            "hi_preference must be one of: include, prefer, exclude, only"
-        )
+        raise ProfileValidationError("hi_preference must be one of: include, prefer, exclude, only")
 
     if "forced_scoring" in fields and fields["forced_scoring"] not in VALID_FORCED_SCORING:
         raise ProfileValidationError(
@@ -176,9 +169,7 @@ def update_profile(profile_id: int, data: dict) -> dict:
         update_language_profile(profile_id, **fields)
     except Exception as exc:
         if "UNIQUE constraint" in str(exc):
-            raise ProfileConflictError(
-                f"Profile name '{data.get('name')}' already exists"
-            ) from exc
+            raise ProfileConflictError(f"Profile name '{data.get('name')}' already exists") from exc
         raise
 
     return get_language_profile(profile_id)
@@ -333,7 +324,9 @@ def export_glossary_as_tsv(series_id: int | None) -> tuple[str, str]:
         output.write(f"{source_term}\t{target_term}\t{term_type}\t{notes}\n")
 
     tsv_content = output.getvalue()
-    filename = f"glossary_series_{series_id}.tsv" if series_id is not None else "glossary_global.tsv"
+    filename = (
+        f"glossary_series_{series_id}.tsv" if series_id is not None else "glossary_global.tsv"
+    )
     return tsv_content, filename
 
 

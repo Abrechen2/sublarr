@@ -112,7 +112,9 @@ class CleanupRepository(BaseRepository):
                 }
             )
 
-        return [{"content_hash": h, "count": len(files), "files": files} for h, files in groups.items()]
+        return [
+            {"content_hash": h, "count": len(files), "files": files} for h, files in groups.items()
+        ]
 
     def find_by_content_hash(self, content_hash: str) -> list[dict]:
         """Find all subtitle hash records matching the given SHA-256 hash.

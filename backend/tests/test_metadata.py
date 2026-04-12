@@ -15,10 +15,10 @@ import pytest
 
 from metadata import TMDB_POSTER_BASE, MetadataResolver
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def resolver():
@@ -41,6 +41,7 @@ def resolver_tmdb_only():
 # ---------------------------------------------------------------------------
 # Lazy client creation
 # ---------------------------------------------------------------------------
+
 
 class TestLazyClients:
     def test_tmdb_none_without_key(self, resolver_no_keys):
@@ -69,6 +70,7 @@ class TestLazyClients:
 # ---------------------------------------------------------------------------
 # Cache helpers
 # ---------------------------------------------------------------------------
+
 
 class TestCache:
     def test_get_cached_returns_none_when_db_raises(self, resolver):
@@ -109,6 +111,7 @@ class TestCache:
 # ---------------------------------------------------------------------------
 # Normalize helpers
 # ---------------------------------------------------------------------------
+
 
 class TestNormalizeTmdbTv:
     def test_basic_fields(self, resolver):
@@ -300,6 +303,7 @@ class TestNormalizeTmdbMovie:
 # resolve_series
 # ---------------------------------------------------------------------------
 
+
 class TestResolveSeries:
     def _patch_cache(self, resolver, cached_val=None):
         """Patch cache to return given value and capture set_cached calls."""
@@ -316,7 +320,12 @@ class TestResolveSeries:
     def test_tmdb_primary_for_non_anime(self, resolver):
         self._patch_cache(resolver)
         tmdb_search = {"name": "The Office", "id": 2316, "first_air_date": "2005-03-24"}
-        tmdb_details = {"number_of_seasons": 9, "number_of_episodes": 201, "genres": [], "origin_country": ["US"]}
+        tmdb_details = {
+            "number_of_seasons": 9,
+            "number_of_episodes": 201,
+            "genres": [],
+            "origin_country": ["US"],
+        }
         tmdb_ext = {"tvdb_id": 73244, "imdb_id": "tt0386676"}
 
         resolver._tmdb_instance = MagicMock()
@@ -376,9 +385,21 @@ class TestResolveSeries:
 
         # TMDB provides cross-reference IDs
         resolver._tmdb_instance = MagicMock()
-        resolver._tmdb_instance.search_tv.return_value = {"name": "Attack on Titan", "id": 1429, "first_air_date": "2013-04-07"}
-        resolver._tmdb_instance.get_tv_details.return_value = {"number_of_seasons": 4, "number_of_episodes": 87, "genres": [{"name": "Animation"}], "origin_country": ["JP"]}
-        resolver._tmdb_instance.get_tv_external_ids.return_value = {"tvdb_id": 267440, "imdb_id": "tt2560140"}
+        resolver._tmdb_instance.search_tv.return_value = {
+            "name": "Attack on Titan",
+            "id": 1429,
+            "first_air_date": "2013-04-07",
+        }
+        resolver._tmdb_instance.get_tv_details.return_value = {
+            "number_of_seasons": 4,
+            "number_of_episodes": 87,
+            "genres": [{"name": "Animation"}],
+            "origin_country": ["JP"],
+        }
+        resolver._tmdb_instance.get_tv_external_ids.return_value = {
+            "tvdb_id": 267440,
+            "imdb_id": "tt2560140",
+        }
 
         result = resolver.resolve_series("Attack on Titan", is_anime=True)
         assert result["metadata_source"] == "anilist"
@@ -421,7 +442,11 @@ class TestResolveSeries:
 
         # TMDB picks it up
         resolver._tmdb_instance = MagicMock()
-        resolver._tmdb_instance.search_tv.return_value = {"name": "Anime Show", "id": 555, "first_air_date": "2020-01-01"}
+        resolver._tmdb_instance.search_tv.return_value = {
+            "name": "Anime Show",
+            "id": 555,
+            "first_air_date": "2020-01-01",
+        }
         resolver._tmdb_instance.get_tv_details.return_value = None
         resolver._tmdb_instance.get_tv_external_ids.return_value = None
 
@@ -464,6 +489,7 @@ class TestResolveSeries:
 # resolve_movie
 # ---------------------------------------------------------------------------
 
+
 class TestResolveMovie:
     def _patch_cache(self, resolver, cached_val=None):
         resolver._get_cached = MagicMock(return_value=cached_val)
@@ -480,7 +506,12 @@ class TestResolveMovie:
         self._patch_cache(resolver)
 
         resolver._tmdb_instance = MagicMock()
-        resolver._tmdb_instance.search_movie.return_value = {"title": "Inception", "id": 27205, "poster_path": "/inc.jpg", "release_date": "2010-07-16"}
+        resolver._tmdb_instance.search_movie.return_value = {
+            "title": "Inception",
+            "id": 27205,
+            "poster_path": "/inc.jpg",
+            "release_date": "2010-07-16",
+        }
         resolver._tmdb_instance.get_movie_details.return_value = {"runtime": 148}
         resolver._tmdb_instance.get_movie_external_ids.return_value = {"imdb_id": "tt1375666"}
 
@@ -522,7 +553,11 @@ class TestResolveMovie:
         """search_movie returns a result without 'id' -> details/ext not fetched."""
         self._patch_cache(resolver)
         resolver._tmdb_instance = MagicMock()
-        resolver._tmdb_instance.search_movie.return_value = {"title": "NoId", "poster_path": None, "release_date": "2020-01-01"}
+        resolver._tmdb_instance.search_movie.return_value = {
+            "title": "NoId",
+            "poster_path": None,
+            "release_date": "2020-01-01",
+        }
         resolver._tmdb_instance.get_movie_details.return_value = None
         resolver._tmdb_instance.get_movie_external_ids.return_value = None
 
@@ -537,11 +572,15 @@ class TestResolveMovie:
 # _try_* helper methods
 # ---------------------------------------------------------------------------
 
+
 class TestTryHelpers:
     def test_try_anilist_series_hit(self, resolver):
         resolver._anilist_instance = MagicMock()
         resolver._anilist_instance.search_anime.return_value = {
-            "id": 50, "title": {"english": "Test"}, "seasonYear": 2020, "coverImage": {"large": None},
+            "id": 50,
+            "title": {"english": "Test"},
+            "seasonYear": 2020,
+            "coverImage": {"large": None},
         }
         result = resolver._try_anilist_series("Test")
         assert result is not None
@@ -562,7 +601,11 @@ class TestTryHelpers:
 
     def test_try_tmdb_series_with_results(self, resolver):
         resolver._tmdb_instance = MagicMock()
-        resolver._tmdb_instance.search_tv.return_value = {"name": "Show", "id": 99, "first_air_date": "2021-01-01"}
+        resolver._tmdb_instance.search_tv.return_value = {
+            "name": "Show",
+            "id": 99,
+            "first_air_date": "2021-01-01",
+        }
         resolver._tmdb_instance.get_tv_details.return_value = None
         resolver._tmdb_instance.get_tv_external_ids.return_value = None
         result = resolver._try_tmdb_series("Show")
@@ -578,7 +621,11 @@ class TestTryHelpers:
 
     def test_try_tvdb_series_with_results(self, resolver):
         resolver._tvdb_instance = MagicMock()
-        resolver._tvdb_instance.search_series.return_value = {"name": "Found", "id": 42, "year": 2019}
+        resolver._tvdb_instance.search_series.return_value = {
+            "name": "Found",
+            "id": 42,
+            "year": 2019,
+        }
         result = resolver._try_tvdb_series("Found")
         assert result["tvdb_id"] == 42
 
@@ -592,7 +639,11 @@ class TestTryHelpers:
 
     def test_try_tmdb_movie_with_results(self, resolver):
         resolver._tmdb_instance = MagicMock()
-        resolver._tmdb_instance.search_movie.return_value = {"title": "Film", "id": 88, "release_date": "2020-06-15"}
+        resolver._tmdb_instance.search_movie.return_value = {
+            "title": "Film",
+            "id": 88,
+            "release_date": "2020-06-15",
+        }
         resolver._tmdb_instance.get_movie_details.return_value = None
         resolver._tmdb_instance.get_movie_external_ids.return_value = None
         result = resolver._try_tmdb_movie("Film")

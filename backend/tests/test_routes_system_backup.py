@@ -84,7 +84,7 @@ class TestCreateBackup:
     """POST /api/v1/database/backup"""
 
     @patch("database_backup.DatabaseBackup")
-    def test_create_backup_default_label(self, MockBackupClass, client):
+    def test_create_backup_default_label(self, mock_backup_class, client):
         mock_instance = MagicMock()
         mock_instance.create_backup.return_value = {
             "path": "/config/backups/sublarr_daily_20260412.db",
@@ -92,7 +92,7 @@ class TestCreateBackup:
             "label": "daily",
         }
         mock_instance.rotate.return_value = 0
-        MockBackupClass.return_value = mock_instance
+        mock_backup_class.return_value = mock_instance
 
         rv = client.post(
             "/api/v1/database/backup",
@@ -107,7 +107,7 @@ class TestCreateBackup:
         mock_instance.rotate.assert_called_once()
 
     @patch("database_backup.DatabaseBackup")
-    def test_create_backup_weekly_label(self, MockBackupClass, client):
+    def test_create_backup_weekly_label(self, mock_backup_class, client):
         mock_instance = MagicMock()
         mock_instance.create_backup.return_value = {
             "path": "/config/backups/sublarr_weekly_20260412.db",
@@ -115,7 +115,7 @@ class TestCreateBackup:
             "label": "weekly",
         }
         mock_instance.rotate.return_value = 0
-        MockBackupClass.return_value = mock_instance
+        mock_backup_class.return_value = mock_instance
 
         rv = client.post(
             "/api/v1/database/backup",
@@ -128,7 +128,7 @@ class TestCreateBackup:
         mock_instance.create_backup.assert_called_once_with(label="weekly")
 
     @patch("database_backup.DatabaseBackup")
-    def test_create_backup_monthly_label(self, MockBackupClass, client):
+    def test_create_backup_monthly_label(self, mock_backup_class, client):
         mock_instance = MagicMock()
         mock_instance.create_backup.return_value = {
             "path": "/config/backups/sublarr_monthly_20260412.db",
@@ -136,7 +136,7 @@ class TestCreateBackup:
             "label": "monthly",
         }
         mock_instance.rotate.return_value = 0
-        MockBackupClass.return_value = mock_instance
+        mock_backup_class.return_value = mock_instance
 
         rv = client.post(
             "/api/v1/database/backup",
@@ -147,7 +147,7 @@ class TestCreateBackup:
         mock_instance.create_backup.assert_called_once_with(label="monthly")
 
     @patch("database_backup.DatabaseBackup")
-    def test_create_backup_invalid_label_falls_back_to_daily(self, MockBackupClass, client):
+    def test_create_backup_invalid_label_falls_back_to_daily(self, mock_backup_class, client):
         mock_instance = MagicMock()
         mock_instance.create_backup.return_value = {
             "path": "/config/backups/sublarr_daily_20260412.db",
@@ -155,7 +155,7 @@ class TestCreateBackup:
             "label": "daily",
         }
         mock_instance.rotate.return_value = 0
-        MockBackupClass.return_value = mock_instance
+        mock_backup_class.return_value = mock_instance
 
         rv = client.post(
             "/api/v1/database/backup",
@@ -166,7 +166,7 @@ class TestCreateBackup:
         mock_instance.create_backup.assert_called_once_with(label="daily")
 
     @patch("database_backup.DatabaseBackup")
-    def test_create_backup_empty_json_body(self, MockBackupClass, client):
+    def test_create_backup_empty_json_body(self, mock_backup_class, client):
         """Empty JSON body defaults to daily label."""
         mock_instance = MagicMock()
         mock_instance.create_backup.return_value = {
@@ -175,7 +175,7 @@ class TestCreateBackup:
             "label": "daily",
         }
         mock_instance.rotate.return_value = 0
-        MockBackupClass.return_value = mock_instance
+        mock_backup_class.return_value = mock_instance
 
         rv = client.post(
             "/api/v1/database/backup",
@@ -195,10 +195,10 @@ class TestListBackups:
     """GET /api/v1/database/backups"""
 
     @patch("database_backup.DatabaseBackup")
-    def test_list_backups_empty(self, MockBackupClass, client):
+    def test_list_backups_empty(self, mock_backup_class, client):
         mock_instance = MagicMock()
         mock_instance.list_backups.return_value = []
-        MockBackupClass.return_value = mock_instance
+        mock_backup_class.return_value = mock_instance
 
         rv = client.get("/api/v1/database/backups")
         assert rv.status_code == 200
@@ -206,7 +206,7 @@ class TestListBackups:
         assert data["backups"] == []
 
     @patch("database_backup.DatabaseBackup")
-    def test_list_backups_returns_entries(self, MockBackupClass, client):
+    def test_list_backups_returns_entries(self, mock_backup_class, client):
         mock_instance = MagicMock()
         mock_instance.list_backups.return_value = [
             {
@@ -222,7 +222,7 @@ class TestListBackups:
                 "timestamp": "20260405_030000",
             },
         ]
-        MockBackupClass.return_value = mock_instance
+        mock_backup_class.return_value = mock_instance
 
         rv = client.get("/api/v1/database/backups")
         assert rv.status_code == 200
@@ -312,14 +312,14 @@ class TestRestoreBackup:
     @patch("db.get_db")
     @patch("db.close_db")
     @patch("database_backup.DatabaseBackup")
-    def test_restore_success(self, MockBackupClass, mock_close, mock_get_db, client, tmp_path):
+    def test_restore_success(self, mock_backup_class, mock_close, mock_get_db, client, tmp_path):
         """Successful restore with a valid filename that passes path validation."""
         mock_instance = MagicMock()
         mock_instance.restore_backup.return_value = {
             "restored_from": str(tmp_path / "sublarr_daily_20260412.db"),
             "status": "ok",
         }
-        MockBackupClass.return_value = mock_instance
+        mock_backup_class.return_value = mock_instance
 
         # Patch get_settings so backup_dir points to tmp_path
         with patch("config.get_settings") as mock_gs:
@@ -377,18 +377,20 @@ class TestCreateFullBackup:
             "backend": "sqlite",
         }
 
-        with patch("database_backup.DatabaseBackup", return_value=mock_backup_instance):
-            with patch("config.get_settings") as mock_gs:
-                mock_settings = MagicMock()
-                mock_settings.db_path = str(tmp_path / "sublarr.db")
-                mock_settings.backup_dir = backup_dir
-                mock_settings.backup_retention_daily = 7
-                mock_settings.backup_retention_weekly = 4
-                mock_settings.backup_retention_monthly = 3
-                mock_settings.get_safe_config.return_value = {"log_level": "INFO"}
-                mock_gs.return_value = mock_settings
+        with (
+            patch("database_backup.DatabaseBackup", return_value=mock_backup_instance),
+            patch("config.get_settings") as mock_gs,
+        ):
+            mock_settings = MagicMock()
+            mock_settings.db_path = str(tmp_path / "sublarr.db")
+            mock_settings.backup_dir = backup_dir
+            mock_settings.backup_retention_daily = 7
+            mock_settings.backup_retention_weekly = 4
+            mock_settings.backup_retention_monthly = 3
+            mock_settings.get_safe_config.return_value = {"log_level": "INFO"}
+            mock_gs.return_value = mock_settings
 
-                rv = client.post("/api/v1/backup/full")
+            rv = client.post("/api/v1/backup/full")
 
         assert rv.status_code == 201
         data = rv.get_json()
@@ -591,7 +593,7 @@ class TestRestoreFullBackup:
     @patch("database_backup.DatabaseBackup")
     def test_restore_full_with_db(
         self,
-        MockBackupClass,
+        mock_backup_class,
         mock_close_db,
         mock_get_db,
         mock_save,
@@ -605,7 +607,7 @@ class TestRestoreFullBackup:
             "restored_from": "/tmp/some.db",
             "backend": "sqlite",
         }
-        MockBackupClass.return_value = mock_instance
+        mock_backup_class.return_value = mock_instance
 
         zip_buf = self._make_zip(
             manifest={

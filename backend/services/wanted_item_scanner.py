@@ -136,9 +136,7 @@ def scan_radarr_movie(
 
     profile = get_movie_profile(movie_id)
     target_languages = profile.get("target_languages", [settings.target_language])
-    target_language_names = profile.get(
-        "target_language_names", [settings.target_language_name]
-    )
+    target_language_names = profile.get("target_language_names", [settings.target_language_name])
 
     probe_data = None
     if settings.use_embedded_subs and mapped_path.lower().endswith((".mkv", ".mp4", ".m4v")):
@@ -226,9 +224,7 @@ def scan_sonarr_series(
 
     profile = get_series_profile(series_id)
     target_languages = profile.get("target_languages", [settings.target_language])
-    target_language_names = profile.get(
-        "target_language_names", [settings.target_language_name]
-    )
+    target_language_names = profile.get("target_language_names", [settings.target_language_name])
 
     added = 0
     updated = 0
@@ -261,9 +257,7 @@ def scan_sonarr_series(
     # Batch ffprobe
     probe_results = {}
     if settings.use_embedded_subs and episode_data:
-        probeable = [
-            mp for _, mp in episode_data if mp.lower().endswith((".mkv", ".mp4", ".m4v"))
-        ]
+        probeable = [mp for _, mp in episode_data if mp.lower().endswith((".mkv", ".mp4", ".m4v"))]
         if probeable:
             probe_results = batch_probe(probeable)
 
@@ -306,7 +300,10 @@ def scan_sonarr_series(
                 updated += 1
             else:
                 added += 1
-                if lang_result["existing_sub"] in ("embedded_ass", "embedded_srt") and auto_extract_fn:
+                if (
+                    lang_result["existing_sub"] in ("embedded_ass", "embedded_srt")
+                    and auto_extract_fn
+                ):
                     auto_extract_fn(item_id, mapped_path)
 
             # Forced subtitle handling

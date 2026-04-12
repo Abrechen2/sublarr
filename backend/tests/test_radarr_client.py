@@ -7,7 +7,6 @@ import requests
 
 from radarr_client import RadarrClient, get_radarr_client, invalidate_client
 
-
 # ─── Fixtures ──────────────────────────────────────────────────────────────────
 
 
@@ -123,7 +122,9 @@ class TestGet:
         assert mock_session.get.call_count == 3
 
     @patch("radarr_client.time.sleep")
-    def test_get_returns_none_after_max_retries_connection_error(self, mock_sleep, client, mock_session):
+    def test_get_returns_none_after_max_retries_connection_error(
+        self, mock_sleep, client, mock_session
+    ):
         mock_session.get.side_effect = requests.ConnectionError("refused")
 
         result = client._get("/test")
@@ -158,7 +159,9 @@ class TestGet:
         mock_sleep.assert_called_with(5)
 
     @patch("radarr_client.time.sleep")
-    def test_get_rate_limit_default_wait_without_retry_after(self, mock_sleep, client, mock_session):
+    def test_get_rate_limit_default_wait_without_retry_after(
+        self, mock_sleep, client, mock_session
+    ):
         mock_session.get.side_effect = [
             _rate_limit_response(),
             _ok_response({"ok": True}),
@@ -170,7 +173,9 @@ class TestGet:
         mock_sleep.assert_called_with(60)
 
     @patch("radarr_client.time.sleep")
-    def test_get_rate_limit_invalid_retry_after_uses_default(self, mock_sleep, client, mock_session):
+    def test_get_rate_limit_invalid_retry_after_uses_default(
+        self, mock_sleep, client, mock_session
+    ):
         resp_429 = _rate_limit_response()
         resp_429.headers = {"Retry-After": "not-a-number"}
         mock_session.get.side_effect = [
@@ -401,7 +406,7 @@ class TestGetAnimeMovies:
             {"id": 2, "title": "Drama Movie", "tags": [9], "genres": ["Drama"]},
         ]
         mock_session.get.side_effect = [
-            _ok_response(tags),   # get_tags
+            _ok_response(tags),  # get_tags
             _ok_response(movies),  # get_movies
         ]
 
@@ -556,10 +561,10 @@ class TestExtendedHealthCheck:
         health = [{"type": "warning", "message": "disk space low"}]
 
         mock_session.get.side_effect = [
-            _ok_response(status),         # /system/status
-            _ok_response(movies),          # /movie
-            _ok_response(notifications),   # /notification
-            _ok_response(health),          # /health
+            _ok_response(status),  # /system/status
+            _ok_response(movies),  # /movie
+            _ok_response(notifications),  # /notification
+            _ok_response(health),  # /health
         ]
 
         report = client.extended_health_check()
@@ -591,10 +596,10 @@ class TestExtendedHealthCheck:
     def test_partial_failures_degrade_gracefully(self, client, mock_session):
         status = {"version": "4.0.0", "branch": "main", "appName": "Radarr"}
         mock_session.get.side_effect = [
-            _ok_response(status),   # /system/status — OK
-            _error_response(500),   # /movie — fail (returns None from _get)
-            _error_response(500),   # /notification — fail
-            _error_response(500),   # /health — fail
+            _ok_response(status),  # /system/status — OK
+            _error_response(500),  # /movie — fail (returns None from _get)
+            _error_response(500),  # /notification — fail
+            _error_response(500),  # /health — fail
         ]
 
         report = client.extended_health_check()
@@ -612,9 +617,9 @@ class TestExtendedHealthCheck:
         ]
         mock_session.get.side_effect = [
             _ok_response(status),
-            _ok_response([]),            # /movie
+            _ok_response([]),  # /movie
             _ok_response(notifications),  # /notification
-            _ok_response([]),            # /health
+            _ok_response([]),  # /health
         ]
 
         report = client.extended_health_check()
@@ -642,7 +647,7 @@ class TestGetLibraryInfo:
             },
         ]
         mock_session.get.side_effect = [
-            _ok_response(tags),    # get_tags (via get_anime_movies)
+            _ok_response(tags),  # get_tags (via get_anime_movies)
             _ok_response(movies),  # get_movies (via get_anime_movies)
         ]
 
@@ -658,10 +663,28 @@ class TestGetLibraryInfo:
 
     def test_all_movies(self, client, mock_session):
         movies = [
-            {"id": 1, "title": "M1", "year": 2020, "hasFile": False, "path": "/m1",
-             "tags": [], "genres": [], "images": [], "status": "announced"},
-            {"id": 2, "title": "M2", "year": 2021, "hasFile": True, "path": "/m2",
-             "tags": [], "genres": [], "images": [], "status": "released"},
+            {
+                "id": 1,
+                "title": "M1",
+                "year": 2020,
+                "hasFile": False,
+                "path": "/m1",
+                "tags": [],
+                "genres": [],
+                "images": [],
+                "status": "announced",
+            },
+            {
+                "id": 2,
+                "title": "M2",
+                "year": 2021,
+                "hasFile": True,
+                "path": "/m2",
+                "tags": [],
+                "genres": [],
+                "images": [],
+                "status": "released",
+            },
         ]
         mock_session.get.return_value = _ok_response(movies)
 
@@ -671,12 +694,17 @@ class TestGetLibraryInfo:
 
     def test_poster_fallback_empty_string(self, client, mock_session):
         movies = [
-            {"id": 1, "title": "No Poster", "tags": [], "genres": ["Anime"],
-             "images": [{"coverType": "fanart", "remoteUrl": "http://img/fan.jpg"}]},
+            {
+                "id": 1,
+                "title": "No Poster",
+                "tags": [],
+                "genres": ["Anime"],
+                "images": [{"coverType": "fanart", "remoteUrl": "http://img/fan.jpg"}],
+            },
         ]
         mock_session.get.side_effect = [
-            _ok_response([]),       # get_tags
-            _ok_response(movies),   # get_movies
+            _ok_response([]),  # get_tags
+            _ok_response(movies),  # get_movies
         ]
 
         result = client.get_library_info(anime_only=True)

@@ -773,7 +773,6 @@ class TestRunRemux:
 
     def test_run_remux_remux_error(self, client):
         import routes.remux as remux_mod
-
         from remux import RemuxError
 
         with (
@@ -871,10 +870,12 @@ class TestPurgeSidecarsForVideo:
             patch("routes.remux.get_settings") as mock_settings,
             patch.dict(
                 "sys.modules",
-                {"routes.subtitles": MagicMock(
-                    _get_trash_root=mock_trash_root,
-                    _read_manifest=mock_read_manifest,
-                )},
+                {
+                    "routes.subtitles": MagicMock(
+                        _get_trash_root=mock_trash_root,
+                        _read_manifest=mock_read_manifest,
+                    )
+                },
             ),
             patch("routes.remux.os.path.isdir", return_value=False),
         ):

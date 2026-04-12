@@ -13,7 +13,6 @@ import pytest
 from error_handler import DatabaseError
 from transaction_manager import _legacy_transaction, _sqlalchemy_transaction, transaction
 
-
 # ---------------------------------------------------------------------------
 # _legacy_transaction tests
 # ---------------------------------------------------------------------------
@@ -41,9 +40,8 @@ class TestLegacyTransaction:
         cursor = MagicMock()
         conn.cursor.return_value = cursor
 
-        with pytest.raises(DatabaseError) as exc_info:
-            with _legacy_transaction(conn) as cur:
-                raise sqlite3.IntegrityError("UNIQUE constraint failed")
+        with pytest.raises(DatabaseError) as exc_info, _legacy_transaction(conn):
+            raise sqlite3.IntegrityError("UNIQUE constraint failed")
 
         assert exc_info.value.code == "DB_002"
         assert "UNIQUE constraint failed" in str(exc_info.value)
@@ -57,9 +55,8 @@ class TestLegacyTransaction:
         cursor = MagicMock()
         conn.cursor.return_value = cursor
 
-        with pytest.raises(DatabaseError) as exc_info:
-            with _legacy_transaction(conn) as cur:
-                raise sqlite3.OperationalError("database is locked")
+        with pytest.raises(DatabaseError) as exc_info, _legacy_transaction(conn):
+            raise sqlite3.OperationalError("database is locked")
 
         assert "database is locked" in str(exc_info.value)
         conn.rollback.assert_called_once()
@@ -72,9 +69,8 @@ class TestLegacyTransaction:
         cursor = MagicMock()
         conn.cursor.return_value = cursor
 
-        with pytest.raises(ValueError, match="boom"):
-            with _legacy_transaction(conn) as cur:
-                raise ValueError("boom")
+        with pytest.raises(ValueError, match="boom"), _legacy_transaction(conn):
+            raise ValueError("boom")
 
         conn.rollback.assert_called_once()
         conn.commit.assert_not_called()
@@ -86,9 +82,8 @@ class TestLegacyTransaction:
         cursor = MagicMock()
         conn.cursor.return_value = cursor
 
-        with pytest.raises(RuntimeError):
-            with _legacy_transaction(conn):
-                raise RuntimeError("fail")
+        with pytest.raises(RuntimeError), _legacy_transaction(conn):
+            raise RuntimeError("fail")
 
         cursor.close.assert_called_once()
 
@@ -119,9 +114,8 @@ class TestSqlalchemyTransaction:
         mock_session = MagicMock()
         mock_db.session = mock_session
 
-        with pytest.raises(RuntimeError, match="db error"):
-            with _sqlalchemy_transaction() as session:
-                raise RuntimeError("db error")
+        with pytest.raises(RuntimeError, match="db error"), _sqlalchemy_transaction():
+            raise RuntimeError("db error")
 
         mock_session.rollback.assert_called_once()
         mock_session.commit.assert_not_called()
@@ -195,9 +189,8 @@ class TestTransactionDispatcher:
         cursor = MagicMock()
         conn.cursor.return_value = cursor
 
-        with pytest.raises(DatabaseError) as exc_info:
-            with transaction(conn):
-                raise sqlite3.IntegrityError("duplicate key")
+        with pytest.raises(DatabaseError) as exc_info, transaction(conn):
+            raise sqlite3.IntegrityError("duplicate key")
 
         assert exc_info.value.code == "DB_002"
         conn.rollback.assert_called_once()
@@ -208,8 +201,7 @@ class TestTransactionDispatcher:
         mock_session = MagicMock()
         mock_db.session = mock_session
 
-        with pytest.raises(ValueError, match="bad data"):
-            with transaction():
-                raise ValueError("bad data")
+        with pytest.raises(ValueError, match="bad data"), transaction():
+            raise ValueError("bad data")
 
         mock_session.rollback.assert_called_once()

@@ -63,8 +63,9 @@ def blacklist_subtitle_sidecar(subtitle_path: str) -> None:
     then looks up provider/subtitle_id in subtitle_downloads.
     """
     try:
-        from extensions import db as sa_db
         from sqlalchemy import text as _text
+
+        from extensions import db as sa_db
 
         parts = os.path.basename(subtitle_path).split(".")
         if len(parts) < 3:

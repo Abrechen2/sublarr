@@ -104,8 +104,7 @@ def run_wanted_search(
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         if _app is not None:
             future_to_item = {
-                executor.submit(_search_with_ctx, _app, item["id"]): item
-                for item in eligible
+                executor.submit(_search_with_ctx, _app, item["id"]): item for item in eligible
             }
         else:
             from wanted_search import process_wanted_item
@@ -147,7 +146,9 @@ def run_wanted_search(
                 try:
                     from providers import get_provider_manager
 
-                    progress_data["provider_summary"] = get_provider_manager().get_provider_summary()
+                    progress_data["provider_summary"] = (
+                        get_provider_manager().get_provider_summary()
+                    )
                 except Exception:
                     pass
                 socketio.emit("wanted_search_progress", progress_data)
@@ -235,14 +236,10 @@ def _extract_embedded_items(
         try:
             from routes.wanted import _extract_embedded_sub
 
-            _extract_embedded_sub(
-                item["id"], item["file_path"], auto_translate=auto_translate
-            )
+            _extract_embedded_sub(item["id"], item["file_path"], auto_translate=auto_translate)
             found += 1
         except Exception as exc:
-            logger.warning(
-                "[search_all] Extraction failed for item %d: %s", item["id"], exc
-            )
+            logger.warning("[search_all] Extraction failed for item %d: %s", item["id"], exc)
             failed += 1
         processed += 1
         if socketio:

@@ -9,7 +9,6 @@ import pytest
 
 import anidb_mapper
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -91,7 +90,7 @@ class TestExtractAnidbFromCustomFields:
         assert anidb_mapper.extract_anidb_from_custom_fields(series) == 555
 
     @patch("anidb_mapper.get_settings")
-    def test_tries_anidbId_camel_case(self, mock_get_settings):
+    def test_tries_anidb_id_camel_case(self, mock_get_settings):
         mock_get_settings.return_value = _make_settings(anidb_custom_field_name="")
         series = {"customFields": {"anidbId": 777}}
         assert anidb_mapper.extract_anidb_from_custom_fields(series) == 777
@@ -241,15 +240,19 @@ class TestResolveAnidbFromAnilist:
                 {"site": "AniDB", "url": "https://anidb.net/anime/4563"},
             ]
         }
-        with patch.dict("sys.modules", {"metadata.anilist_client": MagicMock()}):
-            with patch("anidb_mapper.AniListClient", return_value=mock_client, create=True):
-                # Need to re-import within the patched context
-                pass
+        with (
+            patch.dict("sys.modules", {"metadata.anilist_client": MagicMock()}),
+            patch("anidb_mapper.AniListClient", return_value=mock_client, create=True),
+        ):
+            # Need to re-import within the patched context
+            pass
 
         # Simpler approach: patch at the import point
         mock_module = MagicMock()
         mock_module.AniListClient.return_value = mock_client
-        with patch.dict("sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}):
+        with patch.dict(
+            "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
+        ):
             result = anidb_mapper.resolve_anidb_from_anilist(12345, tvdb_id=100)
         assert result == 4563
         mock_save.assert_called_once_with(100, 4563)
@@ -260,7 +263,9 @@ class TestResolveAnidbFromAnilist:
         mock_client.get_details.return_value = None
         mock_module = MagicMock()
         mock_module.AniListClient.return_value = mock_client
-        with patch.dict("sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}):
+        with patch.dict(
+            "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
+        ):
             result = anidb_mapper.resolve_anidb_from_anilist(99999)
         assert result is None
         mock_save.assert_not_called()
@@ -275,7 +280,9 @@ class TestResolveAnidbFromAnilist:
         }
         mock_module = MagicMock()
         mock_module.AniListClient.return_value = mock_client
-        with patch.dict("sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}):
+        with patch.dict(
+            "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
+        ):
             result = anidb_mapper.resolve_anidb_from_anilist(12345)
         assert result is None
 
@@ -289,7 +296,9 @@ class TestResolveAnidbFromAnilist:
         }
         mock_module = MagicMock()
         mock_module.AniListClient.return_value = mock_client
-        with patch.dict("sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}):
+        with patch.dict(
+            "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
+        ):
             result = anidb_mapper.resolve_anidb_from_anilist(12345, tvdb_id=None)
         assert result == 4563
         mock_save.assert_not_called()
@@ -311,7 +320,9 @@ class TestResolveAnidbFromAnilist:
         }
         mock_module = MagicMock()
         mock_module.AniListClient.return_value = mock_client
-        with patch.dict("sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}):
+        with patch.dict(
+            "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
+        ):
             result = anidb_mapper.resolve_anidb_from_anilist(12345, tvdb_id=100)
         assert result == 4563
 
@@ -325,7 +336,9 @@ class TestResolveAnidbFromAnilist:
         }
         mock_module = MagicMock()
         mock_module.AniListClient.return_value = mock_client
-        with patch.dict("sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}):
+        with patch.dict(
+            "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
+        ):
             result = anidb_mapper.resolve_anidb_from_anilist(12345)
         assert result is None
 
@@ -334,7 +347,9 @@ class TestResolveAnidbFromAnilist:
         mock_client.get_details.return_value = {"externalLinks": []}
         mock_module = MagicMock()
         mock_module.AniListClient.return_value = mock_client
-        with patch.dict("sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}):
+        with patch.dict(
+            "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
+        ):
             result = anidb_mapper.resolve_anidb_from_anilist(12345)
         assert result is None
 
@@ -452,19 +467,23 @@ class TestLoadTitleIndex:
     @patch("anidb_mapper._fetch_dump", return_value=True)
     def test_loads_from_cache_file(self, mock_fetch, tmp_path):
         """Parses a valid gzip cache file into the title index."""
-        data = _build_title_dump_xml([
-            (100, ["Naruto"]),
-            (200, ["One Piece", "OP"]),
-        ])
+        data = _build_title_dump_xml(
+            [
+                (100, ["Naruto"]),
+                (200, ["One Piece", "OP"]),
+            ]
+        )
         cache_file = str(tmp_path / "dump.xml.gz")
         with open(cache_file, "wb") as f:
             f.write(data)
 
-        with patch.object(anidb_mapper, "_DUMP_CACHE_FILE", cache_file):
-            with patch("os.path.exists", return_value=True):
-                with patch("os.path.getmtime", return_value=9999999999.0):
-                    with patch("time.time", return_value=9999999999.0):
-                        anidb_mapper._load_title_index()
+        with (
+            patch.object(anidb_mapper, "_DUMP_CACHE_FILE", cache_file),
+            patch("os.path.exists", return_value=True),
+            patch("os.path.getmtime", return_value=9999999999.0),
+            patch("time.time", return_value=9999999999.0),
+        ):
+            anidb_mapper._load_title_index()
 
         assert anidb_mapper._title_index.get("naruto") == 100
         assert anidb_mapper._title_index.get("one piece") == 200
@@ -497,11 +516,13 @@ class TestLoadTitleIndex:
         with open(cache_file, "wb") as f:
             f.write(b"corrupt data")
 
-        with patch.object(anidb_mapper, "_DUMP_CACHE_FILE", cache_file):
-            with patch("os.path.exists", return_value=True):
-                with patch("os.path.getmtime", return_value=9999999999.0):
-                    with patch("time.time", return_value=9999999999.0):
-                        anidb_mapper._load_title_index()
+        with (
+            patch.object(anidb_mapper, "_DUMP_CACHE_FILE", cache_file),
+            patch("os.path.exists", return_value=True),
+            patch("os.path.getmtime", return_value=9999999999.0),
+            patch("time.time", return_value=9999999999.0),
+        ):
+            anidb_mapper._load_title_index()
 
         assert anidb_mapper._title_index == {}
 
@@ -513,12 +534,14 @@ class TestLoadTitleIndex:
         with open(cache_file, "wb") as f:
             f.write(data)
 
-        with patch.object(anidb_mapper, "_DUMP_CACHE_FILE", cache_file):
+        with (
+            patch.object(anidb_mapper, "_DUMP_CACHE_FILE", cache_file),
             # File exists but is old (triggers download attempt)
-            with patch("os.path.exists", return_value=True):
-                with patch("os.path.getmtime", return_value=0.0):
-                    with patch("time.time", return_value=9999999999.0):
-                        anidb_mapper._load_title_index()
+            patch("os.path.exists", return_value=True),
+            patch("os.path.getmtime", return_value=0.0),
+            patch("time.time", return_value=9999999999.0),
+        ):
+            anidb_mapper._load_title_index()
 
         assert anidb_mapper._title_index.get("stale entry") == 999
 
@@ -545,11 +568,13 @@ class TestLoadTitleIndex:
         with open(cache_file, "wb") as f:
             f.write(data)
 
-        with patch.object(anidb_mapper, "_DUMP_CACHE_FILE", cache_file):
-            with patch("os.path.exists", return_value=True):
-                with patch("os.path.getmtime", return_value=9999999999.0):
-                    with patch("time.time", return_value=9999999999.0):
-                        anidb_mapper._load_title_index()
+        with (
+            patch.object(anidb_mapper, "_DUMP_CACHE_FILE", cache_file),
+            patch("os.path.exists", return_value=True),
+            patch("os.path.getmtime", return_value=9999999999.0),
+            patch("time.time", return_value=9999999999.0),
+        ):
+            anidb_mapper._load_title_index()
 
         assert anidb_mapper._title_index.get("valid") == 100
         assert "zero" not in anidb_mapper._title_index
@@ -567,12 +592,14 @@ class TestLoadTitleIndex:
 
         current_time = _time.time()
 
-        with patch.object(anidb_mapper, "_DUMP_CACHE_FILE", cache_file):
-            with patch("os.path.exists", return_value=True):
-                # File was just modified
-                with patch("os.path.getmtime", return_value=current_time):
-                    with patch("time.time", return_value=current_time):
-                        anidb_mapper._load_title_index()
+        with (
+            patch.object(anidb_mapper, "_DUMP_CACHE_FILE", cache_file),
+            patch("os.path.exists", return_value=True),
+            # File was just modified
+            patch("os.path.getmtime", return_value=current_time),
+            patch("time.time", return_value=current_time),
+        ):
+            anidb_mapper._load_title_index()
 
         # _fetch_dump should not be called (cache is fresh)
         mock_fetch.assert_not_called()
@@ -685,9 +712,13 @@ class TestResolveAnidbFromTitle:
         mock_module = MagicMock()
         mock_module.AniListClient.return_value = mock_client
 
-        with patch.dict("sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}):
-            with patch("anidb_mapper.resolve_anidb_from_anilist", return_value=1234) as mock_resolve:
-                result = anidb_mapper.resolve_anidb_from_title("Naruto", tvdb_id=100)
+        with (
+            patch.dict(
+                "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
+            ),
+            patch("anidb_mapper.resolve_anidb_from_anilist", return_value=1234) as mock_resolve,
+        ):
+            result = anidb_mapper.resolve_anidb_from_title("Naruto", tvdb_id=100)
 
         assert result == 1234
         mock_resolve.assert_called_once_with(555, tvdb_id=100)
@@ -698,7 +729,9 @@ class TestResolveAnidbFromTitle:
         mock_module = MagicMock()
         mock_module.AniListClient.return_value = mock_client
 
-        with patch.dict("sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}):
+        with patch.dict(
+            "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
+        ):
             result = anidb_mapper.resolve_anidb_from_title("Unknown Series")
 
         assert result is None
@@ -709,7 +742,9 @@ class TestResolveAnidbFromTitle:
         mock_module = MagicMock()
         mock_module.AniListClient.return_value = mock_client
 
-        with patch.dict("sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}):
+        with patch.dict(
+            "sys.modules", {"metadata": MagicMock(), "metadata.anilist_client": mock_module}
+        ):
             result = anidb_mapper.resolve_anidb_from_title("Test")
 
         assert result is None

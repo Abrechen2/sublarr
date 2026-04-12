@@ -430,7 +430,9 @@ class SearchCoordinatorMixin:
                                     )
                                 except Exception as _pe:
                                     logger.debug("CB persistence failed: %s", _pe)
-                                self._emit_provider_state(name, "circuit_open", "timeout", cb.cooldown_seconds)
+                                self._emit_provider_state(
+                                    name, "circuit_open", "timeout", cb.cooldown_seconds
+                                )
                         update_provider_stats(name, success=False, score=0)
                         self._check_auto_disable(name)
                     except Exception as e:
@@ -448,7 +450,9 @@ class SearchCoordinatorMixin:
                                     )
                                 except Exception as _pe:
                                     logger.debug("CB persistence failed: %s", _pe)
-                                self._emit_provider_state(name, "circuit_open", "failures", cb.cooldown_seconds)
+                                self._emit_provider_state(
+                                    name, "circuit_open", "failures", cb.cooldown_seconds
+                                )
                         # Rate-limit exception → extended throttle (Bazarr throttle_map parity)
                         if isinstance(e, ProviderRateLimitError):
                             throttle_min = getattr(

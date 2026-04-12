@@ -12,7 +12,7 @@ import { Star, Sliders, Heart } from 'lucide-react'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormGroup } from '@/components/settings/FormGroup'
-import { toast } from '@/components/shared/Toast'
+
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { strVal, numVal } from '@/lib/configUtils'
 import { settingsInputStyle } from '@/styles/settingsShared'

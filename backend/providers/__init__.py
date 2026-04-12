@@ -749,8 +749,6 @@ class ProviderManager(SearchCoordinatorMixin):
 
     def get_provider_summary(self) -> dict:
         """Return aggregate counts of provider states for search progress UI."""
-        import time as _time
-
         active = 0
         throttled = 0
         circuit_open = 0
@@ -780,9 +778,7 @@ class ProviderManager(SearchCoordinatorMixin):
 
             if remaining > 0:
                 throttled += 1
-                throttled_providers.append(
-                    {"name": name, "remaining_seconds": round(remaining)}
-                )
+                throttled_providers.append({"name": name, "remaining_seconds": round(remaining)})
             else:
                 # Check auto-disabled
                 from db.providers import is_provider_auto_disabled

@@ -14,10 +14,10 @@ from sonarr_client import (
     invalidate_client,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(autouse=True)
 def _reset_singletons():
@@ -78,6 +78,7 @@ def _rate_limit_response(retry_after=None):
 # SonarrClient.__init__
 # ===========================================================================
 
+
 class TestSonarrClientInit:
     def test_url_trailing_slash_stripped(self):
         c = SonarrClient("http://host:8989/", "key")
@@ -91,6 +92,7 @@ class TestSonarrClientInit:
 # ===========================================================================
 # _get — retry logic, error handling
 # ===========================================================================
+
 
 class TestGet:
     def test_success(self, client, mock_session):
@@ -174,6 +176,7 @@ class TestGet:
 # _post — retry logic, error handling
 # ===========================================================================
 
+
 class TestPost:
     def test_success_with_body(self, client, mock_session):
         mock_session.post.return_value = _ok_response({"id": 1})
@@ -227,6 +230,7 @@ class TestPost:
 # ===========================================================================
 # Public API methods
 # ===========================================================================
+
 
 class TestHealthCheck:
     def test_healthy(self, client, mock_session):
@@ -392,14 +396,30 @@ class TestGetAnimeSeries:
 
     def test_matches_by_genre(self, client, mock_session):
         tags = []
-        series = [{"id": 1, "title": "Naruto", "tags": [], "seriesType": "standard", "genres": ["Anime", "Action"]}]
+        series = [
+            {
+                "id": 1,
+                "title": "Naruto",
+                "tags": [],
+                "seriesType": "standard",
+                "genres": ["Anime", "Action"],
+            }
+        ]
         self._setup_tags_and_series(mock_session, tags, series)
         result = client.get_anime_series()
         assert len(result) == 1
 
     def test_no_match(self, client, mock_session):
         tags = []
-        series = [{"id": 1, "title": "Breaking Bad", "tags": [], "seriesType": "standard", "genres": ["Drama"]}]
+        series = [
+            {
+                "id": 1,
+                "title": "Breaking Bad",
+                "tags": [],
+                "seriesType": "standard",
+                "genres": ["Drama"],
+            }
+        ]
         self._setup_tags_and_series(mock_session, tags, series)
         result = client.get_anime_series()
         assert len(result) == 0
@@ -419,18 +439,28 @@ class TestRescanSeries:
 class TestGetEpisodeMetadata:
     def test_success_with_anidb(self, client, mock_session):
         series = {
-            "id": 1, "title": "Naruto", "year": 2002,
-            "tvdbId": 78857, "imdbId": "tt0409591",
+            "id": 1,
+            "title": "Naruto",
+            "year": 2002,
+            "tvdbId": 78857,
+            "imdbId": "tt0409591",
             "customFields": {},
         }
         episode = {
-            "id": 100, "seasonNumber": 1, "episodeNumber": 5, "title": "Ep 5",
+            "id": 100,
+            "seasonNumber": 1,
+            "episodeNumber": 5,
+            "title": "Ep 5",
         }
         mock_session.get.side_effect = [_ok_response(series), _ok_response(episode)]
 
-        with patch("sonarr_client.get_anidb_id", return_value=123, create=True):
-            with patch.dict("sys.modules", {"anidb_mapper": MagicMock(get_anidb_id=MagicMock(return_value=123))}):
-                result = client.get_episode_metadata(1, 100)
+        with (
+            patch("sonarr_client.get_anidb_id", return_value=123, create=True),
+            patch.dict(
+                "sys.modules", {"anidb_mapper": MagicMock(get_anidb_id=MagicMock(return_value=123))}
+            ),
+        ):
+            result = client.get_episode_metadata(1, 100)
 
         assert result is not None
         assert result["series_title"] == "Naruto"
@@ -450,7 +480,14 @@ class TestGetEpisodeMetadata:
 
     def test_anidb_mapper_failure_graceful(self, client, mock_session):
         """AniDB mapper failure should not break the method."""
-        series = {"id": 1, "title": "X", "year": 2020, "tvdbId": 1, "imdbId": "", "customFields": {}}
+        series = {
+            "id": 1,
+            "title": "X",
+            "year": 2020,
+            "tvdbId": 1,
+            "imdbId": "",
+            "customFields": {},
+        }
         episode = {"id": 100, "seasonNumber": 1, "episodeNumber": 1, "title": "Ep"}
         mock_session.get.side_effect = [_ok_response(series), _ok_response(episode)]
 
@@ -464,8 +501,11 @@ class TestGetEpisodeMetadata:
 
     def test_anilist_id_from_custom_fields(self, client, mock_session):
         series = {
-            "id": 1, "title": "X", "year": 2020,
-            "tvdbId": 1, "imdbId": "",
+            "id": 1,
+            "title": "X",
+            "year": 2020,
+            "tvdbId": 1,
+            "imdbId": "",
             "customFields": {"anilist_id": "12345"},
         }
         episode = {"id": 100, "seasonNumber": 1, "episodeNumber": 1, "title": "Ep"}
@@ -482,6 +522,7 @@ class TestGetEpisodeMetadata:
 # ===========================================================================
 # extended_health_check
 # ===========================================================================
+
 
 class TestExtendedHealthCheck:
     def test_connection_failure(self, client, mock_session):
@@ -500,10 +541,10 @@ class TestExtendedHealthCheck:
         health = [{"type": "warning", "message": "Missing root folder"}]
 
         mock_session.get.side_effect = [
-            _ok_response(status),       # /system/status
-            _ok_response(series),       # /series
+            _ok_response(status),  # /system/status
+            _ok_response(series),  # /series
             _ok_response(notifications),  # /notification
-            _ok_response(health),       # /health
+            _ok_response(health),  # /health
         ]
         report = client.extended_health_check()
 
@@ -521,8 +562,8 @@ class TestExtendedHealthCheck:
         mock_session.get.side_effect = [
             _ok_response(status),
             _ok_response([{"id": 1}]),  # series ok
-            _error_response(500),       # notifications fail
-            _error_response(500),       # health fail
+            _error_response(500),  # notifications fail
+            _error_response(500),  # health fail
         ]
         report = client.extended_health_check()
         assert report["connection"]["healthy"] is True
@@ -534,17 +575,24 @@ class TestExtendedHealthCheck:
 # get_library_info
 # ===========================================================================
 
+
 class TestGetLibraryInfo:
     def test_anime_only(self, client, mock_session):
         tags = [{"id": 1, "label": "anime"}]
-        series = [{
-            "id": 10, "title": "Naruto", "year": 2002, "tags": [1],
-            "seriesType": "standard", "genres": [],
-            "statistics": {"seasonCount": 5, "episodeCount": 220, "episodeFileCount": 200},
-            "path": "/media/Naruto",
-            "images": [{"coverType": "poster", "remoteUrl": "http://img/poster.jpg"}],
-            "status": "ended",
-        }]
+        series = [
+            {
+                "id": 10,
+                "title": "Naruto",
+                "year": 2002,
+                "tags": [1],
+                "seriesType": "standard",
+                "genres": [],
+                "statistics": {"seasonCount": 5, "episodeCount": 220, "episodeFileCount": 200},
+                "path": "/media/Naruto",
+                "images": [{"coverType": "poster", "remoteUrl": "http://img/poster.jpg"}],
+                "status": "ended",
+            }
+        ]
         mock_session.get.side_effect = [_ok_response(tags), _ok_response(series)]
         result = client.get_library_info(anime_only=True)
         assert len(result) == 1
@@ -556,8 +604,18 @@ class TestGetLibraryInfo:
 
     def test_all_series(self, client, mock_session):
         series = [
-            {"id": 1, "title": "Show A", "year": 2020, "tags": [], "seriesType": "standard",
-             "genres": [], "statistics": {}, "path": "/a", "images": [], "status": "continuing"},
+            {
+                "id": 1,
+                "title": "Show A",
+                "year": 2020,
+                "tags": [],
+                "seriesType": "standard",
+                "genres": [],
+                "statistics": {},
+                "path": "/a",
+                "images": [],
+                "status": "continuing",
+            },
         ]
         mock_session.get.return_value = _ok_response(series)
         result = client.get_library_info(anime_only=False)
@@ -565,8 +623,18 @@ class TestGetLibraryInfo:
 
     def test_poster_missing(self, client, mock_session):
         series = [
-            {"id": 1, "title": "No Poster", "year": 2020, "tags": [], "seriesType": "anime",
-             "genres": [], "statistics": {}, "path": "/a", "images": [], "status": "continuing"},
+            {
+                "id": 1,
+                "title": "No Poster",
+                "year": 2020,
+                "tags": [],
+                "seriesType": "anime",
+                "genres": [],
+                "statistics": {},
+                "path": "/a",
+                "images": [],
+                "status": "continuing",
+            },
         ]
         # anime_only=True needs tags + series
         tags = []
@@ -579,10 +647,13 @@ class TestGetLibraryInfo:
 # Factory function: get_sonarr_client
 # ===========================================================================
 
+
 class TestGetSonarrClient:
     def test_returns_none_when_not_configured(self):
-        with patch("config.get_sonarr_instances", return_value=[]), \
-             patch("sonarr_client.get_settings") as mock_settings:
+        with (
+            patch("config.get_sonarr_instances", return_value=[]),
+            patch("sonarr_client.get_settings") as mock_settings,
+        ):
             mock_settings.return_value.sonarr_url = ""
             mock_settings.return_value.sonarr_api_key = ""
             result = get_sonarr_client()
@@ -632,8 +703,10 @@ class TestGetSonarrClient:
         assert c1 is c2
 
     def test_legacy_fallback(self):
-        with patch("config.get_sonarr_instances", return_value=[]), \
-             patch("sonarr_client.get_settings") as mock_settings:
+        with (
+            patch("config.get_sonarr_instances", return_value=[]),
+            patch("sonarr_client.get_settings") as mock_settings,
+        ):
             mock_settings.return_value.sonarr_url = "http://legacy:8989"
             mock_settings.return_value.sonarr_api_key = "legacy-key"
             result = get_sonarr_client()
@@ -644,6 +717,7 @@ class TestGetSonarrClient:
 # ===========================================================================
 # invalidate_client
 # ===========================================================================
+
 
 class TestInvalidateClient:
     def test_clears_all_caches(self):
@@ -656,5 +730,6 @@ class TestInvalidateClient:
 
         # After invalidation, next call should create fresh clients
         import sonarr_client as sc
+
         assert sc._client is None
         assert sc._clients_cache == {}

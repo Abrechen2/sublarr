@@ -18,7 +18,7 @@ import threading
 import time
 from datetime import UTC, datetime
 
-from config import get_settings, map_path
+from config import get_settings
 from db.activity import log_activity
 from db.models.activity import EVENT_SCAN
 from db.wanted import batch_upsert_context
@@ -159,7 +159,12 @@ class WantedScanner:
 
             logger.info(
                 "Wanted %s scan complete: +%d added, ~%d updated, -%d removed, %d total (%.1fs)",
-                scan_type, added, updated, removed, total_wanted, duration,
+                scan_type,
+                added,
+                updated,
+                removed,
+                total_wanted,
+                duration,
             )
 
             log_activity(
@@ -279,9 +284,7 @@ class WantedScanner:
                 instance_name = inst.get("name", "Default")
                 sonarr = get_sonarr_client(instance_name=instance_name)
                 if sonarr:
-                    a, u, paths = self._scan_sonarr_instance(
-                        sonarr, settings, instance_name, since
-                    )
+                    a, u, paths = self._scan_sonarr_instance(sonarr, settings, instance_name, since)
                     total_added += a
                     total_updated += u
                     all_paths.update(paths)
@@ -300,12 +303,14 @@ class WantedScanner:
         if since:
             since_iso = since.isoformat() + "Z"
             series_list = [
-                s for s in series_list
+                s
+                for s in series_list
                 if (s.get("lastInfoSync") or s.get("added") or "") >= since_iso
             ]
             logger.debug(
                 "Incremental Sonarr scan: %d series modified since %s",
-                len(series_list), since_iso,
+                len(series_list),
+                since_iso,
             )
 
         total_added = 0
@@ -313,8 +318,11 @@ class WantedScanner:
         all_paths = set()
 
         self._progress = {
-            "current": 0, "total": len(series_list),
-            "phase": f"Sonarr ({instance_name})", "added": 0, "updated": 0,
+            "current": 0,
+            "total": len(series_list),
+            "phase": f"Sonarr ({instance_name})",
+            "added": 0,
+            "updated": 0,
         }
         if self._socketio:
             self._socketio.emit("wanted_scan_progress", dict(self._progress))
@@ -326,7 +334,11 @@ class WantedScanner:
                 continue
             with batch_upsert_context():
                 a, u, paths = scan_sonarr_series(
-                    sonarr, series_id, settings, series, instance_name,
+                    sonarr,
+                    series_id,
+                    settings,
+                    series,
+                    instance_name,
                     auto_extract_fn=self._maybe_auto_extract,
                 )
             total_added += a
@@ -355,9 +367,7 @@ class WantedScanner:
                 instance_name = inst.get("name", "Default")
                 radarr = get_radarr_client(instance_name=instance_name)
                 if radarr:
-                    a, u, paths = self._scan_radarr_instance(
-                        radarr, settings, instance_name, since
-                    )
+                    a, u, paths = self._scan_radarr_instance(radarr, settings, instance_name, since)
                     total_added += a
                     total_updated += u
                     all_paths.update(paths)
@@ -376,15 +386,15 @@ class WantedScanner:
         if since:
             since_iso = since.isoformat() + "Z"
             movies = [
-                m for m in movies
-                if (
-                    (m.get("movieFile") or {}).get("dateAdded")
-                    or m.get("added") or ""
-                ) >= since_iso
+                m
+                for m in movies
+                if ((m.get("movieFile") or {}).get("dateAdded") or m.get("added") or "")
+                >= since_iso
             ]
             logger.debug(
                 "Incremental Radarr scan: %d movies modified since %s",
-                len(movies), since_iso,
+                len(movies),
+                since_iso,
             )
 
         total_added = 0
@@ -392,8 +402,11 @@ class WantedScanner:
         all_paths = set()
 
         self._progress = {
-            "current": 0, "total": len(movies),
-            "phase": f"Radarr ({instance_name})", "added": 0, "updated": 0,
+            "current": 0,
+            "total": len(movies),
+            "phase": f"Radarr ({instance_name})",
+            "added": 0,
+            "updated": 0,
         }
         if self._socketio:
             self._socketio.emit("wanted_scan_progress", dict(self._progress))
@@ -402,7 +415,10 @@ class WantedScanner:
         for idx, movie in enumerate(movies, 1):
             with batch_upsert_context():
                 a, u, paths = scan_radarr_movie(
-                    radarr, movie, settings, instance_name,
+                    radarr,
+                    movie,
+                    settings,
+                    instance_name,
                     auto_extract_fn=self._maybe_auto_extract,
                 )
             total_added += a
@@ -590,7 +606,9 @@ class WantedScanner:
 
     def _schedule_next_scan(self, interval_hours):
         self._timer = threading.Timer(
-            interval_hours * 3600, self._scheduled_scan, args=(interval_hours,),
+            interval_hours * 3600,
+            self._scheduled_scan,
+            args=(interval_hours,),
         )
         self._timer.daemon = True
         self._timer.start()
@@ -616,7 +634,9 @@ class WantedScanner:
 
     def _schedule_next_search(self, interval_hours):
         self._search_timer = threading.Timer(
-            interval_hours * 3600, self._scheduled_search, args=(interval_hours,),
+            interval_hours * 3600,
+            self._scheduled_search,
+            args=(interval_hours,),
         )
         self._search_timer.daemon = True
         self._search_timer.start()

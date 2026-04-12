@@ -60,6 +60,7 @@ test-media/
 # Test & coverage artifacts
 .coverage
 coverage.xml
+coverage.json
 htmlcov/
 frontend/lint-results.json
 frontend/test-results/

@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ───────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ───────────────────────────────────────────────────────────────────────────────
@@ -169,9 +168,7 @@ class TestHealthEndpoint:
         "routes.system.health._health_check_media_servers",
         return_value=({"media_servers": "none configured"}, None),
     )
-    def test_health_handles_check_exception_gracefully(
-        self, _ms, _rad, _son, _prov, _oll, client
-    ):
+    def test_health_handles_check_exception_gracefully(self, _ms, _rad, _son, _prov, _oll, client):
         """If a health check callable raises, the endpoint should still respond."""
         resp = client.get("/api/v1/health")
         assert resp.status_code == 200  # exception → treated as error entry, not crash
@@ -775,9 +772,7 @@ class TestHealthDetailedEndpoint:
 
         patches = _make_detailed_patches(
             **{
-                "db.config.get_config_entry": MagicMock(
-                    side_effect=_config_entry_side_effect
-                ),
+                "db.config.get_config_entry": MagicMock(side_effect=_config_entry_side_effect),
                 "whisper.get_whisper_manager": MagicMock(return_value=wm_mock),
             }
         )
@@ -799,9 +794,7 @@ class TestHealthDetailedEndpoint:
 
         patches = _make_detailed_patches(
             **{
-                "db.config.get_config_entry": MagicMock(
-                    side_effect=_config_entry_side_effect
-                ),
+                "db.config.get_config_entry": MagicMock(side_effect=_config_entry_side_effect),
                 "whisper.get_whisper_manager": MagicMock(return_value=wm_mock),
             }
         )

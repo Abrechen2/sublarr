@@ -7,7 +7,6 @@ import pytest
 
 from error_handler import DatabaseIntegrityError
 
-
 # ── _is_postgresql ───────────────────────────────────────────────────────────
 
 
@@ -155,8 +154,9 @@ class TestGetDatabaseStats:
             table_counts={"subtitles": 42, "config_entries": 10},
         )
 
-        with patch("os.path.getsize", return_value=102400), patch(
-            "os.path.exists", return_value=False
+        with (
+            patch("os.path.getsize", return_value=102400),
+            patch("os.path.exists", return_value=False),
         ):
             stats = get_database_stats(mock_db, "/fake/db.sqlite")
 
@@ -179,8 +179,9 @@ class TestGetDatabaseStats:
                 return 8192
             return 51200
 
-        with patch("os.path.getsize", side_effect=getsize_side_effect), patch(
-            "os.path.exists", return_value=True
+        with (
+            patch("os.path.getsize", side_effect=getsize_side_effect),
+            patch("os.path.exists", return_value=True),
         ):
             stats = get_database_stats(mock_db, "/fake/db.sqlite")
 
@@ -192,8 +193,9 @@ class TestGetDatabaseStats:
         mock_db = MagicMock()
         mock_db.execute.side_effect = self._make_execute()
 
-        with patch("os.path.getsize", side_effect=OSError("not found")), patch(
-            "os.path.exists", return_value=False
+        with (
+            patch("os.path.getsize", side_effect=OSError("not found")),
+            patch("os.path.exists", return_value=False),
         ):
             stats = get_database_stats(mock_db, "/nonexistent/db.sqlite")
 
@@ -210,8 +212,9 @@ class TestGetDatabaseStats:
             table_counts={"valid_table": 7},
         )
 
-        with patch("os.path.getsize", return_value=1000), patch(
-            "os.path.exists", return_value=False
+        with (
+            patch("os.path.getsize", return_value=1000),
+            patch("os.path.exists", return_value=False),
         ):
             stats = get_database_stats(mock_db, "/fake/db.sqlite")
 
@@ -224,8 +227,9 @@ class TestGetDatabaseStats:
         mock_db = MagicMock()
         mock_db.execute.side_effect = RuntimeError("pragma failed")
 
-        with patch("os.path.getsize", return_value=500), patch(
-            "os.path.exists", return_value=False
+        with (
+            patch("os.path.getsize", return_value=500),
+            patch("os.path.exists", return_value=False),
         ):
             stats = get_database_stats(mock_db, "/fake/db.sqlite")
 
@@ -243,8 +247,9 @@ class TestGetDatabaseStats:
             table_counts={"broken_table": RuntimeError("table locked")},
         )
 
-        with patch("os.path.getsize", return_value=500), patch(
-            "os.path.exists", return_value=False
+        with (
+            patch("os.path.getsize", return_value=500),
+            patch("os.path.exists", return_value=False),
         ):
             stats = get_database_stats(mock_db, "/fake/db.sqlite")
 
@@ -262,8 +267,9 @@ class TestGetDatabaseStats:
                 raise OSError("wal broken")
             return 1000
 
-        with patch("os.path.getsize", side_effect=getsize_side_effect), patch(
-            "os.path.exists", return_value=True
+        with (
+            patch("os.path.getsize", side_effect=getsize_side_effect),
+            patch("os.path.exists", return_value=True),
         ):
             stats = get_database_stats(mock_db, "/fake/db.sqlite")
 
@@ -339,10 +345,11 @@ class TestSqliteHealthReport:
 
         mock_db.execute.side_effect = execute_side_effect
 
-        with patch("db.get_db", return_value=mock_db), patch(
-            "config.get_settings", return_value=mock_settings
-        ), patch("os.path.getsize", return_value=1024), patch(
-            "os.path.exists", return_value=False
+        with (
+            patch("db.get_db", return_value=mock_db),
+            patch("config.get_settings", return_value=mock_settings),
+            patch("os.path.getsize", return_value=1024),
+            patch("os.path.exists", return_value=False),
         ):
             report = _sqlite_health_report()
 
@@ -363,10 +370,11 @@ class TestSqliteHealthReport:
         # Subsequent calls (stats) also raise but that's handled
         mock_db.execute.side_effect = RuntimeError("disk error")
 
-        with patch("db.get_db", return_value=mock_db), patch(
-            "config.get_settings", return_value=mock_settings
-        ), patch("os.path.getsize", return_value=0), patch(
-            "os.path.exists", return_value=False
+        with (
+            patch("db.get_db", return_value=mock_db),
+            patch("config.get_settings", return_value=mock_settings),
+            patch("os.path.getsize", return_value=0),
+            patch("os.path.exists", return_value=False),
         ):
             report = _sqlite_health_report()
 
@@ -381,10 +389,13 @@ class TestGetHealthReport:
     def test_dispatches_to_sqlite(self):
         from database_health import get_health_report
 
-        with patch("database_health._is_postgresql", return_value=False), patch(
-            "database_health._sqlite_health_report",
-            return_value={"status": "healthy", "backend": "sqlite", "details": {}},
-        ) as mock_sqlite:
+        with (
+            patch("database_health._is_postgresql", return_value=False),
+            patch(
+                "database_health._sqlite_health_report",
+                return_value={"status": "healthy", "backend": "sqlite", "details": {}},
+            ) as mock_sqlite,
+        ):
             result = get_health_report()
 
         mock_sqlite.assert_called_once()
@@ -393,10 +404,13 @@ class TestGetHealthReport:
     def test_dispatches_to_postgresql(self):
         from database_health import get_health_report
 
-        with patch("database_health._is_postgresql", return_value=True), patch(
-            "database_health._pg_health_report",
-            return_value={"status": "healthy", "backend": "postgresql", "details": {}},
-        ) as mock_pg:
+        with (
+            patch("database_health._is_postgresql", return_value=True),
+            patch(
+                "database_health._pg_health_report",
+                return_value={"status": "healthy", "backend": "postgresql", "details": {}},
+            ) as mock_pg,
+        ):
             result = get_health_report()
 
         mock_pg.assert_called_once()
@@ -426,8 +440,9 @@ class TestGetPoolStats:
         mock_ext = MagicMock()
         mock_ext.db.engine.pool = mock_pool
 
-        with patch("database_health._is_postgresql", return_value=True), patch.dict(
-            sys.modules, {"extensions": mock_ext}
+        with (
+            patch("database_health._is_postgresql", return_value=True),
+            patch.dict(sys.modules, {"extensions": mock_ext}),
         ):
             stats = get_pool_stats()
 
@@ -445,8 +460,9 @@ class TestGetPoolStats:
         mock_ext = MagicMock()
         mock_ext.db.engine.pool.size.side_effect = RuntimeError("pool error")
 
-        with patch("database_health._is_postgresql", return_value=True), patch.dict(
-            sys.modules, {"extensions": mock_ext}
+        with (
+            patch("database_health._is_postgresql", return_value=True),
+            patch.dict(sys.modules, {"extensions": mock_ext}),
         ):
             stats = get_pool_stats()
 
@@ -490,8 +506,9 @@ class TestPgHealthReport:
         mock_ext = MagicMock()
         mock_ext.db.engine.connect.return_value = mock_conn
 
-        with patch.dict(sys.modules, {"extensions": mock_ext}), patch(
-            "database_health.get_pool_stats", return_value=None
+        with (
+            patch.dict(sys.modules, {"extensions": mock_ext}),
+            patch("database_health.get_pool_stats", return_value=None),
         ):
             report = _pg_health_report()
 
@@ -510,8 +527,9 @@ class TestPgHealthReport:
         mock_ext = MagicMock()
         mock_ext.db.engine.connect.side_effect = RuntimeError("connection refused")
 
-        with patch.dict(sys.modules, {"extensions": mock_ext}), patch(
-            "database_health.get_pool_stats", return_value=None
+        with (
+            patch.dict(sys.modules, {"extensions": mock_ext}),
+            patch("database_health.get_pool_stats", return_value=None),
         ):
             report = _pg_health_report()
 
@@ -534,8 +552,9 @@ class TestPgHealthReport:
             "status": "OK",
         }
 
-        with patch.dict(sys.modules, {"extensions": mock_ext}), patch(
-            "database_health.get_pool_stats", return_value=pool_info
+        with (
+            patch.dict(sys.modules, {"extensions": mock_ext}),
+            patch("database_health.get_pool_stats", return_value=pool_info),
         ):
             report = _pg_health_report()
 
@@ -555,8 +574,9 @@ class TestPgHealthReport:
         mock_ext = MagicMock()
         mock_ext.db.engine.connect.return_value = mock_conn
 
-        with patch.dict(sys.modules, {"extensions": mock_ext}), patch(
-            "database_health.get_pool_stats", return_value=None
+        with (
+            patch.dict(sys.modules, {"extensions": mock_ext}),
+            patch("database_health.get_pool_stats", return_value=None),
         ):
             report = _pg_health_report()
 
@@ -576,9 +596,7 @@ class TestPgHealthReport:
             result = MagicMock()
             if "SELECT 1" in sql:
                 raise RuntimeError("connection lost")
-            if "pg_database_size" in sql:
-                result.fetchone.return_value = (0,)
-            elif "pg_stat_activity" in sql:
+            if "pg_database_size" in sql or "pg_stat_activity" in sql:
                 result.fetchone.return_value = (0,)
             else:
                 result.fetchall.return_value = []
@@ -588,8 +606,9 @@ class TestPgHealthReport:
         mock_ext = MagicMock()
         mock_ext.db.engine.connect.return_value = mock_conn
 
-        with patch.dict(sys.modules, {"extensions": mock_ext}), patch(
-            "database_health.get_pool_stats", return_value=None
+        with (
+            patch.dict(sys.modules, {"extensions": mock_ext}),
+            patch("database_health.get_pool_stats", return_value=None),
         ):
             report = _pg_health_report()
 
@@ -604,8 +623,9 @@ class TestPgHealthReport:
         mock_ext = MagicMock()
         mock_ext.db.engine.connect.return_value = mock_conn
 
-        with patch.dict(sys.modules, {"extensions": mock_ext}), patch(
-            "database_health.get_pool_stats", return_value=None
+        with (
+            patch.dict(sys.modules, {"extensions": mock_ext}),
+            patch("database_health.get_pool_stats", return_value=None),
         ):
             report = _pg_health_report()
 

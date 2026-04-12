@@ -55,7 +55,7 @@ const PILL_OTHER: CSSProperties = {
   borderColor: 'rgba(29,184,212,0.25)',
 }
 
-const PILL_NONE: CSSProperties = {
+const _PILL_NONE: CSSProperties = {
   ...PILL_BASE,
   background: 'rgba(255,255,255,0.04)',
   color: 'var(--text-muted)',

@@ -178,9 +178,7 @@ class TestCompatCheckBatch:
 
     def test_successful_batch_check_plex(self, client):
         fake_result = {"compatible": True, "issues": []}
-        with patch(
-            "compat_checker.batch_check_compatibility", return_value=fake_result
-        ):
+        with patch("compat_checker.batch_check_compatibility", return_value=fake_result):
             rv = client.post(
                 "/api/v1/integrations/compat-check",
                 json={
@@ -197,9 +195,7 @@ class TestCompatCheckBatch:
 
     def test_successful_batch_check_kodi(self, client):
         fake_result = {"compatible": False, "issues": ["codec unsupported"]}
-        with patch(
-            "compat_checker.batch_check_compatibility", return_value=fake_result
-        ):
+        with patch("compat_checker.batch_check_compatibility", return_value=fake_result):
             rv = client.post(
                 "/api/v1/integrations/compat-check",
                 json={
@@ -216,9 +212,7 @@ class TestCompatCheckBatch:
 
     def test_default_target_is_plex(self, client):
         """When no target given, defaults to plex."""
-        with patch(
-            "compat_checker.batch_check_compatibility", return_value={}
-        ) as mock_fn:
+        with patch("compat_checker.batch_check_compatibility", return_value={}) as mock_fn:
             rv = client.post(
                 "/api/v1/integrations/compat-check",
                 json={
@@ -290,9 +284,7 @@ class TestCompatCheckSingle:
 
     def test_single_plex_check(self, client):
         fake_result = {"compatible": True, "format": "srt"}
-        with patch(
-            "compat_checker.check_plex_compatibility", return_value=fake_result
-        ):
+        with patch("compat_checker.check_plex_compatibility", return_value=fake_result):
             rv = client.post(
                 "/api/v1/integrations/compat-check/single",
                 json={
@@ -308,9 +300,7 @@ class TestCompatCheckSingle:
 
     def test_single_kodi_check(self, client):
         fake_result = {"compatible": True, "format": "ass"}
-        with patch(
-            "compat_checker.check_kodi_compatibility", return_value=fake_result
-        ):
+        with patch("compat_checker.check_kodi_compatibility", return_value=fake_result):
             rv = client.post(
                 "/api/v1/integrations/compat-check/single",
                 json={
@@ -326,9 +316,7 @@ class TestCompatCheckSingle:
 
     def test_single_check_default_target_plex(self, client):
         """Default target is plex -- check_plex_compatibility is called."""
-        with patch(
-            "compat_checker.check_plex_compatibility", return_value={}
-        ) as mock_plex:
+        with patch("compat_checker.check_plex_compatibility", return_value={}) as mock_plex:
             rv = client.post(
                 "/api/v1/integrations/compat-check/single",
                 json={
@@ -533,9 +521,7 @@ class TestHealthJellyfin:
         mock_manager = MagicMock()
         mock_manager._instances = {}
 
-        with patch(
-            "mediaserver.get_media_server_manager", return_value=mock_manager
-        ):
+        with patch("mediaserver.get_media_server_manager", return_value=mock_manager):
             rv = client.get("/api/v1/integrations/health/jellyfin")
 
         assert rv.status_code == 200
@@ -551,9 +537,7 @@ class TestHealthJellyfin:
         mock_manager = MagicMock()
         mock_manager._instances = {"jf1": mock_instance}
 
-        with patch(
-            "mediaserver.get_media_server_manager", return_value=mock_manager
-        ):
+        with patch("mediaserver.get_media_server_manager", return_value=mock_manager):
             rv = client.get("/api/v1/integrations/health/jellyfin")
 
         assert rv.status_code == 200
@@ -569,9 +553,7 @@ class TestHealthJellyfin:
         mock_manager = MagicMock()
         mock_manager._instances = {"plex1": mock_instance}
 
-        with patch(
-            "mediaserver.get_media_server_manager", return_value=mock_manager
-        ):
+        with patch("mediaserver.get_media_server_manager", return_value=mock_manager):
             rv = client.get("/api/v1/integrations/health/jellyfin")
 
         assert rv.status_code == 200
@@ -601,9 +583,7 @@ class TestHealthMediaServers:
         mock_manager._instances = {}
         mock_manager._instance_enabled = {}
 
-        with patch(
-            "mediaserver.get_media_server_manager", return_value=mock_manager
-        ):
+        with patch("mediaserver.get_media_server_manager", return_value=mock_manager):
             rv = client.get("/api/v1/integrations/health/mediaservers")
 
         assert rv.status_code == 200
@@ -622,9 +602,7 @@ class TestHealthMediaServers:
         mock_manager._instances = {"jf1": mock_instance}
         mock_manager._instance_enabled = {"jf1": True}
 
-        with patch(
-            "mediaserver.get_media_server_manager", return_value=mock_manager
-        ):
+        with patch("mediaserver.get_media_server_manager", return_value=mock_manager):
             rv = client.get("/api/v1/integrations/health/mediaservers")
 
         assert rv.status_code == 200
@@ -648,9 +626,7 @@ class TestHealthMediaServers:
         mock_manager._instances = {"plex1": mock_instance}
         mock_manager._instance_enabled = {"plex1": True}
 
-        with patch(
-            "mediaserver.get_media_server_manager", return_value=mock_manager
-        ):
+        with patch("mediaserver.get_media_server_manager", return_value=mock_manager):
             rv = client.get("/api/v1/integrations/health/mediaservers")
 
         assert rv.status_code == 200
@@ -668,9 +644,7 @@ class TestHealthMediaServers:
         mock_manager._instances = {"jf1": mock_instance}
         mock_manager._instance_enabled = {"jf1": False}
 
-        with patch(
-            "mediaserver.get_media_server_manager", return_value=mock_manager
-        ):
+        with patch("mediaserver.get_media_server_manager", return_value=mock_manager):
             rv = client.get("/api/v1/integrations/health/mediaservers")
 
         assert rv.status_code == 200
@@ -690,9 +664,7 @@ class TestHealthMediaServers:
         mock_manager._instances = {"emby1": mock_instance}
         mock_manager._instance_enabled = {"emby1": True}
 
-        with patch(
-            "mediaserver.get_media_server_manager", return_value=mock_manager
-        ):
+        with patch("mediaserver.get_media_server_manager", return_value=mock_manager):
             rv = client.get("/api/v1/integrations/health/mediaservers")
 
         assert rv.status_code == 200
@@ -713,9 +685,7 @@ class TestHealthMediaServers:
         mock_manager._instances = {"plex_main": mock_instance}
         mock_manager._instance_enabled = {"plex_main": True}
 
-        with patch(
-            "mediaserver.get_media_server_manager", return_value=mock_manager
-        ):
+        with patch("mediaserver.get_media_server_manager", return_value=mock_manager):
             rv = client.get("/api/v1/integrations/health/mediaservers")
 
         assert rv.get_json()["instances"][0]["name"] == "plex_main"
@@ -901,9 +871,7 @@ class TestExportZip:
         assert "sublarr_export.zip" in rv.headers["Content-Disposition"]
 
     def test_include_secrets_passed_through(self, client):
-        with patch(
-            "export_manager.export_to_zip", return_value=b"zip"
-        ) as mock_fn:
+        with patch("export_manager.export_to_zip", return_value=b"zip") as mock_fn:
             client.post(
                 "/api/v1/integrations/export/zip",
                 json={"formats": ["json"], "include_secrets": True},

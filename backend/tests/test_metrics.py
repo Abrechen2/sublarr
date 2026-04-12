@@ -7,7 +7,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -167,15 +166,11 @@ class TestRecordTranslation:
         metrics.record_translation("error", "srt", 2.0)
 
         assert (
-            _get_counter_value(
-                metrics.TRANSLATION_TOTAL, {"status": "success", "format": "srt"}
-            )
+            _get_counter_value(metrics.TRANSLATION_TOTAL, {"status": "success", "format": "srt"})
             == before_ok + 1
         )
         assert (
-            _get_counter_value(
-                metrics.TRANSLATION_TOTAL, {"status": "error", "format": "srt"}
-            )
+            _get_counter_value(metrics.TRANSLATION_TOTAL, {"status": "error", "format": "srt"})
             == before_err + 1
         )
 
@@ -263,12 +258,14 @@ class TestCollectSystemMetrics:
         mock_process = MagicMock()
         mock_process.memory_info.return_value = SimpleNamespace(rss=123456789)
 
-        with patch.object(metrics.psutil, "cpu_percent", return_value=42.5), patch.object(
-            metrics.psutil, "Process", return_value=mock_process
-        ), patch.object(
-            metrics.psutil,
-            "disk_usage",
-            side_effect=FileNotFoundError("no /config"),
+        with (
+            patch.object(metrics.psutil, "cpu_percent", return_value=42.5),
+            patch.object(metrics.psutil, "Process", return_value=mock_process),
+            patch.object(
+                metrics.psutil,
+                "disk_usage",
+                side_effect=FileNotFoundError("no /config"),
+            ),
         ):
             metrics.collect_system_metrics()
 
@@ -286,12 +283,14 @@ class TestCollectSystemMetrics:
             "/media": SimpleNamespace(percent=72.3),
         }
 
-        with patch.object(metrics.psutil, "cpu_percent", return_value=10.0), patch.object(
-            metrics.psutil, "Process", return_value=mock_process
-        ), patch.object(
-            metrics.psutil,
-            "disk_usage",
-            side_effect=lambda p: disk_returns[p],
+        with (
+            patch.object(metrics.psutil, "cpu_percent", return_value=10.0),
+            patch.object(metrics.psutil, "Process", return_value=mock_process),
+            patch.object(
+                metrics.psutil,
+                "disk_usage",
+                side_effect=lambda p: disk_returns[p],
+            ),
         ):
             metrics.collect_system_metrics()
 
@@ -305,12 +304,14 @@ class TestCollectSystemMetrics:
         mock_process = MagicMock()
         mock_process.memory_info.return_value = SimpleNamespace(rss=100)
 
-        with patch.object(metrics.psutil, "cpu_percent", return_value=1.0), patch.object(
-            metrics.psutil, "Process", return_value=mock_process
-        ), patch.object(
-            metrics.psutil,
-            "disk_usage",
-            side_effect=FileNotFoundError,
+        with (
+            patch.object(metrics.psutil, "cpu_percent", return_value=1.0),
+            patch.object(metrics.psutil, "Process", return_value=mock_process),
+            patch.object(
+                metrics.psutil,
+                "disk_usage",
+                side_effect=FileNotFoundError,
+            ),
         ):
             # Should not raise
             metrics.collect_system_metrics()
@@ -322,12 +323,14 @@ class TestCollectSystemMetrics:
         mock_process = MagicMock()
         mock_process.memory_info.return_value = SimpleNamespace(rss=100)
 
-        with patch.object(metrics.psutil, "cpu_percent", return_value=1.0), patch.object(
-            metrics.psutil, "Process", return_value=mock_process
-        ), patch.object(
-            metrics.psutil,
-            "disk_usage",
-            side_effect=OSError("permission denied"),
+        with (
+            patch.object(metrics.psutil, "cpu_percent", return_value=1.0),
+            patch.object(metrics.psutil, "Process", return_value=mock_process),
+            patch.object(
+                metrics.psutil,
+                "disk_usage",
+                side_effect=OSError("permission denied"),
+            ),
         ):
             metrics.collect_system_metrics()
 
@@ -335,9 +338,7 @@ class TestCollectSystemMetrics:
         """Generic psutil failure is caught and logged."""
         import metrics
 
-        with patch.object(
-            metrics.psutil, "cpu_percent", side_effect=RuntimeError("psutil broken")
-        ):
+        with patch.object(metrics.psutil, "cpu_percent", side_effect=RuntimeError("psutil broken")):
             # Should not raise
             metrics.collect_system_metrics()
 
@@ -348,17 +349,24 @@ class TestCollectQueueMetrics:
     def test_sets_queue_gauges(self):
         import metrics
 
-        with patch("metrics.get_pending_job_count", return_value=5, create=True) as mock_jobs, patch(
-            "metrics.get_wanted_summary",
-            return_value={"wanted": 12},
-            create=True,
-        ) as mock_wanted:
-            # Need to patch at the import inside the function
-            with patch.dict("sys.modules", {
-                "db.jobs": MagicMock(get_pending_job_count=MagicMock(return_value=5)),
-                "db.wanted": MagicMock(get_wanted_summary=MagicMock(return_value={"wanted": 12})),
-            }):
-                metrics.collect_queue_metrics()
+        with (
+            patch("metrics.get_pending_job_count", return_value=5, create=True),
+            patch(
+                "metrics.get_wanted_summary",
+                return_value={"wanted": 12},
+                create=True,
+            ),
+            patch.dict(
+                "sys.modules",
+                {
+                    "db.jobs": MagicMock(get_pending_job_count=MagicMock(return_value=5)),
+                    "db.wanted": MagicMock(
+                        get_wanted_summary=MagicMock(return_value={"wanted": 12})
+                    ),
+                },
+            ),
+        ):
+            metrics.collect_queue_metrics()
 
         assert _get_sample_value(metrics.JOB_QUEUE_SIZE) == 5
         assert _get_sample_value(metrics.WANTED_QUEUE_SIZE) == 12
@@ -367,10 +375,13 @@ class TestCollectQueueMetrics:
         """If wanted_summary has no 'wanted' key, defaults to 0."""
         import metrics
 
-        with patch.dict("sys.modules", {
-            "db.jobs": MagicMock(get_pending_job_count=MagicMock(return_value=0)),
-            "db.wanted": MagicMock(get_wanted_summary=MagicMock(return_value={})),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "db.jobs": MagicMock(get_pending_job_count=MagicMock(return_value=0)),
+                "db.wanted": MagicMock(get_wanted_summary=MagicMock(return_value={})),
+            },
+        ):
             metrics.collect_queue_metrics()
 
         assert _get_sample_value(metrics.WANTED_QUEUE_SIZE) == 0
@@ -379,11 +390,14 @@ class TestCollectQueueMetrics:
         """Import or DB failure is caught and logged."""
         import metrics
 
-        with patch.dict("sys.modules", {
-            "db.jobs": MagicMock(
-                get_pending_job_count=MagicMock(side_effect=RuntimeError("db down"))
-            ),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "db.jobs": MagicMock(
+                    get_pending_job_count=MagicMock(side_effect=RuntimeError("db down"))
+                ),
+            },
+        ):
             # Should not raise
             metrics.collect_queue_metrics()
 
@@ -450,26 +464,34 @@ class TestCollectCircuitBreakerMetrics:
             "subdump": cb_half,
         }
 
-        with patch("metrics.get_provider_manager", return_value=mock_manager, create=True):
-            with patch.dict("sys.modules", {
-                "providers": MagicMock(get_provider_manager=MagicMock(return_value=mock_manager)),
-            }):
-                metrics.collect_circuit_breaker_metrics()
+        with (
+            patch("metrics.get_provider_manager", return_value=mock_manager, create=True),
+            patch.dict(
+                "sys.modules",
+                {
+                    "providers": MagicMock(
+                        get_provider_manager=MagicMock(return_value=mock_manager)
+                    ),
+                },
+            ),
+        ):
+            metrics.collect_circuit_breaker_metrics()
 
-        assert (
-            _get_sample_value(metrics.CIRCUIT_BREAKER_STATE, {"provider": "opensubtitles"}) == 0
-        )
+        assert _get_sample_value(metrics.CIRCUIT_BREAKER_STATE, {"provider": "opensubtitles"}) == 0
         assert _get_sample_value(metrics.CIRCUIT_BREAKER_STATE, {"provider": "animetosho"}) == 1
         assert _get_sample_value(metrics.CIRCUIT_BREAKER_STATE, {"provider": "subdump"}) == 2
 
     def test_handles_exception_gracefully(self):
         import metrics
 
-        with patch.dict("sys.modules", {
-            "providers": MagicMock(
-                get_provider_manager=MagicMock(side_effect=RuntimeError("no manager"))
-            ),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "providers": MagicMock(
+                    get_provider_manager=MagicMock(side_effect=RuntimeError("no manager"))
+                ),
+            },
+        ):
             # Should not raise
             metrics.collect_circuit_breaker_metrics()
 
@@ -493,9 +515,12 @@ class TestCollectDbPoolMetrics:
         mock_db = MagicMock()
         mock_db.engine = mock_engine
 
-        with patch.dict("sys.modules", {
-            "extensions": MagicMock(db=mock_db),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "extensions": MagicMock(db=mock_db),
+            },
+        ):
             metrics.collect_db_pool_metrics()
 
         assert _get_sample_value(metrics.DB_POOL_SIZE) == 5
@@ -514,20 +539,28 @@ class TestCollectDbPoolMetrics:
         mock_db = MagicMock()
         mock_db.engine = mock_engine
 
-        with patch.dict("sys.modules", {
-            "extensions": MagicMock(db=mock_db),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "extensions": MagicMock(db=mock_db),
+            },
+        ):
             # Should not raise even though pool has no size()
             metrics.collect_db_pool_metrics()
 
     def test_handles_exception(self):
         import metrics
 
-        with patch.dict("sys.modules", {
-            "extensions": MagicMock(
-                db=MagicMock(engine=property(lambda s: (_ for _ in ()).throw(RuntimeError("boom"))))
-            ),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "extensions": MagicMock(
+                    db=MagicMock(
+                        engine=property(lambda s: (_ for _ in ()).throw(RuntimeError("boom")))
+                    )
+                ),
+            },
+        ):
             # Should not raise
             metrics.collect_db_pool_metrics()
 
@@ -544,11 +577,16 @@ class TestCollectCacheMetrics:
         mock_app = MagicMock()
         mock_app.cache_backend = mock_cache
 
-        with patch("metrics.current_app", mock_app, create=True):
-            with patch.dict("sys.modules", {
-                "flask": MagicMock(current_app=mock_app),
-            }):
-                metrics.collect_cache_metrics()
+        with (
+            patch("metrics.current_app", mock_app, create=True),
+            patch.dict(
+                "sys.modules",
+                {
+                    "flask": MagicMock(current_app=mock_app),
+                },
+            ),
+        ):
+            metrics.collect_cache_metrics()
 
         assert _get_sample_value(metrics.CACHE_SIZE, {"backend": "memory"}) == 42
 
@@ -557,9 +595,12 @@ class TestCollectCacheMetrics:
 
         mock_app = MagicMock(spec=[])  # no cache_backend attr
 
-        with patch.dict("sys.modules", {
-            "flask": MagicMock(current_app=mock_app),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "flask": MagicMock(current_app=mock_app),
+            },
+        ):
             # Should not raise
             metrics.collect_cache_metrics()
 
@@ -579,9 +620,12 @@ class TestCollectRedisMetrics:
         mock_app = MagicMock()
         mock_app.cache_backend = mock_cache
 
-        with patch.dict("sys.modules", {
-            "flask": MagicMock(current_app=mock_app),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "flask": MagicMock(current_app=mock_app),
+            },
+        ):
             metrics.collect_redis_metrics()
 
         assert _get_sample_value(metrics.REDIS_CONNECTED) == 1
@@ -595,9 +639,12 @@ class TestCollectRedisMetrics:
         mock_app = MagicMock()
         mock_app.cache_backend = mock_cache
 
-        with patch.dict("sys.modules", {
-            "flask": MagicMock(current_app=mock_app),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "flask": MagicMock(current_app=mock_app),
+            },
+        ):
             metrics.collect_redis_metrics()
 
         assert _get_sample_value(metrics.REDIS_CONNECTED) == 0
@@ -610,9 +657,12 @@ class TestCollectRedisMetrics:
             redis=MagicMock(info=MagicMock(side_effect=ConnectionError("refused")))
         )
 
-        with patch.dict("sys.modules", {
-            "flask": MagicMock(current_app=mock_app),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "flask": MagicMock(current_app=mock_app),
+            },
+        ):
             metrics.collect_redis_metrics()
 
         assert _get_sample_value(metrics.REDIS_CONNECTED) == 0
@@ -633,9 +683,12 @@ class TestCollectQueueJobMetrics:
         mock_app = MagicMock()
         mock_app.job_queue = mock_queue
 
-        with patch.dict("sys.modules", {
-            "flask": MagicMock(current_app=mock_app),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "flask": MagicMock(current_app=mock_app),
+            },
+        ):
             metrics.collect_queue_job_metrics()
 
         assert _get_sample_value(metrics.QUEUE_SIZE, {"backend": "memory"}) == 3
@@ -647,9 +700,12 @@ class TestCollectQueueJobMetrics:
 
         mock_app = MagicMock(spec=[])  # no job_queue attr
 
-        with patch.dict("sys.modules", {
-            "flask": MagicMock(current_app=mock_app),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "flask": MagicMock(current_app=mock_app),
+            },
+        ):
             # Should not raise
             metrics.collect_queue_job_metrics()
 
@@ -669,14 +725,15 @@ class TestGenerateMetrics:
         db_file.write_bytes(b"x" * 100)
 
         # Mock all collector functions to avoid side effects
-        with patch.object(metrics, "collect_system_metrics"), patch.object(
-            metrics, "collect_queue_metrics"
-        ), patch.object(metrics, "collect_database_metrics"), patch.object(
-            metrics, "collect_circuit_breaker_metrics"
-        ), patch.object(metrics, "collect_db_pool_metrics"), patch.object(
-            metrics, "collect_cache_metrics"
-        ), patch.object(metrics, "collect_redis_metrics"), patch.object(
-            metrics, "collect_queue_job_metrics"
+        with (
+            patch.object(metrics, "collect_system_metrics"),
+            patch.object(metrics, "collect_queue_metrics"),
+            patch.object(metrics, "collect_database_metrics"),
+            patch.object(metrics, "collect_circuit_breaker_metrics"),
+            patch.object(metrics, "collect_db_pool_metrics"),
+            patch.object(metrics, "collect_cache_metrics"),
+            patch.object(metrics, "collect_redis_metrics"),
+            patch.object(metrics, "collect_queue_job_metrics"),
         ):
             body, content_type = metrics.generate_metrics(str(db_file))
 
@@ -692,21 +749,16 @@ class TestGenerateMetrics:
         db_file = tmp_path / "test.db"
         db_file.write_bytes(b"data")
 
-        with patch.object(metrics, "collect_system_metrics") as m1, patch.object(
-            metrics, "collect_queue_metrics"
-        ) as m2, patch.object(
-            metrics, "collect_database_metrics"
-        ) as m3, patch.object(
-            metrics, "collect_circuit_breaker_metrics"
-        ) as m4, patch.object(
-            metrics, "collect_db_pool_metrics"
-        ) as m5, patch.object(
-            metrics, "collect_cache_metrics"
-        ) as m6, patch.object(
-            metrics, "collect_redis_metrics"
-        ) as m7, patch.object(
-            metrics, "collect_queue_job_metrics"
-        ) as m8:
+        with (
+            patch.object(metrics, "collect_system_metrics") as m1,
+            patch.object(metrics, "collect_queue_metrics") as m2,
+            patch.object(metrics, "collect_database_metrics") as m3,
+            patch.object(metrics, "collect_circuit_breaker_metrics") as m4,
+            patch.object(metrics, "collect_db_pool_metrics") as m5,
+            patch.object(metrics, "collect_cache_metrics") as m6,
+            patch.object(metrics, "collect_redis_metrics") as m7,
+            patch.object(metrics, "collect_queue_job_metrics") as m8,
+        ):
             metrics.generate_metrics(str(db_file))
 
         m1.assert_called_once()

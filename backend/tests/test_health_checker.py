@@ -38,7 +38,6 @@ from health_checker import (
     run_health_checks,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -133,18 +132,22 @@ class TestConstants:
 
 class TestCheckDuplicateLines:
     def test_no_duplicates(self):
-        subs = _make_subs([
-            _make_event(start=0, end=1000, text="A"),
-            _make_event(start=1000, end=2000, text="B"),
-        ])
+        subs = _make_subs(
+            [
+                _make_event(start=0, end=1000, text="A"),
+                _make_event(start=1000, end=2000, text="B"),
+            ]
+        )
         issues = check_duplicate_lines(subs)
         assert issues == []
 
     def test_detects_exact_duplicate(self):
-        subs = _make_subs([
-            _make_event(start=0, end=1000, text="A", style="Default"),
-            _make_event(start=0, end=1000, text="A", style="Default"),
-        ])
+        subs = _make_subs(
+            [
+                _make_event(start=0, end=1000, text="A", style="Default"),
+                _make_event(start=0, end=1000, text="A", style="Default"),
+            ]
+        )
         issues = check_duplicate_lines(subs)
         assert len(issues) == 1
         assert issues[0]["check"] == "duplicate_lines"
@@ -153,24 +156,30 @@ class TestCheckDuplicateLines:
         assert issues[0]["line"] == 2
 
     def test_different_style_not_duplicate(self):
-        subs = _make_subs([
-            _make_event(start=0, end=1000, text="A", style="Default"),
-            _make_event(start=0, end=1000, text="A", style="Italic"),
-        ])
+        subs = _make_subs(
+            [
+                _make_event(start=0, end=1000, text="A", style="Default"),
+                _make_event(start=0, end=1000, text="A", style="Italic"),
+            ]
+        )
         assert check_duplicate_lines(subs) == []
 
     def test_different_timing_not_duplicate(self):
-        subs = _make_subs([
-            _make_event(start=0, end=1000, text="A"),
-            _make_event(start=500, end=1000, text="A"),
-        ])
+        subs = _make_subs(
+            [
+                _make_event(start=0, end=1000, text="A"),
+                _make_event(start=500, end=1000, text="A"),
+            ]
+        )
         assert check_duplicate_lines(subs) == []
 
     def test_comments_skipped(self):
-        subs = _make_subs([
-            _make_event(start=0, end=1000, text="A", is_comment=True),
-            _make_event(start=0, end=1000, text="A", is_comment=True),
-        ])
+        subs = _make_subs(
+            [
+                _make_event(start=0, end=1000, text="A", is_comment=True),
+                _make_event(start=0, end=1000, text="A", is_comment=True),
+            ]
+        )
         assert check_duplicate_lines(subs) == []
 
     def test_multiple_duplicates(self):
@@ -192,17 +201,21 @@ class TestCheckDuplicateLines:
 
 class TestCheckTimingOverlaps:
     def test_no_overlap(self):
-        subs = _make_subs([
-            _make_event(start=0, end=1000, text="A"),
-            _make_event(start=1000, end=2000, text="B"),
-        ])
+        subs = _make_subs(
+            [
+                _make_event(start=0, end=1000, text="A"),
+                _make_event(start=1000, end=2000, text="B"),
+            ]
+        )
         assert check_timing_overlaps(subs) == []
 
     def test_detects_overlap_warning(self):
-        subs = _make_subs([
-            _make_event(start=0, end=1500, text="A"),
-            _make_event(start=1000, end=2000, text="B"),
-        ])
+        subs = _make_subs(
+            [
+                _make_event(start=0, end=1500, text="A"),
+                _make_event(start=1000, end=2000, text="B"),
+            ]
+        )
         issues = check_timing_overlaps(subs)
         assert len(issues) == 1
         assert issues[0]["check"] == "timing_overlaps"
@@ -210,35 +223,43 @@ class TestCheckTimingOverlaps:
         assert issues[0]["auto_fixable"] is True
 
     def test_small_overlap_is_warning(self):
-        subs = _make_subs([
-            _make_event(start=0, end=1200, text="A"),
-            _make_event(start=1000, end=2000, text="B"),
-        ])
+        subs = _make_subs(
+            [
+                _make_event(start=0, end=1200, text="A"),
+                _make_event(start=1000, end=2000, text="B"),
+            ]
+        )
         issues = check_timing_overlaps(subs)
         assert len(issues) == 1
         assert issues[0]["severity"] == "warning"  # 200ms < 500ms
 
     def test_large_overlap_is_error(self):
-        subs = _make_subs([
-            _make_event(start=0, end=2000, text="A"),
-            _make_event(start=1000, end=3000, text="B"),
-        ])
+        subs = _make_subs(
+            [
+                _make_event(start=0, end=2000, text="A"),
+                _make_event(start=1000, end=3000, text="B"),
+            ]
+        )
         issues = check_timing_overlaps(subs)
         assert len(issues) == 1
         assert issues[0]["severity"] == "error"  # 1000ms >= 500ms
 
     def test_different_styles_no_overlap(self):
-        subs = _make_subs([
-            _make_event(start=0, end=2000, text="A", style="Default"),
-            _make_event(start=500, end=3000, text="B", style="Italic"),
-        ])
+        subs = _make_subs(
+            [
+                _make_event(start=0, end=2000, text="A", style="Default"),
+                _make_event(start=500, end=3000, text="B", style="Italic"),
+            ]
+        )
         assert check_timing_overlaps(subs) == []
 
     def test_comments_skipped(self):
-        subs = _make_subs([
-            _make_event(start=0, end=2000, text="A", is_comment=True),
-            _make_event(start=500, end=3000, text="B", is_comment=True),
-        ])
+        subs = _make_subs(
+            [
+                _make_event(start=0, end=2000, text="A", is_comment=True),
+                _make_event(start=500, end=3000, text="B", is_comment=True),
+            ]
+        )
         assert check_timing_overlaps(subs) == []
 
     def test_empty_events(self):
@@ -280,7 +301,7 @@ class TestCheckEncodingIssues:
 
     def test_clean_utf8_no_issues(self):
         subs = _make_subs([])
-        raw = "Hello World".encode("utf-8")
+        raw = b"Hello World"
         issues = check_encoding_issues(subs, raw_bytes=raw)
         # chardet may detect as ascii, which is fine
         assert all(i["check"] == "encoding_issues" for i in issues)
@@ -293,7 +314,7 @@ class TestCheckEncodingIssues:
         raw = "こんにちは世界".encode("shift_jis")
         issues = check_encoding_issues(subs, raw_bytes=raw)
         # chardet should detect non-UTF-8 encoding
-        encoding_issues = [i for i in issues if "not UTF-8" in i.get("message", "")]
+        [i for i in issues if "not UTF-8" in i.get("message", "")]
         # Whether detected depends on chardet confidence, so just verify no crash
         assert isinstance(issues, list)
 
@@ -303,20 +324,24 @@ class TestCheckEncodingIssues:
         # Latin-1 bytes that are NOT valid UTF-8
         raw = bytes([0xC0, 0xC1, 0xFE, 0xFF])
 
-        with patch.dict("sys.modules", {"chardet": None}):
-            with patch("builtins.__import__", side_effect=_import_blocker("chardet")):
-                issues = check_encoding_issues(subs, raw_bytes=raw)
+        with (
+            patch.dict("sys.modules", {"chardet": None}),
+            patch("builtins.__import__", side_effect=_import_blocker("chardet")),
+        ):
+            issues = check_encoding_issues(subs, raw_bytes=raw)
         # Should detect non-UTF-8 bytes via fallback
         assert any("non-UTF8" in i.get("message", "") for i in issues)
 
     def test_chardet_import_error_fallback_valid_utf8(self):
         """When chardet is unavailable but bytes are valid UTF-8, no issue."""
         subs = _make_subs([])
-        raw = "Hello".encode("utf-8")
+        raw = b"Hello"
 
-        with patch.dict("sys.modules", {"chardet": None}):
-            with patch("builtins.__import__", side_effect=_import_blocker("chardet")):
-                issues = check_encoding_issues(subs, raw_bytes=raw)
+        with (
+            patch.dict("sys.modules", {"chardet": None}),
+            patch("builtins.__import__", side_effect=_import_blocker("chardet")),
+        ):
+            issues = check_encoding_issues(subs, raw_bytes=raw)
         assert issues == []
 
 
@@ -695,7 +720,10 @@ class TestRunHealthChecks:
         path = _make_ass(tmp_path)
 
         # Patch one check to raise
-        with patch("health_checker.ALL_CHECKS", [lambda subs: (_ for _ in ()).throw(ValueError("boom")), check_empty_events]):
+        with patch(
+            "health_checker.ALL_CHECKS",
+            [lambda subs: (_ for _ in ()).throw(ValueError("boom")), check_empty_events],
+        ):
             result = run_health_checks(path)
         # Should still complete with encoding check + 2 from patched ALL_CHECKS
         assert result["checks_run"] == 3
@@ -737,29 +765,35 @@ class TestRunHealthChecks:
 
 class TestFixDuplicateLines:
     def test_removes_duplicates(self):
-        subs = _make_subs([
-            _make_event(start=0, end=1000, text="A"),
-            _make_event(start=0, end=1000, text="A"),
-            _make_event(start=1000, end=2000, text="B"),
-        ])
+        subs = _make_subs(
+            [
+                _make_event(start=0, end=1000, text="A"),
+                _make_event(start=0, end=1000, text="A"),
+                _make_event(start=1000, end=2000, text="B"),
+            ]
+        )
         removed = fix_duplicate_lines(subs)
         assert removed == 1
         assert len(subs.events) == 2
 
     def test_no_duplicates_returns_zero(self):
-        subs = _make_subs([
-            _make_event(start=0, end=1000, text="A"),
-            _make_event(start=1000, end=2000, text="B"),
-        ])
+        subs = _make_subs(
+            [
+                _make_event(start=0, end=1000, text="A"),
+                _make_event(start=1000, end=2000, text="B"),
+            ]
+        )
         removed = fix_duplicate_lines(subs)
         assert removed == 0
         assert len(subs.events) == 2
 
     def test_comments_preserved(self):
-        subs = _make_subs([
-            _make_event(start=0, end=1000, text="A", is_comment=True),
-            _make_event(start=0, end=1000, text="A", is_comment=True),
-        ])
+        subs = _make_subs(
+            [
+                _make_event(start=0, end=1000, text="A", is_comment=True),
+                _make_event(start=0, end=1000, text="A", is_comment=True),
+            ]
+        )
         removed = fix_duplicate_lines(subs)
         assert removed == 0
         assert len(subs.events) == 2

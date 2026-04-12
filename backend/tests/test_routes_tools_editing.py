@@ -97,7 +97,10 @@ class TestRemoveHI:
     def test_remove_hi_srt_success(self, client):
         srt = _make_srt("test_remove_hi.srt")
         try:
-            with patch("hi_remover.remove_hi_from_srt", return_value="1\n00:00:01,000 --> 00:00:03,000\nHello World\n"):
+            with patch(
+                "hi_remover.remove_hi_from_srt",
+                return_value="1\n00:00:01,000 --> 00:00:03,000\nHello World\n",
+            ):
                 rv = client.post("/api/v1/tools/remove-hi", json={"file_path": srt})
 
             assert rv.status_code == 200
@@ -388,8 +391,7 @@ class TestAdjustTiming:
 
     def test_adjust_srt_positive_offset(self, client):
         srt_content = (
-            "1\n00:00:01,000 --> 00:00:03,000\nHello\n\n"
-            "2\n00:00:04,000 --> 00:00:06,000\nWorld\n"
+            "1\n00:00:01,000 --> 00:00:03,000\nHello\n\n2\n00:00:04,000 --> 00:00:06,000\nWorld\n"
         )
         srt = _make_srt("test_adjust_pos.srt", content=srt_content)
         try:
@@ -670,6 +672,7 @@ class TestCommonFixes:
         try:
             # Simulate chardet not installed
             import importlib
+
             with patch.dict("sys.modules", {"chardet": None}):
                 rv = client.post(
                     "/api/v1/tools/common-fixes",
