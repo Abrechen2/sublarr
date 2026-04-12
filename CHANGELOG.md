@@ -5,6 +5,15 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.50.1-beta] - 2026-04-12
+
+### Changed
+- **V1 code health: split 10 oversized backend files** — All files exceeding the 800-line project limit have been refactored into focused modules: wanted_scanner_core (1233→627), cleanup routes (1113→928), standalone routes (967→786), profiles routes (964→748), bazarr_migrator (948→576), translator core (926→789), providers init (847→797), subtitles routes (824→785), and api_keys routes (803→796). config.py (812) accepted as declarative exception.
+- **Removed 86 completed beta planning documents** — All plan/spec/research/summary files from v0.23–v0.50 deleted; replaced by a single Road to V1 release roadmap spec.
+
+### Fixed
+- **6 broken tests repaired** — Remux duration mismatch test updated for widened tolerance (v0.47.7), wanted search dedup collision fixed, CleanupSettings tests aligned with v0.47.3 redesign, SubtitlePresencePills test updated for v0.49.0 pill removal.
+
 ## [0.50.0-beta] - 2026-04-11
 
 ### Added
