@@ -178,12 +178,19 @@ def test_build_translation_prompt_with_glossary():
         {"source_term": "senpai", "target_term": "Sempai"},
         {"source_term": "baka", "target_term": "Idiot"},
     ]
+    # Single-line mode: uses "Translate to German: <line>" format (no numbering)
     prompt = build_prompt_with_glossary("Translate:\n", entries, ["Hello"])
     assert "Glossary:" in prompt
     assert "senpai" in prompt
     assert "Sempai" in prompt
     assert "baka" in prompt
-    assert "1: Hello" in prompt
+    assert "Translate to German: Hello" in prompt
+
+    # Multi-line mode: uses numbered format
+    prompt_multi = build_prompt_with_glossary("Translate:\n", entries, ["Hello", "World"])
+    assert "Glossary:" in prompt_multi
+    assert "1: Hello" in prompt_multi
+    assert "2: World" in prompt_multi
 
 
 def test_build_translation_prompt_glossary_max_15():
