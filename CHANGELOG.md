@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.0-beta] - 2026-04-12
+
+### Added
+- **Provider transparency** — The dashboard provider widget now shows real-time status badges: throttled providers display a countdown timer, circuit-breaker-open and auto-disabled providers show their state clearly, and problems sort to the top. The activity queue displays a provider status line during searches (e.g. "5 active · 3 throttled") so users understand why searches are slow instead of seeing a frozen progress bar.
+
+### Fixed
+- **Cleanup stats crash** — The cleanup statistics endpoint threw a KeyError because `get_duplicate_groups()` returns `file_size` but `get_disk_stats()` accessed `size`. The key name mismatch caused every `/api/v1/cleanup/stats` request to fail with HTTP 500.
+
 ## [0.50.1-beta] - 2026-04-12
 
 ### Changed
