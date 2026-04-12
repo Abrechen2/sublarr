@@ -288,3 +288,388 @@ class TestDeleteTemplate:
             resp = client.delete("/api/v1/notifications/templates/999")
         assert resp.status_code == 404
         assert "not found" in resp.get_json()["error"].lower()
+
+
+# ---------------------------------------------------------------------------
+# TestPreviewTemplate — POST /api/v1/notifications/templates/<id>/preview
+# ---------------------------------------------------------------------------
+
+
+class TestPreviewTemplate:
+    def test_404_when_template_not_found(self, client):
+        mock_repo = MagicMock()
+        mock_repo.get_template.return_value = None
+        with patch(REPO_PATCH, return_value=mock_repo):
+            resp = client.post("/api/v1/notifications/templates/999/preview", json={})
+        assert resp.status_code == 404
+
+    def test_200_with_rendered_output(self, client):
+        template = {
+            **SAMPLE_TEMPLATE,
+            "title_template": "Downloaded {{ title }}",
+            "body_template": "Language: {{ language }}",
+        }
+        mock_repo = MagicMock()
+        mock_repo.get_template.return_value = template
+
+        with (
+            patch(REPO_PATCH, return_value=mock_repo),
+            patch("notifier.get_sample_payload", return_value={"title": "Naruto", "language": "de"}),
+            patch("notifier.render_template", side_effect=lambda tpl, vars: tpl),
+        ):
+            resp = client.post("/api/v1/notifications/templates/1/preview", json={})
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert "title" in data
+        assert "body" in data
+        assert "variables_used" in data
+
+    def test_custom_variables_override_sample(self, client):
+        template = {**SAMPLE_TEMPLATE, "event_type": "download_complete"}
+        mock_repo = MagicMock()
+        mock_repo.get_template.return_value = template
+
+        captured_vars = {}
+
+        def fake_render(tpl, variables):
+            captured_vars.update(variables)
+            return "rendered"
+
+        with (
+            patch(REPO_PATCH, return_value=mock_repo),
+            patch(
+                "notifier.get_sample_payload",
+                return_value={"title": "Sample Title", "language": "en"},
+            ),
+            patch("notifier.render_template", side_effect=fake_render),
+        ):
+            resp = client.post(
+                "/api/v1/notifications/templates/1/preview",
+                json={"variables": {"title": "Custom Title"}},
+            )
+        assert resp.status_code == 200
+        assert captured_vars["title"] == "Custom Title"
+
+    def test_400_on_render_error(self, client):
+        template = {**SAMPLE_TEMPLATE, "event_type": ""}
+        mock_repo = MagicMock()
+        mock_repo.get_template.return_value = template
+
+        with (
+            patch(REPO_PATCH, return_value=mock_repo),
+            patch("notifier.render_template", side_effect=Exception("render failed")),
+        ):
+            resp = client.post("/api/v1/notifications/templates/1/preview", json={})
+        assert resp.status_code == 400
+        assert "render" in resp.get_json()["error"].lower()
+
+
+# ---------------------------------------------------------------------------
+# TestListVariables — GET /api/v1/notifications/variables
+# ---------------------------------------------------------------------------
+
+
+class TestListVariables:
+    def test_returns_variables_grouped_by_event(self, client):
+        catalog = {
+            "download_complete": {
+                "label": "Download Complete",
+                "description": "Fired after download",
+                "payload_keys": ["title", "language", "provider"],
+            }
+        }
+        with patch("events.catalog.EVENT_CATALOG", catalog):
+            resp = client.get("/api/v1/notifications/variables")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert "download_complete" in data
+        assert data["download_complete"]["variables"] == ["title", "language", "provider"]
+
+    def test_empty_catalog(self, client):
+        with patch("events.catalog.EVENT_CATALOG", {}):
+            resp = client.get("/api/v1/notifications/variables")
+        assert resp.status_code == 200
+        assert resp.get_json() == {}
+
+
+# ---------------------------------------------------------------------------
+# TestGetVariables — GET /api/v1/notifications/variables/<event_type>
+# ---------------------------------------------------------------------------
+
+
+class TestGetVariables:
+    def test_200_for_known_event(self, client):
+        catalog = {
+            "download_complete": {
+                "label": "Download Complete",
+                "description": "Desc",
+                "payload_keys": ["title"],
+            }
+        }
+        with patch("events.catalog.EVENT_CATALOG", catalog):
+            resp = client.get("/api/v1/notifications/variables/download_complete")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["event_type"] == "download_complete"
+        assert "title" in data["variables"]
+
+    def test_404_for_unknown_event(self, client):
+        with patch("events.catalog.EVENT_CATALOG", {}):
+            resp = client.get("/api/v1/notifications/variables/nonexistent")
+        assert resp.status_code == 404
+        assert "unknown" in resp.get_json()["error"].lower()
+
+
+# ---------------------------------------------------------------------------
+# TestQuietHours — CRUD /api/v1/notifications/quiet-hours
+# ---------------------------------------------------------------------------
+
+QUIET_HOURS_SAMPLE = {
+    "id": 1,
+    "name": "Night",
+    "start_time": "22:00",
+    "end_time": "07:00",
+    "days_of_week": "[0,1,2,3,4,5,6]",
+    "exception_events": '["error"]',
+    "enabled": 1,
+}
+
+
+class TestQuietHoursList:
+    def test_returns_all_configs(self, client):
+        mock_repo = MagicMock()
+        mock_repo.get_quiet_hours_configs.return_value = [QUIET_HOURS_SAMPLE]
+        with patch(REPO_PATCH, return_value=mock_repo):
+            resp = client.get("/api/v1/notifications/quiet-hours")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert isinstance(data, list)
+        assert len(data) == 1
+
+
+class TestQuietHoursCreate:
+    def test_400_when_name_missing(self, client):
+        resp = client.post(
+            "/api/v1/notifications/quiet-hours",
+            json={"start_time": "22:00", "end_time": "07:00"},
+        )
+        assert resp.status_code == 400
+        assert "name" in resp.get_json()["error"]
+
+    def test_400_when_times_missing(self, client):
+        resp = client.post(
+            "/api/v1/notifications/quiet-hours",
+            json={"name": "Night"},
+        )
+        assert resp.status_code == 400
+        assert "time" in resp.get_json()["error"].lower()
+
+    def test_400_invalid_start_time_format(self, client):
+        resp = client.post(
+            "/api/v1/notifications/quiet-hours",
+            json={"name": "Night", "start_time": "10pm", "end_time": "07:00"},
+        )
+        assert resp.status_code == 400
+        assert "HH:MM" in resp.get_json()["error"]
+
+    def test_400_invalid_end_time_format(self, client):
+        resp = client.post(
+            "/api/v1/notifications/quiet-hours",
+            json={"name": "Night", "start_time": "22:00", "end_time": "7"},
+        )
+        assert resp.status_code == 400
+        assert "HH:MM" in resp.get_json()["error"]
+
+    def test_201_on_success(self, client):
+        mock_repo = MagicMock()
+        mock_repo.create_quiet_hours.return_value = QUIET_HOURS_SAMPLE
+        with patch(REPO_PATCH, return_value=mock_repo):
+            resp = client.post(
+                "/api/v1/notifications/quiet-hours",
+                json={"name": "Night", "start_time": "22:00", "end_time": "07:00"},
+            )
+        assert resp.status_code == 201
+        assert resp.get_json()["name"] == "Night"
+
+
+class TestQuietHoursUpdate:
+    def test_404_when_config_not_found(self, client):
+        mock_repo = MagicMock()
+        mock_repo.update_quiet_hours.return_value = None
+        with patch(REPO_PATCH, return_value=mock_repo):
+            resp = client.put(
+                "/api/v1/notifications/quiet-hours/999",
+                json={"name": "Updated"},
+            )
+        assert resp.status_code == 404
+
+    def test_400_invalid_time_in_update(self, client):
+        resp = client.put(
+            "/api/v1/notifications/quiet-hours/1",
+            json={"start_time": "bad"},
+        )
+        assert resp.status_code == 400
+
+    def test_200_on_success(self, client):
+        updated = {**QUIET_HOURS_SAMPLE, "name": "Updated Night"}
+        mock_repo = MagicMock()
+        mock_repo.update_quiet_hours.return_value = updated
+        with patch(REPO_PATCH, return_value=mock_repo):
+            resp = client.put(
+                "/api/v1/notifications/quiet-hours/1",
+                json={"name": "Updated Night"},
+            )
+        assert resp.status_code == 200
+        assert resp.get_json()["name"] == "Updated Night"
+
+
+class TestQuietHoursDelete:
+    def test_200_on_success(self, client):
+        mock_repo = MagicMock()
+        mock_repo.delete_quiet_hours.return_value = True
+        with patch(REPO_PATCH, return_value=mock_repo):
+            resp = client.delete("/api/v1/notifications/quiet-hours/1")
+        assert resp.status_code == 200
+        assert resp.get_json()["success"] is True
+
+    def test_404_when_config_not_found(self, client):
+        mock_repo = MagicMock()
+        mock_repo.delete_quiet_hours.return_value = False
+        with patch(REPO_PATCH, return_value=mock_repo):
+            resp = client.delete("/api/v1/notifications/quiet-hours/999")
+        assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# TestHistory — GET/DELETE /api/v1/notifications/history
+# ---------------------------------------------------------------------------
+
+
+class TestNotificationHistory:
+    def test_list_returns_paginated_result(self, client):
+        mock_result = {"items": [], "total": 0, "page": 1, "per_page": 50}
+        mock_repo = MagicMock()
+        mock_repo.get_history.return_value = mock_result
+        with patch(REPO_PATCH, return_value=mock_repo):
+            resp = client.get("/api/v1/notifications/history")
+        assert resp.status_code == 200
+        assert resp.get_json()["total"] == 0
+
+    def test_list_forwards_pagination_params(self, client):
+        mock_repo = MagicMock()
+        mock_repo.get_history.return_value = {"items": [], "total": 0, "page": 2, "per_page": 10}
+        with patch(REPO_PATCH, return_value=mock_repo):
+            client.get("/api/v1/notifications/history?page=2&per_page=10")
+        mock_repo.get_history.assert_called_once_with(page=2, per_page=10, event_type=None)
+
+    def test_clear_history_returns_deleted_count(self, client):
+        mock_repo = MagicMock()
+        mock_repo.clear_history.return_value = 42
+        with patch(REPO_PATCH, return_value=mock_repo):
+            resp = client.delete("/api/v1/notifications/history")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["success"] is True
+        assert data["deleted"] == 42
+
+
+# ---------------------------------------------------------------------------
+# TestResendNotification — POST /api/v1/notifications/history/<id>/resend
+# ---------------------------------------------------------------------------
+
+
+class TestResendNotification:
+    def test_404_when_notification_not_found(self, client):
+        mock_repo = MagicMock()
+        mock_repo.get_notification.return_value = None
+        with patch(REPO_PATCH, return_value=mock_repo):
+            resp = client.post("/api/v1/notifications/history/999/resend")
+        assert resp.status_code == 404
+
+    def test_200_on_resend(self, client):
+        notification = {
+            "id": 1,
+            "title": "Test Title",
+            "body": "Test Body",
+            "event_type": "download_complete",
+        }
+        mock_repo = MagicMock()
+        mock_repo.get_notification.return_value = notification
+        with (
+            patch(REPO_PATCH, return_value=mock_repo),
+            patch("notifier.send_notification") as mock_send,
+        ):
+            resp = client.post("/api/v1/notifications/history/1/resend")
+        assert resp.status_code == 200
+        assert resp.get_json()["success"] is True
+        mock_send.assert_called_once_with(
+            title="Test Title",
+            body="Test Body",
+            event_type="download_complete",
+            is_manual=True,
+        )
+
+
+# ---------------------------------------------------------------------------
+# TestEventFilters — GET/PUT /api/v1/notifications/filters
+# ---------------------------------------------------------------------------
+
+CONFIG_REPO_PATCH = "db.repositories.config.ConfigRepository"
+
+
+class TestEventFilters:
+    def test_get_filters_returns_defaults_when_empty(self, client):
+        mock_repo = MagicMock()
+        mock_repo.get_config_entry.return_value = None
+        with patch(CONFIG_REPO_PATCH, return_value=mock_repo):
+            resp = client.get("/api/v1/notifications/filters")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["include_events"] == []
+        assert data["exclude_events"] == []
+        assert data["content_filters"] == []
+
+    def test_get_filters_parses_stored_json(self, client):
+        mock_repo = MagicMock()
+
+        def side_effect(key):
+            mapping = {
+                "notification_filter_include_events": '["download_complete"]',
+                "notification_filter_exclude_events": '["error"]',
+                "notification_filter_content_filters": "[]",
+            }
+            return mapping.get(key)
+
+        mock_repo.get_config_entry.side_effect = side_effect
+        with patch(CONFIG_REPO_PATCH, return_value=mock_repo):
+            resp = client.get("/api/v1/notifications/filters")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["include_events"] == ["download_complete"]
+        assert data["exclude_events"] == ["error"]
+
+    def test_update_filters_saves_to_config(self, client):
+        mock_repo = MagicMock()
+        with patch(CONFIG_REPO_PATCH, return_value=mock_repo):
+            resp = client.put(
+                "/api/v1/notifications/filters",
+                json={
+                    "include_events": ["download_complete"],
+                    "exclude_events": ["error"],
+                },
+            )
+        assert resp.status_code == 200
+        assert resp.get_json()["success"] is True
+        assert mock_repo.save_config_entry.call_count == 2
+
+    def test_update_filters_partial_update(self, client):
+        """Only provided keys are saved -- missing keys are not touched."""
+        mock_repo = MagicMock()
+        with patch(CONFIG_REPO_PATCH, return_value=mock_repo):
+            resp = client.put(
+                "/api/v1/notifications/filters",
+                json={"include_events": ["test"]},
+            )
+        assert resp.status_code == 200
+        # Only one save call, not three
+        assert mock_repo.save_config_entry.call_count == 1
