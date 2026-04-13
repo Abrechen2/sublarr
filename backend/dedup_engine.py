@@ -195,6 +195,7 @@ def scan_for_duplicates(media_path: str, socketio=None) -> dict:
                 line_count=hr["line_count"],
             )
         except Exception as e:
+            repo.session.rollback()
             logger.warning("Failed to store hash for %s: %s", hr["file_path"], e)
 
     # Query duplicate groups

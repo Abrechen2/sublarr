@@ -14,6 +14,22 @@ from db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
+
+
+def _dialect_insert(session):
+    """Return the dialect-specific insert function (supports ON CONFLICT)."""
+    from extensions import db as _db
+
+    dialect = _db.engine.dialect.name
+    if dialect == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert
+
+        return insert
+    from sqlalchemy.dialects.sqlite import insert
+
+    return insert
+
 
 class CleanupRepository(BaseRepository):
     """Repository for cleanup-related table operations."""
@@ -29,38 +45,47 @@ class CleanupRepository(BaseRepository):
         language: str = None,
         line_count: int = None,
     ) -> dict:
-        """Insert or update a subtitle hash record.
+        """Atomically insert or update a subtitle hash record.
+
+        Uses INSERT ... ON CONFLICT DO UPDATE to avoid race conditions
+        when multiple threads hash the same file concurrently.
 
         Returns:
             Dict representation of the upserted record.
         """
-        stmt = select(SubtitleHash).where(SubtitleHash.file_path == file_path)
-        existing = self.session.execute(stmt).scalar_one_or_none()
-
         now = self._now()
+        insert = _dialect_insert(self.session)
 
-        if existing:
-            existing.content_hash = content_hash
-            existing.file_size = file_size
-            existing.format = format
-            existing.language = language
-            existing.line_count = line_count
-            existing.last_scanned = now
-            self._commit()
-            return self._to_dict(existing)
+        values = {
+            "file_path": file_path,
+            "content_hash": content_hash,
+            "file_size": file_size,
+            "format": format,
+            "language": language,
+            "line_count": line_count,
+            "last_scanned": now,
+        }
 
-        entry = SubtitleHash(
-            file_path=file_path,
-            content_hash=content_hash,
-            file_size=file_size,
-            format=format,
-            language=language,
-            line_count=line_count,
-            last_scanned=now,
+        stmt = insert(SubtitleHash).values(**values)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["file_path"],
+            set_={
+                "content_hash": stmt.excluded.content_hash,
+                "file_size": stmt.excluded.file_size,
+                "format": stmt.excluded.format,
+                "language": stmt.excluded.language,
+                "line_count": stmt.excluded.line_count,
+                "last_scanned": stmt.excluded.last_scanned,
+            },
         )
-        self.session.add(entry)
+        self.session.execute(stmt)
         self._commit()
-        return self._to_dict(entry)
+
+        # Return the current state of the record
+        row = self.session.execute(
+            select(SubtitleHash).where(SubtitleHash.file_path == file_path)
+        ).scalar_one_or_none()
+        return self._to_dict(row)
 
     def get_hash_by_path(self, file_path: str) -> dict | None:
         """Get a subtitle hash record by file path.
