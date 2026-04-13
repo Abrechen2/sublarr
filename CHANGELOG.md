@@ -5,6 +5,16 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.4-beta] - 2026-04-13
+
+### Fixed
+- **Provider errors now fully propagate to circuit breaker** — Auth and rate-limit errors in provider search methods were caught by generic exception handlers and returned as empty results, preventing the circuit breaker from ever opening. All three layers (download, provider search, coordinator retry loop) now correctly propagate these errors.
+- **Server rate-limit tracking across threads** — When one search thread receives a 429 from a provider, a shared timestamp is set so all other concurrent threads skip that provider immediately instead of each hitting the same rate limit independently.
+- **Timeouts propagated as errors** — Provider timeouts were silently returned as empty results. They now raise ProviderTimeoutError so the circuit breaker counts them as failures.
+
+### Changed
+- **Database indexes for subtitle_downloads** — Added indexes on `downloaded_at` and `file_path` columns, eliminating sequential scans on the 7.7M-row table. Batch worker count reduced from 4 to 2 to prevent CPU overload on small containers. Circuit breaker cooldown increased from 60s to 300s.
+
 ## [0.51.3-beta] - 2026-04-13
 
 ### Fixed
