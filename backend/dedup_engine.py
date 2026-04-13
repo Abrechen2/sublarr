@@ -22,8 +22,14 @@ logger = logging.getLogger(__name__)
 # Subtitle file extensions to scan
 SUBTITLE_EXTENSIONS = {".srt", ".ass", ".ssa"}
 
-# Language pattern in subtitle filenames: .en.srt, .de.ass, .ja.ssa
-_LANG_PATTERN = re.compile(r"\.([a-z]{2,3})\.[a-z]{2,3}$", re.IGNORECASE)
+# Language pattern in subtitle filenames: .en.srt, .de.ass, .ja.ssa, .en.hi.srt, .en.bak.srt
+# Anchored to known subtitle extensions to avoid false matches on dots in titles
+# (e.g., "Mr. Saturday" or "Father. Brother" should NOT match as language tags).
+_SUB_EXT = "|".join(e.lstrip(".") for e in SUBTITLE_EXTENSIONS)  # "srt|ass|ssa"
+_LANG_PATTERN = re.compile(
+    rf"\.([a-z]{{2,3}})(?:\.(?:hi|bak|forced|sdh|cc))?\.(?:{_SUB_EXT})$",
+    re.IGNORECASE,
+)
 
 # Common media file extensions
 MEDIA_EXTENSIONS = {".mkv", ".mp4", ".avi", ".m4v", ".wmv", ".flv", ".webm", ".ts"}
@@ -347,10 +353,13 @@ def scan_orphaned_subtitles(media_path: str) -> list[dict]:
 
             # Strip subtitle extensions and language tags to get base name
             # e.g., "Episode.01.en.srt" -> "Episode.01"
-            base = os.path.splitext(filename)[0]
-            # Remove language tag if present
-            lang_stripped = _LANG_PATTERN.sub("", base + ext)
-            base_name = os.path.splitext(lang_stripped)[0]
+            # Apply regex to full filename so it anchors on known subtitle extensions
+            lang_stripped = _LANG_PATTERN.sub("", filename)
+            if lang_stripped == filename:
+                # Regex didn't match (no language tag) — just strip subtitle extension
+                base_name = os.path.splitext(filename)[0]
+            else:
+                base_name = lang_stripped
 
             # Check if any media file matches this base
             if base_name.lower() not in media_bases:
