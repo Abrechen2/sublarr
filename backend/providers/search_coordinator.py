@@ -147,7 +147,7 @@ class SearchCoordinatorMixin:
                 return results, elapsed_ms
             except ProviderAuthError as e:
                 logger.error("Provider %s authentication failed: %s", name, e)
-                return [], 0.0  # Don't retry auth errors
+                raise  # Propagate to caller for circuit breaker recording
             except ProviderRateLimitError as e:
                 logger.warning("Provider %s rate limit exceeded: %s", name, e)
                 if attempt < retries:
@@ -156,7 +156,7 @@ class SearchCoordinatorMixin:
                     logger.debug("Waiting %ds before retry...", wait_time)
                     _time.sleep(wait_time)
                 else:
-                    return [], 0.0  # Don't retry indefinitely for rate limits
+                    raise  # Propagate to caller for circuit breaker recording
             except _requests.Timeout:
                 # Timeouts are not transient — the server is slow or unreachable.
                 # Retrying will just waste the full timeout budget again. Give up
