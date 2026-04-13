@@ -121,7 +121,7 @@ class Settings(BaseSettings):
 
     # Scan Metadata Engine
     scan_metadata_engine: str = "auto"  # "ffprobe" | "mediainfo" | "auto"
-    scan_metadata_max_workers: int = 4  # Parallel workers for batch metadata scans
+    scan_metadata_max_workers: int = 2  # Parallel workers for batch metadata scans
 
     # Translation Workers
     translation_max_workers: int = 4  # Parallel workers in the job queue thread pool

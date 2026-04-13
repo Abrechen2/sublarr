@@ -205,6 +205,12 @@ def _run_batch_extract(item_ids, auto_translate, app):
                     snapshot = dict(_batch_extract_state)
                 socketio.emit("batch_extract_progress", snapshot)
     finally:
+        try:
+            from extensions import db as _db
+
+            _db.session.remove()
+        except Exception:
+            pass
         with _batch_extract_lock:
             _batch_extract_state["running"] = False
             snapshot = dict(_batch_extract_state)
@@ -412,6 +418,13 @@ def _run_batch_probe(items, app):
                     snapshot = dict(_batch_probe_state)
                 socketio.emit("batch_probe_progress", snapshot)
     finally:
+        # Ensure no idle-in-transaction sessions linger from background thread
+        try:
+            from extensions import db as _db
+
+            _db.session.remove()
+        except Exception:
+            pass
         duration_ms = int((time.time() - start_time) * 1000)
         with _batch_probe_lock:
             _batch_probe_state["running"] = False
