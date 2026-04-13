@@ -2,10 +2,10 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in Sublarr, please report it responsibly:
+If you discover a security vulnerability in Sublarr, please report it privately via
+[GitHub Security Advisories](https://github.com/Abrechen2/Sublarr/security/advisories/new).
 
-- **Email:** security@sublarr.de
-- **GitHub:** Open a [private security advisory](https://github.com/Abrechen2/Sublarr/security/advisories/new)
+**Do not** open a public issue for security vulnerabilities.
 
 Please include:
 1. Description of the vulnerability
