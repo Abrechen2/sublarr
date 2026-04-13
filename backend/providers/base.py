@@ -27,7 +27,9 @@ class ProviderAuthError(ProviderError):
 class ProviderRateLimitError(ProviderError):
     """Provider rate limit exceeded."""
 
-    pass
+    def __init__(self, message: str = "", retry_after: int = 60):
+        super().__init__(message)
+        self.retry_after = retry_after
 
 
 class ProviderTimeoutError(ProviderError):

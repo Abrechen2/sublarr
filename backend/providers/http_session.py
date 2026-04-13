@@ -87,7 +87,10 @@ class RetryingSession(requests.Session):
                 wait_seconds = 60
             self._rate_limit_until = time.time() + wait_seconds
             logger.warning("Rate limited by %s, waiting %ds", url, wait_seconds)
-            raise ProviderRateLimitError(f"Rate limited by {url}, retry after {wait_seconds}s")
+            raise ProviderRateLimitError(
+                f"Rate limited by {url}, retry after {wait_seconds}s",
+                retry_after=wait_seconds,
+            )
 
         # Handle auth errors
         if resp.status_code in (401, 403):

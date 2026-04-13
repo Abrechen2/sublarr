@@ -23,6 +23,7 @@ except ImportError:
 from providers.base import (
     ProviderAuthError,
     ProviderRateLimitError,
+    ProviderTimeoutError,
     SubtitleFormat,
     SubtitleResult,
     VideoQuery,
@@ -150,17 +151,14 @@ class SearchCoordinatorMixin:
                 raise  # Propagate to caller for circuit breaker recording
             except ProviderRateLimitError as e:
                 logger.warning("Provider %s rate limit exceeded: %s", name, e)
-                if attempt < retries:
-                    # Wait a bit longer for rate limits
-                    wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
-                    logger.debug("Waiting %ds before retry...", wait_time)
-                    _time.sleep(wait_time)
-                else:
-                    raise  # Propagate to caller for circuit breaker recording
+                # Set shared rate limit so concurrent threads skip this provider
+                retry_after = getattr(e, "retry_after", 60)
+                self._server_rate_limit_until[name] = _time.time() + retry_after
+                raise  # Don't retry — server limit far exceeds backoff budget
             except _requests.Timeout:
                 # Timeouts are not transient — the server is slow or unreachable.
-                # Retrying will just waste the full timeout budget again. Give up
-                # immediately so the executor slot is freed as soon as possible.
+                # Retrying will just waste the full timeout budget again. Raise so
+                # the caller records a circuit breaker failure.
                 elapsed_ms = (_time.monotonic() - start) * 1000
                 logger.warning(
                     "Provider %s timed out after %.0fms (attempt %d/%d), not retrying",
@@ -169,7 +167,7 @@ class SearchCoordinatorMixin:
                     attempt + 1,
                     retries + 1,
                 )
-                return [], 0.0
+                raise ProviderTimeoutError(f"Provider {name} timed out after {elapsed_ms:.0f}ms")
             except Exception as e:
                 if attempt < retries:
                     logger.debug(
@@ -188,6 +186,7 @@ class SearchCoordinatorMixin:
                         e,
                         exc_info=True,
                     )
+                    raise
 
         return [], 0.0
 

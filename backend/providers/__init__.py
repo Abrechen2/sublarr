@@ -164,6 +164,7 @@ class ProviderManager(SearchCoordinatorMixin):
         self._providers: dict[str, SubtitleProvider] = {}
         self._rate_limits: dict[str, list[datetime]] = defaultdict(list)
         self._rate_limit_lock = threading.Lock()
+        self._server_rate_limit_until: dict[str, float] = {}
         self._circuit_breakers: dict[str, CircuitBreaker] = {}
         self._init_providers()
 
@@ -518,6 +519,18 @@ class ProviderManager(SearchCoordinatorMixin):
         """
         if not getattr(self.settings, "provider_rate_limit_enabled", True):
             return True
+
+        # Check server-imposed rate limit (from 429 responses) — shared across threads
+        import time as _time
+
+        until = self._server_rate_limit_until.get(provider_name, 0)
+        if _time.time() < until:
+            logger.debug(
+                "Provider %s server-rate-limited for %.0fs more",
+                provider_name,
+                until - _time.time(),
+            )
+            return False
 
         max_requests, window_seconds = self._get_rate_limit(provider_name)
         if max_requests == 0 and window_seconds == 0:
