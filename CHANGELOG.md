@@ -5,6 +5,18 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.3-beta] - 2026-04-13
+
+### Fixed
+- **Subtitle hash UniqueViolation on concurrent writes** — Replaced check-then-insert with atomic UPSERT (INSERT ... ON CONFLICT DO UPDATE) for the subtitle_hashes table, preventing PendingRollbackError cascades during parallel wanted searches. Includes explicit session rollback in all callers.
+- **Circuit breaker not wired into download path** — download_subtitle() now checks allow_request() before each download and records success/failure on the circuit breaker. Applies to all 22+ providers. OpenSubtitles HTTP 406 (quota exhausted) is now raised as ProviderRateLimitError with reset time instead of a generic error.
+- **Log viewer entries overlapping** — Replaced fixed 30px row height with dynamic measurement via measureElement, preventing multi-line tracebacks from rendering on top of each other.
+- **Status bar missing batch and provider status** — Footer now shows batch extraction/search activity and a throttled provider count with names on hover.
+
+### Tests
+- Added 20 integration tests for atomic UPSERT behavior, batch extraction flows, and download manager rollback handling.
+- Added 2 StatusBar tests for throttled provider indicator.
+
 ## [0.51.2-beta] - 2026-04-12
 
 ### Fixed
