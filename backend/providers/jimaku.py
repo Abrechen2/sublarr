@@ -290,6 +290,8 @@ class JimakuProvider(SubtitleProvider):
                     resp.status_code,
                     resp.text[:200],
                 )
+        except (ProviderAuthError, ProviderRateLimitError):
+            raise
         except Exception as e:
             logger.warning("Jimaku AniList search failed: %s", e, exc_info=True)
         return []
@@ -326,6 +328,8 @@ class JimakuProvider(SubtitleProvider):
                     resp.status_code,
                     resp.text[:200],
                 )
+        except (ProviderAuthError, ProviderRateLimitError):
+            raise
         except Exception as e:
             logger.warning("Jimaku name search failed: %s", e, exc_info=True)
         return []
