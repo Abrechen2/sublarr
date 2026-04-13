@@ -475,6 +475,23 @@ class OpenSubtitlesProvider(SubtitleProvider):
             },
         )
 
+        if resp.status_code == 406:
+            # 406 = daily download quota exhausted
+            body = {}
+            with contextlib.suppress(Exception):
+                body = resp.json()
+            remaining = body.get("remaining", "0")
+            reset_time = body.get("reset_time_utc") or body.get("reset_time", "unknown")
+            logger.warning(
+                "OpenSubtitles: download quota exhausted (remaining=%s, resets=%s). "
+                "Suppressing further downloads until reset.",
+                remaining,
+                reset_time,
+            )
+            raise ProviderRateLimitError(
+                f"OpenSubtitles download quota exhausted (resets: {reset_time})"
+            )
+
         if resp.status_code != 200:
             raise ProviderError(f"OpenSubtitles download request failed: HTTP {resp.status_code}")
 

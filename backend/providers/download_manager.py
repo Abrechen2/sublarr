@@ -73,6 +73,11 @@ def download_subtitle(
         logger.error("Provider %s not available for download", result.provider_name)
         return None
 
+    breaker = circuit_breakers.get(result.provider_name)
+    if breaker and not breaker.allow_request():
+        logger.debug("Skipping download from %s: circuit breaker OPEN", result.provider_name)
+        return None
+
     if not rate_limit_checker(result.provider_name):
         logger.debug("Skipping download from provider %s due to rate limit", result.provider_name)
         return None
@@ -80,9 +85,13 @@ def download_subtitle(
     try:
         content = provider.download(result)
         result.content = content
+        if breaker:
+            breaker.record_success()
         return content
     except Exception as e:
         logger.error("Download from %s failed: %s", result.provider_name, e)
+        if breaker:
+            breaker.record_failure()
         return None
 
 
@@ -294,6 +303,12 @@ def save_subtitle(
             language=result.language,
         )
     except Exception as e:
+        try:
+            from extensions import db as _db
+
+            _db.session.rollback()
+        except Exception:
+            pass
         logger.debug("Failed to register subtitle hash after write: %s", e)
 
     logger.info(
