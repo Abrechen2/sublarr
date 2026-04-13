@@ -124,6 +124,24 @@ class SearchCoordinatorMixin:
         import requests as _requests
 
         for attempt in range(retries + 1):
+            # Re-check CB and server rate limit INSIDE the thread — between
+            # submission and the actual HTTP request, other threads may have
+            # tripped the breaker or received a 429.
+            cb = self._circuit_breakers.get(name)
+            if cb and not cb.allow_request():
+                logger.info("Provider %s circuit breaker OPEN, aborting search", name)
+                raise ProviderTimeoutError(f"Provider {name} circuit breaker open")
+            until = self._server_rate_limit_until.get(name, 0)
+            if _time.time() < until:
+                logger.info(
+                    "Provider %s server-rate-limited (%.0fs left), skipping",
+                    name,
+                    until - _time.time(),
+                )
+                raise ProviderRateLimitError(
+                    f"Provider {name} server-rate-limited",
+                    retry_after=int(until - _time.time()),
+                )
             try:
                 start = _time.monotonic()
                 results = provider.search(query)

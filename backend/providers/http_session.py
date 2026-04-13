@@ -24,10 +24,13 @@ def create_session(
     session = RetryingSession(timeout=timeout)
     session.headers["User-Agent"] = user_agent
 
+    # NOTE: 429 is NOT in status_forcelist — Sublarr handles rate limits
+    # explicitly in RetryingSession.request(). Letting urllib3 auto-retry 429
+    # causes duplicate rate-limit hits (3 retries × N concurrent threads).
     retry_strategy = Retry(
         total=max_retries,
         backoff_factor=backoff_factor,
-        status_forcelist=[429, 500, 502, 503, 504],
+        status_forcelist=[500, 502, 503, 504],
         allowed_methods=["GET", "POST"],
         raise_on_status=False,
     )
@@ -58,11 +61,16 @@ class RetryingSession(requests.Session):
         if "timeout" not in kwargs:
             kwargs["timeout"] = self.default_timeout
 
-        # Rate limit check
+        # Rate limit check — raise immediately instead of sleeping.
+        # Sleeping blocks a ThreadPoolExecutor worker for up to 60s.
         if self._rate_limit_until and time.time() < self._rate_limit_until:
+            from providers.base import ProviderRateLimitError
+
             wait = self._rate_limit_until - time.time()
-            logger.debug("Rate limited, waiting %.1fs", wait)
-            time.sleep(wait)
+            raise ProviderRateLimitError(
+                f"Rate limited by {url}, {wait:.0f}s remaining",
+                retry_after=int(wait),
+            )
 
         try:
             resp = super().request(method, url, **kwargs)
