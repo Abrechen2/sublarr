@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { useUpdateInfo } from '@/hooks/useApi'
+import { useProviderHealth } from '@/hooks/useProvidersApi'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -16,6 +17,12 @@ vi.mock('@/hooks/useApi', () => ({
 
 vi.mock('@/hooks/useWantedApi', () => ({
   useScannerStatus: () => ({ data: { is_scanning: false, is_searching: false } }),
+  useWantedBatchStatus: () => ({ data: { running: false } }),
+  useWantedBatchProbeStatus: () => ({ data: { running: false } }),
+}))
+
+vi.mock('@/hooks/useProvidersApi', () => ({
+  useProviderHealth: vi.fn(() => ({ data: {} })),
 }))
 
 import { StatusBar } from '../StatusBar'
@@ -74,5 +81,29 @@ describe('StatusBar', () => {
     const link = screen.getByRole('link')
     expect(link).toHaveAttribute('href', 'https://github.com/abrechen2/sublarr/releases/tag/v0.42.0')
     expect(link).toHaveAttribute('target', '_blank')
+  })
+
+  it('shows throttled providers warning', () => {
+    vi.mocked(useProviderHealth).mockReturnValue({
+      data: {
+        opensubtitles: { healthy: false, circuit_state: 'open', rate_limited: false },
+        addic7ed: { healthy: false, circuit_state: 'closed', rate_limited: true },
+        jimaku: { healthy: true, circuit_state: 'closed', rate_limited: false },
+      },
+    })
+    render(<StatusBar />)
+    const throttled = screen.getByTestId('status-bar-throttled')
+    expect(throttled).toBeInTheDocument()
+    expect(throttled).toHaveAttribute('title', 'opensubtitles, addic7ed')
+  })
+
+  it('hides throttled warning when no providers are throttled', () => {
+    vi.mocked(useProviderHealth).mockReturnValue({
+      data: {
+        opensubtitles: { healthy: true, circuit_state: 'closed', rate_limited: false },
+      },
+    })
+    render(<StatusBar />)
+    expect(screen.queryByTestId('status-bar-throttled')).not.toBeInTheDocument()
   })
 })

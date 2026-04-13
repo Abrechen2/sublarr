@@ -1,21 +1,34 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useHealth, useUpdateInfo } from '@/hooks/useApi'
-import { useScannerStatus } from '@/hooks/useWantedApi'
+import { useScannerStatus, useWantedBatchStatus, useWantedBatchProbeStatus } from '@/hooks/useWantedApi'
+import { useProviderHealth } from '@/hooks/useProvidersApi'
 
 export function StatusBar() {
   const { t } = useTranslation('common')
   const { data: health } = useHealth()
   const { data: updateInfo } = useUpdateInfo()
   const { data: scannerStatus } = useScannerStatus()
+  const { data: batchSearch } = useWantedBatchStatus()
+  const { data: batchProbe } = useWantedBatchProbeStatus()
+  const { data: providerHealth } = useProviderHealth()
   const [popoverOpen, setPopoverOpen] = useState(false)
   const popoverRef = useRef<HTMLDivElement>(null)
 
   const isHealthy = health?.status === 'healthy'
   const isScanning = scannerStatus?.is_scanning ?? false
   const isSearching = scannerStatus?.is_searching ?? false
-  const isAutomationActive = isScanning || isSearching
+  const isBatchSearching = batchSearch?.running ?? false
+  const isBatchExtracting = batchProbe?.running ?? false
+  const isAutomationActive = isScanning || isSearching || isBatchSearching || isBatchExtracting
   const hasUpdate = updateInfo?.available === true
+
+  const throttledProviders = useMemo(() => {
+    if (!providerHealth) return []
+    return Object.entries(providerHealth)
+      .filter(([, v]) => v.circuit_state === 'open' || v.rate_limited)
+      .map(([name]) => name)
+  }, [providerHealth])
 
   const automationLabel = isAutomationActive
     ? t('status.automation_active', 'Automation: active')
@@ -131,7 +144,25 @@ export function StatusBar() {
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Scanner status */}
+      {/* Throttled providers warning */}
+      {throttledProviders.length > 0 && (
+        <span
+          data-testid="status-bar-throttled"
+          className="flex items-center gap-1"
+          title={throttledProviders.join(', ')}
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full shrink-0"
+            style={{ backgroundColor: 'var(--warning)' }}
+          />
+          {t('status.providers_throttled', {
+            count: throttledProviders.length,
+            defaultValue: '{{count}} provider(s) throttled',
+          })}
+        </span>
+      )}
+
+      {/* Scanner / batch status */}
       {isAutomationActive && (
         <span data-testid="status-bar-scanning" className="flex items-center gap-1">
           <span
@@ -141,9 +172,13 @@ export function StatusBar() {
               animation: 'dotGlow 1.5s ease-in-out infinite',
             }}
           />
-          {isScanning
-            ? t('status.scanning', 'Scanning...')
-            : t('status.searching', 'Searching...')}
+          {isBatchExtracting
+            ? t('status.extracting', 'Extracting...')
+            : isBatchSearching
+              ? t('status.batch_searching', 'Batch search...')
+              : isScanning
+                ? t('status.scanning', 'Scanning...')
+                : t('status.searching', 'Searching...')}
         </span>
       )}
     </div>

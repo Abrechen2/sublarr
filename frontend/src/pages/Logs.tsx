@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual'
 import { useLogs } from '@/hooks/useApi'
@@ -6,7 +6,7 @@ import { useWebSocket } from '@/hooks/useWebSocket'
 import { Pause, Search, ArrowDown, Download } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 
-const ROW_HEIGHT = 30
+const ESTIMATED_ROW_HEIGHT = 24
 const OVERSCAN = 10
 
 const LOG_LEVELS = ['ALL', 'DEBUG', 'INFO', 'WARNING', 'ERROR'] as const
@@ -96,8 +96,9 @@ export function LogsPage() {
   const virtualizer = useVirtualizer({
     count: visibleLogs.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: () => ESTIMATED_ROW_HEIGHT,
     overscan: OVERSCAN,
+    measureElement: useCallback((el: Element) => el.getBoundingClientRect().height, []),
   })
 
   const virtualItems = virtualizer.getVirtualItems()
@@ -224,13 +225,16 @@ export function LogsPage() {
               return (
                 <div
                   key={virtualRow.key}
+                  ref={virtualizer.measureElement}
                   data-index={virtualRow.index}
-                  className="transition-opacity duration-100 hover:opacity-80 absolute left-0 w-full flex items-center"
+                  className="transition-opacity duration-100 hover:opacity-80 absolute left-0 w-full"
                   style={{
                     color: getLevelColor(entry),
                     transform: `translateY(${virtualRow.start}px)`,
-                    height: `${ROW_HEIGHT}px`,
                     whiteSpace: logViewPrefs?.wrapLines ? 'pre-wrap' : 'pre',
+                    paddingTop: 2,
+                    paddingBottom: 2,
+                    borderBottom: '1px solid color-mix(in srgb, var(--border) 30%, transparent)',
                   }}
                 >
                   {formatLine(entry)}
