@@ -276,6 +276,17 @@ class WantedRepository(BaseRepository):
             return None
         return self._row_to_wanted(item)
 
+    def get_wanted_items_by_path(self, file_path: str) -> list[dict]:
+        """Return all wanted items sharing a file path (one per target language).
+
+        Used by the webhook pipeline so that a single import event processes
+        every pending target language, not just the first one returned by the
+        single-item lookup above.
+        """
+        stmt = select(WantedItem).where(WantedItem.file_path == file_path)
+        rows = self.session.execute(stmt).scalars().all()
+        return [self._row_to_wanted(r) for r in rows]
+
     def update_wanted_status(self, item_id: int, status: str, error: str = "") -> bool:
         """Update a wanted item's status."""
         item = self.session.get(WantedItem, item_id)

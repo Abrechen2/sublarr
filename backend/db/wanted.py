@@ -107,6 +107,11 @@ def get_wanted_item_by_path(file_path: str) -> dict | None:
     return _get_repo().get_wanted_by_file_path(file_path)
 
 
+def get_wanted_items_by_path(file_path: str) -> list[dict]:
+    """Get all wanted items sharing a file path (one per target language)."""
+    return _get_repo().get_wanted_items_by_path(file_path)
+
+
 def update_wanted_status(item_id: int, status: str, error: str = ""):
     """Update a wanted item's status."""
     return _get_repo().update_wanted_status(item_id, status, error)

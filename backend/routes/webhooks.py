@@ -68,26 +68,37 @@ def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None, mo
             logger.warning("Webhook pipeline: scan failed: %s", e)
             result_info["steps"].append({"scan": {"error": str(e)}})
 
-    # Step 3: Auto-search + translate via wanted system
+    # Step 3: Auto-search + download via wanted system.
+    # Runs process_wanted_item for EVERY wanted item tied to this file path —
+    # one per target language (e.g. separate "de" and "en" entries for the same
+    # episode). process_wanted_item internally respects settings.wanted_auto_translate:
+    # when translation is disabled it still downloads target-language ASS/SRT
+    # directly from providers (Steps 1+3 of process.py) and simply skips the
+    # source-language + translate fallback (Steps 2/4/5).
     if s.webhook_auto_search:
         try:
-            from db.wanted import get_wanted_item_by_path
+            from db.wanted import get_wanted_items_by_path
 
-            wanted_item = get_wanted_item_by_path(file_path)
+            wanted_items = get_wanted_items_by_path(file_path)
 
-            if wanted_item and s.webhook_auto_translate:
+            if not wanted_items:
+                result_info["steps"].append({"search": "no wanted item found"})
+            else:
                 from wanted_search import process_wanted_item
 
-                process_result = process_wanted_item(wanted_item["id"])
-                result_info["steps"].append({"process": process_result})
-                logger.info("Webhook pipeline: process result: %s", process_result.get("status"))
-            elif wanted_item:
-                from wanted_search import search_wanted_item
-
-                search_result = search_wanted_item(wanted_item["id"])
-                result_info["steps"].append({"search": search_result})
-            else:
-                result_info["steps"].append({"search": "no wanted item found"})
+                for item in wanted_items:
+                    lang = item.get("target_language", "?")
+                    try:
+                        process_result = process_wanted_item(item["id"])
+                        result_info["steps"].append({f"process_{lang}": process_result})
+                        logger.info(
+                            "Webhook pipeline: process_%s result: %s",
+                            lang,
+                            process_result.get("status"),
+                        )
+                    except Exception as inner:
+                        logger.warning("Webhook pipeline: process_%s failed: %s", lang, inner)
+                        result_info["steps"].append({f"process_{lang}": {"error": str(inner)}})
         except Exception as e:
             logger.warning("Webhook pipeline: search/process failed: %s", e)
             result_info["steps"].append({"search": {"error": str(e)}})
