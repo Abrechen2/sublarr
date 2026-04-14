@@ -5,6 +5,12 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.8-beta] - 2026-04-14
+
+### Fixed
+- **Index-cleanup migration now completes on Postgres** — The `h1i2j3k4l5m6` migration used `DROP INDEX CONCURRENTLY` inside an `autocommit_block`, which collided with Alembic's default transactional DDL assumption and rolled the entire migration back silently. Switched to plain `DROP INDEX IF EXISTS` inside the normal migration transaction — all target indexes are under 1 MB, so the brief `AccessExclusiveLock` is measured in milliseconds and the cleanup now lands cleanly.
+- **Alembic auto-upgrade errors are no longer silent** — The non-fatal wrapper in `app.py` caught every exception but logged only `str(e)`, which is empty for some exception types. That hid the silent migration failure for weeks. Added `exc_info=True` so future migration failures land in the log with the full traceback.
+
 ## [0.51.7-beta] - 2026-04-14
 
 ### Fixed
