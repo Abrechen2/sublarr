@@ -5,6 +5,20 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.5-beta] - 2026-04-14
+
+### Fixed
+- **Stream removal after extraction now works end-to-end** — The mkvmerge `--subtitle-tracks` exclusion argument was built as `!3,!4`, which mkvmerge v91+ rejects as an invalid BCP 47 language tag. The correct form is `!3,4` (single `!` at the start of the list). Every subtitle extraction on Cardinal was logging `mkvmerge failed (exit 2)` with an empty reason — subtitles were extracted correctly to `.ass` files but the tracks stayed in the container. Error capture now also falls back to stdout when stderr is empty, because mkvmerge writes hard errors to stdout.
+- **Circuit breaker hardening** — Auth and rate-limit errors in provider search methods were caught by generic exception handlers and returned as empty results, preventing the circuit breaker from ever opening. All three layers (download, provider search, coordinator retry loop) now correctly propagate these errors.
+- **Orphan scanner false positives** — Episode titles containing dots (e.g. `Mr. Saturday`) were truncated by the language-tag regex, producing false orphan reports. The regex is now anchored to known subtitle extensions (srt/ass/ssa) and accepts modifier suffixes.
+- **Wanted-search NULL guard** — `process_wanted_item` no longer crashes with a TypeError when `search_count` is NULL. Items inserted before a later default=0 migration triggered this crash, which in turn caused retry storms that logged identical tracebacks thousands of times at the same millisecond.
+- **Unknown API paths return JSON 404** — `/api/v1/*` paths that do not match a registered blueprint now return a proper 404 instead of falling through to the SPA with HTTP 200. Client bugs fail loudly instead of silently.
+- **Logging setup is idempotent** — Repeat `create_app()` invocations (tests, reloaders) no longer leak RotatingFileHandler and SocketIOLogHandler instances. Previously each leak multiplied every log record N-fold, producing the same entry at the same millisecond in the log file.
+- **Sonarr/Radarr error loop on unconfigured setups** — Instance lists with empty `url` or `api_key` are now dropped at the factory. Previously a client was constructed with empty strings and every scan tick ERROR-logged `Sonarr GET /series failed after 3 attempts`.
+
+### Docs
+- **Security reporting** — SECURITY.md now points exclusively to GitHub security advisories; removed the redundant email path.
+
 ## [0.51.4-beta] - 2026-04-13
 
 ### Fixed
