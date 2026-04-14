@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.10-beta] - 2026-04-14
+
+### Fixed
+- **Webhook pipeline now has Flask app context** — The `_webhook_auto_pipeline` thread touches the DB (`get_wanted_items_by_path`, `process_wanted_item`) which requires a Flask-SQLAlchemy app context. The raw `threading.Thread` used so far had none, so every DB call raised `Working outside of application context` and the entire auto-download path failed silently — caught by the outer `try/except` that logged only a bland `search/process failed` warning. A new `_spawn_pipeline()` helper captures `current_app` from the request handler and pushes `app_context()` inside the worker thread; the Sonarr, Radarr, and Jellyfin PlaybackStart handlers all route through it now. This is a pre-existing bug that 0.51.9 surfaced by always calling `process_wanted_item` for every language.
+
 ## [0.51.9-beta] - 2026-04-14
 
 ### Added
