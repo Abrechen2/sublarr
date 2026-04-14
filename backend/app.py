@@ -304,7 +304,13 @@ def create_app(testing=False):
                 _alembic_cmd.upgrade(_alembic_cfg, "head")
                 logger.info("Alembic migrations applied (upgrade head)")
             except Exception as _e:
-                logger.warning("Alembic auto-upgrade failed (non-fatal): %s", _e)
+                # exc_info=True captures the full traceback so we can tell
+                # *why* a migration failed. Without it this path logged an
+                # empty reason for some exception types (e.g. AssertionError
+                # from autocommit_block misuse), which hid a real bug for
+                # weeks: the chain was pinned one revision behind head and
+                # every subsequent migration silently skipped.
+                logger.warning("Alembic auto-upgrade failed (non-fatal): %s", _e, exc_info=True)
         # Enable SQLite WAL mode if using SQLite (match existing behavior)
         if not settings.database_url or settings.database_url.startswith("sqlite"):
             from sqlalchemy import text
