@@ -5,13 +5,34 @@ import logging
 import threading
 import time
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 
 from events import emit_event
 from extensions import socketio
 
 bp = Blueprint("webhooks", __name__, url_prefix="/api/v1")
 logger = logging.getLogger(__name__)
+
+
+def _spawn_pipeline(
+    file_path: str, title: str, series_id: int = None, movie_id: int = None
+) -> None:
+    """Start the auto-pipeline on a daemon thread with a Flask app context.
+
+    The pipeline touches the DB (get_wanted_items_by_path, process_wanted_item)
+    which requires a Flask-SQLAlchemy app context. A raw threading.Thread has
+    none, so we capture the live app object from the request handler and push
+    an explicit context inside the worker thread. Without this every DB call
+    in the pipeline raises `Working outside of application context` and the
+    whole auto-download flow silently fails.
+    """
+    app = current_app._get_current_object()
+
+    def _run():
+        with app.app_context():
+            _webhook_auto_pipeline(file_path, title, series_id, movie_id)
+
+    threading.Thread(target=_run, daemon=True).start()
 
 
 def _webhook_auto_pipeline(file_path: str, title: str, series_id: int = None, movie_id: int = None):
@@ -224,12 +245,7 @@ def webhook_sonarr():
 
     logger.info("Sonarr webhook: %s", title)
 
-    thread = threading.Thread(
-        target=_webhook_auto_pipeline,
-        args=(file_path, title, series_id),
-        daemon=True,
-    )
-    thread.start()
+    _spawn_pipeline(file_path, title, series_id=series_id)
 
     s = get_settings()
     return jsonify(
@@ -374,12 +390,7 @@ def webhook_radarr():
 
     logger.info("Radarr webhook: %s - %s (movie_id=%s)", title, file_path, movie_id)
 
-    thread = threading.Thread(
-        target=_webhook_auto_pipeline,
-        args=(file_path, title, None, movie_id),
-        daemon=True,
-    )
-    thread.start()
+    _spawn_pipeline(file_path, title, movie_id=movie_id)
 
     s = get_settings()
     return jsonify(
@@ -480,11 +491,6 @@ def webhook_jellyfin():
 
     logger.info("Jellyfin PlaybackStart webhook: %s (%s)", title, file_path)
 
-    thread = threading.Thread(
-        target=_webhook_auto_pipeline,
-        args=(file_path, title),
-        daemon=True,
-    )
-    thread.start()
+    _spawn_pipeline(file_path, title)
 
     return jsonify({"status": "queued", "file_path": file_path, "title": title}), 202
