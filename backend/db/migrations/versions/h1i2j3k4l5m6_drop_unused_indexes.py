@@ -42,6 +42,11 @@ INDEXES_TO_DROP = [
     ("wanted_items", "idx_wanted_sonarr_series"),
     ("wanted_items", "idx_wanted_radarr_movie"),
     ("subtitle_downloads", "idx_subtitle_downloads_path"),
+    # The companion migration g1h2i3j4k5l6 also creates a second file_path
+    # index under a different name (idx_subtitle_downloads_file_path_dl). The
+    # audit found no query that benefits from it, so drop that one too to
+    # keep the table index-light.
+    ("subtitle_downloads", "idx_subtitle_downloads_file_path_dl"),
     ("subtitle_hashes", "idx_subtitle_hashes_file_path"),
 ]
 
