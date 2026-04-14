@@ -28,7 +28,9 @@ class SubtitleHash(db.Model):
 
     __table_args__ = (
         Index("idx_subtitle_hashes_content_hash", "content_hash"),
-        Index("idx_subtitle_hashes_file_path", "file_path"),
+        # idx_subtitle_hashes_file_path was a 100% duplicate of the UNIQUE
+        # constraint auto-created from file_path's `unique=True`. Dropped in
+        # migration h1i2j3k4l5m6 — the UNIQUE constraint covers every lookup.
     )
 
 

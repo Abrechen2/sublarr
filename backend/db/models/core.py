@@ -94,9 +94,10 @@ class WantedItem(db.Model):
         Index("idx_wanted_status", "status"),
         Index("idx_wanted_item_type", "item_type"),
         Index("idx_wanted_file_path", "file_path"),
-        Index("idx_wanted_sonarr_series", "sonarr_series_id"),
+        # idx_wanted_sonarr_series and idx_wanted_radarr_movie were dropped in
+        # migration h1i2j3k4l5m6 — prod showed 0 scans on both over ~2 weeks
+        # and the only non-trivial FK query uses sonarr_episode_id (kept below).
         Index("idx_wanted_sonarr_episode", "sonarr_episode_id"),
-        Index("idx_wanted_radarr_movie", "radarr_movie_id"),
         # Composite index for the most common multi-filter pattern:
         # get_wanted_items() filters by both status and item_type together.
         # Avoids SQLite merging two single-column index scans.

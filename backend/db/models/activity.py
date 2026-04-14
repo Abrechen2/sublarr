@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Index, Integer, Text
+from sqlalchemy import DateTime, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from extensions import db
@@ -26,7 +26,6 @@ class ActivityLog(db.Model):
     details_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    __table_args__ = (
-        Index("idx_activity_log_event_type", "event_type"),
-        Index("idx_activity_log_created_at", "created_at"),
-    )
+    # Previously carried idx_activity_log_event_type and idx_activity_log_created_at.
+    # Both were dropped in migration h1i2j3k4l5m6 after showing 0 index scans over
+    # ~2 weeks in prod — activity_log has no reader queries that would use them.
