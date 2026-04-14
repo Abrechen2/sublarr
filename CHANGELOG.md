@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.9-beta] - 2026-04-14
+
+### Added
+- **Webhook pipeline downloads without translate + iterates all languages** — Previously the Sonarr/Radarr webhook auto-pipeline only downloaded subtitles when `webhook_auto_translate=true` (via `process_wanted_item`) and fell back to search-only when translation was off, which meant users with the common "download yes, Ollama-translate no" config got search results but no files. And `get_wanted_item_by_path` returned a single item per path, so multi-target-language setups (e.g. `de` + `en`) only processed the first language. The pipeline now looks up all wanted items for the imported path via new `get_wanted_items_by_path` and runs `process_wanted_item` on each one, independent of the translation setting. `process_wanted_item` already respects `wanted_auto_translate` internally, so disabled translation continues to skip Steps 2/4/5 (source-lang + translate) while Steps 1+3 (direct target-lang ASS/SRT download) still run. A failure on one language no longer short-circuits the others.
+
 ## [0.51.8-beta] - 2026-04-14
 
 ### Fixed
