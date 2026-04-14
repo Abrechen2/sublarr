@@ -5,6 +5,15 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.11-beta] - 2026-04-14
+
+### Added
+- **Post-extract sidecar cleanup by language profile** — After the batch-probe pipeline extracts subtitles + remuxes the container, it now compares every sidecar file on disk against the item's language profile (`target_languages` plus `source_language` when `wanted_auto_translate` is on). Anything outside that set (e.g. `.jpn.ass` when the profile targets `de` + `en`) is moved into the same trash folder used by the remux backup, not hard-deleted. Unknown / `und` language tags are preserved to avoid destroying data that cannot be classified. Language normalisation via new `normalize_language_code` reverse lookup handles `ger`/`deu`/`german`→`de`, `eng`→`en`, `jpn`→`ja`, etc.
+- **Retroactive cleanup endpoint** — New `POST /api/v1/cleanup/non-target-subs` walks the configured `media_path`, unions every profile's `target_languages`, and moves legacy non-target sidecars to trash. Defaults to `{"dry_run": true}` which only counts and samples; actual move requires explicit `{"dry_run": false}`. Aborts when no target languages are configured so an empty profile list can never wipe the whole library.
+
+### Fixed
+- **`process_wanted_item` no longer overwrites extracted sidecars** — When the target-language `.ass` (or `.srt` with `upgrade_enabled=false`) already exists next to the video the provider search is skipped, the wanted item is marked `extracted`, and the pipeline returns `status=skipped` with a human-readable reason. Previously Step 1 of the search could save a provider version over a freshly extracted sidecar because the `is_upgrade` gate did not apply to non-upgrade items. SRT satisfaction with `upgrade_enabled=true` still falls through so the SRT→ASS upgrade path keeps working.
+
 ## [0.51.10-beta] - 2026-04-14
 
 ### Fixed
