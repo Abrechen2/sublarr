@@ -24,6 +24,39 @@ from routes.wanted import bp
 logger = logging.getLogger(__name__)
 
 
+def _resolve_profile_for_item(item: dict, settings) -> dict:
+    """Return the language profile that governs a wanted item.
+
+    Preference order:
+      1. Per-series profile (for episodes) via get_series_profile
+      2. Per-movie profile (for movies) via get_movie_profile
+      3. Default profile (falls back to synthetic default derived from
+         settings when no profile exists in the DB)
+
+    The return value always has ``target_languages`` populated, so callers
+    can treat it as a simple dict without defensive ``get`` calls.
+    """
+    from db.profiles import get_default_profile, get_movie_profile, get_series_profile
+
+    try:
+        if item.get("sonarr_series_id"):
+            profile = get_series_profile(item["sonarr_series_id"])
+        elif item.get("radarr_movie_id"):
+            profile = get_movie_profile(item["radarr_movie_id"])
+        else:
+            profile = get_default_profile()
+    except Exception as exc:  # pragma: no cover — DB hiccup shouldn't kill the cleanup
+        logger.debug("Profile lookup failed for item %s: %s", item.get("id"), exc)
+        profile = get_default_profile()
+
+    if not profile.get("target_languages"):
+        # Guaranteed minimum so the caller doesn't need a fallback branch.
+        fallback = getattr(settings, "target_language", "")
+        profile = dict(profile)
+        profile["target_languages"] = [fallback] if fallback else []
+    return profile
+
+
 def _remove_stream_from_container(file_path: str, stream_info: dict) -> None:
     """Remove a subtitle stream from the video container after extraction.
 
@@ -379,6 +412,55 @@ def _run_batch_probe(items, app):
                                         "[batch-probe] item %d: container removal failed: %s",
                                         item_id,
                                         remux_exc,
+                                    )
+
+                            # Trash sidecars whose language is not in this item's
+                            # language profile. We just extracted everything the
+                            # container offered, so any file we keep must match
+                            # what the user configured (target_languages, plus
+                            # source_language when translation is enabled). All
+                            # other language tags are moved to the same trash
+                            # folder the remux backup uses — nothing is hard-
+                            # deleted, so recovery is always possible.
+                            if any_extracted:
+                                try:
+                                    from config import get_settings as _gs2
+                                    from config_language_data import normalize_language_code
+                                    from remux import trash_non_target_sidecars
+
+                                    _settings2 = _gs2()
+                                    _profile = _resolve_profile_for_item(item, _settings2)
+                                    _keep = {
+                                        normalize_language_code(code)
+                                        for code in _profile.get("target_languages", [])
+                                        if code
+                                    }
+                                    if getattr(_settings2, "wanted_auto_translate", False):
+                                        _keep.add(
+                                            normalize_language_code(_settings2.source_language)
+                                        )
+                                    _keep.discard("")  # defensive
+                                    if _keep:
+                                        trashed = trash_non_target_sidecars(
+                                            video_path=file_path,
+                                            keep_langs=_keep,
+                                            trash_dir=getattr(
+                                                _settings2, "remux_trash_dir", ".sublarr"
+                                            ),
+                                        )
+                                        if trashed:
+                                            logger.info(
+                                                "[batch-probe] item %d: trashed %d non-target"
+                                                " sidecar(s) (keep=%s)",
+                                                item_id,
+                                                len(trashed),
+                                                sorted(_keep),
+                                            )
+                                except Exception as cleanup_exc:
+                                    logger.warning(
+                                        "[batch-probe] item %d: sidecar cleanup failed: %s",
+                                        item_id,
+                                        cleanup_exc,
                                     )
 
                             if any_extracted:

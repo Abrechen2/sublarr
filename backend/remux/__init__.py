@@ -362,3 +362,110 @@ def contextlib_suppress(exc_type):
     import contextlib
 
     return contextlib.suppress(exc_type)
+
+
+# ---------------------------------------------------------------------------
+# Sidecar cleanup — post-extract language filtering
+# ---------------------------------------------------------------------------
+
+# Sidecar extensions we ever produce or import from providers.
+_SIDECAR_EXTS = (".ass", ".srt", ".vtt", ".sub")
+
+# Modifier suffixes that can appear between lang and extension:
+#   show.en.forced.srt, show.de.sdh.ass, show.en.hi.vtt
+# We preserve them so the cleanup knows "lang=en" even when there's a modifier.
+_SIDECAR_MODIFIERS = ("forced", "sdh", "hi", "cc", "sign", "signs")
+
+
+def _parse_sidecar_language(candidate: str, video_base: str) -> str | None:
+    """Return the language tag (untreated) of a sidecar, or None if it is not
+    a recognisable `<video_base>.<lang>[.<modifier>].<ext>` sidecar.
+
+    The caller is expected to pass the fully-qualified sidecar path plus the
+    media file's base (path without video extension). The function is tolerant
+    to any of our supported sidecar extensions and to a single optional
+    modifier token (forced/sdh/hi/cc/signs).
+    """
+    base_dir, base_file = os.path.split(video_base)
+    name = os.path.basename(candidate)
+    if not name.startswith(base_file + "."):
+        return None
+    ext = os.path.splitext(name)[1].lower()
+    if ext not in _SIDECAR_EXTS:
+        return None
+    remainder = name[len(base_file) + 1 : -len(ext)]  # everything between '.' and '.ext'
+    if not remainder:
+        return None
+    parts = remainder.split(".")
+    # Strip a trailing known modifier, e.g. 'en.forced' -> 'en'
+    if len(parts) >= 2 and parts[-1].lower() in _SIDECAR_MODIFIERS:
+        parts = parts[:-1]
+    if len(parts) != 1:
+        return None
+    return parts[0]
+
+
+def trash_non_target_sidecars(
+    video_path: str,
+    keep_langs: set[str],
+    trash_dir: str = ".sublarr",
+) -> list[tuple[str, str]]:
+    """Move extracted subtitle sidecars whose language is not in ``keep_langs``
+    into the same trash folder used by the remux backup.
+
+    Args:
+        video_path: Absolute path to the media file (the sidecars are siblings).
+        keep_langs: Normalised ISO 639-1 codes to preserve (e.g. {'de','en'}).
+            Callers typically pass the profile's target_languages plus
+            source_language when translation is enabled.
+        trash_dir: Same semantics as in ``_make_backup`` — relative to the
+            media root or absolute.
+
+    Returns a list of ``(original_path, trash_path)`` tuples for logging.
+    Unknown language tags (including 'und' and codes that are not in our
+    lookup table) are KEPT on disk — we do not destroy data we cannot classify.
+    """
+    import datetime
+    import glob
+
+    # Late import to avoid a cycle with config_language_data -> config
+    from config_language_data import normalize_language_code
+
+    video_base = os.path.splitext(video_path)[0]
+    moved: list[tuple[str, str]] = []
+
+    # Build a candidate list across supported extensions.
+    candidates: list[str] = []
+    for ext in _SIDECAR_EXTS:
+        candidates.extend(glob.glob(f"{video_base}.*{ext}"))
+
+    for candidate in candidates:
+        raw_lang = _parse_sidecar_language(candidate, video_base)
+        if raw_lang is None:
+            continue  # not a lang-tagged sidecar
+        normalised = normalize_language_code(raw_lang)
+        # Safety net: never delete ambiguous or unrecognised tags.
+        if not normalised or normalised == "und":
+            continue
+        if normalised in keep_langs:
+            continue
+        # Build the trash destination using the existing helper layout.
+        resolved = _resolve_trash_dir(video_path, trash_dir or ".sublarr")
+        date_str = datetime.date.today().isoformat()
+        dest_dir = os.path.join(resolved, "trash", date_str)
+        try:
+            os.makedirs(dest_dir, exist_ok=True)
+            dest = os.path.join(dest_dir, os.path.basename(candidate))
+            # Rare collision: if a file with the same name is already in trash,
+            # append a unique suffix rather than overwriting.
+            if os.path.exists(dest):
+                import time as _time
+
+                stem, ext = os.path.splitext(dest)
+                dest = f"{stem}.{int(_time.time())}{ext}"
+            shutil.move(candidate, dest)
+            moved.append((candidate, dest))
+            logger.info("Sidecar cleanup: trashed %s (lang=%s)", candidate, normalised)
+        except OSError as exc:
+            logger.warning("Sidecar cleanup: could not trash %s: %s", candidate, exc)
+    return moved

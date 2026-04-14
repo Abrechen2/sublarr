@@ -11,6 +11,7 @@ from db.providers import record_subtitle_download
 from db.wanted import (
     delete_wanted_item,
     get_wanted_item,
+    update_existing_sub,
     update_wanted_search,
     update_wanted_status,
 )
@@ -109,6 +110,38 @@ def process_wanted_item(item_id: int) -> dict:
         except Exception as _ae:
             logger.debug("Audio-exclude check failed (non-fatal): %s", _ae)
     # ── End language profile filters ─────────────────────────────────────────
+
+    # ── Skip when the target language sidecar is already satisfied ──────────
+    # If an .{item_lang}.ass or .{item_lang}.srt file already exists next to
+    # the media file (e.g. because we just extracted it from the container
+    # during a scan) there is no need to hit the providers again. Skipping
+    # here also protects the extracted sidecar from being overwritten by a
+    # potentially lower-quality provider version later in the pipeline, which
+    # could happen because the save step is not gated by is_upgrade when the
+    # item was merely marked `extracted`. SRT-only satisfaction is still
+    # allowed to fall through when `upgrade_enabled=True`, so the SRT→ASS
+    # upgrade path keeps working.
+    try:
+        from translator import detect_existing_target_for_lang
+
+        _existing = detect_existing_target_for_lang(item["file_path"], item_lang, probe_data=None)
+    except Exception as _dex:
+        logger.debug("existing-sidecar probe failed (non-fatal): %s", _dex)
+        _existing = None
+    if _existing == "ass" or (_existing == "srt" and not settings.upgrade_enabled):
+        logger.info(
+            "Wanted %d: target lang %s already satisfied by .%s sidecar, skipping provider search",
+            item_id,
+            item_lang,
+            _existing,
+        )
+        update_existing_sub(item_id, _existing)
+        update_wanted_status(item_id, "extracted")
+        return {
+            "wanted_id": item_id,
+            "status": "skipped",
+            "reason": f"target '{item_lang}' already on disk as .{_existing}",
+        }
 
     # Check max search attempts.
     # search_count may be NULL for items inserted before a schema migration set

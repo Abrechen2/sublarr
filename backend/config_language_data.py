@@ -149,3 +149,28 @@ SUPPORTED_LANGUAGES: list[dict] = [
 def _get_language_tags(lang_code: str) -> set[str]:
     """Get all known tags for a language code."""
     return _LANGUAGE_TAGS.get(lang_code, {lang_code})
+
+
+# Reverse lookup: any known tag -> canonical ISO 639-1 code.
+# Built lazily/deterministically at module import time so callers get O(1) lookup.
+_REVERSE_LANGUAGE_TAGS: dict[str, str] = {
+    tag: code for code, tags in _LANGUAGE_TAGS.items() for tag in tags
+}
+
+
+def normalize_language_code(raw: str) -> str:
+    """Map any known language tag to its canonical ISO 639-1 code.
+
+    Examples:
+      'ger', 'deu', 'german', 'DE' -> 'de'
+      'eng', 'english' -> 'en'
+      'jpn', 'japanese' -> 'ja'
+
+    Unknown tags (including empty strings and 'und') are returned in
+    lower-case/stripped form unchanged — callers decide whether to treat
+    an unknown tag as "keep" (safer) or "discard" (stricter).
+    """
+    if not raw:
+        return ""
+    key = raw.lower().strip()
+    return _REVERSE_LANGUAGE_TAGS.get(key, key)
