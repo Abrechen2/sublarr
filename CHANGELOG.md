@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.6-beta] - 2026-04-14
+
+### Fixed
+- **WantedScanner timer leak on settings save** — Every config-UI save was leaking a pair of `threading.Timer` instances because `start_scheduler()` overwrote the timer references without cancelling the previous ones. The old chains kept ticking and produced `Wanted scan already running, skipping` log lines when they eventually fired. `start_scheduler` now cancels the previous timer pair first, and the `_schedule_next_*` helpers also cancel before swapping, so recursive rescheduling stays single-chain.
+
+### Changed
+- **Removed 6 unused database indexes** — After two weeks of prod runtime `pg_stat_user_indexes` reported zero scans on six indexes. New migration `h1i2j3k4l5m6` drops them with `DROP INDEX CONCURRENTLY` on PostgreSQL (no write blocking). Removed: `subtitle_hashes.idx_subtitle_hashes_file_path` (100% duplicate of the UNIQUE constraint on the same column), `activity_log.idx_activity_log_event_type`, `activity_log.idx_activity_log_created_at`, `wanted_items.idx_wanted_sonarr_series`, `wanted_items.idx_wanted_radarr_movie`, `subtitle_downloads.idx_subtitle_downloads_path`. Frees ~2 MB of storage and saves index-maintenance cost on every insert/update. `idx_wanted_sonarr_episode` and the trigram GIN indexes on `search_*` tables are kept for existing query paths even though they are currently idle.
+
 ## [0.51.5-beta] - 2026-04-14
 
 ### Fixed
