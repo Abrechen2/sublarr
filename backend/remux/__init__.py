@@ -125,9 +125,10 @@ def _remux_mkvmerge(video_path: str, stream_indices: list[int], output_path: str
     """Remove subtitle streams using mkvmerge.
 
     `stream_indices` are the global track IDs as reported by ffprobe/mkvmerge -i
-    (matches mkvmerge's --subtitle-tracks !N flag).
+    (matches mkvmerge's --subtitle-tracks !N,M,... flag where the leading `!`
+    applies to the whole comma-separated list, not to each element).
     """
-    exclusions = ",".join(f"!{idx}" for idx in stream_indices)
+    exclusions = "!" + ",".join(str(idx) for idx in stream_indices)
     cmd = [
         "mkvmerge",
         "-o",
@@ -141,7 +142,10 @@ def _remux_mkvmerge(video_path: str, stream_indices: list[int], output_path: str
         cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600
     )
     if result.returncode not in (0, 1):  # mkvmerge exit 1 = warnings, still OK
-        raise RemuxError(f"mkvmerge failed (exit {result.returncode}): {result.stderr[:500]}")
+        # mkvmerge writes hard errors to stdout, not stderr — include both so
+        # failures are never logged with an empty reason.
+        detail = (result.stderr or result.stdout or "").strip()[:500]
+        raise RemuxError(f"mkvmerge failed (exit {result.returncode}): {detail}")
 
 
 # ---------------------------------------------------------------------------

@@ -12,6 +12,7 @@ import pytest
 from remux import (
     RemuxError,
     _detect_backend,
+    _remux_mkvmerge,
     _verify,
     remove_subtitle_stream,
     remove_subtitle_streams,
@@ -259,6 +260,77 @@ def test_remove_subtitle_stream_cleans_temp_on_error(tmp_path):
     # temp file must be cleaned up
     tmp_files = [f for f in os.listdir(tmp_path) if f != "show.mkv"]
     assert len(tmp_files) == 0
+
+
+# ---------------------------------------------------------------------------
+# _remux_mkvmerge — command construction (regression for exit-2 bug)
+# ---------------------------------------------------------------------------
+
+
+def _fake_completed(returncode: int = 0, stdout: str = "", stderr: str = ""):
+    result = MagicMock()
+    result.returncode = returncode
+    result.stdout = stdout
+    result.stderr = stderr
+    return result
+
+
+def test_remux_mkvmerge_builds_single_bang_exclusion_list():
+    """mkvmerge --subtitle-tracks needs a single `!` at the start of the list.
+
+    Regression: `!3,!4` is rejected by mkvmerge v91+ because the second `!4`
+    is parsed as a BCP 47 language tag. Correct form is `!3,4`.
+    """
+    with patch("remux.subprocess.run", return_value=_fake_completed(0)) as mock_run:
+        _remux_mkvmerge("/videos/show.mkv", [3, 4], "/tmp/out.mkv")
+
+    cmd = mock_run.call_args[0][0]
+    assert cmd[0] == "mkvmerge"
+    # Positional args of --subtitle-tracks must be the single-bang form
+    idx = cmd.index("--subtitle-tracks")
+    assert cmd[idx + 1] == "!3,4"
+
+
+def test_remux_mkvmerge_single_stream_still_uses_bang_prefix():
+    with patch("remux.subprocess.run", return_value=_fake_completed(0)) as mock_run:
+        _remux_mkvmerge("/videos/show.mkv", [2], "/tmp/out.mkv")
+
+    cmd = mock_run.call_args[0][0]
+    idx = cmd.index("--subtitle-tracks")
+    assert cmd[idx + 1] == "!2"
+
+
+def test_remux_mkvmerge_captures_stdout_when_stderr_empty():
+    """mkvmerge writes hard errors to stdout, not stderr — both must be logged."""
+    with (
+        patch(
+            "remux.subprocess.run",
+            return_value=_fake_completed(
+                returncode=2,
+                stdout="Error: '!4' is not a valid IETF BCP 47/RFC 5646 language tag",
+                stderr="",
+            ),
+        ),
+        pytest.raises(RemuxError, match="BCP 47"),
+    ):
+        _remux_mkvmerge("/videos/show.mkv", [3, 4], "/tmp/out.mkv")
+
+
+def test_remux_mkvmerge_prefers_stderr_when_present():
+    with (
+        patch(
+            "remux.subprocess.run",
+            return_value=_fake_completed(returncode=2, stdout="ignored", stderr="real error"),
+        ),
+        pytest.raises(RemuxError, match="real error"),
+    ):
+        _remux_mkvmerge("/videos/show.mkv", [3], "/tmp/out.mkv")
+
+
+def test_remux_mkvmerge_exit_1_is_ok():
+    """mkvmerge exit code 1 means warnings only — must not raise."""
+    with patch("remux.subprocess.run", return_value=_fake_completed(1, stderr="warning")):
+        _remux_mkvmerge("/videos/show.mkv", [3], "/tmp/out.mkv")  # no exception
 
 
 def test_remove_subtitle_stream_fallback_to_ffmpeg_when_mkvmerge_missing(tmp_path):
