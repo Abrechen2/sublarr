@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.7-beta] - 2026-04-14
+
+### Fixed
+- **Alembic chain unstuck** — Migration `g1h2i3j4k5l6_add_subtitle_downloads_indexes` has been silently failing on every prod startup with `relation "idx_subtitle_downloads_downloaded_at" already exists`, because SQLAlchemy `create_all()` already creates that index from the model definition. The non-fatal wrapper swallowed the error but pinned `alembic_version` one step behind the real head, so every later migration (including the 0.51.6 index cleanup) was blocked for weeks without anyone noticing. Rewrote both `CREATE INDEX` calls as raw SQL with `IF NOT EXISTS` so the migration tolerates a pre-existing state and the chain can reach HEAD. This release unblocks the dead-index cleanup from 0.51.6.
+
 ## [0.51.6-beta] - 2026-04-14
 
 ### Fixed
