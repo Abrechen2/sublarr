@@ -27,8 +27,10 @@ def get_sonarr_instances() -> list[dict]:
     if settings.sonarr_instances_json:
         try:
             instances = json.loads(settings.sonarr_instances_json)
-            if isinstance(instances, list) and len(instances) > 0:
-                return instances
+            if isinstance(instances, list):
+                valid = [i for i in instances if i.get("url") and i.get("api_key")]
+                if valid:
+                    return valid
         except (json.JSONDecodeError, TypeError):
             pass
 
@@ -61,8 +63,10 @@ def get_radarr_instances() -> list[dict]:
     if settings.radarr_instances_json:
         try:
             instances = json.loads(settings.radarr_instances_json)
-            if isinstance(instances, list) and len(instances) > 0:
-                return instances
+            if isinstance(instances, list):
+                valid = [i for i in instances if i.get("url") and i.get("api_key")]
+                if valid:
+                    return valid
         except (json.JSONDecodeError, TypeError):
             pass
 

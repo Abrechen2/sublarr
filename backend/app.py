@@ -92,11 +92,31 @@ class SocketIOLogHandler(logging.Handler):
 
 
 def _setup_logging(settings) -> None:
-    """Set up file handler and WebSocket handler on the root logger."""
+    """Set up file handler and WebSocket handler on the root logger.
+
+    Idempotent: removes any previously-installed Sublarr handlers before
+    re-adding them. create_app() can be called more than once in the same
+    process (tests, WSGI reloaders) — without this guard each invocation
+    leaks another RotatingFileHandler + SocketIOLogHandler, producing N-fold
+    duplicated log lines.
+    """
     log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
     logging.basicConfig(level=log_level, format=LOG_FORMAT)
 
     root = logging.getLogger()
+
+    # Strip previously-installed Sublarr handlers (by class) so repeat calls
+    # do not multiply handler count. The default StreamHandler added by
+    # basicConfig is kept — only our own additions are rotated out.
+    from logging.handlers import RotatingFileHandler
+
+    for existing in list(root.handlers):
+        if isinstance(existing, (RotatingFileHandler, SocketIOLogHandler)):
+            root.removeHandler(existing)
+            try:
+                existing.close()
+            except Exception:
+                pass
 
     # Determine formatter
     use_json = getattr(settings, "log_format", "text").lower() == "json"
@@ -111,7 +131,6 @@ def _setup_logging(settings) -> None:
         log_dir = os.path.dirname(log_file)
         if log_dir:
             os.makedirs(log_dir, exist_ok=True)
-        from logging.handlers import RotatingFileHandler
 
         fh = RotatingFileHandler(
             log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
@@ -610,8 +629,19 @@ def _register_app_routes(app):
     @app.route("/", defaults={"path": ""})
     @app.route("/<path:path>")
     def serve_spa(path):
-        """Serve the React SPA frontend."""
+        """Serve the React SPA frontend.
+
+        Unknown `/api/...` paths must NOT fall through to index.html — a mistyped
+        endpoint should return a JSON 404 so clients fail loudly instead of
+        silently parsing an HTML/landing-page response.
+        """
         import os
+
+        if path.startswith("api/"):
+            return (
+                jsonify({"error": "Not found", "path": f"/{path}"}),
+                404,
+            )
 
         static_dir = app.static_folder or "static"
 

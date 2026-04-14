@@ -110,8 +110,12 @@ def process_wanted_item(item_id: int) -> dict:
             logger.debug("Audio-exclude check failed (non-fatal): %s", _ae)
     # ── End language profile filters ─────────────────────────────────────────
 
-    # Check max search attempts
-    if item["search_count"] >= settings.wanted_max_search_attempts:
+    # Check max search attempts.
+    # search_count may be NULL for items inserted before a schema migration set
+    # a default — treat missing as zero so we don't explode with a TypeError,
+    # which previously caused entire retry storms in the log.
+    search_count = item.get("search_count") or 0
+    if search_count >= settings.wanted_max_search_attempts:
         update_wanted_status(item_id, "failed", error="Max search attempts reached")
         return {
             "wanted_id": item_id,
