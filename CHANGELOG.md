@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.12-beta] - 2026-04-15
+
+### Fixed
+- **Auto-sync now actually runs** — `ffsubsync` is bundled into the Docker image. Previously every webhook-triggered download logged `Auto-sync skipped: ffsubsync is not installed` and passed through unaligned; post-processing now aligns downloaded `.de.ass` / `.en.ass` files to the video timeline.
+
 ## [0.51.11-beta] - 2026-04-14
 
 ### Added
