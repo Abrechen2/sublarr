@@ -31,5 +31,5 @@ psycopg2-binary==2.9.10  # Optional: PostgreSQL support
 redis==7.1.0  # Optional: Redis caching/queue
 rq==2.6.1  # Optional: Redis-based job queue
 # Optional — video sync engines (graceful degradation if not installed)
-# ffsubsync>=0.4.26
+ffsubsync>=0.4.26
 # alass is a standalone binary — see https://github.com/kaegi/alass/releases
