@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.13-beta] - 2026-04-15
+
+### Fixed
+- **Auto-sync skipped cleanly when sidecar is missing** — After shipping `ffsubsync` in `0.51.12-beta`, the wanted-search runner spammed `Auto-sync failed: [Errno 2] No such file or directory` right after startup. Root cause: the post-download pipeline sometimes passes a subtitle path whose file is not on disk (e.g. the pipeline claims a `.de.ass` while only `.de.srt` exists). Previously masked by `SyncUnavailableError` when ffsubsync was absent. `_try_auto_sync` now checks both `subtitle_path` and `video_path` with `os.path.isfile` and logs a `WARNING` (`Auto-sync skipped: ... does not exist`) instead of raising from `shutil.copy2`.
+
 ## [0.51.12-beta] - 2026-04-15
 
 ### Fixed
