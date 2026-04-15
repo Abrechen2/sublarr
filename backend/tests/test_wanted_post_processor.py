@@ -88,9 +88,15 @@ class TestTryAutoSync:
 
         _try_auto_sync("/path/sub.srt", "/path/video.mkv", settings)
 
-    def test_ffsubsync_called(self):
+    def test_ffsubsync_called(self, tmp_path):
         """When enabled + ffsubsync engine, sync_with_ffsubsync is invoked."""
         settings = _make_settings(auto_sync_after_download=True, auto_sync_engine="ffsubsync")
+        # _try_auto_sync skips when the files do not exist on disk — provide
+        # real tmp files so the guard lets the call through.
+        sub = tmp_path / "sub.srt"
+        sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHi\n")
+        vid = tmp_path / "video.mkv"
+        vid.touch()
 
         mock_sync_module = MagicMock()
         mock_sync_module.SyncUnavailableError = type("SyncUnavailableError", (Exception,), {})
@@ -99,15 +105,17 @@ class TestTryAutoSync:
             import wanted_search.post_processor as mod
 
             reload(mod)
-            mod._try_auto_sync("/path/sub.srt", "/path/video.mkv", settings)
+            mod._try_auto_sync(str(sub), str(vid), settings)
 
-        mock_sync_module.sync_with_ffsubsync.assert_called_once_with(
-            "/path/sub.srt", "/path/video.mkv"
-        )
+        mock_sync_module.sync_with_ffsubsync.assert_called_once_with(str(sub), str(vid))
 
-    def test_ffsubsync_sync_unavailable_error_logged(self):
+    def test_ffsubsync_sync_unavailable_error_logged(self, tmp_path):
         """SyncUnavailableError is caught and logged, not propagated."""
         settings = _make_settings(auto_sync_after_download=True, auto_sync_engine="ffsubsync")
+        sub = tmp_path / "sub.srt"
+        sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHi\n")
+        vid = tmp_path / "video.mkv"
+        vid.touch()
 
         mock_sync_module = MagicMock()
 
@@ -122,11 +130,15 @@ class TestTryAutoSync:
 
             reload(mod)
             # Should not raise
-            mod._try_auto_sync("/path/sub.srt", "/path/video.mkv", settings)
+            mod._try_auto_sync(str(sub), str(vid), settings)
 
-    def test_ffsubsync_generic_error_logged(self):
+    def test_ffsubsync_generic_error_logged(self, tmp_path):
         """Generic exceptions from ffsubsync are caught and logged."""
         settings = _make_settings(auto_sync_after_download=True, auto_sync_engine="ffsubsync")
+        sub = tmp_path / "sub.srt"
+        sub.write_text("1\n00:00:01,000 --> 00:00:02,000\nHi\n")
+        vid = tmp_path / "video.mkv"
+        vid.touch()
 
         mock_sync_module = MagicMock()
         mock_sync_module.SyncUnavailableError = type("SyncUnavailableError", (Exception,), {})
@@ -137,7 +149,25 @@ class TestTryAutoSync:
 
             reload(mod)
             # Should not raise
-            mod._try_auto_sync("/path/sub.srt", "/path/video.mkv", settings)
+            mod._try_auto_sync(str(sub), str(vid), settings)
+
+    def test_missing_subtitle_path_skipped_with_warning(self, tmp_path, caplog):
+        """Guard test: if the subtitle path does not exist on disk, skip cleanly."""
+        import logging
+
+        settings = _make_settings(auto_sync_after_download=True, auto_sync_engine="ffsubsync")
+        vid = tmp_path / "video.mkv"
+        vid.touch()
+        ghost = str(tmp_path / "ghost.de.ass")  # never created
+
+        from wanted_search.post_processor import _try_auto_sync
+
+        with caplog.at_level(logging.WARNING, logger="wanted_search.post_processor"):
+            _try_auto_sync(ghost, str(vid), settings)
+
+        assert any(
+            "subtitle path does not exist" in rec.message for rec in caplog.records
+        ), "expected guard WARNING for missing subtitle path"
 
     def test_missing_auto_sync_attr_treated_as_false(self):
         """If settings lacks auto_sync_after_download, treat as disabled."""

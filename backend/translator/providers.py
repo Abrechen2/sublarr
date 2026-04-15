@@ -60,7 +60,9 @@ def _search_providers_for_target_ass(mkv_path, context=None, target_language=Non
         result = manager.search_and_download_best(query, format_filter=SubtitleFormat.ASS)
         if result and result.content:
             output_path = get_output_path_for_lang(mkv_path, "ass", tgt_lang)
-            manager.save_subtitle(
+            # save_subtitle may rewrite the extension when actual format differs
+            # from the requested one — always use the return value.
+            output_path = manager.save_subtitle(
                 result,
                 output_path,
                 series_id=context.get("sonarr_series_id") if context else None,
@@ -104,18 +106,23 @@ def _search_providers_for_source_sub(mkv_path, context=None):
         if result and result.content:
             base = os.path.splitext(mkv_path)[0]
             tmp_path = f"{base}.{settings.source_language}.ass"
-            manager.save_subtitle(
+            # save_subtitle may rewrite the extension if the actual content is
+            # not ASS — use the returned path so the temp file we return to
+            # the translator actually exists on disk.
+            tmp_path = manager.save_subtitle(
                 result,
                 tmp_path,
                 series_id=context.get("sonarr_series_id") if context else None,
             )
+            actual_ext = os.path.splitext(tmp_path)[1].lstrip(".") or "ass"
             logger.info(
-                "Provider %s delivered source ASS: %s (score=%d)",
+                "Provider %s delivered source %s: %s (score=%d)",
                 result.provider_name,
+                actual_ext,
                 tmp_path,
                 result.score,
             )
-            return tmp_path, "ass", result.score
+            return tmp_path, actual_ext, result.score
 
         # Fall back to any format (SRT most likely)
         result = manager.search_and_download_best(query)
@@ -123,19 +130,22 @@ def _search_providers_for_source_sub(mkv_path, context=None):
             base = os.path.splitext(mkv_path)[0]
             ext = result.format.value if result.format.value != "unknown" else "srt"
             tmp_path = f"{base}.{settings.source_language}.{ext}"
-            manager.save_subtitle(
+            # save_subtitle may rewrite the extension — use the returned path
+            # and re-derive the extension from it so the caller sees the truth.
+            tmp_path = manager.save_subtitle(
                 result,
                 tmp_path,
                 series_id=context.get("sonarr_series_id") if context else None,
             )
+            actual_ext = os.path.splitext(tmp_path)[1].lstrip(".") or ext
             logger.info(
                 "Provider %s delivered source %s: %s (score=%d)",
                 result.provider_name,
-                ext,
+                actual_ext,
                 tmp_path,
                 result.score,
             )
-            return tmp_path, ext, result.score
+            return tmp_path, actual_ext, result.score
     except ProviderAuthError as e:
         logger.error("Provider authentication failed — check API keys: %s", e)
     except ProviderRateLimitError as e:

@@ -353,3 +353,68 @@ class TestProcessWantedItem:
         assert isinstance(result, dict)
         assert result.get("status") == "failed"
         assert result.get("wanted_id") == item_id
+
+
+class TestSaveSubtitleReturnPathPropagated:
+    """Regression tests for the save_subtitle return-path propagation contract.
+
+    download_manager.save_subtitle rewrites the file extension when the input
+    path's extension does not match the actual subtitle format (e.g. caller
+    asked for ".de.ass" but the downloaded content is detected as SRT). The
+    function returns the actual saved path. Callers MUST use that return value
+    for downstream operations (auto-sync, NFO writing, response dict),
+    otherwise auto-sync chases a non-existent ".de.ass" while the file is on
+    disk as ".de.srt".
+
+    Reproduces the production symptom observed for FateZero, FateApocrypha,
+    To Your Eternity, Zombie Land Saga, To LOVE-Ru on 2026-04-15 where
+    wanted_search.post_processor logged "Auto-sync skipped: subtitle path does
+    not exist on disk" en masse after ffsubsync was bundled into the image.
+    """
+
+    def test_step1_target_ass_propagates_rewritten_path(
+        self, app_ctx, monkeypatch, tmp_path
+    ):
+        """Step 1 (target ASS direct): when save_subtitle rewrites .ass→.srt,
+        _try_auto_sync must be called with the rewritten path, not the input."""
+        from wanted_search import process_wanted_item
+
+        item_id, mkv_path = _make_wanted_item(tmp_path)
+        # Provider says ASS, but save_subtitle decides SRT after content detection
+        result = _make_subtitle_result(language="de", score=80, fmt_value="ass")
+        result.content = b"1\n00:00:01,000 --> 00:00:02,000\nHi\n"
+
+        # save_subtitle rewrites the extension ass→srt and returns the new path
+        def _save_rewriting(_result, output_path, series_id=None):
+            base, _ = output_path.rsplit(".", 1)
+            actual = f"{base}.srt"
+            return actual
+
+        mock_mgr = MagicMock()
+        mock_mgr.search.return_value = []
+        mock_mgr.search_and_download_best.return_value = result
+        mock_mgr.save_subtitle.side_effect = _save_rewriting
+
+        captured = {}
+
+        def _fake_try_auto_sync(subtitle_path, video_path, settings):
+            captured["subtitle_path"] = subtitle_path
+            captured["video_path"] = video_path
+
+        monkeypatch.setattr("wanted_search.process.get_provider_manager", lambda: mock_mgr)
+        monkeypatch.setattr("wanted_search.process._try_auto_sync", _fake_try_auto_sync)
+        # Prevent NFO sidecar writes from touching disk during test
+        monkeypatch.setattr("nfo_export.maybe_write_nfo", lambda *a, **kw: None)
+
+        out = process_wanted_item(item_id)
+
+        # The CRITICAL assertion: auto-sync must be invoked with the saved path,
+        # not the original .de.ass we asked for.
+        assert captured.get("subtitle_path", "").endswith(".de.srt"), (
+            f"Auto-sync got input path instead of save_subtitle return value: "
+            f"{captured.get('subtitle_path')!r}"
+        )
+        assert out.get("output_path", "").endswith(".de.srt"), (
+            f"Returned output_path is the stale input, not the saved path: "
+            f"{out.get('output_path')!r}"
+        )

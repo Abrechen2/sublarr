@@ -81,7 +81,9 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                 ext = result.format.value if result.format != SubtitleFormat.UNKNOWN else fmt.value
                 output_path = get_forced_output_path(file_path, fmt=ext, target_language=item_lang)
                 try:
-                    manager.save_subtitle(
+                    # save_subtitle may rewrite the extension when actual format
+                    # differs from the requested one — always use the return.
+                    saved_path = manager.save_subtitle(
                         result, output_path, series_id=item.get("sonarr_series_id")
                     )
                     record_subtitle_download(
@@ -101,7 +103,7 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                     return {
                         "wanted_id": item_id,
                         "status": "found",
-                        "output_path": output_path,
+                        "output_path": saved_path,
                         "provider": result.provider_name,
                         "forced": True,
                     }
@@ -149,7 +151,9 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                     file_path, fmt=ext, target_language=source_lang
                 )
                 try:
-                    manager.save_subtitle(
+                    # save_subtitle may rewrite the extension when actual format
+                    # differs from the requested one — always use the return.
+                    saved_path = manager.save_subtitle(
                         result, output_path, series_id=item.get("sonarr_series_id")
                     )
                     record_subtitle_download(
@@ -169,7 +173,7 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager):
                     return {
                         "wanted_id": item_id,
                         "status": "found",
-                        "output_path": output_path,
+                        "output_path": saved_path,
                         "provider": result.provider_name,
                         "forced": True,
                     }

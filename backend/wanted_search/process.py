@@ -254,7 +254,13 @@ def process_wanted_item(item_id: int) -> dict:
                     logger.debug("Could not resolve upgraded_from_id: %s", _uid_err)
 
             try:
-                manager.save_subtitle(result, output_path, series_id=item.get("sonarr_series_id"))
+                # save_subtitle MAY rewrite the extension when the actual format
+                # differs from output_path's extension (e.g. asked for .ass but
+                # content detection determined SRT). Always use the returned
+                # path for downstream operations — the input is a hint only.
+                saved_path = manager.save_subtitle(
+                    result, output_path, series_id=item.get("sonarr_series_id")
+                )
                 record_subtitle_download(
                     result.provider_name,
                     result.subtitle_id,
@@ -272,7 +278,7 @@ def process_wanted_item(item_id: int) -> dict:
                 from nfo_export import maybe_write_nfo
 
                 maybe_write_nfo(
-                    output_path,
+                    saved_path,
                     {
                         "provider": result.provider_name,
                         "source_language": getattr(result, "language", ""),
@@ -280,12 +286,12 @@ def process_wanted_item(item_id: int) -> dict:
                         "score": result.score,
                     },
                 )
-                _try_auto_sync(output_path, file_path, settings)
+                _try_auto_sync(saved_path, file_path, settings)
                 delete_wanted_item(item_id)
                 return {
                     "wanted_id": item_id,
                     "status": "found",
-                    "output_path": output_path,
+                    "output_path": saved_path,
                     "provider": result.provider_name,
                     "upgraded": is_upgrade,
                 }
@@ -469,7 +475,9 @@ def process_wanted_item(item_id: int) -> dict:
 
                 output_path = get_output_path_for_lang(file_path, "srt", item_lang)
                 try:
-                    manager.save_subtitle(
+                    # Use the returned path — see comment at Step 1: save_subtitle
+                    # may rewrite the extension if the format differs.
+                    saved_path = manager.save_subtitle(
                         result, output_path, series_id=item.get("sonarr_series_id")
                     )
                     record_subtitle_download(
@@ -488,7 +496,7 @@ def process_wanted_item(item_id: int) -> dict:
                     from nfo_export import maybe_write_nfo
 
                     maybe_write_nfo(
-                        output_path,
+                        saved_path,
                         {
                             "provider": result.provider_name,
                             "source_language": getattr(result, "language", ""),
@@ -496,12 +504,12 @@ def process_wanted_item(item_id: int) -> dict:
                             "score": result.score,
                         },
                     )
-                    _try_auto_sync(output_path, file_path, settings)
+                    _try_auto_sync(saved_path, file_path, settings)
                     delete_wanted_item(item_id)
                     return {
                         "wanted_id": item_id,
                         "status": "found",
-                        "output_path": output_path,
+                        "output_path": saved_path,
                         "provider": result.provider_name,
                     }
                 except DuplicateSubtitleError as dup_err:

@@ -159,13 +159,28 @@ def save_subtitle(
 ) -> str:
     """Save a downloaded subtitle to disk.
 
+    .. important::
+        The returned path **must** be used by the caller for any further
+        operations (auto-sync, NFO writing, recording the saved location).
+        ``output_path`` is treated as a *hint*: when the actual subtitle
+        format does not match the input extension (e.g. caller asked for
+        ``.de.ass`` but content detection determined SRT) this function
+        rewrites the extension, writes the file under the corrected name,
+        and returns the corrected path. Discarding the return value leaves
+        the caller pointing at a file that does not exist on disk.
+
+        See ``wanted_search/process.py`` for the canonical usage pattern
+        (``saved_path = manager.save_subtitle(...)``).
+
     Args:
         result: SubtitleResult with content populated.
-        output_path: Base path (without extension — extension derived from format).
+        output_path: Suggested path. The extension is treated as a hint
+            and may be rewritten to match the actual subtitle format.
         series_id: Sonarr series ID for per-series pipeline overrides.
 
     Returns:
-        Path to saved file.
+        Actual path the subtitle was saved to (may differ from ``output_path``
+        when the extension was rewritten).
 
     Raises:
         ValueError: If result has no content or path is outside media_path.
@@ -187,8 +202,22 @@ def save_subtitle(
         result.format = detect_format_from_content(result.content)
     ext = result.format.value if result.format != SubtitleFormat.UNKNOWN else "srt"
     if not output_path.endswith(f".{ext}"):
+        # Telemetry: callers that ignore the return value will end up referring
+        # to a path that does not exist on disk. This warning lets us spot the
+        # frequency in production logs and identify any remaining bad callers.
+        original = output_path
         base, _ = os.path.splitext(output_path)
         output_path = f"{base}.{ext}"
+        logger.warning(
+            "save_subtitle: rewrote extension %r → %r "
+            "(provider=%s, declared format=%s, actual ext=%s); "
+            "callers MUST use the returned path",
+            original,
+            output_path,
+            result.provider_name,
+            result.format.value,
+            ext,
+        )
 
     # Check disk space before writing (defensive guard)
     try:
