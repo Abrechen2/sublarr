@@ -5,6 +5,17 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.14-beta] - 2026-04-15
+
+### Fixed
+- **Auto-sync, NFO export, and pipeline result now point at the actual saved file** — The wanted-search runner spammed `Auto-sync skipped: subtitle path does not exist on disk` for FateZero, FateApocrypha, To Your Eternity, Zombie Land Saga, and To LOVE-Ru after `0.51.12-beta` started exposing pipeline path mismatches. Root cause: `providers.download_manager.save_subtitle` silently rewrites the file extension when the actual subtitle format does not match the input extension (e.g. caller asked for `.de.ass` but content detection found SRT) and returns the corrected path. Six of seven callers ignored the return value and continued using the stale original path for downstream operations. Capture the returned path at all seven callsites in `wanted_search/process.py`, `wanted_search/post_processor.py`, and `translator/providers.py`. `download_manager.save_subtitle` also now logs a `WARNING` whenever it rewrites an extension so the production frequency is observable.
+
+### Tests
+- **Regression coverage for the save_subtitle return-path contract** — New `TestSaveSubtitleReturnPathPropagated` simulates a provider that says ASS but delivers content saved as SRT and asserts the rewritten path reaches `_try_auto_sync` and the response dict. Three existing `TestTryAutoSync` cases now use real `tmp_path` files so they are not silently masked by the `0.51.13-beta` `os.path.isfile` guard.
+
+### Docs
+- **Long-term API redesign proposal** — `docs/refactor-proposals/save-subtitle-api-v2.md` describes a keyword-only `dest_dir` / `base_name` signature plus a `SavedSubtitle` dataclass return so the discard-the-return-value misuse pattern becomes structurally impossible.
+
 ## [0.51.13-beta] - 2026-04-15
 
 ### Fixed
