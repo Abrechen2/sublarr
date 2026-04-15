@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.16-beta] - 2026-04-15
+
+### Fixed
+- **Pin setuptools below 81 to preserve `pkg_resources`** — `0.51.15-beta` pinned `setuptools>=70` to bring back `pkg_resources` for `ffsubsync`/`webrtcvad`, but pip resolved to `setuptools 82` which dropped the `pkg_resources` shim entirely (deprecated since 67.5, removed in 81). Tightened the pin to `setuptools>=70,<81` so `pkg_resources` remains importable.
+
 ## [0.51.15-beta] - 2026-04-15
 
 ### Fixed
