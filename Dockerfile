@@ -47,8 +47,15 @@ WORKDIR /app
 
 # Install Python dependencies
 # Includes psycopg2-binary (PostgreSQL) and redis/rq (Redis) for optional backends
+# ffsubsync pulls webrtcvad which has no prebuilt wheels → gcc + python3-dev
+# required during install. Build tools are purged afterwards to keep the
+# runtime image slim.
 COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc g++ python3-dev && \
+    pip install --no-cache-dir -r requirements.txt && \
+    apt-get purge -y --auto-remove gcc g++ python3-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy backend
 COPY backend/ .
