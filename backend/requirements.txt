@@ -31,5 +31,10 @@ psycopg2-binary==2.9.10  # Optional: PostgreSQL support
 redis==7.1.0  # Optional: Redis caching/queue
 rq==2.6.1  # Optional: Redis-based job queue
 # Optional — video sync engines (graceful degradation if not installed)
+# ffsubsync transitively imports `pkg_resources` (via webrtcvad) which Python
+# 3.12 base images no longer ship by default — pin setuptools explicitly so
+# ffsubsync's voice-activity-detection codepath does not crash on videos
+# without embedded subtitle streams.
+setuptools>=70
 ffsubsync>=0.4.26
 # alass is a standalone binary — see https://github.com/kaegi/alass/releases

@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.15-beta] - 2026-04-15
+
+### Fixed
+- **Auto-sync no longer crashes on videos without embedded subtitle streams** — `ffsubsync` falls back to `webrtcvad` for voice-activity detection when the reference video has no subtitle track to align against, and `webrtcvad` imports the deprecated `pkg_resources` shim. Python 3.12 base images stopped shipping `setuptools` by default, so the import raised `ModuleNotFoundError: No module named 'pkg_resources'` and the sync job failed. The earlier `0.51.12-beta` smoke test on Rent-a-Girlfriend S05E02 happened to use a video with embedded subtitles and skipped this codepath, masking the bug. Pin `setuptools>=70` in `requirements.txt` so `pkg_resources` is always available.
+
 ## [0.51.14-beta] - 2026-04-15
 
 ### Fixed
