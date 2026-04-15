@@ -61,18 +61,23 @@ def execute_rule(rule_id: int, *, socketio=None) -> dict:
         }
     elif rule_type == "old_backups":
         result = _run_old_backups(rule, config)
+        # cleanup_old_backups returns {"deleted": [paths], "errors": [...],
+        # "skipped": int} — convert the list to a count for log_cleanup, which
+        # expects an integer for the files_deleted column. cleanup_old_backups
+        # does not track bytes_freed, so pass 0.
+        deleted_count = len(result.get("deleted", []) or [])
         repo.update_rule_last_run(rule_id)
         repo.log_cleanup(
             action_type=rule_type,
             rule_id=rule_id,
-            files_deleted=result.get("deleted", 0),
-            bytes_freed=result.get("bytes_freed", 0),
+            files_deleted=deleted_count,
+            bytes_freed=0,
         )
         return {
             "status": "completed",
             "rule": rule["name"],
-            "deleted": result.get("deleted", 0),
-            "bytes_freed": result.get("bytes_freed", 0),
+            "deleted": deleted_count,
+            "bytes_freed": 0,
         }
     else:
         raise ValueError(f"Unknown rule type: {rule_type}")

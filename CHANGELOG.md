@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.17-beta] - 2026-04-15
+
+### Fixed
+- **Manual "Alte Backups" cleanup rule no longer crashes with a DB type error** — `POST /api/v1/cleanup/rules/<id>/run` on an `old_backups` rule raised `DatatypeMismatch: column "files_deleted" is of type integer but expression is of type text[]`. `cleanup_old_backups` returns `{"deleted": [list of paths]}`, but `services/cleanup_rule_runner.execute_rule` passed that list straight into `repo.log_cleanup(files_deleted=...)` where the column is an integer count. The scheduler path in `cleanup_scheduler._execute_cleanup` already converted the list to a count; the manual endpoint did not. Convert via `len(...)` so the manual run reaches the same result path. `bytes_freed` is explicitly 0 because `cleanup_old_backups` does not track file sizes.
+
 ## [0.51.16-beta] - 2026-04-15
 
 ### Fixed
