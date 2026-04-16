@@ -216,6 +216,9 @@ class Settings(BaseSettings):
     wanted_search_interval_hours: int = 24  # 0 = disabled
     wanted_search_on_startup: bool = True
     wanted_search_max_items_per_run: int = 50
+    # Master gate for the per-provider API-budget manager. When False, the
+    # search coordinator reverts to pre-V1 behaviour (no budget accounting).
+    provider_budget_enabled: bool = True
 
     # Upgrade Scheduler
     upgrade_scan_interval_hours: int = 0  # 0 = disabled; user must opt in
@@ -683,6 +686,7 @@ class ScanningSettings(_SettingsView):
             "wanted_search_interval_hours",
             "wanted_search_on_startup",
             "wanted_search_max_items_per_run",
+            "provider_budget_enabled",
             "wanted_adaptive_backoff_enabled",
             "wanted_backoff_base_hours",
             "wanted_backoff_cap_hours",

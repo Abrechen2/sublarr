@@ -173,6 +173,15 @@ class OpenSubtitlesProvider(SubtitleProvider):
         else:
             logger.debug("OpenSubtitles: initialized without user login (using API key only)")
 
+        # Detect active tier so the budget manager picks the right rate_limits
+        # entry. Never let this break initialization — fall back to "free" on any
+        # error (network, API change, etc.).
+        try:
+            self.tier = self.detect_tier()
+        except Exception as e:
+            logger.warning("OpenSubtitles: tier detection failed, defaulting to free: %s", e)
+            self.tier = "free"
+
     def _login(self):
         """Authenticate to get a user token (higher rate limits)."""
         try:

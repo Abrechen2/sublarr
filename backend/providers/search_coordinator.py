@@ -379,6 +379,34 @@ class SearchCoordinatorMixin:
                     logger.debug("Skipping provider %s due to rate limit", name)
                     continue
 
+                # Budget gate — skip silently when exhausted (same pattern as
+                # auto-disable/CB). Consume BEFORE submitting the future so a
+                # provider timeout still costs budget (accurate accounting).
+                if getattr(self.settings, "provider_budget_enabled", True):
+                    from services.provider_budget import get_budget_manager
+
+                    budget = get_budget_manager()
+                    tier = getattr(provider, "tier", "free")
+                    # Use class-level lookup so the ClassVar on the real provider
+                    # class wins; fall back to instance attr for unusual stubs.
+                    rate_limits = getattr(
+                        type(provider), "rate_limits", getattr(provider, "rate_limits", None)
+                    )
+                    limits = {}
+                    if isinstance(rate_limits, dict):
+                        limits = rate_limits.get(tier) or rate_limits.get("free") or {}
+                    if limits:
+                        decision = budget.check(name, limits)
+                        if not decision.allow:
+                            logger.debug(
+                                "Skipping provider %s -- budget: %s (wait %ds)",
+                                name,
+                                decision.reason,
+                                decision.wait_seconds,
+                            )
+                            continue
+                        budget.consume(name)
+
                 # Submit search task
                 future = executor.submit(self._search_provider_with_retry, name, provider, query)
                 futures[future] = name

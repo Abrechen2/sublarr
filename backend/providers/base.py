@@ -379,6 +379,11 @@ class SubtitleProvider(ABC):
         "free": {"second": 1, "hour": 60, "day": 500},
     }
 
+    # Active tier — providers that support multiple tiers (e.g. free/vip) may
+    # update this during initialize(). The ProviderBudgetManager looks up
+    # rate_limits[tier]; unknown tiers fall back to "free".
+    tier: str = "free"
+
     def __init__(self, **config):
         self.config = config
         self._initialized = False
