@@ -222,6 +222,9 @@ class Settings(BaseSettings):
     provider_budget_enabled: bool = True
     # Scheduler profile (mapped to preset values via services/scheduler_profile.py)
     scheduler_profile: str = "balanced"  # 'light' | 'balanced' | 'aggressive' | 'custom'
+    # First-run wizard completion flag — persisted by the wizard endpoints so
+    # the UI shows the wizard at most once per installation.
+    setup_wizard_completed: bool = False
 
     # Upgrade Scheduler
     upgrade_scan_interval_hours: int = 0  # 0 = disabled; user must opt in
@@ -692,6 +695,7 @@ class ScanningSettings(_SettingsView):
             "wanted_search_order",
             "provider_budget_enabled",
             "scheduler_profile",
+            "setup_wizard_completed",
             "wanted_adaptive_backoff_enabled",
             "wanted_backoff_base_hours",
             "wanted_backoff_cap_hours",

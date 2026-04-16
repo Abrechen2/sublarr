@@ -4,7 +4,7 @@ from flask import Blueprint
 
 bp = Blueprint("system", __name__, url_prefix="/api/v1")
 
-from routes.system import backup, budget, health, logs, statistics, tasks  # noqa: E402, F401
+from routes.system import backup, budget, health, logs, setup, statistics, tasks  # noqa: E402, F401
 from routes.system.logs import _anonymize, _build_diagnostic  # noqa: F401
 
 # Re-exports for tests:
