@@ -1,0 +1,35 @@
+{
+  "welcome": {
+    "title": "Willkommen bei Sublarr",
+    "intro": "Lass uns deinen Scheduler einrichten. Wir empfehlen ein Profil passend zu deiner Hardware.",
+    "next": "Weiter"
+  },
+  "profile": {
+    "title": "Wähle dein Profil",
+    "detected": "Erkannt: {{cpu}} Cores · {{ram}} GB RAM",
+    "recommended_badge": "Empfohlen",
+    "light": {
+      "title": "Light",
+      "desc": "Schwache Hardware (Pi, NAS). 100 Items/Lauf."
+    },
+    "balanced": {
+      "title": "Balanced",
+      "desc": "Mittelklasse. 500 Items/Lauf. Empfohlen für die meisten."
+    },
+    "aggressive": {
+      "title": "Aggressive",
+      "desc": "Starker Server. 2000 Items/Lauf."
+    },
+    "custom_link": "Benutzerdefiniert (erweiterte Einstellungen)",
+    "pick": "Auswählen"
+  },
+  "common": {
+    "back": "Zurück",
+    "postpone": "Später"
+  },
+  "done": {
+    "title": "Fertig!",
+    "summary": "Profil angewendet: {{profile}}",
+    "to_dashboard": "Zum Dashboard"
+  }
+}

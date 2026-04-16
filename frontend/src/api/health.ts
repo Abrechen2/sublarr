@@ -43,3 +43,34 @@ export async function getBudgetState(): Promise<BudgetResponse> {
   const { data } = await api.get('/system/budget')
   return data
 }
+
+// ─── First-run Setup Wizard ──────────────────────────────────────────────────
+
+export type SetupProfile = 'light' | 'balanced' | 'aggressive'
+
+export interface SetupBenchmark {
+  cpu_count: number
+  ram_gb: number
+  recommended_profile: SetupProfile
+}
+
+export interface SetupStatus {
+  wizard_completed: boolean
+  benchmark: SetupBenchmark
+}
+
+export interface CompleteSetupResult {
+  ok: boolean
+  profile: SetupProfile
+  applied: Record<string, number | string | boolean>
+}
+
+export async function getSetupStatus(): Promise<SetupStatus> {
+  const { data } = await api.get('/system/setup/status')
+  return data
+}
+
+export async function completeSetup(profile: SetupProfile): Promise<CompleteSetupResult> {
+  const { data } = await api.post('/system/setup/complete', { profile })
+  return data
+}

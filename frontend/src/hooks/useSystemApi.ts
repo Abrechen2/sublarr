@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from '@/components/shared/Toast'
+import { getSetupStatus, completeSetup, type SetupProfile } from '@/api/health'
 import {
   getBudgetState,
   getHealth, getUpdateInfo, getStats, getJobs,
@@ -87,6 +88,28 @@ export function useBudgetState() {
     queryFn: getBudgetState,
     refetchInterval: 5_000,
     staleTime: 2_000,
+  })
+}
+
+// ─── First-run Setup Wizard ──────────────────────────────────────────────────
+
+export function useSetupStatus() {
+  return useQuery({
+    queryKey: ['system', 'setup', 'status'],
+    queryFn: getSetupStatus,
+    staleTime: 60_000,
+    retry: 0,
+  })
+}
+
+export function useCompleteSetup() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (profile: SetupProfile) => completeSetup(profile),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['system', 'setup', 'status'] })
+      void queryClient.invalidateQueries({ queryKey: ['config'] })
+    },
   })
 }
 

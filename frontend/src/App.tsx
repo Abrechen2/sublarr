@@ -18,6 +18,8 @@ import { KeyboardShortcutsModal } from '@/components/quick-actions/KeyboardShort
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
+import FirstRunWizard, { shouldShowWizard } from '@/components/Setup/FirstRunWizard'
+import { useSetupStatus } from '@/hooks/useSystemApi'
 
 // Route-level code splitting: each page is lazy-loaded as a separate chunk
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })))
@@ -127,6 +129,22 @@ function GlobalShortcuts({ onToggleShortcutsModal }: { onToggleShortcutsModal: (
   return null
 }
 
+/** Renders the first-run wizard modal when the backend says it hasn't been
+ *  completed and the user hasn't postponed it within the last 7 days. */
+function FirstRunWizardMount() {
+  const { data: setupStatus } = useSetupStatus()
+  const [wizardOpen, setWizardOpen] = useState(false)
+
+  useEffect(() => {
+    if (shouldShowWizard(setupStatus)) {
+      setWizardOpen(true)
+    }
+  }, [setupStatus])
+
+  if (!wizardOpen) return null
+  return <FirstRunWizard onClose={() => setWizardOpen(false)} />
+}
+
 function AppInner({
   searchOpen,
   setSearchOpen,
@@ -175,6 +193,7 @@ function AppInner({
           <GlobalSearchModal open={searchOpen} onOpenChange={setSearchOpen} />
           <QuickActionsFAB />
           <KeyboardShortcutsModal open={shortcutsModalOpen} onClose={closeShortcutsModal} />
+          <FirstRunWizardMount />
         </>
       )}
       <ToastContainer />
