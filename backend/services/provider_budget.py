@@ -1,0 +1,279 @@
+"""Provider-budget manager — tracks per-provider API calls across three sliding windows.
+
+Every subtitle provider declares its own rate limits via ``SubtitleProvider.rate_limits``.
+This module is the enforcement surface: :class:`ProviderBudgetManager` keeps
+per-provider usage counters for three windows (second, hour, day) and tells the
+search coordinator whether another call is allowed.
+
+Counters live in Redis when a client is supplied (shared across processes); they
+fall back to an in-memory ``defaultdict`` for single-process runs and tests. Redis
+failures never break search — every Redis call is wrapped in ``try/except`` and the
+in-memory counter is always authoritative if Redis is unreachable.
+
+Daemon-level window-expiry is provided by Redis TTL (``expire()``). The in-memory
+store does not evict entries on its own; long-running single-process setups should
+call :meth:`ProviderBudgetManager.prune` periodically (called from tests only today).
+"""
+
+from __future__ import annotations
+
+import enum
+import logging
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from threading import Lock
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+
+class BudgetWindow(enum.StrEnum):
+    """The three time windows tracked per provider."""
+
+    SECOND = "second"
+    HOUR = "hour"
+    DAY = "day"
+
+
+_WINDOW_TTL_SECONDS = {
+    BudgetWindow.SECOND: 2,
+    BudgetWindow.HOUR: 3700,
+    BudgetWindow.DAY: 90_000,
+}
+
+
+def window_start_for(window: BudgetWindow, now: datetime | None = None) -> datetime:
+    """Return the UTC start of the enclosing window for ``now``.
+
+    Examples:
+        >>> window_start_for(BudgetWindow.HOUR, datetime(2026, 4, 16, 12, 34, 56, tzinfo=timezone.utc))
+        datetime.datetime(2026, 4, 16, 12, 0, tzinfo=datetime.timezone.utc)
+    """
+    if now is None:
+        now = datetime.now(UTC)
+    if window is BudgetWindow.SECOND:
+        return now.replace(microsecond=0)
+    if window is BudgetWindow.HOUR:
+        return now.replace(minute=0, second=0, microsecond=0)
+    if window is BudgetWindow.DAY:
+        return now.replace(hour=0, minute=0, second=0, microsecond=0)
+    raise ValueError(f"unknown window: {window!r}")
+
+
+@dataclass(frozen=True)
+class BudgetDecision:
+    """Result of a budget check — allow/deny plus wait time and reason."""
+
+    allow: bool
+    wait_seconds: int = 0
+    reason: str = ""
+
+
+@dataclass
+class _Counts:
+    """Per-provider per-window counter map. Internal detail."""
+
+    store: dict[tuple[str, str, datetime], int] = field(default_factory=lambda: defaultdict(int))
+
+
+class ProviderBudgetManager:
+    """Three-window rate-limit accountant for subtitle providers.
+
+    Thread-safe in the in-memory path via an internal lock; Redis path is naturally
+    atomic via ``INCR``. Construct via :func:`get_budget_manager` for the
+    process-wide singleton, or instantiate directly for tests.
+
+    Args:
+        redis: Optional Redis client (duck-typed — needs ``incr``, ``expire``, ``get``).
+        safety_margin_pct: Reserve this percentage below the declared limit to
+            cushion against clock drift and under-counting. Applied to the raw
+            limit: effective = raw * (100 - margin) / 100.
+    """
+
+    def __init__(self, redis: Any = None, safety_margin_pct: int = 20) -> None:
+        self._redis = redis
+        self._safety = max(0, min(100, safety_margin_pct))
+        self._lock = Lock()
+        self._in_memory_counts: dict[tuple[str, str, datetime], int] = defaultdict(int)
+
+    # ── Public API ────────────────────────────────────────────────────────
+
+    def check(
+        self,
+        provider: str,
+        limits: dict[str, int],
+        now: datetime | None = None,
+    ) -> BudgetDecision:
+        """Return an allow/deny decision for the next call to ``provider``.
+
+        Iterates the three windows in increasing granularity (second → hour → day).
+        The first window that is at-or-over its effective limit blocks the call.
+
+        Args:
+            provider: Provider name (must match the key used in :meth:`consume`).
+            limits: Mapping of window name → raw daily limit (from ``rate_limits``).
+                Missing windows are not enforced.
+            now: Override the current time — test-only.
+        """
+        if now is None:
+            now = datetime.now(UTC)
+
+        for window_name, raw_limit in limits.items():
+            try:
+                window = BudgetWindow(window_name)
+            except ValueError:
+                # Unknown window key in rate_limits — ignore defensively.
+                continue
+            effective = self._effective_limit(raw_limit)
+            used = self._get_count(provider, window, now)
+            if used >= effective:
+                return BudgetDecision(
+                    allow=False,
+                    wait_seconds=self._seconds_until_next_window(window, now),
+                    reason=f"{window.value} limit reached ({used}/{effective})",
+                )
+        return BudgetDecision(allow=True)
+
+    def consume(self, provider: str, now: datetime | None = None) -> None:
+        """Record one call against ``provider`` — increments all three windows."""
+        if now is None:
+            now = datetime.now(UTC)
+        for window in BudgetWindow:
+            self._increment(provider, window, now)
+
+    def get_usage(self, provider: str, now: datetime | None = None) -> dict[str, int]:
+        """Return ``{'second': n, 'hour': n, 'day': n}`` for ``provider``."""
+        if now is None:
+            now = datetime.now(UTC)
+        return {w.value: self._get_count(provider, w, now) for w in BudgetWindow}
+
+    def prune(self, cutoff: datetime | None = None) -> int:
+        """Drop in-memory counters whose window ended before ``cutoff``.
+
+        Redis entries expire via TTL and do not need pruning. Returns the number
+        of keys removed (diagnostic for tests and long-running processes).
+        """
+        if cutoff is None:
+            cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        removed = 0
+        with self._lock:
+            for key in list(self._in_memory_counts.keys()):
+                if key[2] < cutoff:
+                    del self._in_memory_counts[key]
+                    removed += 1
+        return removed
+
+    def seconds_until_next_window(self, window_name: str, now: datetime | None = None) -> int:
+        """Public wrapper around :meth:`_seconds_until_next_window`.
+
+        Accepts the window name as a plain string — used by the ``/api/v1/system/budget``
+        endpoint to surface reset countdowns.
+        """
+        if now is None:
+            now = datetime.now(UTC)
+        return self._seconds_until_next_window(BudgetWindow(window_name), now)
+
+    # ── Internals ─────────────────────────────────────────────────────────
+
+    def _effective_limit(self, raw: int) -> int:
+        if self._safety <= 0:
+            return raw
+        return int(raw * (100 - self._safety) / 100)
+
+    def _key(self, provider: str, window: BudgetWindow, now: datetime) -> tuple[str, str, datetime]:
+        return provider, window.value, window_start_for(window, now)
+
+    def _redis_key(self, provider: str, window: BudgetWindow, now: datetime) -> str:
+        start = window_start_for(window, now)
+        return f"budget:{provider}:{window.value}:{start.isoformat()}"
+
+    def _get_count(self, provider: str, window: BudgetWindow, now: datetime) -> int:
+        if self._redis is not None:
+            try:
+                raw = self._redis.get(self._redis_key(provider, window, now))
+                if raw is not None:
+                    return int(raw)
+            except Exception as exc:  # noqa: BLE001 — Redis must never break search
+                logger.debug("Redis get failed for %s/%s: %s", provider, window.value, exc)
+        return self._in_memory_counts.get(self._key(provider, window, now), 0)
+
+    def _increment(self, provider: str, window: BudgetWindow, now: datetime) -> None:
+        # In-memory always wins as the durable fallback.
+        with self._lock:
+            self._in_memory_counts[self._key(provider, window, now)] += 1
+        if self._redis is not None:
+            try:
+                key = self._redis_key(provider, window, now)
+                self._redis.incr(key)
+                self._redis.expire(key, _WINDOW_TTL_SECONDS[window])
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Redis incr failed for %s/%s: %s", provider, window.value, exc)
+
+    @staticmethod
+    def _seconds_until_next_window(window: BudgetWindow, now: datetime) -> int:
+        if window is BudgetWindow.SECOND:
+            return 1
+        if window is BudgetWindow.HOUR:
+            return 3600 - (now.minute * 60 + now.second)
+        if window is BudgetWindow.DAY:
+            return 86400 - (now.hour * 3600 + now.minute * 60 + now.second)
+        raise ValueError(window)
+
+
+# ── Module-level singleton ────────────────────────────────────────────────
+
+_singleton: ProviderBudgetManager | None = None
+_singleton_lock = Lock()
+
+
+def get_budget_manager() -> ProviderBudgetManager:
+    """Return the process-wide :class:`ProviderBudgetManager` singleton.
+
+    Lazy-constructs on first call. Wires Redis if available (via
+    ``extensions.get_redis_client``) and reads the safety margin from settings.
+    Falls back to in-memory mode when either resource is missing — neither is
+    a hard requirement.
+    """
+    global _singleton
+    if _singleton is not None:
+        return _singleton
+    with _singleton_lock:
+        if _singleton is not None:
+            return _singleton
+        redis_client = _try_get_redis()
+        safety = _try_get_safety_margin()
+        _singleton = ProviderBudgetManager(redis=redis_client, safety_margin_pct=safety)
+        logger.info(
+            "ProviderBudgetManager initialised (redis=%s, safety=%d%%)",
+            "yes" if redis_client else "no",
+            safety,
+        )
+    return _singleton
+
+
+def _try_get_redis() -> Any | None:
+    try:
+        from extensions import get_redis_client
+
+        return get_redis_client()
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Redis unavailable for budget manager: %s", exc)
+        return None
+
+
+def _try_get_safety_margin() -> int:
+    try:
+        from config import get_settings
+
+        return int(getattr(get_settings(), "provider_budget_safety_margin_pct", 20))
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Settings unavailable for budget margin: %s", exc)
+        return 20
+
+
+def reset_singleton_for_tests() -> None:
+    """Test helper — clear the cached singleton so the next call rebuilds it."""
+    global _singleton
+    with _singleton_lock:
+        _singleton = None
