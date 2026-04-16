@@ -31,9 +31,7 @@ class TestWindowStartFor:
 
     def test_day_window_truncates_to_midnight_utc(self):
         now = datetime(2026, 4, 16, 12, 34, 56, tzinfo=UTC)
-        assert window_start_for(BudgetWindow.DAY, now) == datetime(
-            2026, 4, 16, 0, 0, 0, tzinfo=UTC
-        )
+        assert window_start_for(BudgetWindow.DAY, now) == datetime(2026, 4, 16, 0, 0, 0, tzinfo=UTC)
 
 
 class TestBudgetDecisions:
@@ -135,6 +133,27 @@ class TestSingleton:
         mgr_a = get_budget_manager()
         mgr_b = get_budget_manager()
         assert mgr_a is mgr_b
+
+
+class TestRefund:
+    """refund() reverses consume()."""
+
+    def test_refund_decrements_all_windows(self):
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+        now = datetime(2026, 4, 16, 12, 0, 0, tzinfo=UTC)
+        mgr.consume("opensubtitles", now=now)
+        mgr.consume("opensubtitles", now=now)
+        mgr.refund("opensubtitles", now=now)
+        usage = mgr.get_usage("opensubtitles", now=now)
+        assert usage == {"second": 1, "hour": 1, "day": 1}
+
+    def test_refund_does_not_go_negative(self):
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+        now = datetime(2026, 4, 16, 12, 0, 0, tzinfo=UTC)
+        mgr.refund("opensubtitles", now=now)  # no prior consume
+        mgr.refund("opensubtitles", now=now)
+        usage = mgr.get_usage("opensubtitles", now=now)
+        assert usage == {"second": 0, "hour": 0, "day": 0}
 
 
 class TestRedisBackend:

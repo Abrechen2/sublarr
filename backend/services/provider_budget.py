@@ -142,6 +142,17 @@ class ProviderBudgetManager:
         for window in BudgetWindow:
             self._increment(provider, window, now)
 
+    def refund(self, provider: str, now: datetime | None = None) -> None:
+        """Undo one call against ``provider`` — decrements all three windows.
+
+        Used by the search coordinator when submit() fails synchronously after
+        consume(), so quota does not leak for calls that never actually happened.
+        """
+        if now is None:
+            now = datetime.now(UTC)
+        for window in BudgetWindow:
+            self._decrement(provider, window, now)
+
     def get_usage(self, provider: str, now: datetime | None = None) -> dict[str, int]:
         """Return ``{'second': n, 'hour': n, 'day': n}`` for ``provider``."""
         if now is None:
@@ -209,6 +220,22 @@ class ProviderBudgetManager:
                 self._redis.expire(key, _WINDOW_TTL_SECONDS[window])
             except Exception as exc:  # noqa: BLE001
                 logger.debug("Redis incr failed for %s/%s: %s", provider, window.value, exc)
+
+    def _decrement(self, provider: str, window: BudgetWindow, now: datetime) -> None:
+        with self._lock:
+            key = self._key(provider, window, now)
+            # Floor at zero — do not go negative if somehow a refund is double-called
+            current = self._in_memory_counts.get(key, 0)
+            if current > 0:
+                self._in_memory_counts[key] = current - 1
+        if self._redis is not None:
+            try:
+                redis_key = self._redis_key(provider, window, now)
+                # Use decr; it is fine if it takes the key below zero temporarily —
+                # the next consume will bring it back up.
+                self._redis.decr(redis_key)
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Redis decr failed for %s/%s: %s", provider, window.value, exc)
 
     @staticmethod
     def _seconds_until_next_window(window: BudgetWindow, now: datetime) -> int:

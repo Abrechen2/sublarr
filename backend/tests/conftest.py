@@ -56,6 +56,20 @@ def temp_db():
     reload_settings()  # clear singleton cached DB path
 
 
+@pytest.fixture(autouse=True)
+def _reset_budget_singleton():
+    """Ensure every test sees a fresh ProviderBudgetManager singleton.
+
+    Prevents order-dependent failures where a test that patches get_budget_manager
+    leaves state visible to later tests in the same process.
+    """
+    from services.provider_budget import reset_singleton_for_tests
+
+    reset_singleton_for_tests()
+    yield
+    reset_singleton_for_tests()
+
+
 @pytest.fixture
 def app_ctx(temp_db):
     """Provide Flask application context for DB-layer unit tests."""

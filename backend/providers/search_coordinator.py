@@ -407,9 +407,24 @@ class SearchCoordinatorMixin:
                             continue
                         budget.consume(name)
 
-                # Submit search task
-                future = executor.submit(self._search_provider_with_retry, name, provider, query)
-                futures[future] = name
+                # Submit search task — refund budget if submit fails synchronously
+                # (e.g. executor shut down, memory pressure). Without the refund the
+                # just-consumed call leaks permanently.
+                try:
+                    future = executor.submit(
+                        self._search_provider_with_retry, name, provider, query
+                    )
+                    futures[future] = name
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("submit failed for %s: %s -- refunding budget", name, exc)
+                    if getattr(self.settings, "provider_budget_enabled", True):
+                        try:
+                            from services.provider_budget import get_budget_manager
+
+                            get_budget_manager().refund(name)
+                        except Exception as refund_exc:  # noqa: BLE001
+                            logger.debug("Budget refund failed for %s: %s", name, refund_exc)
+                    continue
 
             # Collect results as they complete
             # Use max timeout across all active providers + buffer
