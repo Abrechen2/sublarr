@@ -220,6 +220,13 @@ class Settings(BaseSettings):
     # Master gate for the per-provider API-budget manager. When False, the
     # search coordinator reverts to pre-V1 behaviour (no budget accounting).
     provider_budget_enabled: bool = True
+    # Pacing strategy for the budget manager:
+    #   'stretch' (default) — block calls once the current-hour pace exceeds
+    #       an evenly-paced share of the day's limit; prevents burning the
+    #       whole daily quota in the first hour.
+    #   'burst'  — only the raw window caps apply; pace is not enforced.
+    #   'off'    — alias; use provider_budget_enabled=false to disable fully.
+    provider_budget_stretch_mode: str = "stretch"
     # Scheduler profile (mapped to preset values via services/scheduler_profile.py)
     scheduler_profile: str = "balanced"  # 'light' | 'balanced' | 'aggressive' | 'custom'
     # First-run wizard completion flag — persisted by the wizard endpoints so
@@ -694,6 +701,7 @@ class ScanningSettings(_SettingsView):
             "wanted_search_max_items_per_run",
             "wanted_search_order",
             "provider_budget_enabled",
+            "provider_budget_stretch_mode",
             "scheduler_profile",
             "setup_wizard_completed",
             "wanted_adaptive_backoff_enabled",

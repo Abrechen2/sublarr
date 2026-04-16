@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import enum
 import logging
+import math
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -139,6 +140,51 @@ class ProviderBudgetManager:
                     wait_seconds=self._seconds_until_next_window(window, now),
                     reason=f"{window.value} limit reached ({used}/{effective})",
                 )
+
+        # Stretch-mode gate (opt-out via config) — paces the day budget evenly
+        # across 24h so we do not burn the whole quota in the first hour.
+        try:
+            from config import get_settings
+
+            stretch_mode = getattr(get_settings(), "provider_budget_stretch_mode", "stretch")
+        except Exception:  # noqa: BLE001
+            stretch_mode = "stretch"
+
+        day_limit = limits.get("day", 0)
+        if stretch_mode == "stretch" and day_limit > 0:
+            stretch_decision = self._stretch_allowed(provider, day_limit, now)
+            if not stretch_decision.allow:
+                return stretch_decision
+
+        return BudgetDecision(allow=True)
+
+    def _stretch_allowed(self, provider: str, day_limit: int, now: datetime) -> BudgetDecision:
+        """Stretch gate: reject when hourly pace exceeds the evenly-paced quota.
+
+        Returns ``BudgetDecision(allow=True)`` when pace is OK or ``day_limit``
+        is 0. Returns ``BudgetDecision(allow=False, wait_seconds=<until next
+        hour>, reason=...)`` when the caller is ahead of schedule.
+
+        For a day limit ``D``, the threshold at the end of hour ``H`` (0-based,
+        0..23) is ``ceil(D * (H+1) / 24)``. The test uses ``>=`` so at the
+        exact threshold we block and start pacing against the next hour's
+        quota.
+        """
+        if day_limit <= 0:
+            return BudgetDecision(allow=True)
+        day_used = self._get_count(provider, BudgetWindow.DAY, now)
+        hour_plus_1 = now.hour + 1
+        threshold = math.ceil(day_limit * hour_plus_1 / 24)
+        if day_used >= threshold:
+            wait = self._seconds_until_next_window(BudgetWindow.HOUR, now)
+            return BudgetDecision(
+                allow=False,
+                wait_seconds=wait,
+                reason=(
+                    f"stretch pace ({day_used}/{threshold} at hour {now.hour} UTC, "
+                    f"of {day_limit}/day)"
+                ),
+            )
         return BudgetDecision(allow=True)
 
     def consume(self, provider: str, now: datetime | None = None) -> None:

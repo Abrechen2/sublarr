@@ -175,3 +175,92 @@ class TestRedisBackend:
         # Must not raise — in-memory counter is the fallback
         mgr.consume("opensubtitles", now=now)
         assert mgr.get_usage("opensubtitles", now=now)["second"] == 1
+
+
+class TestStretchMode:
+    """Stretch-mode pacing gate — spreads daily budget evenly across 24h."""
+
+    def _prime_usage(self, mgr, provider, now, day_count):
+        """Helper: jam N consumes in the day window without tripping rate-limit counters."""
+        from services.provider_budget import BudgetWindow, window_start_for
+
+        day_start = window_start_for(BudgetWindow.DAY, now)
+        mgr._in_memory_counts[(provider, "day", day_start)] = day_count
+
+    def test_stretch_allows_when_on_pace(self, monkeypatch):
+        from config import get_settings
+
+        monkeypatch.setattr(
+            get_settings(), "provider_budget_stretch_mode", "stretch", raising=False
+        )
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+        now = datetime(2026, 4, 16, 6, 0, 0, tzinfo=UTC)  # 6 AM UTC
+        # At hour 6, threshold = ceil(1000 * 7/24) = 292. 100 used is well under.
+        self._prime_usage(mgr, "opensubtitles", now, day_count=100)
+        decision = mgr.check("opensubtitles", limits={"day": 1000}, now=now)
+        assert decision.allow is True
+
+    def test_stretch_blocks_when_ahead_of_schedule(self, monkeypatch):
+        from config import get_settings
+
+        monkeypatch.setattr(
+            get_settings(), "provider_budget_stretch_mode", "stretch", raising=False
+        )
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+        now = datetime(2026, 4, 16, 6, 0, 0, tzinfo=UTC)
+        # Threshold at hour 6 = ceil(1000 * 7/24) = 292. Priming with 292 -> at threshold -> blocked.
+        self._prime_usage(mgr, "opensubtitles", now, day_count=292)
+        decision = mgr.check("opensubtitles", limits={"day": 1000}, now=now)
+        assert decision.allow is False
+        assert "stretch pace" in decision.reason
+        # wait_seconds -> until next hour
+        assert 0 < decision.wait_seconds <= 3600
+
+    def test_burst_mode_bypasses_stretch(self, monkeypatch):
+        from config import get_settings
+
+        monkeypatch.setattr(get_settings(), "provider_budget_stretch_mode", "burst", raising=False)
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+        now = datetime(2026, 4, 16, 6, 0, 0, tzinfo=UTC)
+        # Deep into the stretch-blocking zone
+        self._prime_usage(mgr, "opensubtitles", now, day_count=500)
+        decision = mgr.check("opensubtitles", limits={"day": 1000}, now=now)
+        assert decision.allow is True
+
+    def test_stretch_still_blocked_by_day_cap(self, monkeypatch):
+        from config import get_settings
+
+        monkeypatch.setattr(
+            get_settings(), "provider_budget_stretch_mode", "stretch", raising=False
+        )
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+        now = datetime(2026, 4, 16, 6, 0, 0, tzinfo=UTC)
+        self._prime_usage(mgr, "opensubtitles", now, day_count=1000)
+        decision = mgr.check("opensubtitles", limits={"day": 1000}, now=now)
+        # Day cap trips first — reason should be the window-limit message, not stretch
+        assert decision.allow is False
+        assert "day limit reached" in decision.reason
+
+    def test_stretch_late_in_day_allows_more(self, monkeypatch):
+        from config import get_settings
+
+        monkeypatch.setattr(
+            get_settings(), "provider_budget_stretch_mode", "stretch", raising=False
+        )
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+        now = datetime(2026, 4, 16, 23, 0, 0, tzinfo=UTC)  # Hour 23
+        # Threshold at hour 23 = ceil(1000 * 24/24) = 1000 -> full budget fair game
+        self._prime_usage(mgr, "opensubtitles", now, day_count=900)
+        decision = mgr.check("opensubtitles", limits={"day": 1000}, now=now)
+        assert decision.allow is True
+
+    def test_stretch_noop_when_no_day_limit(self, monkeypatch):
+        from config import get_settings
+
+        monkeypatch.setattr(
+            get_settings(), "provider_budget_stretch_mode", "stretch", raising=False
+        )
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+        now = datetime(2026, 4, 16, 6, 0, 0, tzinfo=UTC)
+        decision = mgr.check("opensubtitles", limits={"second": 5, "hour": 100}, now=now)
+        assert decision.allow is True
