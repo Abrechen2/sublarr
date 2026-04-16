@@ -200,14 +200,15 @@ class OpenSubtitlesProvider(SubtitleProvider):
         Returns: 'free', 'vip', or 'vip+' — defaults to 'free' on any error.
         """
         try:
-            resp = self.session.get("https://api.opensubtitles.com/api/v1/infos/user")
+            resp = self.session.get(f"{API_BASE}/infos/user")
             if resp.status_code != 200:
                 return "free"
             data = resp.json().get("data", {})
             if data.get("vip"):
                 return "vip+" if data.get("level", "").lower().startswith("vip+") else "vip"
             return "free"
-        except Exception:
+        except Exception as e:
+            logger.warning("OpenSubtitles tier detection failed: %s", e)
             return "free"
 
     def terminate(self):
