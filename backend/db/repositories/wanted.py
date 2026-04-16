@@ -381,14 +381,39 @@ class WantedRepository(BaseRepository):
         }
     )
 
-    def update_wanted_search_outcome(self, item_id: int, **fields) -> bool:
+    def update_wanted_search_outcome(
+        self,
+        item_id: int,
+        *,
+        search_count_increment: int = 0,
+        error_count_increment: int = 0,
+        reset_failure: bool = False,
+        **fields,
+    ) -> bool:
         """Partial update for scheduler-driven search outcomes.
 
         Supported fields (anything else is ignored): ``status, search_count,
         error_count, failure_kind, retry_after, last_error_at, last_search_at,
         error``.
 
-        Special flag ``reset_failure=True`` clears the failure-tracking state
+        Column semantics:
+        - ``error`` field uses **None-means-don't-touch** — passing
+          ``error=None`` leaves the column unchanged. Pass ``error=""`` to
+          explicitly clear it. This prevents silent data loss when a caller
+          doesn't have a message to record (e.g. a new provider_error event
+          without an error string should preserve the prior operator note).
+        - All other allowlisted fields accept ``None`` as a valid value
+          (e.g. ``retry_after=None`` to clear it).
+
+        Atomic SQL-side increments:
+        - ``search_count_increment: int = 0`` — when > 0, emits
+          ``search_count = search_count + N`` as a SQL column expression so
+          concurrent scheduler threads cannot lose increments via
+          read-modify-write races.
+        - ``error_count_increment: int = 0`` — same semantics for
+          ``error_count``.
+
+        ``reset_failure=True`` clears the failure-tracking state
         (``error_count=0, failure_kind=None, error=None, retry_after=None``).
         This is how the ``'found'`` outcome wipes prior error history.
 
@@ -396,20 +421,34 @@ class WantedRepository(BaseRepository):
         ID was unknown (no exception — the caller is typically a background
         worker that shouldn't die just because a concurrent delete won).
         """
-        item = self.session.get(WantedItem, item_id)
-        if not item:
-            return False
-        for key, value in fields.items():
-            if key in self._OUTCOME_ALLOWED_FIELDS:
-                setattr(item, key, value)
-        if fields.get("reset_failure"):
-            item.error_count = 0
-            item.failure_kind = None
-            item.error = None
-            item.retry_after = None
-        item.updated_at = self._now()
+        # Build the patch dict respecting the allowlist. ``error`` is
+        # handled separately because None means "leave column alone".
+        patch: dict = {
+            k: v for k, v in fields.items() if k in self._OUTCOME_ALLOWED_FIELDS and k != "error"
+        }
+        if "error" in fields and fields["error"] is not None:
+            patch["error"] = fields["error"]
+
+        if reset_failure:
+            patch["error_count"] = 0
+            patch["failure_kind"] = None
+            patch["error"] = None
+            patch["retry_after"] = None
+
+        # SQL-side atomic increments to avoid read-modify-write races under
+        # concurrent writers. Using column expressions (WantedItem.col + N)
+        # means the DB server is the sole writer for these fields.
+        if search_count_increment:
+            patch["search_count"] = WantedItem.search_count + search_count_increment
+        if error_count_increment:
+            patch["error_count"] = WantedItem.error_count + error_count_increment
+
+        patch["updated_at"] = self._now()
+
+        stmt = update(WantedItem).where(WantedItem.id == item_id).values(**patch)
+        result = self.session.execute(stmt)
         self._commit()
-        return True
+        return result.rowcount > 0
 
     def mark_search_attempted(self, item_id: int) -> bool:
         """Increment search_count and set last_search_at."""

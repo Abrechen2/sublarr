@@ -92,28 +92,47 @@ def record_search_outcome(
         return
 
     if kind == "provider_error":
+        # Read CURRENT count FIRST for the backoff-table lookup only. The DB
+        # write below is atomic via error_count_increment, so even if two
+        # threads race and both read the same pre-increment value, the
+        # counter is still correct; the only cost is a marginal retry_after
+        # delay difference, which is acceptable.
         item = get_wanted_item(item_id)
         if not item:
             logger.debug("record_search_outcome: item %d not found", item_id)
             return
-        new_err = (item.get("error_count") or 0) + 1
-        retry_at = compute_retry_after_for_error(new_err, now)
+        prior = item.get("error_count") or 0
+        retry_at = compute_retry_after_for_error(prior + 1, now)
         update_wanted_search_outcome(
             item_id,
+            error_count_increment=1,
             failure_kind="provider_error",
-            error_count=new_err,
             retry_after=retry_at,
             last_error_at=now,
-            error=(error_message or "")[:500],
+            # None means "leave error column alone" (don't clobber prior notes);
+            # an explicit message is truncated to the 500-char column limit.
+            error=(error_message[:500] if error_message else None),
         )
         return
 
     if kind == "no_result":
-        item = get_wanted_item(item_id)
-        if not item:
+        # Atomic increment via SQL, then re-read to decide slow-mode.
+        # Two SQL calls total (update + select) vs. the previous three
+        # (select + select + update). The slow-mode branch below may issue
+        # a follow-up update to patch failure_kind/retry_after.
+        updated = update_wanted_search_outcome(
+            item_id,
+            search_count_increment=1,
+            failure_kind="no_result",
+            last_search_at=now,
+        )
+        if not updated:
             logger.debug("record_search_outcome: item %d not found", item_id)
             return
-        new_count = (item.get("search_count") or 0) + 1
+        item = get_wanted_item(item_id)
+        if not item:
+            return
+        new_count = item["search_count"]
         max_attempts = getattr(settings, "wanted_max_search_attempts", 3)
         base_h = getattr(settings, "wanted_backoff_base_hours", 1.0)
         cap_h = getattr(settings, "wanted_backoff_cap_hours", 168)
@@ -127,10 +146,8 @@ def record_search_outcome(
             failure_kind = "no_result"
         update_wanted_search_outcome(
             item_id,
-            search_count=new_count,
             failure_kind=failure_kind,
             retry_after=retry_at,
-            last_search_at=now,
         )
         return
 

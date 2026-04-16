@@ -114,3 +114,28 @@ def test_max_attempts_switches_to_slow_mode_not_freeze(app_ctx, monkeypatch):
         retry_after = retry_after.replace(tzinfo=UTC)
     delta = retry_after - datetime.now(UTC)
     assert timedelta(days=29) < delta < timedelta(days=31)
+
+
+def test_found_outcome_resets_failure_state(app_ctx):
+    item = _make_wanted_item(
+        search_count=3,
+        error_count=2,
+        failure_kind="provider_error",
+        error="Some prior error",
+        retry_after=datetime.now(UTC),
+    )
+    record_search_outcome(item.id, kind="found")
+    db.session.refresh(item)
+    assert item.status == "found"
+    assert item.error_count == 0
+    assert item.failure_kind is None
+    assert item.error is None
+    assert item.retry_after is None
+
+
+def test_unknown_kind_raises_value_error(app_ctx):
+    item = _make_wanted_item()
+    import pytest
+
+    with pytest.raises(ValueError, match="unknown outcome kind"):
+        record_search_outcome(item.id, kind="no_results")  # typo
