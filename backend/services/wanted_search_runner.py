@@ -200,10 +200,10 @@ def run_wanted_search(
     if include_upgrades is None:
         include_upgrades = upgrade_enabled
 
-    from db.wanted import get_wanted_items
+    from db.wanted import get_items_for_scheduled_search
 
-    result = get_wanted_items(page=1, per_page=max_items, status="wanted")
-    items = result.get("data", [])
+    order = getattr(settings, "wanted_search_order", "fair")
+    items = get_items_for_scheduled_search(limit=max_items, order=order)
 
     if not include_upgrades:
         items = [i for i in items if not i.get("upgrade_candidate")]
