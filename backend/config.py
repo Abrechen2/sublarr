@@ -220,6 +220,8 @@ class Settings(BaseSettings):
     # Master gate for the per-provider API-budget manager. When False, the
     # search coordinator reverts to pre-V1 behaviour (no budget accounting).
     provider_budget_enabled: bool = True
+    # Scheduler profile (mapped to preset values via services/scheduler_profile.py)
+    scheduler_profile: str = "balanced"  # 'light' | 'balanced' | 'aggressive' | 'custom'
 
     # Upgrade Scheduler
     upgrade_scan_interval_hours: int = 0  # 0 = disabled; user must opt in
@@ -689,6 +691,7 @@ class ScanningSettings(_SettingsView):
             "wanted_search_max_items_per_run",
             "wanted_search_order",
             "provider_budget_enabled",
+            "scheduler_profile",
             "wanted_adaptive_backoff_enabled",
             "wanted_backoff_base_hours",
             "wanted_backoff_cap_hours",
