@@ -97,6 +97,14 @@ def get_wanted_items(
     )
 
 
+def get_items_for_scheduled_search(limit: int, order: str = "fair") -> list[dict]:
+    """Return wanted items eligible for scheduler-driven search, ordered by preset.
+
+    See ``WantedRepository.get_items_for_scheduled_search`` for full contract.
+    """
+    return _get_repo().get_items_for_scheduled_search(limit, order)
+
+
 def get_wanted_item(item_id: int) -> dict | None:
     """Get a single wanted item by ID."""
     return _get_repo().get_wanted_item(item_id)

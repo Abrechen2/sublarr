@@ -10,14 +10,22 @@ with conditional handling for empty/null target_language.
 import json
 import logging
 import os
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import asc, delete, desc, func, or_, select, update
+from sqlalchemy import asc, case, delete, desc, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
 from db.models.core import WantedItem
 from db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
+
+# Supported presets for get_items_for_scheduled_search
+_SCHEDULED_SEARCH_ORDERS = ("fair", "newest_first", "weighted")
+# Boundary between "recent" (bucket 0) and "older" (bucket 1) items for the
+# 'weighted' preset. Kept local to the repository so the scheduler can stay
+# preset-based and not need to pass a window parameter.
+_WEIGHTED_RECENT_DAYS = 30
 
 
 class WantedRepository(BaseRepository):
@@ -254,6 +262,66 @@ class WantedRepository(BaseRepository):
             "total": count,
             "total_pages": total_pages,
         }
+
+    def get_items_for_scheduled_search(
+        self,
+        limit: int,
+        order: str = "fair",
+    ) -> list[dict]:
+        """Return wanted items eligible for scheduler-driven search, ordered by preset.
+
+        Replaces the legacy ``get_wanted_items(page=1, per_page=N, status='wanted')`` call
+        used by the scheduler, which returned newest-first and starved older items.
+
+        Args:
+            limit: Max rows to return (safety cap for a single scheduler tick).
+            order: One of ``'fair'``, ``'newest_first'``, ``'weighted'``:
+                - ``'fair'`` — ``last_search_at ASC NULLS FIRST, search_count ASC``.
+                  Never-searched items first, then oldest last_search, with lowest
+                  search_count as tiebreak.
+                - ``'newest_first'`` — ``added_at DESC``. Legacy behaviour.
+                - ``'weighted'`` — two-bucket: items added within the last
+                  ``_WEIGHTED_RECENT_DAYS`` days come first, then older items. Within
+                  each bucket the order matches ``'fair'``.
+
+        Returns:
+            List of dict rows (via ``self._row_to_wanted``).
+
+        Raises:
+            ValueError: If ``order`` is not one of the three supported presets.
+        """
+        if order not in _SCHEDULED_SEARCH_ORDERS:
+            raise ValueError(
+                f"Invalid order preset {order!r}. "
+                f"Expected one of: {', '.join(_SCHEDULED_SEARCH_ORDERS)}"
+            )
+
+        stmt = select(WantedItem).where(WantedItem.status == "wanted")
+
+        if order == "newest_first":
+            stmt = stmt.order_by(desc(WantedItem.added_at))
+        elif order == "fair":
+            stmt = stmt.order_by(
+                WantedItem.last_search_at.asc().nullsfirst(),
+                WantedItem.search_count.asc(),
+            )
+        else:  # weighted
+            cutoff = datetime.now(UTC) - timedelta(days=_WEIGHTED_RECENT_DAYS)
+            # Bucket 0 = recent (added within the window), bucket 1 = older.
+            # case() emits a portable CASE expression on both SQLite and Postgres.
+            bucket = case(
+                (WantedItem.added_at >= cutoff, 0),
+                else_=1,
+            )
+            stmt = stmt.order_by(
+                bucket.asc(),
+                WantedItem.last_search_at.asc().nullsfirst(),
+                WantedItem.search_count.asc(),
+            )
+
+        stmt = stmt.limit(limit)
+        rows = self.session.execute(stmt).scalars().all()
+        return [self._row_to_wanted(r) for r in rows]
 
     def get_wanted_item(self, item_id: int) -> dict | None:
         """Get a single wanted item by ID."""
