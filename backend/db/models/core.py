@@ -89,6 +89,19 @@ class WantedItem(db.Model):
     standalone_movie_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     subtitle_type: Mapped[str | None] = mapped_column(String(20), default="full")
     retry_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # ── Phase 1 scheduler fields (migration b1u2d3g4e5t6) ──────────────────
+    # Priority tier for budget-aware scheduling: 'premium' (fresh, < 7d),
+    # 'standard' (default), or 'backlog' (> 180d + prior failures).
+    priority: Mapped[str] = mapped_column(String(20), nullable=False, default="standard")
+    # Distinguishes 'no_result' (genuine — providers have nothing) from
+    # 'provider_error' (network/429/circuit-breaker) so transient outages
+    # don't burn retries. 'no_result_slow' marks items past max_attempts that
+    # enter slow-mode (1x / 30d) instead of the old permanent freeze.
+    failure_kind: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Provider-side errors are counted separately from search_count so they
+    # don't poison an item when a provider has a bad day.
+    error_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         Index("idx_wanted_status", "status"),

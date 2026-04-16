@@ -366,6 +366,51 @@ class WantedRepository(BaseRepository):
         self._commit()
         return True
 
+    # Allowed fields for ``update_wanted_search_outcome``. Anything not in this
+    # set is silently ignored so typos in callers don't mutate unrelated rows.
+    _OUTCOME_ALLOWED_FIELDS = frozenset(
+        {
+            "status",
+            "search_count",
+            "error_count",
+            "failure_kind",
+            "retry_after",
+            "last_error_at",
+            "last_search_at",
+            "error",
+        }
+    )
+
+    def update_wanted_search_outcome(self, item_id: int, **fields) -> bool:
+        """Partial update for scheduler-driven search outcomes.
+
+        Supported fields (anything else is ignored): ``status, search_count,
+        error_count, failure_kind, retry_after, last_error_at, last_search_at,
+        error``.
+
+        Special flag ``reset_failure=True`` clears the failure-tracking state
+        (``error_count=0, failure_kind=None, error=None, retry_after=None``).
+        This is how the ``'found'`` outcome wipes prior error history.
+
+        Returns ``True`` if the row existed and was updated, ``False`` if the
+        ID was unknown (no exception — the caller is typically a background
+        worker that shouldn't die just because a concurrent delete won).
+        """
+        item = self.session.get(WantedItem, item_id)
+        if not item:
+            return False
+        for key, value in fields.items():
+            if key in self._OUTCOME_ALLOWED_FIELDS:
+                setattr(item, key, value)
+        if fields.get("reset_failure"):
+            item.error_count = 0
+            item.failure_kind = None
+            item.error = None
+            item.retry_after = None
+        item.updated_at = self._now()
+        self._commit()
+        return True
+
     def mark_search_attempted(self, item_id: int) -> bool:
         """Increment search_count and set last_search_at."""
         item = self.session.get(WantedItem, item_id)

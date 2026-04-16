@@ -143,17 +143,22 @@ def process_wanted_item(item_id: int) -> dict:
             "reason": f"target '{item_lang}' already on disk as .{_existing}",
         }
 
-    # Check max search attempts.
-    # search_count may be NULL for items inserted before a schema migration set
-    # a default — treat missing as zero so we don't explode with a TypeError,
-    # which previously caused entire retry storms in the log.
+    # Check max search attempts — but no more permanent freeze.
+    # Items past ``wanted_max_search_attempts`` enter slow-mode (1x / 30d)
+    # instead of being marked ``failed`` forever. ``record_search_outcome``
+    # handles the transition; ``_filter_eligible`` in wanted_search_runner
+    # respects ``retry_after``, so slow-mode items won't be picked again until
+    # the window elapses. search_count may be NULL for items inserted before a
+    # schema migration set a default — treat missing as zero.
     search_count = item.get("search_count") or 0
     if search_count >= settings.wanted_max_search_attempts:
-        update_wanted_status(item_id, "failed", error="Max search attempts reached")
+        from services.wanted_search_runner import record_search_outcome
+
+        record_search_outcome(item_id, kind="no_result")
         return {
             "wanted_id": item_id,
-            "status": "failed",
-            "error": "Max search attempts reached",
+            "status": "skipped",
+            "reason": "slow-mode (max attempts reached, retry in 30 days)",
         }
 
     update_wanted_status(item_id, "searching")

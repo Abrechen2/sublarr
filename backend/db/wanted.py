@@ -125,6 +125,14 @@ def update_wanted_status(item_id: int, status: str, error: str = ""):
     return _get_repo().update_wanted_status(item_id, status, error)
 
 
+def update_wanted_search_outcome(item_id: int, **fields) -> bool:
+    """Partial update for scheduler-driven search outcomes.
+
+    See ``WantedRepository.update_wanted_search_outcome`` for full contract.
+    """
+    return _get_repo().update_wanted_search_outcome(item_id, **fields)
+
+
 def update_wanted_search(item_id: int):
     """Increment search_count and set last_search_at."""
     return _get_repo().mark_search_attempted(item_id)
