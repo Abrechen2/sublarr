@@ -27,6 +27,12 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# Rate-limit state for the provider_budget_updated SocketIO event.
+# Tracks last emission time per provider so we never flood the WebSocket
+# channel with more than one update per second per provider.
+_LAST_EMIT_AT: dict[str, datetime] = {}
+_EMIT_MIN_INTERVAL_SECONDS = 1.0
+
 
 class BudgetWindow(enum.StrEnum):
     """The three time windows tracked per provider."""
@@ -141,6 +147,7 @@ class ProviderBudgetManager:
             now = datetime.now(UTC)
         for window in BudgetWindow:
             self._increment(provider, window, now)
+        self._emit_update(provider, now)
 
     def refund(self, provider: str, now: datetime | None = None) -> None:
         """Undo one call against ``provider`` — decrements all three windows.
@@ -152,6 +159,7 @@ class ProviderBudgetManager:
             now = datetime.now(UTC)
         for window in BudgetWindow:
             self._decrement(provider, window, now)
+        self._emit_update(provider, now)
 
     def get_usage(self, provider: str, now: datetime | None = None) -> dict[str, int]:
         """Return ``{'second': n, 'hour': n, 'day': n}`` for ``provider``."""
@@ -186,6 +194,30 @@ class ProviderBudgetManager:
         return self._seconds_until_next_window(BudgetWindow(window_name), now)
 
     # ── Internals ─────────────────────────────────────────────────────────
+
+    def _emit_update(self, provider: str, now: datetime) -> None:
+        """Emit a provider_budget_updated event; rate-limited to 1/sec per provider.
+
+        Best-effort — a failing event bus must never break budget accounting.
+        Payload includes the NEW usage snapshot so the frontend can render without
+        a follow-up HTTP call.
+        """
+        last = _LAST_EMIT_AT.get(provider)
+        if last is not None and (now - last).total_seconds() < _EMIT_MIN_INTERVAL_SECONDS:
+            return
+        _LAST_EMIT_AT[provider] = now
+        try:
+            from events import emit_event
+
+            emit_event(
+                "provider_budget_updated",
+                {
+                    "provider": provider,
+                    "usage": self.get_usage(provider, now=now),
+                },
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Failed to emit provider_budget_updated: %s", exc)
 
     def _effective_limit(self, raw: int) -> int:
         if self._safety <= 0:

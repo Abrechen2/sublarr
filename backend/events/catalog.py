@@ -38,6 +38,7 @@ standalone_scan_complete = sublarr_signals.signal("standalone_scan_complete")
 standalone_file_detected = sublarr_signals.signal("standalone_file_detected")
 wanted_item_searched = sublarr_signals.signal("wanted_item_searched")
 provider_state_changed = sublarr_signals.signal("provider_state_changed")
+provider_budget_updated = sublarr_signals.signal("provider_budget_updated")
 
 # ---- Catalog dict (machine-readable metadata) ----------------------------------
 
@@ -298,6 +299,15 @@ EVENT_CATALOG: dict[str, dict] = {
             "reason",
             "until",
             "remaining_seconds",
+        ],
+    },
+    "provider_budget_updated": {
+        "signal": provider_budget_updated,
+        "label": "Provider Budget Updated",
+        "description": "Emitted after a provider consumes or refunds a budget slot.",
+        "payload_keys": [
+            "provider",
+            "usage",
         ],
     },
 }
