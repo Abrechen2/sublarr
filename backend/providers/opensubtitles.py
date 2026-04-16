@@ -194,6 +194,22 @@ class OpenSubtitlesProvider(SubtitleProvider):
         except Exception as e:
             logger.warning("OpenSubtitles login error: %s", e)
 
+    def detect_tier(self) -> str:
+        """Query /api/v1/infos/user to determine the current account tier.
+
+        Returns: 'free', 'vip', or 'vip+' — defaults to 'free' on any error.
+        """
+        try:
+            resp = self.session.get("https://api.opensubtitles.com/api/v1/infos/user")
+            if resp.status_code != 200:
+                return "free"
+            data = resp.json().get("data", {})
+            if data.get("vip"):
+                return "vip+" if data.get("level", "").lower().startswith("vip+") else "vip"
+            return "free"
+        except Exception:
+            return "free"
+
     def terminate(self):
         if self.session:
             # Logout if we have a token
