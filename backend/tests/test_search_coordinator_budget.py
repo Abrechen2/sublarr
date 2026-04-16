@@ -111,7 +111,9 @@ class TestBudgetGate:
         provider = _make_provider("test_provider")
         manager = _build_manager(monkeypatch, provider)
         # provider_budget_enabled is True by default — don't touch settings here.
-        monkeypatch.setattr("services.provider_budget.get_budget_manager", lambda: budget_exhausted)
+        monkeypatch.setattr(
+            "providers.search_coordinator.get_budget_manager", lambda: budget_exhausted
+        )
 
         manager.search(_make_query())
 
@@ -121,7 +123,9 @@ class TestBudgetGate:
     def test_allowed_budget_consumes_and_searches(self, app_ctx, monkeypatch, budget_allows):
         provider = _make_provider("test_provider")
         manager = _build_manager(monkeypatch, provider)
-        monkeypatch.setattr("services.provider_budget.get_budget_manager", lambda: budget_allows)
+        monkeypatch.setattr(
+            "providers.search_coordinator.get_budget_manager", lambda: budget_allows
+        )
 
         manager.search(_make_query())
 
@@ -136,7 +140,9 @@ class TestBudgetGate:
         manager.settings = manager.settings.model_copy(update={"provider_budget_enabled": False})
 
         sentinel_budget = MagicMock(spec=ProviderBudgetManager)
-        monkeypatch.setattr("services.provider_budget.get_budget_manager", lambda: sentinel_budget)
+        monkeypatch.setattr(
+            "providers.search_coordinator.get_budget_manager", lambda: sentinel_budget
+        )
 
         manager.search(_make_query())
 
@@ -151,7 +157,9 @@ class TestBudgetGate:
         }
         provider = _make_provider("vip_provider", tier="vip", rate_limits=vip_limits)
         manager = _build_manager(monkeypatch, provider)
-        monkeypatch.setattr("services.provider_budget.get_budget_manager", lambda: budget_allows)
+        monkeypatch.setattr(
+            "providers.search_coordinator.get_budget_manager", lambda: budget_allows
+        )
 
         manager.search(_make_query())
 

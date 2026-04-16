@@ -29,8 +29,15 @@ from providers.base import (
     VideoQuery,
     compute_score,
 )
+from services.provider_budget import get_budget_manager
 
 logger = logging.getLogger(__name__)
+
+# Dedup set for one-time WARN emission per provider that ships without
+# ``rate_limits`` metadata. Without this guard, new providers that forget to
+# declare the ClassVar would silently bypass the budget gate — with the guard
+# they show up in logs on first encounter (and only once per process).
+_warned_missing_limits: set[str] = set()
 
 
 class SearchCoordinatorMixin:
@@ -383,8 +390,6 @@ class SearchCoordinatorMixin:
                 # auto-disable/CB). Consume BEFORE submitting the future so a
                 # provider timeout still costs budget (accurate accounting).
                 if getattr(self.settings, "provider_budget_enabled", True):
-                    from services.provider_budget import get_budget_manager
-
                     budget = get_budget_manager()
                     tier = getattr(provider, "tier", "free")
                     # Use class-level lookup so the ClassVar on the real provider
@@ -395,7 +400,21 @@ class SearchCoordinatorMixin:
                     limits = {}
                     if isinstance(rate_limits, dict):
                         limits = rate_limits.get(tier) or rate_limits.get("free") or {}
-                    if limits:
+                    if not limits:
+                        # Provider did not declare rate_limits (or none for this
+                        # tier). Fall through so the provider runs unthrottled —
+                        # but WARN once per provider so the missing metadata is
+                        # visible in logs instead of silently disabled.
+                        if name not in _warned_missing_limits:
+                            _warned_missing_limits.add(name)
+                            logger.warning(
+                                "Provider %s has no rate_limits[%r] defined — budget gate is "
+                                "disabled for this provider. Add a 'rate_limits' ClassVar to "
+                                "the provider class to enable throttling.",
+                                name,
+                                tier,
+                            )
+                    else:
                         decision = budget.check(name, limits)
                         if not decision.allow:
                             logger.debug(
@@ -419,8 +438,6 @@ class SearchCoordinatorMixin:
                     logger.warning("submit failed for %s: %s -- refunding budget", name, exc)
                     if getattr(self.settings, "provider_budget_enabled", True):
                         try:
-                            from services.provider_budget import get_budget_manager
-
                             get_budget_manager().refund(name)
                         except Exception as refund_exc:  # noqa: BLE001
                             logger.debug("Budget refund failed for %s: %s", name, refund_exc)

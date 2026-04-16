@@ -203,22 +203,34 @@ class OpenSubtitlesProvider(SubtitleProvider):
         except Exception as e:
             logger.warning("OpenSubtitles login error: %s", e)
 
-    def detect_tier(self) -> str:
+    def detect_tier(self, *, force: bool = False) -> str:
         """Query /api/v1/infos/user to determine the current account tier.
 
         Returns: 'free', 'vip', or 'vip+' — defaults to 'free' on any error.
+
+        Caches the result on the instance; subsequent calls return the cached
+        value unless ``force=True``. Call with ``force=True`` after an
+        API-key change to re-detect the tier from the server.
         """
+        if not force and hasattr(self, "_cached_tier"):
+            return self._cached_tier
+
         try:
             resp = self.session.get(f"{API_BASE}/infos/user")
             if resp.status_code != 200:
-                return "free"
-            data = resp.json().get("data", {})
-            if data.get("vip"):
-                return "vip+" if data.get("level", "").lower().startswith("vip+") else "vip"
-            return "free"
+                tier = "free"
+            else:
+                data = resp.json().get("data", {})
+                if data.get("vip"):
+                    tier = "vip+" if data.get("level", "").lower().startswith("vip+") else "vip"
+                else:
+                    tier = "free"
         except Exception as e:
             logger.warning("OpenSubtitles tier detection failed: %s", e)
-            return "free"
+            tier = "free"
+
+        self._cached_tier = tier
+        return tier
 
     def terminate(self):
         if self.session:
@@ -228,6 +240,10 @@ class OpenSubtitlesProvider(SubtitleProvider):
                     self.session.delete(f"{API_BASE}/logout")
             self.session.close()
             self.session = None
+        # Drop cached tier so a fresh initialize() after a credentials change
+        # re-detects from the server instead of reusing the stale value.
+        if hasattr(self, "_cached_tier"):
+            del self._cached_tier
 
     def health_check(self) -> tuple[bool, str]:
         if not self.api_key:
