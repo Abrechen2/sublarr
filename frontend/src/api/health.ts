@@ -17,3 +17,29 @@ export async function getStats(): Promise<Stats> {
   const { data } = await api.get('/stats')
   return data
 }
+
+// ─── Budget State ────────────────────────────────────────────────────────────
+
+export interface BudgetWindow {
+  second: number
+  hour: number
+  day: number
+}
+
+export interface ProviderBudget {
+  name: string
+  tier: string
+  limits: BudgetWindow
+  usage: BudgetWindow
+  reset_seconds: BudgetWindow
+}
+
+export interface BudgetResponse {
+  enabled: boolean
+  providers: ProviderBudget[]
+}
+
+export async function getBudgetState(): Promise<BudgetResponse> {
+  const { data } = await api.get('/system/budget')
+  return data
+}

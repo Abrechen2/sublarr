@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from '@/components/shared/Toast'
 import {
+  getBudgetState,
   getHealth, getUpdateInfo, getStats, getJobs,
   getBatchStatus, getConfig, updateConfig, disableTranslation,
   getLogs,
@@ -75,6 +76,17 @@ export function useStats() {
     queryKey: ['stats'],
     queryFn: getStats,
     staleTime: 60_000,
+  })
+}
+
+// ─── Budget State ────────────────────────────────────────────────────────────
+
+export function useBudgetState() {
+  return useQuery({
+    queryKey: ['system', 'budget'],
+    queryFn: getBudgetState,
+    refetchInterval: 5_000,
+    staleTime: 2_000,
   })
 }
 

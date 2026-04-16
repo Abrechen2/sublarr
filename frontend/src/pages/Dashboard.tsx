@@ -4,6 +4,7 @@ import { StatusStripe } from '@/components/dashboard/StatusStripe'
 import { MetricsRow } from '@/components/dashboard/MetricsRow'
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar'
+import { BudgetWidget } from '@/components/dashboard/BudgetWidget'
 
 export function Dashboard() {
   const { t } = useTranslation('dashboard')
@@ -17,6 +18,7 @@ export function Dashboard() {
         <ActivityFeed />
         <DashboardSidebar />
       </div>
+      <BudgetWidget />
     </div>
   )
 }

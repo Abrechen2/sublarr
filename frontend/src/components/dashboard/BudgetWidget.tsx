@@ -1,0 +1,217 @@
+import { useTranslation } from 'react-i18next'
+import { useBudgetState } from '@/hooks/useSystemApi'
+import type { ProviderBudget } from '@/api/health'
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '0min'
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  if (h === 0) return `${m}min`
+  return `${h}h ${m}min`
+}
+
+type BudgetColour = 'green' | 'yellow' | 'red'
+
+function pickColour(pct: number): BudgetColour {
+  if (pct >= 90) return 'red'
+  if (pct >= 70) return 'yellow'
+  return 'green'
+}
+
+const COLOUR_VAR: Record<BudgetColour, string> = {
+  green: 'var(--success)',
+  yellow: 'var(--warning)',
+  red: 'var(--error)',
+}
+
+// ─── Row component ──────────────────────────────────────────────────────────
+
+interface BudgetRowProps {
+  readonly provider: ProviderBudget
+}
+
+function BudgetRow({ provider }: BudgetRowProps) {
+  const used = provider.usage.day
+  const limit = provider.limits.day || 1
+  const pct = Math.min(100, Math.max(0, (used / limit) * 100))
+  const colour = pickColour(pct)
+  const barColor = COLOUR_VAR[colour]
+
+  return (
+    <li
+      data-testid={`budget-row-${provider.name}`}
+      data-colour={colour}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '4px 0',
+        listStyle: 'none',
+      }}
+    >
+      <span
+        style={{
+          flex: '0 0 110px',
+          fontSize: '12px',
+          color: 'var(--text-secondary)',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+        title={provider.name}
+      >
+        {provider.name}
+      </span>
+      <div
+        role="progressbar"
+        aria-label={provider.name}
+        aria-valuenow={used}
+        aria-valuemin={0}
+        aria-valuemax={limit}
+        style={{
+          flex: 1,
+          height: '8px',
+          background: 'var(--bg-secondary)',
+          borderRadius: '4px',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          data-testid={`budget-bar-${provider.name}`}
+          style={{
+            width: `${pct}%`,
+            height: '100%',
+            background: barColor,
+            transition: 'width 200ms ease-out',
+          }}
+        />
+      </div>
+      <span
+        data-testid={`budget-usage-${provider.name}`}
+        style={{
+          flex: '0 0 auto',
+          fontSize: '11px',
+          color: 'var(--text-muted)',
+          fontFamily: 'var(--font-mono)',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {used.toLocaleString()} / {provider.limits.day.toLocaleString()}
+      </span>
+    </li>
+  )
+}
+
+// ─── Widget container ──────────────────────────────────────────────────────
+
+function CardShell({
+  testId,
+  title,
+  children,
+}: {
+  readonly testId: string
+  readonly title?: string
+  readonly children: React.ReactNode
+}) {
+  return (
+    <div
+      data-testid={testId}
+      style={{
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '12px 14px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+      }}
+    >
+      {title && (
+        <div
+          style={{
+            fontSize: '11px',
+            fontWeight: 700,
+            color: 'var(--text-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.4px',
+          }}
+        >
+          {title}
+        </div>
+      )}
+      {children}
+    </div>
+  )
+}
+
+export function BudgetWidget() {
+  const { t } = useTranslation('dashboard')
+  const { data, isLoading, error } = useBudgetState()
+
+  if (isLoading) {
+    return (
+      <CardShell testId="budget-widget-loading">
+        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+          {t('budget.loading')}
+        </span>
+      </CardShell>
+    )
+  }
+
+  // Fail quietly — widget is non-critical
+  if (error || !data) return null
+
+  if (!data.enabled) {
+    return (
+      <CardShell testId="budget-widget-disabled">
+        <span
+          style={{
+            fontSize: '12px',
+            color: 'var(--text-muted)',
+            fontStyle: 'italic',
+          }}
+        >
+          {t('budget.disabled')}
+        </span>
+      </CardShell>
+    )
+  }
+
+  const providers = [...data.providers].sort((a, b) => a.name.localeCompare(b.name))
+  if (providers.length === 0) return null
+
+  const nextReset = Math.min(...providers.map((p) => p.reset_seconds.day))
+
+  return (
+    <CardShell testId="budget-widget" title={t('budget.title')}>
+      <ul
+        style={{
+          margin: 0,
+          padding: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '2px',
+        }}
+      >
+        {providers.map((p) => (
+          <BudgetRow key={p.name} provider={p} />
+        ))}
+      </ul>
+      <div
+        data-testid="budget-reset"
+        style={{
+          fontSize: '11px',
+          color: 'var(--text-muted)',
+          paddingTop: '4px',
+          borderTop: '1px solid var(--border)',
+        }}
+      >
+        {t('budget.reset_in', { time: formatDuration(nextReset) })}
+      </div>
+    </CardShell>
+  )
+}
+
+export default BudgetWidget

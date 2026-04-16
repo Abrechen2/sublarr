@@ -137,6 +137,12 @@
     "findBetter": "Besser suchen",
     "accept": "Annehmen"
   },
+  "budget": {
+    "title": "API-Budget heute",
+    "reset_in": "Reset in {{time}}",
+    "disabled": "API-Budget-Überwachung ist deaktiviert",
+    "loading": "Lade Budget-Status…"
+  },
   "sidebar": {
     "providers": "Provider-Status",
     "services": "Services",
