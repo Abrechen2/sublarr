@@ -1,6 +1,33 @@
 import { useTranslation } from 'react-i18next'
+import { useQueryClient } from '@tanstack/react-query'
 import { useBudgetState } from '@/hooks/useSystemApi'
-import type { ProviderBudget } from '@/api/health'
+import { useWebSocket } from '@/hooks/useWebSocket'
+import type { BudgetResponse, BudgetWindow, ProviderBudget } from '@/api/health'
+
+// ─── Live-update helper (exported for unit tests) ───────────────────────────
+
+export interface BudgetUpdatePayload {
+  provider: string
+  usage: BudgetWindow
+}
+
+/**
+ * Pure cache-patch helper. Returns a new BudgetResponse with the usage of the
+ * matching provider replaced. Unknown providers and undefined caches are
+ * no-ops, keeping the caller (queryClient.setQueryData) safe.
+ */
+export function applyBudgetUpdate(
+  prev: BudgetResponse | undefined,
+  payload: BudgetUpdatePayload,
+): BudgetResponse | undefined {
+  if (!prev) return prev
+  return {
+    ...prev,
+    providers: prev.providers.map((p) =>
+      p.name === payload.provider ? { ...p, usage: payload.usage } : p,
+    ),
+  }
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -149,6 +176,21 @@ function CardShell({
 export function BudgetWidget() {
   const { t } = useTranslation('dashboard')
   const { data, isLoading, error } = useBudgetState()
+  const queryClient = useQueryClient()
+
+  // Subscribe to the backend `provider_budget_updated` SocketIO event so the
+  // bars refresh in <1s after a provider call, instead of waiting for the
+  // 5s poll cycle. The cache is patched immutably to trigger a re-render.
+  useWebSocket({
+    onProviderBudgetUpdated: (rawData) => {
+      const payload = rawData as BudgetUpdatePayload
+      if (!payload || typeof payload.provider !== 'string' || !payload.usage) return
+      queryClient.setQueryData<BudgetResponse | undefined>(
+        ['system', 'budget'],
+        (prev) => applyBudgetUpdate(prev, payload),
+      )
+    },
+  })
 
   if (isLoading) {
     return (

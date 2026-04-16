@@ -1,12 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { BudgetWidget } from '../BudgetWidget'
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
+import { BudgetWidget, applyBudgetUpdate } from '../BudgetWidget'
 import type { BudgetResponse } from '@/api/health'
 
 const mockUseBudgetState = vi.fn()
 
 vi.mock('@/hooks/useSystemApi', () => ({
   useBudgetState: () => mockUseBudgetState(),
+}))
+vi.mock('@/hooks/useWebSocket', () => ({
+  useWebSocket: () => ({ connected: false, emit: vi.fn(), socket: null }),
 }))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -17,13 +21,25 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-function renderWith(data: BudgetResponse | undefined, extras: Partial<{ isLoading: boolean; error: unknown }> = {}) {
+function makeClient(): QueryClient {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } })
+}
+
+function renderWith(
+  data: BudgetResponse | undefined,
+  extras: Partial<{ isLoading: boolean; error: unknown; client: QueryClient }> = {},
+) {
   mockUseBudgetState.mockReturnValue({
     data,
     isLoading: extras.isLoading ?? false,
     error: extras.error ?? null,
   })
-  return render(<BudgetWidget />)
+  const client = extras.client ?? makeClient()
+  return render(
+    <QueryClientProvider client={client}>
+      <BudgetWidget />
+    </QueryClientProvider>,
+  )
 }
 
 const SAMPLE: BudgetResponse = {
@@ -134,5 +150,123 @@ describe('BudgetWidget', () => {
   it('renders loading card while fetching', () => {
     renderWith(undefined, { isLoading: true })
     expect(screen.getByTestId('budget-widget-loading')).toBeInTheDocument()
+  })
+})
+
+// ─── applyBudgetUpdate (pure) ───────────────────────────────────────────────
+
+describe('applyBudgetUpdate', () => {
+  const base: BudgetResponse = {
+    enabled: true,
+    providers: [
+      {
+        name: 'opensubtitles',
+        tier: 'free',
+        limits: { day: 1000, hour: 200, second: 5 },
+        usage: { day: 820, hour: 80, second: 0 },
+        reset_seconds: { day: 3600, hour: 60, second: 1 },
+      },
+      {
+        name: 'subdl',
+        tier: 'free',
+        limits: { day: 100, hour: 50, second: 2 },
+        usage: { day: 10, hour: 5, second: 0 },
+        reset_seconds: { day: 3600, hour: 60, second: 1 },
+      },
+    ],
+  }
+
+  it('patches usage for the matching provider only', () => {
+    const result = applyBudgetUpdate(base, {
+      provider: 'opensubtitles',
+      usage: { day: 900, hour: 90, second: 1 },
+    })
+    expect(result?.providers.find((p) => p.name === 'opensubtitles')?.usage.day).toBe(900)
+    expect(result?.providers.find((p) => p.name === 'subdl')?.usage.day).toBe(10)
+  })
+
+  it('returns undefined when cache is empty', () => {
+    expect(
+      applyBudgetUpdate(undefined, { provider: 'x', usage: { day: 1, hour: 1, second: 1 } }),
+    ).toBeUndefined()
+  })
+
+  it('is a no-op for unknown providers', () => {
+    const result = applyBudgetUpdate(base, {
+      provider: 'doesnotexist',
+      usage: { day: 999, hour: 99, second: 9 },
+    })
+    expect(result?.providers).toHaveLength(2)
+    expect(result?.providers[0].usage.day).toBe(820)
+    expect(result?.providers[1].usage.day).toBe(10)
+  })
+
+  it('produces new object references to trigger re-renders', () => {
+    const result = applyBudgetUpdate(base, {
+      provider: 'opensubtitles',
+      usage: { day: 900, hour: 90, second: 1 },
+    })
+    expect(result).not.toBe(base)
+    expect(result?.providers).not.toBe(base.providers)
+    const patched = result?.providers.find((p) => p.name === 'opensubtitles')
+    const original = base.providers.find((p) => p.name === 'opensubtitles')
+    expect(patched).not.toBe(original)
+  })
+})
+
+// ─── Integration: cache mutation re-renders widget ──────────────────────────
+
+describe('BudgetWidget live updates', () => {
+  const KEY = ['system', 'budget'] as const
+  const INITIAL: BudgetResponse = {
+    enabled: true,
+    providers: [
+      {
+        name: 'opensubtitles',
+        tier: 'free',
+        limits: { day: 1000, hour: 200, second: 5 },
+        usage: { day: 820, hour: 80, second: 0 },
+        reset_seconds: { day: 3600, hour: 60, second: 1 },
+      },
+    ],
+  }
+
+  it('updates displayed usage when the cache is patched (simulated SocketIO event)', async () => {
+    const client = makeClient()
+    client.setQueryData(KEY, INITIAL)
+
+    // Drive the widget from the real query cache so setQueryData triggers a
+    // re-render. We override the mock for this test only.
+    mockUseBudgetState.mockImplementation(() => {
+      const q = useQuery<BudgetResponse>({
+        queryKey: [...KEY],
+        queryFn: () => Promise.resolve(INITIAL),
+        staleTime: Infinity,
+      })
+      return { data: q.data, isLoading: q.isLoading, error: q.error }
+    })
+
+    render(
+      <QueryClientProvider client={client}>
+        <BudgetWidget />
+      </QueryClientProvider>,
+    )
+
+    // Initial render: 820 / 1000 (thousand-separator varies by locale)
+    expect(await screen.findByTestId('budget-usage-opensubtitles')).toHaveTextContent(
+      /^\s*820\s*\/\s*1[.,]000\s*$/,
+    )
+
+    // Simulate the SocketIO event → same cache mutation the widget performs.
+    client.setQueryData<BudgetResponse | undefined>(KEY, (prev) =>
+      applyBudgetUpdate(prev, {
+        provider: 'opensubtitles',
+        usage: { day: 900, hour: 90, second: 1 },
+      }),
+    )
+
+    expect(await screen.findByTestId('budget-usage-opensubtitles')).toHaveTextContent(
+      /^\s*900\s*\/\s*1[.,]000\s*$/,
+    )
   })
 })

@@ -27,6 +27,7 @@ interface UseWebSocketOptions {
   onBatchProbeCompleted?: (data: unknown) => void
   onWantedItemSearched?: (data: unknown) => void
   onProviderStateChanged?: (data: unknown) => void
+  onProviderBudgetUpdated?: (data: unknown) => void
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
@@ -76,6 +77,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       ['batch_probe_completed', 'onBatchProbeCompleted'],
       ['wanted_item_searched', 'onWantedItemSearched'],
       ['provider_state_changed', 'onProviderStateChanged'],
+      ['provider_budget_updated', 'onProviderBudgetUpdated'],
     ]
 
     // Store named handler references so only this hook's listeners are removed on cleanup
