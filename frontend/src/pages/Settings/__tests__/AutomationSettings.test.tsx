@@ -44,6 +44,7 @@ vi.mock('@/hooks/useApi', () => ({
       wanted_scan_interval_hours: '0',
       wanted_scan_on_startup: 'false',
       wanted_search_max_items_per_run: '50',
+      wanted_search_order: 'fair',
       wanted_max_search_attempts: '3',
       wanted_auto_extract: 'false',
       wanted_anime_only: 'false',
@@ -307,6 +308,38 @@ describe('AutomationSettings', () => {
     const input = screen.getByTestId('input-wanted-search-max-items-per-run')
     fireEvent.change(input, { target: { value: '100' } })
     expect(mockMutate).toHaveBeenCalledWith({ wanted_search_max_items_per_run: 100 })
+  })
+
+  // ── Scheduler order preset dropdown ───────────────────────────────────────
+  describe('Scheduler order preset dropdown', () => {
+    it('renders the three expected options (in advanced)', () => {
+      renderPage()
+      const wrapper = screen.getByTestId('section-search-scan')
+      const advToggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+      fireEvent.click(advToggle)
+      const select = screen.getByTestId('input-wanted-search-order') as HTMLSelectElement
+      const values = Array.from(select.querySelectorAll('option')).map((o) => o.value)
+      expect(values).toEqual(['fair', 'newest_first', 'weighted'])
+    })
+
+    it('reflects config value "fair" as the selected option', () => {
+      renderPage()
+      const wrapper = screen.getByTestId('section-search-scan')
+      const advToggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+      fireEvent.click(advToggle)
+      const select = screen.getByTestId('input-wanted-search-order') as HTMLSelectElement
+      expect(select.value).toBe('fair')
+    })
+
+    it('calls updateConfig with the new value on change', () => {
+      renderPage()
+      const wrapper = screen.getByTestId('section-search-scan')
+      const advToggle = wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]') as HTMLElement
+      fireEvent.click(advToggle)
+      const select = screen.getByTestId('input-wanted-search-order')
+      fireEvent.change(select, { target: { value: 'weighted' } })
+      expect(mockMutate).toHaveBeenCalledWith({ wanted_search_order: 'weighted' })
+    })
   })
 
   it('displays wanted_max_search_attempts value from config', () => {

@@ -33,6 +33,7 @@ export const HELP_TEXT: Record<string, string> = {
   wanted_search_interval_hours: 'How often to search providers for wanted items. 0 = disabled.',
   wanted_search_on_startup: 'Run a provider search when Sublarr starts.',
   wanted_search_max_items_per_run: 'Limit provider searches per scheduler run to avoid rate limits.',
+  wanted_search_order: 'Order in which the scheduled search worker processes the queue: fair | newest_first | weighted.',
 
   // Wanted
   wanted_scan_interval_hours: 'How often to scan media for missing subtitles. 0 = disabled.',

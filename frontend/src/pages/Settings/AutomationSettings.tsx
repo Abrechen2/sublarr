@@ -162,6 +162,27 @@ function SearchScanAdvancedContent() {
       </FormGroup>
 
       <FormGroup
+        label={tS('automation_page.search_order')}
+        hint={tS('automation_page.search_order_hint')}
+        htmlFor="wanted-search-order"
+        advanced
+        data-testid="form-group-wanted-search-order"
+      >
+        <select
+          id="wanted-search-order"
+          data-testid="input-wanted-search-order"
+          style={{ ...inputStyle, maxWidth: '320px' }}
+          value={strVal(config, 'wanted_search_order', 'fair')}
+          onChange={(e) => save({ wanted_search_order: e.target.value })}
+          disabled={updateConfig.isPending}
+        >
+          <option value="fair">{tS('automation_page.order_fair')}</option>
+          <option value="newest_first">{tS('automation_page.order_newest_first')}</option>
+          <option value="weighted">{tS('automation_page.order_weighted')}</option>
+        </select>
+      </FormGroup>
+
+      <FormGroup
         label={tS('automation_page.adaptive_backoff')}
         hint={tS('automation_page.adaptive_backoff_hint')}
         advanced
@@ -595,7 +616,7 @@ export function AutomationSettings() {
           )}
           icon={<Search size={16} style={{ color: 'var(--accent)' }} />}
           advanced={<SearchScanAdvancedContent />}
-          advancedCount={8}
+          advancedCount={9}
         >
           <SearchScanContent />
         </SettingsSection>

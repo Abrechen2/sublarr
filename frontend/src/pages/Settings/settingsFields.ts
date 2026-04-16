@@ -147,6 +147,9 @@ export const FIELDS: FieldConfig[] = [
   { key: 'wanted_search_max_items_per_run', label: 'Max Items per Search Run', type: 'number', placeholder: '50', tab: 'Automation',
     description: 'Maximale Anzahl Einträge pro automatischem Suchlauf.',
     advanced: true },
+  { key: 'wanted_search_order', label: 'Search Order (fair/newest_first/weighted)', type: 'text', placeholder: 'fair', tab: 'Automation',
+    description: 'Reihenfolge in der der Auto-Scheduler die Warteschlange abarbeitet.',
+    advanced: true },
   // Wanted
   { key: 'wanted_scan_interval_hours', label: 'Scan Interval (hours, 0=disabled)', type: 'number', placeholder: '6', tab: 'Wanted',
     description: 'Wie oft die Medienbibliothek auf fehlende Untertitel geprüft wird.',
