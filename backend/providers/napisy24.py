@@ -12,6 +12,7 @@ License: GPL-3.0
 import hashlib
 import logging
 import os
+from typing import ClassVar
 
 from werkzeug.utils import secure_filename as _secure_filename
 
@@ -62,6 +63,11 @@ class Napisy24Provider(SubtitleProvider):
     """Napisy24 subtitle provider -- hash-based POST API for Polish subtitles."""
 
     name = "napisy24"
+
+    # Polish DB with modest free tier — hash-based queries are cheap so 400/day is fine.
+    rate_limits: ClassVar[dict[str, dict[str, int]]] = {
+        "free": {"second": 1, "hour": 40, "day": 400},
+    }
     languages = {"pl"}
 
     # Plugin system attributes

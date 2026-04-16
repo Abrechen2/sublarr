@@ -10,6 +10,7 @@ License:  GPL-3.0
 """
 
 import logging
+from typing import ClassVar
 
 from archive_utils import extract_subtitles_from_zip
 
@@ -92,6 +93,11 @@ class TVSubtitlesProvider(SubtitleProvider):
     """
 
     name = "tvsubtitles"
+
+    # HTML scraper — upstream tolerates ~15 req/60s, budget below that.
+    rate_limits: ClassVar[dict[str, dict[str, int]]] = {
+        "free": {"second": 1, "hour": 40, "day": 400},
+    }
     languages = set(_LANG_NAMES.keys())
     config_fields = []
     rate_limit = (15, 60)

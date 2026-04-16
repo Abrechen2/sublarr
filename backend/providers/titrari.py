@@ -12,6 +12,7 @@ License: GPL-3.0
 import logging
 import os
 import re
+from typing import ClassVar
 from urllib.parse import urljoin
 
 from archive_utils import extract_subtitles_from_rar, extract_subtitles_from_zip
@@ -120,6 +121,11 @@ class TitrariProvider(SubtitleProvider):
     """Titrari subtitle provider — Romanian subtitles via HTML scraping."""
 
     name = "titrari"
+
+    # HTML scraper, no official limit — stay polite to avoid IP bans.
+    rate_limits: ClassVar[dict[str, dict[str, int]]] = {
+        "free": {"second": 1, "hour": 30, "day": 300},
+    }
     languages = {"ro"}
 
     # Plugin system attributes

@@ -13,6 +13,7 @@ License: GPL-3.0
 import logging
 import os
 import time
+from typing import ClassVar
 
 from providers import register_provider
 from providers.base import (
@@ -45,6 +46,11 @@ class GestdownProvider(SubtitleProvider):
     """
 
     name = "gestdown"
+
+    # Community-hosted REST API — respect with conservative self-imposed limits.
+    rate_limits: ClassVar[dict[str, dict[str, int]]] = {
+        "free": {"second": 1, "hour": 30, "day": 300},
+    }
     languages = {
         "en",
         "de",

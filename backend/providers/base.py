@@ -10,6 +10,7 @@ License: GPL-3.0 (compatible with Bazarr source)
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import ClassVar
 
 
 class ProviderError(Exception):
@@ -368,6 +369,15 @@ class SubtitleProvider(ABC):
     timeout: int = 30
     max_retries: int = 2
     is_plugin: bool = False
+
+    # Budget-gate metadata (consumed by services.provider_budget.ProviderBudgetManager).
+    # Subclasses SHOULD override with provider-specific limits per tier; the default
+    # here is deliberately conservative so an un-updated provider still gets throttled
+    # rather than hammering an external API unbounded.
+    # Format: {"<tier>": {"second": int, "hour": int, "day": int}, ...}
+    rate_limits: ClassVar[dict[str, dict[str, int]]] = {
+        "free": {"second": 1, "hour": 60, "day": 500},
+    }
 
     def __init__(self, **config):
         self.config = config

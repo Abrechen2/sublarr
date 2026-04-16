@@ -10,6 +10,7 @@ License: GPL-3.0
 import contextlib
 import logging
 import os
+from typing import ClassVar
 
 from werkzeug.utils import secure_filename as _secure_filename
 
@@ -87,6 +88,15 @@ class OpenSubtitlesProvider(SubtitleProvider):
     """OpenSubtitles.com REST API v2 provider."""
 
     name = "opensubtitles"
+
+    # Free tier caps at 1000 downloads/day, 5 req/sec. VIP tiers are documented at
+    # https://www.opensubtitles.com/vip — we cap a bit below the hard limit to
+    # leave headroom for concurrent manual searches.
+    rate_limits: ClassVar[dict[str, dict[str, int]]] = {
+        "free": {"second": 5, "hour": 200, "day": 1000},
+        "vip": {"second": 10, "hour": 1000, "day": 10000},
+        "vip+": {"second": 20, "hour": 5000, "day": 100000},
+    }
     languages = {
         "en",
         "de",

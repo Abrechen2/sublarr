@@ -10,6 +10,7 @@ License:  GPL-3.0
 """
 
 import logging
+from typing import ClassVar
 
 from archive_utils import extract_subtitles_from_zip
 
@@ -109,6 +110,11 @@ class SubsceneProvider(SubtitleProvider):
     """
 
     name = "subscene"
+
+    # Site actively blocks aggressive scrapers — conservative default.
+    rate_limits: ClassVar[dict[str, dict[str, int]]] = {
+        "free": {"second": 1, "hour": 30, "day": 300},
+    }
     languages = set(_LANG_NAMES.keys())
     config_fields = []
     rate_limit = (10, 60)

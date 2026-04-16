@@ -11,6 +11,7 @@ License: GPL-3.0
 import logging
 import os
 import re
+from typing import ClassVar
 
 from archive_utils import extract_subtitles_from_zip
 from providers import register_provider
@@ -103,6 +104,13 @@ class SubDLProvider(SubtitleProvider):
     """SubDL subtitle provider (Subscene successor)."""
 
     name = "subdl"
+
+    # SubDL free tier hard-caps at 2000 downloads/day; 500 leaves generous headroom.
+    # Pro tier is effectively unthrottled — 5000 is a cushioned soft cap.
+    rate_limits: ClassVar[dict[str, dict[str, int]]] = {
+        "free": {"second": 2, "hour": 100, "day": 500},
+        "pro": {"second": 5, "hour": 500, "day": 5000},
+    }
     languages = {
         "en",
         "de",

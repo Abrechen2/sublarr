@@ -16,6 +16,7 @@ License:  GPL-3.0
 import io
 import logging
 import zipfile
+from typing import ClassVar
 
 try:
     from bs4 import BeautifulSoup
@@ -94,6 +95,12 @@ class Addic7edProvider(SubtitleProvider):
     """
 
     name = "addic7ed"
+
+    # Cloudflare-fronted — very ban-prone. Free accounts allow ~40 downloads/day,
+    # so the scraper budget stays under that to avoid 429 cascades.
+    rate_limits: ClassVar[dict[str, dict[str, int]]] = {
+        "free": {"second": 1, "hour": 20, "day": 200},
+    }
     languages = set(_LANG_NAMES.keys())
     config_fields = [
         {

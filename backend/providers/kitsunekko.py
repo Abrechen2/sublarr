@@ -12,6 +12,7 @@ License: GPL-3.0
 import logging
 import os
 import re
+from typing import ClassVar
 from urllib.parse import quote, urljoin
 
 from archive_utils import extract_subtitles_from_zip
@@ -85,6 +86,11 @@ class KitsunekkoProvider(SubtitleProvider):
     """Kitsunekko subtitle provider -- scrapes HTML directory listings for Japanese anime subs."""
 
     name = "kitsunekko"
+
+    # HTML scraper — must stay polite to avoid IP bans.
+    rate_limits: ClassVar[dict[str, dict[str, int]]] = {
+        "free": {"second": 1, "hour": 30, "day": 300},
+    }
     languages = {"ja"}
 
     # Plugin system attributes

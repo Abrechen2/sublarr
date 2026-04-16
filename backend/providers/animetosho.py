@@ -11,6 +11,7 @@ import logging
 import lzma
 import os
 import re
+from typing import ClassVar
 
 from archive_utils import _MAX_EXTRACTED_BYTES, extract_subtitles_from_zip
 from providers import register_provider
@@ -101,6 +102,13 @@ class AnimeToshoProvider(SubtitleProvider):
     """AnimeTosho subtitle provider."""
 
     name = "animetosho"
+
+    # AnimeTosho has no published limit, but each search triggers 2 API calls
+    # (search feed + torrent detail per entry) so we keep the per-second bound low.
+    # 10000/day is a conservative self-imposed ceiling — well above typical usage.
+    rate_limits: ClassVar[dict[str, dict[str, int]]] = {
+        "free": {"second": 3, "hour": 500, "day": 10000},
+    }
     languages = {
         "en",
         "ja",
