@@ -220,6 +220,18 @@ def run_wanted_search(
     # Filter by backoff / cooldown
     eligible = _filter_eligible(items, settings)
 
+    # Phase 4a: min-per-day prefix — must-include items that survive the backlog gate.
+    try:
+        min_prefix = _collect_min_attempts_items()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("min_attempts prefix failed (non-blocking): %s", exc)
+        min_prefix = []
+    if min_prefix:
+        seen = {i["id"] for i in min_prefix}
+        eligible = min_prefix + [i for i in eligible if i["id"] not in seen]
+    else:
+        seen = set()
+
     # Phase 3: drop backlog items when any provider is >N% spent. Best-effort —
     # if any part of the lookup fails we keep the original list.
     if eligible:
@@ -240,7 +252,9 @@ def run_wanted_search(
                 1,
                 min(100, int(getattr(settings, "wanted_scheduler_backlog_reserve_pct", 50))),
             )
-            eligible = _apply_backlog_reserve_gate(eligible, budget_states, reserve_pct)
+            eligible = _apply_backlog_reserve_gate(
+                eligible, budget_states, reserve_pct, exempt_ids=seen
+            )
         except Exception as _bge:  # noqa: BLE001
             logger.warning("backlog reserve gate failed (non-blocking): %s", _bge)
 
@@ -366,12 +380,17 @@ def _apply_backlog_reserve_gate(
     items: list[dict],
     budget_states: list[dict],
     reserve_pct: int,
+    exempt_ids: set[int] | None = None,
 ) -> list[dict]:
     """Drop ``priority == 'backlog'`` items when any provider is above reserve_pct.
 
     Each ``budget_states`` entry is a dict with ``usage.day`` and ``limits.day``
     (matching the shape returned by ``/api/v1/system/budget``). Providers with
     missing/zero day limit contribute ratio 0.
+
+    ``exempt_ids`` is a set of item ids that should bypass the backlog gate —
+    used by the Phase 4a min-per-day prefix so quota items survive even when a
+    provider is above the reserve threshold.
     """
 
     def _ratio(state: dict) -> float:
@@ -385,7 +404,106 @@ def _apply_backlog_reserve_gate(
     threshold = reserve_pct / 100.0
     if max_ratio < threshold:
         return items
-    return [i for i in items if (i.get("priority") or "standard") != "backlog"]
+    return [
+        i
+        for i in items
+        if (exempt_ids and i.get("id") in exempt_ids)
+        or (i.get("priority") or "standard") != "backlog"
+    ]
+
+
+def _series_min_attempts_config() -> dict[int, int]:
+    """Return ``{sonarr_series_id: min_attempts_per_day}`` for series with min > 0."""
+    from sqlalchemy import select as _select
+
+    from db.models.core import SeriesSettings
+    from extensions import db as _db
+
+    try:
+        rows = _db.session.execute(
+            _select(
+                SeriesSettings.sonarr_series_id,
+                SeriesSettings.min_attempts_per_day,
+            ).where(SeriesSettings.min_attempts_per_day > 0)
+        ).all()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("series_min_attempts_config fetch failed: %s", exc)
+        return {}
+    return {sid: count for sid, count in rows}
+
+
+def _series_searches_today(series_ids: list[int]) -> dict[int, int]:
+    """Count wanted_item searches performed today per series.
+
+    Defined as rows with ``last_search_at`` within the current UTC day.
+    """
+    from datetime import UTC, datetime
+
+    from sqlalchemy import func as _func
+    from sqlalchemy import select as _select
+
+    from db.models.core import WantedItem
+    from extensions import db as _db
+
+    if not series_ids:
+        return {}
+    day_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    try:
+        rows = _db.session.execute(
+            _select(
+                WantedItem.sonarr_series_id,
+                _func.count(WantedItem.id),
+            )
+            .where(
+                WantedItem.sonarr_series_id.in_(series_ids),
+                WantedItem.last_search_at >= day_start,
+            )
+            .group_by(WantedItem.sonarr_series_id)
+        ).all()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("series_searches_today fetch failed: %s", exc)
+        return {}
+    return {sid: count for sid, count in rows}
+
+
+def _wanted_items_by_series(series_ids: list[int]) -> dict[int, list[dict]]:
+    """Return ``{series_id: [wanted_item_dict, ...]}`` ordered by oldest-searched first."""
+    from db.repositories.wanted import WantedRepository
+
+    if not series_ids:
+        return {}
+    repo = WantedRepository()
+    out: dict[int, list[dict]] = {}
+    for sid in series_ids:
+        items = repo.get_wanted_by_series(sid)
+        items.sort(
+            key=lambda it: (
+                it.get("last_search_at") or "",  # NULLs first
+                it.get("search_count", 0),
+            )
+        )
+        out[sid] = items
+    return out
+
+
+def _collect_min_attempts_items() -> list[dict]:
+    """Collect wanted items that must be included this tick to honor
+    ``series_settings.min_attempts_per_day``. Items are prefixed to the
+    eligible list by the caller and survive the backlog-reserve gate."""
+    config = _series_min_attempts_config()
+    if not config:
+        return []
+    series_ids = list(config.keys())
+    already = _series_searches_today(series_ids)
+    by_series = _wanted_items_by_series(series_ids)
+    out: list[dict] = []
+    for sid, min_n in config.items():
+        remaining = max(0, min_n - already.get(sid, 0))
+        if remaining <= 0:
+            continue
+        items = by_series.get(sid, [])
+        out.extend(items[:remaining])
+    return out
 
 
 def _filter_eligible(items: list[dict], settings) -> list[dict]:

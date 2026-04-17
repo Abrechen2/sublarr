@@ -36,3 +36,13 @@ def test_missing_day_limit_treated_as_zero_usage():
     budget_states = [{"usage": {}, "limits": {}}]
     result = _apply_backlog_reserve_gate(items, budget_states, reserve_pct=50)
     assert [i["id"] for i in result] == [3]
+
+
+def test_min_prefix_items_survive_backlog_gate():
+    items = [
+        {"id": 10, "priority": "backlog"},  # normally dropped
+        {"id": 20, "priority": "premium"},
+    ]
+    budget_states = [{"usage": {"day": 600}, "limits": {"day": 1000}}]  # above 50%
+    result = _apply_backlog_reserve_gate(items, budget_states, reserve_pct=50, exempt_ids={10})
+    assert [i["id"] for i in result] == [10, 20]

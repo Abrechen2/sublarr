@@ -568,6 +568,20 @@ class WantedRepository(BaseRepository):
         rows = self.session.execute(stmt).scalars().all()
         return [self._row_to_wanted(r) for r in rows]
 
+    def get_wanted_by_series(self, sonarr_series_id: int) -> list[dict]:
+        """Return all wanted-status items for a Sonarr series id."""
+        rows = (
+            self.session.execute(
+                select(WantedItem).where(
+                    WantedItem.status == "wanted",
+                    WantedItem.sonarr_series_id == sonarr_series_id,
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return [self._row_to_wanted(r) for r in rows]
+
     def get_wanted_for_movie(self, radarr_movie_id: int) -> list:
         """Get all wanted items for a specific movie."""
         stmt = select(WantedItem).where(WantedItem.radarr_movie_id == radarr_movie_id)
