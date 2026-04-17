@@ -44,4 +44,5 @@ def test_record_429_swallows_persistence_error():
         mgr.record_429("opensubtitles", BudgetWindow.DAY, configured_limit=1000, now=now)
     # Fall-back behaviour: factor is reduced in memory only so the next
     # check() still throttles the provider even without a persisted row.
-    assert mgr._factors[("opensubtitles", "day")] == pytest.approx(0.9)
+    # Decay is 0.9x from the initial factor of 1.0
+    assert mgr._factors[("opensubtitles", "day")] == pytest.approx(1.0 * 0.9)

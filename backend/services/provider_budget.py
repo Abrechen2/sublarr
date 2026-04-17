@@ -261,26 +261,35 @@ class ProviderBudgetManager:
         """
         if now is None:
             now = datetime.now(UTC)
+        if (
+            observed_limit is not None
+            and configured_limit > 0
+            and observed_limit >= configured_limit
+        ):
+            # Implausible value — a provider reporting an observed limit at or above the
+            # configured limit is almost certainly a header parsing mishap. Drop it so
+            # we don't persist nonsense.
+            observed_limit = None
         key = (provider, window.value)
-        current = self._factors.get(key, 1.0)
-        fallback_factor = max(0.1, current * 0.9)
-        try:
-            new_factor = _persist_429(
-                provider=provider,
-                window=window,
-                configured_limit=configured_limit,
-                observed_limit=observed_limit,
-                now=now,
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(
-                "record_429 persistence failed for %s/%s (using in-memory fallback): %s",
-                provider,
-                window.value,
-                exc,
-            )
-            new_factor = fallback_factor
         with self._lock:
+            current = self._factors.get(key, 1.0)
+            fallback_factor = max(0.1, current * 0.9)
+            try:
+                new_factor = _persist_429(
+                    provider=provider,
+                    window=window,
+                    configured_limit=configured_limit,
+                    observed_limit=observed_limit,
+                    now=now,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "record_429 persistence failed for %s/%s (using in-memory fallback): %s",
+                    provider,
+                    window.value,
+                    exc,
+                )
+                new_factor = fallback_factor
             self._factors[key] = new_factor
         try:
             _emit_event(
@@ -293,7 +302,7 @@ class ProviderBudgetManager:
                 },
             )
         except Exception as exc:  # noqa: BLE001
-            logger.debug("provider_state_changed emit failed: %s", exc)
+            logger.info("provider_state_changed emit failed: %s", exc)
         return new_factor
 
     # ── Internals ─────────────────────────────────────────────────────────
@@ -449,7 +458,13 @@ def _try_get_safety_margin() -> int:
         return 20
 
 
-def _persist_429(provider, window, configured_limit, observed_limit, now) -> float:
+def _persist_429(
+    provider: str,
+    window: BudgetWindow,
+    configured_limit: int,
+    observed_limit: int | None,
+    now: datetime,
+) -> float:
     """Thin wrapper around the repo. Returns the NEW adjustment_factor.
 
     Wrapped so tests can patch it with MagicMock without needing a DB session.
@@ -461,7 +476,7 @@ def _persist_429(provider, window, configured_limit, observed_limit, now) -> flo
 
     return ProviderLearnedLimitsRepository().upsert_on_429(
         provider=provider,
-        window=window.value if hasattr(window, "value") else window,
+        window=window.value,
         configured_limit=configured_limit,
         observed_limit=observed_limit,
         now=now,
