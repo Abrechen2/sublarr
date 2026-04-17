@@ -354,6 +354,11 @@ class SubDLProvider(SubtitleProvider):
                 )
                 results.append(result)
 
+        except (ProviderRateLimitError, ProviderAuthError):
+            # Re-raise: the coordinator's rate-limit handler + Phase 3 learning
+            # need to see these. Swallowing them here hides the 429 from the
+            # budget manager and keeps us hammering the endpoint.
+            raise
         except Exception as e:
             logger.error("SubDL search error: %s", e, exc_info=True)
 

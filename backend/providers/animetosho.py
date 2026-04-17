@@ -16,6 +16,8 @@ from typing import ClassVar
 from archive_utils import _MAX_EXTRACTED_BYTES, extract_subtitles_from_zip
 from providers import register_provider
 from providers.base import (
+    ProviderAuthError,
+    ProviderRateLimitError,
     SubtitleFormat,
     SubtitleProvider,
     SubtitleResult,
@@ -254,6 +256,11 @@ class AnimeToshoProvider(SubtitleProvider):
                 entry_results = self._process_entry(entry, query)
                 results.extend(entry_results)
 
+        except (ProviderRateLimitError, ProviderAuthError):
+            # Re-raise: the coordinator's rate-limit handler + Phase 3 learning
+            # need to see these. Swallowing them here hides the 429 from the
+            # budget manager and keeps us hammering the endpoint.
+            raise
         except Exception as e:
             logger.error("AnimeTosho search error: %s", e, exc_info=True)
 

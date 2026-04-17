@@ -18,7 +18,9 @@ from urllib.parse import urljoin
 from archive_utils import extract_subtitles_from_rar, extract_subtitles_from_zip
 from providers import register_provider
 from providers.base import (
+    ProviderAuthError,
     ProviderError,
+    ProviderRateLimitError,
     SubtitleFormat,
     SubtitleProvider,
     SubtitleResult,
@@ -229,6 +231,11 @@ class TitrariProvider(SubtitleProvider):
 
             return self._parse_search_results(resp.text, query)
 
+        except (ProviderRateLimitError, ProviderAuthError):
+            # Re-raise: the coordinator's rate-limit handler + Phase 3 learning
+            # need to see these. Swallowing them here hides the 429 from the
+            # budget manager and keeps us hammering the endpoint.
+            raise
         except ProviderError:
             raise
         except Exception as e:
