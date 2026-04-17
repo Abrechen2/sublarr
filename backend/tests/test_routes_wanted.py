@@ -20,8 +20,10 @@ def _insert_wanted_item(client_app, title="Test Episode", status="wanted"):
         db.execute(
             text(
                 "INSERT INTO wanted_items"
-                " (title, file_path, item_type, target_language, status, added_at, updated_at)"
-                " VALUES (:t, :fp, 'episode', 'de', :s, datetime('now'), datetime('now'))"
+                " (title, file_path, item_type, target_language, status, priority,"
+                "  error_count, added_at, updated_at)"
+                " VALUES (:t, :fp, 'episode', 'de', :s, 'standard',"
+                "  0, datetime('now'), datetime('now'))"
             ),
             {"t": title, "fp": "/media/ep.mkv", "s": status},
         )

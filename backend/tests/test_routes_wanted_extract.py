@@ -63,9 +63,9 @@ def _insert_wanted(app, title="Ep", file_path=_FAKE_MKV, existing_sub="", status
             text(
                 "INSERT INTO wanted_items"
                 " (title, file_path, item_type, target_language, status,"
-                "  existing_sub, added_at, updated_at)"
-                " VALUES (:t, :fp, 'episode', 'de', :s, :es,"
-                "  datetime('now'), datetime('now'))"
+                "  priority, error_count, existing_sub, added_at, updated_at)"
+                " VALUES (:t, :fp, 'episode', 'de', :s,"
+                "  'standard', 0, :es, datetime('now'), datetime('now'))"
             ),
             {"t": title, "fp": file_path, "s": status, "es": existing_sub},
         )
