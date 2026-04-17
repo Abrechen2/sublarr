@@ -19,10 +19,26 @@ _TIER_RANK = {"vip+": 2, "vip": 1, "free": 0}
 
 
 def _aggregate_tier(keys: list[dict]) -> str:
-    """Highest-tier among enabled keys (vip+ > vip > free). Default 'free' on empty."""
+    """Highest-tier among enabled keys (vip+ > vip > free). Default 'free' on empty.
+
+    Logs a warning when a key's tier is not in ``_TIER_RANK`` — it'll silently
+    sort as 0 which may silently hide pool misconfiguration.
+    """
     if not keys:
         return "free"
-    return max(keys, key=lambda k: _TIER_RANK.get(k["tier"], 0))["tier"]
+
+    def _rank(k: dict) -> int:
+        r = _TIER_RANK.get(k["tier"])
+        if r is None:
+            logger.warning(
+                "unknown tier %r for pool key id=%s — ranking as 0",
+                k["tier"],
+                k.get("id"),
+            )
+            return 0
+        return r
+
+    return max(keys, key=_rank)["tier"]
 
 
 def _aggregate_limits(keys: list[dict], rate_limits: dict) -> dict:
@@ -80,8 +96,14 @@ def get_budget_state():
     for name in sorted(mgr._providers.keys()):
         provider = mgr._providers[name]
         rate_limits = getattr(type(provider), "rate_limits", None) or {}
+        # TODO: batch into a single `SELECT * FROM provider_account_pools
+        # WHERE enabled=true` grouped client-side if this endpoint becomes
+        # poll-heavy (Phase 4a is dashboard-only, N=~10 acceptable).
         pool_rows = ProviderAccountPoolRepository().get_enabled_for(name)
         per_key = budget.get_usage_per_key(name)
+        # NOTE: outer `tier` is the HIGHEST enabled key's tier (for the badge).
+        # `limits` is the SUM across all keys (including lower-tier ones). UI
+        # consumers must read `limits` for budget math, not infer from `tier`.
         if pool_rows:
             tier = _aggregate_tier(pool_rows)
             limits = _aggregate_limits(pool_rows, rate_limits)
