@@ -39,7 +39,10 @@ class KeySelector:
             cached = self._cache.get(provider)
             if cached is not None and now - cached[1] < _CACHE_TTL:
                 return cached[0]
-        # Out of lock for the DB read (may be slow).
+        # Intentional: two concurrent misses may both query the DB. The second
+        # write is equivalent (same enabled rows) and cheaper than holding the
+        # lock during the DB read — which would serialize all cache-miss
+        # traffic onto a single DB thread.
         rows = ProviderAccountPoolRepository().get_enabled_for(provider)
         with self._lock:
             self._cache[provider] = (rows, now)
@@ -50,7 +53,7 @@ class KeySelector:
         provider: str,
         *,
         provider_rate_limits: dict[str, dict[str, int]],
-        retry_after_seconds: int = 60,
+        retry_after_seconds: int = 60,  # default until Task 5 surfaces the real value from ProviderRateLimitError
         now: datetime | None = None,
     ) -> dict | None:
         if now is None:
@@ -76,7 +79,7 @@ class KeySelector:
             )
             day_limit = tier_limits.get("day", 0)
             used = usage_per_key.get(row["id"], {}).get("day", 0)
-            return day_limit - used
+            return max(0, day_limit - used)
 
         return max(fresh, key=remaining)
 

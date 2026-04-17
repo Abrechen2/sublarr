@@ -129,3 +129,19 @@ def test_invalidate_forces_refresh():
         sel.invalidate("os")
         sel.pick("os", provider_rate_limits={"free": {"day": 200}})
     assert MockRepo.return_value.get_enabled_for.call_count == 2
+
+
+def test_cache_expires_after_ttl():
+    sel = KeySelector()
+    rows = [_row()]
+    t0 = datetime(2026, 4, 17, 12, 0, tzinfo=UTC)
+    t1 = t0 + timedelta(seconds=61)  # past the 60s TTL
+    with (
+        patch("services.key_selector.ProviderAccountPoolRepository") as MockRepo,
+        patch("services.key_selector.get_budget_manager") as bm_mock,
+    ):
+        MockRepo.return_value.get_enabled_for.return_value = rows
+        bm_mock.return_value.get_usage_per_key.return_value = {}
+        sel.pick("os", provider_rate_limits={"free": {"day": 200}}, now=t0)
+        sel.pick("os", provider_rate_limits={"free": {"day": 200}}, now=t1)
+    assert MockRepo.return_value.get_enabled_for.call_count == 2
