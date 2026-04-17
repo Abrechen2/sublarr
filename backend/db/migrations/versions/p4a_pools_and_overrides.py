@@ -67,10 +67,16 @@ def upgrade() -> None:
             )
 
     # Data backfill: one pool row per configured provider.
-    existing = bind.execute(sa.text("SELECT provider_name FROM provider_account_pools")).fetchall()
-    if existing:
-        return  # idempotent — already seeded
+    seeded = {
+        r[0]
+        for r in bind.execute(
+            sa.text("SELECT provider_name FROM provider_account_pools")
+        ).fetchall()
+    }
 
+    # Only providers that authenticate with an API key credential. Others
+    # (addic7ed, animetosho, gestdown, kitsunekko, napisy24, subscene, titrari,
+    # tvsubtitles) do not need a pool row — they use public / unauthenticated APIs.
     provider_map = [
         (
             "opensubtitles",
@@ -95,6 +101,8 @@ def upgrade() -> None:
     ]
     now = datetime.now(UTC)
     for provider, key_field, user_field, pass_field in provider_map:
+        if provider in seeded:
+            continue
         api_key = _read_config(bind, key_field)
         if not api_key:
             continue
@@ -107,9 +115,17 @@ def upgrade() -> None:
                 "INSERT INTO provider_account_pools "
                 "(provider_name, account_label, api_key, username, password, tier, "
                 " enabled, created_at) "
-                "VALUES (:p, 'primary', :k, :u, :pw, :t, 1, :now)"
+                "VALUES (:p, 'primary', :k, :u, :pw, :t, :enabled, :now)"
             ),
-            {"p": provider, "k": api_key, "u": username, "pw": password, "t": tier, "now": now},
+            {
+                "p": provider,
+                "k": api_key,
+                "u": username,
+                "pw": password,
+                "t": tier,
+                "enabled": True,
+                "now": now,
+            },
         )
 
 
