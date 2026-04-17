@@ -243,3 +243,21 @@ class TestRecord429Hook:
         manager.search(_make_query())
 
         budget_allows.record_429.assert_not_called()
+
+    def test_missing_window_limit_skips_record_429(self, app_ctx, monkeypatch, budget_allows):
+        """When rate_limits[tier] has no matching window, record_429 must not fire."""
+        # vip tier has "day" but no "second"; retry_after=60 classifies as SECOND.
+        vip_limits = {"vip": {"day": 500}}
+        provider = _make_provider("vip_provider", tier="vip", rate_limits=vip_limits)
+        provider.search.side_effect = ProviderRateLimitError("too fast", retry_after=60)
+        manager = _build_manager(monkeypatch, provider)
+        monkeypatch.setattr(
+            "providers.search_coordinator.get_budget_manager", lambda: budget_allows
+        )
+        monkeypatch.setattr(
+            "db.providers.auto_disable_provider", lambda *a, **kw: None, raising=False
+        )
+
+        manager.search(_make_query())
+
+        budget_allows.record_429.assert_not_called()

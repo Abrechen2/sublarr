@@ -39,6 +39,11 @@ logger = logging.getLogger(__name__)
 # they show up in logs on first encounter (and only once per process).
 _warned_missing_limits: set[str] = set()
 
+# retry_after below this threshold is treated as a per-second burst; above, as
+# a daily quota. Covers the observed provider behaviour where short waits
+# (≤ 2 min) are transient bursts while longer waits indicate the daily window.
+_RATE_LIMIT_WINDOW_THRESHOLD_S = 120
+
 
 class SearchCoordinatorMixin:
     """Mixin providing parallel search orchestration, caching, and retry logic.
@@ -569,25 +574,31 @@ class SearchCoordinatorMixin:
                                     retry_after = getattr(e, "retry_after", 60)
                                     window = (
                                         BudgetWindow.SECOND
-                                        if retry_after <= 120
+                                        if retry_after <= _RATE_LIMIT_WINDOW_THRESHOLD_S
                                         else BudgetWindow.DAY
                                     )
                                     provider_obj = self._providers.get(name)
-                                    tier = getattr(provider_obj, "tier", "free")
-                                    rate_limits = (
-                                        getattr(type(provider_obj), "rate_limits", {}) or {}
-                                    )
-                                    limit = (
-                                        rate_limits.get(tier) or rate_limits.get("free") or {}
-                                    ).get(window.value, 0)
-                                    if limit > 0:
-                                        get_budget_manager().record_429(
+                                    if provider_obj is None:
+                                        logger.debug(
+                                            "record_429 hook: provider %s no longer registered, skipping",
                                             name,
-                                            window=window,
-                                            configured_limit=limit,
                                         )
+                                    else:
+                                        tier = getattr(provider_obj, "tier", "free")
+                                        rate_limits = (
+                                            getattr(type(provider_obj), "rate_limits", {}) or {}
+                                        )
+                                        limit = (
+                                            rate_limits.get(tier) or rate_limits.get("free") or {}
+                                        ).get(window.value, 0)
+                                        if limit > 0:
+                                            get_budget_manager().record_429(
+                                                name,
+                                                window=window,
+                                                configured_limit=limit,
+                                            )
                                 except Exception as _le:  # noqa: BLE001
-                                    logger.debug("record_429 hook failed for %s: %s", name, _le)
+                                    logger.warning("record_429 hook failed for %s: %s", name, _le)
                         update_provider_stats(name, success=False, score=0)
                         self._check_auto_disable(name)
             except FutureTimeoutError:
