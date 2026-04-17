@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 def _fake_provider(name, tier="free", rate_limits=None):
     p = MagicMock()
@@ -33,7 +35,7 @@ def test_budget_endpoint_returns_shape_for_registered_providers(client):
     names = [p["name"] for p in data["providers"]]
     assert names == sorted(names)
     for p in data["providers"]:
-        assert set(p.keys()) == {"name", "tier", "limits", "usage", "reset_seconds"}
+        assert set(p.keys()) == {"name", "tier", "limits", "usage", "reset_seconds", "learning"}
         assert set(p["reset_seconds"].keys()) == {"second", "hour", "day"}
 
 
@@ -91,3 +93,52 @@ def test_budget_endpoint_reports_disabled_flag(client):
         setattr(s, "provider_budget_enabled", original)
 
     assert resp.get_json()["enabled"] is False
+
+
+def test_budget_endpoint_returns_learning_block_per_provider(client):
+    """After a recorded 429, the endpoint surfaces the learned row for that provider."""
+    from datetime import UTC, datetime
+
+    from db.repositories.provider_learned_limits import ProviderLearnedLimitsRepository
+
+    p_os = _fake_provider("opensubtitles")
+    p_subdl = _fake_provider("subdl")
+    mgr = MagicMock()
+    mgr._providers = {"opensubtitles": p_os, "subdl": p_subdl}
+
+    now = datetime.now(UTC)
+    # Seed the learned row via the test client's app context so we share one
+    # Flask app with the endpoint call — two nested app contexts collide on
+    # teardown.
+    with client.application.app_context():
+        ProviderLearnedLimitsRepository().upsert_on_429(
+            provider="opensubtitles",
+            window="day",
+            configured_limit=1000,
+            observed_limit=None,
+            now=now,
+        )
+
+    with patch("routes.system.budget.get_provider_manager", return_value=mgr):
+        resp = client.get("/api/v1/system/budget")
+
+    assert resp.status_code == 200
+    body = resp.get_json()
+    os_row = next(p for p in body["providers"] if p["name"] == "opensubtitles")
+    assert os_row["learning"] is not None
+    assert os_row["learning"]["adjustment_factor"] == pytest.approx(0.9)
+    assert os_row["learning"]["consecutive_good_days"] == 0
+    assert os_row["learning"]["last_429_at"] is not None  # ISO string
+
+
+def test_budget_endpoint_returns_null_learning_when_no_row(client):
+    """Providers without a learned row surface learning=None."""
+    p = _fake_provider("subdl")
+    mgr = MagicMock()
+    mgr._providers = {"subdl": p}
+
+    with patch("routes.system.budget.get_provider_manager", return_value=mgr):
+        resp = client.get("/api/v1/system/budget")
+
+    body = resp.get_json()
+    assert body["providers"][0]["learning"] is None

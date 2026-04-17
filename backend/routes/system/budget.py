@@ -38,6 +38,22 @@ def get_budget_state():
     mgr = get_provider_manager()
     budget = get_budget_manager()
 
+    from db.repositories.provider_learned_limits import ProviderLearnedLimitsRepository
+
+    learned_by_provider: dict[str, dict] = {}
+    try:
+        for (provider, window), row in ProviderLearnedLimitsRepository().get_all().items():
+            # Surface the "day" window only — that is what the dashboard shows.
+            if window == "day":
+                last_429 = row.get("last_429_at")
+                learned_by_provider[provider] = {
+                    "adjustment_factor": row["adjustment_factor"],
+                    "consecutive_good_days": row["consecutive_good_days"],
+                    "last_429_at": last_429.isoformat() if last_429 else None,
+                }
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("learned-limits lookup failed (non-blocking): %s", exc)
+
     providers_out = []
     for name in sorted(mgr._providers.keys()):
         provider = mgr._providers[name]
@@ -55,6 +71,7 @@ def get_budget_state():
                 "limits": limits,
                 "usage": usage,
                 "reset_seconds": reset_seconds,
+                "learning": learned_by_provider.get(name),
             }
         )
 
