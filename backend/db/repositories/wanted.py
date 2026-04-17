@@ -27,6 +27,15 @@ _SCHEDULED_SEARCH_ORDERS = ("fair", "newest_first", "weighted")
 # preset-based and not need to pass a window parameter.
 _WEIGHTED_RECENT_DAYS = 30
 
+# Priority rank used to prefix scheduler ORDER BY clauses:
+#   premium -> 0 (highest), standard -> 1, backlog -> 2 (lowest).
+# Applied by get_items_for_scheduled_search when priority_weighting is on.
+_PRIORITY_RANK = case(
+    (WantedItem.priority == "premium", 0),
+    (WantedItem.priority == "backlog", 2),
+    else_=1,
+)
+
 
 class WantedRepository(BaseRepository):
     """Repository for wanted_items table operations."""
@@ -267,6 +276,7 @@ class WantedRepository(BaseRepository):
         self,
         limit: int,
         order: str = "fair",
+        priority_weighting: bool | None = None,
     ) -> list[dict]:
         """Return wanted items eligible for scheduler-driven search, ordered by preset.
 
@@ -275,14 +285,12 @@ class WantedRepository(BaseRepository):
 
         Args:
             limit: Max rows to return (safety cap for a single scheduler tick).
-            order: One of ``'fair'``, ``'newest_first'``, ``'weighted'``:
-                - ``'fair'`` — ``last_search_at ASC NULLS FIRST, search_count ASC``.
-                  Never-searched items first, then oldest last_search, with lowest
-                  search_count as tiebreak.
-                - ``'newest_first'`` — ``added_at DESC``. Legacy behaviour.
-                - ``'weighted'`` — two-bucket: items added within the last
-                  ``_WEIGHTED_RECENT_DAYS`` days come first, then older items. Within
-                  each bucket the order matches ``'fair'``.
+            order: One of ``'fair'``, ``'newest_first'``, ``'weighted'``.
+            priority_weighting: If True, prepend a priority rank (premium=0,
+                standard=1, backlog=2) to every preset's ORDER BY. If False, skip
+                the prefix and use the Phase 1 behaviour. When ``None`` (default),
+                read ``wanted_scheduler_priority_weighting_enabled`` from settings
+                (defaults to True).
 
         Returns:
             List of dict rows (via ``self._row_to_wanted``).
@@ -296,30 +304,50 @@ class WantedRepository(BaseRepository):
                 f"Expected one of: {', '.join(_SCHEDULED_SEARCH_ORDERS)}"
             )
 
+        if priority_weighting is None:
+            try:
+                from config import get_settings  # noqa: PLC0415
+
+                priority_weighting = bool(
+                    getattr(
+                        get_settings(),
+                        "wanted_scheduler_priority_weighting_enabled",
+                        True,
+                    )
+                )
+            except Exception:  # noqa: BLE001
+                priority_weighting = True
+
         stmt = select(WantedItem).where(WantedItem.status == "wanted")
 
+        order_clauses: list = []
+        if priority_weighting:
+            order_clauses.append(_PRIORITY_RANK.asc())
+
         if order == "newest_first":
-            stmt = stmt.order_by(desc(WantedItem.added_at))
+            order_clauses.append(desc(WantedItem.added_at))
         elif order == "fair":
-            stmt = stmt.order_by(
-                WantedItem.last_search_at.asc().nullsfirst(),
-                WantedItem.search_count.asc(),
+            order_clauses.extend(
+                [
+                    WantedItem.last_search_at.asc().nullsfirst(),
+                    WantedItem.search_count.asc(),
+                ]
             )
         else:  # weighted
             cutoff = datetime.now(UTC) - timedelta(days=_WEIGHTED_RECENT_DAYS)
-            # Bucket 0 = recent (added within the window), bucket 1 = older.
-            # case() emits a portable CASE expression on both SQLite and Postgres.
             bucket = case(
                 (WantedItem.added_at >= cutoff, 0),
                 else_=1,
             )
-            stmt = stmt.order_by(
-                bucket.asc(),
-                WantedItem.last_search_at.asc().nullsfirst(),
-                WantedItem.search_count.asc(),
+            order_clauses.extend(
+                [
+                    bucket.asc(),
+                    WantedItem.last_search_at.asc().nullsfirst(),
+                    WantedItem.search_count.asc(),
+                ]
             )
 
-        stmt = stmt.limit(limit)
+        stmt = stmt.order_by(*order_clauses).limit(limit)
         rows = self.session.execute(stmt).scalars().all()
         return [self._row_to_wanted(r) for r in rows]
 

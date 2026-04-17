@@ -217,6 +217,9 @@ class Settings(BaseSettings):
     wanted_search_on_startup: bool = True
     wanted_search_max_items_per_run: int = 500
     wanted_search_order: str = "fair"  # 'fair' | 'newest_first' | 'weighted'
+    # Prepend a priority rank (premium=0, standard=1, backlog=2) to the scheduler
+    # ORDER BY so premium items always win the first slice of the tick budget.
+    wanted_scheduler_priority_weighting_enabled: bool = True
     # Master gate for the per-provider API-budget manager. When False, the
     # search coordinator reverts to pre-V1 behaviour (no budget accounting).
     provider_budget_enabled: bool = True
