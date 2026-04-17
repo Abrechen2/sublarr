@@ -222,23 +222,27 @@ def run_wanted_search(
 
     # Phase 3: drop backlog items when any provider is >N% spent. Best-effort —
     # if any part of the lookup fails we keep the original list.
-    try:
-        from providers import get_provider_manager
-        from services.provider_budget import get_budget_manager
+    if eligible:
+        try:
+            from providers import get_provider_manager
+            from services.provider_budget import get_budget_manager
 
-        budget_mgr = get_budget_manager()
-        provider_mgr = get_provider_manager()
-        budget_states: list[dict] = []
-        for name, provider in provider_mgr._providers.items():
-            tier = getattr(provider, "tier", "free")
-            rate_limits = getattr(type(provider), "rate_limits", {}) or {}
-            limits = rate_limits.get(tier) or rate_limits.get("free") or {}
-            usage = budget_mgr.get_usage(name)
-            budget_states.append({"usage": usage, "limits": limits})
-        reserve_pct = int(getattr(settings, "wanted_scheduler_backlog_reserve_pct", 50))
-        eligible = _apply_backlog_reserve_gate(eligible, budget_states, reserve_pct)
-    except Exception as _bge:  # noqa: BLE001
-        logger.debug("backlog reserve gate failed (non-blocking): %s", _bge)
+            budget_mgr = get_budget_manager()
+            provider_mgr = get_provider_manager()
+            budget_states: list[dict] = []
+            for name, provider in provider_mgr._providers.items():
+                tier = getattr(provider, "tier", "free")
+                rate_limits = getattr(type(provider), "rate_limits", {}) or {}
+                limits = rate_limits.get(tier) or rate_limits.get("free") or {}
+                usage = budget_mgr.get_usage(name)
+                budget_states.append({"usage": usage, "limits": limits})
+            reserve_pct = max(
+                1,
+                min(100, int(getattr(settings, "wanted_scheduler_backlog_reserve_pct", 50))),
+            )
+            eligible = _apply_backlog_reserve_gate(eligible, budget_states, reserve_pct)
+        except Exception as _bge:  # noqa: BLE001
+            logger.warning("backlog reserve gate failed (non-blocking): %s", _bge)
 
     if not eligible:
         return {"total": 0, "processed": 0, "found": 0, "failed": 0, "skipped": 0}
