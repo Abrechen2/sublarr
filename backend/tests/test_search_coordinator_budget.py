@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from providers.base import SubtitleFormat, SubtitleResult, VideoQuery
+from providers.base import ProviderRateLimitError, SubtitleFormat, SubtitleResult, VideoQuery
 from services.provider_budget import BudgetDecision, ProviderBudgetManager
 
 
@@ -172,3 +172,74 @@ class TestBudgetGate:
         assert passed_name == "vip_provider"
         assert passed_limits == vip_limits["vip"]
         assert passed_limits["day"] == 10000
+
+
+class TestRecord429Hook:
+    """Phase 3: record_429 is called on ProviderRateLimitError."""
+
+    def test_rate_limit_calls_record_429_with_day_window_by_default(
+        self, app_ctx, monkeypatch, budget_allows
+    ):
+        """retry_after > 120 → window=DAY, limit from rate_limits['free']['day']."""
+        provider = _make_provider("opensubtitles")
+        provider.search.side_effect = ProviderRateLimitError("rate limited", retry_after=3600)
+        manager = _build_manager(monkeypatch, provider)
+        monkeypatch.setattr(
+            "providers.search_coordinator.get_budget_manager", lambda: budget_allows
+        )
+        # Prevent the existing throttle persistence (auto_disable_provider) from
+        # touching the DB during this test.
+        monkeypatch.setattr(
+            "db.providers.auto_disable_provider", lambda *a, **kw: None, raising=False
+        )
+
+        manager.search(_make_query())
+
+        budget_allows.record_429.assert_called_once()
+        args, kwargs = budget_allows.record_429.call_args
+        from services.provider_budget import BudgetWindow
+
+        # Positional: (provider_name,)
+        assert args[0] == "opensubtitles"
+        assert kwargs["window"] == BudgetWindow.DAY
+        assert kwargs["configured_limit"] == 1000  # rate_limits["free"]["day"] from _make_provider
+
+    def test_short_retry_after_classifies_as_second_window(
+        self, app_ctx, monkeypatch, budget_allows
+    ):
+        """retry_after <= 120 → window=SECOND, limit from rate_limits['free']['second']."""
+        provider = _make_provider("opensubtitles")
+        provider.search.side_effect = ProviderRateLimitError("too fast", retry_after=60)
+        manager = _build_manager(monkeypatch, provider)
+        monkeypatch.setattr(
+            "providers.search_coordinator.get_budget_manager", lambda: budget_allows
+        )
+        monkeypatch.setattr(
+            "db.providers.auto_disable_provider", lambda *a, **kw: None, raising=False
+        )
+
+        manager.search(_make_query())
+
+        budget_allows.record_429.assert_called_once()
+        kwargs = budget_allows.record_429.call_args.kwargs
+        from services.provider_budget import BudgetWindow
+
+        assert kwargs["window"] == BudgetWindow.SECOND
+        assert kwargs["configured_limit"] == 5  # rate_limits["free"]["second"]
+
+    def test_budget_disabled_skips_record_429(self, app_ctx, monkeypatch, budget_allows):
+        """When provider_budget_enabled=False, record_429 must not fire."""
+        provider = _make_provider("opensubtitles")
+        provider.search.side_effect = ProviderRateLimitError("rate limited", retry_after=3600)
+        manager = _build_manager(monkeypatch, provider)
+        manager.settings = manager.settings.model_copy(update={"provider_budget_enabled": False})
+        monkeypatch.setattr(
+            "providers.search_coordinator.get_budget_manager", lambda: budget_allows
+        )
+        monkeypatch.setattr(
+            "db.providers.auto_disable_provider", lambda *a, **kw: None, raising=False
+        )
+
+        manager.search(_make_query())
+
+        budget_allows.record_429.assert_not_called()

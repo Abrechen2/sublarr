@@ -560,6 +560,34 @@ class SearchCoordinatorMixin:
                                     pass
                             except Exception as _te:
                                 logger.debug("Rate-limit throttle persistence failed: %s", _te)
+                            # Phase 3 learning hook — tell the budget manager so future
+                            # calls throttle harder.
+                            if getattr(self.settings, "provider_budget_enabled", True):
+                                try:
+                                    from services.provider_budget import BudgetWindow
+
+                                    retry_after = getattr(e, "retry_after", 60)
+                                    window = (
+                                        BudgetWindow.SECOND
+                                        if retry_after <= 120
+                                        else BudgetWindow.DAY
+                                    )
+                                    provider_obj = self._providers.get(name)
+                                    tier = getattr(provider_obj, "tier", "free")
+                                    rate_limits = (
+                                        getattr(type(provider_obj), "rate_limits", {}) or {}
+                                    )
+                                    limit = (
+                                        rate_limits.get(tier) or rate_limits.get("free") or {}
+                                    ).get(window.value, 0)
+                                    if limit > 0:
+                                        get_budget_manager().record_429(
+                                            name,
+                                            window=window,
+                                            configured_limit=limit,
+                                        )
+                                except Exception as _le:  # noqa: BLE001
+                                    logger.debug("record_429 hook failed for %s: %s", name, _le)
                         update_provider_stats(name, success=False, score=0)
                         self._check_auto_disable(name)
             except FutureTimeoutError:
