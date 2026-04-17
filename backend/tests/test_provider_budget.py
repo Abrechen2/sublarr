@@ -264,3 +264,34 @@ class TestStretchMode:
         now = datetime(2026, 4, 16, 6, 0, 0, tzinfo=UTC)
         decision = mgr.check("opensubtitles", limits={"second": 5, "hour": 100}, now=now)
         assert decision.allow is True
+
+
+class TestFactorAwareEffectiveLimit:
+    """Task 2 — learned adjustment factor bends the declared limits."""
+
+    def test_effective_limit_applies_learned_factor(self):
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+        mgr._factors[("opensubtitles", "day")] = 0.5
+        assert mgr._effective_limit(1000, provider="opensubtitles", window=BudgetWindow.DAY) == 500
+
+    def test_effective_limit_default_factor_1_0(self):
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+        # No entry in _factors -> factor defaults to 1.0
+        assert mgr._effective_limit(1000, provider="opensubtitles", window=BudgetWindow.DAY) == 1000
+
+    def test_effective_limit_combines_safety_and_factor(self):
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=20)
+        mgr._factors[("opensubtitles", "day")] = 0.5
+        # 1000 * 0.5 * 0.8 = 400
+        assert mgr._effective_limit(1000, provider="opensubtitles", window=BudgetWindow.DAY) == 400
+
+    def test_check_uses_factor_aware_limit(self):
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+        mgr._factors[("opensubtitles", "day")] = 0.5
+        now = datetime(2026, 4, 16, 23, 30, 0, tzinfo=UTC)
+        day_start = window_start_for(BudgetWindow.DAY, now)
+        # Effective limit = 1000 * 0.5 = 500; pre-seed 500 used -> blocked
+        mgr._in_memory_counts[("opensubtitles", "day", day_start)] = 500
+        decision = mgr.check("opensubtitles", limits={"day": 1000}, now=now)
+        assert decision.allow is False
+        assert "day" in decision.reason

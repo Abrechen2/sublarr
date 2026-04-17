@@ -103,6 +103,11 @@ class ProviderBudgetManager:
         self._safety = max(0, min(100, safety_margin_pct))
         self._lock = Lock()
         self._in_memory_counts: dict[tuple[str, str, datetime], int] = defaultdict(int)
+        # Learned adjustment factors keyed by (provider, window_value). Loaded from
+        # provider_learned_limits on first access and refreshed after each
+        # record_429()/tick_recovery() call. Default is 1.0 for any missing entry.
+        self._factors: dict[tuple[str, str], float] = {}
+        self._factors_loaded = False
 
     # ── Public API ────────────────────────────────────────────────────────
 
@@ -132,7 +137,7 @@ class ProviderBudgetManager:
             except ValueError:
                 # Unknown window key in rate_limits — ignore defensively.
                 continue
-            effective = self._effective_limit(raw_limit)
+            effective = self._effective_limit(raw_limit, provider=provider, window=window)
             used = self._get_count(provider, window, now)
             if used >= effective:
                 return BudgetDecision(
@@ -265,10 +270,25 @@ class ProviderBudgetManager:
         except Exception as exc:  # noqa: BLE001
             logger.debug("Failed to emit provider_budget_updated: %s", exc)
 
-    def _effective_limit(self, raw: int) -> int:
-        if self._safety <= 0:
-            return raw
-        return int(raw * (100 - self._safety) / 100)
+    def _effective_limit(
+        self,
+        raw: int,
+        *,
+        provider: str | None = None,
+        window: BudgetWindow | None = None,
+    ) -> int:
+        """Return raw * factor * (100 - safety) / 100, rounded down to int.
+
+        ``provider``/``window`` are optional to preserve the old no-factor API
+        for tests that predate Phase 3 — pass them to apply learned adjustments.
+        """
+        factor = 1.0
+        if provider is not None and window is not None:
+            factor = self._factors.get((provider, window.value), 1.0)
+        scaled = raw * factor
+        if self._safety > 0:
+            scaled = scaled * (100 - self._safety) / 100
+        return max(0, int(scaled))
 
     def _key(self, provider: str, window: BudgetWindow, now: datetime) -> tuple[str, str, datetime]:
         return provider, window.value, window_start_for(window, now)
