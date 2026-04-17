@@ -97,12 +97,17 @@ def get_wanted_items(
     )
 
 
-def get_items_for_scheduled_search(limit: int, order: str = "fair") -> list[dict]:
+def get_items_for_scheduled_search(
+    limit: int,
+    order: str = "fair",
+    priority_weighting: bool | None = None,
+) -> list[dict]:
     """Return wanted items eligible for scheduler-driven search, ordered by preset.
 
     See ``WantedRepository.get_items_for_scheduled_search`` for full contract.
+    When ``priority_weighting`` is ``None`` the repo reads the settings flag.
     """
-    return _get_repo().get_items_for_scheduled_search(limit, order)
+    return _get_repo().get_items_for_scheduled_search(limit, order, priority_weighting)
 
 
 def get_wanted_item(item_id: int) -> dict | None:
