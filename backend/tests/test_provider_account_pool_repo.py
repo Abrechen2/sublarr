@@ -69,6 +69,15 @@ class TestRepoCRUD:
         repo.delete(row_id)
         assert repo.get(row_id) is None
 
+    def test_update_unknown_id_returns_false(self, app_ctx):
+        repo = ProviderAccountPoolRepository()
+        assert repo.update(99999, tier="vip") is False
+
+    def test_update_known_id_returns_true(self, app_ctx):
+        repo = ProviderAccountPoolRepository()
+        row_id = repo.add(provider="subdl", label="primary", api_key="k", tier="free")
+        assert repo.update(row_id, tier="pro") is True
+
 
 class TestRepoGetEnabledFor:
     def test_returns_only_enabled(self, app_ctx):

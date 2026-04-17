@@ -1,4 +1,12 @@
-"""CRUD + helpers for the provider_account_pools table (Phase 4a)."""
+"""CRUD + runtime helpers for the ``provider_account_pools`` table.
+
+Each row represents one API key / credential set for a provider. The KeySelector
+uses ``get_enabled_for`` to rotate across accounts. ``mark_429`` and ``mark_used``
+track per-key usage metadata.
+
+All reads and writes against ``provider_account_pools`` must go through this
+repository — direct SQL against the table is a contract violation.
+"""
 
 from __future__ import annotations
 
@@ -13,7 +21,7 @@ from db.repositories.base import BaseRepository
 logger = logging.getLogger(__name__)
 
 
-def _as_utc(value):
+def _as_utc(value: datetime | None) -> datetime | None:
     if value is None:
         return None
     if getattr(value, "tzinfo", None) is None:
@@ -90,7 +98,10 @@ class ProviderAccountPoolRepository(BaseRepository):
         )
         return [self._row_to_dict(r) for r in rows]
 
-    def update(self, row_id: int, **fields) -> None:
+    def update(self, row_id: int, **fields) -> bool:
+        """Update ``row_id`` with ``fields``. Returns True when a row was updated,
+        False when ``row_id`` didn't exist. Raises ValueError for unknown fields.
+        """
         allowed = {
             "account_label",
             "api_key",
@@ -104,10 +115,11 @@ class ProviderAccountPoolRepository(BaseRepository):
             raise ValueError(f"Unknown fields: {sorted(unknown)}")
         row = self.session.get(ProviderAccountPool, row_id)
         if row is None:
-            return
+            return False
         for k, v in fields.items():
             setattr(row, k, v)
         self.session.commit()
+        return True
 
     def delete(self, row_id: int) -> None:
         row = self.session.get(ProviderAccountPool, row_id)
