@@ -29,6 +29,7 @@ from providers.base import (
     VideoQuery,
     compute_score,
 )
+from services.key_selector import get_key_selector
 from services.provider_budget import get_budget_manager
 
 logger = logging.getLogger(__name__)
@@ -373,8 +374,13 @@ class SearchCoordinatorMixin:
         # daemon threads without blocking the response.
         executor = ThreadPoolExecutor(max_workers=max(1, len(self._providers)))
         try:
-            futures = {}
+            futures: dict = {}
+            # Phase 4a: track which key_id each future used so the rate-limit
+            # handler can call mark_429(key_id) later.
+            futures_to_key: dict = {}
             for name, provider in self._providers.items():
+                # Reset per-iteration key tracking (Phase 4a).
+                key: dict | None = None
                 # Check auto-disable status
                 if is_provider_auto_disabled(name):
                     logger.debug("Skipping provider %s -- auto-disabled", name)
@@ -429,7 +435,42 @@ class SearchCoordinatorMixin:
                                 decision.wait_seconds,
                             )
                             continue
-                        budget.consume(name)
+
+                        # Phase 4a: pick a key from the pool before we commit the call.
+                        key = get_key_selector().pick(
+                            name,
+                            provider_rate_limits=rate_limits
+                            if isinstance(rate_limits, dict)
+                            else {},
+                        )
+                        if key is None:
+                            logger.info(
+                                "%s: no usable key in pool (all exhausted or 429-cooling); skip",
+                                name,
+                            )
+                            continue
+
+                        # Inject credentials onto the provider instance for this call.
+                        provider.api_key = key["api_key"]
+                        if key.get("username"):
+                            provider.username = key["username"]
+                        if key.get("password"):
+                            provider.password = key["password"]
+
+                        budget.consume(name, key_id=key["id"])
+                        try:
+                            from db.repositories.provider_account_pool import (
+                                ProviderAccountPoolRepository,
+                            )
+
+                            ProviderAccountPoolRepository().mark_used(key["id"])
+                        except Exception as _pe:  # noqa: BLE001
+                            logger.debug(
+                                "mark_used failed for %s key_id=%s: %s",
+                                name,
+                                key["id"],
+                                _pe,
+                            )
 
                 # Submit search task — refund budget if submit fails synchronously
                 # (e.g. executor shut down, memory pressure). Without the refund the
@@ -439,6 +480,10 @@ class SearchCoordinatorMixin:
                         self._search_provider_with_retry, name, provider, query
                     )
                     futures[future] = name
+                    # Phase 4a: track the key_id used for this future (if any),
+                    # so the rate-limit handler can mark_429 on the right row.
+                    if key is not None:
+                        futures_to_key[future] = key["id"]
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("submit failed for %s: %s -- refunding budget", name, exc)
                     if getattr(self.settings, "provider_budget_enabled", True):
@@ -599,6 +644,19 @@ class SearchCoordinatorMixin:
                                             )
                                 except Exception as _le:  # noqa: BLE001
                                     logger.warning("record_429 hook failed for %s: %s", name, _le)
+                            # Phase 4a: per-key 429 cooldown — mark the pool row
+                            # used for this call so KeySelector skips it until the
+                            # retry_after window elapses.
+                            try:
+                                key_id = futures_to_key.get(future)
+                                if key_id is not None:
+                                    from db.repositories.provider_account_pool import (
+                                        ProviderAccountPoolRepository,
+                                    )
+
+                                    ProviderAccountPoolRepository().mark_429(key_id)
+                            except Exception as _mke:  # noqa: BLE001
+                                logger.warning("mark_429 failed for %s: %s", name, _mke)
                         update_provider_stats(name, success=False, score=0)
                         self._check_auto_disable(name)
             except FutureTimeoutError:

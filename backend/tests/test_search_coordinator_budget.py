@@ -126,11 +126,20 @@ class TestBudgetGate:
         monkeypatch.setattr(
             "providers.search_coordinator.get_budget_manager", lambda: budget_allows
         )
+        # Phase 4a: KeySelector is now in the gate path — feed a stub key.
+        ks_mock = MagicMock()
+        ks_mock.pick.return_value = {
+            "id": 1,
+            "api_key": "x",
+            "username": None,
+            "password": None,
+        }
+        monkeypatch.setattr("providers.search_coordinator.get_key_selector", lambda: ks_mock)
 
         manager.search(_make_query())
 
         provider.search.assert_called_once()
-        budget_allows.consume.assert_called_once_with("test_provider")
+        budget_allows.consume.assert_called_once_with("test_provider", key_id=1)
 
     def test_gate_disabled_via_settings_bypasses_budget(self, app_ctx, monkeypatch):
         provider = _make_provider("test_provider")
@@ -187,6 +196,15 @@ class TestRecord429Hook:
         monkeypatch.setattr(
             "providers.search_coordinator.get_budget_manager", lambda: budget_allows
         )
+        # Phase 4a: KeySelector is now in the gate path — feed a stub key.
+        ks_mock = MagicMock()
+        ks_mock.pick.return_value = {
+            "id": 1,
+            "api_key": "x",
+            "username": None,
+            "password": None,
+        }
+        monkeypatch.setattr("providers.search_coordinator.get_key_selector", lambda: ks_mock)
         # Prevent the existing throttle persistence (auto_disable_provider) from
         # touching the DB during this test.
         monkeypatch.setattr(
@@ -214,6 +232,15 @@ class TestRecord429Hook:
         monkeypatch.setattr(
             "providers.search_coordinator.get_budget_manager", lambda: budget_allows
         )
+        # Phase 4a: KeySelector is now in the gate path — feed a stub key.
+        ks_mock = MagicMock()
+        ks_mock.pick.return_value = {
+            "id": 1,
+            "api_key": "x",
+            "username": None,
+            "password": None,
+        }
+        monkeypatch.setattr("providers.search_coordinator.get_key_selector", lambda: ks_mock)
         monkeypatch.setattr(
             "db.providers.auto_disable_provider", lambda *a, **kw: None, raising=False
         )
@@ -261,3 +288,85 @@ class TestRecord429Hook:
         manager.search(_make_query())
 
         budget_allows.record_429.assert_not_called()
+
+
+class TestKeySelectorIntegration:
+    """Phase 4a: SearchCoordinator routes each call through KeySelector."""
+
+    def test_allowed_budget_consumes_with_key_id(self, app_ctx, monkeypatch, budget_allows):
+        provider = _make_provider("opensubtitles")
+        manager = _build_manager(monkeypatch, provider)
+        monkeypatch.setattr(
+            "providers.search_coordinator.get_budget_manager", lambda: budget_allows
+        )
+        ks_mock = MagicMock()
+        ks_mock.pick.return_value = {
+            "id": 42,
+            "api_key": "k",
+            "username": None,
+            "password": None,
+        }
+        monkeypatch.setattr("providers.search_coordinator.get_key_selector", lambda: ks_mock)
+
+        manager.search(_make_query())
+
+        # consume must be called with key_id=42 (kwarg)
+        budget_allows.consume.assert_called_once()
+        args, kwargs = budget_allows.consume.call_args
+        assert args[0] == "opensubtitles"
+        assert kwargs.get("key_id") == 42
+
+    def test_selector_returns_none_skips_provider(self, app_ctx, monkeypatch, budget_allows):
+        provider = _make_provider("opensubtitles")
+        manager = _build_manager(monkeypatch, provider)
+        monkeypatch.setattr(
+            "providers.search_coordinator.get_budget_manager", lambda: budget_allows
+        )
+        ks_mock = MagicMock()
+        ks_mock.pick.return_value = None
+        monkeypatch.setattr("providers.search_coordinator.get_key_selector", lambda: ks_mock)
+
+        manager.search(_make_query())
+
+        provider.search.assert_not_called()
+        budget_allows.consume.assert_not_called()
+
+    def test_selector_result_injects_credentials_on_provider(
+        self, app_ctx, monkeypatch, budget_allows
+    ):
+        provider = _make_provider("opensubtitles")
+        manager = _build_manager(monkeypatch, provider)
+        monkeypatch.setattr(
+            "providers.search_coordinator.get_budget_manager", lambda: budget_allows
+        )
+        ks_mock = MagicMock()
+        ks_mock.pick.return_value = {
+            "id": 7,
+            "api_key": "my-key",
+            "username": "user",
+            "password": "pw",
+        }
+        monkeypatch.setattr("providers.search_coordinator.get_key_selector", lambda: ks_mock)
+
+        manager.search(_make_query())
+
+        # By the time provider.search is called, credentials from the pool row
+        # must have been injected onto the provider instance.
+        assert provider.api_key == "my-key"
+        assert provider.username == "user"
+        assert provider.password == "pw"
+
+    def test_budget_gate_unchanged_when_budget_enabled_is_false(
+        self, app_ctx, monkeypatch, budget_allows
+    ):
+        """Disabling provider_budget_enabled bypasses KeySelector too —
+        legacy path still works without pool rows."""
+        provider = _make_provider("opensubtitles")
+        manager = _build_manager(monkeypatch, provider)
+        manager.settings = manager.settings.model_copy(update={"provider_budget_enabled": False})
+        ks_mock = MagicMock()
+        monkeypatch.setattr("providers.search_coordinator.get_key_selector", lambda: ks_mock)
+        manager.search(_make_query())
+
+        ks_mock.pick.assert_not_called()
+        provider.search.assert_called_once()
