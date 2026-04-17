@@ -33,6 +33,7 @@ def register_blueprints(app):
     from routes.remux import bp as remux_bp
     from routes.search import bp as search_bp
     from routes.series_audio import bp as series_audio_bp
+    from routes.series_settings_overrides import bp as series_settings_overrides_bp
     from routes.spell import bp as spell_bp
     from routes.standalone import bp as standalone_bp
     from routes.subtitle_processor import bp as subtitle_processor_bp
@@ -87,6 +88,7 @@ def register_blueprints(app):
         subtitles_bp,
         remux_bp,
         series_audio_bp,
+        series_settings_overrides_bp,
         nfo_bp,
         media_bp,
         subtitle_processor_bp,
