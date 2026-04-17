@@ -35,7 +35,15 @@ def test_budget_endpoint_returns_shape_for_registered_providers(client):
     names = [p["name"] for p in data["providers"]]
     assert names == sorted(names)
     for p in data["providers"]:
-        assert set(p.keys()) == {"name", "tier", "limits", "usage", "reset_seconds", "learning"}
+        assert set(p.keys()) == {
+            "name",
+            "tier",
+            "limits",
+            "usage",
+            "reset_seconds",
+            "learning",
+            "keys",
+        }
         assert set(p["reset_seconds"].keys()) == {"second", "hour", "day"}
 
 
@@ -142,3 +150,61 @@ def test_budget_endpoint_returns_null_learning_when_no_row(client):
 
     body = resp.get_json()
     assert body["providers"][0]["learning"] is None
+
+
+def test_budget_endpoint_returns_keys_breakdown(client):
+    """After adding 2 pool rows, /system/budget reports aggregate + per-key."""
+    from db.repositories.provider_account_pool import ProviderAccountPoolRepository
+
+    # Seed rows inside the test-client's app context so we share one Flask app
+    # with the endpoint call — two nested app contexts collide on teardown.
+    with client.application.app_context():
+        repo = ProviderAccountPoolRepository()
+        repo.add(provider="opensubtitles", label="primary", api_key="a", tier="free")
+        repo.add(provider="opensubtitles", label="backup", api_key="b", tier="vip")
+
+    p = _fake_provider(
+        "opensubtitles",
+        rate_limits={
+            "free": {"second": 5, "hour": 200, "day": 1000},
+            "vip": {"second": 10, "hour": 1000, "day": 10000},
+        },
+    )
+    mgr = MagicMock()
+    mgr._providers = {"opensubtitles": p}
+
+    with patch("routes.system.budget.get_provider_manager", return_value=mgr):
+        resp = client.get("/api/v1/system/budget")
+
+    body = resp.get_json()
+    os_row = next(r for r in body["providers"] if r["name"] == "opensubtitles")
+    # Highest-tier wins as outer tier
+    assert os_row["tier"] == "vip"
+    # free=1000 + vip=10000 aggregated
+    assert os_row["limits"]["day"] == 11000
+    assert len(os_row["keys"]) == 2
+    labels = {k["label"] for k in os_row["keys"]}
+    assert labels == {"primary", "backup"}
+    # Each key reports its own tier-specific limit
+    primary = next(k for k in os_row["keys"] if k["label"] == "primary")
+    backup = next(k for k in os_row["keys"] if k["label"] == "backup")
+    assert primary["tier"] == "free"
+    assert primary["limit"]["day"] == 1000
+    assert backup["tier"] == "vip"
+    assert backup["limit"]["day"] == 10000
+
+
+def test_budget_endpoint_empty_pool_falls_back_to_provider_instance(client):
+    """When no pool rows exist, report the legacy provider instance limits and keys=[]."""
+    p = _fake_provider("subdl", tier="free")
+    mgr = MagicMock()
+    mgr._providers = {"subdl": p}
+
+    with patch("routes.system.budget.get_provider_manager", return_value=mgr):
+        resp = client.get("/api/v1/system/budget")
+
+    body = resp.get_json()
+    subdl_row = next(r for r in body["providers"] if r["name"] == "subdl")
+    assert subdl_row["tier"] == "free"
+    assert subdl_row["limits"]["day"] == 1000  # from _fake_provider default
+    assert subdl_row["keys"] == []

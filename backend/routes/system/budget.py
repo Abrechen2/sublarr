@@ -7,12 +7,32 @@ import logging
 from flask import jsonify
 
 from config import get_settings
+from db.repositories.provider_account_pool import ProviderAccountPoolRepository
 from db.repositories.provider_learned_limits import ProviderLearnedLimitsRepository
 from providers import get_provider_manager
 from routes.system import bp
 from services.provider_budget import get_budget_manager
 
 logger = logging.getLogger(__name__)
+
+_TIER_RANK = {"vip+": 2, "vip": 1, "free": 0}
+
+
+def _aggregate_tier(keys: list[dict]) -> str:
+    """Highest-tier among enabled keys (vip+ > vip > free). Default 'free' on empty."""
+    if not keys:
+        return "free"
+    return max(keys, key=lambda k: _TIER_RANK.get(k["tier"], 0))["tier"]
+
+
+def _aggregate_limits(keys: list[dict], rate_limits: dict) -> dict:
+    """Sum of per-tier rate_limits across enabled keys."""
+    out = {"second": 0, "hour": 0, "day": 0}
+    for k in keys:
+        tier_limits = rate_limits.get(k["tier"]) or rate_limits.get("free") or {}
+        for w in ("second", "hour", "day"):
+            out[w] += tier_limits.get(w, 0)
+    return out
 
 
 @bp.route("/system/budget", methods=["GET"])
@@ -59,9 +79,28 @@ def get_budget_state():
     providers_out = []
     for name in sorted(mgr._providers.keys()):
         provider = mgr._providers[name]
-        tier = getattr(provider, "tier", "free")
         rate_limits = getattr(type(provider), "rate_limits", None) or {}
-        limits = rate_limits.get(tier) or rate_limits.get("free") or {}
+        pool_rows = ProviderAccountPoolRepository().get_enabled_for(name)
+        per_key = budget.get_usage_per_key(name)
+        if pool_rows:
+            tier = _aggregate_tier(pool_rows)
+            limits = _aggregate_limits(pool_rows, rate_limits)
+        else:
+            tier = getattr(provider, "tier", "free")
+            limits = rate_limits.get(tier) or rate_limits.get("free") or {}
+        keys_out = []
+        for r in pool_rows:
+            keys_out.append(
+                {
+                    "id": r["id"],
+                    "label": r["account_label"],
+                    "tier": r["tier"],
+                    "used": per_key.get(r["id"], {"second": 0, "hour": 0, "day": 0}),
+                    "limit": rate_limits.get(r["tier"]) or rate_limits.get("free") or {},
+                    "last_429_at": (r["last_429_at"].isoformat() if r["last_429_at"] else None),
+                    "last_used_at": (r["last_used_at"].isoformat() if r["last_used_at"] else None),
+                }
+            )
         usage = budget.get_usage(name)
         reset_seconds = {
             window: budget.seconds_until_next_window(window) for window in ("second", "hour", "day")
@@ -74,6 +113,7 @@ def get_budget_state():
                 "usage": usage,
                 "reset_seconds": reset_seconds,
                 "learning": learned_by_provider.get(name),
+                "keys": keys_out,
             }
         )
 
