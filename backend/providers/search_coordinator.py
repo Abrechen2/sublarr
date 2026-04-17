@@ -9,7 +9,8 @@ Not instantiated directly — used as mixin by ProviderManager.
 import hashlib
 import json
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from concurrent.futures import TimeoutError as FutureTimeoutError
 
 try:
@@ -20,6 +21,7 @@ except ImportError:
     _metrics_module = None  # type: ignore[assignment]
     _METRICS_AVAILABLE = False
 
+from db.repositories.provider_account_pool import ProviderAccountPoolRepository
 from providers.base import (
     ProviderAuthError,
     ProviderRateLimitError,
@@ -110,12 +112,70 @@ class SearchCoordinatorMixin:
         return hashlib.md5(key_str.encode(), usedforsecurity=False).hexdigest()  # noqa: S324
 
     def _search_provider_with_retry(
-        self, name: str, provider, query: VideoQuery
+        self, name: str, provider, query: VideoQuery, key: dict | None = None
     ) -> tuple[list[SubtitleResult], float]:
         """Search a single provider with retries.
 
+        Credential injection (api_key/username/password from the pool row) is
+        performed HERE inside the worker thread under a per-provider lock so
+        two concurrent ``search()`` calls cannot clobber the singleton
+        provider's credentials. Original values are restored in a finally
+        block so provider state never leaks between calls.
+
+        ``mark_used`` is also called here (worker thread) — previously it ran
+        in the coordinator loop causing a DB commit per provider per tick.
+
+        Args:
+            key: pool row selected by KeySelector, or None for legacy callers
+                that don't use the pool gate.
+
         Returns:
             Tuple of (results list, elapsed_ms). elapsed_ms is 0 if no successful search.
+        """
+        if key is None:
+            return self._do_search_provider_with_retry(name, provider, query)
+
+        # Lazy-init the per-provider lock dict (the mixin has no __init__).
+        # setdefault is atomic on CPython dicts so a concurrent first call is
+        # benign — both threads converge on the same RLock instance.
+        if not hasattr(self, "_provider_call_locks"):
+            self._provider_call_locks = {}
+        lock = self._provider_call_locks.setdefault(name, threading.RLock())
+
+        with lock:
+            old = (
+                getattr(provider, "api_key", None),
+                getattr(provider, "username", None),
+                getattr(provider, "password", None),
+            )
+            provider.api_key = key["api_key"]
+            if key.get("username"):
+                provider.username = key["username"]
+            if key.get("password"):
+                provider.password = key["password"]
+            try:
+                result = self._do_search_provider_with_retry(name, provider, query)
+                # Phase 4a: record key usage on success (worker thread — parallel).
+                try:
+                    ProviderAccountPoolRepository().mark_used(key["id"])
+                except Exception as _pe:  # noqa: BLE001
+                    logger.debug(
+                        "mark_used failed for %s key_id=%s: %s",
+                        name,
+                        key["id"],
+                        _pe,
+                    )
+                return result
+            finally:
+                provider.api_key, provider.username, provider.password = old
+
+    def _do_search_provider_with_retry(
+        self, name: str, provider, query: VideoQuery
+    ) -> tuple[list[SubtitleResult], float]:
+        """Core search-with-retry loop (no credential injection).
+
+        Factored out of :meth:`_search_provider_with_retry` so the injection
+        wrapper and the legacy ``key=None`` path can share the same body.
         """
         import time as _time
 
@@ -374,10 +434,10 @@ class SearchCoordinatorMixin:
         # daemon threads without blocking the response.
         executor = ThreadPoolExecutor(max_workers=max(1, len(self._providers)))
         try:
-            futures: dict = {}
+            futures: dict[Future, str] = {}
             # Phase 4a: track which key_id each future used so the rate-limit
             # handler can call mark_429(key_id) later.
-            futures_to_key: dict = {}
+            futures_to_key: dict[Future, int] = {}
             for name, provider in self._providers.items():
                 # Reset per-iteration key tracking (Phase 4a).
                 key: dict | None = None
@@ -444,40 +504,27 @@ class SearchCoordinatorMixin:
                             else {},
                         )
                         if key is None:
-                            logger.info(
-                                "%s: no usable key in pool (all exhausted or 429-cooling); skip",
+                            logger.warning(
+                                "%s: no usable key in pool (all exhausted, 429-cooling, "
+                                "or pool row deleted). Add a pool row via Settings → "
+                                "Providers, or set provider_budget_enabled=false to "
+                                "bypass the gate for this provider.",
                                 name,
                             )
                             continue
 
-                        # Inject credentials onto the provider instance for this call.
-                        provider.api_key = key["api_key"]
-                        if key.get("username"):
-                            provider.username = key["username"]
-                        if key.get("password"):
-                            provider.password = key["password"]
-
+                        # Credential injection + mark_used happen INSIDE the worker
+                        # thread (see _search_provider_with_retry) under a per-provider
+                        # lock, so two concurrent search() calls cannot clobber the
+                        # singleton provider's credentials.
                         budget.consume(name, key_id=key["id"])
-                        try:
-                            from db.repositories.provider_account_pool import (
-                                ProviderAccountPoolRepository,
-                            )
-
-                            ProviderAccountPoolRepository().mark_used(key["id"])
-                        except Exception as _pe:  # noqa: BLE001
-                            logger.debug(
-                                "mark_used failed for %s key_id=%s: %s",
-                                name,
-                                key["id"],
-                                _pe,
-                            )
 
                 # Submit search task — refund budget if submit fails synchronously
                 # (e.g. executor shut down, memory pressure). Without the refund the
                 # just-consumed call leaks permanently.
                 try:
                     future = executor.submit(
-                        self._search_provider_with_retry, name, provider, query
+                        self._search_provider_with_retry, name, provider, query, key
                     )
                     futures[future] = name
                     # Phase 4a: track the key_id used for this future (if any),
@@ -650,10 +697,6 @@ class SearchCoordinatorMixin:
                             try:
                                 key_id = futures_to_key.get(future)
                                 if key_id is not None:
-                                    from db.repositories.provider_account_pool import (
-                                        ProviderAccountPoolRepository,
-                                    )
-
                                     ProviderAccountPoolRepository().mark_429(key_id)
                             except Exception as _mke:  # noqa: BLE001
                                 logger.warning("mark_429 failed for %s: %s", name, _mke)

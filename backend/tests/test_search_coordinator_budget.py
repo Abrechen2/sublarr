@@ -335,6 +335,18 @@ class TestKeySelectorIntegration:
         self, app_ctx, monkeypatch, budget_allows
     ):
         provider = _make_provider("opensubtitles")
+        # Capture credentials at the moment search is invoked, since the
+        # coordinator restores the previous values after the call returns.
+        captured: dict = {}
+
+        def capturing_search(_q):
+            captured["api_key"] = provider.api_key
+            captured["username"] = provider.username
+            captured["password"] = provider.password
+            return []
+
+        provider.search = MagicMock(side_effect=capturing_search, return_value=[])
+
         manager = _build_manager(monkeypatch, provider)
         monkeypatch.setattr(
             "providers.search_coordinator.get_budget_manager", lambda: budget_allows
@@ -350,11 +362,11 @@ class TestKeySelectorIntegration:
 
         manager.search(_make_query())
 
-        # By the time provider.search is called, credentials from the pool row
-        # must have been injected onto the provider instance.
-        assert provider.api_key == "my-key"
-        assert provider.username == "user"
-        assert provider.password == "pw"
+        # Credentials must be visible INSIDE provider.search() — they are
+        # restored to their previous values afterwards.
+        assert captured["api_key"] == "my-key"
+        assert captured["username"] == "user"
+        assert captured["password"] == "pw"
 
     def test_budget_gate_unchanged_when_budget_enabled_is_false(
         self, app_ctx, monkeypatch, budget_allows
