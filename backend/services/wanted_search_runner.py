@@ -407,7 +407,7 @@ def _apply_backlog_reserve_gate(
     return [
         i
         for i in items
-        if (exempt_ids and i.get("id") in exempt_ids)
+        if (exempt_ids is not None and i.get("id") in exempt_ids)
         or (i.get("priority") or "standard") != "backlog"
     ]
 
@@ -437,6 +437,12 @@ def _series_searches_today(series_ids: list[int]) -> dict[int, int]:
 
     Defined as rows with ``last_search_at`` within the current UTC day.
     """
+    # NOTE: counts items touched today (at least once), not discrete search
+    # events. With `last_search_at` overwritten per attempt, a 2nd tick within
+    # the same day re-counts the item as "already done". Safe direction:
+    # under-counts attempts, so the prefix errs on the side of more searches,
+    # not fewer — the quota guarantee is preserved. TODO: revisit if a
+    # search_event log table is introduced in Phase 4b.
     from datetime import UTC, datetime
 
     from sqlalchemy import func as _func
@@ -474,6 +480,8 @@ def _wanted_items_by_series(series_ids: list[int]) -> dict[int, list[dict]]:
         return {}
     repo = WantedRepository()
     out: dict[int, list[dict]] = {}
+    # TODO: batch into a single WHERE sonarr_series_id IN (...) query if
+    # series_ids grows materially (e.g. Radarr collections).
     for sid in series_ids:
         items = repo.get_wanted_by_series(sid)
         items.sort(
