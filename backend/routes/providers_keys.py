@@ -3,16 +3,28 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
+import requests
 from flask import Blueprint, jsonify, request
 from sqlalchemy.exc import IntegrityError
 
 from db.repositories.provider_account_pool import ProviderAccountPoolRepository
-from extensions import db
+from extensions import db, limiter
 
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("providers_keys", __name__, url_prefix="/api/v1/providers")
+
+
+def _probe_user_agent() -> str:
+    """Read backend/VERSION once per call; falls back to 'dev'."""
+    try:
+        here = Path(__file__).resolve().parent.parent  # backend/
+        version = (here / "VERSION").read_text().strip()
+        return f"Sublarr/{version}"
+    except Exception:  # noqa: BLE001
+        return "Sublarr/dev"
 
 
 def _serialize(row: dict) -> dict:
@@ -70,7 +82,7 @@ def add_key(name: str):
 def update_key(name: str, row_id: int):
     repo = ProviderAccountPoolRepository()
     data = request.get_json(silent=True) or {}
-    allowed = {"api_key", "tier", "enabled", "username", "password", "account_label"}
+    allowed = {"api_key", "tier", "enabled", "username", "password"}
     fields = {k: v for k, v in data.items() if k in allowed}
     if "label" in data:
         fields["account_label"] = data["label"]
@@ -93,6 +105,7 @@ def delete_key(name: str, row_id: int):
 
 
 @bp.route("/<name>/keys/test-connection", methods=["POST"])
+@limiter.limit("20 per minute")
 def test_connection(name: str):
     data = request.get_json(silent=True) or {}
     result = _probe_provider(
@@ -117,26 +130,30 @@ def _probe_provider(
     """
     try:
         if name == "opensubtitles":
-            import requests
-
             r = requests.get(
                 "https://api.opensubtitles.com/api/v1/infos/formats",
-                headers={
-                    "Api-Key": api_key,
-                    "User-Agent": "Sublarr/0.52.0-beta",
-                },
+                headers={"Api-Key": api_key, "User-Agent": _probe_user_agent()},
                 timeout=10,
             )
             return {"ok": r.status_code == 200, "message": f"HTTP {r.status_code}"}
         if name == "subdl":
-            import requests
-
+            # API key in header, not query params, to avoid leaking it via
+            # exception messages that include the URL on network failures.
             r = requests.get(
                 "https://api.subdl.com/api/v1/subtitles",
-                params={"api_key": api_key, "type": "movie", "tmdb_id": 1},
+                params={"type": "movie", "tmdb_id": 1},
+                headers={"Api-Key": api_key, "User-Agent": _probe_user_agent()},
                 timeout=10,
             )
             return {"ok": r.status_code != 401, "message": f"HTTP {r.status_code}"}
-        return {"ok": True, "message": "No probe configured — saved as-is"}
+        return {
+            "ok": True,
+            "skipped": True,
+            "message": "No probe configured — saved as-is",
+        }
+    except requests.exceptions.RequestException as exc:
+        # Surface only the exception class name; message strings may embed
+        # credentials from the URL.
+        return {"ok": False, "message": f"Probe failed: {type(exc).__name__}"}
     except Exception as exc:  # noqa: BLE001
-        return {"ok": False, "message": f"Probe failed: {exc}"}
+        return {"ok": False, "message": f"Probe failed: {type(exc).__name__}"}

@@ -101,3 +101,17 @@ def test_test_connection_failure_returns_400(client):
         )
     assert resp.status_code == 400
     assert resp.get_json()["ok"] is False
+
+
+def test_patch_label_updates_account_label(client):
+    r = client.post(
+        "/api/v1/providers/opensubtitles/keys",
+        json={"label": "primary", "api_key": "k", "tier": "free"},
+    )
+    kid = r.get_json()["id"]
+    resp = client.patch(
+        f"/api/v1/providers/opensubtitles/keys/{kid}",
+        json={"label": "renamed"},
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["label"] == "renamed"
