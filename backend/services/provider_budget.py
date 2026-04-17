@@ -30,6 +30,7 @@ from typing import Any
 # ``services.provider_budget.get_settings`` directly. Audited 2026-04-17: no
 # cycle — ``config`` does not import from ``services.*``.
 from config import get_settings
+from services.demand_histogram import get_demand_shares
 
 logger = logging.getLogger(__name__)
 
@@ -270,13 +271,13 @@ class ProviderBudgetManager:
         Falls back to uniform distribution (same behaviour as 'stretch') when
         history is empty.
         """
-        from services.demand_histogram import get_demand_shares
-
         shares = get_demand_shares(now=now)
         cumulative = 0.0
         for h in range(now.hour + 1):
             cumulative += shares[h]
-        threshold = math.ceil(day_limit * cumulative)
+        # Floor at 1 so an hour with zero historical demand doesn't lock out a
+        # genuinely-quiet system forever. Allow at least a trickle.
+        threshold = max(1, math.ceil(day_limit * cumulative))
         day_used = self._get_count(provider, BudgetWindow.DAY, now)
         if day_used >= threshold:
             return BudgetDecision(

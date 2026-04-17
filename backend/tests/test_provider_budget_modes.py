@@ -87,7 +87,7 @@ def test_adaptive_mode_uses_demand_histogram():
             return_value=_settings_stub(provider_budget_stretch_mode="adaptive"),
         ),
         patch(
-            "services.demand_histogram.get_demand_shares",
+            "services.provider_budget.get_demand_shares",
             return_value=shares,
         ),
     ):

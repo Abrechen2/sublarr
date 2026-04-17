@@ -42,10 +42,8 @@ def _fetch_added_at_hours(cutoff: datetime) -> list[int]:
     from db.models.core import WantedItem
     from extensions import db
 
-    stmt = select(func.extract("hour", WantedItem.added_at).label("h")).where(
-        WantedItem.added_at >= cutoff
-    )
-    return [int(row.h) for row in db.session.execute(stmt).all()]
+    stmt = select(func.extract("hour", WantedItem.added_at)).where(WantedItem.added_at >= cutoff)
+    return [int(h) for h in db.session.execute(stmt).scalars().all()]
 
 
 def get_demand_shares(now: datetime | None = None) -> list[float]:
@@ -67,7 +65,9 @@ def get_demand_shares(now: datetime | None = None) -> list[float]:
         logger.debug("demand histogram fetch failed, using uniform: %s", exc)
         hours = []
     if not hours:
-        result = DEMAND_UNIFORM
+        # Copy so callers mutating the result (or the cache being mutated via its
+        # reference) cannot corrupt the module-level constant.
+        result = list(DEMAND_UNIFORM)
     else:
         counts = [0] * 24
         for h in hours:
