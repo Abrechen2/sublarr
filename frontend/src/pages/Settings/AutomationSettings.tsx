@@ -183,6 +183,49 @@ function SearchScanAdvancedContent() {
       </FormGroup>
 
       <FormGroup
+        label={tS('automation_page.stretch_mode')}
+        hint={tS('automation_page.stretch_mode_hint')}
+        htmlFor="provider-budget-stretch-mode"
+        advanced
+        data-testid="form-group-provider-budget-stretch-mode"
+      >
+        <select
+          id="provider-budget-stretch-mode"
+          data-testid="input-provider-budget-stretch-mode"
+          style={{ ...inputStyle, maxWidth: '320px' }}
+          value={strVal(config, 'provider_budget_stretch_mode', 'stretch')}
+          onChange={(e) => save({ provider_budget_stretch_mode: e.target.value })}
+          disabled={updateConfig.isPending}
+        >
+          <option value="stretch">{tS('automation_page.stretch_mode_stretch')}</option>
+          <option value="burst">{tS('automation_page.stretch_mode_burst')}</option>
+          <option value="adaptive">{tS('automation_page.stretch_mode_adaptive')}</option>
+        </select>
+      </FormGroup>
+
+      {strVal(config, 'provider_budget_stretch_mode', 'stretch') === 'burst' && (
+        <FormGroup
+          label={tS('automation_page.burst_window_hours')}
+          hint={tS('automation_page.burst_window_hours_hint')}
+          htmlFor="provider-budget-burst-window"
+          advanced
+          data-testid="form-group-provider-budget-burst-window-hours"
+        >
+          <input
+            id="provider-budget-burst-window"
+            type="number"
+            data-testid="input-provider-budget-burst-window-hours"
+            style={{ ...inputStyle, maxWidth: '120px' }}
+            value={strVal(config, 'provider_budget_burst_window_hours', '6')}
+            onChange={(e) => save({ provider_budget_burst_window_hours: Number(e.target.value) })}
+            disabled={updateConfig.isPending}
+            min={1}
+            max={23}
+          />
+        </FormGroup>
+      )}
+
+      <FormGroup
         label={tS('automation_page.adaptive_backoff')}
         hint={tS('automation_page.adaptive_backoff_hint')}
         advanced

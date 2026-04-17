@@ -141,7 +141,8 @@
     "title": "API budget today",
     "reset_in": "Reset in {{time}}",
     "disabled": "API budget monitoring is disabled",
-    "loading": "Loading budget state…"
+    "loading": "Loading budget state…",
+    "learning_active": "Learning — limits adjusted by {{factor}}%"
   },
   "sidebar": {
     "providers": "Provider Health",

@@ -26,12 +26,19 @@ export interface BudgetWindow {
   day: number
 }
 
+export interface ProviderBudgetLearning {
+  adjustment_factor: number
+  consecutive_good_days: number
+  last_429_at: string | null
+}
+
 export interface ProviderBudget {
   name: string
   tier: string
   limits: BudgetWindow
   usage: BudgetWindow
   reset_seconds: BudgetWindow
+  learning?: ProviderBudgetLearning | null
 }
 
 export interface BudgetResponse {

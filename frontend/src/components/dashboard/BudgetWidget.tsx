@@ -60,11 +60,16 @@ interface BudgetRowProps {
 }
 
 function BudgetRow({ provider }: BudgetRowProps) {
+  const { t } = useTranslation('dashboard')
   const used = provider.usage.day
   const limit = provider.limits.day || 1
   const pct = Math.min(100, Math.max(0, (used / limit) * 100))
   const colour = pickColour(pct)
   const barColor = COLOUR_VAR[colour]
+  const learningPct =
+    provider.learning && provider.learning.adjustment_factor < 1.0
+      ? Math.round((1 - provider.learning.adjustment_factor) * 100)
+      : null
 
   return (
     <li
@@ -127,6 +132,23 @@ function BudgetRow({ provider }: BudgetRowProps) {
       >
         {used.toLocaleString()} / {provider.limits.day.toLocaleString()}
       </span>
+      {learningPct !== null && (
+        <span
+          data-testid={`budget-learning-${provider.name}`}
+          title={t('budget.learning_active', { factor: learningPct })}
+          style={{
+            flex: '0 0 auto',
+            fontSize: '10px',
+            color: 'var(--warning)',
+            background: 'var(--warning-soft, rgba(255,180,0,0.12))',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            marginLeft: '4px',
+          }}
+        >
+          -{learningPct}%
+        </span>
+      )}
     </li>
   )
 }

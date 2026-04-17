@@ -151,6 +151,51 @@ describe('BudgetWidget', () => {
     renderWith(undefined, { isLoading: true })
     expect(screen.getByTestId('budget-widget-loading')).toBeInTheDocument()
   })
+
+  it('renders learning badge when adjustment_factor < 1.0', () => {
+    renderWith({
+      enabled: true,
+      providers: [
+        {
+          name: 'opensubtitles',
+          tier: 'free',
+          limits: { day: 1000, hour: 200, second: 5 },
+          usage: { day: 100, hour: 10, second: 0 },
+          reset_seconds: { day: 3600, hour: 60, second: 1 },
+          learning: {
+            adjustment_factor: 0.81,
+            consecutive_good_days: 2,
+            last_429_at: null,
+          },
+        },
+      ],
+    })
+    const badge = screen.getByTestId('budget-learning-opensubtitles')
+    expect(badge).toBeInTheDocument()
+    // 1 - 0.81 = 0.19 → rounded to 19 → rendered as "-19%"
+    expect(badge).toHaveTextContent('19')
+  })
+
+  it('hides learning badge at factor 1.0', () => {
+    renderWith({
+      enabled: true,
+      providers: [
+        {
+          name: 'opensubtitles',
+          tier: 'free',
+          limits: { day: 1000, hour: 200, second: 5 },
+          usage: { day: 100, hour: 10, second: 0 },
+          reset_seconds: { day: 3600, hour: 60, second: 1 },
+          learning: {
+            adjustment_factor: 1.0,
+            consecutive_good_days: 7,
+            last_429_at: null,
+          },
+        },
+      ],
+    })
+    expect(screen.queryByTestId('budget-learning-opensubtitles')).toBeNull()
+  })
 })
 
 // ─── applyBudgetUpdate (pure) ───────────────────────────────────────────────
