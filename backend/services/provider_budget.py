@@ -26,6 +26,8 @@ from datetime import UTC, datetime
 from threading import Lock
 from typing import Any
 
+from config import get_settings
+
 logger = logging.getLogger(__name__)
 
 # Rate-limit state for the provider_budget_updated SocketIO event.
@@ -146,18 +148,27 @@ class ProviderBudgetManager:
                     reason=f"{window.value} limit reached ({used}/{effective})",
                 )
 
-        # Stretch-mode gate (opt-out via config) — paces the day budget evenly
-        # across 24h so we do not burn the whole quota in the first hour.
+        # Stretch-mode gate — default 'stretch' (even pacing). 'burst' lets the first
+        # N hours run at raw-cap pace, then paces the REMAINING quota across the
+        # REMAINING hours. 'adaptive' is handled in Task 7. 'off' / disabled skip the gate.
         try:
-            from config import get_settings
-
-            stretch_mode = getattr(get_settings(), "provider_budget_stretch_mode", "stretch")
+            settings = get_settings()
+            stretch_mode = getattr(settings, "provider_budget_stretch_mode", "stretch")
+            burst_window_hours = int(getattr(settings, "provider_budget_burst_window_hours", 6))
         except Exception:  # noqa: BLE001
-            stretch_mode = "stretch"
+            stretch_mode, burst_window_hours = "stretch", 6
 
         day_limit = limits.get("day", 0)
-        if stretch_mode == "stretch" and day_limit > 0:
-            stretch_decision = self._stretch_allowed(provider, day_limit, now)
+        if day_limit > 0 and stretch_mode in ("stretch", "burst"):
+            if stretch_mode == "stretch":
+                stretch_decision = self._stretch_allowed(provider, day_limit, now)
+            else:  # burst
+                stretch_decision = self._burst_allowed(
+                    provider,
+                    day_limit,
+                    now,
+                    burst_window_hours=burst_window_hours,
+                )
             if not stretch_decision.allow:
                 return stretch_decision
 
@@ -188,6 +199,48 @@ class ProviderBudgetManager:
                 reason=(
                     f"stretch pace ({day_used}/{threshold} at hour {now.hour} UTC, "
                     f"of {day_limit}/day)"
+                ),
+            )
+        return BudgetDecision(allow=True)
+
+    def _burst_allowed(
+        self,
+        provider: str,
+        day_limit: int,
+        now: datetime,
+        burst_window_hours: int,
+    ) -> BudgetDecision:
+        """Burst gate: raw-cap-only inside the window; paced afterwards.
+
+        Inside hours [0, burst_window_hours): always allow (raw caps already
+        enforced before this method runs).
+
+        After the window: paces the REMAINING budget across the REMAINING hours.
+        The burst-end consumption is not persisted anywhere; we estimate it by
+        scaling current usage linearly (``day_used * burst_window_hours / now.hour``).
+        Coarse but stateless; self-corrects within minutes as later hours tick.
+        """
+        if now.hour < burst_window_hours:
+            return BudgetDecision(allow=True)
+
+        day_used = self._get_count(provider, BudgetWindow.DAY, now)
+        hours_after_burst_end = now.hour - burst_window_hours + 1
+        hours_remaining_in_day = 24 - burst_window_hours
+        estimated_burst_used = min(
+            day_used,
+            int(day_used * burst_window_hours / max(1, now.hour)),
+        )
+        remaining_budget = max(0, day_limit - estimated_burst_used)
+        paced_share = math.ceil(remaining_budget * hours_after_burst_end / hours_remaining_in_day)
+        threshold = estimated_burst_used + paced_share
+        if day_used >= threshold:
+            wait = self._seconds_until_next_window(BudgetWindow.HOUR, now)
+            return BudgetDecision(
+                allow=False,
+                wait_seconds=wait,
+                reason=(
+                    f"burst pace ({day_used}/{threshold} at hour {now.hour} UTC, "
+                    f"burst window {burst_window_hours}h, {day_limit}/day)"
                 ),
             )
         return BudgetDecision(allow=True)

@@ -224,9 +224,16 @@ class Settings(BaseSettings):
     #   'stretch' (default) — block calls once the current-hour pace exceeds
     #       an evenly-paced share of the day's limit; prevents burning the
     #       whole daily quota in the first hour.
-    #   'burst'  — only the raw window caps apply; pace is not enforced.
+    #   'burst'  — raw window caps only for the first
+    #       ``provider_budget_burst_window_hours`` hours of the UTC day; after
+    #       that, the REMAINING day quota is paced across the REMAINING hours.
+    #       Use this for providers where the quota resets at midnight UTC and
+    #       you want to front-load the search queue.
     #   'off'    — alias; use provider_budget_enabled=false to disable fully.
     provider_budget_stretch_mode: str = "stretch"
+    # Burst window length in hours (UTC). Only applies when
+    # provider_budget_stretch_mode='burst'.
+    provider_budget_burst_window_hours: int = 6
     # Scheduler profile (mapped to preset values via services/scheduler_profile.py)
     scheduler_profile: str = "balanced"  # 'light' | 'balanced' | 'aggressive' | 'custom'
     # First-run wizard completion flag — persisted by the wizard endpoints so
