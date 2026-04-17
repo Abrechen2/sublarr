@@ -5,6 +5,27 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.52.0-beta] - 2026-04-17
+
+### Added
+- **V1 API-Budget Scheduler — Phase 1: Foundation** — New `ProviderBudgetManager` tracks per-provider API usage across three windows (second / hour / day) with in-memory + optional Redis backing. Providers declare their rate limits and tier metadata; OpenSubtitles auto-detects free/VIP/VIP+ from the API. Failed items no longer freeze permanently — split into `no_result`, `provider_error`, and `no_result_slow` kinds with exponential backoff. Scheduled search supports fair / newest-first / weighted order presets.
+- **V1 API-Budget Scheduler — Phase 2: User-Facing** — First-run setup wizard walks new installs through profile selection (light / balanced / aggressive / custom). Dashboard shows a per-provider budget widget with live usage bars and reset countdowns, updated in real time via SocketIO. Stretch mode paces the daily quota evenly across 24h so the whole budget isn't burned in the first hour.
+- **V1 API-Budget Scheduler — Phase 3: Intelligence** — The scheduler now learns real provider limits by observing 429 responses: `record_429` reduces a learned adjustment factor (floor 0.1) that multiplies into the effective limit; `tick_recovery` ramps the factor back toward 1.0 after 7 clean days. New pacing modes: **burst** front-loads the quota for the first N UTC hours then paces the remainder; **adaptive** distributes the budget proportional to your observed demand histogram over the last 30 days. Item selection is priority-weighted (premium → standard → backlog); backlog items defer to the next tick when any provider exceeds 50% day-usage. `/api/v1/system/budget` now exposes the learned `adjustment_factor`, `consecutive_good_days`, and `last_429_at` per provider.
+- **Dashboard learning badge + pacing-mode selector** — The budget widget renders a `-N%` badge when a provider is currently being throttled by the learned factor. Automation settings expose the stretch / burst / adaptive selector and a burst-window input (1–23 hours).
+
+### Fixed
+- **Provider rate-limit recovery no longer over-credits good days** — `ramp_recovery` now guards against rapid consecutive calls so multiple ticks within the same 24h window don't inflate the good-day streak.
+- **Budget refunded on submit failure** — When a provider search submission fails before hitting the network, the pre-consumed budget is refunded instead of leaking.
+- **`db.wanted` facade forwards priority_weighting** — The module-level facade now passes the new kwarg through so explicit overrides from outside the repo layer work.
+
+### Changed
+- **Default `wanted_search_max_items_per_run` bumped from 50 to 500** — The previous default was too low to make progress on larger backlogs under the new budget gating.
+- **Scheduler operational failures log at `warning`** — `record_429`, `tick_recovery`, the SearchCoordinator hook, and the backlog-reserve gate now surface their failures at the default log level instead of hiding them in debug.
+
+### Tests
+- **`test_phase3_e2e.py`** — End-to-end: a 429 storm reduces the factor, 7 clean days ramp it back up by one step. Verifies Tasks 3–5 integrate correctly on a real DB.
+- **Raw-SQL fixture repair** — `test_routes_wanted.py` and `test_routes_wanted_extract.py` now include `priority` and `error_count` in raw INSERTs so the Phase 1 migration's NOT NULL constraints don't trip the 32 helper-based tests.
+
 ## [0.51.17-beta] - 2026-04-15
 
 ### Fixed
