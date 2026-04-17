@@ -29,6 +29,7 @@ def register_blueprints(app):
     from routes.plugins import bp as plugins_bp
     from routes.profiles import bp as profiles_bp
     from routes.providers import bp as providers_bp
+    from routes.providers_keys import bp as providers_keys_bp
     from routes.remux import bp as remux_bp
     from routes.search import bp as search_bp
     from routes.series_audio import bp as series_audio_bp
@@ -52,6 +53,7 @@ def register_blueprints(app):
         activity_bp,
         translate_bp,
         providers_bp,
+        providers_keys_bp,
         library_bp,
         wanted_bp,
         config_bp,
