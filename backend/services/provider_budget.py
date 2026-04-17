@@ -162,16 +162,18 @@ class ProviderBudgetManager:
             stretch_mode, burst_window_hours = "stretch", 6
 
         day_limit = limits.get("day", 0)
-        if day_limit > 0 and stretch_mode in ("stretch", "burst"):
+        if day_limit > 0 and stretch_mode in ("stretch", "burst", "adaptive"):
             if stretch_mode == "stretch":
                 stretch_decision = self._stretch_allowed(provider, day_limit, now)
-            else:  # burst
+            elif stretch_mode == "burst":
                 stretch_decision = self._burst_allowed(
                     provider,
                     day_limit,
                     now,
                     burst_window_hours=burst_window_hours,
                 )
+            else:  # adaptive
+                stretch_decision = self._adaptive_allowed(provider, day_limit, now)
             if not stretch_decision.allow:
                 return stretch_decision
 
@@ -258,6 +260,31 @@ class ProviderBudgetManager:
                 reason=(
                     f"burst pace ({day_used}/{threshold} at hour {now.hour} UTC, "
                     f"burst window {burst_window_hours}h, {day_limit}/day)"
+                ),
+            )
+        return BudgetDecision(allow=True)
+
+    def _adaptive_allowed(self, provider: str, day_limit: int, now: datetime) -> BudgetDecision:
+        """Adaptive gate: threshold at end of hour H = day_limit * cumulative_share[0..H].
+
+        Falls back to uniform distribution (same behaviour as 'stretch') when
+        history is empty.
+        """
+        from services.demand_histogram import get_demand_shares
+
+        shares = get_demand_shares(now=now)
+        cumulative = 0.0
+        for h in range(now.hour + 1):
+            cumulative += shares[h]
+        threshold = math.ceil(day_limit * cumulative)
+        day_used = self._get_count(provider, BudgetWindow.DAY, now)
+        if day_used >= threshold:
+            return BudgetDecision(
+                allow=False,
+                wait_seconds=self._seconds_until_next_window(BudgetWindow.HOUR, now),
+                reason=(
+                    f"adaptive pace ({day_used}/{threshold} at hour {now.hour} UTC, "
+                    f"cumulative demand share {cumulative:.2f})"
                 ),
             )
         return BudgetDecision(allow=True)

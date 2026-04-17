@@ -71,3 +71,31 @@ def test_stretch_mode_still_fires_deny_after_burst_refactor():
         decision = mgr.check("opensubtitles", {"day": 1000}, now=now)
     assert decision.allow is False
     assert "stretch" in decision.reason
+
+
+def test_adaptive_mode_uses_demand_histogram():
+    """Adaptive mode thresholds follow the demand share per hour."""
+    mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+    # All demand at hour 10 -> threshold at hour 9 = 0 (blocks any use), hour 10 = day_limit
+    shares = [0.0] * 24
+    shares[10] = 1.0
+    now_before = datetime(2026, 4, 17, 9, 30, tzinfo=UTC)
+    now_after = datetime(2026, 4, 17, 10, 30, tzinfo=UTC)
+    with (
+        patch(
+            "services.provider_budget.get_settings",
+            return_value=_settings_stub(provider_budget_stretch_mode="adaptive"),
+        ),
+        patch(
+            "services.demand_histogram.get_demand_shares",
+            return_value=shares,
+        ),
+    ):
+        # Before demand hour: any usage above 0 denied
+        key_before = ("opensubtitles", "day", window_start_for(BudgetWindow.DAY, now_before))
+        mgr._in_memory_counts[key_before] = 10
+        assert mgr.check("opensubtitles", {"day": 1000}, now=now_before).allow is False
+        # In demand hour: full budget unlocked
+        key_after = ("opensubtitles", "day", window_start_for(BudgetWindow.DAY, now_after))
+        mgr._in_memory_counts[key_after] = 500
+        assert mgr.check("opensubtitles", {"day": 1000}, now=now_after).allow is True
