@@ -193,6 +193,15 @@ def run_wanted_search(
             _app = None
 
     settings = get_settings()
+
+    # Phase 3: ramp learned factors toward 1.0 once per tick (daily in default config).
+    try:
+        from services.provider_budget import get_budget_manager
+
+        get_budget_manager().tick_recovery()
+    except Exception as _tre:  # noqa: BLE001
+        logger.debug("tick_recovery failed (non-blocking): %s", _tre)
+
     max_items = settings.wanted_search_max_items_per_run
 
     # Determine whether upgrade candidates are included

@@ -305,6 +305,24 @@ class ProviderBudgetManager:
             logger.info("provider_state_changed emit failed: %s", exc)
         return new_factor
 
+    def tick_recovery(self, now: datetime | None = None) -> None:
+        """Advance learned factors toward 1.0 for any row on a clean streak.
+
+        Called once per wanted-scheduler tick (typically daily). Swallows all DB
+        errors — recovery is best-effort and must not break the scheduler.
+        """
+        if now is None:
+            now = datetime.now(UTC)
+        try:
+            new_factors = _ramp_all(now)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("tick_recovery failed, keeping existing factors: %s", exc)
+            return
+        if not new_factors:
+            return
+        with self._lock:
+            self._factors.update(new_factors)
+
     # ── Internals ─────────────────────────────────────────────────────────
 
     def _emit_update(self, provider: str, now: datetime) -> None:
@@ -481,6 +499,23 @@ def _persist_429(
         observed_limit=observed_limit,
         now=now,
     )
+
+
+def _ramp_all(now: datetime) -> dict[tuple[str, str], float]:
+    """Run ramp_recovery for every row with factor < 1.0. Returns the new map.
+
+    Requires a Flask app context; ``tick_recovery`` callers from outside one
+    (tests) must push ``app_ctx`` or patch this function.
+    """
+    from db.repositories.provider_learned_limits import ProviderLearnedLimitsRepository
+
+    repo = ProviderLearnedLimitsRepository()
+    new_factors: dict[tuple[str, str], float] = {}
+    for key, row in repo.get_all().items():
+        if row["adjustment_factor"] < 1.0:
+            new_factor = repo.ramp_recovery(key[0], key[1], step=0.02, now=now)
+            new_factors[key] = new_factor
+    return new_factors
 
 
 def _emit_event(name: str, payload: dict) -> None:

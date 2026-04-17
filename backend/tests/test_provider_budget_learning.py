@@ -46,3 +46,25 @@ def test_record_429_swallows_persistence_error():
     # check() still throttles the provider even without a persisted row.
     # Decay is 0.9x from the initial factor of 1.0
     assert mgr._factors[("opensubtitles", "day")] == pytest.approx(1.0 * 0.9)
+
+
+def test_tick_recovery_updates_factor_cache():
+    mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+    mgr._factors = {("opensubtitles", "day"): 0.9}
+    now = datetime(2026, 4, 25, tzinfo=UTC)
+    with patch(
+        "services.provider_budget._ramp_all",
+        side_effect=lambda now: {("opensubtitles", "day"): 0.92},
+    ):
+        mgr.tick_recovery(now=now)
+    assert mgr._factors[("opensubtitles", "day")] == pytest.approx(0.92)
+
+
+def test_tick_recovery_swallows_db_error():
+    mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+    mgr._factors = {("opensubtitles", "day"): 0.9}
+    now = datetime(2026, 4, 25, tzinfo=UTC)
+    with patch("services.provider_budget._ramp_all", side_effect=RuntimeError("db down")):
+        mgr.tick_recovery(now=now)  # must not raise
+    # Cache remains at pre-tick value
+    assert mgr._factors[("opensubtitles", "day")] == pytest.approx(0.9)
