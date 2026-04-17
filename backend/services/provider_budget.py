@@ -244,6 +244,58 @@ class ProviderBudgetManager:
             now = datetime.now(UTC)
         return self._seconds_until_next_window(BudgetWindow(window_name), now)
 
+    def record_429(
+        self,
+        provider: str,
+        window: BudgetWindow,
+        configured_limit: int,
+        observed_limit: int | None = None,
+        now: datetime | None = None,
+    ) -> float:
+        """Record a provider-reported rate-limit hit.
+
+        Multiplies the learned ``adjustment_factor`` by 0.9 (floor 0.1) for
+        ``(provider, window)``. Persists via the repo; if persistence fails we
+        still update the in-memory cache so the next ``check()`` throttles.
+        Returns the new factor.
+        """
+        if now is None:
+            now = datetime.now(UTC)
+        key = (provider, window.value)
+        current = self._factors.get(key, 1.0)
+        fallback_factor = max(0.1, current * 0.9)
+        try:
+            new_factor = _persist_429(
+                provider=provider,
+                window=window,
+                configured_limit=configured_limit,
+                observed_limit=observed_limit,
+                now=now,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "record_429 persistence failed for %s/%s (using in-memory fallback): %s",
+                provider,
+                window.value,
+                exc,
+            )
+            new_factor = fallback_factor
+        with self._lock:
+            self._factors[key] = new_factor
+        try:
+            _emit_event(
+                "provider_state_changed",
+                {
+                    "provider": provider,
+                    "state": "learning",
+                    "reason": f"429_observed_{window.value}",
+                    "adjustment_factor": new_factor,
+                },
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("provider_state_changed emit failed: %s", exc)
+        return new_factor
+
     # ── Internals ─────────────────────────────────────────────────────────
 
     def _emit_update(self, provider: str, now: datetime) -> None:
@@ -395,6 +447,32 @@ def _try_get_safety_margin() -> int:
     except Exception as exc:  # noqa: BLE001
         logger.debug("Settings unavailable for budget margin: %s", exc)
         return 20
+
+
+def _persist_429(provider, window, configured_limit, observed_limit, now) -> float:
+    """Thin wrapper around the repo. Returns the NEW adjustment_factor.
+
+    Wrapped so tests can patch it with MagicMock without needing a DB session.
+    Requires a Flask app context (``db.session`` is request-scoped); callers
+    outside an app context will get an error logged by ``record_429``'s
+    outer try/except.
+    """
+    from db.repositories.provider_learned_limits import ProviderLearnedLimitsRepository
+
+    return ProviderLearnedLimitsRepository().upsert_on_429(
+        provider=provider,
+        window=window.value if hasattr(window, "value") else window,
+        configured_limit=configured_limit,
+        observed_limit=observed_limit,
+        now=now,
+    )
+
+
+def _emit_event(name: str, payload: dict) -> None:
+    """Thin wrapper around events.emit_event — test-patchable."""
+    from events import emit_event
+
+    emit_event(name, payload)
 
 
 def reset_singleton_for_tests() -> None:
