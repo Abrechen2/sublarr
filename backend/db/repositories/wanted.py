@@ -35,10 +35,10 @@ def _priority_rank_expr():
     """Rank expression: premium=0, backlog=2, standard=1.
 
     Uses ``COALESCE(series_settings.priority_override, WantedItem.priority)`` so
-    a per-series override wins over the item's intrinsic priority. Requires
-    an outer join on ``SeriesSettings`` — callers that omit the join will get
-    NULL for ``priority_override`` which COALESCEs to the item priority anyway,
-    so the expression is safe to use without the join too (just less useful).
+    a per-series override wins over the item's intrinsic priority. Callers
+    MUST apply ``LEFT OUTER JOIN series_settings ON sonarr_series_id`` before
+    using this expression — otherwise ``priority_override`` resolves to NULL
+    for every row, defeating the point of the override.
     """
     effective = func.coalesce(SeriesSettings.priority_override, WantedItem.priority)
     return case(
