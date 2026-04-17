@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { useBudgetState } from '@/hooks/useSystemApi'
@@ -61,6 +62,7 @@ interface BudgetRowProps {
 
 function BudgetRow({ provider }: BudgetRowProps) {
   const { t } = useTranslation('dashboard')
+  const [expanded, setExpanded] = useState(false)
   const used = provider.usage.day
   const limit = provider.limits.day || 1
   const pct = Math.min(100, Math.max(0, (used / limit) * 100))
@@ -70,84 +72,116 @@ function BudgetRow({ provider }: BudgetRowProps) {
     provider.learning && provider.learning.adjustment_factor < 1.0
       ? Math.round((1 - provider.learning.adjustment_factor) * 100)
       : null
+  const hasKeys = Array.isArray(provider.keys) && provider.keys.length > 0
 
   return (
     <li
       data-testid={`budget-row-${provider.name}`}
       data-colour={colour}
+      onClick={hasKeys ? () => setExpanded((s) => !s) : undefined}
       style={{
         display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
+        flexDirection: 'column',
+        gap: '0px',
         padding: '4px 0',
         listStyle: 'none',
+        cursor: hasKeys ? 'pointer' : 'default',
       }}
     >
-      <span
-        style={{
-          flex: '0 0 110px',
-          fontSize: '12px',
-          color: 'var(--text-secondary)',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-        title={provider.name}
-      >
-        {provider.name}
-      </span>
-      <div
-        role="progressbar"
-        aria-label={provider.name}
-        aria-valuenow={used}
-        aria-valuemin={0}
-        aria-valuemax={limit}
-        style={{
-          flex: 1,
-          height: '8px',
-          background: 'var(--bg-secondary)',
-          borderRadius: '4px',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          data-testid={`budget-bar-${provider.name}`}
-          style={{
-            width: `${pct}%`,
-            height: '100%',
-            background: barColor,
-            transition: 'width 200ms ease-out',
-          }}
-        />
-      </div>
-      <span
-        data-testid={`budget-usage-${provider.name}`}
-        style={{
-          flex: '0 0 auto',
-          fontSize: '11px',
-          color: 'var(--text-muted)',
-          fontFamily: 'var(--font-mono)',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {used.toLocaleString()} / {provider.limits.day.toLocaleString()}
-      </span>
-      {learningPct !== null && (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <span
-          data-testid={`budget-learning-${provider.name}`}
-          title={t('budget.learning_active', { factor: learningPct })}
           style={{
-            flex: '0 0 auto',
-            fontSize: '10px',
-            color: 'var(--warning)',
-            background: 'var(--warning-bg)',
-            padding: '2px 6px',
+            flex: '0 0 110px',
+            fontSize: '12px',
+            color: 'var(--text-secondary)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={provider.name}
+        >
+          {provider.name}
+        </span>
+        <div
+          role="progressbar"
+          aria-label={provider.name}
+          aria-valuenow={used}
+          aria-valuemin={0}
+          aria-valuemax={limit}
+          style={{
+            flex: 1,
+            height: '8px',
+            background: 'var(--bg-secondary)',
             borderRadius: '4px',
-            marginLeft: '4px',
+            overflow: 'hidden',
           }}
         >
-          -{learningPct}%
+          <div
+            data-testid={`budget-bar-${provider.name}`}
+            style={{
+              width: `${pct}%`,
+              height: '100%',
+              background: barColor,
+              transition: 'width 200ms ease-out',
+            }}
+          />
+        </div>
+        <span
+          data-testid={`budget-usage-${provider.name}`}
+          style={{
+            flex: '0 0 auto',
+            fontSize: '11px',
+            color: 'var(--text-muted)',
+            fontFamily: 'var(--font-mono)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {used.toLocaleString()} / {provider.limits.day.toLocaleString()}
         </span>
+        {learningPct !== null && (
+          <span
+            data-testid={`budget-learning-${provider.name}`}
+            title={t('budget.learning_active', { factor: learningPct })}
+            style={{
+              flex: '0 0 auto',
+              fontSize: '10px',
+              color: 'var(--warning)',
+              background: 'var(--warning-bg)',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              marginLeft: '4px',
+            }}
+          >
+            -{learningPct}%
+          </span>
+        )}
+      </div>
+      {expanded && hasKeys && provider.keys && (
+        <ul
+          style={{ listStyle: 'none', padding: '8px 0 0 16px', margin: 0 }}
+          aria-label={t('budget.per_key_breakdown')}
+        >
+          {provider.keys.map((k) => (
+            <li
+              key={k.id}
+              data-testid={`key-detail-${k.id}`}
+              style={{
+                fontSize: '11px',
+                color: 'var(--text-secondary)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                padding: '2px 0',
+              }}
+            >
+              <span>
+                {k.label} ({k.tier})
+              </span>
+              <span>
+                {k.used.day}/{k.limit.day}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
     </li>
   )

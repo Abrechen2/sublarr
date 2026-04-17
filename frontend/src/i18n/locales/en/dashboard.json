@@ -142,7 +142,8 @@
     "reset_in": "Reset in {{time}}",
     "disabled": "API budget monitoring is disabled",
     "loading": "Loading budget state…",
-    "learning_active": "Learning — limits adjusted by {{factor}}%"
+    "learning_active": "Learning — limits adjusted by {{factor}}%",
+    "per_key_breakdown": "Per-key breakdown"
   },
   "sidebar": {
     "providers": "Provider Health",

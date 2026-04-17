@@ -142,7 +142,8 @@
     "reset_in": "Reset in {{time}}",
     "disabled": "API-Budget-Überwachung ist deaktiviert",
     "loading": "Lade Budget-Status…",
-    "learning_active": "Lernt — Limits angepasst um {{factor}}%"
+    "learning_active": "Lernt — Limits angepasst um {{factor}}%",
+    "per_key_breakdown": "Schlüssel-Aufschlüsselung"
   },
   "sidebar": {
     "providers": "Provider-Status",

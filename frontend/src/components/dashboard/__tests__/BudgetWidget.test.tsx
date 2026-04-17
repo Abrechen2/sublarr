@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, test } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { BudgetWidget, applyBudgetUpdate } from '../BudgetWidget'
 import type { BudgetResponse } from '@/api/health'
@@ -195,6 +195,45 @@ describe('BudgetWidget', () => {
       ],
     })
     expect(screen.queryByTestId('budget-learning-opensubtitles')).toBeNull()
+  })
+
+  test('clicking a row with 2+ keys reveals per-key breakdown', () => {
+    renderWith({
+      enabled: true,
+      providers: [
+        {
+          name: 'opensubtitles',
+          tier: 'vip',
+          limits: { second: 10, hour: 1000, day: 11000 },
+          usage: { second: 0, hour: 0, day: 100 },
+          reset_seconds: { second: 1, hour: 60, day: 36000 },
+          keys: [
+            {
+              id: 1,
+              label: 'primary',
+              tier: 'vip',
+              used: { second: 0, hour: 0, day: 90 },
+              limit: { second: 10, hour: 1000, day: 10000 },
+              last_429_at: null,
+              last_used_at: null,
+            },
+            {
+              id: 2,
+              label: 'backup',
+              tier: 'free',
+              used: { second: 0, hour: 0, day: 10 },
+              limit: { second: 1, hour: 20, day: 200 },
+              last_429_at: null,
+              last_used_at: null,
+            },
+          ],
+        },
+      ],
+    })
+    const row = screen.getByTestId('budget-row-opensubtitles')
+    fireEvent.click(row)
+    expect(screen.getByTestId('key-detail-1')).toHaveTextContent('primary')
+    expect(screen.getByTestId('key-detail-2')).toHaveTextContent('backup')
   })
 })
 

@@ -871,5 +871,15 @@
     "test_connection": "Test connection",
     "save": "Save",
     "cancel": "Cancel"
+  },
+  "series_override": {
+    "title": "Scheduler override",
+    "priority": "Priority",
+    "inherit": "Inherit",
+    "premium": "Premium",
+    "standard": "Standard",
+    "backlog": "Backlog",
+    "min_attempts": "Minimum attempts per day",
+    "save": "Save"
   }
 }

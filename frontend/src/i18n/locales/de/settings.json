@@ -871,5 +871,15 @@
     "test_connection": "Verbindung testen",
     "save": "Speichern",
     "cancel": "Abbrechen"
+  },
+  "series_override": {
+    "title": "Planer-Override",
+    "priority": "Priorität",
+    "inherit": "Erben",
+    "premium": "Premium",
+    "standard": "Standard",
+    "backlog": "Backlog",
+    "min_attempts": "Mindestversuche pro Tag",
+    "save": "Speichern"
   }
 }
