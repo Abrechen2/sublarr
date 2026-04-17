@@ -463,7 +463,7 @@
     "order_newest_first": "Neueste zuerst",
     "order_weighted": "Gewichtet (neue Episoden priorisiert)",
     "stretch_mode": "API-Pacing-Modus",
-    "stretch_mode_hint": "Verteilt das tägliche API-Budget. 'Stretch' paced gleichmäßig über 24h, 'Burst' läuft N Stunden am Stück voll, 'Adaptiv' richtet sich nach deinem beobachteten Suchmuster.",
+    "stretch_mode_hint": "Verteilt das tägliche API-Budget. 'Stretch' verteilt gleichmäßig über 24h, 'Burst' läuft N Stunden am Stück voll, 'Adaptiv' richtet sich nach deinem beobachteten Suchmuster.",
     "stretch_mode_stretch": "Stretch (gleichmäßig)",
     "stretch_mode_burst": "Burst (Front-Load)",
     "stretch_mode_adaptive": "Adaptiv (nutzungsbasiert)",

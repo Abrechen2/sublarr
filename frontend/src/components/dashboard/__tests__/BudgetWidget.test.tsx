@@ -173,7 +173,7 @@ describe('BudgetWidget', () => {
     const badge = screen.getByTestId('budget-learning-opensubtitles')
     expect(badge).toBeInTheDocument()
     // 1 - 0.81 = 0.19 → rounded to 19 → rendered as "-19%"
-    expect(badge).toHaveTextContent('19')
+    expect(badge).toHaveTextContent('-19%')
   })
 
   it('hides learning badge at factor 1.0', () => {

@@ -217,7 +217,11 @@ function SearchScanAdvancedContent() {
             data-testid="input-provider-budget-burst-window-hours"
             style={{ ...inputStyle, maxWidth: '120px' }}
             value={strVal(config, 'provider_budget_burst_window_hours', '6')}
-            onChange={(e) => save({ provider_budget_burst_window_hours: Number(e.target.value) })}
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              const clamped = Math.max(1, Math.min(23, Number.isFinite(v) ? v : 6))
+              save({ provider_budget_burst_window_hours: clamped })
+            }}
             disabled={updateConfig.isPending}
             min={1}
             max={23}

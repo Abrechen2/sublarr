@@ -140,7 +140,7 @@ function BudgetRow({ provider }: BudgetRowProps) {
             flex: '0 0 auto',
             fontSize: '10px',
             color: 'var(--warning)',
-            background: 'var(--warning-soft, rgba(255,180,0,0.12))',
+            background: 'var(--warning-bg)',
             padding: '2px 6px',
             borderRadius: '4px',
             marginLeft: '4px',
