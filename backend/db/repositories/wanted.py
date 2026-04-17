@@ -15,7 +15,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import asc, case, delete, desc, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
-from db.models.core import WantedItem
+from db.models.core import SeriesSettings, WantedItem
 from db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
@@ -27,14 +27,25 @@ _SCHEDULED_SEARCH_ORDERS = ("fair", "newest_first", "weighted")
 # preset-based and not need to pass a window parameter.
 _WEIGHTED_RECENT_DAYS = 30
 
+
 # Priority rank used to prefix scheduler ORDER BY clauses:
 #   premium -> 0 (highest), standard -> 1, backlog -> 2 (lowest).
 # Applied by get_items_for_scheduled_search when priority_weighting is on.
-_PRIORITY_RANK = case(
-    (WantedItem.priority == "premium", 0),
-    (WantedItem.priority == "backlog", 2),
-    else_=1,
-)
+def _priority_rank_expr():
+    """Rank expression: premium=0, backlog=2, standard=1.
+
+    Uses ``COALESCE(series_settings.priority_override, WantedItem.priority)`` so
+    a per-series override wins over the item's intrinsic priority. Requires
+    an outer join on ``SeriesSettings`` — callers that omit the join will get
+    NULL for ``priority_override`` which COALESCEs to the item priority anyway,
+    so the expression is safe to use without the join too (just less useful).
+    """
+    effective = func.coalesce(SeriesSettings.priority_override, WantedItem.priority)
+    return case(
+        (effective == "premium", 0),
+        (effective == "backlog", 2),
+        else_=1,
+    )
 
 
 class WantedRepository(BaseRepository):
@@ -319,10 +330,15 @@ class WantedRepository(BaseRepository):
                 priority_weighting = True
 
         stmt = select(WantedItem).where(WantedItem.status == "wanted")
+        if priority_weighting:
+            stmt = stmt.outerjoin(
+                SeriesSettings,
+                SeriesSettings.sonarr_series_id == WantedItem.sonarr_series_id,
+            )
 
         order_clauses: list = []
         if priority_weighting:
-            order_clauses.append(_PRIORITY_RANK.asc())
+            order_clauses.append(_priority_rank_expr().asc())
 
         if order == "newest_first":
             order_clauses.append(desc(WantedItem.added_at))
