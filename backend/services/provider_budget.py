@@ -109,6 +109,12 @@ class ProviderBudgetManager:
         self._safety = max(0, min(100, safety_margin_pct))
         self._lock = Lock()
         self._in_memory_counts: dict[tuple[str, str, datetime], int] = defaultdict(int)
+        # Per-key counters: (provider, key_id, window_value, window_start) -> count.
+        # Populated when ``consume`` is called with ``key_id=``. Same TTL model
+        # as ``_in_memory_counts`` — entries for past windows are never evicted,
+        # but are filtered out by ``get_usage_per_key`` which checks the
+        # current window start.
+        self._in_memory_counts_per_key: dict[tuple[str, int, str, datetime], int] = defaultdict(int)
         # Learned adjustment factors keyed by (provider, window_value). Loaded from
         # provider_learned_limits on first access and refreshed after each
         # record_429()/tick_recovery() call. Default is 1.0 for any missing entry.
@@ -290,12 +296,24 @@ class ProviderBudgetManager:
             )
         return BudgetDecision(allow=True)
 
-    def consume(self, provider: str, now: datetime | None = None) -> None:
-        """Record one call against ``provider`` — increments all three windows."""
+    def consume(
+        self,
+        provider: str,
+        now: datetime | None = None,
+        *,
+        key_id: int | None = None,
+    ) -> None:
+        """Record one call against ``provider`` — increments all three windows.
+
+        If ``key_id`` is provided, also increments per-key counters alongside the
+        aggregate. Callers without multi-key support can continue to omit it.
+        """
         if now is None:
             now = datetime.now(UTC)
         for window in BudgetWindow:
             self._increment(provider, window, now)
+            if key_id is not None:
+                self._increment_per_key(provider, key_id, window, now)
         self._emit_update(provider, now)
 
     def refund(self, provider: str, now: datetime | None = None) -> None:
@@ -315,6 +333,29 @@ class ProviderBudgetManager:
         if now is None:
             now = datetime.now(UTC)
         return {w.value: self._get_count(provider, w, now) for w in BudgetWindow}
+
+    def get_usage_per_key(
+        self,
+        provider: str,
+        now: datetime | None = None,
+    ) -> dict[int, dict[str, int]]:
+        """Return ``{key_id: {window: count}}`` for ``provider``.
+
+        Only counts falling within the current window start are returned — stale
+        entries from previous windows are filtered out so the returned numbers
+        always match ``get_usage``.
+        """
+        if now is None:
+            now = datetime.now(UTC)
+        out: dict[int, dict[str, int]] = {}
+        with self._lock:
+            for (p, kid, wname, wstart), cnt in self._in_memory_counts_per_key.items():
+                if p != provider:
+                    continue
+                if wstart != window_start_for(BudgetWindow(wname), now):
+                    continue  # stale window
+                out.setdefault(kid, {})[wname] = cnt
+        return out
 
     def prune(self, cutoff: datetime | None = None) -> int:
         """Drop in-memory counters whose window ended before ``cutoff``.
@@ -495,6 +536,18 @@ class ProviderBudgetManager:
                 self._redis.expire(key, _WINDOW_TTL_SECONDS[window])
             except Exception as exc:  # noqa: BLE001
                 logger.debug("Redis incr failed for %s/%s: %s", provider, window.value, exc)
+
+    def _increment_per_key(
+        self,
+        provider: str,
+        key_id: int,
+        window: BudgetWindow,
+        now: datetime,
+    ) -> None:
+        start = window_start_for(window, now)
+        key = (provider, key_id, window.value, start)
+        with self._lock:
+            self._in_memory_counts_per_key[key] += 1
 
     def _decrement(self, provider: str, window: BudgetWindow, now: datetime) -> None:
         with self._lock:

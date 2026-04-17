@@ -295,3 +295,32 @@ class TestFactorAwareEffectiveLimit:
         decision = mgr.check("opensubtitles", limits={"day": 1000}, now=now)
         assert decision.allow is False
         assert "day" in decision.reason
+
+
+class TestPerKeyAccounting:
+    """Phase 4a: per-key counters alongside the aggregate."""
+
+    def test_consume_with_key_id_tracks_both_aggregate_and_per_key(self):
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+        now = datetime(2026, 4, 17, 12, 0, tzinfo=UTC)
+        mgr.consume("opensubtitles", key_id=1, now=now)
+        mgr.consume("opensubtitles", key_id=1, now=now)
+        mgr.consume("opensubtitles", key_id=2, now=now)
+        agg = mgr.get_usage("opensubtitles", now=now)
+        per_key = mgr.get_usage_per_key("opensubtitles", now=now)
+        assert agg["day"] == 3
+        assert per_key[1]["day"] == 2
+        assert per_key[2]["day"] == 1
+
+    def test_consume_without_key_id_only_updates_aggregate(self):
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+        now = datetime(2026, 4, 17, 12, 0, tzinfo=UTC)
+        mgr.consume("opensubtitles", now=now)
+        agg = mgr.get_usage("opensubtitles", now=now)
+        per_key = mgr.get_usage_per_key("opensubtitles", now=now)
+        assert agg["day"] == 1
+        assert per_key == {}  # no per-key tracking when key_id omitted
+
+    def test_get_usage_per_key_empty_for_unknown_provider(self):
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+        assert mgr.get_usage_per_key("ghost") == {}
