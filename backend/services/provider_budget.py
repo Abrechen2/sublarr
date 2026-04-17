@@ -26,6 +26,9 @@ from datetime import UTC, datetime
 from threading import Lock
 from typing import Any
 
+# Imported at module level (not deferred) so tests can patch
+# ``services.provider_budget.get_settings`` directly. Audited 2026-04-17: no
+# cycle — ``config`` does not import from ``services.*``.
 from config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -213,25 +216,39 @@ class ProviderBudgetManager:
         """Burst gate: raw-cap-only inside the window; paced afterwards.
 
         Inside hours [0, burst_window_hours): always allow (raw caps already
-        enforced before this method runs).
+        enforced before this method runs — do not rely on that for correctness
+        here: this gate must be safe to call from any caller order).
 
         After the window: paces the REMAINING budget across the REMAINING hours.
         The burst-end consumption is not persisted anywhere; we estimate it by
         scaling current usage linearly (``day_used * burst_window_hours / now.hour``).
-        Coarse but stateless; self-corrects within minutes as later hours tick.
+        Coarse but stateless — the estimate is constant within a single clock hour
+        (only depends on ``now.hour``), so the threshold cannot oscillate within
+        an hour. It self-corrects at each hour boundary as later hours tick.
+
+        Degenerate configs (``burst_window_hours`` <=0 or >= 24) skip pacing
+        entirely — the field is documented as 1..23; anything outside falls back
+        to "no pacing" rather than crashing.
         """
+        # Clamp the config to the valid range [1, 23]. Outside this range the
+        # pacing math degenerates (div-by-zero at 24; nonsensical estimate at 0).
+        if burst_window_hours <= 0 or burst_window_hours >= 24:
+            return BudgetDecision(allow=True)
+
         if now.hour < burst_window_hours:
             return BudgetDecision(allow=True)
 
         day_used = self._get_count(provider, BudgetWindow.DAY, now)
-        hours_after_burst_end = now.hour - burst_window_hours + 1
+        elapsed_post_burst_hours = now.hour - burst_window_hours + 1
         hours_remaining_in_day = 24 - burst_window_hours
         estimated_burst_used = min(
             day_used,
             int(day_used * burst_window_hours / max(1, now.hour)),
         )
         remaining_budget = max(0, day_limit - estimated_burst_used)
-        paced_share = math.ceil(remaining_budget * hours_after_burst_end / hours_remaining_in_day)
+        paced_share = math.ceil(
+            remaining_budget * elapsed_post_burst_hours / hours_remaining_in_day
+        )
         threshold = estimated_burst_used + paced_share
         if day_used >= threshold:
             wait = self._seconds_until_next_window(BudgetWindow.HOUR, now)

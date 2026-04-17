@@ -1,4 +1,4 @@
-"""Burst + adaptive stretch-mode tests."""
+"""Burst + stretch-mode regression tests."""
 
 from __future__ import annotations
 
@@ -55,3 +55,19 @@ def test_burst_mode_still_enforces_raw_caps():
         decision = mgr.check("opensubtitles", {"day": 1000}, now=now)
     assert decision.allow is False
     assert "day limit reached" in decision.reason
+
+
+def test_stretch_mode_still_fires_deny_after_burst_refactor():
+    """Regression: the check() dispatch refactor for burst mode must not break
+    the existing stretch path."""
+    mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+    now = datetime(2026, 4, 17, 0, 30, 0, tzinfo=UTC)  # hour 0 — threshold = ceil(1000*1/24) = 42
+    key = ("opensubtitles", "day", window_start_for(BudgetWindow.DAY, now))
+    mgr._in_memory_counts[key] = 50  # Above the 42 threshold for hour 0
+    with patch(
+        "services.provider_budget.get_settings",
+        return_value=_settings_stub(provider_budget_stretch_mode="stretch"),
+    ):
+        decision = mgr.check("opensubtitles", {"day": 1000}, now=now)
+    assert decision.allow is False
+    assert "stretch" in decision.reason
