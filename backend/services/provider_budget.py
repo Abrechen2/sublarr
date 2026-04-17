@@ -110,7 +110,7 @@ class ProviderBudgetManager:
         self._lock = Lock()
         self._in_memory_counts: dict[tuple[str, str, datetime], int] = defaultdict(int)
         # Per-key counters: (provider, key_id, window_value, window_start) -> count.
-        # Populated when ``consume`` is called with ``key_id=``. Same TTL model
+        # Populated when ``consume`` is called with ``key_id=<int>``. Same TTL model
         # as ``_in_memory_counts`` — entries for past windows are never evicted,
         # but are filtered out by ``get_usage_per_key`` which checks the
         # current window start.
@@ -347,14 +347,15 @@ class ProviderBudgetManager:
         """
         if now is None:
             now = datetime.now(UTC)
-        out: dict[int, dict[str, int]] = {}
         with self._lock:
-            for (p, kid, wname, wstart), cnt in self._in_memory_counts_per_key.items():
-                if p != provider:
-                    continue
-                if wstart != window_start_for(BudgetWindow(wname), now):
-                    continue  # stale window
-                out.setdefault(kid, {})[wname] = cnt
+            snapshot = list(self._in_memory_counts_per_key.items())
+        out: dict[int, dict[str, int]] = {}
+        for (p, kid, wname, wstart), cnt in snapshot:
+            if p != provider:
+                continue
+            if wstart != window_start_for(BudgetWindow(wname), now):
+                continue  # stale window
+            out.setdefault(kid, {})[wname] = cnt
         return out
 
     def prune(self, cutoff: datetime | None = None) -> int:
@@ -362,6 +363,10 @@ class ProviderBudgetManager:
 
         Redis entries expire via TTL and do not need pruning. Returns the number
         of keys removed (diagnostic for tests and long-running processes).
+
+        Evicts from both ``_in_memory_counts`` (aggregate) and
+        ``_in_memory_counts_per_key`` (Phase 4a per-key dimension) so neither
+        leaks across window rollovers.
         """
         if cutoff is None:
             cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -370,6 +375,10 @@ class ProviderBudgetManager:
             for key in list(self._in_memory_counts.keys()):
                 if key[2] < cutoff:
                     del self._in_memory_counts[key]
+                    removed += 1
+            for key in list(self._in_memory_counts_per_key.keys()):
+                if key[3] < cutoff:
+                    del self._in_memory_counts_per_key[key]
                     removed += 1
         return removed
 

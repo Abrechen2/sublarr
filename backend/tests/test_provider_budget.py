@@ -324,3 +324,16 @@ class TestPerKeyAccounting:
     def test_get_usage_per_key_empty_for_unknown_provider(self):
         mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
         assert mgr.get_usage_per_key("ghost") == {}
+
+    def test_get_usage_per_key_filters_stale_windows(self):
+        """Counts from a previous day must not appear in today's view."""
+        mgr = ProviderBudgetManager(redis=None, safety_margin_pct=0)
+        yesterday = datetime(2026, 4, 16, 12, 0, tzinfo=UTC)
+        today = datetime(2026, 4, 17, 12, 0, tzinfo=UTC)
+        mgr.consume("opensubtitles", key_id=1, now=yesterday)
+        mgr.consume("opensubtitles", key_id=1, now=today)
+        per_key = mgr.get_usage_per_key("opensubtitles", now=today)
+        # Only today's "day" window entry remains visible (plus hour + second).
+        assert per_key[1]["day"] == 1
+        # Sanity check: yesterday's day bucket is still in the raw dict
+        # (pruned only by explicit prune()), but the reader filters it out.
