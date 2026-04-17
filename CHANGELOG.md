@@ -5,6 +5,26 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.53.0-beta] - 2026-04-17
+
+### Fixed
+- **Rate-limit errors no longer swallowed by 5 providers** — `animetosho`, `subdl`, `titrari`, `opensubtitles`, and `legendasdivx` catch their own network errors in a broad `except Exception`. The first three were swallowing `ProviderRateLimitError` before it could reach the SearchCoordinator, which meant Phase 3's 429-learning never fired for them (prod showed 299+ swallowed animetosho 429s in 3 hours with zero rows in `provider_learned_limits`). They now re-raise `ProviderRateLimitError` and `ProviderAuthError` before the broad except. A parametrised regression test locks this in.
+
+### Added
+- **V1 API-Budget Scheduler — Phase 4a: Multi-key pools + per-series overrides** — Each provider can now have multiple API keys organised in a pool. The new `KeySelector` picks the key with the most remaining day-budget per call (budget-aware, with a 60s cache and 429 cooldown). Two new columns on `series_settings` let users override a series's scheduling priority (premium/standard/backlog) and guarantee a minimum number of search attempts per day (hard floor that survives the backlog-reserve gate).
+- **`/api/v1/system/budget` exposes per-key breakdown** — Response now includes a `keys: [...]` array with per-key `used / limit / last_429_at / last_used_at`. The outer `tier` is the highest enabled key (vip+ > vip > free); `limits` is the sum across all enabled keys so a second VIP key doubles the aggregate day-budget as expected.
+- **`/api/v1/providers/<name>/keys` CRUD endpoints** — List/add/update/delete pool rows with duplicate-label conflict handling. A `POST .../test-connection` fires a cheap provider-specific probe (OpenSubtitles, subdl) with 20/min rate-limit and redacted errors.
+- **`PATCH /api/v1/series/<id>/settings` endpoint** — Sets `priority_override` (nullable, one of premium/standard/backlog) and `min_attempts_per_day` (0..50), creating the row if missing.
+- **Standalone frontend components** — New `KeysList` + `KeyEditDialog` (settings), new `SeriesOverrideSettings` (library). `BudgetWidget` rows now expand on click to show per-key breakdown when a provider has 2+ keys. All covered by Vitest; DE + EN i18n complete. Components are not yet mounted in ProvidersTab / SeriesDetail — UX integration follows in a subsequent commit.
+
+### Changed
+- **Scheduler credential injection moved into the worker thread** — Previously the SearchCoordinator mutated the singleton provider's `api_key` attribute before `executor.submit`, which could race between concurrent `search()` calls. Credentials are now injected inside `_search_provider_with_retry` under a per-provider `RLock`, and restored in a `finally` block.
+- **`idx_wanted_sonarr_series` re-added** — Phase 4a's LEFT JOIN on `series_settings.sonarr_series_id` needs the index that was dropped in `h1i2j3k4l5m6` back in April.
+
+### Tests
+- **`test_phase4a_e2e.py`** — End-to-end integration: two VIP keys double the aggregate day-budget, `min_attempts_per_day=3` guarantees three oldest-searched items per tick, `priority_override=premium` promotes a backlog item to the first rank.
+- **`test_provider_rate_limit_propagation.py`** — Parametrised regression across all 5 paid-credential providers.
+
 ## [0.52.0-beta] - 2026-04-17
 
 ### Added
