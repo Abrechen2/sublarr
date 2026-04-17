@@ -7,6 +7,7 @@ import logging
 from flask import jsonify
 
 from config import get_settings
+from db.repositories.provider_learned_limits import ProviderLearnedLimitsRepository
 from providers import get_provider_manager
 from routes.system import bp
 from services.provider_budget import get_budget_manager
@@ -38,9 +39,10 @@ def get_budget_state():
     mgr = get_provider_manager()
     budget = get_budget_manager()
 
-    from db.repositories.provider_learned_limits import ProviderLearnedLimitsRepository
-
     learned_by_provider: dict[str, dict] = {}
+    # Fetch learned-limit rows in bulk; on any failure, degrade the whole block
+    # to an empty map so all providers get learning=None rather than a partial/
+    # inconsistent mix.
     try:
         for (provider, window), row in ProviderLearnedLimitsRepository().get_all().items():
             # Surface the "day" window only — that is what the dashboard shows.
