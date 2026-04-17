@@ -849,5 +849,27 @@
     "additional_languages": "Additional Languages",
     "additional_languages_hint": "More languages to search for alongside the primary. Searched after the primary language.",
     "add_language_placeholder": "— Add language —"
+  },
+  "provider_keys": {
+    "title": "API keys",
+    "add": "Add key",
+    "empty": "No keys configured.",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "edit": "Edit",
+    "delete": "Delete",
+    "delete_aria": "Delete key",
+    "delete_last_aria": "Delete last key — provider will be disabled",
+    "edit_title": "Edit key",
+    "add_title": "Add key",
+    "label_field": "Label",
+    "api_key_field": "API key",
+    "tier_field": "Tier",
+    "username_field": "Username (optional)",
+    "password_field": "Password (optional)",
+    "enabled_field": "Enabled",
+    "test_connection": "Test connection",
+    "save": "Save",
+    "cancel": "Cancel"
   }
 }

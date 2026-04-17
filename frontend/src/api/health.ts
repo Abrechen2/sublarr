@@ -32,6 +32,16 @@ export interface ProviderBudgetLearning {
   last_429_at: string | null
 }
 
+export interface ProviderBudgetKey {
+  id: number
+  label: string
+  tier: string
+  used: { second: number; hour: number; day: number }
+  limit: { second: number; hour: number; day: number }
+  last_429_at: string | null
+  last_used_at: string | null
+}
+
 export interface ProviderBudget {
   name: string
   tier: string
@@ -39,6 +49,7 @@ export interface ProviderBudget {
   usage: BudgetWindow
   reset_seconds: BudgetWindow
   learning?: ProviderBudgetLearning | null
+  keys?: ProviderBudgetKey[]
 }
 
 export interface BudgetResponse {

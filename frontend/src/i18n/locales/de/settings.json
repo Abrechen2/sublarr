@@ -849,5 +849,27 @@
     "additional_languages": "Weitere Sprachen",
     "additional_languages_hint": "Weitere Sprachen, nach denen neben der Primärsprache gesucht wird. Werden nach der Primärsprache gesucht.",
     "add_language_placeholder": "— Sprache hinzufügen —"
+  },
+  "provider_keys": {
+    "title": "API-Schlüssel",
+    "add": "Schlüssel hinzufügen",
+    "empty": "Keine Schlüssel konfiguriert.",
+    "enabled": "Aktiv",
+    "disabled": "Deaktiviert",
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "delete_aria": "Schlüssel löschen",
+    "delete_last_aria": "Letzten Schlüssel löschen — Provider wird deaktiviert",
+    "edit_title": "Schlüssel bearbeiten",
+    "add_title": "Schlüssel hinzufügen",
+    "label_field": "Label",
+    "api_key_field": "API-Schlüssel",
+    "tier_field": "Tier",
+    "username_field": "Username (optional)",
+    "password_field": "Passwort (optional)",
+    "enabled_field": "Aktiv",
+    "test_connection": "Verbindung testen",
+    "save": "Speichern",
+    "cancel": "Abbrechen"
   }
 }
