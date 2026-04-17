@@ -112,6 +112,12 @@ class ProviderLearnedLimitsRepository(BaseRepository):
         if observed_limit is not None:
             row.observed_limit = observed_limit
         self.session.commit()
+        logger.debug(
+            "provider_learned_limits: 429 for %s/%s -> factor=%.3f",
+            provider,
+            window,
+            new_factor,
+        )
         return new_factor
 
     def ramp_recovery(
@@ -142,8 +148,15 @@ class ProviderLearnedLimitsRepository(BaseRepository):
 
         # Must be a full 24h since the last 429 AND since the last ramp.
         # SQLite strips tzinfo on read — coerce to UTC before subtracting.
-        last = _as_utc(row.last_429_at) or _as_utc(row.updated_at)
-        if last is None or (now - last) < timedelta(hours=_RAMP_WAIT_HOURS):
+        last_429 = _as_utc(row.last_429_at)
+        last_updated = _as_utc(row.updated_at)
+        # "Since the last 429 OR the last ramp write, whichever is more recent."
+        # Both are tracked: 429 resets consecutive_good_days, ramp writes updated_at.
+        candidates = [d for d in (last_429, last_updated) if d is not None]
+        if not candidates:
+            return float(row.adjustment_factor)
+        last = max(candidates)
+        if (now - last) < timedelta(hours=_RAMP_WAIT_HOURS):
             return float(row.adjustment_factor)
 
         row.consecutive_good_days += 1

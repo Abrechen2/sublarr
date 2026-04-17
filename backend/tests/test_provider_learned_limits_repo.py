@@ -117,3 +117,29 @@ def test_get_all_returns_mapping_keyed_by_provider_window(app_ctx):
     assert ("opensubtitles", "day") in rows
     assert ("subdl", "day") in rows
     assert rows[("opensubtitles", "day")]["adjustment_factor"] == pytest.approx(0.9)
+
+
+def test_ramp_recovery_guards_against_rapid_consecutive_calls(app_ctx):
+    """Two ramp calls within 24h of each other must not both increment good_days.
+
+    Rapid calls could otherwise happen from a misbehaving scheduler or a test.
+    The guard uses max(last_429_at, updated_at) so each ramp write advances the
+    cooldown for the next call.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    from db.repositories.provider_learned_limits import ProviderLearnedLimitsRepository
+
+    repo = ProviderLearnedLimitsRepository()
+    storm = datetime(2026, 4, 17, 12, 0, 0, tzinfo=UTC)
+    repo.upsert_on_429("opensubtitles", "day", 1000, None, storm)
+    # First ramp 25h after 429 — should tick to good_days=1
+    first = storm + timedelta(hours=25)
+    repo.ramp_recovery("opensubtitles", "day", step=0.02, now=first)
+    row_after_first = repo.get("opensubtitles", "day")
+    assert row_after_first["consecutive_good_days"] == 1
+    # Second ramp 2 minutes later — must be no-op (24h guard since last ramp)
+    second = first + timedelta(minutes=2)
+    repo.ramp_recovery("opensubtitles", "day", step=0.02, now=second)
+    row_after_second = repo.get("opensubtitles", "day")
+    assert row_after_second["consecutive_good_days"] == 1  # unchanged
