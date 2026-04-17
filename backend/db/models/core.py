@@ -4,7 +4,7 @@ All column types and defaults match the existing SCHEMA DDL in db/__init__.py ex
 Timestamp columns use DateTime(timezone=True) for proper datetime handling.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, Float, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
@@ -322,6 +322,27 @@ class FansubPreference(db.Model):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class ProviderLearnedLimit(db.Model):
+    """Observed rate-limit adjustments per (provider, window).
+
+    Written by the budget manager when a provider returns HTTP 429; read by
+    the budget manager to scale declared limits. See Phase 3 plan.
+    """
+
+    __tablename__ = "provider_learned_limits"
+
+    provider_name: Mapped[str] = mapped_column(String(50), primary_key=True)
+    window_type: Mapped[str] = mapped_column(String(10), primary_key=True)
+    configured_limit: Mapped[int] = mapped_column(Integer, nullable=False)
+    observed_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    adjustment_factor: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    last_429_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    consecutive_good_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
+
+
 __all__ = [
     "Job",
     "DailyStats",
@@ -338,4 +359,5 @@ __all__ = [
     "AnidbAbsoluteMapping",
     "SeriesSettings",
     "FansubPreference",
+    "ProviderLearnedLimit",
 ]
