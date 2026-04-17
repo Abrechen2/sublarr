@@ -220,6 +220,9 @@ class Settings(BaseSettings):
     # Prepend a priority rank (premium=0, standard=1, backlog=2) to the scheduler
     # ORDER BY so premium items always win the first slice of the tick budget.
     wanted_scheduler_priority_weighting_enabled: bool = True
+    # Day-budget spent % above which backlog-priority items are deferred to the
+    # next tick. Ensures premium+standard items always get a fair slice.
+    wanted_scheduler_backlog_reserve_pct: int = 50
     # Master gate for the per-provider API-budget manager. When False, the
     # search coordinator reverts to pre-V1 behaviour (no budget accounting).
     provider_budget_enabled: bool = True

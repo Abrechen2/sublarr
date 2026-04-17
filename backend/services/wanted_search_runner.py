@@ -220,6 +220,26 @@ def run_wanted_search(
     # Filter by backoff / cooldown
     eligible = _filter_eligible(items, settings)
 
+    # Phase 3: drop backlog items when any provider is >N% spent. Best-effort —
+    # if any part of the lookup fails we keep the original list.
+    try:
+        from providers import get_provider_manager
+        from services.provider_budget import get_budget_manager
+
+        budget_mgr = get_budget_manager()
+        provider_mgr = get_provider_manager()
+        budget_states: list[dict] = []
+        for name, provider in provider_mgr._providers.items():
+            tier = getattr(provider, "tier", "free")
+            rate_limits = getattr(type(provider), "rate_limits", {}) or {}
+            limits = rate_limits.get(tier) or rate_limits.get("free") or {}
+            usage = budget_mgr.get_usage(name)
+            budget_states.append({"usage": usage, "limits": limits})
+        reserve_pct = int(getattr(settings, "wanted_scheduler_backlog_reserve_pct", 50))
+        eligible = _apply_backlog_reserve_gate(eligible, budget_states, reserve_pct)
+    except Exception as _bge:  # noqa: BLE001
+        logger.debug("backlog reserve gate failed (non-blocking): %s", _bge)
+
     if not eligible:
         return {"total": 0, "processed": 0, "found": 0, "failed": 0, "skipped": 0}
 
@@ -336,6 +356,32 @@ def run_wanted_search(
     )
 
     return summary
+
+
+def _apply_backlog_reserve_gate(
+    items: list[dict],
+    budget_states: list[dict],
+    reserve_pct: int,
+) -> list[dict]:
+    """Drop ``priority == 'backlog'`` items when any provider is above reserve_pct.
+
+    Each ``budget_states`` entry is a dict with ``usage.day`` and ``limits.day``
+    (matching the shape returned by ``/api/v1/system/budget``). Providers with
+    missing/zero day limit contribute ratio 0.
+    """
+
+    def _ratio(state: dict) -> float:
+        usage = (state.get("usage") or {}).get("day", 0)
+        limit = (state.get("limits") or {}).get("day", 0)
+        if not limit:
+            return 0.0
+        return usage / limit
+
+    max_ratio = max((_ratio(s) for s in budget_states), default=0.0)
+    threshold = reserve_pct / 100.0
+    if max_ratio < threshold:
+        return items
+    return [i for i in items if (i.get("priority") or "standard") != "backlog"]
 
 
 def _filter_eligible(items: list[dict], settings) -> list[dict]:
