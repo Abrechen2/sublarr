@@ -316,7 +316,7 @@ class ProviderBudgetManager:
         try:
             new_factors = _ramp_all(now)
         except Exception as exc:  # noqa: BLE001
-            logger.debug("tick_recovery failed, keeping existing factors: %s", exc)
+            logger.warning("tick_recovery failed, keeping existing factors: %s", exc)
             return
         if not new_factors:
             return
@@ -507,6 +507,9 @@ def _ramp_all(now: datetime) -> dict[tuple[str, str], float]:
     Requires a Flask app context; ``tick_recovery`` callers from outside one
     (tests) must push ``app_ctx`` or patch this function.
     """
+    # Expected row count is tiny (providers × windows ≈ < 20 in practice), so N
+    # sequential commits are acceptable on the scheduler thread. Revisit if the
+    # learned-limits table ever grows large.
     from db.repositories.provider_learned_limits import ProviderLearnedLimitsRepository
 
     repo = ProviderLearnedLimitsRepository()

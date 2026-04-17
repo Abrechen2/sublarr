@@ -199,8 +199,8 @@ def run_wanted_search(
         from services.provider_budget import get_budget_manager
 
         get_budget_manager().tick_recovery()
-    except Exception as _tre:  # noqa: BLE001
-        logger.debug("tick_recovery failed (non-blocking): %s", _tre)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("tick_recovery failed (non-blocking): %s", exc)
 
     max_items = settings.wanted_search_max_items_per_run
 
