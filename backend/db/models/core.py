@@ -6,7 +6,16 @@ Timestamp columns use DateTime(timezone=True) for proper datetime handling.
 
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Float, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from extensions import db
@@ -302,6 +311,8 @@ class SeriesSettings(db.Model):
         Integer, nullable=True, default=None
     )
     processing_config: Mapped[str | None] = mapped_column(Text, nullable=True)
+    priority_override: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    min_attempts_per_day: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -343,6 +354,31 @@ class ProviderLearnedLimit(db.Model):
     )
 
 
+class ProviderAccountPool(db.Model):
+    """Multi-API-key pool per provider for budget aggregation (Phase 4a)."""
+
+    __tablename__ = "provider_account_pools"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    provider_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    account_label: Mapped[str] = mapped_column(String(100), nullable=False)
+    api_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    username: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    password: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    tier: Mapped[str] = mapped_column(String(20), nullable=False, default="free")
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_429_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
+
+    __table_args__ = (
+        UniqueConstraint("provider_name", "account_label", name="uq_pool_provider_label"),
+        Index("ix_pool_provider_enabled", "provider_name", "enabled"),
+    )
+
+
 __all__ = [
     "Job",
     "DailyStats",
@@ -360,4 +396,5 @@ __all__ = [
     "SeriesSettings",
     "FansubPreference",
     "ProviderLearnedLimit",
+    "ProviderAccountPool",
 ]
