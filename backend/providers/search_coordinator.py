@@ -10,7 +10,7 @@ import hashlib
 import json
 import logging
 import threading
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from concurrent.futures import TimeoutError as FutureTimeoutError
 
 try:
@@ -149,6 +149,132 @@ class SearchCoordinatorMixin:
         except Exception:
             pass
         return None
+
+    def _submit_provider_searches(
+        self,
+        executor,
+        query,
+        is_provider_auto_disabled,
+    ) -> tuple[dict, dict]:
+        """Gate every provider against auto-disable / CB / rate-limit / budget, then submit.
+
+        For each provider that passes every gate we pick a pool key (if budget
+        is on), consume one day-window call up front so timeouts still cost
+        budget, and submit ``_search_provider_with_retry`` to the executor.
+        Budget is refunded if the ``executor.submit`` itself fails (e.g. the
+        executor is shutting down or OOM).
+
+        Returns:
+            Tuple of ``(futures, futures_to_key)`` where ``futures`` maps each
+            submitted future to its provider name (for the as_completed loop)
+            and ``futures_to_key`` maps the future to the key_id that was used
+            (so the 429 handler can call ``ProviderAccountPoolRepository.mark_429``
+            on the specific row).
+        """
+        futures: dict = {}
+        futures_to_key: dict = {}
+
+        for name, provider in self._providers.items():
+            # Reset per-iteration key tracking (Phase 4a).
+            key: dict | None = None
+            # Check auto-disable status
+            if is_provider_auto_disabled(name):
+                logger.debug("Skipping provider %s -- auto-disabled", name)
+                continue
+
+            # Check circuit breaker
+            cb = self._circuit_breakers.get(name)
+            if cb and not cb.allow_request():
+                logger.debug("Skipping provider %s -- circuit breaker OPEN", name)
+                continue
+
+            # Check rate limit
+            if not self._check_rate_limit(name):
+                logger.debug("Skipping provider %s due to rate limit", name)
+                continue
+
+            # Budget gate — skip silently when exhausted (same pattern as
+            # auto-disable/CB). Consume BEFORE submitting the future so a
+            # provider timeout still costs budget (accurate accounting).
+            if getattr(self.settings, "provider_budget_enabled", True):
+                budget = get_budget_manager()
+                tier = getattr(provider, "tier", "free")
+                # Use class-level lookup so the ClassVar on the real provider
+                # class wins; fall back to instance attr for unusual stubs.
+                rate_limits = getattr(
+                    type(provider), "rate_limits", getattr(provider, "rate_limits", None)
+                )
+                limits = {}
+                if isinstance(rate_limits, dict):
+                    limits = rate_limits.get(tier) or rate_limits.get("free") or {}
+                if not limits:
+                    # Provider did not declare rate_limits (or none for this
+                    # tier). Fall through so the provider runs unthrottled —
+                    # but WARN once per provider so the missing metadata is
+                    # visible in logs instead of silently disabled.
+                    if name not in _warned_missing_limits:
+                        _warned_missing_limits.add(name)
+                        logger.warning(
+                            "Provider %s has no rate_limits[%r] defined — budget gate is "
+                            "disabled for this provider. Add a 'rate_limits' ClassVar to "
+                            "the provider class to enable throttling.",
+                            name,
+                            tier,
+                        )
+                else:
+                    decision = budget.check(name, limits)
+                    if not decision.allow:
+                        logger.debug(
+                            "Skipping provider %s -- budget: %s (wait %ds)",
+                            name,
+                            decision.reason,
+                            decision.wait_seconds,
+                        )
+                        continue
+
+                    # Phase 4a: pick a key from the pool before we commit the call.
+                    key = get_key_selector().pick(
+                        name,
+                        provider_rate_limits=rate_limits if isinstance(rate_limits, dict) else {},
+                    )
+                    if key is None:
+                        logger.warning(
+                            "%s: no usable key in pool (all exhausted, 429-cooling, "
+                            "or pool row deleted). Add a pool row via Settings → "
+                            "Providers, or set provider_budget_enabled=false to "
+                            "bypass the gate for this provider.",
+                            name,
+                        )
+                        continue
+
+                    # Credential injection + mark_used happen INSIDE the worker
+                    # thread (see _search_provider_with_retry) under a per-provider
+                    # lock, so two concurrent search() calls cannot clobber the
+                    # singleton provider's credentials.
+                    budget.consume(name, key_id=key["id"])
+
+            # Submit search task — refund budget if submit fails synchronously
+            # (e.g. executor shut down, memory pressure). Without the refund the
+            # just-consumed call leaks permanently.
+            try:
+                future = executor.submit(
+                    self._search_provider_with_retry, name, provider, query, key
+                )
+                futures[future] = name
+                # Phase 4a: track the key_id used for this future (if any),
+                # so the rate-limit handler can mark_429 on the right row.
+                if key is not None:
+                    futures_to_key[future] = key["id"]
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("submit failed for %s: %s -- refunding budget", name, exc)
+                if getattr(self.settings, "provider_budget_enabled", True):
+                    try:
+                        get_budget_manager().refund(name)
+                    except Exception as refund_exc:  # noqa: BLE001
+                        logger.debug("Budget refund failed for %s: %s", name, refund_exc)
+                continue
+
+        return futures, futures_to_key
 
     def _finalise_search_results(
         self,
@@ -611,111 +737,11 @@ class SearchCoordinatorMixin:
         # daemon threads without blocking the response.
         executor = ThreadPoolExecutor(max_workers=max(1, len(self._providers)))
         try:
-            futures: dict[Future, str] = {}
-            # Phase 4a: track which key_id each future used so the rate-limit
-            # handler can call mark_429(key_id) later.
-            futures_to_key: dict[Future, int] = {}
-            for name, provider in self._providers.items():
-                # Reset per-iteration key tracking (Phase 4a).
-                key: dict | None = None
-                # Check auto-disable status
-                if is_provider_auto_disabled(name):
-                    logger.debug("Skipping provider %s -- auto-disabled", name)
-                    continue
-
-                # Check circuit breaker
-                cb = self._circuit_breakers.get(name)
-                if cb and not cb.allow_request():
-                    logger.debug("Skipping provider %s -- circuit breaker OPEN", name)
-                    continue
-
-                # Check rate limit
-                if not self._check_rate_limit(name):
-                    logger.debug("Skipping provider %s due to rate limit", name)
-                    continue
-
-                # Budget gate — skip silently when exhausted (same pattern as
-                # auto-disable/CB). Consume BEFORE submitting the future so a
-                # provider timeout still costs budget (accurate accounting).
-                if getattr(self.settings, "provider_budget_enabled", True):
-                    budget = get_budget_manager()
-                    tier = getattr(provider, "tier", "free")
-                    # Use class-level lookup so the ClassVar on the real provider
-                    # class wins; fall back to instance attr for unusual stubs.
-                    rate_limits = getattr(
-                        type(provider), "rate_limits", getattr(provider, "rate_limits", None)
-                    )
-                    limits = {}
-                    if isinstance(rate_limits, dict):
-                        limits = rate_limits.get(tier) or rate_limits.get("free") or {}
-                    if not limits:
-                        # Provider did not declare rate_limits (or none for this
-                        # tier). Fall through so the provider runs unthrottled —
-                        # but WARN once per provider so the missing metadata is
-                        # visible in logs instead of silently disabled.
-                        if name not in _warned_missing_limits:
-                            _warned_missing_limits.add(name)
-                            logger.warning(
-                                "Provider %s has no rate_limits[%r] defined — budget gate is "
-                                "disabled for this provider. Add a 'rate_limits' ClassVar to "
-                                "the provider class to enable throttling.",
-                                name,
-                                tier,
-                            )
-                    else:
-                        decision = budget.check(name, limits)
-                        if not decision.allow:
-                            logger.debug(
-                                "Skipping provider %s -- budget: %s (wait %ds)",
-                                name,
-                                decision.reason,
-                                decision.wait_seconds,
-                            )
-                            continue
-
-                        # Phase 4a: pick a key from the pool before we commit the call.
-                        key = get_key_selector().pick(
-                            name,
-                            provider_rate_limits=rate_limits
-                            if isinstance(rate_limits, dict)
-                            else {},
-                        )
-                        if key is None:
-                            logger.warning(
-                                "%s: no usable key in pool (all exhausted, 429-cooling, "
-                                "or pool row deleted). Add a pool row via Settings → "
-                                "Providers, or set provider_budget_enabled=false to "
-                                "bypass the gate for this provider.",
-                                name,
-                            )
-                            continue
-
-                        # Credential injection + mark_used happen INSIDE the worker
-                        # thread (see _search_provider_with_retry) under a per-provider
-                        # lock, so two concurrent search() calls cannot clobber the
-                        # singleton provider's credentials.
-                        budget.consume(name, key_id=key["id"])
-
-                # Submit search task — refund budget if submit fails synchronously
-                # (e.g. executor shut down, memory pressure). Without the refund the
-                # just-consumed call leaks permanently.
-                try:
-                    future = executor.submit(
-                        self._search_provider_with_retry, name, provider, query, key
-                    )
-                    futures[future] = name
-                    # Phase 4a: track the key_id used for this future (if any),
-                    # so the rate-limit handler can mark_429 on the right row.
-                    if key is not None:
-                        futures_to_key[future] = key["id"]
-                except Exception as exc:  # noqa: BLE001
-                    logger.warning("submit failed for %s: %s -- refunding budget", name, exc)
-                    if getattr(self.settings, "provider_budget_enabled", True):
-                        try:
-                            get_budget_manager().refund(name)
-                        except Exception as refund_exc:  # noqa: BLE001
-                            logger.debug("Budget refund failed for %s: %s", name, refund_exc)
-                    continue
+            # Phase 4a: futures_to_key tracks which key_id each future used so
+            # the rate-limit handler can call mark_429(key_id) later.
+            futures, futures_to_key = self._submit_provider_searches(
+                executor, query, is_provider_auto_disabled
+            )
 
             # Collect results as they complete
             # Use max timeout across all active providers + buffer
