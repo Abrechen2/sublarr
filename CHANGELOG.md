@@ -5,6 +5,21 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.53.2-beta] - 2026-04-18
+
+### Fixed
+- **Race in `reload_settings`** — Between lock release and return, a concurrent `reload_settings()` call could cause the first caller to receive the second caller's settings instance. Moved the return statement inside the lock. Pre-existing; no observed prod incident.
+
+### Changed
+- **Internal: `backend/config.py` split into four modules** — The 846 LOC god-file was reduced to 36 LOC as a pure re-export façade. View classes, the `Settings` Pydantic model, and the singleton accessors now live in `config_views.py`, `config_settings.py`, and `config_singleton.py` respectively. The public import surface is byte-identical for all 60+ callers. A `<600 LOC` regression guard test prevents silent regrowth.
+
+### Docs
+- **Discord and Reddit community links** — Added to README and About page.
+- **Beta-roadmap and competitive-parity specs** — Strategic planning documents defining the post-Phase-4a direction (code confidence, observability, UX hardening). See `docs/superpowers/specs/2026-04-18-*.md`.
+
+### Tests
+- **Config refactor safety net** — 24 new characterization tests plus a regression guard enforcing `backend/config.py < 600 LOC`.
+
 ## [0.53.1-beta] - 2026-04-18
 
 ### Fixed
