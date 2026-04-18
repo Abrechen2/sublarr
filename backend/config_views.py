@@ -7,7 +7,8 @@ in the subclass's _fields frozenset; everything else raises AttributeError.
 Importing rule: this module MUST NOT import from `config_settings` at
 module level (would cause a circular import). The `Settings` parameter
 of `_SettingsView.__init__` is duck-typed; type-checking only sees it
-through TYPE_CHECKING.
+through TYPE_CHECKING. See config_settings.py for the matching
+dependency-contract comment.
 """
 
 from __future__ import annotations

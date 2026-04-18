@@ -16,6 +16,14 @@ import logging
 from pydantic_settings import BaseSettings
 
 from config_language_data import _get_language_tags
+
+# Runtime import of the view classes — used by the @property accessors below.
+#
+# Dependency contract (one-directional): config_settings -> config_views.
+# config_views MUST NOT import config_settings at runtime (it uses
+# TYPE_CHECKING + from __future__ import annotations to keep the forward
+# reference lazy). Adding a runtime import of Settings into config_views
+# would create a circular import at module load time.
 from config_views import (
     GeneralSettings,
     MediaServerSettings,
