@@ -167,7 +167,7 @@ class TestUpdateServiceKeys:
             patch("db.config.get_config_entry", return_value="newvalue12345678"),
             patch("db.config.get_all_config_entries", return_value={}),
             patch("config.reload_settings"),
-            patch("routes.api_keys._invalidate_for_service"),
+            patch("routes.api_keys.routes._invalidate_for_service"),
         ):
             resp = client.put(
                 "/api/v1/api-keys/sonarr",
@@ -184,7 +184,7 @@ class TestUpdateServiceKeys:
             patch("db.config.get_config_entry", return_value="newvalue12345678"),
             patch("db.config.get_all_config_entries", return_value={}),
             patch("config.reload_settings"),
-            patch("routes.api_keys._invalidate_for_service"),
+            patch("routes.api_keys.routes._invalidate_for_service"),
         ):
             client.put(
                 "/api/v1/api-keys/sonarr",
@@ -198,7 +198,7 @@ class TestUpdateServiceKeys:
             patch("db.config.get_config_entry", return_value=""),
             patch("db.config.get_all_config_entries", return_value={}),
             patch("config.reload_settings"),
-            patch("routes.api_keys._invalidate_for_service"),
+            patch("routes.api_keys.routes._invalidate_for_service"),
         ):
             client.put(
                 "/api/v1/api-keys/sonarr",
@@ -213,7 +213,7 @@ class TestUpdateServiceKeys:
             patch("db.config.get_config_entry", return_value="newvalue12345678"),
             patch("db.config.get_all_config_entries", return_value={}),
             patch("config.reload_settings"),
-            patch("routes.api_keys._invalidate_for_service"),
+            patch("routes.api_keys.routes._invalidate_for_service"),
         ):
             resp = client.put(
                 "/api/v1/api-keys/sonarr",
