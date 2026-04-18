@@ -56,10 +56,15 @@ def _health_check_providers(app=None):
         with ctx:
             manager = get_provider_manager()
             provider_statuses = manager.get_provider_status()
-            total = len(provider_statuses)
+        # Count against ENABLED providers only — `get_provider_status` returns
+        # every registered class (including plugins the user hasn't configured
+        # and built-ins they've removed), which made the health dashboard read
+        # "10/22 active" even when every configured provider was healthy.
+        enabled = [p for p in provider_statuses if p.get("enabled")]
+        total = len(enabled)
         if total == 0:
             return {"providers": "healthy"}, None
-        active_count = sum(1 for p in provider_statuses if p["healthy"])
+        active_count = sum(1 for p in enabled if p.get("healthy"))
         error_count = total - active_count
         if error_count == 0:
             status = "healthy"

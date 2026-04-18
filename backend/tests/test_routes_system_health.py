@@ -208,8 +208,8 @@ class TestHealthCheckProviders:
     def test_all_providers_healthy(self, app_ctx):
         manager = MagicMock()
         manager.get_provider_status.return_value = [
-            {"name": "a", "healthy": True},
-            {"name": "b", "healthy": True},
+            {"name": "a", "enabled": True, "healthy": True},
+            {"name": "b", "enabled": True, "healthy": True},
         ]
         with patch("providers.get_provider_manager", return_value=manager):
             from routes.system.health import _health_check_providers
@@ -220,8 +220,8 @@ class TestHealthCheckProviders:
     def test_mixed_providers(self, app_ctx):
         manager = MagicMock()
         manager.get_provider_status.return_value = [
-            {"name": "a", "healthy": True},
-            {"name": "b", "healthy": False},
+            {"name": "a", "enabled": True, "healthy": True},
+            {"name": "b", "enabled": True, "healthy": False},
         ]
         with patch("providers.get_provider_manager", return_value=manager):
             from routes.system.health import _health_check_providers
@@ -232,7 +232,7 @@ class TestHealthCheckProviders:
     def test_all_providers_error(self, app_ctx):
         manager = MagicMock()
         manager.get_provider_status.return_value = [
-            {"name": "a", "healthy": False},
+            {"name": "a", "enabled": True, "healthy": False},
         ]
         with patch("providers.get_provider_manager", return_value=manager):
             from routes.system.health import _health_check_providers
@@ -905,3 +905,47 @@ class TestHealthDetailedEndpoint:
         assert resp.status_code == 503
         data = resp.get_json()
         assert data["subsystems"]["media_servers"]["healthy"] is False
+
+
+class TestHealthProviderCountRegression:
+    """Phase 4a follow-up: dashboard 'Providers: degraded (10/22 active)' mismatch.
+
+    `_health_check_providers` used to pass `len(provider_statuses)` as `total`,
+    which counts every registered class (including plugins the user hasn't
+    configured). The correct denominator is the count of *enabled* providers.
+    """
+
+    def test_counts_only_enabled_providers(self, monkeypatch):
+        from routes.system import health as health_mod
+
+        # 22 registered — 10 enabled, 10 healthy among enabled.
+        statuses = [{"enabled": True, "healthy": True} for _ in range(10)] + [
+            {"enabled": False, "healthy": False} for _ in range(12)
+        ]
+        mgr = type("M", (), {"get_provider_status": lambda self: statuses})()
+        monkeypatch.setattr("providers.get_provider_manager", lambda: mgr)
+        payload, err = health_mod._health_check_providers(app=None)
+        assert err is None
+        assert payload == {"providers": "healthy (10/10 active)"}
+
+    def test_partially_degraded(self, monkeypatch):
+        from routes.system import health as health_mod
+
+        statuses = [
+            {"enabled": True, "healthy": True},
+            {"enabled": True, "healthy": False},
+            {"enabled": False, "healthy": False},  # should be ignored
+        ]
+        mgr = type("M", (), {"get_provider_status": lambda self: statuses})()
+        monkeypatch.setattr("providers.get_provider_manager", lambda: mgr)
+        payload, _ = health_mod._health_check_providers(app=None)
+        assert payload == {"providers": "degraded (1/2 active)"}
+
+    def test_zero_enabled_returns_healthy(self, monkeypatch):
+        from routes.system import health as health_mod
+
+        statuses = [{"enabled": False, "healthy": False} for _ in range(5)]
+        mgr = type("M", (), {"get_provider_status": lambda self: statuses})()
+        monkeypatch.setattr("providers.get_provider_manager", lambda: mgr)
+        payload, _ = health_mod._health_check_providers(app=None)
+        assert payload == {"providers": "healthy"}
