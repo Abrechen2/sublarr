@@ -50,7 +50,7 @@ export function UnifiedHistoryTab() {
 
       {filter === 'downloads'
         ? <HistoryPage />
-        : <ActivityLogTab defaultFilter={filter} hideFilter />
+        : <ActivityLogTab key={filter} defaultFilter={filter} hideFilter />
       }
     </div>
   )
