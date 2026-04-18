@@ -51,7 +51,7 @@ def test_start_scheduler_cancels_old_timers_before_creating_new_ones():
     """
     scanner = WantedScanner()
 
-    with patch("services.wanted_scanner_core.get_settings", return_value=_FakeSettings):
+    with patch("services.wanted_scanner_scheduler.get_settings", return_value=_FakeSettings):
         scanner.start_scheduler()
         first_scan_timer = scanner._timer
         first_search_timer = scanner._search_timer
@@ -103,7 +103,7 @@ def test_schedule_next_search_cancels_previous_search_timer():
 
 def test_stop_scheduler_cancels_both_timers():
     scanner = WantedScanner()
-    with patch("services.wanted_scanner_core.get_settings", return_value=_FakeSettings):
+    with patch("services.wanted_scanner_scheduler.get_settings", return_value=_FakeSettings):
         scanner.start_scheduler()
         scan_timer = scanner._timer
         search_timer = scanner._search_timer
