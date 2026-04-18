@@ -14,3 +14,4 @@ import routes.library.episodes  # noqa: E402, F401
 import routes.library.integrations  # noqa: E402, F401
 import routes.library.list  # noqa: E402, F401
 import routes.library.series  # noqa: E402, F401
+import routes.library.series_settings  # noqa: E402, F401
