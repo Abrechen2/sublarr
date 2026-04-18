@@ -165,9 +165,9 @@ class TestTryAutoSync:
         with caplog.at_level(logging.WARNING, logger="wanted_search.post_processor"):
             _try_auto_sync(ghost, str(vid), settings)
 
-        assert any(
-            "subtitle path does not exist" in rec.message for rec in caplog.records
-        ), "expected guard WARNING for missing subtitle path"
+        assert any("subtitle path does not exist" in rec.message for rec in caplog.records), (
+            "expected guard WARNING for missing subtitle path"
+        )
 
     def test_missing_auto_sync_attr_treated_as_false(self):
         """If settings lacks auto_sync_after_download, treat as disabled."""

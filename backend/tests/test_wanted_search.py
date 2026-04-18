@@ -372,9 +372,7 @@ class TestSaveSubtitleReturnPathPropagated:
     not exist on disk" en masse after ffsubsync was bundled into the image.
     """
 
-    def test_step1_target_ass_propagates_rewritten_path(
-        self, app_ctx, monkeypatch, tmp_path
-    ):
+    def test_step1_target_ass_propagates_rewritten_path(self, app_ctx, monkeypatch, tmp_path):
         """Step 1 (target ASS direct): when save_subtitle rewrites .ass→.srt,
         _try_auto_sync must be called with the rewritten path, not the input."""
         from wanted_search import process_wanted_item

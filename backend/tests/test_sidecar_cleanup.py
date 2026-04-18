@@ -19,7 +19,6 @@ import pytest
 from config_language_data import normalize_language_code
 from remux import _parse_sidecar_language, trash_non_target_sidecars
 
-
 # ---------------------------------------------------------------------------
 # normalize_language_code
 # ---------------------------------------------------------------------------
@@ -251,9 +250,9 @@ def test_process_wanted_item_does_not_skip_when_srt_exists_and_upgrade_enabled(t
             "wanted_search.process.get_provider_manager",
             side_effect=RuntimeError("reached provider — skip did not fire, as expected"),
         ),
+        pytest.raises(RuntimeError, match="skip did not fire"),
     ):
-        with pytest.raises(RuntimeError, match="skip did not fire"):
-            process_wanted_item(43)
+        process_wanted_item(43)
 
 
 def test_process_wanted_item_skips_when_srt_exists_and_upgrade_disabled(tmp_path):

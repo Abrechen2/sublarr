@@ -36,14 +36,10 @@ def _try_auto_sync(subtitle_path: str, video_path: str, settings) -> None:
         )
         return
     if not os.path.isfile(subtitle_path):
-        logger.warning(
-            "Auto-sync skipped: subtitle path does not exist on disk: %s", subtitle_path
-        )
+        logger.warning("Auto-sync skipped: subtitle path does not exist on disk: %s", subtitle_path)
         return
     if not os.path.isfile(video_path):
-        logger.warning(
-            "Auto-sync skipped: video path does not exist on disk: %s", video_path
-        )
+        logger.warning("Auto-sync skipped: video path does not exist on disk: %s", video_path)
         return
     try:
         from services.video_sync import SyncUnavailableError, sync_with_ffsubsync

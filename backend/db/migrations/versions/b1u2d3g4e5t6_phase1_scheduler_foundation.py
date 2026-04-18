@@ -39,7 +39,7 @@ Dialect notes:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import sqlalchemy as sa
 from alembic import op
@@ -82,9 +82,7 @@ def upgrade() -> None:
         sa.Column("window_type", sa.String(length=10), nullable=False),
         sa.Column("configured_limit", sa.Integer(), nullable=False),
         sa.Column("observed_limit", sa.Integer(), nullable=True),
-        sa.Column(
-            "adjustment_factor", sa.Float(), nullable=False, server_default="1.0"
-        ),
+        sa.Column("adjustment_factor", sa.Float(), nullable=False, server_default="1.0"),
         sa.Column("last_429_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "consecutive_good_days",
@@ -112,14 +110,8 @@ def upgrade() -> None:
             )
         )
         batch.add_column(sa.Column("failure_kind", sa.String(length=20), nullable=True))
-        batch.add_column(
-            sa.Column(
-                "error_count", sa.Integer(), nullable=False, server_default="0"
-            )
-        )
-        batch.add_column(
-            sa.Column("last_error_at", sa.DateTime(timezone=True), nullable=True)
-        )
+        batch.add_column(sa.Column("error_count", sa.Integer(), nullable=False, server_default="0"))
+        batch.add_column(sa.Column("last_error_at", sa.DateTime(timezone=True), nullable=True))
         batch.create_check_constraint(
             "ck_wanted_priority",
             "priority IN ('premium', 'standard', 'backlog')",
@@ -160,14 +152,13 @@ def upgrade() -> None:
 
     # 2. Seed priority tiers based on age + history — computed in Python to stay
     #    dialect-agnostic.
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     premium_cutoff = now - timedelta(days=7)
     backlog_cutoff = now - timedelta(days=180)
 
     op.execute(
         sa.text(
-            "UPDATE wanted_items SET priority = 'premium' "
-            "WHERE added_at >= :cutoff"
+            "UPDATE wanted_items SET priority = 'premium' WHERE added_at >= :cutoff"
         ).bindparams(cutoff=premium_cutoff)
     )
     op.execute(

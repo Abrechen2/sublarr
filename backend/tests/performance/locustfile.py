@@ -24,7 +24,9 @@ def _(parser):
 @events.test_start.add_listener
 def on_test_start(environment, **_):
     global API_KEY  # noqa: PLW0603
-    cli_key = environment.parsed_options.api_key if hasattr(environment.parsed_options, "api_key") else ""
+    cli_key = (
+        environment.parsed_options.api_key if hasattr(environment.parsed_options, "api_key") else ""
+    )
     if cli_key:
         API_KEY = cli_key
 
