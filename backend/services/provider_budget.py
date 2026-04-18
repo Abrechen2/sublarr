@@ -33,6 +33,9 @@ from services.demand_histogram import get_demand_shares  # noqa: F401 — tests 
 from services.provider_budget_counters import (  # noqa: F401 — re-exported for back-compat
     _BudgetCounterStoreMixin,
 )
+from services.provider_budget_learning import (  # noqa: F401 — re-exported for back-compat
+    _BudgetLearningMixin,
+)
 from services.provider_budget_modes import (  # noqa: F401 — re-exported for back-compat
     _BudgetPacingModesMixin,
 )
@@ -95,7 +98,9 @@ class _Counts:
     store: dict[tuple[str, str, datetime], int] = field(default_factory=lambda: defaultdict(int))
 
 
-class ProviderBudgetManager(_BudgetCounterStoreMixin, _BudgetPacingModesMixin):
+class ProviderBudgetManager(
+    _BudgetCounterStoreMixin, _BudgetPacingModesMixin, _BudgetLearningMixin
+):
     """Three-window rate-limit accountant for subtitle providers.
 
     Thread-safe in the in-memory path via an internal lock; Redis path is naturally
@@ -290,110 +295,8 @@ class ProviderBudgetManager(_BudgetCounterStoreMixin, _BudgetPacingModesMixin):
             now = datetime.now(UTC)
         return self._seconds_until_next_window(BudgetWindow(window_name), now)
 
-    def record_429(
-        self,
-        provider: str,
-        window: BudgetWindow,
-        configured_limit: int,
-        observed_limit: int | None = None,
-        now: datetime | None = None,
-    ) -> float:
-        """Record a provider-reported rate-limit hit.
-
-        Multiplies the learned ``adjustment_factor`` by 0.9 (floor 0.1) for
-        ``(provider, window)``. Persists via the repo; if persistence fails we
-        still update the in-memory cache so the next ``check()`` throttles.
-        Returns the new factor.
-        """
-        if now is None:
-            now = datetime.now(UTC)
-        if (
-            observed_limit is not None
-            and configured_limit > 0
-            and observed_limit >= configured_limit
-        ):
-            # Implausible value — a provider reporting an observed limit at or above the
-            # configured limit is almost certainly a header parsing mishap. Drop it so
-            # we don't persist nonsense.
-            observed_limit = None
-        key = (provider, window.value)
-        with self._lock:
-            current = self._factors.get(key, 1.0)
-            fallback_factor = max(0.1, current * 0.9)
-            try:
-                new_factor = _persist_429(
-                    provider=provider,
-                    window=window,
-                    configured_limit=configured_limit,
-                    observed_limit=observed_limit,
-                    now=now,
-                )
-            except Exception as exc:  # noqa: BLE001
-                logger.warning(
-                    "record_429 persistence failed for %s/%s (using in-memory fallback): %s",
-                    provider,
-                    window.value,
-                    exc,
-                )
-                new_factor = fallback_factor
-            self._factors[key] = new_factor
-        try:
-            _emit_event(
-                "provider_state_changed",
-                {
-                    "provider": provider,
-                    "state": "learning",
-                    "reason": f"429_observed_{window.value}",
-                    "adjustment_factor": new_factor,
-                },
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.info("provider_state_changed emit failed: %s", exc)
-        return new_factor
-
-    def tick_recovery(self, now: datetime | None = None) -> None:
-        """Advance learned factors toward 1.0 for any row on a clean streak.
-
-        Called once per wanted-scheduler tick (typically daily). Swallows all DB
-        errors — recovery is best-effort and must not break the scheduler.
-        """
-        if now is None:
-            now = datetime.now(UTC)
-        try:
-            new_factors = _ramp_all(now)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("tick_recovery failed, keeping existing factors: %s", exc)
-            return
-        if not new_factors:
-            return
-        with self._lock:
-            self._factors.update(new_factors)
-
-    # ── Internals ─────────────────────────────────────────────────────────
-
-    def _emit_update(self, provider: str, now: datetime) -> None:
-        """Emit a provider_budget_updated event; rate-limited to 1/sec per provider.
-
-        Best-effort — a failing event bus must never break budget accounting.
-        Payload includes the NEW usage snapshot so the frontend can render without
-        a follow-up HTTP call.
-        """
-        last = _LAST_EMIT_AT.get(provider)
-        if last is not None and (now - last).total_seconds() < _EMIT_MIN_INTERVAL_SECONDS:
-            return
-        _LAST_EMIT_AT[provider] = now
-        try:
-            from events import emit_event
-
-            emit_event(
-                "provider_budget_updated",
-                {
-                    "provider": provider,
-                    "usage": self.get_usage(provider, now=now),
-                },
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("Failed to emit provider_budget_updated: %s", exc)
+    # record_429, tick_recovery, _emit_update live on _BudgetLearningMixin
+    # — see services/provider_budget_learning.py.
 
     # Counter-store methods (_effective_limit, _key, _redis_key, _get_count,
     # _increment, _increment_per_key, _decrement, _seconds_until_next_window)
