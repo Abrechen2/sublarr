@@ -504,6 +504,63 @@ class SublarrScheduler:
         )
         return oneshot_id
 
+    def _require_registered(self, job_id: str) -> None:
+        if job_id not in self._registered_ids:
+            raise JobNotRegisteredError(job_id)
+
+    def reset_to_default(self, job_id: str) -> None:
+        """Remove the JobStore row and re-register from code default."""
+        self._require_registered(job_id)
+        spec = self._spec_by_id(job_id)
+        scheduler = self._ensure_scheduler()
+        try:
+            scheduler.remove_job(job_id)
+        except Exception:
+            logger.warning("reset_to_default: remove_job miss for %s", job_id)
+        grace = (
+            spec.misfire_grace_time
+            if spec.misfire_grace_time is not None
+            else compute_default_misfire_grace_time(spec.default_trigger)
+        )
+        # Refresh registry binding in case app reference changed.
+        _tick_registry[spec.id] = (self._app, spec)
+        scheduler.add_job(
+            func="services.scheduler:_scheduled_tick",
+            args=[spec.id],
+            trigger=spec.default_trigger,
+            id=spec.id,
+            replace_existing=False,
+            max_instances=spec.max_instances,
+            coalesce=spec.coalesce,
+            misfire_grace_time=grace,
+        )
+
+    def pause_job(self, job_id: str) -> None:
+        self._require_registered(job_id)
+        self._ensure_scheduler().pause_job(job_id)
+
+    def resume_job(self, job_id: str) -> None:
+        self._require_registered(job_id)
+        self._ensure_scheduler().resume_job(job_id)
+
+    def modify_trigger(self, job_id: str, trigger: BaseTrigger) -> None:
+        self._require_registered(job_id)
+        self._ensure_scheduler().reschedule_job(job_id, trigger=trigger)
+
+    def trigger_is_default(self, job_id: str) -> bool:
+        """Return True iff the current trigger matches spec default.
+
+        Comparison uses repr() — APScheduler's BaseTrigger subclasses
+        define __getstate__ but not __eq__, so repr is the stable
+        surrogate.
+        """
+        self._require_registered(job_id)
+        job = self._ensure_scheduler().get_job(job_id)
+        if job is None:
+            return False
+        default = self._spec_by_id(job_id).default_trigger
+        return repr(job.trigger) == repr(default)
+
 
 class JobNotRegisteredError(KeyError):
     """Raised when operating on an unknown JobSpec id."""

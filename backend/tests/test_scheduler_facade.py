@@ -214,3 +214,82 @@ def test_run_now_unknown_id_raises(scheduler):
     scheduler.start()
     with pytest.raises(JobNotRegisteredError):
         scheduler.run_now("nope")
+
+
+def test_reset_to_default_removes_and_readds(scheduler):
+    spec = JobSpec(
+        id="rst",
+        func=lambda: None,
+        default_trigger=IntervalTrigger(minutes=15),
+    )
+    scheduler.register_job(spec)
+    scheduler.start_registered_jobs()
+    scheduler.start()
+
+    scheduler._scheduler.reschedule_job("rst", trigger=IntervalTrigger(minutes=5))
+    scheduler.reset_to_default("rst")
+
+    job = scheduler._scheduler.get_job("rst")
+    assert job.trigger.interval.total_seconds() == 900  # 15m default back
+
+
+def test_pause_and_resume(scheduler):
+    spec = JobSpec(
+        id="pr",
+        func=lambda: None,
+        default_trigger=IntervalTrigger(minutes=5),
+    )
+    scheduler.register_job(spec)
+    scheduler.start_registered_jobs()
+    scheduler.start()
+
+    scheduler.pause_job("pr")
+    assert scheduler._scheduler.get_job("pr").next_run_time is None
+
+    scheduler.resume_job("pr")
+    assert scheduler._scheduler.get_job("pr").next_run_time is not None
+
+
+def test_modify_trigger(scheduler):
+    from apscheduler.triggers.cron import CronTrigger
+
+    spec = JobSpec(
+        id="mod",
+        func=lambda: None,
+        default_trigger=IntervalTrigger(minutes=15),
+    )
+    scheduler.register_job(spec)
+    scheduler.start_registered_jobs()
+    scheduler.start()
+
+    new_trigger = CronTrigger(hour=3, minute=0)
+    scheduler.modify_trigger("mod", new_trigger)
+    job = scheduler._scheduler.get_job("mod")
+    assert isinstance(job.trigger, CronTrigger)
+
+
+def test_pause_unknown_raises(scheduler):
+    from services.scheduler import JobNotRegisteredError
+
+    scheduler.start()
+    with pytest.raises(JobNotRegisteredError):
+        scheduler.pause_job("nope")
+
+
+def test_trigger_is_default_check(scheduler):
+    spec = JobSpec(
+        id="deflt",
+        func=lambda: None,
+        default_trigger=IntervalTrigger(minutes=15),
+    )
+    scheduler.register_job(spec)
+    scheduler.start_registered_jobs()
+    scheduler.start()
+
+    assert scheduler.trigger_is_default("deflt") is True
+
+    scheduler.modify_trigger("deflt", IntervalTrigger(minutes=30))
+    assert scheduler.trigger_is_default("deflt") is False
+
+    scheduler.reset_to_default("deflt")
+    assert scheduler.trigger_is_default("deflt") is True
