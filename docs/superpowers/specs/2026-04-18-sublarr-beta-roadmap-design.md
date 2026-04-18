@@ -248,6 +248,7 @@ These items are preserved from the previous spec because the ideas are sound —
 | **I4** | old Phase 5 | Replace `threading.Timer` with APScheduler / Hangfire-equivalent | Timer-leak bug recurs **and** C1's `job_executions` data shows scheduler is the bottleneck |
 | **I5** | old Phase 9 | Smart-Sync (run ffsubsync on every candidate, pick best) | Maintainer or user reports that the current sync-quality choice is wrong on a measurable fraction of episodes |
 | **I6** | old Phase 7 | Composite scoring engine (release × hash × fps × forced × provider-rank × bonus/malus) | Current scoring picks a measurably worse subtitle than a human would on a fixture corpus |
+| **I7** | B1 plan 2026-04-18 | Replace mixin pattern with composition for `ProviderManager` collaborators (SearchCoordinator, ConfigResolver, StatusReporter as injected attributes rather than base classes) | Any single mixin grows past ~400 LOC OR a mixin method-name collision forces MRO-sensitive changes. Current mixin pattern (SearchCoordinatorMixin alone is 878 LOC) is the warning signal. |
 
 The Inspiration Backlog is *not* a TODO list. It is a "reasoned-about-and-deferred" list. Items can be deleted from it if the trigger does not arise within ~12 months — the cost of revisiting the idea fresh is lower than the cost of carrying stale plans.
 
