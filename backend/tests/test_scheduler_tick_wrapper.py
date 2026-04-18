@@ -129,3 +129,37 @@ def test_error_msg_truncated_to_4kb(flask_app, db_session):
 
     rows = db_session.query(JobRun).filter_by(job_id="test_job").all()
     assert len(rows[0].error_msg) <= 4096
+
+
+def test_prometheus_counter_incremented_on_ok(flask_app, db_session):
+    from monitoring.metrics import scheduler_job_runs_total
+
+    before = scheduler_job_runs_total.labels(job_id="test_job", status="ok")._value.get()
+    spec = _make_spec(lambda: None)
+    _tick_wrapper(flask_app, spec, triggered_by="schedule")()
+    after = scheduler_job_runs_total.labels(job_id="test_job", status="ok")._value.get()
+    assert after == before + 1
+
+
+def test_prometheus_counter_incremented_on_error(flask_app, db_session):
+    from monitoring.metrics import scheduler_job_runs_total
+
+    def boom():
+        raise RuntimeError("x")
+
+    before = scheduler_job_runs_total.labels(job_id="test_job", status="error")._value.get()
+    spec = _make_spec(boom)
+    _tick_wrapper(flask_app, spec, triggered_by="schedule")()
+    after = scheduler_job_runs_total.labels(job_id="test_job", status="error")._value.get()
+    assert after == before + 1
+
+
+def test_prometheus_histogram_observed(flask_app, db_session):
+    from monitoring.metrics import scheduler_job_duration_seconds
+
+    h = scheduler_job_duration_seconds.labels(job_id="test_job")
+    before_count = h._sum.get()
+    spec = _make_spec(lambda: None)
+    _tick_wrapper(flask_app, spec, triggered_by="schedule")()
+    after_count = h._sum.get()
+    assert after_count > before_count

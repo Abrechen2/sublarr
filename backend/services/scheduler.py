@@ -190,7 +190,10 @@ def _tick_wrapper(
             spec.func()
 
     def _runner() -> None:
+        import time as _time
+
         started_at = datetime.now(UTC)
+        started_perf = _time.perf_counter()
         status = "ok"
         error_type: str | None = None
         error_msg: str | None = None
@@ -222,6 +225,20 @@ def _tick_wrapper(
                 )
             finally:
                 finished_at = datetime.now(UTC)
+                # perf_counter() is monotonic + high-resolution, so the
+                # histogram observation survives coarse-grained wall-clock
+                # sources (Windows datetime.now ~15 ms) on short ticks.
+                duration_s = _time.perf_counter() - started_perf
+                try:
+                    from monitoring.metrics import (
+                        scheduler_job_duration_seconds,
+                        scheduler_job_runs_total,
+                    )
+
+                    scheduler_job_runs_total.labels(job_id=spec.id, status=status).inc()
+                    scheduler_job_duration_seconds.labels(job_id=spec.id).observe(duration_s)
+                except Exception:
+                    logger.warning("scheduler: metrics emit failed", exc_info=True)
                 _write_job_run(
                     job_id=spec.id,
                     started_at=started_at,
@@ -609,6 +626,12 @@ def reconcile_stale_runs(grace_minutes: int = 10) -> int:
 
     if stale:
         logger.warning("scheduler: reconciled %d abandoned job_run rows", len(stale))
+        try:
+            from monitoring.metrics import scheduler_interrupted_runs_total
+
+            scheduler_interrupted_runs_total.inc(len(stale))
+        except Exception:
+            pass
     return len(stale)
 
 
