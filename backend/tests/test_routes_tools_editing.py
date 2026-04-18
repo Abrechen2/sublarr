@@ -789,28 +789,28 @@ class TestShiftSrtTimestamp:
     """Unit tests for _shift_srt_timestamp."""
 
     def test_positive_shift(self):
-        from routes.tools.editing import _SRT_TIMESTAMP_RE, _shift_srt_timestamp
+        from routes.tools.timing import _SRT_TIMESTAMP_RE, _shift_srt_timestamp
 
         line = "00:00:01,000"
         result = _SRT_TIMESTAMP_RE.sub(lambda m: _shift_srt_timestamp(m, 2000), line)
         assert result == "00:00:03,000"
 
     def test_negative_shift_clamps(self):
-        from routes.tools.editing import _SRT_TIMESTAMP_RE, _shift_srt_timestamp
+        from routes.tools.timing import _SRT_TIMESTAMP_RE, _shift_srt_timestamp
 
         line = "00:00:01,000"
         result = _SRT_TIMESTAMP_RE.sub(lambda m: _shift_srt_timestamp(m, -5000), line)
         assert result == "00:00:00,000"
 
     def test_large_shift_wraps_hours(self):
-        from routes.tools.editing import _SRT_TIMESTAMP_RE, _shift_srt_timestamp
+        from routes.tools.timing import _SRT_TIMESTAMP_RE, _shift_srt_timestamp
 
         line = "00:59:59,500"
         result = _SRT_TIMESTAMP_RE.sub(lambda m: _shift_srt_timestamp(m, 1000), line)
         assert result == "01:00:00,500"
 
     def test_millisecond_precision(self):
-        from routes.tools.editing import _SRT_TIMESTAMP_RE, _shift_srt_timestamp
+        from routes.tools.timing import _SRT_TIMESTAMP_RE, _shift_srt_timestamp
 
         line = "00:00:00,000"
         result = _SRT_TIMESTAMP_RE.sub(lambda m: _shift_srt_timestamp(m, 123), line)
@@ -821,25 +821,25 @@ class TestShiftAssTime:
     """Unit tests for _shift_ass_time."""
 
     def test_positive_shift(self):
-        from routes.tools.editing import _shift_ass_time
+        from routes.tools.timing import _shift_ass_time
 
         result = _shift_ass_time(0, 0, 1, 0, 2000)
         assert result == "0:00:03.00"
 
     def test_negative_shift_clamps(self):
-        from routes.tools.editing import _shift_ass_time
+        from routes.tools.timing import _shift_ass_time
 
         result = _shift_ass_time(0, 0, 1, 0, -5000)
         assert result == "0:00:00.00"
 
     def test_centisecond_precision(self):
-        from routes.tools.editing import _shift_ass_time
+        from routes.tools.timing import _shift_ass_time
 
         result = _shift_ass_time(0, 0, 0, 0, 1050)
         assert result == "0:00:01.05"
 
     def test_hour_rollover(self):
-        from routes.tools.editing import _shift_ass_time
+        from routes.tools.timing import _shift_ass_time
 
         result = _shift_ass_time(0, 59, 59, 50, 1000)
         assert result == "1:00:00.50"
