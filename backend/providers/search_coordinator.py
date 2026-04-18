@@ -77,6 +77,125 @@ class SearchCoordinatorMixin:
             # Outside Flask app context or Flask not available
             return None
 
+    def _try_cached_search_results(
+        self,
+        cache_key: str,
+        format_filter,
+        app_cache_key: str,
+        cache_backend,
+        cache_ttl_minutes: float,
+    ) -> list | None:
+        """Two-tier cache lookup. Returns cached results or None to fall through.
+
+        Tier 1: in-process/Redis fast cache keyed by ``app_cache_key``. Tier 2:
+        persistent DB cache populated by every search. On a Tier-2 hit the
+        value is backfilled into Tier 1 so the next call is cheaper.
+
+        Records PROVIDER_CACHE_HITS_TOTAL / PROVIDER_CACHE_MISSES_TOTAL metrics
+        when the ``metrics`` module is available.
+        """
+        # Tier 1
+        if cache_backend:
+            try:
+                fast_cached = cache_backend.get(app_cache_key)
+                if fast_cached:
+                    try:
+                        cached_data = json.loads(fast_cached)
+                        cached_results = self._deserialize_results(cached_data)
+                        logger.info("Returning %d results from fast cache", len(cached_results))
+                        try:
+                            if _METRICS_AVAILABLE:
+                                _metrics_module.PROVIDER_CACHE_HITS_TOTAL.labels(layer="fast").inc()
+                        except Exception:
+                            pass
+                        return cached_results
+                    except Exception as e:
+                        logger.debug("Failed to parse fast cached results: %s", e)
+            except Exception as e:
+                logger.debug("Fast cache lookup failed (non-blocking): %s", e)
+
+        # Tier 2
+        from db.providers import get_cached_results
+
+        cached_json = get_cached_results(
+            "combined", cache_key, format_filter.value if format_filter else None
+        )
+        if cached_json:
+            try:
+                cached_data = json.loads(cached_json)
+                cached_results = self._deserialize_results(cached_data)
+                logger.info("Returning %d cached results from DB", len(cached_results))
+                try:
+                    if _METRICS_AVAILABLE:
+                        _metrics_module.PROVIDER_CACHE_HITS_TOTAL.labels(layer="db").inc()
+                except Exception:
+                    pass
+                if cache_backend:
+                    try:
+                        cache_backend.set(
+                            app_cache_key, cached_json, ttl_seconds=int(cache_ttl_minutes * 60)
+                        )
+                    except Exception as e:
+                        logger.debug("Fast cache backfill failed (non-blocking): %s", e)
+                return cached_results
+            except Exception as e:
+                logger.warning("Failed to parse cached results: %s", e)
+
+        # Both tiers missed
+        try:
+            if _METRICS_AVAILABLE:
+                _metrics_module.PROVIDER_CACHE_MISSES_TOTAL.labels(layer="fast").inc()
+                _metrics_module.PROVIDER_CACHE_MISSES_TOTAL.labels(layer="db").inc()
+        except Exception:
+            pass
+        return None
+
+    def _write_search_cache(
+        self,
+        all_results: list,
+        app_cache_key: str,
+        cache_key: str,
+        cache_ttl_minutes: float,
+        cache_backend,
+    ) -> None:
+        """Serialise scored results and write both cache tiers.
+
+        Never raises — cache failures degrade to a debug log so downstream
+        scoring/filtering still returns results.
+        """
+        from db.providers import cache_provider_results
+
+        try:
+            cache_data = [
+                {
+                    "provider_name": r.provider_name,
+                    "subtitle_id": r.subtitle_id,
+                    "language": r.language,
+                    "format": r.format.value,
+                    "filename": r.filename,
+                    "download_url": r.download_url,
+                    "release_info": r.release_info,
+                    "hearing_impaired": r.hearing_impaired,
+                    "forced": r.forced,
+                    "score": r.score,
+                    "provider_data": r.provider_data,
+                }
+                for r in all_results
+            ]
+            cache_json = json.dumps(cache_data)
+            if cache_backend:
+                try:
+                    cache_backend.set(
+                        app_cache_key, cache_json, ttl_seconds=int(cache_ttl_minutes * 60)
+                    )
+                except Exception as e:
+                    logger.debug("Fast cache write failed (non-blocking): %s", e)
+            cache_provider_results(
+                "combined", cache_key, cache_json, ttl_hours=cache_ttl_minutes / 60
+            )
+        except Exception as e:
+            logger.debug("Failed to cache results: %s", e)
+
     @staticmethod
     def _deserialize_results(cached_data: list) -> list:
         """Deserialize a list of dicts into SubtitleResult objects."""
@@ -341,67 +460,17 @@ class SearchCoordinatorMixin:
         # Check cache first (two-tier: fast app cache, then persistent DB cache)
         cache_key = self._make_cache_key(query, format_filter)
         cache_ttl_minutes = getattr(self.settings, "provider_cache_ttl_minutes", 5)
-
-        # Tier 1: Fast cache lookup (Redis or in-memory)
         app_cache_key = f"provider:combined:{cache_key}"
         cache_backend = self._get_cache_backend()
-        if cache_backend:
-            try:
-                fast_cached = cache_backend.get(app_cache_key)
-                if fast_cached:
-                    try:
-                        cached_data = json.loads(fast_cached)
-                        cached_results = self._deserialize_results(cached_data)
-                        logger.info("Returning %d results from fast cache", len(cached_results))
-                        try:
-                            if _METRICS_AVAILABLE:
-                                _metrics_module.PROVIDER_CACHE_HITS_TOTAL.labels(layer="fast").inc()
-                        except Exception:
-                            pass
-                        return cached_results
-                    except Exception as e:
-                        logger.debug("Failed to parse fast cached results: %s", e)
-            except Exception as e:
-                logger.debug("Fast cache lookup failed (non-blocking): %s", e)
 
-        # Tier 2: Persistent DB cache lookup
-        from db.providers import cache_provider_results, get_cached_results
-
-        cached_json = get_cached_results(
-            "combined", cache_key, format_filter.value if format_filter else None
+        cached_results = self._try_cached_search_results(
+            cache_key, format_filter, app_cache_key, cache_backend, cache_ttl_minutes
         )
-        if cached_json:
-            try:
-                cached_data = json.loads(cached_json)
-                cached_results = self._deserialize_results(cached_data)
-                logger.info("Returning %d cached results from DB", len(cached_results))
-                try:
-                    if _METRICS_AVAILABLE:
-                        _metrics_module.PROVIDER_CACHE_HITS_TOTAL.labels(layer="db").inc()
-                except Exception:
-                    pass
-                # Backfill fast cache so next lookup is faster
-                if cache_backend:
-                    try:
-                        cache_backend.set(
-                            app_cache_key, cached_json, ttl_seconds=int(cache_ttl_minutes * 60)
-                        )
-                    except Exception as e:
-                        logger.debug("Fast cache backfill failed (non-blocking): %s", e)
-                return cached_results
-            except Exception as e:
-                logger.warning("Failed to parse cached results: %s", e)
+        if cached_results is not None:
+            return cached_results
 
         all_results: list[SubtitleResult] = []
         perfect_match_found = False
-
-        # Both cache tiers missed — record cache miss metrics
-        try:
-            if _METRICS_AVAILABLE:
-                _metrics_module.PROVIDER_CACHE_MISSES_TOTAL.labels(layer="fast").inc()
-                _metrics_module.PROVIDER_CACHE_MISSES_TOTAL.labels(layer="db").inc()
-        except Exception:
-            pass
 
         # Parallel search with ThreadPoolExecutor
         from db.providers import (
@@ -810,39 +879,10 @@ class SearchCoordinatorMixin:
             )
         )
 
-        # Cache results in both tiers
-        try:
-            cache_data = [
-                {
-                    "provider_name": r.provider_name,
-                    "subtitle_id": r.subtitle_id,
-                    "language": r.language,
-                    "format": r.format.value,
-                    "filename": r.filename,
-                    "download_url": r.download_url,
-                    "release_info": r.release_info,
-                    "hearing_impaired": r.hearing_impaired,
-                    "forced": r.forced,
-                    "score": r.score,
-                    "provider_data": r.provider_data,
-                }
-                for r in all_results
-            ]
-            cache_json = json.dumps(cache_data)
-            # Tier 1: Fast cache (Redis or in-memory)
-            if cache_backend:
-                try:
-                    cache_backend.set(
-                        app_cache_key, cache_json, ttl_seconds=int(cache_ttl_minutes * 60)
-                    )
-                except Exception as e:
-                    logger.debug("Fast cache write failed (non-blocking): %s", e)
-            # Tier 2: Persistent DB cache (audit trail + UI stats)
-            cache_provider_results(
-                "combined", cache_key, cache_json, ttl_hours=cache_ttl_minutes / 60
-            )
-        except Exception as e:
-            logger.debug("Failed to cache results: %s", e)
+        # Cache results in both tiers (delegated to _write_search_cache).
+        self._write_search_cache(
+            all_results, app_cache_key, cache_key, cache_ttl_minutes, cache_backend
+        )
 
         return all_results
 
