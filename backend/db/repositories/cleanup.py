@@ -5,6 +5,8 @@ and disk space analysis aggregations.
 """
 
 import logging
+import os
+import re
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import Date, cast, delete, func, select
@@ -14,7 +16,17 @@ from db.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
 
-logger = logging.getLogger(__name__)
+# Episode-code extractor. Matches e.g. "S01E10", "s1e3" in a filename.
+# Used by duplicate-group classification to flag groups where identical
+# content is shared across different episodes — almost always a sign the
+# subtitle was saved under the wrong filename, not a safe-to-dedup case.
+_EP_CODE_RE = re.compile(r"s\d+e\d+", re.IGNORECASE)
+
+
+def _episode_code(file_path: str) -> str | None:
+    """Return the SxxEyy code from the filename, or None when absent."""
+    match = _EP_CODE_RE.search(os.path.basename(file_path))
+    return match.group(0).lower() if match else None
 
 
 def _dialect_insert(session):
@@ -137,8 +149,37 @@ class CleanupRepository(BaseRepository):
                 }
             )
 
+        def _cross_episode(files: list[dict]) -> bool:
+            """Flag groups whose files belong to different episodes.
+
+            Identical-content subtitles in the *same* episode (different
+            languages, re-encodes) are safe to dedup. Identical content in
+            *different* episodes almost always means the subtitle was
+            misfiled — deleting one leaves the wrong one behind. Callers
+            should surface a warning in the UI when this is true.
+            """
+            codes: set[str] = set()
+            missing = 0
+            for f in files:
+                code = _episode_code(f["file_path"])
+                if code is None:
+                    missing += 1
+                else:
+                    codes.add(code)
+            # More than one distinct episode code → cross-episode.
+            if len(codes) > 1:
+                return True
+            # Mix of files with and without codes → suspicious; warn.
+            return bool(codes and missing)
+
         return [
-            {"content_hash": h, "count": len(files), "files": files} for h, files in groups.items()
+            {
+                "content_hash": h,
+                "count": len(files),
+                "files": files,
+                "cross_episode": _cross_episode(files),
+            }
+            for h, files in groups.items()
         ]
 
     def find_by_content_hash(self, content_hash: str) -> list[dict]:

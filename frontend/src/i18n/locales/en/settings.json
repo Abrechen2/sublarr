@@ -218,6 +218,8 @@
       "groupsFound": "duplicate groups",
       "groupsFoundTruncated": "{{shown}} of {{total}} duplicate groups",
       "truncatedHint": "delete these to reveal more",
+      "crossEpisodeBadge": "Cross-Episode",
+      "crossEpisodeWarning": "Identical content across different episodes — likely a misfiled subtitle. Verify before deleting.",
       "filesToDelete": "files to delete",
       "files": "files",
       "keepLabel": "Keep",

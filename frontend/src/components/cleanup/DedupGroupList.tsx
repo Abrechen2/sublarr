@@ -7,7 +7,7 @@
  */
 import { useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Trash2, FileText, Check } from 'lucide-react'
+import { Trash2, FileText, Check, AlertTriangle } from 'lucide-react'
 import type { DuplicateGroup } from '@/lib/types'
 
 interface DedupGroupListProps {
@@ -176,6 +176,31 @@ export function DedupGroupList({
               <code style={{ fontFamily: 'var(--font-mono)' }}>
                 {group.content_hash.slice(0, 12)}...
               </code>
+              {group.cross_episode && (
+                <span
+                  data-testid={`cross-episode-warning-${group.content_hash}`}
+                  title={t(
+                    'cleanup.dedup.crossEpisodeWarning',
+                    'Identical content across different episodes — likely a misfiled subtitle. Verify before deleting.',
+                  )}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '1px 6px',
+                    borderRadius: 3,
+                    border: '1px solid var(--warning)',
+                    color: 'var(--warning)',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.3px',
+                  }}
+                >
+                  <AlertTriangle size={10} />
+                  {t('cleanup.dedup.crossEpisodeBadge', 'Cross-Episode')}
+                </span>
+              )}
               <span className="ml-auto">
                 {group.files.length} {t('cleanup.dedup.files', 'files')}
               </span>

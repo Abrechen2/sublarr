@@ -218,6 +218,8 @@
       "groupsFound": "Duplikatgruppen",
       "groupsFoundTruncated": "{{shown}} von {{total}} Duplikatgruppen",
       "truncatedHint": "Lösche diese, um weitere anzuzeigen",
+      "crossEpisodeBadge": "Episoden-Konflikt",
+      "crossEpisodeWarning": "Gleicher Inhalt in verschiedenen Episoden — wahrscheinlich eine falsch zugeordnete Untertitel-Datei. Vor dem Löschen prüfen.",
       "filesToDelete": "Dateien zum Löschen",
       "files": "Dateien",
       "keepLabel": "Behalten",

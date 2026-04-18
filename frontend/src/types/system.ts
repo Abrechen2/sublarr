@@ -366,6 +366,11 @@ export interface SubtitleHashEntry {
 export interface DuplicateGroup {
   content_hash: string
   files: SubtitleHashEntry[]
+  /** Set by the backend when files in the group belong to different episodes
+   * (distinct SxxEyy codes, or a mix of files with and without codes).
+   * Typically means the same subtitle was misfiled — deleting one leaves
+   * the wrong file behind; the UI surfaces a warning. */
+  cross_episode?: boolean
 }
 
 export interface CleanupRule {
