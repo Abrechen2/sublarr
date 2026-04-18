@@ -84,3 +84,90 @@ def test_duplicate_job_id_raises(app, tmp_path):
         s.register_job(spec2)
     if s.running:
         s.shutdown(timeout_s=2)
+
+
+def test_register_adds_to_jobstore_on_first_run(scheduler):
+    spec = JobSpec(
+        id="first",
+        func=lambda: None,
+        default_trigger=IntervalTrigger(minutes=15),
+    )
+    scheduler.register_job(spec)
+    scheduler.start_registered_jobs()
+    scheduler.start()
+
+    job = scheduler._scheduler.get_job("first")
+    assert job is not None
+    assert job.trigger.interval.total_seconds() == 900
+
+
+def test_register_preserves_user_override(scheduler):
+    spec = JobSpec(
+        id="user_edited",
+        func=lambda: None,
+        default_trigger=IntervalTrigger(minutes=15),
+    )
+    scheduler.register_job(spec)
+    scheduler.start_registered_jobs()
+    scheduler.start()
+
+    scheduler._scheduler.reschedule_job(
+        "user_edited",
+        trigger=IntervalTrigger(minutes=5),
+    )
+    scheduler.shutdown(timeout_s=2)
+
+    # Second startup: ensure user's 5-minute interval is preserved
+    scheduler._scheduler = None
+    scheduler._shutting_down = False
+    scheduler._registered_ids.clear()
+    scheduler._specs.clear()
+    scheduler.register_job(spec)
+    scheduler.start_registered_jobs()
+    scheduler.start()
+    job = scheduler._scheduler.get_job("user_edited")
+    assert job.trigger.interval.total_seconds() == 300
+
+
+def test_purge_orphans_deletes_missing_ids(scheduler):
+    old = JobSpec(
+        id="old_one",
+        func=lambda: None,
+        default_trigger=IntervalTrigger(minutes=5),
+    )
+    scheduler.register_job(old)
+    scheduler.start_registered_jobs()
+    scheduler.start()
+    scheduler.shutdown(timeout_s=2)
+
+    # Second boot: "old_one" is no longer in the registry
+    scheduler._scheduler = None
+    scheduler._shutting_down = False
+    scheduler._registered_ids.clear()
+    scheduler._specs.clear()
+
+    new = JobSpec(
+        id="new_one",
+        func=lambda: None,
+        default_trigger=IntervalTrigger(minutes=5),
+    )
+    scheduler.register_job(new)
+    scheduler.start_registered_jobs()
+    scheduler.purge_orphans()
+    scheduler.start()
+
+    assert scheduler._scheduler.get_job("old_one") is None
+    assert scheduler._scheduler.get_job("new_one") is not None
+
+
+def test_purge_orphans_preserves_registered(scheduler):
+    spec = JobSpec(
+        id="keep",
+        func=lambda: None,
+        default_trigger=IntervalTrigger(minutes=5),
+    )
+    scheduler.register_job(spec)
+    scheduler.start_registered_jobs()
+    scheduler.purge_orphans()
+    scheduler.start()
+    assert scheduler._scheduler.get_job("keep") is not None

@@ -133,6 +133,24 @@ def _write_job_run(
         db.session.rollback()
 
 
+# Module-level registry used by picklable tick dispatchers (SQLAlchemyJobStore
+# requires that the job callable be importable; local closures cannot be
+# pickled). Entries are written by SublarrScheduler.start_registered_jobs().
+_tick_registry: dict[str, tuple[Flask, JobSpec]] = {}
+
+
+def _scheduled_tick(spec_id: str) -> None:
+    """Top-level dispatcher used as the JobStore-persisted callable.
+
+    Resolves (app, spec) from the module registry at fire time and delegates
+    to _tick_wrapper. Stored as a textual reference
+    (`services.scheduler:_scheduled_tick`) so APScheduler can reimport it
+    after a process restart.
+    """
+    app, spec = _tick_registry[spec_id]
+    _tick_wrapper(app, spec, triggered_by="schedule")()
+
+
 def _tick_wrapper(
     app: Flask, spec: JobSpec, *, triggered_by: str = "schedule"
 ) -> Callable[[], None]:
@@ -236,16 +254,26 @@ class SublarrScheduler:
     def start(self) -> None:
         """Idempotent start. Safe to call multiple times; no-op if running.
 
+        If the underlying scheduler was pre-started in paused mode by
+        start_registered_jobs()/purge_orphans() (so it could resolve
+        jobstore rows before the registry settles), resume it instead of
+        starting again.
+
         Fixes feedback_scheduler_timer_leak by removing the "restart on
         every settings save" behaviour of the legacy threading.Timer
         schedulers.
         """
         if self._app is None:
             raise RuntimeError("attach_app() must be called before start()")
+        from apscheduler.schedulers.base import STATE_PAUSED, STATE_RUNNING
+
         scheduler = self._ensure_scheduler()
-        if scheduler.running:
+        if scheduler.state == STATE_RUNNING:
             return
-        scheduler.start()
+        if scheduler.state == STATE_PAUSED:
+            scheduler.resume()
+        else:
+            scheduler.start()
         logger.info(
             "SublarrScheduler: started (%d job(s) registered)",
             len(self._registered_ids),
@@ -294,3 +322,74 @@ class SublarrScheduler:
             raise ValueError(f"JobSpec id {spec.id!r} already registered")
         self._registered_ids.add(spec.id)
         self._specs[spec.id] = spec
+
+    def start_registered_jobs(self) -> None:
+        """Walk the registry and add_job() for specs not yet in JobStore.
+
+        Existing JobStore rows (user overrides) are left untouched.
+        Must be called after register_job() for all specs and before start().
+
+        The scheduler is started in paused mode so that `get_job()` consults
+        the persistent jobstore rather than only the in-memory pending list
+        (otherwise a second boot would always re-add jobs and conflict on
+        the store's row).
+        """
+        if self._app is None:
+            raise RuntimeError("attach_app() required before start_registered_jobs()")
+
+        from apscheduler.schedulers.base import STATE_STOPPED
+
+        scheduler = self._ensure_scheduler()
+        if scheduler.state == STATE_STOPPED:
+            scheduler.start(paused=True)
+        for spec_id in list(self._registered_ids):
+            spec = self._spec_by_id(spec_id)
+            # Publish to the module registry so _scheduled_tick can resolve
+            # the (app, spec) tuple at fire time. Done unconditionally so
+            # process restarts rebind to the live Flask app + spec.
+            _tick_registry[spec_id] = (self._app, spec)
+            existing = scheduler.get_job(spec_id)
+            if existing is not None:
+                continue
+            grace = (
+                spec.misfire_grace_time
+                if spec.misfire_grace_time is not None
+                else compute_default_misfire_grace_time(spec.default_trigger)
+            )
+            scheduler.add_job(
+                func="services.scheduler:_scheduled_tick",
+                args=[spec.id],
+                trigger=spec.default_trigger,
+                id=spec.id,
+                replace_existing=False,
+                max_instances=spec.max_instances,
+                coalesce=spec.coalesce,
+                misfire_grace_time=grace,
+            )
+
+    def purge_orphans(self) -> None:
+        """Remove JobStore rows whose id is not in the current registry.
+
+        Also sweeps stale one-shot rows whose next_run_time is in the past
+        (they come from crashed run-now invocations; the scheduler would
+        otherwise fire them all at startup).
+
+        Starts the underlying scheduler in paused mode if needed so
+        `get_jobs()` returns rows persisted in the SQLAlchemyJobStore
+        (rather than only the in-memory pending list).
+        """
+        from apscheduler.schedulers.base import STATE_STOPPED
+
+        scheduler = self._ensure_scheduler()
+        if scheduler.state == STATE_STOPPED:
+            scheduler.start(paused=True)
+        for job in list(scheduler.get_jobs()):
+            base_id = job.id.split("_oneshot_")[0]
+            if base_id not in self._registered_ids:
+                scheduler.remove_job(job.id)
+                logger.info("purge_orphans: removed %s", job.id)
+                continue
+            if "_oneshot_" in job.id:
+                if job.next_run_time is None or job.next_run_time < datetime.now(UTC):
+                    scheduler.remove_job(job.id)
+                    logger.info("purge_orphans: removed stale oneshot %s", job.id)
