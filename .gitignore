@@ -39,6 +39,7 @@ NDH6SA~*
 
 # Playwright MCP
 .playwright-mcp/
+_snap-*.yml
 
 # Dev runtime
 dev.log
