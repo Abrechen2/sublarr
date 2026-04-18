@@ -37,35 +37,19 @@ from providers.download_manager import _stream_download  # noqa: F401 — re-exp
 from providers.format_validator import (  # noqa: F401 — re-exported for callers
     _validate_subtitle_content,
 )
-from providers.registry import PROVIDER_METADATA
+from providers.registry import (  # noqa: F401 — _PROVIDER_CLASSES, _BUILTIN_PROVIDERS, register_provider re-exported
+    _BUILTIN_PROVIDERS,
+    _PROVIDER_CLASSES,
+    PROVIDER_METADATA,
+    import_builtin_providers,
+    register_provider,
+)
 from providers.search_coordinator import SearchCoordinatorMixin
 
 logger = logging.getLogger(__name__)
 
-# Provider registry — maps name to class
-_PROVIDER_CLASSES: dict[str, type[SubtitleProvider]] = {}
-
 # Singleton manager
 _manager: Optional["ProviderManager"] = None
-
-
-def register_provider(cls: type[SubtitleProvider]) -> type[SubtitleProvider]:
-    """Decorator to register a provider class.
-
-    Built-in providers always win on name collision: if a name is already
-    registered, a warning is logged and the duplicate is skipped.
-    """
-    if cls.name in _PROVIDER_CLASSES:
-        logger.warning(
-            "Provider name collision: '%s' already registered by %s, skipping %s",
-            cls.name,
-            _PROVIDER_CLASSES[cls.name].__name__,
-            cls.__name__,
-        )
-        return cls
-    _PROVIDER_CLASSES[cls.name] = cls
-    return cls
-
 
 _provider_manager_lock = threading.Lock()
 
@@ -191,47 +175,10 @@ class ProviderManager(SearchCoordinatorMixin):
         except Exception as e:
             logger.debug("Plugin loading skipped: %s", e)
 
-    # Built-in provider module names — imported dynamically to trigger @register_provider.
-    _BUILTIN_PROVIDERS = (
-        "opensubtitles",
-        "jimaku",
-        "animetosho",
-        "subdl",
-        "subsdump",
-        "gestdown",
-        "podnapisi",
-        "kitsunekko",
-        "napisy24",
-        "titrari",
-        "legendasdivx",
-        "subscene",
-        "addic7ed",
-        "tvsubtitles",
-        "turkcealtyazi",
-        "subsource",
-        "subf2m",
-        "yifysubtitles",
-        "zimuku",
-        "betaseries",
-        "titlovi",
-        "embedded",
-    )
-
-    @staticmethod
-    def _import_builtin_providers():
-        """Import all built-in provider modules to trigger @register_provider decorators."""
-        import importlib
-
-        for name in ProviderManager._BUILTIN_PROVIDERS:
-            try:
-                importlib.import_module(f"providers.{name}")
-            except ImportError as e:
-                logger.debug("Provider %s not available: %s", name, e)
-
     def _init_providers(self):
         """Initialize enabled providers based on config."""
         # Import providers to trigger registration
-        self._import_builtin_providers()
+        import_builtin_providers()
 
         # Load plugin providers (from plugins directory)
         self._load_plugins()
