@@ -20,7 +20,6 @@ import pytest
 
 import routes.standalone as standalone_mod
 
-
 EXPECTED_URL_RULES = {
     # folders
     ("/api/v1/standalone/folders", "GET"),
