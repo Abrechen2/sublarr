@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 
-from providers.registry import PROVIDER_METADATA  # noqa: F401 — available for subclasses
+from providers.registry import _PROVIDER_CLASSES
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +35,6 @@ class StatusReportingMixin:
         if enabled_str:
             enabled_set = {p.strip() for p in enabled_str.split(",") if p.strip()}
         else:
-            from providers.registry import _PROVIDER_CLASSES
-
             enabled_set = set(_PROVIDER_CLASSES.keys())
 
         # Download stats from DB (single batch query)
@@ -44,8 +42,6 @@ class StatusReportingMixin:
         # Performance stats (single batch query — includes auto_disabled, disabled_until,
         # consecutive_failures, successful_downloads, total_searches, etc.)
         performance_stats = get_provider_stats()
-
-        from providers.registry import _PROVIDER_CLASSES
 
         statuses = []
         for name, cls in _PROVIDER_CLASSES.items():
@@ -166,8 +162,6 @@ class StatusReportingMixin:
         if enabled_str:
             enabled_set = {p.strip() for p in enabled_str.split(",") if p.strip()}
         else:
-            from providers.registry import _PROVIDER_CLASSES
-
             enabled_set = set(_PROVIDER_CLASSES.keys())
 
         for name in enabled_set:
@@ -213,8 +207,6 @@ class StatusReportingMixin:
         Reads from the provider class's config_fields attribute instead of
         a hardcoded map. Returns an empty list if the class has no config_fields.
         """
-        from providers.registry import _PROVIDER_CLASSES
-
         cls = _PROVIDER_CLASSES.get(name)
         if cls:
             return getattr(cls, "config_fields", [])
