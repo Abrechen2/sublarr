@@ -244,6 +244,24 @@ def test_grouped_view_classes_importable_from_config():
         assert len(cls._fields) > 0
 
 
+def test_config_py_under_600_loc():
+    """Pin B1 achievement: config.py must stay below 600 LOC.
+
+    If you are adding settings, put new fields in config_settings.py.
+    If you are adding view classes, put them in config_views.py.
+    config.py is intentionally a thin re-export façade.
+    """
+    from pathlib import Path
+
+    config_path = Path(__file__).parent.parent / "config.py"
+    assert config_path.exists(), f"config.py not found at {config_path}"
+    line_count = sum(1 for _ in config_path.open(encoding="utf-8"))
+    assert line_count < 600, (
+        f"backend/config.py is {line_count} LOC, must stay below 600. "
+        "Move declarations into config_settings.py or config_views.py."
+    )
+
+
 @pytest.fixture(autouse=True)
 def _reset_singleton_after_test():
     """Make sure singleton state from this file does not leak into other tests."""
