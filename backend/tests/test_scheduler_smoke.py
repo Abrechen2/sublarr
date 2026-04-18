@@ -10,11 +10,13 @@ def test_full_bootstrap_and_history_write(monkeypatch, tmp_path):
     monkeypatch.setenv("SUBLARR_DB_PATH", str(tmp_path / "app.db"))
 
     from config import reload_settings
+
     reload_settings()
     from app import create_app
 
     app = create_app(testing=True)
     from extensions import db as sa_db
+
     with app.app_context():
         sa_db.create_all()
 
