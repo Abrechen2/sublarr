@@ -109,3 +109,25 @@ def test_scan_state_is_mutable():
         assert cleanup_mod._scan_state["running"] != original
     finally:
         cleanup_mod._scan_state["running"] = original
+
+
+def test_routes_cleanup_init_py_under_100_loc():
+    """Pin B1/cleanup achievement: routes/cleanup/__init__.py must stay below 100 LOC.
+
+    If you are adding dedup routes, put them in routes/cleanup/dedup.py.
+    If you are adding orphan routes, put them in routes/cleanup/orphan.py.
+    If you are adding rule-management routes, put them in routes/cleanup/rules.py.
+    If you are adding stats/history routes, put them in routes/cleanup/stats.py.
+    If you are adding preview / non-target-subs routes, put them in routes/cleanup/preview.py.
+    routes/cleanup/__init__.py is intentionally a thin package facade with only
+    the blueprint declaration, shared state, and submodule imports.
+    """
+    from pathlib import Path
+
+    path = Path(__file__).parent.parent / "routes" / "cleanup" / "__init__.py"
+    assert path.exists(), f"routes/cleanup/__init__.py not found at {path}"
+    line_count = sum(1 for _ in path.open(encoding="utf-8"))
+    assert line_count < 100, (
+        f"backend/routes/cleanup/__init__.py is {line_count} LOC, must stay below 100. "
+        "Move new routes into the appropriate submodule (see docstring)."
+    )
