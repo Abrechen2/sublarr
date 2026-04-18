@@ -5,10 +5,13 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.53.0-beta] - 2026-04-17
+## [0.53.0-beta] - 2026-04-18
 
 ### Fixed
 - **Rate-limit errors no longer swallowed by 5 providers** — `animetosho`, `subdl`, `titrari`, `opensubtitles`, and `legendasdivx` catch their own network errors in a broad `except Exception`. The first three were swallowing `ProviderRateLimitError` before it could reach the SearchCoordinator, which meant Phase 3's 429-learning never fired for them (prod showed 299+ swallowed animetosho 429s in 3 hours with zero rows in `provider_learned_limits`). They now re-raise `ProviderRateLimitError` and `ProviderAuthError` before the broad except. A parametrised regression test locks this in.
+- **Activity → History tabs remount on filter switch** — Clicking "Löschungen" or "Scans" under Aktivität → Verlauf kept showing the previous filter's rows because `ActivityLogTab` read its initial filter from a prop via `useState(defaultFilter)` which only fires on mount. Adding `key={filter}` to the component forces a remount so every sub-filter switch re-initialises the query correctly.
+- **Duplicate scanner no longer hides groups past the first page** — The cleanup UI called `useDuplicates()` with the default `per_page=50` and had no pagination, so a prod library with 263 duplicate groups showed only the first 50 — the remaining 213 were invisible and unclickable. Bumped the default to the backend cap (200) and surface a "X of Y duplicate groups" hint plus a warning label when the list is still truncated.
+- **Duplicate scanner warns on cross-episode misfiles** — Groups are detected purely by SHA-256 content hash, which flagged legitimately suspicious cases (e.g. `S01E10` and `S02E10` sharing identical content — a misfiled subtitle, not a safe dedup). The backend now marks such groups with `cross_episode=true`; the UI renders an orange "Cross-Episode" badge with a tooltip so users verify before batch-deleting.
 
 ### Added
 - **V1 API-Budget Scheduler — Phase 4a: Multi-key pools + per-series overrides** — Each provider can now have multiple API keys organised in a pool. The new `KeySelector` picks the key with the most remaining day-budget per call (budget-aware, with a 60s cache and 429 cooldown). Two new columns on `series_settings` let users override a series's scheduling priority (premium/standard/backlog) and guarantee a minimum number of search attempts per day (hard floor that survives the backlog-reserve gate).
