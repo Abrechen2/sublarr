@@ -5,6 +5,18 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.53.1-beta] - 2026-04-18
+
+### Fixed
+- **Dashboard "Providers: degraded (N/22 active)" count mismatch** — `_health_check_providers` passed `len(provider_statuses)` as the denominator, which counted every registered class (including plugins the user hasn't configured). The status line now filters by the `enabled` flag first, so a fully-configured install reads "healthy (10/10 active)" instead of "degraded (10/22 active)". Three regression tests added.
+
+### Added
+- **Multi-key pool UI is now actually reachable** — Phase 4a shipped the `KeysList`/`KeyEditDialog` components but didn't mount them anywhere. A new `ProviderKeysPool` wrapper is mounted in the provider-edit modal (Settings → Providers → edit tile), fetching + mutating via react-query and invalidating the dashboard budget widget on save.
+- **Series override UI is now reachable** — `SeriesOverrideSettings` mounted in the series detail page as a settings card. Edits persist via `PATCH /api/v1/series/<id>/settings`; a green toast confirms saves.
+
+### Changed
+- **Ruff cleanup** — Auto-fixed 3 check violations (UP017, I001, SIM117) and reformatted 6 legacy files (Phase 1 migration, locustfile, sidecar/post-processor/wanted-search tests). Backend `ruff check .` and `ruff format --check .` are now both clean across the entire codebase.
+
 ## [0.53.0-beta] - 2026-04-18
 
 ### Fixed
