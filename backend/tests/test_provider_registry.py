@@ -77,10 +77,13 @@ def _make_bare_manager(global_timeout: int = 30):
 
 def test_get_rate_limit_uses_registry(monkeypatch):
     """_get_rate_limit falls back to PROVIDER_METADATA when no class attribute overrides it."""
-    import providers as _providers_module
+    from providers import manager_config_mixin
     from providers.registry import PROVIDER_METADATA
 
-    monkeypatch.setattr(_providers_module, "_PROVIDER_CLASSES", {})
+    # After B1P, `_get_rate_limit` lives in ConfigResolvingMixin which imports
+    # `_PROVIDER_CLASSES` from providers.registry at module-top. Patching
+    # providers._PROVIDER_CLASSES does NOT rebind the mixin's local name.
+    monkeypatch.setattr(manager_config_mixin, "_PROVIDER_CLASSES", {})
 
     manager = _make_bare_manager()
     assert (
@@ -96,11 +99,12 @@ def test_get_rate_limit_unknown_provider_returns_no_limit():
 
 def test_get_timeout_uses_registry(monkeypatch):
     """_get_timeout falls back to PROVIDER_METADATA when no class attribute overrides it."""
-    import providers as _providers_module
+    from providers import manager_config_mixin
     from providers.registry import PROVIDER_METADATA
 
     # Ensure _PROVIDER_CLASSES is empty so no class attribute can shadow the registry lookup.
-    monkeypatch.setattr(_providers_module, "_PROVIDER_CLASSES", {})
+    # Patch the mixin's local binding (not providers._PROVIDER_CLASSES) — see B1P refactor.
+    monkeypatch.setattr(manager_config_mixin, "_PROVIDER_CLASSES", {})
 
     manager = _make_bare_manager(global_timeout=30)
     assert manager._get_timeout("opensubtitles") == PROVIDER_METADATA["opensubtitles"]["timeout"]
@@ -114,10 +118,11 @@ def test_get_timeout_unknown_falls_back_to_global():
 
 def test_get_retries_uses_registry(monkeypatch):
     """_get_retries falls back to PROVIDER_METADATA when no class attribute overrides it."""
-    import providers as _providers_module
+    from providers import manager_config_mixin
     from providers.registry import PROVIDER_METADATA
 
-    monkeypatch.setattr(_providers_module, "_PROVIDER_CLASSES", {})
+    # Patch the mixin's local binding (not providers._PROVIDER_CLASSES) — see B1P refactor.
+    monkeypatch.setattr(manager_config_mixin, "_PROVIDER_CLASSES", {})
 
     manager = _make_bare_manager()
     assert manager._get_retries("opensubtitles") == PROVIDER_METADATA["opensubtitles"]["retries"]
