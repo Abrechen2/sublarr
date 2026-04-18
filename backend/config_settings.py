@@ -13,6 +13,7 @@ Importing rules:
 import hashlib
 import logging
 
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from config_language_data import _get_language_tags
@@ -267,6 +268,17 @@ class Settings(BaseSettings):
     provider_budget_burst_window_hours: int = 6
     # Scheduler profile (mapped to preset values via services/scheduler_profile.py)
     scheduler_profile: str = "balanced"  # 'light' | 'balanced' | 'aggressive' | 'custom'
+    # Scheduler history retention — days of job_run rows kept before
+    # scheduler_history_cleanup cron deletes them.
+    scheduler_history_retention_days: int = Field(
+        default=30,
+        ge=1,
+        le=365,
+        description=(
+            "Keep scheduler job-run history for this many days before "
+            "the scheduler_history_cleanup cron deletes old rows."
+        ),
+    )
     # First-run wizard completion flag — persisted by the wizard endpoints so
     # the UI shows the wizard at most once per installation.
     setup_wizard_completed: bool = False
