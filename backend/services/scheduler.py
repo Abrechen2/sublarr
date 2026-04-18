@@ -568,3 +568,43 @@ class JobNotRegisteredError(KeyError):
 
 class OneshotAlreadyPendingError(RuntimeError):
     """Raised by run_now when a prior one-shot for the same job is still pending."""
+
+
+def reconcile_stale_runs(grace_minutes: int = 10) -> int:
+    """Mark abandoned rows (no finished_at, started_at older than grace) as interrupted.
+
+    Called once at scheduler startup. Returns the number of rows updated.
+    """
+    from datetime import timedelta
+
+    from db.models.scheduler import JobRun
+    from extensions import db
+
+    cutoff = datetime.now(UTC) - timedelta(minutes=grace_minutes)
+    now = datetime.now(UTC)
+
+    with db.session.begin():
+        stale = (
+            db.session.query(JobRun)
+            .filter(JobRun.finished_at.is_(None))
+            .filter(JobRun.started_at < cutoff)
+            .all()
+        )
+        for row in stale:
+            row.status = "error"
+            row.error_type = "InterruptedByShutdown"
+            row.error_msg = (
+                f"Row abandoned without finished_at after {grace_minutes}m grace; "
+                "likely SIGKILL or shutdown-timeout."
+            )
+            row.finished_at = now
+            # SQLite stores datetimes as naive; normalise to UTC-aware so the
+            # subtraction below does not blow up on mixed tz-awareness.
+            started = row.started_at
+            if started.tzinfo is None:
+                started = started.replace(tzinfo=UTC)
+            row.duration_ms = int((now - started).total_seconds() * 1000)
+
+    if stale:
+        logger.warning("scheduler: reconciled %d abandoned job_run rows", len(stale))
+    return len(stale)
