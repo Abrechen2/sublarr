@@ -43,7 +43,7 @@ function Pagination({ page, totalPages, total, pageSize, onPageChange, t }: {
 
   return (
     <div className="flex items-center justify-between flex-wrap gap-3 mt-3">
-      <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+      <span className="text-xs text-secondary">
         {t('pagination.show', { start, end, total })}
       </span>
       <div className="flex items-center gap-1">
@@ -51,14 +51,13 @@ function Pagination({ page, totalPages, total, pageSize, onPageChange, t }: {
           data-testid="pagination-prev"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
-          className="p-1.5 rounded-md transition-colors disabled:opacity-30"
-          style={{ color: 'var(--text-secondary)' }}
+          className="p-1.5 rounded-md transition-colors disabled:opacity-30 text-secondary"
         >
           <ChevronLeft size={14} />
         </button>
         {pages.map((p, i) =>
           p === '...' ? (
-            <span key={`dots-${i}`} className="px-1 text-xs" style={{ color: 'var(--text-muted)' }}>...</span>
+            <span key={`dots-${i}`} className="px-1 text-xs text-muted">...</span>
           ) : (
             <button
               key={p}
@@ -78,8 +77,7 @@ function Pagination({ page, totalPages, total, pageSize, onPageChange, t }: {
           data-testid="pagination-next"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages}
-          className="p-1.5 rounded-md transition-colors disabled:opacity-30"
-          style={{ color: 'var(--text-secondary)' }}
+          className="p-1.5 rounded-md transition-colors disabled:opacity-30 text-secondary"
         >
           <ChevronRight size={14} />
         </button>
@@ -170,18 +168,16 @@ function BulkSyncPanel({
 
   return (
     <div
-      className="rounded-lg p-4 space-y-3"
-      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+      className="rounded-lg p-4 space-y-3 bg-surface border border-border"
     >
       <div className="flex items-center gap-2">
-        <RefreshCw size={14} style={{ color: 'var(--accent)' }} />
-        <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <RefreshCw size={14} className="text-accent" />
+        <span className="text-sm font-semibold text-foreground">
           Bulk Auto-Sync
         </span>
         {syncState.isRunning && (
           <span
-            className="text-[10px] px-1.5 py-0.5 rounded font-medium animate-pulse"
-            style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)' }}
+            className="text-[10px] px-1.5 py-0.5 rounded font-medium animate-pulse bg-accent-bg text-accent"
           >
             Running
           </span>
@@ -195,12 +191,7 @@ function BulkSyncPanel({
           <select
             value={scope}
             onChange={(e) => setScope(e.target.value as 'series' | 'library')}
-            className="text-xs px-2 py-1.5 rounded cursor-pointer"
-            style={{
-              backgroundColor: 'var(--bg-primary)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border)',
-            }}
+            className="text-xs px-2 py-1.5 rounded cursor-pointer bg-page text-secondary border border-border"
           >
             <option value="library">{t('health_check_scope_entire')}</option>
             <option value="series">{t('health_check_scope_series')}</option>
@@ -211,12 +202,7 @@ function BulkSyncPanel({
             <select
               value={selectedSeriesId}
               onChange={(e) => setSelectedSeriesId(e.target.value === '' ? '' : Number(e.target.value))}
-              className="text-xs px-2 py-1.5 rounded cursor-pointer max-w-[200px]"
-              style={{
-                backgroundColor: 'var(--bg-primary)',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border)',
-              }}
+              className="text-xs px-2 py-1.5 rounded cursor-pointer max-w-[200px] bg-page text-secondary border border-border"
             >
               <option value="">-- Select series --</option>
               {series.map((s) => (
@@ -229,12 +215,7 @@ function BulkSyncPanel({
           <select
             value={engine}
             onChange={(e) => setEngine(e.target.value as '' | 'alass' | 'ffsubsync')}
-            className="text-xs px-2 py-1.5 rounded cursor-pointer"
-            style={{
-              backgroundColor: 'var(--bg-primary)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border)',
-            }}
+            className="text-xs px-2 py-1.5 rounded cursor-pointer bg-page text-secondary border border-border"
           >
             <option value="">{t('engine_default')}</option>
             <option value="alass">alass</option>
@@ -245,8 +226,7 @@ function BulkSyncPanel({
             data-testid="library-bulk-sync-start"
             onClick={() => { void handleStart() }}
             disabled={loading || (scope === 'series' && !selectedSeriesId)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50"
-            style={{ backgroundColor: 'var(--accent)' }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50 bg-accent"
           >
             {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
             Start Bulk Sync
@@ -257,29 +237,27 @@ function BulkSyncPanel({
       {/* Progress */}
       {syncState.isRunning && (
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <div className="flex items-center justify-between text-xs text-secondary">
             <span>
               {syncState.current}/{syncState.total} &nbsp;&mdash;&nbsp;
-              <span style={{ color: 'var(--success)' }}>{syncState.completed} synced</span>
+              <span className="text-success">{syncState.completed} synced</span>
               {syncState.failed > 0 && (
-                <> &nbsp;/&nbsp; <span style={{ color: 'var(--error)' }}>{syncState.failed} failed</span></>
+                <> &nbsp;/&nbsp; <span className="text-error">{syncState.failed} failed</span></>
               )}
             </span>
-            <span style={{ fontFamily: 'var(--font-mono)' }}>{pct}%</span>
+            <span className="font-mono">{pct}%</span>
           </div>
           <div
-            className="h-2 rounded overflow-hidden"
-            style={{ backgroundColor: 'var(--bg-primary)' }}
+            className="h-2 rounded overflow-hidden bg-page"
           >
             <div
-              className="h-full rounded transition-all duration-500"
-              style={{ width: `${pct}%`, backgroundColor: 'var(--accent)' }}
+              className="h-full rounded transition-all duration-500 bg-accent"
+              style={{ width: `${pct}%` }}
             />
           </div>
           {syncState.filePath && (
             <p
-              className="text-[11px] truncate"
-              style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
+              className="text-[11px] truncate text-muted font-mono"
               title={syncState.filePath}
             >
               {syncState.filePath.replaceAll("\\", "/").split("/").slice(-2).join("/")}
@@ -410,7 +388,7 @@ export function LibraryPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 size={28} className="animate-spin" style={{ color: 'var(--accent)' }} />
+        <Loader2 size={28} className="animate-spin text-accent" />
       </div>
     )
   }
@@ -449,23 +427,20 @@ export function LibraryPage() {
       <div className="space-y-5">
         <h1>{t('title')}</h1>
         <div
-          className="rounded-lg p-8 text-center"
-          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+          className="rounded-lg p-8 text-center bg-surface border border-border"
         >
           <div
-            className="w-12 h-12 rounded-lg mx-auto mb-4 flex items-center justify-center"
-            style={{ backgroundColor: 'var(--accent-subtle)' }}
+            className="w-12 h-12 rounded-lg mx-auto mb-4 flex items-center justify-center bg-accent-subtle"
           >
-            <Tv size={24} style={{ color: 'var(--text-muted)' }} />
+            <Tv size={24} className="text-muted" />
           </div>
           <h2 className="text-base font-semibold mb-2">{t('empty.title')}</h2>
-          <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-sm mb-4 text-secondary">
             {t('empty.message')}
           </p>
           <button
             onClick={() => navigate('/settings')}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90"
-            style={{ backgroundColor: 'var(--accent)' }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90 bg-accent"
           >
             <Settings size={14} />
             {t('empty.go_to_settings')}
@@ -484,8 +459,7 @@ export function LibraryPage() {
           <div className="relative">
             <Search
               size={14}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-              style={{ color: 'var(--text-muted)' }}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted"
             />
             <input
               data-testid="library-search"
@@ -493,12 +467,7 @@ export function LibraryPage() {
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setGridPage(1) }}
               placeholder={t('search_placeholder')}
-              className="pl-8 pr-3 py-1.5 rounded-md text-xs w-48 focus:outline-none transition-all"
-              style={{
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-              }}
+              className="pl-8 pr-3 py-1.5 rounded-md text-xs w-48 focus:outline-none transition-all bg-surface border border-border text-foreground"
             />
           </div>
           {/* Tabs */}
@@ -536,12 +505,7 @@ export function LibraryPage() {
             <select
               value={profileFilter}
               onChange={(e) => { setProfileFilter(e.target.value); setGridPage(1) }}
-              className="px-2 py-1.5 rounded-md text-xs"
-              style={{
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-secondary)',
-              }}
+              className="px-2 py-1.5 rounded-md text-xs bg-surface border border-border text-secondary"
             >
               <option value="all">{t('filter_profile_all')}</option>
               {profiles.map((p) => (
@@ -573,8 +537,7 @@ export function LibraryPage() {
 
           {/* View toggle */}
           <div
-            className="flex rounded-md overflow-hidden"
-            style={{ border: '1px solid var(--border)' }}
+            className="flex rounded-md overflow-hidden border border-border"
           >
             <button
               data-testid="library-view-table"
@@ -646,10 +609,9 @@ export function LibraryPage() {
 
       {processedItems.length === 0 ? (
         <div
-          className="rounded-lg p-8 text-center"
-          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+          className="rounded-lg p-8 text-center bg-surface border border-border"
         >
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-sm text-secondary">
             {searchQuery
               ? t('no_results', { query: searchQuery })
               : t('no_items', { type: activeTab, source: activeTab === 'series' ? 'Sonarr' : 'Radarr' })}
@@ -659,13 +621,9 @@ export function LibraryPage() {
         <>
           {activeTab === 'series' && selectedSeries.size > 0 && (
             <div
-              className="flex items-center gap-2 px-4 py-2 rounded-lg mb-3"
-              style={{
-                backgroundColor: 'var(--bg-elevated)',
-                border: '1px solid var(--accent-dim)',
-              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg mb-3 bg-elevated border border-accent-dim"
             >
-              <span className="text-xs font-medium" style={{ color: 'var(--accent)' }}>
+              <span className="text-xs font-medium text-accent">
                 {selectedSeries.size} series selected
               </span>
               <button
@@ -679,15 +637,13 @@ export function LibraryPage() {
                     toast('Batch search failed', 'error')
                   }
                 }}
-                className="px-3 py-1.5 rounded text-xs font-medium"
-                style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-dim)' }}
+                className="px-3 py-1.5 rounded text-xs font-medium bg-accent-bg text-accent border border-accent-dim"
               >
                 Search All Missing
               </button>
               <button
                 onClick={clearSelection}
-                className="ml-auto px-2 py-1 rounded text-xs"
-                style={{ color: 'var(--text-muted)' }}
+                className="ml-auto px-2 py-1 rounded text-xs text-muted"
               >
                 Clear
               </button>
