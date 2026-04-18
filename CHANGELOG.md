@@ -5,6 +5,19 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.54.0-beta] - 2026-04-18
+
+### Changed
+- **Internal: `backend/providers/__init__.py` split across 4 sibling modules** — 893 → 399 LOC (55% reduction). `ProviderManager` now inherits `SearchCoordinatorMixin` + `ConfigResolvingMixin` + `StatusReportingMixin`. Provider-class registration moved to `providers/registry.py`; Flask-context singleton (`get_provider_manager`, `invalidate_manager`) moved to `providers/manager_singleton.py`. Public import surface byte-identical for all 53+ callers. `<500 LOC` regression guard added.
+- **Internal: `backend/routes/cleanup.py` split into Flask blueprint package** — 1105 → 43 LOC in `routes/cleanup/__init__.py` (96% reduction). Domain submodules: `dedup`, `orphan`, `rules`, `stats`, `preview`. All 17 URL endpoints under `/api/v1/cleanup` unchanged. `<100 LOC` regression guard added. Shared scan/orphan state preserved at package scope for backwards compatibility with direct attribute access from tests.
+
+### Docs
+- **Inspiration Backlog I7** — mixin-to-composition refactor trigger documented in beta-roadmap spec (§4). Fires when any `ProviderManager` mixin grows past ~400 LOC; `SearchCoordinatorMixin` at 878 LOC already meets the threshold but is deferred to a dedicated cycle.
+- **New plan documents** — `providers-init-split` (6 tasks) and `routes-cleanup-split` (7 tasks) under `docs/superpowers/plans/`.
+
+### Tests
+- **26 new characterization tests + 2 LOC regression guards** pinning the public APIs and file-size invariants of the refactored modules. Providers: 17 tests + `<500 LOC` guard. Cleanup: 7 tests + `<100 LOC` guard. Existing test suites (`test_providers_init.py`, `test_routes_cleanup.py`) unchanged — a deliberate check that the public surface is byte-identical.
+
 ## [0.53.2-beta] - 2026-04-18
 
 ### Fixed
