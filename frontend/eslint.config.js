@@ -42,6 +42,19 @@ export default defineConfig([
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       'no-debugger': 'warn',
       'no-empty': ['error', { allowEmptyCatch: true }],
+      // Pure-Tailwind policy (adopted 2026-04-18) — warn on inline `style={{...}}`
+      // with object-literal values. Dynamic values (template strings, identifiers,
+      // conditionals) can be suppressed with `// eslint-disable-next-line no-restricted-syntax`.
+      // See Sublarr/CLAUDE.md > Frontend Styling Policy for migration guidance.
+      // Tool: `python tools/migrate_inline_styles.py <file.tsx>`.
+      'no-restricted-syntax': [
+        'warn',
+        {
+          selector: 'JSXAttribute[name.name="style"] > JSXExpressionContainer > ObjectExpression',
+          message:
+            'Inline `style={{...}}` — prefer Tailwind utility classes. Allowed only for runtime-computed values (dynamic widths, transforms, data-dependent colors).',
+        },
+      ],
     },
   },
 

@@ -8,6 +8,72 @@
    Light theme in :root, dark theme in .dark class
    ================================================================= */
 
+/* =================================================================
+   Tailwind v4 @theme inline — maps Tailwind utility classes to the
+   existing design-system CSS variables. `inline` mode means utilities
+   reference the var() directly (no :root duplication, .dark overrides
+   just work via normal CSS cascade).
+
+   After this block: className="bg-surface text-muted rounded-md p-3"
+   resolves to the same styles as the legacy inline-style form
+   style={{ background: 'var(--bg-surface)', color: 'var(--text-muted)',
+            borderRadius: 'var(--radius-md)', padding: 'var(--space-3)' }}.
+
+   Spacing scale (p-1..p-12) naturally aligns with Tailwind defaults
+   (p-1=4px, p-3=12px, p-12=48px) — no override needed. Only colors,
+   radii, and shadows/fonts need explicit mapping.
+   ================================================================= */
+@theme inline {
+  /* Background colors — generates bg-*, text-*, border-* utilities */
+  --color-page: var(--bg-primary);
+  --color-surface: var(--bg-surface);
+  --color-surface-hover: var(--bg-surface-hover);
+  --color-elevated: var(--bg-elevated);
+  --color-deep: var(--bg-deep);
+
+  /* Border colors */
+  --color-border: var(--border);
+  --color-border-hover: var(--border-hover);
+
+  /* Text colors */
+  --color-foreground: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-muted: var(--text-muted);
+
+  /* Brand — Sublarr teal */
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-dim: var(--accent-dim);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-bg: var(--accent-bg);
+
+  /* Status colors */
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-error: var(--error);
+  --color-error-bg: var(--error-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-upgrade: var(--upgrade);
+  --color-upgrade-bg: var(--upgrade-bg);
+
+  /* Radii — map to existing --radius-* vars (resolved via :root at use-time) */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+
+  /* Shadows — map to existing --shadow-* vars (with .dark overrides) */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-glass: var(--shadow-glass);
+
+  /* Fonts */
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-mono);
+}
+
 :root {
   /* Backgrounds — Light */
   --bg-primary: #eff1f4;
