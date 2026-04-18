@@ -192,3 +192,105 @@ def _tick_wrapper(
                 )
 
     return _runner
+
+
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore  # noqa: E402
+from apscheduler.schedulers.background import BackgroundScheduler  # noqa: E402
+
+
+class SublarrScheduler:
+    """Facade wrapping a BackgroundScheduler bound to a SQLAlchemyJobStore."""
+
+    def __init__(self, db_url: str, autostart: bool = True) -> None:
+        self._db_url = db_url
+        self._autostart = autostart
+        self._app: Flask | None = None
+        self._scheduler: BackgroundScheduler | None = None
+        self._shutting_down = False
+        self._registered_ids: set[str] = set()
+        self._specs: dict[str, JobSpec] = {}
+
+    @property
+    def running(self) -> bool:
+        return self._scheduler is not None and self._scheduler.running
+
+    def attach_app(self, app: Flask) -> None:
+        self._app = app
+
+    def _ensure_scheduler(self) -> BackgroundScheduler:
+        if self._scheduler is None:
+            jobstore = SQLAlchemyJobStore(
+                url=self._db_url,
+                tablename="apscheduler_jobs",
+                engine_options={"pool_pre_ping": True},
+            )
+            self._scheduler = BackgroundScheduler(
+                jobstores={"default": jobstore},
+                timezone="UTC",
+            )
+        return self._scheduler
+
+    def _spec_by_id(self, spec_id: str) -> JobSpec:
+        return self._specs[spec_id]
+
+    def start(self) -> None:
+        """Idempotent start. Safe to call multiple times; no-op if running.
+
+        Fixes feedback_scheduler_timer_leak by removing the "restart on
+        every settings save" behaviour of the legacy threading.Timer
+        schedulers.
+        """
+        if self._app is None:
+            raise RuntimeError("attach_app() must be called before start()")
+        scheduler = self._ensure_scheduler()
+        if scheduler.running:
+            return
+        scheduler.start()
+        logger.info(
+            "SublarrScheduler: started (%d job(s) registered)",
+            len(self._registered_ids),
+        )
+
+    def shutdown(self, timeout_s: int = 25) -> None:
+        """Bounded shutdown. Safe to call multiple times."""
+        if self._shutting_down:
+            return
+        self._shutting_down = True
+        scheduler = self._scheduler
+        if scheduler is None or not scheduler.running:
+            return
+        try:
+            import threading
+
+            done = threading.Event()
+
+            def _do_shutdown():
+                try:
+                    scheduler.shutdown(wait=True)
+                finally:
+                    done.set()
+
+            t = threading.Thread(target=_do_shutdown, name="scheduler-shutdown")
+            t.start()
+            if not done.wait(timeout=timeout_s):
+                logger.warning(
+                    "SublarrScheduler: shutdown exceeded %ds; forcing non-wait",
+                    timeout_s,
+                )
+                try:
+                    scheduler.shutdown(wait=False)
+                except Exception:
+                    logger.error("forced shutdown failed", exc_info=True)
+        finally:
+            logger.info("SublarrScheduler: shut down")
+
+    def register_job(self, spec: JobSpec) -> None:
+        """Add a JobSpec to the internal registry.
+
+        Fails fast on duplicate id. Does NOT yet add to the JobStore;
+        that happens in start_registered_jobs() (added in Task 7).
+        """
+        if spec.id in self._registered_ids:
+            raise ValueError(f"JobSpec id {spec.id!r} already registered")
+        self._registered_ids.add(spec.id)
+        self._specs[spec.id] = spec
