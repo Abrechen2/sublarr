@@ -3,149 +3,44 @@
 Uses the Flask Application Factory pattern: create_app() builds and
 configures the application, initializes extensions, registers blueprints,
 and starts background schedulers.
+
+The low-level machinery (logging, routes, shutdown handlers, scheduler
+bootstrap) lives in sibling modules app_logging / app_routes_core /
+app_shutdown / app_schedulers so this file stays focused on the factory
+itself.
 """
 
-import atexit
 import hmac
 import logging
 import os
-import signal
 
 from flask import Flask
 
+from app_logging import (  # re-exported for back-compat (tests import from app)
+    LOG_FORMAT,
+    SocketIOLogHandler,
+    StructuredJSONFormatter,
+    _has_app_context,
+    _setup_logging,
+)
+from app_routes_core import _register_app_routes
+from app_schedulers import _start_schedulers
+from app_shutdown import _register_shutdown_handler
 from extensions import limiter, socketio
 
-LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-
-
-class StructuredJSONFormatter(logging.Formatter):
-    """JSON log formatter for structured logging (ELK, Loki, etc.)."""
-
-    def format(self, record: logging.LogRecord) -> str:
-        import json as _json
-
-        from flask import g as _g
-
-        entry = {
-            "timestamp": self.formatTime(record, self.datefmt),
-            "level": record.levelname,
-            "logger": record.name,
-            "message": record.getMessage(),
-            "module": record.module,
-            "function": record.funcName,
-            "line": record.lineno,
-        }
-
-        request_id = getattr(_g, "request_id", None) if _has_app_context() else None
-        if request_id:
-            entry["request_id"] = request_id
-
-        if record.exc_info and record.exc_info[1]:
-            entry["exception"] = {
-                "type": type(record.exc_info[1]).__name__,
-                "message": str(record.exc_info[1]),
-            }
-
-        return _json.dumps(entry, default=str)
-
-
-def _has_app_context() -> bool:
-    """Check if Flask application context is active (avoids import cycle)."""
-    try:
-        from flask import has_app_context
-
-        return has_app_context()
-    except Exception:
-        return False
-
-
-class SocketIOLogHandler(logging.Handler):
-    """Emits log entries to connected WebSocket clients."""
-
-    # Patterns that indicate internal DB details that must not leak via WebSocket.
-    _DB_ERROR_PATTERNS = ("psycopg2.errors.", "psycopg2.exc.", "sqlalchemy.exc.")
-
-    def __init__(self, sio):
-        super().__init__()
-        self.sio = sio
-
-    @staticmethod
-    def _sanitize(message: str) -> str:
-        """Strip DB-internal error details before emitting to WebSocket clients.
-
-        Replaces the portion of the message starting at the DB exception class name
-        with a generic placeholder so that table names, column names, and query
-        fragments never reach browser clients.
-        """
-        for pattern in SocketIOLogHandler._DB_ERROR_PATTERNS:
-            idx = message.find(pattern)
-            if idx != -1:
-                return message[:idx] + "Database error (details hidden)"
-        return message
-
-    def emit(self, record: logging.LogRecord) -> None:
-        try:
-            msg = self._sanitize(self.format(record))
-            self.sio.emit("log_entry", {"message": msg})
-        except Exception:
-            pass  # Never break the app because of log emission
-
-
-def _setup_logging(settings) -> None:
-    """Set up file handler and WebSocket handler on the root logger.
-
-    Idempotent: removes any previously-installed Sublarr handlers before
-    re-adding them. create_app() can be called more than once in the same
-    process (tests, WSGI reloaders) — without this guard each invocation
-    leaks another RotatingFileHandler + SocketIOLogHandler, producing N-fold
-    duplicated log lines.
-    """
-    log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
-    logging.basicConfig(level=log_level, format=LOG_FORMAT)
-
-    root = logging.getLogger()
-
-    # Strip previously-installed Sublarr handlers (by class) so repeat calls
-    # do not multiply handler count. The default StreamHandler added by
-    # basicConfig is kept — only our own additions are rotated out.
-    from logging.handlers import RotatingFileHandler
-
-    for existing in list(root.handlers):
-        if isinstance(existing, (RotatingFileHandler, SocketIOLogHandler)):
-            root.removeHandler(existing)
-            try:
-                existing.close()
-            except Exception:
-                pass
-
-    # Determine formatter
-    use_json = getattr(settings, "log_format", "text").lower() == "json"
-    if use_json:
-        formatter: logging.Formatter = StructuredJSONFormatter()
-    else:
-        formatter = logging.Formatter(LOG_FORMAT)
-
-    # File handler
-    log_file = settings.log_file
-    try:
-        log_dir = os.path.dirname(log_file)
-        if log_dir:
-            os.makedirs(log_dir, exist_ok=True)
-
-        fh = RotatingFileHandler(
-            log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
-        )
-        fh.setLevel(log_level)
-        fh.setFormatter(formatter)
-        root.addHandler(fh)
-    except Exception as e:
-        logging.getLogger(__name__).warning("Could not set up log file %s: %s", log_file, e)
-
-    # WebSocket handler (emits log_entry events to frontend)
-    ws_handler = SocketIOLogHandler(socketio)
-    ws_handler.setLevel(log_level)
-    ws_handler.setFormatter(logging.Formatter(LOG_FORMAT))  # Always text for WebSocket
-    root.addHandler(ws_handler)
+__all__ = [
+    "LOG_FORMAT",
+    "SocketIOLogHandler",
+    "StructuredJSONFormatter",
+    "_has_app_context",
+    "_setup_logging",
+    "_register_app_routes",
+    "_register_shutdown_handler",
+    "_start_schedulers",
+    "create_app",
+    "limiter",
+    "socketio",
+]
 
 
 def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
@@ -561,170 +456,6 @@ def create_app(testing=False):
             _register_shutdown_handler(app)
 
     return app
-
-
-def _register_shutdown_handler(app):
-    """Register handlers for graceful shutdown on SIGTERM/SIGINT.
-
-    Docker sends SIGTERM when stopping a container. Gunicorn forwards it
-    to workers. Without this handler, background threads (scanner, search,
-    standalone watcher) keep running and prevent clean process exit,
-    causing Docker to escalate to SIGKILL which fails in unprivileged LXC.
-    """
-    logger = logging.getLogger(__name__)
-
-    def _graceful_shutdown(signum=None, frame=None):
-        sig_name = signal.Signals(signum).name if signum else "atexit"
-        logger.info("Graceful shutdown initiated (%s)", sig_name)
-
-        # 1. Cancel any running wanted search (sets cancel_event)
-        try:
-            scanner = app.extensions.get("wanted_scanner")
-            if scanner:
-                scanner.cancel_search()
-                scanner.stop_scheduler()
-                logger.info("Wanted scanner stopped")
-        except Exception as e:
-            logger.debug("Scanner shutdown error: %s", e)
-
-        # 2. Stop standalone watcher
-        try:
-            from standalone import get_standalone_manager
-
-            get_standalone_manager().stop()
-            logger.info("Standalone watcher stopped")
-        except Exception:
-            pass
-
-        # 3. Stop cleanup/upgrade schedulers (APScheduler)
-        try:
-            from cleanup_scheduler import stop_cleanup_scheduler
-
-            stop_cleanup_scheduler()
-        except Exception:
-            pass
-        try:
-            from upgrade_scheduler import stop_upgrade_scheduler
-
-            stop_upgrade_scheduler()
-        except Exception:
-            pass
-
-        logger.info("Graceful shutdown complete")
-
-    # Register for both SIGTERM (Docker stop) and atexit (normal exit)
-    signal.signal(signal.SIGTERM, _graceful_shutdown)
-    atexit.register(_graceful_shutdown)
-
-
-def _register_app_routes(app):
-    """Register app-level routes: /metrics and SPA fallback."""
-    from flask import jsonify, send_from_directory
-
-    @app.route("/api/v1/metrics", methods=["GET"])
-    def prometheus_metrics():
-        """Prometheus metrics endpoint (protected by auth hook)."""
-        from flask import Response
-
-        from config import get_settings
-        from metrics import generate_metrics
-
-        body, content_type = generate_metrics(get_settings().db_path)
-        return Response(body, mimetype=content_type)
-
-    @app.route("/", defaults={"path": ""})
-    @app.route("/<path:path>")
-    def serve_spa(path):
-        """Serve the React SPA frontend.
-
-        Unknown `/api/...` paths must NOT fall through to index.html — a mistyped
-        endpoint should return a JSON 404 so clients fail loudly instead of
-        silently parsing an HTML/landing-page response.
-        """
-        import os
-
-        if path.startswith("api/"):
-            return (
-                jsonify({"error": "Not found", "path": f"/{path}"}),
-                404,
-            )
-
-        static_dir = app.static_folder or "static"
-
-        # Try to serve the exact file first
-        if path and os.path.exists(os.path.join(static_dir, path)):
-            return send_from_directory(static_dir, path)
-
-        # Fallback to index.html for SPA routing
-        index_path = os.path.join(static_dir, "index.html")
-        if os.path.exists(index_path):
-            return send_from_directory(static_dir, "index.html")
-
-        # No frontend built yet — return API info
-        from version import __version__
-
-        return jsonify(
-            {
-                "name": "Sublarr",
-                "version": __version__,
-                "api": "/api/v1/health",
-                "message": "Frontend not built. Run 'npm run build' in frontend/ first.",
-            }
-        )
-
-
-def _start_schedulers(settings, app=None):
-    """Start background schedulers (wanted scanner, database backup, standalone watcher, cleanup)."""  # noqa: D200
-    from services.wanted_scanner import get_scanner
-
-    scanner = get_scanner()
-    scanner.start_scheduler(socketio=socketio, app=app)
-
-    from database_backup import start_backup_scheduler
-
-    start_backup_scheduler(
-        db_path=settings.db_path,
-        backup_dir=settings.backup_dir,
-    )
-
-    # Start standalone watcher if enabled
-    from config import is_standalone_mode
-
-    if is_standalone_mode():
-        try:
-            from standalone import get_standalone_manager
-
-            standalone_mgr = get_standalone_manager()
-            standalone_mgr.start(socketio=socketio, app=app)
-        except Exception as e:
-            logging.getLogger(__name__).warning("Standalone watcher start failed: %s", e)
-
-    # Start cleanup scheduler
-    if app is not None:
-        try:
-            from cleanup_scheduler import start_cleanup_scheduler
-
-            start_cleanup_scheduler(app, socketio)
-        except Exception as e:
-            logging.getLogger(__name__).warning("Cleanup scheduler start failed: %s", e)
-
-    # Start upgrade candidate scheduler
-    if app is not None:
-        try:
-            from upgrade_scheduler import start_upgrade_scheduler
-
-            start_upgrade_scheduler(app)
-        except Exception as e:
-            logging.getLogger(__name__).warning("Upgrade scheduler start failed: %s", e)
-
-    # Start AniDB absolute episode sync scheduler (weekly)
-    if app is not None:
-        try:
-            from anidb_sync import start_anidb_sync_scheduler
-
-            start_anidb_sync_scheduler(app)
-        except Exception as e:
-            logging.getLogger(__name__).warning("AniDB sync scheduler start failed: %s", e)
 
 
 if __name__ == "__main__":
