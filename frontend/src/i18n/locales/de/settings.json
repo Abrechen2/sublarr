@@ -668,7 +668,11 @@
     "support_desc": "Repo mit Stern markieren, Issues melden oder einen Kaffee spendieren",
     "star_github": "Auf GitHub mit Stern markieren",
     "donate": "Spenden",
-    "report_issue": "Issue melden"
+    "report_issue": "Issue melden",
+    "community_title": "Community",
+    "community_desc": "Chat, Showcases und Ankündigungen",
+    "join_discord": "Discord beitreten",
+    "visit_reddit": "r/Sublarr auf Reddit"
   },
   "config_export_import": {
     "export_label": "Einstellungen exportieren",

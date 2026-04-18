@@ -1,4 +1,4 @@
-import { Heart, Github, AlertCircle, Info } from 'lucide-react'
+import { Heart, Github, AlertCircle, Info, MessageCircle, Users } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
@@ -162,6 +162,86 @@ export function AboutSettings() {
               >
                 <AlertCircle size={15} />
                 {t('about_page.report_issue')}
+              </a>
+            </div>
+          </SettingsSection>
+        </div>
+
+        {/* ── Community ─────────────────────────────────────────────────── */}
+        <div data-testid="section-community">
+          <SettingsSection
+            title={t('about_page.community_title')}
+            description={t('about_page.community_desc')}
+            icon={<Users size={16} style={{ color: 'var(--accent)' }} />}
+          >
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+
+              {/* Discord */}
+              <a
+                data-testid="link-discord"
+                href="https://discord.gg/WjatsKzHXz"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 16px',
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: 'var(--text-primary)',
+                  textDecoration: 'none',
+                  cursor: 'pointer',
+                  transition: 'border-color 0.15s, color 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--accent)'
+                  e.currentTarget.style.color = 'var(--accent)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border)'
+                  e.currentTarget.style.color = 'var(--text-primary)'
+                }}
+              >
+                <MessageCircle size={15} />
+                {t('about_page.join_discord')}
+              </a>
+
+              {/* Reddit */}
+              <a
+                data-testid="link-reddit"
+                href="https://www.reddit.com/r/Sublarr/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 16px',
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: 'var(--text-primary)',
+                  textDecoration: 'none',
+                  cursor: 'pointer',
+                  transition: 'border-color 0.15s, color 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--accent)'
+                  e.currentTarget.style.color = 'var(--accent)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border)'
+                  e.currentTarget.style.color = 'var(--text-primary)'
+                }}
+              >
+                <Users size={15} />
+                {t('about_page.visit_reddit')}
               </a>
             </div>
           </SettingsSection>

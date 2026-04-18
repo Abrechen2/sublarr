@@ -18,6 +18,8 @@
 
 **[Quick Start](#-quick-start)** · **[Configuration](#️-configuration)** · **[Integrations](#-integrations)** · **[Docs](#-documentation)** · **[Website](https://sublarr.de)** · **[Wiki](https://wiki.sublarr.de)**
 
+**Community:** [Discord](https://discord.gg/WjatsKzHXz) · [Reddit r/Sublarr](https://www.reddit.com/r/Sublarr/) · [GitHub Issues](https://github.com/Abrechen2/sublarr/issues)
+
 </div>
 
 ---
@@ -402,6 +404,12 @@ Contributions are welcome — bug reports, feature requests, and pull requests.
 1. **Bug reports** → open a GitHub Issue with your log output and config
 2. **Feature requests** → open a Discussion so we can talk through the approach first
 3. **Pull requests** → see [wiki.sublarr.de/development/contributing](https://wiki.sublarr.de/development/contributing) for code style, testing requirements, and commit format
+
+## 💬 Community
+
+- **Discord** — [discord.gg/WjatsKzHXz](https://discord.gg/WjatsKzHXz) — live chat, install help, beta testing
+- **Reddit** — [r/Sublarr](https://www.reddit.com/r/Sublarr/) — announcements, showcases, discussions
+- **GitHub Issues** — [bug reports & feature requests](https://github.com/Abrechen2/sublarr/issues)
 
 ---
 
