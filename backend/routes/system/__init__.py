@@ -8,6 +8,7 @@ from routes.system import (  # noqa: E402, F401
     backup,
     budget,
     health,
+    health_detailed,
     logs,
     maintenance,
     setup,
