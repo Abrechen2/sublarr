@@ -6,6 +6,7 @@ bp = Blueprint("system", __name__, url_prefix="/api/v1")
 
 from routes.system import (  # noqa: E402, F401
     backup,
+    backup_full,
     budget,
     health,
     health_detailed,
