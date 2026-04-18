@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { X, Loader2, TestTube, Trash2, Download, Database } from 'lucide-react'
 import { SettingRow } from '@/components/shared/SettingRow'
+import ProviderKeysPool from '@/components/settings/ProviderKeysPool'
 import type { ProviderInfo } from '@/lib/types'
 import {
   getStatusColor, getStatusLabel, getStatusBg,
@@ -301,6 +302,9 @@ export function ProviderEditModal({
               Keine Zugangsdaten erforderlich
             </div>
           )}
+
+          {/* ── API-Schlüssel (multi-key pool — only rendered for key-based providers) ── */}
+          <ProviderKeysPool providerName={provider.name} />
         </div>
 
         {/* Footer */}

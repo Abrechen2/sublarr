@@ -32,6 +32,9 @@ import { EpisodeGridHeader } from '@/components/series/EpisodeGrid'
 import { SeriesHero } from '@/components/series/SeriesHero'
 import { SeriesSettingsPanel } from '@/components/series/SeriesSettingsPanel'
 import { SeasonTabs } from '@/components/series/SeasonTabs'
+import SeriesOverrideSettings from '@/components/library/SeriesOverrideSettings'
+import { updateSeriesSettings as patchSeriesSettings } from '@/api/seriesSettings'
+import { useMutation } from '@tanstack/react-query'
 
 const SubtitleComparison = lazy(() => import('@/components/comparison/SubtitleComparison').then(m => ({ default: m.SubtitleComparison })))
 const SyncControls = lazy(() => import('@/components/sync/SyncControls').then(m => ({ default: m.SyncControls })))
@@ -162,6 +165,21 @@ export function SeriesDetailPage() {
 
   // AniDB absolute order
   const updateSeriesSettingsMutation = useUpdateSeriesSettings()
+
+  // Scheduler override (priority tier + min attempts/day) — PATCH /series/<id>/settings
+  const overrideMutation = useMutation({
+    mutationFn: (payload: { priority_override: string | null; min_attempts_per_day: number }) => {
+      if (seriesId == null) {
+        return Promise.reject(new Error('No series ID'))
+      }
+      return patchSeriesSettings(seriesId, payload)
+    },
+    onSuccess: () => toast('Override gespeichert', 'success'),
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : 'Speichern fehlgeschlagen'
+      toast(msg, 'error')
+    },
+  })
 
   // Re-scan series
   const [isRescanning, setIsRescanning] = useState(false)
@@ -528,6 +546,26 @@ export function SeriesDetailPage() {
           updatePending={updateSeriesSettingsMutation.isPending}
           refreshPending={refreshAnidbMappingMutation.isPending}
         />
+      )}
+
+      {/* Scheduler Override (Phase 4a) — appended as a separate card so the
+          protected SeriesSettingsPanel stays untouched. */}
+      {showSeriesSettings && seriesId !== null && (
+        <div
+          style={{
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)',
+            padding: '16px',
+            marginBottom: '16px',
+          }}
+        >
+          <SeriesOverrideSettings
+            seriesId={seriesId}
+            initial={{ priority_override: null, min_attempts_per_day: 0 }}
+            onSave={(payload) => overrideMutation.mutate(payload)}
+          />
+        </div>
       )}
 
       {/* Glossary Panel */}
