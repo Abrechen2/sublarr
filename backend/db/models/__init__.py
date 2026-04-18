@@ -50,6 +50,7 @@ from db.models.providers import (
     SubtitleDownload,
 )
 from db.models.quality import SubtitleHealthResult
+from db.models.scheduler import JobRun  # noqa: F401
 from db.models.standalone import (
     AnidbMapping,
     MetadataCache,
@@ -107,6 +108,8 @@ __all__ = [
     "AnidbMapping",
     # quality
     "SubtitleHealthResult",
+    # scheduler
+    "JobRun",
     # filter presets
     "FilterPreset",
     # cleanup
