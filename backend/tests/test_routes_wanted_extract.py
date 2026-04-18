@@ -1,4 +1,4 @@
-"""Tests for routes/wanted/extract.py — extract, batch-extract, batch-probe endpoints."""
+"""Tests for routes/wanted/{extract,batch_extract,batch_probe}.py — extract + batch endpoints."""
 
 import threading
 import time
@@ -41,12 +41,24 @@ P_UPDATE_STATUS = "db.wanted.update_wanted_status"
 P_OUTPUT_FOR_LANG = "translator.get_output_path_for_lang"
 
 # -- top-level (patched on module object) --
+# The single-extract route + _extract_embedded_sub helper live in
+# routes.wanted.extract. _run_batch_extract moved to routes.wanted.batch_extract,
+# _run_batch_probe to routes.wanted.batch_probe (B1E split, 2026-04-18).
+# Each module imports emit_event/socketio/remux independently, so patches must
+# target the module where the function under test was defined.
 _M = "routes.wanted.extract"
 P_EMIT_EVENT = f"{_M}.emit_event"
 P_LOG_ACTIVITY = f"{_M}.log_activity"
 P_REMOVE_STREAM = f"{_M}.remove_subtitle_stream"
-P_REMOVE_STREAMS = f"{_M}.remove_subtitle_streams"
-P_SOCKETIO = f"{_M}.socketio"
+
+_M_BE = "routes.wanted.batch_extract"
+P_EMIT_EVENT_BE = f"{_M_BE}.emit_event"
+P_SOCKETIO_BE = f"{_M_BE}.socketio"
+
+_M_BP = "routes.wanted.batch_probe"
+P_EMIT_EVENT_BP = f"{_M_BP}.emit_event"
+P_SOCKETIO_BP = f"{_M_BP}.socketio"
+P_REMOVE_STREAMS_BP = f"{_M_BP}.remove_subtitle_streams"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -786,13 +798,13 @@ class TestRunBatchExtract:
 
     def test_successful_run(self, app_client):
         app, _ = app_client
-        from routes.wanted.extract import _run_batch_extract
+        from routes.wanted.batch_extract import _run_batch_extract
 
         with (
             patch(P_GET_WANTED_ITEM, return_value={"id": 1, "title": "Ep", "file_path": "/f.mkv"}),
             patch("routes.wanted.extract._extract_embedded_sub") as mock_extract,
-            patch(P_SOCKETIO),
-            patch(P_EMIT_EVENT),
+            patch(P_SOCKETIO_BE),
+            patch(P_EMIT_EVENT_BE),
         ):
             _run_batch_extract([1], False, app)
 
@@ -804,7 +816,7 @@ class TestRunBatchExtract:
 
     def test_lookup_error_clears_embedded_flag(self, app_client):
         app, _ = app_client
-        from routes.wanted.extract import _run_batch_extract
+        from routes.wanted.batch_extract import _run_batch_extract
 
         with (
             patch(P_GET_WANTED_ITEM, return_value={"id": 1, "title": "Ep", "file_path": "/f.mkv"}),
@@ -813,8 +825,8 @@ class TestRunBatchExtract:
             ),
             patch(P_UPDATE_EXISTING_SUB) as mock_clear,
             patch(P_UPDATE_STATUS) as mock_status,
-            patch(P_SOCKETIO),
-            patch(P_EMIT_EVENT),
+            patch(P_SOCKETIO_BE),
+            patch(P_EMIT_EVENT_BE),
         ):
             _run_batch_extract([1], False, app)
 
@@ -825,7 +837,7 @@ class TestRunBatchExtract:
 
     def test_file_not_found_clears_embedded_flag(self, app_client):
         app, _ = app_client
-        from routes.wanted.extract import _run_batch_extract
+        from routes.wanted.batch_extract import _run_batch_extract
 
         with (
             patch(P_GET_WANTED_ITEM, return_value={"id": 1, "title": "Ep", "file_path": ""}),
@@ -834,8 +846,8 @@ class TestRunBatchExtract:
             ),
             patch(P_UPDATE_EXISTING_SUB) as mock_clear,
             patch(P_UPDATE_STATUS) as mock_status,
-            patch(P_SOCKETIO),
-            patch(P_EMIT_EVENT),
+            patch(P_SOCKETIO_BE),
+            patch(P_EMIT_EVENT_BE),
         ):
             _run_batch_extract([1], False, app)
 
@@ -844,13 +856,13 @@ class TestRunBatchExtract:
 
     def test_unexpected_error_increments_failed(self, app_client):
         app, _ = app_client
-        from routes.wanted.extract import _run_batch_extract
+        from routes.wanted.batch_extract import _run_batch_extract
 
         with (
             patch(P_GET_WANTED_ITEM, return_value={"id": 1, "title": "Ep", "file_path": "/f.mkv"}),
             patch("routes.wanted.extract._extract_embedded_sub", side_effect=RuntimeError("boom")),
-            patch(P_SOCKETIO),
-            patch(P_EMIT_EVENT),
+            patch(P_SOCKETIO_BE),
+            patch(P_EMIT_EVENT_BE),
         ):
             _run_batch_extract([1], False, app)
 
@@ -860,7 +872,7 @@ class TestRunBatchExtract:
 
     def test_multiple_items_mixed_results(self, app_client):
         app, _ = app_client
-        from routes.wanted.extract import _run_batch_extract
+        from routes.wanted.batch_extract import _run_batch_extract
 
         items = {
             1: {"id": 1, "title": "OK", "file_path": "/ok.mkv"},
@@ -877,8 +889,8 @@ class TestRunBatchExtract:
             patch("routes.wanted.extract._extract_embedded_sub", side_effect=fake_extract),
             patch(P_UPDATE_EXISTING_SUB),
             patch(P_UPDATE_STATUS),
-            patch(P_SOCKETIO),
-            patch(P_EMIT_EVENT),
+            patch(P_SOCKETIO_BE),
+            patch(P_EMIT_EVENT_BE),
         ):
             _run_batch_extract([1, 2, 3], False, app)
 
@@ -890,13 +902,13 @@ class TestRunBatchExtract:
 
     def test_emits_progress_and_completion(self, app_client):
         app, _ = app_client
-        from routes.wanted.extract import _run_batch_extract
+        from routes.wanted.batch_extract import _run_batch_extract
 
         with (
             patch(P_GET_WANTED_ITEM, return_value={"id": 1, "title": "Ep", "file_path": "/f.mkv"}),
             patch("routes.wanted.extract._extract_embedded_sub"),
-            patch(P_SOCKETIO) as mock_sio,
-            patch(P_EMIT_EVENT) as mock_emit,
+            patch(P_SOCKETIO_BE) as mock_sio,
+            patch(P_EMIT_EVENT_BE) as mock_emit,
         ):
             _run_batch_extract([1], False, app)
 
@@ -910,7 +922,7 @@ class TestRunBatchExtract:
     def test_db_update_failure_on_clear(self, app_client):
         """DB failure when clearing embedded flag is silently logged."""
         app, _ = app_client
-        from routes.wanted.extract import _run_batch_extract
+        from routes.wanted.batch_extract import _run_batch_extract
 
         with (
             patch(P_GET_WANTED_ITEM, return_value={"id": 1, "title": "Ep", "file_path": "/f.mkv"}),
@@ -919,8 +931,8 @@ class TestRunBatchExtract:
             ),
             patch(P_UPDATE_EXISTING_SUB, side_effect=Exception("db down")),
             patch(P_UPDATE_STATUS),
-            patch(P_SOCKETIO),
-            patch(P_EMIT_EVENT),
+            patch(P_SOCKETIO_BE),
+            patch(P_EMIT_EVENT_BE),
         ):
             # Should not raise despite DB failure
             _run_batch_extract([1], False, app)
@@ -939,7 +951,7 @@ class TestRunBatchProbe:
 
     def test_target_language_audio_skipped(self, app_client):
         app, _ = app_client
-        from routes.wanted.extract import _run_batch_probe
+        from routes.wanted.batch_probe import _run_batch_probe
 
         items = [{"id": 1, "file_path": "/f.mkv", "title": "Ep", "target_language": "de"}]
         probe_data = {"streams": []}
@@ -948,8 +960,8 @@ class TestRunBatchProbe:
             patch(P_GET_MEDIA, return_value=probe_data),
             patch(P_HAS_TARGET_AUDIO, return_value=True),
             patch(P_GET_SETTINGS) as mock_s,
-            patch(P_SOCKETIO),
-            patch(P_EMIT_EVENT),
+            patch(P_SOCKETIO_BP),
+            patch(P_EMIT_EVENT_BP),
         ):
             mock_s.return_value = MagicMock(scan_metadata_max_workers=1)
             _run_batch_probe(items, app)
@@ -960,7 +972,7 @@ class TestRunBatchProbe:
 
     def test_no_text_subs_skipped(self, app_client):
         app, _ = app_client
-        from routes.wanted.extract import _run_batch_probe
+        from routes.wanted.batch_probe import _run_batch_probe
 
         items = [{"id": 1, "file_path": "/f.mkv", "title": "Ep", "target_language": "de"}]
         # Only PGS subtitle (not text-based)
@@ -972,8 +984,8 @@ class TestRunBatchProbe:
             patch(P_GET_MEDIA, return_value=probe_data),
             patch(P_HAS_TARGET_AUDIO, return_value=False),
             patch(P_GET_SETTINGS) as mock_s,
-            patch(P_SOCKETIO),
-            patch(P_EMIT_EVENT),
+            patch(P_SOCKETIO_BP),
+            patch(P_EMIT_EVENT_BP),
         ):
             mock_s.return_value = MagicMock(scan_metadata_max_workers=1)
             _run_batch_probe(items, app)
@@ -983,7 +995,7 @@ class TestRunBatchProbe:
 
     def test_successful_extraction_with_target_lang_ass(self, app_client, tmp_path):
         app, _ = app_client
-        from routes.wanted.extract import _run_batch_probe
+        from routes.wanted.batch_probe import _run_batch_probe
 
         target_ass = tmp_path / "video.de.ass"
 
@@ -1012,9 +1024,9 @@ class TestRunBatchProbe:
             patch(P_GET_SUB_OUT_PATH, return_value=str(tmp_path / "out.ass")),
             patch(P_OUTPUT_FOR_LANG, side_effect=fake_output_path),
             patch(P_UPDATE_EXISTING_SUB) as mock_update,
-            patch(P_REMOVE_STREAMS),
-            patch(P_SOCKETIO),
-            patch(P_EMIT_EVENT),
+            patch(P_REMOVE_STREAMS_BP),
+            patch(P_SOCKETIO_BP),
+            patch(P_EMIT_EVENT_BP),
         ):
             mock_s.return_value = MagicMock(
                 scan_metadata_max_workers=1, remux_use_reflink=True, remux_trash_dir=".sublarr"
@@ -1029,7 +1041,7 @@ class TestRunBatchProbe:
 
     def test_successful_extraction_with_target_lang_srt(self, app_client, tmp_path):
         app, _ = app_client
-        from routes.wanted.extract import _run_batch_probe
+        from routes.wanted.batch_probe import _run_batch_probe
 
         target_srt = tmp_path / "video.de.srt"
 
@@ -1058,9 +1070,9 @@ class TestRunBatchProbe:
             patch(P_GET_SUB_OUT_PATH, return_value=str(tmp_path / "out.srt")),
             patch(P_OUTPUT_FOR_LANG, side_effect=fake_output_path),
             patch(P_UPDATE_EXISTING_SUB) as mock_update,
-            patch(P_REMOVE_STREAMS),
-            patch(P_SOCKETIO),
-            patch(P_EMIT_EVENT),
+            patch(P_REMOVE_STREAMS_BP),
+            patch(P_SOCKETIO_BP),
+            patch(P_EMIT_EVENT_BP),
         ):
             mock_s.return_value = MagicMock(
                 scan_metadata_max_workers=1, remux_use_reflink=True, remux_trash_dir=".sublarr"
@@ -1075,7 +1087,7 @@ class TestRunBatchProbe:
     def test_extraction_failure_skips(self, app_client, tmp_path):
         """When extraction of all streams fails, item is counted as skipped."""
         app, _ = app_client
-        from routes.wanted.extract import _run_batch_probe
+        from routes.wanted.batch_probe import _run_batch_probe
 
         items = [{"id": 1, "file_path": "/f.mkv", "title": "Ep", "target_language": "de"}]
         probe_data = {
@@ -1096,8 +1108,8 @@ class TestRunBatchProbe:
             patch(P_EXTRACT_STREAM, side_effect=RuntimeError("ffmpeg fail")),
             patch(P_GET_SUB_OUT_PATH, return_value=str(tmp_path / "out.ass")),
             patch(P_OUTPUT_FOR_LANG, return_value=str(tmp_path / "fake.ass")),
-            patch(P_SOCKETIO),
-            patch(P_EMIT_EVENT),
+            patch(P_SOCKETIO_BP),
+            patch(P_EMIT_EVENT_BP),
         ):
             mock_s.return_value = MagicMock(scan_metadata_max_workers=1)
             _run_batch_probe(items, app)
@@ -1107,15 +1119,15 @@ class TestRunBatchProbe:
 
     def test_probe_failure_increments_failed(self, app_client):
         app, _ = app_client
-        from routes.wanted.extract import _run_batch_probe
+        from routes.wanted.batch_probe import _run_batch_probe
 
         items = [{"id": 1, "file_path": "/f.mkv", "title": "Ep", "target_language": "de"}]
 
         with (
             patch(P_GET_MEDIA, side_effect=RuntimeError("ffprobe died")),
             patch(P_GET_SETTINGS) as mock_s,
-            patch(P_SOCKETIO),
-            patch(P_EMIT_EVENT),
+            patch(P_SOCKETIO_BP),
+            patch(P_EMIT_EVENT_BP),
         ):
             mock_s.return_value = MagicMock(scan_metadata_max_workers=1)
             _run_batch_probe(items, app)
@@ -1126,15 +1138,15 @@ class TestRunBatchProbe:
     def test_ffprobe_returns_none(self, app_client):
         """When ffprobe returns None, should count as failed."""
         app, _ = app_client
-        from routes.wanted.extract import _run_batch_probe
+        from routes.wanted.batch_probe import _run_batch_probe
 
         items = [{"id": 1, "file_path": "/f.mkv", "title": "Ep", "target_language": "de"}]
 
         with (
             patch(P_GET_MEDIA, return_value=None),
             patch(P_GET_SETTINGS) as mock_s,
-            patch(P_SOCKETIO),
-            patch(P_EMIT_EVENT),
+            patch(P_SOCKETIO_BP),
+            patch(P_EMIT_EVENT_BP),
         ):
             mock_s.return_value = MagicMock(scan_metadata_max_workers=1)
             _run_batch_probe(items, app)
@@ -1145,7 +1157,7 @@ class TestRunBatchProbe:
     def test_existing_output_file_skips_extraction(self, app_client, tmp_path):
         """When output file already exists, extraction is skipped but stream is scheduled for removal."""
         app, _ = app_client
-        from routes.wanted.extract import _run_batch_probe
+        from routes.wanted.batch_probe import _run_batch_probe
 
         existing_file = tmp_path / "out.ass"
         existing_file.write_text("[Script Info]")
@@ -1173,9 +1185,9 @@ class TestRunBatchProbe:
             patch(P_GET_SUB_OUT_PATH, return_value=str(existing_file)),
             patch(P_OUTPUT_FOR_LANG, side_effect=fake_output_path),
             patch(P_UPDATE_EXISTING_SUB),
-            patch(P_REMOVE_STREAMS) as mock_remux,
-            patch(P_SOCKETIO),
-            patch(P_EMIT_EVENT),
+            patch(P_REMOVE_STREAMS_BP) as mock_remux,
+            patch(P_SOCKETIO_BP),
+            patch(P_EMIT_EVENT_BP),
         ):
             mock_s.return_value = MagicMock(
                 scan_metadata_max_workers=1, remux_use_reflink=True, remux_trash_dir=".sublarr"
@@ -1189,15 +1201,15 @@ class TestRunBatchProbe:
 
     def test_emits_completion_event_with_duration(self, app_client):
         app, _ = app_client
-        from routes.wanted.extract import _run_batch_probe
+        from routes.wanted.batch_probe import _run_batch_probe
 
         items = [{"id": 1, "file_path": "/f.mkv", "title": "Ep", "target_language": "de"}]
 
         with (
             patch(P_GET_MEDIA, return_value=None),
             patch(P_GET_SETTINGS) as mock_s,
-            patch(P_SOCKETIO),
-            patch(P_EMIT_EVENT) as mock_emit,
+            patch(P_SOCKETIO_BP),
+            patch(P_EMIT_EVENT_BP) as mock_emit,
         ):
             mock_s.return_value = MagicMock(scan_metadata_max_workers=1)
             _run_batch_probe(items, app)
@@ -1211,7 +1223,7 @@ class TestRunBatchProbe:
         """Container removal failure does not abort the batch."""
         app, _ = app_client
         from remux import RemuxError
-        from routes.wanted.extract import _run_batch_probe
+        from routes.wanted.batch_probe import _run_batch_probe
 
         target_ass = tmp_path / "video.de.ass"
 
@@ -1240,9 +1252,9 @@ class TestRunBatchProbe:
             patch(P_GET_SUB_OUT_PATH, return_value=str(tmp_path / "out.ass")),
             patch(P_OUTPUT_FOR_LANG, side_effect=fake_output_path),
             patch(P_UPDATE_EXISTING_SUB),
-            patch(P_REMOVE_STREAMS, side_effect=RemuxError("mux fail")),
-            patch(P_SOCKETIO),
-            patch(P_EMIT_EVENT),
+            patch(P_REMOVE_STREAMS_BP, side_effect=RemuxError("mux fail")),
+            patch(P_SOCKETIO_BP),
+            patch(P_EMIT_EVENT_BP),
         ):
             mock_s.return_value = MagicMock(
                 scan_metadata_max_workers=1, remux_use_reflink=True, remux_trash_dir=".sublarr"
@@ -1257,7 +1269,7 @@ class TestRunBatchProbe:
     def test_source_lang_extracted_counts_as_extracted(self, app_client, tmp_path):
         """When subs are extracted but NOT target-lang, counts as 'extracted' (needs translation)."""
         app, _ = app_client
-        from routes.wanted.extract import _run_batch_probe
+        from routes.wanted.batch_probe import _run_batch_probe
 
         items = [{"id": 1, "file_path": "/f.mkv", "title": "Ep", "target_language": "de"}]
         probe_data = {
@@ -1278,9 +1290,9 @@ class TestRunBatchProbe:
             patch(P_EXTRACT_STREAM),
             patch(P_GET_SUB_OUT_PATH, return_value=str(tmp_path / "out.ass")),
             patch(P_OUTPUT_FOR_LANG, return_value=str(tmp_path / "nonexistent.ass")),
-            patch(P_REMOVE_STREAMS),
-            patch(P_SOCKETIO),
-            patch(P_EMIT_EVENT),
+            patch(P_REMOVE_STREAMS_BP),
+            patch(P_SOCKETIO_BP),
+            patch(P_EMIT_EVENT_BP),
         ):
             mock_s.return_value = MagicMock(
                 scan_metadata_max_workers=1, remux_use_reflink=True, remux_trash_dir=".sublarr"
