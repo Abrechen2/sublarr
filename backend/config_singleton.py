@@ -69,8 +69,7 @@ def reload_settings(overrides: dict | None = None) -> Settings:
 
     with _settings_lock:
         _settings = new_settings
-
-    return _settings
+        return _settings
 
 
 __all__ = ["get_settings", "reload_settings"]
