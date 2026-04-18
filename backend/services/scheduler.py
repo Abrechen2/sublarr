@@ -367,6 +367,50 @@ class SublarrScheduler:
                 misfire_grace_time=grace,
             )
 
+    def attach_listeners(self) -> None:
+        """Wire EVENT_JOB_MISSED + EVENT_JOB_ERROR to history writes.
+
+        EVENT_JOB_EXECUTED is NOT wired — _tick_wrapper already writes the
+        ok row synchronously. Listening twice would double-write.
+
+        The EVENT_JOB_ERROR listener only synthesises a row for
+        MaxInstancesReachedError (concurrency skip). Other errors are
+        captured by _tick_wrapper directly via the function path.
+        """
+        from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_MISSED
+        from apscheduler.executors.base import MaxInstancesReachedError
+
+        scheduler = self._ensure_scheduler()
+
+        def _on_missed(event) -> None:
+            try:
+                _write_job_run(
+                    job_id=event.job_id,
+                    started_at=event.scheduled_run_time,
+                    finished_at=None,
+                    status="missed",
+                    triggered_by="schedule",
+                )
+            except Exception:
+                logger.error("scheduler: missed-listener failed", exc_info=True)
+
+        def _on_error(event) -> None:
+            try:
+                exc = event.exception
+                if isinstance(exc, MaxInstancesReachedError):
+                    _write_job_run(
+                        job_id=event.job_id,
+                        started_at=event.scheduled_run_time,
+                        finished_at=event.scheduled_run_time,
+                        status="skipped_overlap",
+                        triggered_by="schedule",
+                    )
+            except Exception:
+                logger.error("scheduler: error-listener failed", exc_info=True)
+
+        scheduler.add_listener(_on_missed, EVENT_JOB_MISSED)
+        scheduler.add_listener(_on_error, EVENT_JOB_ERROR)
+
     def purge_orphans(self) -> None:
         """Remove JobStore rows whose id is not in the current registry.
 
