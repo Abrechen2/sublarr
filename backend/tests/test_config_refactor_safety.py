@@ -150,17 +150,32 @@ def test_get_safe_config_empty_credentials_stay_empty_string():
     assert safe["opensubtitles_api_key"] == ""
 
 
-def test_get_safe_config_masks_subkeys_in_arr_instances_json():
+def test_get_safe_config_masks_all_credential_subkeys_in_arr_instances_json():
     import json as _json
 
     from config import Settings
 
-    payload = _json.dumps([{"name": "Main", "url": "http://s/", "api_key": "ABC"}])
+    payload = _json.dumps(
+        [
+            {
+                "name": "Main",
+                "url": "http://s/",
+                "api_key": "A",
+                "apiKey": "B",
+                "password": "C",
+                "token": "D",
+                "secret": "E",
+                "pin": "F",
+            }
+        ]
+    )
     s = Settings(sonarr_instances_json=payload)
     safe = s.get_safe_config()
     parsed = _json.loads(safe["sonarr_instances_json"])
-    assert parsed[0]["api_key"] == "***configured***"
-    assert parsed[0]["name"] == "Main"  # non-credential subkey untouched
+    for subkey in ("api_key", "apiKey", "password", "token", "secret", "pin"):
+        assert parsed[0][subkey] == "***configured***", f"subkey {subkey!r} not masked"
+    assert parsed[0]["name"] == "Main"
+    assert parsed[0]["url"] == "http://s/"
 
 
 def test_get_settings_returns_singleton():
