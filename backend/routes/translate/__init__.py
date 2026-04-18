@@ -8,6 +8,7 @@ from routes.translate import (  # noqa: E402, F401
     backends,
     batch,
     core,
+    jobs,
     memory,
     retranslate,
 )
