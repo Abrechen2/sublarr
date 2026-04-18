@@ -11,6 +11,7 @@ from routes.tools import (  # noqa: E402, F401
     convert,
     diff,
     editing,
+    subtitle_health,
     sync_tools,
     timing,
     validation,
