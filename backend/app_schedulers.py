@@ -9,6 +9,8 @@ import logging
 
 from extensions import socketio
 
+logger = logging.getLogger(__name__)
+
 
 def _start_schedulers(settings, app=None):
     """Start background schedulers (wanted scanner, database backup, standalone watcher, cleanup)."""  # noqa: D200
@@ -58,3 +60,12 @@ def _start_schedulers(settings, app=None):
             start_anidb_sync_scheduler(app)
         except Exception as e:
             logging.getLogger(__name__).warning("AniDB sync scheduler start failed: %s", e)
+
+    if app is not None:
+        from services.scheduler import bootstrap_scheduler
+
+        try:
+            bootstrap_scheduler(app)
+        except Exception:
+            logger.error("scheduler: bootstrap failed", exc_info=True)
+            app.extensions["scheduler"] = None

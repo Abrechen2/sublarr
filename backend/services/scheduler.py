@@ -7,6 +7,7 @@ contains JobSpec + compute_default_misfire_grace_time.
 from __future__ import annotations
 
 import logging
+import os
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
@@ -15,6 +16,7 @@ from datetime import UTC, datetime
 from typing import Callable
 
 from apscheduler.triggers.base import BaseTrigger
+from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from flask import Flask
 
@@ -608,3 +610,64 @@ def reconcile_stale_runs(grace_minutes: int = 10) -> int:
     if stale:
         logger.warning("scheduler: reconciled %d abandoned job_run rows", len(stale))
     return len(stale)
+
+
+_VALID_ROLES = {"primary", "disabled"}
+
+# Phase-1 placeholder. In later phases, each retiring Timer site will
+# register its own JobSpec here. scheduler_history_cleanup is the only
+# real job this phase registers.
+SCHEDULED_JOBS: list[JobSpec] = []
+
+
+def _build_default_jobs() -> list[JobSpec]:
+    """Build the canonical JobSpec list. Imports are lazy to avoid
+    import-time cycles against modules that themselves import scheduler."""
+    from utils.scheduler_retention import delete_old_job_runs
+
+    return [
+        JobSpec(
+            id="scheduler_history_cleanup",
+            func=delete_old_job_runs,
+            default_trigger=CronTrigger(hour=3, minute=15),
+            timeout_s=60,
+            owner_module="services.scheduler",
+            description="Delete old scheduler_job_runs rows per retention policy.",
+        ),
+    ]
+
+
+def bootstrap_scheduler(app: Flask) -> SublarrScheduler | None:
+    """Full startup: honour SUBLARR_SCHEDULER_ROLE env, reconcile,
+    register jobs, start.
+
+    Returns the scheduler instance or None if this replica is disabled.
+    """
+    role = os.environ.get("SUBLARR_SCHEDULER_ROLE", "primary").strip().lower()
+    if role not in _VALID_ROLES:
+        raise ValueError(
+            f"SUBLARR_SCHEDULER_ROLE={role!r} is invalid; expected one of {sorted(_VALID_ROLES)}"
+        )
+    if role == "disabled":
+        logger.info("SUBLARR_SCHEDULER_ROLE=disabled — skipping scheduler on this replica")
+        return None
+
+    db_url = app.config["SQLALCHEMY_DATABASE_URI"]
+    s = SublarrScheduler(db_url=db_url, autostart=False)
+    s.attach_app(app)
+
+    with app.app_context():
+        reconcile_stale_runs(grace_minutes=10)
+
+    global SCHEDULED_JOBS
+    if not SCHEDULED_JOBS:
+        SCHEDULED_JOBS = _build_default_jobs()
+    for spec in SCHEDULED_JOBS:
+        s.register_job(spec)
+
+    s.start_registered_jobs()
+    s.purge_orphans()
+    s.attach_listeners()
+    s.start()
+    app.extensions["scheduler"] = s
+    return s
