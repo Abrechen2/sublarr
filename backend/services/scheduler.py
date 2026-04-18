@@ -151,6 +151,27 @@ def _scheduled_tick(spec_id: str) -> None:
     _tick_wrapper(app, spec, triggered_by="schedule")()
 
 
+# Separate registry for one-shot (triggered_by='manual') runs.
+_oneshot_registry: dict[str, tuple[Flask, JobSpec]] = {}
+
+
+def _scheduled_oneshot_tick(oneshot_id: str) -> None:
+    """Dispatcher for run_now one-shot jobs.
+
+    Resolves (app, spec) from _oneshot_registry and invokes _tick_wrapper
+    with triggered_by='manual'. After completion, removes the registry
+    entry so it doesn't accumulate.
+    """
+    app, spec = _oneshot_registry.pop(oneshot_id, (None, None))
+    if app is None or spec is None:
+        logger.warning(
+            "scheduler: oneshot %s fired but registry entry missing",
+            oneshot_id,
+        )
+        return
+    _tick_wrapper(app, spec, triggered_by="manual")()
+
+
 def _tick_wrapper(
     app: Flask, spec: JobSpec, *, triggered_by: str = "schedule"
 ) -> Callable[[], None]:
@@ -437,3 +458,56 @@ class SublarrScheduler:
                 if job.next_run_time is None or job.next_run_time < datetime.now(UTC):
                     scheduler.remove_job(job.id)
                     logger.info("purge_orphans: removed stale oneshot %s", job.id)
+
+    def run_now(self, job_id: str) -> str:
+        """Queue a one-shot immediate fire. Returns the one-shot job id.
+
+        Raises:
+          JobNotRegisteredError: job_id not in registry
+          OneshotAlreadyPendingError: another one-shot is pending/running
+        """
+        from apscheduler.triggers.date import DateTrigger
+
+        if job_id not in self._registered_ids:
+            raise JobNotRegisteredError(job_id)
+
+        scheduler = self._ensure_scheduler()
+        prefix = f"{job_id}_oneshot_"
+
+        # Ensure persistent store is visible so we can detect existing oneshots
+        # after a process restart. Pattern from Task 7 (see memory
+        # feedback_apscheduler_pickle_closure).
+        if not scheduler.running:
+            scheduler.start(paused=True)
+
+        for j in scheduler.get_jobs():
+            if j.id.startswith(prefix):
+                raise OneshotAlreadyPendingError(f"{job_id} already has a pending one-shot: {j.id}")
+
+        ts = int(datetime.now(UTC).timestamp())
+        oneshot_id = f"{prefix}{ts}"
+
+        # Use textual reference to the top-level dispatcher (picklable),
+        # same pattern as start_registered_jobs. Spec lookup happens at
+        # fire time via _tick_registry — also need to register this
+        # oneshot binding so the dispatcher can resolve it with
+        # triggered_by='manual'.
+        _oneshot_registry[oneshot_id] = (self._app, self._spec_by_id(job_id))
+
+        scheduler.add_job(
+            func="services.scheduler:_scheduled_oneshot_tick",
+            args=[oneshot_id],
+            trigger=DateTrigger(run_date=datetime.now(UTC)),
+            id=oneshot_id,
+            replace_existing=False,
+            max_instances=1,
+        )
+        return oneshot_id
+
+
+class JobNotRegisteredError(KeyError):
+    """Raised when operating on an unknown JobSpec id."""
+
+
+class OneshotAlreadyPendingError(RuntimeError):
+    """Raised by run_now when a prior one-shot for the same job is still pending."""

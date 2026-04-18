@@ -171,3 +171,46 @@ def test_purge_orphans_preserves_registered(scheduler):
     scheduler.purge_orphans()
     scheduler.start()
     assert scheduler._scheduler.get_job("keep") is not None
+
+
+def test_run_now_queues_oneshot(scheduler):
+    spec = JobSpec(
+        id="rn_job",
+        func=lambda: None,
+        default_trigger=IntervalTrigger(minutes=15),
+    )
+    scheduler.register_job(spec)
+    scheduler.start_registered_jobs()
+    scheduler.start()
+
+    oneshot_id = scheduler.run_now("rn_job")
+    assert oneshot_id.startswith("rn_job_oneshot_")
+    # Oneshot may fire/remove very quickly; at least confirm it was accepted.
+    # (We confirm by the non-raising call + id prefix.)
+
+
+def test_run_now_duplicate_raises_conflict(scheduler):
+    from services.scheduler import OneshotAlreadyPendingError
+
+    spec = JobSpec(
+        id="rn_dup",
+        func=lambda: __import__("time").sleep(0.5),
+        default_trigger=IntervalTrigger(minutes=15),
+    )
+    scheduler.register_job(spec)
+    scheduler.start_registered_jobs()
+    scheduler.start()
+
+    # First oneshot: accepted
+    scheduler.run_now("rn_dup")
+    # Second immediately after: should see the first still pending/running
+    with pytest.raises(OneshotAlreadyPendingError):
+        scheduler.run_now("rn_dup")
+
+
+def test_run_now_unknown_id_raises(scheduler):
+    from services.scheduler import JobNotRegisteredError
+
+    scheduler.start()
+    with pytest.raises(JobNotRegisteredError):
+        scheduler.run_now("nope")
