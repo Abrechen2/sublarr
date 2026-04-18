@@ -18,6 +18,7 @@ const SOURCE_LABELS: Record<string, string> = {
 }
 
 function QualityChip({ avgQuality }: { avgQuality: number }) {
+  // Runtime-computed colors — kept inline per Pure-Tailwind policy.
   const color =
     avgQuality >= 75 ? 'rgb(16 185 129)' : avgQuality >= 50 ? 'rgb(245 158 11)' : 'rgb(239 68 68)'
   const bg =
@@ -28,8 +29,8 @@ function QualityChip({ avgQuality }: { avgQuality: number }) {
         : 'rgba(239,68,68,0.12)'
   return (
     <span
-      className="px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums shrink-0"
-      style={{ backgroundColor: bg, color, fontFamily: 'var(--font-mono)' }}
+      className="px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums shrink-0 font-mono"
+      style={{ backgroundColor: bg, color }}
     >
       ⌀ {avgQuality.toFixed(1)}%
     </span>
@@ -45,6 +46,7 @@ function ExpandedRow({ job, t }: { job: Job; t: (key: string, opts?: Record<stri
   const totalEvents = Number(stats.total_events ?? 0)
   const translated = Number(stats.translated ?? 0)
 
+  // Dynamic color used both by the fill and the label — keep as runtime value.
   const qualityBarColor =
     avgQuality === null
       ? 'var(--text-muted)'
@@ -57,26 +59,26 @@ function ExpandedRow({ job, t }: { job: Job; t: (key: string, opts?: Record<stri
   const sourceLabel = SOURCE_LABELS[source] || (source ? source.replace(/_/g, ' ') : null)
 
   return (
-    <tr style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <tr className="bg-page">
       <td colSpan={6} className="px-4 py-3">
         <div className="space-y-3 text-xs">
 
           {/* Paths */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
-              <div className="font-semibold mb-0.5" style={{ color: 'var(--text-muted)' }}>
+              <div className="font-semibold mb-0.5 text-muted">
                 {t('expanded.full_path')}
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>
+              <div className="font-mono text-secondary break-all">
                 {job.file_path}
               </div>
             </div>
             {job.output_path && (
               <div>
-                <div className="font-semibold mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                <div className="font-semibold mb-0.5 text-muted">
                   {t('expanded.output')}
                 </div>
-                <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>
+                <div className="font-mono text-secondary break-all">
                   {job.output_path}
                 </div>
               </div>
@@ -89,45 +91,36 @@ function ExpandedRow({ job, t }: { job: Job; t: (key: string, opts?: Record<stri
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 {sourceLabel && (
                   <span>
-                    <span style={{ color: 'var(--text-muted)' }}>{t('expanded.source')}: </span>
-                    <span style={{ color: 'var(--text-secondary)' }}>{sourceLabel}</span>
+                    <span className="text-muted">{t('expanded.source')}: </span>
+                    <span className="text-secondary">{sourceLabel}</span>
                   </span>
                 )}
                 {backendName && (
-                  <span
-                    className="px-1.5 py-0.5 rounded text-[10px] font-medium uppercase"
-                    style={{ backgroundColor: 'var(--accent-bg)', color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}
-                  >
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium uppercase bg-accent-bg text-accent font-mono">
                     {backendName}
                   </span>
                 )}
                 {totalEvents > 0 && (
-                  <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  <span className="text-muted font-mono">
                     {translated}/{totalEvents} {t('expanded.lines')}
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <div
-                  className="flex-1 rounded-full overflow-hidden"
-                  style={{ height: '4px', backgroundColor: 'var(--border)' }}
-                >
+                <div className="flex-1 rounded-full overflow-hidden h-1 bg-border">
                   <div
                     className="h-full rounded-full"
                     style={{ width: `${Math.min(100, avgQuality)}%`, backgroundColor: qualityBarColor }}
                   />
                 </div>
                 <span
-                  className="tabular-nums font-medium"
-                  style={{ fontFamily: 'var(--font-mono)', color: qualityBarColor, minWidth: '3.5rem', textAlign: 'right' }}
+                  className="tabular-nums font-medium font-mono text-right min-w-14"
+                  style={{ color: qualityBarColor }}
                 >
                   {avgQuality.toFixed(1)}%
                 </span>
                 {lowLines > 0 && (
-                  <span
-                    className="px-1.5 py-0.5 rounded text-[10px]"
-                    style={{ backgroundColor: 'rgba(239,68,68,0.10)', color: 'rgb(239 68 68)' }}
-                  >
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-error-bg text-error">
                     {lowLines} low
                   </span>
                 )}
@@ -136,43 +129,34 @@ function ExpandedRow({ job, t }: { job: Job; t: (key: string, opts?: Record<stri
           )}
 
           {/* Job details */}
-          <div className="flex flex-wrap gap-x-4 gap-y-1" style={{ color: 'var(--text-secondary)' }}>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-secondary">
             {job.source_format && (
               <span>
-                <span style={{ color: 'var(--text-muted)' }}>{t('expanded.format')}: </span>
-                <span className="uppercase" style={{ fontFamily: 'var(--font-mono)' }}>{job.source_format}</span>
+                <span className="text-muted">{t('expanded.format')}: </span>
+                <span className="uppercase font-mono">{job.source_format}</span>
               </span>
             )}
             <span>
-              <span style={{ color: 'var(--text-muted)' }}>{t('expanded.force')}: </span>
+              <span className="text-muted">{t('expanded.force')}: </span>
               {job.force ? t('expanded.force_yes') : t('expanded.force_no')}
             </span>
             {job.created_at && (
               <span>
-                <span style={{ color: 'var(--text-muted)' }}>{t('expanded.created')}: </span>
-                <span style={{ fontFamily: 'var(--font-mono)' }}>{formatRelativeTime(job.created_at)}</span>
+                <span className="text-muted">{t('expanded.created')}: </span>
+                <span className="font-mono">{formatRelativeTime(job.created_at)}</span>
               </span>
             )}
             {job.completed_at && (
               <span>
-                <span style={{ color: 'var(--text-muted)' }}>{t('expanded.completed')}: </span>
-                <span style={{ fontFamily: 'var(--font-mono)' }}>{formatRelativeTime(job.completed_at)}</span>
+                <span className="text-muted">{t('expanded.completed')}: </span>
+                <span className="font-mono">{formatRelativeTime(job.completed_at)}</span>
               </span>
             )}
           </div>
 
           {/* Error */}
           {job.error && (
-            <div
-              className="px-2.5 py-1.5 rounded"
-              style={{
-                backgroundColor: 'var(--error-bg)',
-                color: 'var(--error)',
-                fontFamily: 'var(--font-mono)',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-all',
-              }}
-            >
+            <div className="px-2.5 py-1.5 rounded bg-error-bg text-error font-mono whitespace-pre-wrap break-all">
               {job.error}
             </div>
           )}
@@ -208,12 +192,11 @@ export function ActivityPage() {
               <button
                 key={s}
                 onClick={() => setStatusFilter(s === 'all' ? undefined : s)}
-                className="px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
-                style={{
-                  backgroundColor: isActive ? 'var(--accent-bg)' : 'var(--bg-surface)',
-                  color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
-                  border: `1px solid ${isActive ? 'var(--accent-dim)' : 'var(--border)'}`,
-                }}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 border ${
+                  isActive
+                    ? 'bg-accent-bg text-accent border-accent-dim'
+                    : 'bg-surface text-secondary border-border'
+                }`}
               >
                 {t(`filter.${s}`)}
               </button>
@@ -222,26 +205,23 @@ export function ActivityPage() {
         </div>
       </div>
 
-      <div
-        className="rounded-lg overflow-hidden"
-        style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
-      >
+      <div className="rounded-lg overflow-hidden bg-surface border border-border">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[700px]">
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('table.content')}</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('table.status')}</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>{t('table.lang')}</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>{t('table.time')}</th>
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>{t('table.error')}</th>
-                <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('table.actions')}</th>
+              <tr className="border-b border-border">
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 text-muted">{t('table.content')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 text-muted">{t('table.status')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell text-muted">{t('table.lang')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell text-muted">{t('table.time')}</th>
+                <th className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell text-muted">{t('table.error')}</th>
+                <th className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 text-muted">{t('table.actions')}</th>
               </tr>
             </thead>
             {isLoading ? (
               <tbody>
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <tr key={i} className="border-b border-border">
                     <td className="px-4 py-3"><div className="skeleton h-4 w-48 rounded" /></td>
                     <td className="px-3 py-3"><div className="skeleton h-5 w-20 rounded-full" /></td>
                     <td className="px-3 py-3 hidden sm:table-cell"><div className="skeleton h-4 w-14 rounded" /></td>
@@ -267,40 +247,28 @@ export function ActivityPage() {
                 return (
                   <tbody key={job.id}>
                     <tr
-                      className="transition-colors duration-100 cursor-pointer"
-                      style={{
-                        borderBottom: isExpanded ? 'none' : '1px solid var(--border)',
-                        backgroundColor: isExpanded ? 'var(--bg-surface-hover)' : undefined,
-                      }}
+                      className={`transition-colors duration-100 cursor-pointer ${
+                        isExpanded
+                          ? 'bg-surface-hover'
+                          : 'border-b border-border hover:bg-surface-hover'
+                      }`}
                       onClick={() => setExpandedId(isExpanded ? null : job.id)}
-                      onMouseEnter={(e) => {
-                        if (!isExpanded) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)'
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isExpanded) e.currentTarget.style.backgroundColor = 'transparent'
-                      }}
                     >
                       <td className="px-4 py-2.5" title={job.file_path}>
                         <div className="flex items-start gap-1.5">
                           {isExpanded ? (
-                            <ChevronUp size={12} className="mt-1 shrink-0" style={{ color: 'var(--accent)' }} />
+                            <ChevronUp size={12} className="mt-1 shrink-0 text-accent" />
                           ) : (
-                            <ChevronDown size={12} className="mt-1 shrink-0" style={{ color: 'var(--text-muted)' }} />
+                            <ChevronDown size={12} className="mt-1 shrink-0 text-muted" />
                           )}
                           <div className="min-w-0">
-                            <div
-                              className="font-medium text-sm truncate max-w-xs"
-                              style={{ color: 'var(--text-primary)' }}
-                            >
+                            <div className="font-medium text-sm truncate max-w-xs text-foreground">
                               {media.title}
                             </div>
                             {(media.episodeCode || avgQuality !== null) && (
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 {media.episodeCode && (
-                                  <span
-                                    className="text-[11px] truncate max-w-[180px]"
-                                    style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
-                                  >
+                                  <span className="text-[11px] truncate max-w-[180px] text-muted font-mono">
                                     {media.episodeCode}{media.episodeTitle ? ` · ${media.episodeTitle}` : ''}
                                   </span>
                                 )}
@@ -315,23 +283,17 @@ export function ActivityPage() {
                       </td>
                       <td className="px-3 py-2.5 hidden sm:table-cell">
                         {langLabel ? (
-                          <span
-                            className="text-xs font-medium tabular-nums"
-                            style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}
-                          >
+                          <span className="text-xs font-medium tabular-nums font-mono text-secondary">
                             {langLabel}
                           </span>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>—</span>
+                          <span className="text-muted">—</span>
                         )}
                       </td>
-                      <td
-                        className="px-3 py-2.5 text-xs tabular-nums hidden md:table-cell"
-                        style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}
-                      >
+                      <td className="px-3 py-2.5 text-xs tabular-nums hidden md:table-cell text-secondary font-mono">
                         {job.created_at ? formatRelativeTime(job.created_at) : ''}
                       </td>
-                      <td className="px-3 py-2.5 text-xs hidden lg:table-cell" style={{ color: 'var(--error)' }}>
+                      <td className="px-3 py-2.5 text-xs hidden lg:table-cell text-error">
                         <div className="truncate max-w-xs">{job.error || ''}</div>
                       </td>
                       <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
@@ -339,17 +301,8 @@ export function ActivityPage() {
                           <button
                             onClick={() => handleRetry(job.id)}
                             disabled={retryJob.isPending}
-                            className="p-1.5 rounded transition-all duration-150"
+                            className="p-1.5 rounded transition-all duration-150 text-muted hover:text-accent hover:bg-accent-subtle disabled:opacity-50 disabled:cursor-not-allowed"
                             title={t('retry_job')}
-                            style={{ color: 'var(--text-muted)' }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.color = 'var(--accent)'
-                              e.currentTarget.style.backgroundColor = 'var(--accent-subtle)'
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.color = 'var(--text-muted)'
-                              e.currentTarget.style.backgroundColor = ''
-                            }}
                           >
                             {retryJob.isPending ? (
                               <Loader2 size={14} className="animate-spin" />
@@ -367,7 +320,7 @@ export function ActivityPage() {
             ) : (
               <tbody>
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-secondary">
                     {t('no_jobs')}
                   </td>
                 </tr>
@@ -378,47 +331,22 @@ export function ActivityPage() {
 
         {/* Pagination */}
         {jobs && jobs.total_pages > 1 && (
-          <div
-            className="flex items-center justify-between px-4 py-2.5"
-            style={{ borderTop: '1px solid var(--border)' }}
-          >
-            <span className="text-xs" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+          <div className="flex items-center justify-between px-4 py-2.5 border-t border-border">
+            <span className="text-xs text-muted font-mono">
               {t('page_info', { page: jobs.page, totalPages: jobs.total_pages, total: jobs.total })}
             </span>
             <div className="flex gap-1.5">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="p-1.5 rounded-md transition-all duration-150"
-                style={{
-                  border: '1px solid var(--border)',
-                  backgroundColor: 'var(--bg-primary)',
-                  color: 'var(--text-secondary)',
-                }}
-                onMouseEnter={(e) => {
-                  if (!e.currentTarget.disabled) e.currentTarget.style.borderColor = 'var(--accent-dim)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border)'
-                }}
+                className="p-1.5 rounded-md transition-all duration-150 border border-border bg-page text-secondary enabled:hover:border-accent-dim disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronLeft size={14} />
               </button>
               <button
                 onClick={() => setPage((p) => Math.min(jobs.total_pages, p + 1))}
                 disabled={page >= jobs.total_pages}
-                className="p-1.5 rounded-md transition-all duration-150"
-                style={{
-                  border: '1px solid var(--border)',
-                  backgroundColor: 'var(--bg-primary)',
-                  color: 'var(--text-secondary)',
-                }}
-                onMouseEnter={(e) => {
-                  if (!e.currentTarget.disabled) e.currentTarget.style.borderColor = 'var(--accent-dim)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border)'
-                }}
+                className="p-1.5 rounded-md transition-all duration-150 border border-border bg-page text-secondary enabled:hover:border-accent-dim disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronRight size={14} />
               </button>
