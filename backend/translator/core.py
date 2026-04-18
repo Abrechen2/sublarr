@@ -2,13 +2,13 @@
 
 import logging
 import os
-import re
 import sys
-import tempfile
 
-import pysubs2
-
-from translator._helpers import (
+# Helpers consumed by the ass_flow/srt_flow sibling modules via
+# ``import translator.core as _core``. They MUST stay imported here so that
+# (a) ``translator.core.X`` is a valid patch target for tests, and (b) the
+# moved flow functions can resolve them through the ``_core.*`` namespace.
+from translator._helpers import (  # noqa: F401 — re-exported for patches
     _extract_series_id,
     _fail_result,
     _get_whisper_fallback_min_score,
@@ -24,17 +24,25 @@ from translator.ass_flow import (  # noqa: F401 — re-exported for patches
     translate_ass,
 )
 from translator.manager import _translate_with_manager  # noqa: F401 — re-exported
-from translator.output_paths import detect_existing_target_for_lang, get_output_path_for_lang
+from translator.output_paths import (  # noqa: F401 — re-exported for patches
+    detect_existing_target_for_lang,
+    get_output_path_for_lang,
+)
 from translator.providers import (
     _search_providers_for_source_sub,
     _search_providers_for_target_ass,
 )
-from translator.quality import (
+from translator.quality import (  # noqa: F401 — re-exported for patches
     _check_translation_quality,
     _compute_quality_stats,
     _evaluate_and_retry_lines,
     _write_quality_sidecar,
     validate_translation_output,
+)
+from translator.srt_flow import (  # noqa: F401 — re-exported for patches
+    _translate_srt,
+    translate_srt_from_file,
+    translate_srt_from_stream,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,188 +61,9 @@ def _pkg():
 # translator.core.translate_ass stays a valid patch target for tests.
 
 
-def translate_srt_from_stream(mkv_path, stream_info, target_language=None, arr_context=None):
-    """Translate an embedded SRT subtitle stream to target language .{lang}.srt."""
-    output_path = get_output_path_for_lang(mkv_path, "srt", target_language)
-    check_disk_space(output_path)
-
-    _extract_subtitle_stream = _pkg().extract_subtitle_stream
-
-    tmp_path = None
-    with tempfile.NamedTemporaryFile(suffix=".srt", delete=False) as tmp:
-        tmp_path = tmp.name
-
-    try:
-        _extract_subtitle_stream(mkv_path, stream_info, tmp_path)
-        return _translate_srt(
-            tmp_path,
-            output_path,
-            source="embedded_srt",
-            target_language=target_language,
-            arr_context=arr_context,
-        )
-    except Exception as e:
-        logger.exception("SRT stream translation failed for %s", mkv_path)
-        return _fail_result(str(e))
-    finally:
-        if tmp_path and os.path.exists(tmp_path):
-            os.unlink(tmp_path)
-
-
-def translate_srt_from_file(
-    mkv_path, srt_path, source="external_srt", target_language=None, arr_context=None
-):
-    """Translate an external SRT file to target language .{lang}.srt."""
-    output_path = get_output_path_for_lang(mkv_path, "srt", target_language)
-    check_disk_space(output_path)
-
-    try:
-        return _translate_srt(srt_path, output_path, source=source, arr_context=arr_context)
-    except Exception as e:
-        logger.exception("SRT file translation failed for %s", mkv_path)
-        return _fail_result(str(e))
-
-
-def _translate_srt(srt_path, output_path, source="srt", target_language=None, arr_context=None):
-    """Internal: translate an SRT file.
-
-    SRT is simpler than ASS: no styles to classify, no override tags.
-    """
-    subs = pysubs2.load(srt_path)
-    logger.info("Loaded SRT with %d events", len(subs.events))
-
-    dialog_indices = []
-    dialog_texts = []
-
-    for i, event in enumerate(subs.events):
-        if event.is_comment:
-            continue
-        text = event.text.strip()
-        if not text:
-            continue
-        # SRT may have HTML-like tags (<i>, <b>) — strip for translation
-        clean = re.sub(r"<[^>]+>", "", text)
-        if not clean.strip():
-            continue
-        dialog_indices.append(i)
-        dialog_texts.append(clean)
-
-    if not dialog_texts:
-        return _fail_result("No dialog lines found in SRT")
-
-    _get_settings = _pkg().get_settings
-    settings = _get_settings()
-
-    # HI-removal before translation
-    if settings.hi_removal_enabled:
-        from hi_remover import remove_hi_markers
-
-        dialog_texts = [remove_hi_markers(t) for t in dialog_texts]
-
-    logger.info("SRT lines to translate: %d", len(dialog_texts))
-    # Extract series_id for glossary
-    series_id = _extract_series_id(arr_context)
-    tgt_lang = target_language or settings.target_language
-    _tw_manager = _pkg()._translate_with_manager
-    translated_texts, translation_result = _tw_manager(
-        dialog_texts,
-        source_lang=settings.source_language,
-        target_lang=tgt_lang,
-        arr_context=arr_context,
-        series_id=series_id,
-    )
-
-    # Validate translation output
-    validation_errors = []
-    is_valid, validation_errors = validate_translation_output(
-        dialog_texts, translated_texts, format="srt"
-    )
-    if not is_valid:
-        logger.warning("SRT translation validation failed: %s", validation_errors)
-        # Retry logic: max 2 retries
-        for retry in range(2):
-            logger.info("Retrying SRT translation (attempt %d/2)...", retry + 1)
-            translated_texts, translation_result = _tw_manager(
-                dialog_texts,
-                source_lang=settings.source_language,
-                target_lang=tgt_lang,
-                arr_context=arr_context,
-                series_id=series_id,
-            )
-            is_valid, validation_errors = validate_translation_output(
-                dialog_texts, translated_texts, format="srt"
-            )
-            if is_valid:
-                break
-            logger.warning("SRT retry %d validation failed: %s", retry + 1, validation_errors)
-
-    if len(translated_texts) != len(dialog_texts):
-        return _fail_result(
-            f"Translation count mismatch: expected {len(dialog_texts)}, got {len(translated_texts)}"
-        )
-
-    # Quality check
-    quality_warnings = _check_translation_quality(dialog_texts, translated_texts)
-    if validation_errors:
-        quality_warnings.extend([f"Validation: {e}" for e in validation_errors])
-    for w in quality_warnings:
-        logger.warning("Quality: %s", w)
-
-    # LLM quality evaluation + per-line retry for low-quality lines
-    quality_scores = []
-    _q_cfg = _pkg()._get_quality_config
-    _q_enabled, _q_threshold, _q_max_retries = _q_cfg()
-    if _q_enabled:
-        _, _q_fallback_chain = _resolve_backend_for_context(arr_context, tgt_lang)
-        translated_texts, quality_scores = _evaluate_and_retry_lines(
-            dialog_texts,
-            translated_texts,
-            settings.source_language,
-            tgt_lang,
-            _q_fallback_chain,
-            None,
-            _q_threshold,
-            _q_max_retries,
-        )
-
-    translated_count = 0
-    for idx, trans_text in zip(dialog_indices, translated_texts):
-        subs.events[idx].text = trans_text.strip()
-        translated_count += 1
-
-    check_disk_space(output_path)
-    subs.save(output_path, format_="srt")
-    logger.info("Saved SRT translation: %s", output_path)
-
-    _write_quality_sidecar(output_path, quality_scores)
-    from nfo_export import maybe_write_nfo
-
-    maybe_write_nfo(
-        output_path,
-        {
-            "translation_backend": translation_result.backend_name
-            if "translation_result" in dir()
-            else "",
-            "source_language": settings.source_language,
-            "target_language": target_language or settings.target_language,
-        },
-    )
-    _quality_stats = _compute_quality_stats(quality_scores, _q_threshold) if quality_scores else {}
-
-    return {
-        "success": True,
-        "output_path": output_path,
-        "stats": {
-            "total_events": len(subs.events),
-            "translated": translated_count,
-            "format": "srt",
-            "source": source,
-            "quality_warnings": quality_warnings,
-            "backend_name": translation_result.backend_name,
-            **_quality_stats,
-        },
-        "error": None,
-    }
+# translate_srt_from_stream, translate_srt_from_file, _translate_srt live
+# in translator/srt_flow.py — re-imported below so their canonical
+# translator.core.* patch targets stay valid for tests.
 
 
 # _translate_external_ass lives in translator/ass_flow.py — re-imported
