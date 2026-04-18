@@ -408,6 +408,7 @@ export function CleanupSettings() {
             ) : groups.length > 0 ? (
               <DedupGroupList
                 groups={groups}
+                totalGroups={duplicatesData?.total}
                 onDelete={handleDeleteDuplicates}
                 isDeleting={deleteDuplicates.isPending}
               />

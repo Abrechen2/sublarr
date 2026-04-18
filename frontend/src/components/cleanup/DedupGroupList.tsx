@@ -14,6 +14,9 @@ interface DedupGroupListProps {
   groups: DuplicateGroup[]
   onDelete: (selections: { keep: string; delete: string[] }[]) => void
   isDeleting?: boolean
+  /** Total groups on the backend — when greater than ``groups.length`` we show
+   * a truncation hint so users with very large libraries know there's more. */
+  totalGroups?: number
 }
 
 /** Format bytes into human-readable KB/MB/GB */
@@ -41,7 +44,12 @@ interface GroupSelection {
   deletePaths: Set<string>
 }
 
-export function DedupGroupList({ groups, onDelete, isDeleting = false }: DedupGroupListProps) {
+export function DedupGroupList({
+  groups,
+  onDelete,
+  isDeleting = false,
+  totalGroups,
+}: DedupGroupListProps) {
   const { t } = useTranslation('settings')
 
   // Initialize selections: first file in each group is KEEP by default, rest are DELETE
@@ -121,12 +129,22 @@ export function DedupGroupList({ groups, onDelete, isDeleting = false }: DedupGr
     )
   }
 
+  const isTruncated = typeof totalGroups === 'number' && totalGroups > groups.length
+
   return (
     <div className="space-y-4">
       {/* Batch delete header */}
       <div className="flex items-center justify-between">
         <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          {groups.length} {t('cleanup.dedup.groupsFound', 'duplicate groups')} ({totalDeletable} {t('cleanup.dedup.filesToDelete', 'files to delete')})
+          {isTruncated
+            ? t('cleanup.dedup.groupsFoundTruncated', '{{shown}} of {{total}} duplicate groups', { shown: groups.length, total: totalGroups })
+            : `${groups.length} ${t('cleanup.dedup.groupsFound', 'duplicate groups')}`}
+          {' '}({totalDeletable} {t('cleanup.dedup.filesToDelete', 'files to delete')})
+          {isTruncated && (
+            <span style={{ color: 'var(--warning)', marginLeft: 6 }}>
+              — {t('cleanup.dedup.truncatedHint', 'delete these to reveal more')}
+            </span>
+          )}
         </span>
         <button
           onClick={handleBatchDelete}

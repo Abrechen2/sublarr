@@ -674,10 +674,19 @@ export function useCleanupScanStatus(enabled = false) {
   })
 }
 
+/** Default page size for duplicate listing.
+ *
+ * The backend caps per_page at 200; we request the maximum so users with
+ * larger libraries don't silently lose visibility into groups beyond the
+ * first page. When total > 200 the UI surfaces a hint and users can run
+ * delete on the visible batch to expose the next page on refetch.
+ */
+const DUPLICATES_PER_PAGE = 200
+
 export function useDuplicates(page = 1) {
   return useQuery({
-    queryKey: ['cleanup-duplicates', page],
-    queryFn: () => getDuplicates(page),
+    queryKey: ['cleanup-duplicates', page, DUPLICATES_PER_PAGE],
+    queryFn: () => getDuplicates(page, DUPLICATES_PER_PAGE),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   })

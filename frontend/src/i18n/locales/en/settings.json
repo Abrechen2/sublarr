@@ -216,6 +216,8 @@
       "progress": "Progress",
       "noResults": "No duplicates found. Run a scan to check.",
       "groupsFound": "duplicate groups",
+      "groupsFoundTruncated": "{{shown}} of {{total}} duplicate groups",
+      "truncatedHint": "delete these to reveal more",
       "filesToDelete": "files to delete",
       "files": "files",
       "keepLabel": "Keep",

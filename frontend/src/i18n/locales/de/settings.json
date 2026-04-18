@@ -216,6 +216,8 @@
       "progress": "Fortschritt",
       "noResults": "Keine Duplikate gefunden. Führen Sie einen Scan durch.",
       "groupsFound": "Duplikatgruppen",
+      "groupsFoundTruncated": "{{shown}} von {{total}} Duplikatgruppen",
+      "truncatedHint": "Lösche diese, um weitere anzuzeigen",
       "filesToDelete": "Dateien zum Löschen",
       "files": "Dateien",
       "keepLabel": "Behalten",
