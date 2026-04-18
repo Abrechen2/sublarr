@@ -105,7 +105,7 @@ class TestSeriesZipExport:
         client, _sub_file, media_dir = sub_client
         series_path = str(media_dir / "ShowName")
 
-        with patch("routes.subtitles._get_series_path", return_value=series_path):
+        with patch("routes.subtitles.export._get_series_path", return_value=series_path):
             resp = client.get("/api/v1/series/1/subtitles/export")
 
         assert resp.status_code == 200
@@ -126,7 +126,7 @@ class TestSeriesZipExport:
 
         series_path = str(media_dir / "ShowName")
 
-        with patch("routes.subtitles._get_series_path", return_value=series_path):
+        with patch("routes.subtitles.export._get_series_path", return_value=series_path):
             resp = client.get("/api/v1/series/1/subtitles/export?lang=de")
 
         assert resp.status_code == 200
@@ -141,7 +141,7 @@ class TestSeriesZipExport:
         """_get_series_path returns None → 404."""
         client, _sub_file, _media_dir = sub_client
 
-        with patch("routes.subtitles._get_series_path", return_value=None):
+        with patch("routes.subtitles.export._get_series_path", return_value=None):
             resp = client.get("/api/v1/series/99/subtitles/export")
 
         assert resp.status_code == 404
@@ -150,7 +150,7 @@ class TestSeriesZipExport:
         """_get_series_path returns /etc → 403 (outside media_dir)."""
         client, _sub_file, _media_dir = sub_client
 
-        with patch("routes.subtitles._get_series_path", return_value="/etc"):
+        with patch("routes.subtitles.export._get_series_path", return_value="/etc"):
             resp = client.get("/api/v1/series/1/subtitles/export")
 
         assert resp.status_code == 403
@@ -168,9 +168,9 @@ class TestSeriesZipExport:
         def fake_scan(series_path_arg, warnings):
             return [{"path": str(big_file), "language": "de", "format": "ass"}]
 
-        monkeypatch.setattr("routes.subtitles._scan_series_subtitles", fake_scan)
+        monkeypatch.setattr("routes.subtitles.export._scan_series_subtitles", fake_scan)
 
-        with patch("routes.subtitles._get_series_path", return_value=series_path):
+        with patch("routes.subtitles.export._get_series_path", return_value=series_path):
             resp = client.get("/api/v1/series/1/subtitles/export")
 
         assert resp.status_code == 413
