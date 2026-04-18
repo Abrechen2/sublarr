@@ -24,6 +24,14 @@ def _register_shutdown_handler(app):
         logger.info("Graceful shutdown initiated (%s)", sig_name)
 
         try:
+            scheduler = app.extensions.get("scheduler")
+            if scheduler is not None:
+                scheduler.shutdown(timeout_s=25)
+                logger.info("Scheduler shutdown complete")
+        except Exception:
+            logger.error("scheduler: shutdown raised", exc_info=True)
+
+        try:
             scanner = app.extensions.get("wanted_scanner")
             if scanner:
                 scanner.cancel_search()
