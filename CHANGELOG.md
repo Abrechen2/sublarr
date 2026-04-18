@@ -5,6 +5,15 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.54.1-beta] - 2026-04-18
+
+### Changed
+- **Massive code-quality refactor (Bucket B)** — 65 structural splits across routes, providers, services, repositories, translator, and frontend styling. Major reductions: `app.py` 739→470 LOC via 4 sibling modules; `translator/core.py` 789→287 LOC via `ass_flow` + `srt_flow`; `search_coordinator.search` method 530→~95 LOC via five in-class helpers; `ProviderBudgetManager` split across three mixin modules (counters / pacing-modes / learning); `WantedRepository`, `TranslationRepository`, `StandaloneScanner`, `WantedScanner` decomposed via mixins; all provider adapters (animetosho, legendasdivx, opensubtitles, sonarr_client) extracted parsing helpers; `routes/webhooks.py` converted to blueprint package. Pure structural refactor — no user-visible behavior changes.
+- **Frontend styling migration (A1 pilot)** — Library, Wanted, Queue, and Activity pages migrated from inline styles to Tailwind utilities. Visual appearance unchanged.
+
+### Tests
+- Fixed `monkeypatch` target in `test_provider_registry` after `ConfigResolvingMixin` extraction.
+
 ## [0.54.0-beta] - 2026-04-18
 
 ### Changed
