@@ -295,3 +295,23 @@ def test_shutdown_does_not_raise(app_ctx):
     manager = ProviderManager()
     # Should not raise regardless of provider state.
     manager.shutdown()
+
+
+def test_providers_init_py_under_500_loc():
+    """Pin B1/providers achievement: providers/__init__.py must stay below 500 LOC.
+
+    If you are adding provider-class registration, put it in providers/registry.py.
+    If you are adding singleton / Flask-context code, put it in providers/manager_singleton.py.
+    If you are adding config/rate-limit/timeout resolution, put it in providers/manager_config_mixin.py.
+    If you are adding status/summary reporting, put it in providers/manager_status_mixin.py.
+    providers/__init__.py is intentionally a thin façade + ProviderManager orchestration.
+    """
+    from pathlib import Path
+
+    path = Path(__file__).parent.parent / "providers" / "__init__.py"
+    assert path.exists(), f"providers/__init__.py not found at {path}"
+    line_count = sum(1 for _ in path.open(encoding="utf-8"))
+    assert line_count < 500, (
+        f"backend/providers/__init__.py is {line_count} LOC, must stay below 500. "
+        "Move code into the appropriate sibling module (see docstring)."
+    )
