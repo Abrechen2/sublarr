@@ -148,17 +148,14 @@ def mock_provider_manager(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def reset_provider_manager():
-    """Reset ProviderManager singleton before each test.
+    """Ensure each test ends with a clean provider manager singleton.
 
-    Prevents state from one test bleeding into the next.
-    Post-test uses invalidate_manager() to properly shut down thread pools
-    and clear caches before nulling the singleton.
+    Post-test teardown via invalidate_manager() is sufficient: it clears
+    both the module-level _manager global (in providers.manager_singleton
+    after the B1P T3 refactor) and any Flask app.extensions entry.
     Does NOT conflict with mock_provider_manager — that patches the getter function,
     while this resets the underlying singleton reference.
     """
-    import providers as _prov_module
-
-    _prov_module._manager = None  # pre-test: nothing running yet, direct null is safe
     # Clear from extensions if an app context is already active (prevents stale mock bleed)
     try:
         from flask import current_app, has_app_context
@@ -168,6 +165,8 @@ def reset_provider_manager():
     except RuntimeError:
         pass
     yield
+    import providers as _prov_module
+
     _prov_module.invalidate_manager()  # post-test: shutdown cleanly, then null
 
 
