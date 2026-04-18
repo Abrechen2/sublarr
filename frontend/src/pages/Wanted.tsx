@@ -328,30 +328,28 @@ export function WantedPage() {
       {/* Batch Probe Progress Banner */}
       {probeStatus?.running && (
         <div
-          className="rounded-lg p-4"
-          style={{ backgroundColor: 'var(--accent-bg)', border: '1px solid var(--accent-dim)' }}
+          className="rounded-lg p-4 bg-accent-bg border border-accent-dim"
         >
           <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--accent)' }}>
+            <div className="flex items-center gap-2 text-sm font-medium text-accent">
               <Loader2 size={14} className="animate-spin" />
               {probeStatus.current_item
                 ? `Scanning: ${probeStatus.current_item}`
                 : t('wanted.starting', 'Starting...')}
             </div>
-            <span className="text-xs tabular-nums" style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
+            <span className="text-xs tabular-nums font-mono text-accent">
               {probeStatus.processed}/{probeStatus.total}
             </span>
           </div>
-          <div className="w-full rounded-full h-2" style={{ backgroundColor: 'var(--border)' }}>
+          <div className="w-full rounded-full h-2 bg-border">
             <div
-              className="h-2 rounded-full transition-all duration-300"
+              className="h-2 rounded-full transition-all duration-300 bg-accent"
               style={{
                 width: probeStatus.total > 0 ? `${(probeStatus.processed / probeStatus.total) * 100}%` : '0%',
-                backgroundColor: 'var(--accent)',
               }}
             />
           </div>
-          <div className="flex gap-4 mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <div className="flex gap-4 mt-2 text-xs text-secondary">
             <span>Ziel: {probeStatus.found}</span>
             <span>Quelle: {probeStatus.extracted}</span>
             <span>{t('wanted.skipped', 'Skipped')}: {probeStatus.skipped}</span>
@@ -363,28 +361,26 @@ export function WantedPage() {
       {/* Batch Extract Progress Banner */}
       {extractStatus?.running && (
         <div
-          className="rounded-lg p-4"
-          style={{ backgroundColor: 'var(--accent-bg)', border: '1px solid var(--accent-dim)' }}
+          className="rounded-lg p-4 bg-accent-bg border border-accent-dim"
         >
           <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--accent)' }}>
+            <div className="flex items-center gap-2 text-sm font-medium text-accent">
               <Loader2 size={14} className="animate-spin" />
               {t('wanted.extracting', { item: extractStatus.current_item || t('wanted.starting') })}
             </div>
-            <span className="text-xs tabular-nums" style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
+            <span className="text-xs tabular-nums font-mono text-accent">
               {extractStatus.processed}/{extractStatus.total}
             </span>
           </div>
-          <div className="w-full rounded-full h-2" style={{ backgroundColor: 'var(--border)' }}>
+          <div className="w-full rounded-full h-2 bg-border">
             <div
-              className="h-2 rounded-full transition-all duration-300"
+              className="h-2 rounded-full transition-all duration-300 bg-accent"
               style={{
                 width: extractStatus.total > 0 ? `${(extractStatus.processed / extractStatus.total) * 100}%` : '0%',
-                backgroundColor: 'var(--accent)',
               }}
             />
           </div>
-          <div className="flex gap-4 mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <div className="flex gap-4 mt-2 text-xs text-secondary">
             <span>{t('wanted.succeeded', 'Succeeded')}: {extractStatus.succeeded}</span>
             <span>{t('wanted.failed')}: {extractStatus.failed}</span>
             {(extractStatus.skipped ?? 0) > 0 && (
@@ -397,28 +393,26 @@ export function WantedPage() {
       {/* Batch Progress Banner */}
       {batchStatus?.running && (
         <div
-          className="rounded-lg p-4"
-          style={{ backgroundColor: 'var(--accent-bg)', border: '1px solid var(--accent-dim)' }}
+          className="rounded-lg p-4 bg-accent-bg border border-accent-dim"
         >
           <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--accent)' }}>
+            <div className="flex items-center gap-2 text-sm font-medium text-accent">
               <Loader2 size={14} className="animate-spin" />
               {t('wanted.processing', { item: batchStatus.current_item || t('wanted.starting') })}
             </div>
-            <span className="text-xs tabular-nums" style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
+            <span className="text-xs tabular-nums font-mono text-accent">
               {batchStatus.processed}/{batchStatus.total}
             </span>
           </div>
-          <div className="w-full rounded-full h-2" style={{ backgroundColor: 'var(--border)' }}>
+          <div className="w-full rounded-full h-2 bg-border">
             <div
-              className="h-2 rounded-full transition-all duration-300"
+              className="h-2 rounded-full transition-all duration-300 bg-accent"
               style={{
                 width: batchStatus.total > 0 ? `${(batchStatus.processed / batchStatus.total) * 100}%` : '0%',
-                backgroundColor: 'var(--accent)',
               }}
             />
           </div>
-          <div className="flex gap-4 mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <div className="flex gap-4 mt-2 text-xs text-secondary">
             <span>{t('wanted.found')}: {batchStatus.found}</span>
             <span>{t('wanted.failed')}: {batchStatus.failed}</span>
             <span>{t('wanted.skipped')}: {batchStatus.skipped}</span>
@@ -477,10 +471,9 @@ export function WantedPage() {
 
       {/* Status Legend */}
       <div
-        className="flex items-center flex-wrap gap-2 px-3 py-2 rounded-md"
-        style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+        className="flex items-center flex-wrap gap-2 px-3 py-2 rounded-md bg-surface border border-border"
       >
-        <span className="text-xs font-medium shrink-0" style={{ color: 'var(--text-muted)' }}>
+        <span className="text-xs font-medium shrink-0 text-muted">
           Legende:
         </span>
         {(['wanted', 'searching', 'found', 'extracted', 'failed', 'ignored'] as const).map((s) => (
@@ -491,32 +484,31 @@ export function WantedPage() {
       {/* Table */}
       <div
         data-testid="wanted-list"
-        className="rounded-lg overflow-hidden flex-1 min-h-0 flex flex-col"
-        style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+        className="rounded-lg overflow-hidden flex-1 min-h-0 flex flex-col bg-surface border border-border"
       >
-        <div className="flex-1 min-h-0" style={{ overflowY: 'auto' }}>
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <table className="w-full min-w-[800px]">
-            <thead style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--bg-elevated)' }}>
+            <thead className="bg-elevated" style={{ position: 'sticky', top: 0, zIndex: 1 }}>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 <th scope="col" className="text-left px-3 py-2.5 w-8">
-                  <button onClick={toggleSelectAll} className="p-0.5" style={{ color: 'var(--text-muted)' }}>
+                  <button onClick={toggleSelectAll} className="p-0.5 text-muted">
                     {allSelected ? (
-                      <CheckSquare size={14} style={{ color: 'var(--accent)' }} />
+                      <CheckSquare size={14} className="text-accent" />
                     ) : someSelected ? (
-                      <MinusSquare size={14} style={{ color: 'var(--accent)' }} />
+                      <MinusSquare size={14} className="text-accent" />
                     ) : (
                       <Square size={14} />
                     )}
                   </button>
                 </th>
-                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.title_col')}</th>
-                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.se_col')}</th>
-                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('wanted.status_col')}</th>
-                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.existing_col')}</th>
-                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.searches_col')}</th>
-                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.last_search_col')}</th>
-                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>{t('wanted.added_col')}</th>
-                <th scope="col" className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)', position: 'sticky', right: 0, zIndex: 2, backgroundColor: 'var(--bg-elevated)' }}>{t('wanted.actions_col')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 text-muted">{t('wanted.title_col')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 text-muted">{t('wanted.se_col')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 text-muted">{t('wanted.status_col')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell text-muted">{t('wanted.existing_col')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell text-muted">{t('wanted.searches_col')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell text-muted">{t('wanted.last_search_col')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden lg:table-cell text-muted">{t('wanted.added_col')}</th>
+                <th scope="col" className="text-right text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5 text-muted bg-elevated" style={{ position: 'sticky', right: 0, zIndex: 2 }}>{t('wanted.actions_col')}</th>
               </tr>
             </thead>
             <tbody>
@@ -575,7 +567,7 @@ export function WantedPage() {
                   {isFetchingNextPage && (
                     <tr>
                       <td colSpan={9} className="px-3 py-3 text-center">
-                        <Loader2 size={16} className="animate-spin mx-auto" style={{ color: 'var(--text-muted)' }} />
+                        <Loader2 size={16} className="animate-spin mx-auto text-muted" />
                       </td>
                     </tr>
                   )}
@@ -583,7 +575,7 @@ export function WantedPage() {
                 </>
               ) : (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-secondary">
                     {statusFilter || typeFilter || subtitleTypeFilter || languageFilter ? t('wanted.no_match_filters') : t('wanted.no_wanted_items')}
                   </td>
                 </tr>
@@ -622,27 +614,24 @@ export function WantedPage() {
           onClick={() => setShowCleanupConfirm(false)}
         >
           <div
-            className="rounded-lg p-6 max-w-md w-full mx-4 space-y-4"
-            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)' }}
+            className="rounded-lg p-6 max-w-md w-full mx-4 space-y-4 bg-surface border border-border"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-base font-semibold">{t('wanted.cleanup')}</h2>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-sm text-secondary">
               {t('wanted.cleanup_confirm')}
             </p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowCleanupConfirm(false)}
-                className="px-4 py-2 rounded-md text-sm font-medium"
-                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                className="px-4 py-2 rounded-md text-sm font-medium bg-page border border-border text-secondary"
               >
                 {t('actions.cancel', { ns: 'common' })}
               </button>
               <button
                 onClick={handleCleanup}
                 disabled={cleanupSidecars.isPending}
-                className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90"
-                style={{ backgroundColor: 'var(--error)' }}
+                className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:opacity-90 bg-error"
               >
                 {cleanupSidecars.isPending ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                 {t('wanted.cleanup')}
