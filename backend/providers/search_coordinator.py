@@ -276,6 +276,202 @@ class SearchCoordinatorMixin:
 
         return futures, futures_to_key
 
+    def _collect_provider_results(
+        self,
+        futures: dict,
+        futures_to_key: dict,
+        max_timeout: int,
+        query,
+        early_exit: bool,
+        update_provider_stats,
+    ) -> list:
+        """Drain submitted futures, record CB/stats, handle 429s, return results.
+
+        Walks ``as_completed(futures, timeout=max_timeout)`` once, dispatching
+        each completion into one of three branches:
+
+        - ``future.result()`` succeeded → extend accumulated results, record
+          CB success + provider stats. If ``early_exit`` is on and any
+          result scores ≥ 400, break the loop to skip still-running
+          providers (they're cancelled in the caller's ``finally`` via
+          ``executor.shutdown(wait=False, cancel_futures=True)``).
+        - ``FutureTimeoutError`` on one future → record CB failure,
+          auto-disable on CB transition to OPEN, update stats.
+        - Generic exception → record CB failure, auto-disable on CB
+          transition. For ``ProviderRateLimitError`` specifically,
+          additionally apply an extended throttle (per
+          ``provider_rate_limit_throttle_minutes``), emit the
+          provider_state_changed event, call the budget manager's
+          ``record_429`` learning hook, and mark the pool key as
+          429-cooling so ``KeySelector`` skips it.
+
+        An outer ``FutureTimeoutError`` on ``as_completed`` itself (not a
+        single future) is swallowed: partial results are returned rather
+        than raising, because dropping the whole search on one slow
+        provider is worse than returning what we have.
+        """
+        all_results = []
+        try:
+            for future in as_completed(futures, timeout=max_timeout):
+                name = futures[future]
+                try:
+                    results, elapsed_ms = future.result()
+                    all_results.extend(results)
+
+                    # Update circuit breaker and stats
+                    # NOTE: empty results are NOT a failure — the provider responded
+                    # correctly, it just found nothing for this query.
+                    cb = self._circuit_breakers.get(name)
+                    if cb:
+                        cb.record_success()
+                    update_provider_stats(name, success=True, score=0, response_time_ms=elapsed_ms)
+
+                    # Check for perfect match (early exit)
+                    if early_exit and results:
+                        # Score results immediately to check for perfect match
+                        perfect_match_found = False
+                        for result in results:
+                            compute_score(result, query)
+                            if result.score >= 400:
+                                logger.info(
+                                    "Perfect match found (score=%d) from provider %s, stopping search",
+                                    result.score,
+                                    name,
+                                )
+                                perfect_match_found = True
+                                break
+
+                        if perfect_match_found:
+                            # Cancel remaining futures (they'll complete but we won't wait)
+                            break
+
+                except FutureTimeoutError:
+                    logger.warning("Provider %s search timed out", name)
+                    cb = self._circuit_breakers.get(name)
+                    if cb:
+                        cb.record_failure()
+                        if cb.is_open:  # just transitioned to OPEN
+                            try:
+                                from db.providers import auto_disable_provider
+
+                                auto_disable_provider(
+                                    name,
+                                    cooldown_minutes=max(1, cb.cooldown_seconds // 60),
+                                )
+                            except Exception as _pe:
+                                logger.debug("CB persistence failed: %s", _pe)
+                            self._emit_provider_state(
+                                name, "circuit_open", "timeout", cb.cooldown_seconds
+                            )
+                    update_provider_stats(name, success=False, score=0)
+                    self._check_auto_disable(name)
+                except Exception as e:
+                    logger.warning("Provider %s search failed: %s", name, e)
+                    cb = self._circuit_breakers.get(name)
+                    if cb:
+                        cb.record_failure()
+                        if cb.is_open:  # just transitioned to OPEN
+                            try:
+                                from db.providers import auto_disable_provider
+
+                                auto_disable_provider(
+                                    name,
+                                    cooldown_minutes=max(1, cb.cooldown_seconds // 60),
+                                )
+                            except Exception as _pe:
+                                logger.debug("CB persistence failed: %s", _pe)
+                            self._emit_provider_state(
+                                name, "circuit_open", "failures", cb.cooldown_seconds
+                            )
+                    # Rate-limit exception → extended throttle (Bazarr throttle_map parity)
+                    if isinstance(e, ProviderRateLimitError):
+                        self._handle_rate_limit_exception(e, name, future, futures_to_key)
+                    update_provider_stats(name, success=False, score=0)
+                    self._check_auto_disable(name)
+        except FutureTimeoutError:
+            # as_completed() overall timeout expired — some providers did not finish.
+            # Return the partial results already collected rather than raising.
+            unfinished = [futures[f] for f in futures if not f.done()]
+            logger.warning(
+                "Search timed out after %ss: %d provider(s) still running (%s);"
+                " returning %d partial results",
+                max_timeout,
+                len(unfinished),
+                ", ".join(unfinished),
+                len(all_results),
+            )
+        return all_results
+
+    def _handle_rate_limit_exception(self, e, name: str, future, futures_to_key: dict) -> None:
+        """Apply the post-429 cascade: throttle, event emit, budget learn, pool-key cooldown."""
+        throttle_min = getattr(self.settings, "provider_rate_limit_throttle_minutes", 60)
+        try:
+            from db.providers import auto_disable_provider
+
+            auto_disable_provider(name, cooldown_minutes=throttle_min)
+            logger.info(
+                "Provider %s rate-limited: extended throttle for %d min",
+                name,
+                throttle_min,
+            )
+            try:
+                from events import emit_event
+
+                emit_event(
+                    "provider_state_changed",
+                    {
+                        "provider": name,
+                        "state": "throttled",
+                        "reason": "rate_limited",
+                        "remaining_seconds": throttle_min * 60,
+                    },
+                )
+            except Exception:
+                pass
+        except Exception as _te:
+            logger.debug("Rate-limit throttle persistence failed: %s", _te)
+        # Phase 3 learning hook — tell the budget manager so future
+        # calls throttle harder.
+        if getattr(self.settings, "provider_budget_enabled", True):
+            try:
+                from services.provider_budget import BudgetWindow
+
+                retry_after = getattr(e, "retry_after", 60)
+                window = (
+                    BudgetWindow.SECOND
+                    if retry_after <= _RATE_LIMIT_WINDOW_THRESHOLD_S
+                    else BudgetWindow.DAY
+                )
+                provider_obj = self._providers.get(name)
+                if provider_obj is None:
+                    logger.debug(
+                        "record_429 hook: provider %s no longer registered, skipping",
+                        name,
+                    )
+                else:
+                    tier = getattr(provider_obj, "tier", "free")
+                    rate_limits = getattr(type(provider_obj), "rate_limits", {}) or {}
+                    limit = (rate_limits.get(tier) or rate_limits.get("free") or {}).get(
+                        window.value, 0
+                    )
+                    if limit > 0:
+                        get_budget_manager().record_429(
+                            name,
+                            window=window,
+                            configured_limit=limit,
+                        )
+            except Exception as _le:  # noqa: BLE001
+                logger.warning("record_429 hook failed for %s: %s", name, _le)
+        # Phase 4a: per-key 429 cooldown — mark the pool row
+        # used for this call so KeySelector skips it until the
+        # retry_after window elapses.
+        try:
+            key_id = futures_to_key.get(future)
+            if key_id is not None:
+                ProviderAccountPoolRepository().mark_429(key_id)
+        except Exception as _mke:  # noqa: BLE001
+            logger.warning("mark_429 failed for %s: %s", name, _mke)
+
     def _finalise_search_results(
         self,
         all_results: list,
@@ -704,7 +900,6 @@ class SearchCoordinatorMixin:
             return cached_results
 
         all_results: list[SubtitleResult] = []
-        perfect_match_found = False
 
         # Parallel search with ThreadPoolExecutor
         from db.providers import (
@@ -757,166 +952,9 @@ class SearchCoordinatorMixin:
                 )
                 + 3
             )
-            try:
-                for future in as_completed(futures, timeout=max_timeout):
-                    name = futures[future]
-                    try:
-                        results, elapsed_ms = future.result()
-                        all_results.extend(results)
-
-                        # Update circuit breaker and stats
-                        # NOTE: empty results are NOT a failure — the provider responded
-                        # correctly, it just found nothing for this query.
-                        cb = self._circuit_breakers.get(name)
-                        if cb:
-                            cb.record_success()
-                        update_provider_stats(
-                            name, success=True, score=0, response_time_ms=elapsed_ms
-                        )
-
-                        # Check for perfect match (early exit)
-                        if early_exit and results:
-                            # Score results immediately to check for perfect match
-                            for result in results:
-                                compute_score(result, query)
-                                if result.score >= 400:
-                                    logger.info(
-                                        "Perfect match found (score=%d) from provider %s, stopping search",
-                                        result.score,
-                                        name,
-                                    )
-                                    perfect_match_found = True
-                                    break
-
-                            if perfect_match_found:
-                                # Cancel remaining futures (they'll complete but we won't wait)
-                                break
-
-                    except FutureTimeoutError:
-                        logger.warning("Provider %s search timed out", name)
-                        cb = self._circuit_breakers.get(name)
-                        if cb:
-                            cb.record_failure()
-                            if cb.is_open:  # just transitioned to OPEN
-                                try:
-                                    from db.providers import auto_disable_provider
-
-                                    auto_disable_provider(
-                                        name,
-                                        cooldown_minutes=max(1, cb.cooldown_seconds // 60),
-                                    )
-                                except Exception as _pe:
-                                    logger.debug("CB persistence failed: %s", _pe)
-                                self._emit_provider_state(
-                                    name, "circuit_open", "timeout", cb.cooldown_seconds
-                                )
-                        update_provider_stats(name, success=False, score=0)
-                        self._check_auto_disable(name)
-                    except Exception as e:
-                        logger.warning("Provider %s search failed: %s", name, e)
-                        cb = self._circuit_breakers.get(name)
-                        if cb:
-                            cb.record_failure()
-                            if cb.is_open:  # just transitioned to OPEN
-                                try:
-                                    from db.providers import auto_disable_provider
-
-                                    auto_disable_provider(
-                                        name,
-                                        cooldown_minutes=max(1, cb.cooldown_seconds // 60),
-                                    )
-                                except Exception as _pe:
-                                    logger.debug("CB persistence failed: %s", _pe)
-                                self._emit_provider_state(
-                                    name, "circuit_open", "failures", cb.cooldown_seconds
-                                )
-                        # Rate-limit exception → extended throttle (Bazarr throttle_map parity)
-                        if isinstance(e, ProviderRateLimitError):
-                            throttle_min = getattr(
-                                self.settings, "provider_rate_limit_throttle_minutes", 60
-                            )
-                            try:
-                                from db.providers import auto_disable_provider
-
-                                auto_disable_provider(name, cooldown_minutes=throttle_min)
-                                logger.info(
-                                    "Provider %s rate-limited: extended throttle for %d min",
-                                    name,
-                                    throttle_min,
-                                )
-                                try:
-                                    from events import emit_event
-
-                                    emit_event(
-                                        "provider_state_changed",
-                                        {
-                                            "provider": name,
-                                            "state": "throttled",
-                                            "reason": "rate_limited",
-                                            "remaining_seconds": throttle_min * 60,
-                                        },
-                                    )
-                                except Exception:
-                                    pass
-                            except Exception as _te:
-                                logger.debug("Rate-limit throttle persistence failed: %s", _te)
-                            # Phase 3 learning hook — tell the budget manager so future
-                            # calls throttle harder.
-                            if getattr(self.settings, "provider_budget_enabled", True):
-                                try:
-                                    from services.provider_budget import BudgetWindow
-
-                                    retry_after = getattr(e, "retry_after", 60)
-                                    window = (
-                                        BudgetWindow.SECOND
-                                        if retry_after <= _RATE_LIMIT_WINDOW_THRESHOLD_S
-                                        else BudgetWindow.DAY
-                                    )
-                                    provider_obj = self._providers.get(name)
-                                    if provider_obj is None:
-                                        logger.debug(
-                                            "record_429 hook: provider %s no longer registered, skipping",
-                                            name,
-                                        )
-                                    else:
-                                        tier = getattr(provider_obj, "tier", "free")
-                                        rate_limits = (
-                                            getattr(type(provider_obj), "rate_limits", {}) or {}
-                                        )
-                                        limit = (
-                                            rate_limits.get(tier) or rate_limits.get("free") or {}
-                                        ).get(window.value, 0)
-                                        if limit > 0:
-                                            get_budget_manager().record_429(
-                                                name,
-                                                window=window,
-                                                configured_limit=limit,
-                                            )
-                                except Exception as _le:  # noqa: BLE001
-                                    logger.warning("record_429 hook failed for %s: %s", name, _le)
-                            # Phase 4a: per-key 429 cooldown — mark the pool row
-                            # used for this call so KeySelector skips it until the
-                            # retry_after window elapses.
-                            try:
-                                key_id = futures_to_key.get(future)
-                                if key_id is not None:
-                                    ProviderAccountPoolRepository().mark_429(key_id)
-                            except Exception as _mke:  # noqa: BLE001
-                                logger.warning("mark_429 failed for %s: %s", name, _mke)
-                        update_provider_stats(name, success=False, score=0)
-                        self._check_auto_disable(name)
-            except FutureTimeoutError:
-                # as_completed() overall timeout expired — some providers did not finish.
-                # Return the partial results already collected rather than raising.
-                unfinished = [futures[f] for f in futures if not f.done()]
-                logger.warning(
-                    "Search timed out after %ss: %d provider(s) still running (%s);"
-                    " returning %d partial results",
-                    max_timeout,
-                    len(unfinished),
-                    ", ".join(unfinished),
-                    len(all_results),
-                )
+            all_results = self._collect_provider_results(
+                futures, futures_to_key, max_timeout, query, early_exit, update_provider_stats
+            )
         finally:
             # cancel_futures=True cancels any queued-but-not-started futures immediately.
             # Already-running threads are released as daemon threads — we do NOT wait
