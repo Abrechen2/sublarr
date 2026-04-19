@@ -5,7 +5,17 @@ All column types and defaults match the existing SCHEMA DDL in db/__init__.py ex
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Float,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from extensions import db
@@ -148,6 +158,54 @@ class TranslationMemory(db.Model):
     )
 
 
+class TranslationEvent(db.Model):
+    """One row per translate_batch call.
+
+    Populated by translator/events.py::write_translation_event.
+    Retention controlled by ``translation_events_retention_days`` + the
+    ``translation_events_cleanup`` cron job.
+    """
+
+    __tablename__ = "translation_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    backend: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_lang: Mapped[str] = mapped_column(String(16), nullable=False)
+    target_lang: Mapped[str] = mapped_column(String(16), nullable=False)
+    lines_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    chars_in: Mapped[int] = mapped_column(Integer, nullable=False)
+    chars_out: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tokens_in: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tokens_out: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cost_estimate_micro_usd: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, server_default="0"
+    )
+    cache_hit: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    error_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    error_msg: Mapped[str | None] = mapped_column(Text, nullable=True)
+    job_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_translation_events_backend_started_at",
+            "backend", "started_at",
+        ),
+        Index("ix_translation_events_started_at", "started_at"),
+        Index("ix_translation_events_status", "status"),
+        Index("ix_translation_events_job_id", "job_id"),
+    )
+
+
 __all__ = [
     "TranslationConfigHistory",
     "GlossaryEntry",
@@ -155,4 +213,5 @@ __all__ = [
     "TranslationBackendStats",
     "WhisperJob",
     "TranslationMemory",
+    "TranslationEvent",
 ]

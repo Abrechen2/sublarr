@@ -63,6 +63,7 @@ from db.models.translation import (
     PromptPreset,
     TranslationBackendStats,
     TranslationConfigHistory,
+    TranslationEvent,
     TranslationMemory,
     WhisperJob,
 )
@@ -94,6 +95,7 @@ __all__ = [
     "GlossaryEntry",
     "PromptPreset",
     "TranslationBackendStats",
+    "TranslationEvent",
     "TranslationMemory",
     "WhisperJob",
     # hooks
