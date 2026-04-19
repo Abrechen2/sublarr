@@ -5,6 +5,17 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.66.0-beta] - 2026-04-19
+
+### Added
+- **Plan B Phase 3 — Granular blacklist (per-provider + file-hash)** — Extended the subtitle blacklist with a `file_hash` (VARCHAR(64)) dimension so retries can be suppressed for "any subtitle with hash H from provider Y", catching re-uploaded duplicates in addition to the existing per-subtitle-ID path. Alembic migration `9e36be515063` adds the column + partial UNIQUE index `(provider_name, file_hash) WHERE file_hash IS NOT NULL`. Repository gains `is_blacklisted_by_hash()` and an extended `is_blacklisted(provider, subtitle_id=None, file_hash=None)` accepting either discriminator. API POST accepts + returns `file_hash`; Blacklist page in Settings shows a truncated Hash column with full-hash tooltip. EN+DE i18n updated. 8 new tests green, no regression in existing blacklist tests.
+
+### Changed — Plan B scope note
+- **B3 Subzero selective merge deferred** — Cherry-picking 3-5 providers from the `subliminal_patch` fork (argenteam, assrt, subdivx, wizdom, etc.) proved deeper than the spec estimated: those providers inherit from Subzero-patched base classes, requiring either vendoring the entire monkey-patch set or porting each provider to vanilla Subliminal's `Provider` interface. With 29 providers already registered after B2 (comfortably past Bazarr's core set), the Subzero cherry-pick is deferred; it can re-open as a post-Plan-B follow-up if operators request the language-niche coverage (Spanish/Hungarian/Hebrew/Greek).
+
+### Plan B Progress
+- Phase B3 — Granular blacklist: **shipped** (Subzero merge deferred)
+
 ## [0.65.0-beta] - 2026-04-19
 
 ### Added
