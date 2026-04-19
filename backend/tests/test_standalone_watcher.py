@@ -1,10 +1,6 @@
-"""Tests for standalone/watcher.py — filesystem watcher with debounce."""
+"""Tests for standalone/watcher.py -- filesystem watcher with debounce."""
 
-import os
-import threading
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 # ---------------------------------------------------------------------------
 # VIDEO_PATTERNS
@@ -32,7 +28,8 @@ def test_media_file_watcher_init():
     watcher = MediaFileWatcher(callback, debounce_seconds=5.0)
     assert watcher.on_new_file is callback
     assert watcher.debounce_seconds == 5.0
-    assert watcher._pending == {}
+    # Internal debouncer should have no pending timers on init
+    assert watcher._debouncer._timers == {}
 
 
 def test_media_file_watcher_default_debounce():
@@ -85,14 +82,15 @@ def test_schedule_process_creates_timer():
 
     watcher = MediaFileWatcher(MagicMock(), debounce_seconds=1.0)
 
-    with patch("standalone.watcher.threading.Timer") as MockTimer:
+    with patch("utils.debouncer.threading.Timer") as MockTimer:
         mock_timer_instance = MagicMock()
         MockTimer.return_value = mock_timer_instance
         watcher._schedule_process("/media/video.mkv")
 
     MockTimer.assert_called_once()
     mock_timer_instance.start.assert_called_once()
-    assert "/media/video.mkv" in watcher._pending
+    assert "/media/video.mkv" in watcher._debouncer._timers
+    watcher.shutdown()
 
 
 def test_schedule_process_cancels_existing_timer():
@@ -102,13 +100,14 @@ def test_schedule_process_cancels_existing_timer():
     watcher = MediaFileWatcher(MagicMock(), debounce_seconds=1.0)
 
     first_timer = MagicMock()
-    watcher._pending["/media/video.mkv"] = first_timer
+    watcher._debouncer._timers["/media/video.mkv"] = first_timer
 
-    with patch("standalone.watcher.threading.Timer") as MockTimer:
+    with patch("utils.debouncer.threading.Timer") as MockTimer:
         MockTimer.return_value = MagicMock()
         watcher._schedule_process("/media/video.mkv")
 
     first_timer.cancel.assert_called_once()
+    watcher.shutdown()
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +120,7 @@ def test_check_and_process_stable_file(tmp_path):
     from standalone.watcher import MediaFileWatcher
 
     callback = MagicMock()
-    watcher = MediaFileWatcher(callback, debounce_seconds=0)
+    watcher = MediaFileWatcher(callback, debounce_seconds=1.0)
 
     video = tmp_path / "video.mkv"
     video.write_bytes(b"\x00" * 1000)
@@ -139,7 +138,7 @@ def test_check_and_process_file_gone(tmp_path):
     from standalone.watcher import MediaFileWatcher
 
     callback = MagicMock()
-    watcher = MediaFileWatcher(callback, debounce_seconds=0)
+    watcher = MediaFileWatcher(callback, debounce_seconds=1.0)
 
     watcher._check_and_process("/nonexistent/video.mkv")
     callback.assert_not_called()
@@ -150,7 +149,7 @@ def test_check_and_process_file_still_changing(tmp_path):
     from standalone.watcher import MediaFileWatcher
 
     callback = MagicMock()
-    watcher = MediaFileWatcher(callback, debounce_seconds=0)
+    watcher = MediaFileWatcher(callback, debounce_seconds=1.0)
     watcher._schedule_process = MagicMock()
 
     video = tmp_path / "video.mkv"
@@ -170,16 +169,22 @@ def test_check_and_process_file_still_changing(tmp_path):
 
 
 def test_check_and_process_removes_from_pending():
-    """Path is removed from _pending when processing starts."""
+    """Path is removed from debouncer's pending timers after fire."""
+    import time
+
     from standalone.watcher import MediaFileWatcher
 
-    watcher = MediaFileWatcher(MagicMock(), debounce_seconds=0)
-    watcher._pending["/media/video.mkv"] = MagicMock()
+    watcher = MediaFileWatcher(MagicMock(), debounce_seconds=0.05)
 
+    # Drive the full debouncer flow: schedule -> timer fires -> _check_and_process called
     with patch("standalone.watcher.os.path.exists", return_value=False):
-        watcher._check_and_process("/media/video.mkv")
+        watcher._schedule_process("/media/video.mkv")
+        assert "/media/video.mkv" in watcher._debouncer._timers
+        # Wait for the short debounce to fire
+        time.sleep(0.2)
 
-    assert "/media/video.mkv" not in watcher._pending
+    assert "/media/video.mkv" not in watcher._debouncer._timers
+    watcher.shutdown()
 
 
 def test_check_and_process_exception_handled():
@@ -187,7 +192,7 @@ def test_check_and_process_exception_handled():
     from standalone.watcher import MediaFileWatcher
 
     callback = MagicMock()
-    watcher = MediaFileWatcher(callback, debounce_seconds=0)
+    watcher = MediaFileWatcher(callback, debounce_seconds=1.0)
 
     with patch("standalone.watcher.os.path.exists", side_effect=PermissionError("denied")):
         # Should not raise

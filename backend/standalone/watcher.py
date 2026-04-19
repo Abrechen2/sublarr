@@ -7,10 +7,11 @@ incomplete copies and rapid filesystem events.
 
 import logging
 import os
-import threading
 import time
 from collections.abc import Callable
 from typing import Optional
+
+from utils.debouncer import KeyedDebouncedCallback
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +42,8 @@ VIDEO_PATTERNS = [
 class MediaFileWatcher(PatternMatchingEventHandler):
     """Watches media directories for new/moved video files with debounce.
 
-    Uses a per-path threading.Timer to coalesce rapid filesystem events
-    and a file stability check (size comparison after 2s) to avoid
+    Uses a per-path KeyedDebouncedCallback to coalesce rapid filesystem
+    events and a file stability check (size comparison after 2s) to avoid
     processing incomplete copies.
 
     Args:
@@ -59,8 +60,11 @@ class MediaFileWatcher(PatternMatchingEventHandler):
             )
         self.on_new_file = on_new_file
         self.debounce_seconds = debounce_seconds
-        self._pending: dict[str, threading.Timer] = {}
-        self._lock = threading.Lock()
+        self._debouncer = KeyedDebouncedCallback(
+            delay_s=debounce_seconds,
+            callback=self._check_and_process,
+            name="media_watcher",
+        )
 
     def on_created(self, event) -> None:
         """Handle file creation events."""
@@ -73,21 +77,10 @@ class MediaFileWatcher(PatternMatchingEventHandler):
     def _schedule_process(self, path: str) -> None:
         """Schedule debounced processing for a file path.
 
-        Cancels any existing timer for the same path and starts a new one.
+        Delegates to the internal KeyedDebouncedCallback which cancels any
+        existing timer for the same path and starts a new one.
         """
-        with self._lock:
-            existing_timer = self._pending.get(path)
-            if existing_timer is not None:
-                existing_timer.cancel()
-
-            timer = threading.Timer(
-                self.debounce_seconds,
-                self._check_and_process,
-                args=(path,),
-            )
-            timer.daemon = True
-            self._pending[path] = timer
-            timer.start()
+        self._debouncer.trigger(path)
 
     def _check_and_process(self, path: str) -> None:
         """Check file stability and invoke callback if stable.
@@ -96,10 +89,6 @@ class MediaFileWatcher(PatternMatchingEventHandler):
         the file is still being written -- reschedule. If stable and
         the file exists, invoke the on_new_file callback.
         """
-        # Remove from pending
-        with self._lock:
-            self._pending.pop(path, None)
-
         try:
             if not os.path.exists(path):
                 return
@@ -123,6 +112,14 @@ class MediaFileWatcher(PatternMatchingEventHandler):
 
         except Exception as e:
             logger.error("Error processing new file %s: %s", path, e)
+
+    def shutdown(self) -> None:
+        """Cancel all pending debounced file-process timers.
+
+        Called during application shutdown to prevent stability-check
+        timers from firing after the process is tearing down.
+        """
+        self._debouncer.shutdown()
 
 
 # ---------------------------------------------------------------------------
