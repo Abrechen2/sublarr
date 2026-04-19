@@ -26,7 +26,46 @@ import providers._vendor  # noqa: F401 — side-effect import adds vendor to sys
 
 from providers.base import SubtitleProvider, SubtitleResult, VideoQuery
 
+from subliminal.video import Episode, Movie, Video
+
 logger = logging.getLogger(__name__)
+
+
+def _to_subliminal_video(query: VideoQuery) -> Video:
+    """Convert a Sublarr VideoQuery into a subliminal Video/Episode/Movie.
+
+    Only fields that Subliminal scoring/matching actually reads are forwarded.
+    Missing fields are left as Subliminal's defaults (usually None/empty).
+    """
+    if query.is_episode:
+        default_name = (
+            f"{query.series_title}.S{query.season:02d}E{query.episode:02d}.mkv"
+        )
+        return Episode(
+            name=query.file_path or default_name,
+            series=query.series_title,
+            season=query.season,
+            # Subliminal 2.2.0 uses the plural "episodes" kwarg (int | Sequence[int]);
+            # it still exposes an `episode` property for the first element.
+            episodes=query.episode,
+            title=query.episode_title or None,
+            year=query.year,
+            release_group=query.release_group or None,
+            source=query.source or None,
+            resolution=query.resolution or None,
+            video_codec=query.video_codec or None,
+            imdb_id=query.imdb_id or None,
+        )
+    return Movie(
+        name=query.file_path or f"{query.title}.{query.year}.mkv",
+        title=query.title,
+        year=query.year,
+        release_group=query.release_group or None,
+        source=query.source or None,
+        resolution=query.resolution or None,
+        video_codec=query.video_codec or None,
+        imdb_id=query.imdb_id or None,
+    )
 
 
 class SubliminalProviderAdapter(SubtitleProvider):
