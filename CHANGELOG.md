@@ -5,6 +5,17 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.56.0-beta] - 2026-04-19
+
+### Added
+- **Scheduler admin page (read-only)** — New **Settings → System → Scheduler** page lists every registered scheduler job with its live state: current trigger, next fire time, last run status + duration, and a 7-day summary of ok/error/timeout/missed/skipped runs. Action buttons (Run now, Pause, Edit trigger, Reset) are visible but disabled with a "Available in Phase 3" tooltip — the API contract is stable, Phase 3 will unlock the buttons.
+- **Per-job run history drawer** — Click **History** on any job card to open a right-side drawer showing the last 50 runs, filterable by status (All / OK / Error / Timeout / Missed / Skipped). Failing rows expand inline to show the captured `error_type` + full `error_msg`.
+- **Read-only scheduler API** — Three new endpoints under `/api/v1/scheduler/jobs`: `GET /` (list with live state), `GET /<id>` (single job detail or 404), `GET /<id>/runs` (paginated history with `limit`, `offset`, `status` query params). 503 `SchedulerDownError` is returned when the scheduler is not running on the replica. 10-second server-side cache on the 7-day stats query.
+
+### Tests
+- +12 new tests across backend route/serializer suites and the `SchedulerPage` component.
+- Full scheduler test suite now at 80 tests (68 Phase 1 + 12 Phase 2), all green.
+
 ## [0.55.0-beta] - 2026-04-19
 
 ### Added
