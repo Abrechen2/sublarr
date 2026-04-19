@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.69.0-beta] - 2026-04-19
+
+### Added
+- **Plan B Phase 6 — Post-processing pipeline** — New package `backend/post_processing/` firing on three save triggers (`after_download`, `after_translate`, `after_sync`). Eight built-in ops: `strip_html`, `remove_bom`, `convert_encoding`, `webhook` (SSRF-protected via `validate_service_url`), `discord_notify`, `plex_refresh`, `emby_refresh`, `jellyfin_refresh`. Opt-in shell escape hatch behind `SUBLARR_ALLOW_SHELL_SCRIPTS=true` env flag — shlex-quoted substitution, 30-second timeout, PATH-only env, stdout+stderr captured to audit. New `post_processing_runs` audit table (alembic migration) records every pipeline run with per-op outcome + duration. Pipeline runs on a dedicated 2-worker thread pool so request handlers aren't blocked. New Settings → Post-Processing tab. Endpoints at `/api/v1/post-processing/{ops,config,runs}`. 40 new backend tests.
+
+### Plan B Progress
+- Phase B6 — Post-processing pipeline: **shipped**
+
 ## [0.68.0-beta] - 2026-04-19
 
 ### Added
