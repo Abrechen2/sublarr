@@ -72,6 +72,13 @@ _BUILTIN_PROVIDERS: tuple[str, ...] = (
     "titlovi",
     "embedded",
     "subliminal_opensubtitles",  # Subliminal-flavored pilot (Plan B1)
+    # Plan B2 — Subliminal-flavor wrappers for the 6 non-pilot Subliminal providers
+    "subliminal_addic7ed",
+    "subliminal_gestdown",
+    "subliminal_napiprojekt",
+    "subliminal_opensubtitlescom",
+    "subliminal_podnapisi",
+    "subliminal_tvsubtitles",
 )
 
 
