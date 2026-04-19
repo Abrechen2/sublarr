@@ -92,6 +92,8 @@ class Settings(BaseSettings):
     provider_auto_prioritize: bool = True  # Auto-prioritize providers based on success rate
     provider_rate_limit_enabled: bool = True  # Enable rate limiting per provider
     dedup_on_download: bool = True  # Skip download if identical content already exists (SHA-256)
+    # Plan B5 — subtitle repair pass before saving. Set False to disable.
+    enable_subtitle_repair: bool = True
     github_token: str = ""  # Optional GitHub API token for higher rate limits (5000/h vs 60/h); env: SUBLARR_GITHUB_TOKEN
 
     # Dynamic Provider Timeouts (Phase 3)

@@ -258,6 +258,22 @@ def save_subtitle(
     except Exception as e:
         logger.warning("Subtitle sanitization failed (skipping): %s", e)
 
+    # Plan B5 — subtitle repair pass before writing (opt-outable).
+    # Fixes BOM, newlines, invalid decimals, overlapping cues, encoding
+    # mis-detection. Must never abort the save — fall through on any error.
+    try:
+        from config import get_settings as _repair_get_settings
+
+        if getattr(_repair_get_settings(), "enable_subtitle_repair", True):
+            from subtitle_repair import repair_bytes as _repair_bytes
+
+            _fmt = getattr(result.format, "value", None) or "srt"
+            result.content = _repair_bytes(result.content, fmt=str(_fmt))
+    except Exception as _repair_err:
+        logger.warning(
+            "subtitle_repair skipped for %s: %s", result.subtitle_id, _repair_err
+        )
+
     # Duplicate detection: skip write if identical content already exists on disk
     try:
         from config import get_settings as _get_settings_dedup
