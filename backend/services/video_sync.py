@@ -1,7 +1,19 @@
 """Video subtitle synchronization service.
 
 Wraps ffsubsync and alass CLI tools. Both are optional dependencies —
-SyncUnavailableError is raised when an engine is not installed.
+``SyncUnavailableError`` is raised when an engine is not installed.
+
+**Plan B7 note:** These top-level functions remain the public legacy API
+(used by ``routes/sync.py``, ``routes/video_sync.py``, ``wanted_search``,
+and CLI ``backend/cli/commands/sync.py``) and keep their historic dict
+return shape. The new engine-class pattern lives in
+``services.sync_engines.*`` and is orchestrated via
+``services.sync_engines.orchestrator.SyncOrchestrator`` — it does NOT
+replace these wrappers, it runs alongside them so the orchestrator can
+layer new engines on top without touching legacy callers. The module-level
+``shutil``, ``subprocess``, ``_check_module``, ``_parse_ffsubsync_shift``,
+``_make_backup`` and ``run_trigger`` symbols are intentionally preserved
+because existing tests patch them.
 """
 
 import contextlib
@@ -85,7 +97,7 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     except subprocess.TimeoutExpired:
         _safe_remove(out_path)
-        raise RuntimeError("ffsubsync timed out after 600s")
+        raise RuntimeError("ffsubsync timed out after 600s") from None
 
     if result.returncode != 0:
         _safe_remove(out_path)
@@ -135,7 +147,7 @@ def sync_with_alass(subtitle_path: str, reference_path: str) -> dict:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     except subprocess.TimeoutExpired:
         _safe_remove(out_path)
-        raise RuntimeError("alass timed out after 300s")
+        raise RuntimeError("alass timed out after 300s") from None
 
     if result.returncode != 0:
         _safe_remove(out_path)
