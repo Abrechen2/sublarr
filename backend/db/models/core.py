@@ -15,6 +15,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -247,10 +248,20 @@ class BlacklistEntry(db.Model):
     title: Mapped[str | None] = mapped_column(Text, default="")
     reason: Mapped[str | None] = mapped_column(Text, default="")
     added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Plan B3 — file-hash dimension for provider-agnostic retry suppression
+    file_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, default=None)
 
     __table_args__ = (
         UniqueConstraint("provider_name", "subtitle_id"),
         Index("idx_blacklist_provider", "provider_name", "subtitle_id"),
+        Index(
+            "idx_blacklist_provider_hash",
+            "provider_name",
+            "file_hash",
+            unique=True,
+            postgresql_where=text("file_hash IS NOT NULL"),
+            sqlite_where=text("file_hash IS NOT NULL"),
+        ),
     )
 
 
