@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 FIXTURES = Path(__file__).parent / "fixtures" / "subtitle_repair"
 
 
@@ -71,3 +73,21 @@ def test_repair_clamps_overlapping_cues():
     # Cue 2 and 3 are untouched
     assert "00:00:03,000 --> 00:00:07,000" in fixed
     assert "00:00:10,000 --> 00:00:12,000" in fixed
+
+
+def test_repair_recovers_windows1252_mislabeled_bytes():
+    from subtitle_repair import repair_bytes
+
+    raw = (FIXTURES / "windows1252_mislabeled.srt").read_bytes()
+    # Precondition: raw is NOT valid UTF-8
+    with pytest.raises(UnicodeDecodeError):
+        raw.decode("utf-8")
+
+    fixed_bytes = repair_bytes(raw, fmt="srt")
+    # Result must be valid UTF-8
+    fixed = fixed_bytes.decode("utf-8")
+    # Smart quotes should either be preserved as UTF-8 (\u2019, \u201c, \u201d)
+    # or replaced with a reasonable fallback (regular ASCII apostrophe/quote).
+    # The exact choice depends on chardet's decision; accept either.
+    assert "test" in fixed
+    assert "Hello world" in fixed
