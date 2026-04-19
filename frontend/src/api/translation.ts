@@ -9,6 +9,7 @@ import type {
   TranslationConcurrency,
   TranslationCostSummary,
   TranslationMemoryTelemetry,
+  TranslationQueueSnapshot,
 } from '@/lib/types'
 
 // ─── Translation ─────────────────────────────────────────────────────────────
@@ -249,6 +250,22 @@ export async function setConcurrency(
   const { data } = await api.patch(
     `/translation/concurrency/${encodeURIComponent(backend)}`,
     { limit },
+  )
+  return data
+}
+
+// ─── Translation Queue — Phase A2 ────────────────────────────────────────────
+
+export async function getQueue(): Promise<TranslationQueueSnapshot> {
+  const { data } = await api.get('/translation/queue')
+  return data
+}
+
+export async function cancelJob(
+  jobId: string,
+): Promise<{ status: string; job_id: string }> {
+  const { data } = await api.post(
+    `/translation/queue/${encodeURIComponent(jobId)}/cancel`,
   )
   return data
 }

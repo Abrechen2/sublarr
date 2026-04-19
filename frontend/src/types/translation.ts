@@ -147,3 +147,36 @@ export interface TranslationConcurrencyEntry {
 export interface TranslationConcurrency {
   backends: TranslationConcurrencyEntry[]
 }
+
+// Translation queue — Phase A2
+export type TranslationActiveJob = {
+  job_id: string
+  file_path: string
+  source_lang: string
+  target_lang: string
+  backend: string
+  progress: { done: number; total: number; pct: number }
+  started_at: string
+  eta_seconds: number | null
+  cost_so_far_micro_usd: number
+  cancel_requested: boolean
+}
+
+export type TranslationRecentJob = {
+  job_id: string
+  file_path: string
+  source_lang: string
+  target_lang: string
+  backend: string
+  lines: number
+  status: string
+  error_type: string | null
+  finished_at: string
+  duration_s: number
+  cost_micro_usd: number
+}
+
+export type TranslationQueueSnapshot = {
+  active: TranslationActiveJob[]
+  recent: TranslationRecentJob[]
+}

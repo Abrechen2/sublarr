@@ -1,10 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { purgeMemory, setConcurrency } from '@/api/translation'
+import { cancelJob, purgeMemory, setConcurrency } from '@/api/translation'
 
 /**
- * Phase A1 translation mutations for the cost/memory admin page and the
- * backend-card concurrency slider. Each mutation invalidates the relevant
- * query group on success so dashboards refresh immediately.
+ * Phase A1/A2 translation mutations for the cost/memory admin page, the
+ * backend-card concurrency slider, and the queue dashboard cancel action.
+ * Each mutation invalidates the relevant query group on success so dashboards
+ * refresh immediately.
  */
 export function useTranslationMutations() {
   const qc = useQueryClient()
@@ -21,6 +22,12 @@ export function useTranslationMutations() {
         setConcurrency(backend, limit),
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: ['translation', 'concurrency'] })
+      },
+    }),
+    cancelJob: useMutation({
+      mutationFn: (jobId: string) => cancelJob(jobId),
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: ['translation', 'queue'] })
       },
     }),
   }
