@@ -105,3 +105,45 @@ export interface WhisperHealthResult {
   healthy: boolean
   message: string
 }
+
+// ─── Translation telemetry — Phase A1 ────────────────────────────────────────
+
+export interface TranslationCostWindow {
+  cost_usd: number
+  events: number
+  cache_hits: number
+}
+
+export interface TranslationCostSummary {
+  today: TranslationCostWindow
+  last_7d: TranslationCostWindow
+  last_30d: TranslationCostWindow
+}
+
+export interface TranslationBackendCost {
+  backend: string
+  events: number
+  cost_usd: number
+  avg_latency_ms: number
+  error_rate: number
+}
+
+/**
+ * A1 memory telemetry (rows, size_bytes, hit_rate_7d).
+ * Distinct from the older `TranslationMemoryStats` (entries, cache_size_bytes)
+ * which backs the `/translation-memory/stats` endpoint.
+ */
+export interface TranslationMemoryTelemetry {
+  rows: number
+  size_bytes: number
+  hit_rate_7d: number
+}
+
+export interface TranslationConcurrencyEntry {
+  backend: string
+  limit: number
+}
+
+export interface TranslationConcurrency {
+  backends: TranslationConcurrencyEntry[]
+}

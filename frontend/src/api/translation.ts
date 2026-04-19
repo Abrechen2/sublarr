@@ -1,5 +1,15 @@
 import { api } from './core'
-import type { TranslationBackendInfo, BackendConfig, BackendHealthResult, BackendStats, RetranslateStatus } from '@/lib/types'
+import type {
+  TranslationBackendInfo,
+  BackendConfig,
+  BackendHealthResult,
+  BackendStats,
+  RetranslateStatus,
+  TranslationBackendCost,
+  TranslationConcurrency,
+  TranslationCostSummary,
+  TranslationMemoryTelemetry,
+} from '@/lib/types'
 
 // ─── Translation ─────────────────────────────────────────────────────────────
 
@@ -193,4 +203,52 @@ export async function updatePromptPreset(presetId: number, preset: { name?: stri
 
 export async function deletePromptPreset(presetId: number): Promise<void> {
   await api.delete(`/prompt-presets/${presetId}`)
+}
+
+// ─── Translation telemetry — Phase A1 ────────────────────────────────────────
+// Endpoints are under /translation/... (not /translation-memory/... which is
+// the older Phase 20-02 endpoint). Distinct names are used to avoid clashing
+// with the legacy TranslationMemoryStats / getTranslationMemoryStats symbols.
+
+export async function getCostSummary(): Promise<TranslationCostSummary> {
+  const { data } = await api.get('/translation/cost')
+  return data
+}
+
+export async function getCostByBackend(
+  window: '7d' | '30d' | 'today' = '7d',
+): Promise<{ window: string; backends: TranslationBackendCost[] }> {
+  const { data } = await api.get(
+    `/translation/cost/by-backend?window=${window}`,
+  )
+  return data
+}
+
+export async function getMemoryTelemetry(): Promise<TranslationMemoryTelemetry> {
+  const { data } = await api.get('/translation/memory/stats')
+  return data
+}
+
+export async function purgeMemory(params: {
+  older_than_days?: number
+  backend?: string
+}): Promise<{ status: string; deleted: number }> {
+  const { data } = await api.post('/translation/memory/purge', params)
+  return data
+}
+
+export async function getConcurrency(): Promise<TranslationConcurrency> {
+  const { data } = await api.get('/translation/concurrency')
+  return data
+}
+
+export async function setConcurrency(
+  backend: string,
+  limit: number,
+): Promise<{ backend: string; limit: number }> {
+  const { data } = await api.patch(
+    `/translation/concurrency/${encodeURIComponent(backend)}`,
+    { limit },
+  )
+  return data
 }
