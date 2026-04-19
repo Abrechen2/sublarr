@@ -80,9 +80,7 @@ def run_shell_script(
     try:
         args = shlex.split(substituted, posix=True)
     except ValueError as exc:
-        return ShellResult(
-            ok=False, duration_ms=_elapsed_ms(start), message=f"parse error: {exc}"
-        )
+        return ShellResult(ok=False, duration_ms=_elapsed_ms(start), message=f"parse error: {exc}")
 
     if not args:
         return ShellResult(ok=False, duration_ms=0, message="empty script")
@@ -105,9 +103,7 @@ def run_shell_script(
         msg = combined or ("ok" if ok else f"exit {proc.returncode}")
         return ShellResult(ok=ok, duration_ms=_elapsed_ms(start), message=msg)
     except subprocess.TimeoutExpired:
-        return ShellResult(
-            ok=False, duration_ms=_elapsed_ms(start), message="timeout expired"
-        )
+        return ShellResult(ok=False, duration_ms=_elapsed_ms(start), message="timeout expired")
     except FileNotFoundError as exc:
         return ShellResult(
             ok=False,

@@ -1,6 +1,6 @@
 """Plan B6 — PostProcessingRun ORM sanity test."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 
 def test_post_processing_run_has_expected_columns():
@@ -19,7 +19,7 @@ def test_post_processing_run_instantiation():
         ops_executed={"ops": ["strip_html"]},
         duration_ms=42,
         outcome="ok",
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     assert row.trigger == "after_download"
     assert row.duration_ms == 42

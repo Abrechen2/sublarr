@@ -68,6 +68,10 @@ const AutomationSettings = lazy(() =>
 const AutomationPostProcessingPage = lazy(() =>
   import('./AutomationPostProcessingPage').then((m) => ({ default: m.AutomationPostProcessingPage })),
 )
+// Plan B6 — Post-Processing Pipeline tab (curated ops + shell escape hatch)
+const PostProcessingTab = lazy(() =>
+  import('./PostProcessingTab').then((m) => ({ default: m.PostProcessingTab })),
+)
 const TranslationSettings = lazy(() =>
   import('./TranslationSettings').then((m) => ({ default: m.TranslationSettings })),
 )
@@ -119,6 +123,7 @@ export function SettingsPage() {
             <Route path="providers/transcription" element={<ProvidersTranscriptionPage />} />
             <Route path="automation" element={<AutomationSettings />} />
             <Route path="automation/post-processing" element={<AutomationPostProcessingPage />} />
+            <Route path="automation/post-processing-pipeline" element={<PostProcessingTab />} />
             <Route path="translation" element={<TranslationSettings />} />
             <Route
               path="translation/cost-memory"

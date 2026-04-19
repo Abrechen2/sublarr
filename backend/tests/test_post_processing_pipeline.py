@@ -48,9 +48,7 @@ def test_pipeline_runs_ops_in_order_and_writes_audit(tmp_path, app_ctx):
         description = "test"
 
         def execute(self, context):
-            return OpResult(
-                op_id=self.op_id, ok=True, duration_ms=3, message="first-ran"
-            )
+            return OpResult(op_id=self.op_id, ok=True, duration_ms=3, message="first-ran")
 
     @register_op
     class FailingOp(BaseOp):
@@ -81,13 +79,74 @@ def test_pipeline_runs_ops_in_order_and_writes_audit(tmp_path, app_ctx):
         # Audit row written
         from db.models.core import PostProcessingRun
 
-        runs = (
-            PostProcessingRun.query.order_by(PostProcessingRun.id.desc()).limit(5).all()
-        )
+        runs = PostProcessingRun.query.order_by(PostProcessingRun.id.desc()).limit(5).all()
         assert any(
-            r.trigger == "after_download" and "b6_first" in str(r.ops_executed)
-            for r in runs
+            r.trigger == "after_download" and "b6_first" in str(r.ops_executed) for r in runs
         )
     finally:
         _OP_REGISTRY.remove(FirstOp)
         _OP_REGISTRY.remove(FailingOp)
+
+
+def test_api_list_ops(client):
+    resp = client.get("/api/v1/post-processing/ops")
+    assert resp.status_code == 200
+    op_ids = [o["op_id"] for o in resp.get_json()["ops"]]
+    # All 8 curated ops should be listed
+    for expected in (
+        "strip_html",
+        "remove_bom",
+        "convert_encoding",
+        "webhook",
+        "discord_notify",
+        "plex_refresh",
+        "emby_refresh",
+        "jellyfin_refresh",
+    ):
+        assert expected in op_ids, f"missing op {expected}"
+
+
+def test_api_config_roundtrip(client):
+    # GET default
+    resp = client.get("/api/v1/post-processing/config")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert "after_download" in body
+    assert "after_translate" in body
+    assert "after_sync" in body
+
+    # PUT new config
+    put_resp = client.put(
+        "/api/v1/post-processing/config/after_download",
+        json={"op_ids": ["strip_html", "remove_bom"]},
+    )
+    assert put_resp.status_code == 200
+    # GET and verify
+    resp2 = client.get("/api/v1/post-processing/config")
+    assert resp2.get_json()["after_download"] == ["strip_html", "remove_bom"]
+    # Reset
+    client.put("/api/v1/post-processing/config/after_download", json={"op_ids": []})
+
+
+def test_api_reject_unknown_trigger(client):
+    resp = client.put(
+        "/api/v1/post-processing/config/not_a_trigger",
+        json={"op_ids": []},
+    )
+    assert resp.status_code == 400
+
+
+def test_api_reject_non_list_op_ids(client):
+    resp = client.put(
+        "/api/v1/post-processing/config/after_download",
+        json={"op_ids": "not a list"},
+    )
+    assert resp.status_code == 400
+
+
+def test_api_runs_returns_list(client):
+    resp = client.get("/api/v1/post-processing/runs")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert "runs" in body
+    assert isinstance(body["runs"], list)

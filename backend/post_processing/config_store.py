@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -48,11 +48,11 @@ def get_trigger_ops(trigger: str) -> list[str]:
 
 def set_trigger_ops(trigger: str, op_ids: list[str]) -> None:
     """Upsert the op list for ``trigger``. Raises on DB failure."""
-    from extensions import db
     from db.models.core import ConfigEntry
+    from extensions import db
 
     key = _trigger_key(trigger)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     existing = ConfigEntry.query.filter_by(key=key).one_or_none()
     value = json.dumps(op_ids)
     if existing is None:

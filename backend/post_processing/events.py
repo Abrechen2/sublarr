@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -15,12 +15,10 @@ def write_post_processing_run(
 ) -> None:
     """Insert one audit row. Never raises — falls back to WARN on DB failure."""
     try:
-        from extensions import db
         from db.models.core import PostProcessingRun
+        from extensions import db
 
-        if not op_results:
-            outcome = "ok"
-        elif all(r.ok for r in op_results):
+        if not op_results or all(r.ok for r in op_results):
             outcome = "ok"
         elif not any(r.ok for r in op_results):
             outcome = "failure"
@@ -42,7 +40,7 @@ def write_post_processing_run(
             },
             duration_ms=duration_ms,
             outcome=outcome,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         db.session.add(row)
         db.session.commit()

@@ -12,9 +12,7 @@ import pytest
 
 
 def _has_echo() -> bool:
-    return bool(shutil.which("echo")) or bool(shutil.which("sh")) or bool(
-        shutil.which("bash")
-    )
+    return bool(shutil.which("echo")) or bool(shutil.which("sh")) or bool(shutil.which("bash"))
 
 
 def test_shell_runner_disabled_by_default(monkeypatch):
@@ -75,9 +73,7 @@ def test_shell_runner_blocks_injection_via_context(monkeypatch, tmp_path):
     _ = result.ok
 
 
-@pytest.mark.skipif(
-    not shutil.which("sleep"), reason="sleep binary not available on PATH"
-)
+@pytest.mark.skipif(not shutil.which("sleep"), reason="sleep binary not available on PATH")
 def test_shell_runner_enforces_timeout(monkeypatch):
     """A runaway script is killed after timeout."""
     monkeypatch.setenv("SUBLARR_ALLOW_SHELL_SCRIPTS", "true")

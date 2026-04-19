@@ -5,7 +5,9 @@ Each submodule registers its op classes with ``_OP_REGISTRY`` via the
 is enough to surface every curated op to the pipeline + API.
 """
 
-from post_processing.ops import discord_notify  # noqa: F401
-from post_processing.ops import media_server_refresh  # noqa: F401
-from post_processing.ops import text_ops  # noqa: F401
-from post_processing.ops import webhook  # noqa: F401
+from post_processing.ops import (
+    discord_notify,  # noqa: F401
+    media_server_refresh,  # noqa: F401
+    text_ops,  # noqa: F401
+    webhook,  # noqa: F401
+)

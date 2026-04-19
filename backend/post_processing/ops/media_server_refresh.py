@@ -17,9 +17,7 @@ def _elapsed_ms(start: float) -> int:
 class PlexRefreshOp(BaseOp):
     op_id = "plex_refresh"
     label = "Plex — Refresh Library"
-    description = (
-        "Trigger a Plex library section scan so new subtitles are picked up immediately."
-    )
+    description = "Trigger a Plex library section scan so new subtitles are picked up immediately."
 
     base_url: str = ""
     token: str = ""
@@ -33,16 +31,10 @@ class PlexRefreshOp(BaseOp):
         section = self.section_id or "all"
         url = f"{self.base_url.rstrip('/')}/library/sections/{section}/refresh"
         try:
-            resp = requests.get(
-                url, headers={"X-Plex-Token": self.token}, timeout=10
-            )
+            resp = requests.get(url, headers={"X-Plex-Token": self.token}, timeout=10)
             if resp.status_code >= 400:
-                return OpResult(
-                    self.op_id, False, _elapsed_ms(start), f"http {resp.status_code}"
-                )
-            return OpResult(
-                self.op_id, True, _elapsed_ms(start), "plex refresh triggered"
-            )
+                return OpResult(self.op_id, False, _elapsed_ms(start), f"http {resp.status_code}")
+            return OpResult(self.op_id, True, _elapsed_ms(start), "plex refresh triggered")
         except Exception as exc:
             return OpResult(self.op_id, False, _elapsed_ms(start), str(exc))
 
@@ -65,12 +57,8 @@ class EmbyRefreshOp(BaseOp):
         try:
             resp = requests.post(url, params={"api_key": self.api_key}, timeout=10)
             if resp.status_code >= 400:
-                return OpResult(
-                    self.op_id, False, _elapsed_ms(start), f"http {resp.status_code}"
-                )
-            return OpResult(
-                self.op_id, True, _elapsed_ms(start), "emby refresh triggered"
-            )
+                return OpResult(self.op_id, False, _elapsed_ms(start), f"http {resp.status_code}")
+            return OpResult(self.op_id, True, _elapsed_ms(start), "emby refresh triggered")
         except Exception as exc:
             return OpResult(self.op_id, False, _elapsed_ms(start), str(exc))
 
@@ -91,15 +79,9 @@ class JellyfinRefreshOp(BaseOp):
 
         url = f"{self.base_url.rstrip('/')}/Library/Refresh"
         try:
-            resp = requests.post(
-                url, headers={"X-MediaBrowser-Token": self.api_key}, timeout=10
-            )
+            resp = requests.post(url, headers={"X-MediaBrowser-Token": self.api_key}, timeout=10)
             if resp.status_code >= 400:
-                return OpResult(
-                    self.op_id, False, _elapsed_ms(start), f"http {resp.status_code}"
-                )
-            return OpResult(
-                self.op_id, True, _elapsed_ms(start), "jellyfin refresh triggered"
-            )
+                return OpResult(self.op_id, False, _elapsed_ms(start), f"http {resp.status_code}")
+            return OpResult(self.op_id, True, _elapsed_ms(start), "jellyfin refresh triggered")
         except Exception as exc:
             return OpResult(self.op_id, False, _elapsed_ms(start), str(exc))

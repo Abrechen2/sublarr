@@ -21,8 +21,7 @@ class DiscordNotifyOp(BaseOp):
     op_id = "discord_notify"
     label = "Discord Notification"
     description = (
-        "Send a Discord notification when a subtitle is processed. "
-        "Requires a Discord webhook URL."
+        "Send a Discord notification when a subtitle is processed. Requires a Discord webhook URL."
     )
 
     webhook_url: str = ""
@@ -44,17 +43,14 @@ class DiscordNotifyOp(BaseOp):
 
         payload = {
             "content": (
-                f"Sublarr `{trigger}`: `{subtitle_name}` for `{video_name}` "
-                f"({lang}, score={score})"
+                f"Sublarr `{trigger}`: `{subtitle_name}` for `{video_name}` ({lang}, score={score})"
             )
         }
 
         try:
             resp = requests.post(self.webhook_url, json=payload, timeout=10)
             if resp.status_code >= 400:
-                return OpResult(
-                    self.op_id, False, _elapsed_ms(start), f"http {resp.status_code}"
-                )
+                return OpResult(self.op_id, False, _elapsed_ms(start), f"http {resp.status_code}")
             return OpResult(self.op_id, True, _elapsed_ms(start), "notified")
         except Exception as exc:
             return OpResult(self.op_id, False, _elapsed_ms(start), str(exc))

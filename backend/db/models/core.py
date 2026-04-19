@@ -276,9 +276,7 @@ class PostProcessingRun(db.Model):
     ops_executed: Mapped[dict] = mapped_column(JSON, nullable=False)
     duration_ms: Mapped[int] = mapped_column(Integer, nullable=False)
     outcome: Mapped[str] = mapped_column(String(16), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         Index("idx_pp_runs_created_at", "created_at"),

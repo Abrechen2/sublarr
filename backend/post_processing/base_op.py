@@ -20,7 +20,7 @@ class OpResult:
     message: str
 
 
-_OP_REGISTRY: list[type["BaseOp"]] = []
+_OP_REGISTRY: list[type[BaseOp]] = []
 
 
 class BaseOp(ABC):

@@ -10,11 +10,10 @@ them independently testable and re-usable outside of ProviderManager.
 import logging
 import os
 
-from providers.base import SubtitleFormat, SubtitleResult
-
 # Plan B6 — post-processing pipeline trigger (module-level import so tests can
 # patch("providers.download_manager.run_trigger")).
 from post_processing.pipeline import run_trigger
+from providers.base import SubtitleFormat, SubtitleResult
 
 logger = logging.getLogger(__name__)
 

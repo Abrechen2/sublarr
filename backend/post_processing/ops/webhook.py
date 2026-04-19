@@ -68,11 +68,7 @@ class WebhookOp(BaseOp):
         try:
             resp = requests.request(self.method.upper(), self.url, **kwargs)
             if resp.status_code >= 400:
-                return OpResult(
-                    self.op_id, False, _elapsed_ms(start), f"http {resp.status_code}"
-                )
-            return OpResult(
-                self.op_id, True, _elapsed_ms(start), f"http {resp.status_code}"
-            )
+                return OpResult(self.op_id, False, _elapsed_ms(start), f"http {resp.status_code}")
+            return OpResult(self.op_id, True, _elapsed_ms(start), f"http {resp.status_code}")
         except Exception as exc:
             return OpResult(self.op_id, False, _elapsed_ms(start), str(exc))

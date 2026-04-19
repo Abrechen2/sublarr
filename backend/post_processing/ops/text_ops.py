@@ -20,9 +20,7 @@ def _elapsed_ms(start: float) -> int:
 class StripHtmlOp(BaseOp):
     op_id = "strip_html"
     label = "Strip HTML tags"
-    description = (
-        "Remove <i>, <b>, <font>, <br> and other HTML tags from subtitle lines."
-    )
+    description = "Remove <i>, <b>, <font>, <br> and other HTML tags from subtitle lines."
 
     def execute(self, context: dict) -> OpResult:
         start = time.monotonic()
@@ -52,7 +50,7 @@ class RemoveBomOp(BaseOp):
             path = Path(context["subtitle_path"])
             data = path.read_bytes()
             if data.startswith(_BOM):
-                path.write_bytes(data[len(_BOM):])
+                path.write_bytes(data[len(_BOM) :])
                 return OpResult(self.op_id, True, _elapsed_ms(start), "bom stripped")
             return OpResult(self.op_id, True, _elapsed_ms(start), "no bom")
         except Exception as exc:
@@ -63,9 +61,7 @@ class RemoveBomOp(BaseOp):
 class ConvertEncodingOp(BaseOp):
     op_id = "convert_encoding"
     label = "Convert encoding"
-    description = (
-        "Re-encode the subtitle to UTF-8 (auto-detects source encoding via chardet)."
-    )
+    description = "Re-encode the subtitle to UTF-8 (auto-detects source encoding via chardet)."
 
     def execute(self, context: dict) -> OpResult:
         start = time.monotonic()
@@ -87,8 +83,6 @@ class ConvertEncodingOp(BaseOp):
                 enc = "windows-1252"
             text = raw.decode(enc, errors="replace")
             path.write_text(text, encoding="utf-8")
-            return OpResult(
-                self.op_id, True, _elapsed_ms(start), f"converted from {enc}"
-            )
+            return OpResult(self.op_id, True, _elapsed_ms(start), f"converted from {enc}")
         except Exception as exc:
             return OpResult(self.op_id, False, _elapsed_ms(start), str(exc))

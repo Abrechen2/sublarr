@@ -27,10 +27,7 @@ def test_save_subtitle_fires_after_download(tmp_path, app_ctx, monkeypatch):
 
     set_trigger_ops("after_download", ["strip_html"])
 
-    srt_bytes = (
-        b"1\n00:00:01,000 --> 00:00:02,000\nHi\n\n"
-        b"2\n00:00:03,000 --> 00:00:04,000\nBye\n"
-    )
+    srt_bytes = b"1\n00:00:01,000 --> 00:00:02,000\nHi\n\n2\n00:00:03,000 --> 00:00:04,000\nBye\n"
     result = SubtitleResult(
         provider_name="p",
         subtitle_id="1",
@@ -152,7 +149,7 @@ def test_video_sync_fires_after_sync(tmp_path, app_ctx, monkeypatch):
     # Mock ffsubsync binary lookup + subprocess so the function reaches its return point
     monkeypatch.setattr(
         "services.video_sync.shutil.which",
-        lambda name: (f"/usr/bin/{name}" if name in ("ffsubsync",) else None),
+        lambda name: f"/usr/bin/{name}" if name in ("ffsubsync",) else None,
     )
 
     class _FakeProc:
@@ -160,17 +157,11 @@ def test_video_sync_fires_after_sync(tmp_path, app_ctx, monkeypatch):
         stdout = "Using video speech-to-text\noffset -1.2s detected"
         stderr = ""
 
-    monkeypatch.setattr(
-        "services.video_sync.subprocess.run", lambda *a, **kw: _FakeProc()
-    )
+    monkeypatch.setattr("services.video_sync.subprocess.run", lambda *a, **kw: _FakeProc())
     # Avoid the actual file move
-    monkeypatch.setattr(
-        "services.video_sync.shutil.move", lambda src, dst: None, raising=True
-    )
+    monkeypatch.setattr("services.video_sync.shutil.move", lambda src, dst: None, raising=True)
     # _make_backup copies the file — point it at tmp
-    monkeypatch.setattr(
-        "services.video_sync._make_backup", lambda p: f"{p}.bak", raising=True
-    )
+    monkeypatch.setattr("services.video_sync._make_backup", lambda p: f"{p}.bak", raising=True)
 
     with patch("services.video_sync.run_trigger") as mock_trigger:
         from services.video_sync import sync_with_ffsubsync

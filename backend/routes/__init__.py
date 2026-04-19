@@ -27,6 +27,7 @@ def register_blueprints(app):
     from routes.notifications_mgmt import bp as notifications_mgmt_bp
     from routes.ocr import bp as ocr_bp
     from routes.plugins import bp as plugins_bp
+    from routes.post_processing import bp as post_processing_bp
     from routes.profiles import bp as profiles_bp
     from routes.providers import bp as providers_bp
     from routes.providers_keys import bp as providers_keys_bp
@@ -101,5 +102,6 @@ def register_blueprints(app):
         translation_events_bp,
         translation_concurrency_bp,
         translation_queue_bp,
+        post_processing_bp,
     ]:
         app.register_blueprint(blueprint)

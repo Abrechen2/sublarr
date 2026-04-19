@@ -51,9 +51,7 @@ class PostProcessingPipeline:
                 elapsed = int((time.monotonic() - op_start) * 1000)
                 logger.warning("Op %s raised: %s", op_id, exc)
                 results.append(
-                    OpResult(
-                        op_id=op_id, ok=False, duration_ms=elapsed, message=str(exc)
-                    )
+                    OpResult(op_id=op_id, ok=False, duration_ms=elapsed, message=str(exc))
                 )
                 if cls.abort_on_error:
                     break
