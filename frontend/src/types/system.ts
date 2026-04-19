@@ -639,3 +639,52 @@ export interface SupportPreview {
   diagnostic: SupportDiagnostic
   redaction_summary: SupportRedactionSummary
 }
+
+// ─── Scheduler — Phase 5 Rollout 2 ───────────────────────────────────────────
+
+export type TriggerInterval = {
+  type: 'interval'
+  seconds?: number
+  minutes?: number
+  hours?: number
+}
+
+export type TriggerCron = {
+  type: 'cron'
+  year?: string
+  month?: string
+  day?: string
+  week?: string
+  day_of_week?: string
+  hour?: string
+  minute?: string
+  second?: string
+}
+
+export type Trigger = TriggerInterval | TriggerCron
+
+export type SchedulerStatus = 'ok' | 'error' | 'timeout' | 'missed' | 'skipped_overlap'
+export type SchedulerTriggeredBy = 'schedule' | 'manual' | 'startup'
+
+export type SchedulerJobRun = {
+  id: number
+  started_at: string | null
+  finished_at: string | null
+  duration_ms: number | null
+  status: SchedulerStatus
+  triggered_by: SchedulerTriggeredBy
+  error_type: string | null
+  error_msg: string | null
+}
+
+export type SchedulerJob = {
+  id: string
+  description: string
+  owner_module: string
+  trigger: Trigger
+  trigger_is_default: boolean
+  paused: boolean
+  next_run_time: string | null
+  last_run: Omit<SchedulerJobRun, 'id' | 'triggered_by'> | null
+  stats_7d: Record<SchedulerStatus, number>
+}

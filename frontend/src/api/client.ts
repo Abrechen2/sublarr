@@ -14,5 +14,6 @@ export * from './translation'
 export * from './providers'
 export * from './settings'
 export * from './system'
+export * from './scheduler'
 
 export default (await import('./core')).api
