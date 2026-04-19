@@ -2,6 +2,19 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _register_ollama_concurrency():
+    """Register the Ollama concurrency slot for LLMBackend orchestration."""
+    from translation.concurrency import get_concurrency, reset_for_tests
+
+    reset_for_tests()
+    get_concurrency().register("ollama", 3)
+    yield
+    reset_for_tests()
+
 
 def _make_backend(use_chat_api: bool = False, system_prompt: str = ""):
     from translation.ollama import OllamaBackend
@@ -58,41 +71,67 @@ class TestBuildSystemPrompt:
 
 
 class TestChatApiDispatch:
-    def test_legacy_path_calls_generate(self):
+    """V9+ chat-API dispatch routes through _call_api to /api/chat or /api/generate."""
+
+    @patch("translation.ollama.requests.post")
+    def test_legacy_path_hits_generate_endpoint(self, mock_post):
         backend = _make_backend(use_chat_api=False)
-        backend._call_ollama = MagicMock(return_value="1: Hallo")
-        backend._call_ollama_chat = MagicMock()
-        with (
-            patch("translation.llm_utils.parse_llm_response", return_value=["Hallo"]),
-            patch("translation.llm_utils.has_cjk_hallucination", return_value=False),
-        ):
-            backend.translate_batch(["Hello"], "en", "de")
-        backend._call_ollama.assert_called_once()
-        backend._call_ollama_chat.assert_not_called()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "response": "1: Hallo",
+            "prompt_eval_count": 5,
+            "eval_count": 3,
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_post.return_value = mock_resp
 
-    def test_chat_path_calls_chat_api(self):
+        backend.translate_batch(["Hello"], "en", "de")
+
+        assert mock_post.called
+        # Find the call — tests run _verify_line_count too, but 1 line matches
+        call_urls = [call.args[0] for call in mock_post.call_args_list]
+        assert any(u.endswith("/api/generate") for u in call_urls)
+        assert not any(u.endswith("/api/chat") for u in call_urls)
+
+    @patch("translation.ollama.requests.post")
+    def test_chat_path_hits_chat_endpoint(self, mock_post):
         backend = _make_backend(use_chat_api=True, system_prompt="You translate.")
-        backend._call_ollama = MagicMock()
-        backend._call_ollama_chat = MagicMock(return_value="Hallo")
-        with (
-            patch("translation.llm_utils.parse_llm_response", return_value=["Hallo"]),
-            patch("translation.llm_utils.has_cjk_hallucination", return_value=False),
-        ):
-            backend.translate_batch(["Hello"], "en", "de")
-        backend._call_ollama_chat.assert_called_once()
-        backend._call_ollama.assert_not_called()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "message": {"content": "Hallo"},
+            "prompt_eval_count": 5,
+            "eval_count": 3,
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_post.return_value = mock_resp
 
-    def test_series_context_passed_through(self):
+        backend.translate_batch(["Hello"], "en", "de")
+
+        call_urls = [call.args[0] for call in mock_post.call_args_list]
+        assert any(u.endswith("/api/chat") for u in call_urls)
+        assert not any(u.endswith("/api/generate") for u in call_urls)
+
+    @patch("translation.ollama.requests.post")
+    def test_series_context_passed_through(self, mock_post):
         backend = _make_backend(use_chat_api=True, system_prompt="Base. {series_context}")
-        backend._call_ollama_chat = MagicMock(return_value="Hallo")
-        with (
-            patch("translation.llm_utils.parse_llm_response", return_value=["Hallo"]),
-            patch("translation.llm_utils.has_cjk_hallucination", return_value=False),
-        ):
-            backend.translate_batch(["Hello"], "en", "de", series_context="Serie: Naruto.")
-        call_args = backend._call_ollama_chat.call_args
-        system_arg = call_args[0][0]
-        assert "Naruto" in system_arg
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "message": {"content": "Hallo"},
+            "prompt_eval_count": 5,
+            "eval_count": 3,
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_post.return_value = mock_resp
+
+        backend.translate_batch(["Hello"], "en", "de", series_context="Serie: Naruto.")
+
+        # System message should contain the injected series context
+        sent_payload = mock_post.call_args.kwargs["json"]
+        system_msg = next(m for m in sent_payload["messages"] if m["role"] == "system")
+        assert "Naruto" in system_msg["content"]
 
 
 class TestCallOllamaChat:
@@ -107,8 +146,6 @@ class TestCallOllamaChat:
         assert result == "Hallo Welt"
 
     def test_raises_on_missing_message_key(self):
-        import pytest
-
         backend = _make_backend(use_chat_api=True)
         mock_resp = MagicMock()
         mock_resp.status_code = 200

@@ -1,8 +1,10 @@
 """Tests for translation.ollama — Ollama translation backend.
 
 Complements test_ollama_v9.py (which tests V9 chat-API specific features)
-by covering core translate_batch, _call_ollama, _call_ollama_chat,
-health_check, single-line fallback, and error handling paths.
+by covering config properties, the legacy ``_call_ollama`` /
+``_call_ollama_chat`` helpers that back health checks and tooling, the new
+LLMBackend hooks (_build_request / _call_api / _parse_response), and
+health_check.
 """
 
 from unittest.mock import MagicMock, patch
@@ -10,7 +12,22 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from translation.base import TranslationResult
+from translation.base import TranslationResult  # noqa: F401 — retained for type parity
+
+
+@pytest.fixture(autouse=True)
+def _register_ollama_concurrency():
+    """Ensure the Ollama semaphore is registered for LLMBackend orchestration.
+
+    LLMBackend.translate_batch acquires a slot from get_concurrency();
+    without registration the slot() context manager raises KeyError.
+    """
+    from translation.concurrency import get_concurrency, reset_for_tests
+
+    reset_for_tests()
+    get_concurrency().register("ollama", 3)
+    yield
+    reset_for_tests()
 
 
 def _make_backend(**config_overrides):
@@ -62,6 +79,22 @@ class TestOllamaBackendAttributes:
     def test_get_usage_returns_empty_dict(self):
         backend = _make_backend()
         assert backend.get_usage() == {}
+
+    def test_is_llm_backend_subclass(self):
+        """OllamaBackend must inherit from LLMBackend (Phase A1)."""
+        from translation.llm_base import LLMBackend
+        from translation.ollama import OllamaBackend
+
+        assert issubclass(OllamaBackend, LLMBackend)
+
+    def test_cost_is_zero(self):
+        """Self-hosted backend: price sheet declares zero for Ollama."""
+        from decimal import Decimal
+
+        from translation.ollama import OllamaBackend
+
+        assert OllamaBackend.cost_per_1m_tokens_in == Decimal("0")
+        assert OllamaBackend.cost_per_1m_tokens_out == Decimal("0")
 
 
 class TestConfigProperties:
@@ -267,57 +300,140 @@ class TestCallOllamaChat:
             backend._call_ollama_chat("system", "user")
 
 
-class TestTranslateBatch:
-    """Tests for translate_batch with generate API."""
+class TestLLMBackendHooks:
+    """Tests for the LLMBackend integration (new _build_request/_call_api/_parse_response)."""
 
-    def test_empty_lines_returns_success(self):
-        backend = _make_backend()
-        result = backend.translate_batch([], "en", "de")
-        assert result.success is True
-        assert result.translated_lines == []
+    def test_assemble_messages_generate_mode_is_single_user(self):
+        backend = _make_backend(use_chat_api="false")
+        msgs = backend._assemble_messages(
+            ["Hello"], "en", "de", glossary_entries=None, series_context=None
+        )
+        assert len(msgs) == 1
+        assert msgs[0]["role"] == "user"
 
-    @patch("translation.ollama.parse_llm_response", return_value=["Hallo"])
-    @patch("translation.ollama.has_cjk_hallucination", return_value=False)
-    @patch("translation.ollama.build_translation_prompt", return_value="prompt")
+    def test_assemble_messages_chat_mode_has_system(self):
+        backend = _make_backend(use_chat_api="true", system_prompt="You translate.")
+        msgs = backend._assemble_messages(
+            ["Hello"], "en", "de", glossary_entries=None, series_context=None
+        )
+        assert len(msgs) == 2
+        assert msgs[0]["role"] == "system"
+        assert msgs[1]["role"] == "user"
+        assert "You translate" in msgs[0]["content"]
+
+    def test_build_request_generate_mode(self):
+        backend = _make_backend(use_chat_api="false")
+        msgs = [{"role": "user", "content": "TRAINED PROMPT"}]
+        payload = backend._build_request(msgs, max_tokens=1000)
+        assert payload["_mode"] == "generate"
+        assert payload["model"] == "test-model"
+        assert payload["prompt"] == "TRAINED PROMPT"
+        assert payload["stream"] is False
+        assert payload["options"]["temperature"] == 0.3
+
+    def test_build_request_chat_mode(self):
+        backend = _make_backend(use_chat_api="true")
+        msgs = [
+            {"role": "system", "content": "sys"},
+            {"role": "user", "content": "usr"},
+        ]
+        payload = backend._build_request(msgs, max_tokens=1000)
+        assert payload["_mode"] == "chat"
+        assert payload["messages"] == msgs
+        assert payload["options"]["num_ctx"] == 4096
+
     @patch("translation.ollama.requests.post")
-    def test_successful_batch_translation(self, mock_post, mock_prompt, mock_cjk, mock_parse):
-        backend = _make_backend()
+    def test_call_api_routes_generate_to_generate_endpoint(self, mock_post):
+        backend = _make_backend(use_chat_api="false")
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.json.return_value = {"response": "1: Hallo"}
+        mock_resp.json.return_value = {"response": "Hallo"}
         mock_resp.raise_for_status = MagicMock()
         mock_post.return_value = mock_resp
 
-        result = backend.translate_batch(["Hello"], "en", "de")
+        raw = backend._call_api(
+            {"_mode": "generate", "model": "test-model", "prompt": "x", "options": {}},
+            timeout_s=10,
+        )
 
-        assert result.success is True
-        assert result.translated_lines == ["Hallo"]
-        assert result.backend_name == "ollama"
-        assert result.characters_used == 5
-        assert result.response_time_ms >= 0
+        call_url = mock_post.call_args[0][0]
+        assert call_url.endswith("/api/generate")
+        assert raw["_mode"] == "generate"
+        assert raw["response"] == "Hallo"
 
-    @patch("translation.ollama.parse_llm_response", return_value=None)
-    @patch("translation.ollama.build_translation_prompt", return_value="prompt")
     @patch("translation.ollama.requests.post")
-    def test_line_count_mismatch_falls_back_to_singles(self, mock_post, mock_prompt, mock_parse):
-        """When batch parsing fails for all retries, falls back to single-line mode."""
-        backend = _make_backend(max_retries="1")
+    def test_call_api_routes_chat_to_chat_endpoint(self, mock_post):
+        backend = _make_backend(use_chat_api="true")
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.json.return_value = {"response": "Wrong output"}
+        mock_resp.json.return_value = {"message": {"content": "Hallo"}}
         mock_resp.raise_for_status = MagicMock()
         mock_post.return_value = mock_resp
 
-        # The fallback single-line mode also calls _call_ollama, which will
-        # also return "Wrong output", so parse will fail there too.
-        # With max_retries=1 it will keep original lines.
-        result = backend.translate_batch(["Hello"], "en", "de")
+        raw = backend._call_api(
+            {"_mode": "chat", "model": "test-model", "messages": []},
+            timeout_s=10,
+        )
 
-        # Result depends on whether fallback single-line mode succeeded
-        # In this case parse returns None for batch, then single line fallback
-        # re-uses _call_ollama which returns "Wrong output" stripped to "Wrong output"
-        # single-line parse strips numbering prefix -> "Wrong output"
-        assert result.backend_name == "ollama"
+        call_url = mock_post.call_args[0][0]
+        assert call_url.endswith("/api/chat")
+        assert raw["_mode"] == "chat"
+        assert raw["message"]["content"] == "Hallo"
+
+    @patch("translation.ollama.requests.post")
+    def test_call_api_rate_limit_raises(self, mock_post):
+        backend = _make_backend()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 429
+        mock_resp.headers = {"Retry-After": "5"}
+        mock_post.return_value = mock_resp
+
+        with pytest.raises(RuntimeError, match="rate limited"):
+            backend._call_api({"_mode": "generate"}, timeout_s=10)
+
+    def test_parse_response_generate_splits_numbered_lines(self):
+        backend = _make_backend()
+        from translation.llm_base import LLMResponse
+
+        raw = {
+            "_mode": "generate",
+            "response": "1: Hallo\n2: Welt",
+            "prompt_eval_count": 10,
+            "eval_count": 12,
+            "model": "test-model",
+            "done_reason": "stop",
+        }
+        resp = backend._parse_response(raw)
+        assert isinstance(resp, LLMResponse)
+        assert resp.translations == ["Hallo", "Welt"]
+        assert resp.tokens_in == 10
+        assert resp.tokens_out == 12
+        assert resp.finish_reason == "stop"
+
+    def test_parse_response_chat_reads_message_content(self):
+        backend = _make_backend()
+        raw = {
+            "_mode": "chat",
+            "message": {"content": "Hallo\nWelt"},
+            "prompt_eval_count": 5,
+            "eval_count": 7,
+        }
+        resp = backend._parse_response(raw)
+        assert resp.translations == ["Hallo", "Welt"]
+        assert resp.tokens_in == 5
+        assert resp.tokens_out == 7
+
+    def test_parse_response_chat_missing_content_raises(self):
+        backend = _make_backend()
+        raw = {"_mode": "chat", "done": True}
+        with pytest.raises(RuntimeError, match="message.content"):
+            backend._parse_response(raw)
+
+    def test_parse_response_generate_missing_response_key_raises(self):
+        backend = _make_backend()
+        raw = {"_mode": "generate", "done": True}
+        with pytest.raises(RuntimeError, match="missing 'response' key"):
+            backend._parse_response(raw)
 
 
 class TestHealthCheck:
@@ -402,41 +518,3 @@ class TestHealthCheck:
         healthy, msg = backend.health_check()
         assert healthy is False
         assert "unexpected error" in msg
-
-
-class TestTranslateSingles:
-    """Tests for the single-line fallback path (_translate_singles)."""
-
-    @patch("translation.ollama.has_cjk_hallucination", return_value=False)
-    @patch("translation.ollama.build_translation_prompt", return_value="prompt")
-    @patch("translation.ollama.requests.post")
-    def test_successful_single_line_fallback(self, mock_post, mock_prompt, mock_cjk):
-        backend = _make_backend(max_retries="1")
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {"response": "Hallo"}
-        mock_resp.raise_for_status = MagicMock()
-        mock_post.return_value = mock_resp
-
-        import time
-
-        result = backend._translate_singles(["Hello"], "en", "de", None, time.time())
-
-        assert result.success is True
-        assert result.translated_lines == ["Hallo"]
-
-    @patch("translation.ollama.has_cjk_hallucination", return_value=False)
-    @patch("translation.ollama.build_translation_prompt", return_value="prompt")
-    @patch("translation.ollama.requests.post")
-    def test_too_many_failures_returns_error(self, mock_post, mock_prompt, mock_cjk):
-        """When > 50% of lines fail, result should indicate failure."""
-        backend = _make_backend(max_retries="1")
-        mock_post.side_effect = requests.RequestException("Connection refused")
-
-        import time
-
-        result = backend._translate_singles(["Hello", "World"], "en", "de", None, time.time())
-
-        # Both lines fail, fall back to originals -> 2/2 = 100% fallback > 50%
-        assert result.success is False
-        assert "Too many line failures" in result.error

@@ -1,29 +1,35 @@
 """Ollama translation backend.
 
-Migrated from ollama_client.py into the TranslationBackend ABC.
-Preserves all existing translation logic: batch translation, retry with
-exponential backoff, CJK hallucination detection, and single-line fallback.
+Inherits from LLMBackend (Phase A1 telemetry) — the shared orchestration
+(concurrency, retry on line-count mismatch, cost+event write) lives in
+:mod:`translation.llm_base`. This module supplies the three provider hooks
+(_build_request / _call_api / _parse_response) plus an _assemble_messages
+override that preserves the V8/V9-trained prompt format built by
+:mod:`translation.llm_utils.build_translation_prompt`.
+
+Helper methods ``_call_ollama`` / ``_call_ollama_chat`` / ``health_check``
+remain available for external callers and tests.
 """
 
+from __future__ import annotations
+
 import logging
-import time
+import re
+from decimal import Decimal
 
 import requests
 
-from translation.base import TranslationBackend, TranslationResult
-from translation.llm_utils import (
-    build_translation_prompt,
-    has_cjk_hallucination,
-    parse_llm_response,
-)
+from translation.llm_base import LLMBackend, LLMResponse
+from translation.llm_utils import build_translation_prompt
 
 logger = logging.getLogger(__name__)
 
 
-class OllamaBackend(TranslationBackend):
+class OllamaBackend(LLMBackend):
     """Ollama (Local LLM) translation backend.
 
-    Uses the Ollama /api/generate endpoint for text translation.
+    Uses the Ollama /api/generate or /api/chat endpoint. The selection is
+    driven by the ``use_chat_api`` config flag (V9+ models).
     Config values are loaded from config_entries (backend.ollama.*) by the
     TranslationManager, with fallback to Pydantic Settings for migration.
     """
@@ -33,6 +39,12 @@ class OllamaBackend(TranslationBackend):
     supports_glossary = True  # Via prompt injection
     supports_batch = True
     max_batch_size = 25
+
+    # LLMBackend class-level contract: self-hosted, no cost.
+    default_model = "qwen2.5:14b-instruct"
+    cost_per_1m_tokens_in = Decimal("0")
+    cost_per_1m_tokens_out = Decimal("0")
+    timeout_s = 120
 
     config_fields = [
         {
@@ -137,6 +149,11 @@ class OllamaBackend(TranslationBackend):
     def _model(self) -> str:
         return self.config.get("model", "qwen2.5:14b-instruct")
 
+    # Expose `model` for the LLMBackend contract — parity with other LLM backends.
+    @property
+    def model(self) -> str:
+        return self._model
+
     @property
     def _temperature(self) -> float:
         try:
@@ -189,165 +206,168 @@ class OllamaBackend(TranslationBackend):
             return base.replace("{series_context}", series_context)
         return f"{base} {series_context}"
 
-    def translate_batch(
-        self,
-        lines: list[str],
-        source_lang: str,
-        target_lang: str,
-        glossary_entries: list[dict] | None = None,
-        series_context: str | None = None,
-    ) -> TranslationResult:
-        """Translate a batch of subtitle lines via Ollama.
+    # ------------------------------------------------------------------ #
+    # LLMBackend hooks
+    # ------------------------------------------------------------------ #
 
-        Includes retry logic with exponential backoff and CJK hallucination
-        detection. Falls back to single-line translation if batch fails.
-        """
-        if not lines:
-            return TranslationResult(
-                translated_lines=[],
-                backend_name=self.name,
-                success=True,
-            )
-
-        start_time = time.time()
-
-        for attempt in range(1, self._max_retries + 1):
-            try:
-                if self._use_chat_api:
-                    system = self._build_system_prompt(series_context)
-                    user = build_translation_prompt(
-                        lines, source_lang, target_lang, glossary_entries
-                    )
-                    response = self._call_ollama_chat(system, user)
-                else:
-                    prompt = build_translation_prompt(
-                        lines, source_lang, target_lang, glossary_entries
-                    )
-                    response = self._call_ollama(prompt)
-                parsed = parse_llm_response(response, len(lines))
-                if parsed is not None:
-                    # Check for CJK hallucination in any line
-                    tainted = [i for i, t in enumerate(parsed) if has_cjk_hallucination(t)]
-                    if tainted:
-                        logger.warning(
-                            "Attempt %d: CJK hallucination in %d lines (indices %s), retrying...",
-                            attempt,
-                            len(tainted),
-                            tainted,
-                        )
-                    else:
-                        elapsed_ms = (time.time() - start_time) * 1000
-                        return TranslationResult(
-                            translated_lines=parsed,
-                            backend_name=self.name,
-                            response_time_ms=elapsed_ms,
-                            characters_used=sum(len(l) for l in lines),
-                            success=True,
-                        )
-                else:
-                    logger.warning("Attempt %d: line count mismatch, retrying...", attempt)
-                    f"Expected {len(lines)} lines, got different count"
-            except (requests.RequestException, RuntimeError) as e:
-                logger.warning("Attempt %d failed: %s", attempt, e)
-                str(e)
-
-            if attempt < self._max_retries:
-                wait = self._backoff_base * (2 ** (attempt - 1))
-                logger.info("Waiting %ds before retry...", wait)
-                time.sleep(wait)
-
-        # Fallback: translate lines individually
-        logger.warning("Batch translation failed, falling back to single-line mode")
-        return self._translate_singles(
-            lines, source_lang, target_lang, glossary_entries, start_time, series_context
-        )
-
-    def _translate_singles(
+    def _assemble_messages(
         self,
         lines: list[str],
         source_lang: str,
         target_lang: str,
         glossary_entries: list[dict] | None,
-        start_time: float,
         series_context: str | None = None,
-    ) -> TranslationResult:
-        """Translate lines one by one as fallback, with retries."""
-        import re
+        strict: bool = False,
+    ) -> list[dict]:
+        """Build OpenAI-style messages using the V8/V9-trained prompt format.
 
-        results = []
-        for i, line in enumerate(lines):
-            last_error = None
+        Generate-API mode (legacy V8 fine-tune): everything goes in one user
+        message — the model was trained on the numbered/glossary format built
+        by ``build_translation_prompt``. We don't use a separate system
+        message so we don't drift from training.
 
-            for attempt in range(1, self._max_retries + 1):
-                try:
-                    if self._use_chat_api:
-                        system = self._build_system_prompt(series_context)
-                        user = build_translation_prompt(
-                            [line], source_lang, target_lang, glossary_entries
-                        )
-                        response = self._call_ollama_chat(system, user)
-                    else:
-                        prompt = build_translation_prompt(
-                            [line], source_lang, target_lang, glossary_entries
-                        )
-                        response = self._call_ollama(prompt)
-                    translated = re.sub(r"^\d+[\.:]\s*", "", response.strip().split("\n")[0])
-                    if has_cjk_hallucination(translated):
-                        logger.warning(
-                            "Single line %d, attempt %d: CJK hallucination, retrying",
-                            i,
-                            attempt,
-                        )
-                        last_error = "CJK hallucination detected"
-                    else:
-                        results.append(translated)
-                        last_error = None
-                        break
-                except (requests.RequestException, RuntimeError) as e:
-                    logger.warning("Single line %d, attempt %d failed: %s", i, attempt, e)
-                    last_error = str(e)
-                if attempt < self._max_retries:
-                    wait = self._backoff_base * (2 ** (attempt - 1))
-                    time.sleep(wait)
+        Chat-API mode (V9+): a separate system message carries role/tone;
+        the user message still uses the trained numbered format.
+        """
+        user_content = build_translation_prompt(lines, source_lang, target_lang, glossary_entries)
+        if self._use_chat_api:
+            system_content = self._build_system_prompt(series_context)
+            return [
+                {"role": "system", "content": system_content},
+                {"role": "user", "content": user_content},
+            ]
+        return [{"role": "user", "content": user_content}]
 
-            if last_error is not None:
-                logger.error(
-                    "Failed to translate line %d after %d attempts, keeping original",
-                    i,
-                    self._max_retries,
+    def _build_request(self, messages: list[dict], max_tokens: int) -> dict:
+        """Build the Ollama request payload.
+
+        Wraps the messages assembled upstream into either ``/api/chat`` or
+        ``/api/generate`` shape. ``mode`` is consumed by ``_call_api`` to
+        pick the right endpoint.
+        """
+        if self._use_chat_api:
+            return {
+                "_mode": "chat",
+                "model": self._model,
+                "messages": messages,
+                "stream": False,
+                "options": {
+                    "temperature": self._temperature,
+                    "num_predict": max(max_tokens, 4096),
+                    "num_ctx": 4096,
+                },
+            }
+        # Generate-API: the single user message carries the full trained prompt.
+        prompt = next(
+            (m["content"] for m in messages if m.get("role") == "user"),
+            "",
+        )
+        return {
+            "_mode": "generate",
+            "model": self._model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": self._temperature,
+                "num_predict": max(max_tokens, 4096),
+            },
+        }
+
+    def _call_api(self, payload: dict, timeout_s: int) -> dict:
+        """Execute the HTTP call against /api/generate or /api/chat.
+
+        Returns the raw JSON. Raises RuntimeError on API-level errors
+        (including 429 rate-limiting) and ``requests.RequestException``
+        on network errors.
+        """
+        mode = payload.pop("_mode", "generate")
+        endpoint = "/api/chat" if mode == "chat" else "/api/generate"
+        effective_timeout = timeout_s or self._request_timeout
+
+        resp = requests.post(
+            f"{self._url}{endpoint}",
+            json=payload,
+            timeout=effective_timeout,
+        )
+
+        if resp.status_code == 429:
+            retry_after = resp.headers.get("Retry-After")
+            try:
+                wait_seconds = int(retry_after) if retry_after else 60
+            except ValueError:
+                wait_seconds = 60
+            logger.warning("Ollama API rate limited, waiting %ds", wait_seconds)
+            raise RuntimeError(f"Ollama rate limited, retry after {wait_seconds}s")
+
+        resp.raise_for_status()
+
+        try:
+            data = resp.json()
+        except ValueError as e:
+            raise RuntimeError("Ollama returned invalid JSON response") from e
+
+        if "error" in data:
+            raise RuntimeError(f"Ollama error: {data['error']}")
+
+        # Stash mode on the JSON so _parse_response knows where to find content.
+        data["_mode"] = mode
+        return data
+
+    def _parse_response(self, raw: dict) -> LLMResponse:
+        """Extract translations + token counts from the Ollama response.
+
+        Ollama returns prompt/eval token counts on both /api/generate and
+        /api/chat as ``prompt_eval_count`` / ``eval_count``. We use
+        :func:`parse_llm_response` to split numbered output into individual
+        lines; when parsing fails (line-count mismatch) we fall back to
+        a plain split-on-newline so the LLMBackend retry path can engage.
+        """
+        mode = raw.pop("_mode", "generate")
+        if mode == "chat":
+            msg = raw.get("message") or {}
+            content = msg.get("content")
+            if content is None:
+                raise RuntimeError(
+                    f"Ollama chat response missing 'message.content': {list(raw.keys())}"
                 )
-                results.append(line)
+        else:
+            if "response" not in raw:
+                raise RuntimeError(f"Ollama response missing 'response' key: {list(raw.keys())}")
+            content = raw["response"]
 
-        elapsed_ms = (time.time() - start_time) * 1000
-        fallback_count = sum(
-            1 for orig, trans in zip(lines, results) if orig.strip() == trans.strip()
+        text = (content or "").strip()
+
+        # LLMBackend._verify_line_count handles length validation and retry.
+        # Split on newlines and strip the V8-style "N: " / "N. " numbering
+        # the fine-tuned model emits.
+        raw_lines = [ln for ln in text.split("\n") if ln.strip()]
+        cleaned = [re.sub(r"^\d+[\.:]\s*", "", ln) for ln in raw_lines]
+        translations = cleaned or [text]
+
+        tokens_in = int(raw.get("prompt_eval_count") or 0)
+        tokens_out = int(raw.get("eval_count") or 0)
+        # total_duration is in nanoseconds when present.
+        raw_latency_ms = int((raw.get("total_duration") or 0) / 1_000_000)
+
+        return LLMResponse(
+            translations=translations,
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+            model=raw.get("model", self._model),
+            finish_reason=raw.get("done_reason"),
+            raw_latency_ms=raw_latency_ms,
         )
-        if fallback_count > len(lines) * 0.5:
-            return TranslationResult(
-                success=False,
-                translated_lines=[],
-                backend_name=self.name,
-                response_time_ms=elapsed_ms,
-                characters_used=sum(len(l) for l in lines),
-                error=f"Too many line failures: {fallback_count}/{len(lines)} fell back to original",
-            )
-        return TranslationResult(
-            translated_lines=results,
-            backend_name=self.name,
-            response_time_ms=elapsed_ms,
-            characters_used=sum(len(l) for l in lines),
-            success=True,
-        )
+
+    # ------------------------------------------------------------------ #
+    # Legacy helpers (kept for health_check + tests + external callers)
+    # ------------------------------------------------------------------ #
 
     def _call_ollama(self, prompt: str) -> str:
-        """Make a single Ollama API call.
+        """Single Ollama /api/generate call returning the stripped response text.
 
-        Returns:
-            Model response text
-
-        Raises:
-            RuntimeError: On API errors or invalid responses
-            requests.RequestException: On network errors
+        Preserved for backward compatibility with health-check code and
+        existing tests. The new translate_batch path goes through
+        :meth:`_call_api` directly.
         """
         payload = {
             "model": self._model,
@@ -364,7 +384,6 @@ class OllamaBackend(TranslationBackend):
             timeout=self._request_timeout,
         )
 
-        # Handle rate limiting (429) before raise_for_status
         if resp.status_code == 429:
             retry_after = resp.headers.get("Retry-After")
             if retry_after:
@@ -381,8 +400,8 @@ class OllamaBackend(TranslationBackend):
 
         try:
             data = resp.json()
-        except ValueError:
-            raise RuntimeError("Ollama returned invalid JSON response")
+        except ValueError as e:
+            raise RuntimeError("Ollama returned invalid JSON response") from e
 
         if "error" in data:
             raise RuntimeError(f"Ollama error: {data['error']}")
@@ -393,15 +412,7 @@ class OllamaBackend(TranslationBackend):
         return data["response"].strip()
 
     def _call_ollama_chat(self, system_prompt: str, user_prompt: str) -> str:
-        """Make a single Ollama Chat API call (/api/chat) for V9+ models.
-
-        Returns:
-            Model response text from message.content
-
-        Raises:
-            RuntimeError: On API errors, invalid responses, or missing message key
-            requests.RequestException: On network errors
-        """
+        """Single Ollama /api/chat call returning the stripped message content."""
         payload = {
             "model": self._model,
             "messages": [
@@ -425,8 +436,8 @@ class OllamaBackend(TranslationBackend):
 
         try:
             data = resp.json()
-        except ValueError:
-            raise RuntimeError("Ollama returned invalid JSON response")
+        except ValueError as e:
+            raise RuntimeError("Ollama returned invalid JSON response") from e
 
         if "error" in data:
             raise RuntimeError(f"Ollama error: {data['error']}")
@@ -467,3 +478,10 @@ class OllamaBackend(TranslationBackend):
     def get_usage(self) -> dict:
         """Ollama has no usage tracking -- returns empty dict."""
         return {}
+
+    # Backward-compat parsed_llm_response re-exports in case legacy callers
+    # still reach into this module for those names.
+    # (build_translation_prompt + parse_llm_response remain importable via
+    # ``translation.llm_utils`` directly; the legacy ``from translation.ollama
+    # import build_translation_prompt`` path continues to work via the module
+    # imports above.)
