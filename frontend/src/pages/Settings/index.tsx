@@ -16,6 +16,7 @@
  * /settings/automation/post-processing    → AutomationPostProcessingPage
  * /settings/translation                   → TranslationSettings
  * /settings/translation/cost-memory        → CostMemoryPage
+ * /settings/translation/queue              → QueueDashboard
  * /settings/notifications                 → NotificationsSettings
  * /settings/system                        → SystemSettings
  * /settings/system/hooks                  → SystemHooksPage
@@ -75,6 +76,11 @@ const CostMemoryPage = lazy(() =>
     default: m.CostMemoryPage,
   })),
 )
+const QueueDashboard = lazy(() =>
+  import('./translation/QueueDashboard').then((m) => ({
+    default: m.QueueDashboard,
+  })),
+)
 const NotificationsSettings = lazy(() =>
   import('./NotificationsSettings').then((m) => ({ default: m.NotificationsSettings })),
 )
@@ -119,6 +125,14 @@ export function SettingsPage() {
               element={
                 <Suspense fallback={<FormSkeleton />}>
                   <CostMemoryPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="translation/queue"
+              element={
+                <Suspense fallback={<FormSkeleton />}>
+                  <QueueDashboard />
                 </Suspense>
               }
             />

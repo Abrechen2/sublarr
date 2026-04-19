@@ -81,6 +81,21 @@
     "concurrency": {
       "limit": "Concurrent requests",
       "hint": "Number of parallel requests to this backend. Higher = faster for large batches; lower = gentler on rate-limited APIs."
+    },
+    "queue": {
+      "title": "Translation Queue",
+      "subtitle": "Live status of running translation jobs",
+      "active": "Active ({{n}})",
+      "recent": "Recent ({{n}})",
+      "no_active": "No translations in progress.",
+      "no_recent": "No recent translations.",
+      "cancel": "Cancel",
+      "cancelling": "Cancelling…",
+      "cancel_requested": "Cancel requested — will stop after current batch",
+      "eta_unknown": "ETA unknown",
+      "eta_seconds": "~{{n}}s remaining",
+      "eta_minutes": "~{{n}}m remaining",
+      "load_error": "Could not load queue state."
     }
   },
   "automation": {

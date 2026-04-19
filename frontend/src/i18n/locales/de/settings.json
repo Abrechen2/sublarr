@@ -81,6 +81,21 @@
     "concurrency": {
       "limit": "Gleichzeitige Anfragen",
       "hint": "Anzahl paralleler Aufrufe an dieses Backend. Höher = schneller bei großen Batches, niedriger = schonender bei Rate-Limits."
+    },
+    "queue": {
+      "title": "Übersetzungs-Warteschlange",
+      "subtitle": "Live-Status laufender Übersetzungen",
+      "active": "Aktiv ({{n}})",
+      "recent": "Kürzlich ({{n}})",
+      "no_active": "Keine laufenden Übersetzungen.",
+      "no_recent": "Keine kürzlichen Übersetzungen.",
+      "cancel": "Abbrechen",
+      "cancelling": "Wird abgebrochen…",
+      "cancel_requested": "Abbruch angefordert — stoppt nach aktuellem Batch",
+      "eta_unknown": "Restzeit unbekannt",
+      "eta_seconds": "~{{n}}s verbleibend",
+      "eta_minutes": "~{{n}}m verbleibend",
+      "load_error": "Warteschlange konnte nicht geladen werden."
     }
   },
   "automation": {
