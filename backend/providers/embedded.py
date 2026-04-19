@@ -202,6 +202,23 @@ class EmbeddedSubtitlesProvider(SubtitleProvider):
             title = tags.get("title") or tags.get("handler_name") or ""
             track_name = f"{iso_lang}_{stream_index}.{ext}"
 
+            # Plan B5 — rank tracks by (language, forced, HI) match.
+            # Base bonus applies when language matches (already true here).
+            score_bonus = _EMBEDDED_SCORE_BONUS
+
+            # Forced flag preference
+            if getattr(query, "forced_only", False):
+                score_bonus += 15 if forced else -5
+
+            # HI preference — track is HI if title contains "sdh" or "cc"
+            title_lower = title.lower()
+            is_hi = ("sdh" in title_lower) or ("cc" in title_lower)
+            hi_pref = getattr(query, "hi_preference", "include")
+            if hi_pref == "prefer" and is_hi:
+                score_bonus += 10
+            elif hi_pref == "exclude" and is_hi:
+                score_bonus -= 999
+
             results.append(
                 SubtitleResult(
                     provider_name=self.name,
@@ -211,7 +228,7 @@ class EmbeddedSubtitlesProvider(SubtitleProvider):
                     filename=track_name,
                     download_url="",  # no URL — extracted locally
                     release_info=title or f"Embedded track {stream_index}",
-                    hearing_impaired="sdh" in title.lower() or "cc" in title.lower(),
+                    hearing_impaired=is_hi,
                     forced=forced,
                     matches={"series", "season", "episode"} if query.is_episode else {"title"},
                     provider_data={
@@ -219,7 +236,7 @@ class EmbeddedSubtitlesProvider(SubtitleProvider):
                         "stream_index": stream_index,
                         "sub_index": sub_index,
                         "codec": codec,
-                        "score_bonus": _EMBEDDED_SCORE_BONUS,
+                        "score_bonus": score_bonus,
                     },
                 )
             )

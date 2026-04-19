@@ -270,9 +270,7 @@ def save_subtitle(
             _fmt = getattr(result.format, "value", None) or "srt"
             result.content = _repair_bytes(result.content, fmt=str(_fmt))
     except Exception as _repair_err:
-        logger.warning(
-            "subtitle_repair skipped for %s: %s", result.subtitle_id, _repair_err
-        )
+        logger.warning("subtitle_repair skipped for %s: %s", result.subtitle_id, _repair_err)
 
     # Duplicate detection: skip write if identical content already exists on disk
     try:

@@ -31,6 +31,7 @@ def run_subtitle_repair(output_path: str) -> None:
     except Exception as exc:
         logger.warning("subtitle_repair on translate output skipped for %s: %s", output_path, exc)
 
+
 # Common English words that indicate a subtitle was not actually translated
 ENGLISH_MARKER_WORDS = {
     "the",
