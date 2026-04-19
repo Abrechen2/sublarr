@@ -86,10 +86,22 @@ def _decode_robust(data: bytes) -> str:
     return data.decode("windows-1252", errors="replace")
 
 
+_SRT_TIMESTAMP_RE = re.compile(r"(\b\d{2}:\d{2}:\d{2}),(\d{1,3})\b")
+
+
+def _pad_decimals(match: re.Match[str]) -> str:
+    hms = match.group(1)
+    ms = match.group(2)
+    return f"{hms},{ms.ljust(3, '0')}"
+
+
 def repair_srt(text: str) -> str:
-    """Repair SRT-specific defects. (Tasks 2+ extend this.)"""
-    # Base implementation: just returns newline-normalized text.
-    # Task 2 adds timestamp-decimal repair; Task 3 adds overlap detection.
+    """Repair SRT-specific defects.
+
+    - Pad 1- and 2-digit millisecond decimals in timestamps to 3 digits
+      (e.g. `00:00:01,4` → `00:00:01,400`).
+    """
+    text = _SRT_TIMESTAMP_RE.sub(_pad_decimals, text)
     return text
 
 
