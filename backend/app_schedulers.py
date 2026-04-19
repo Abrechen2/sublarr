@@ -1,8 +1,10 @@
 """Background-scheduler startup for the Sublarr Flask app.
 
-Extracted from app.py. Called by create_app() (when not testing) to start
-the wanted-scanner loop, DB backup job, standalone watcher, cleanup scheduler,
-upgrade-candidate scheduler and AniDB absolute-episode sync.
+Phase 5 / P4: the four legacy threading.Timer schedulers (wanted_scanner,
+cleanup, upgrade, anidb_sync) have been migrated into APScheduler JobSpecs
+registered in services/scheduler.py. ``bootstrap_scheduler`` therefore
+runs FIRST; then the per-site adapter functions push the user-configured
+interval through to APScheduler via ``scheduler.modify_trigger``.
 """
 
 import logging
@@ -13,7 +15,22 @@ logger = logging.getLogger(__name__)
 
 
 def _start_schedulers(settings, app=None):
-    """Start background schedulers (wanted scanner, database backup, standalone watcher, cleanup)."""  # noqa: D200
+    """Start background schedulers.
+
+    Order matters: APScheduler bootstraps first so the per-site adapters
+    can call ``modify_trigger`` on the live JobSpecs.
+    """
+    # 1. APScheduler bootstrap (registers JobSpecs + starts scheduler).
+    if app is not None:
+        from services.scheduler import bootstrap_scheduler
+
+        try:
+            bootstrap_scheduler(app)
+        except Exception:
+            logger.error("scheduler: bootstrap failed", exc_info=True)
+            app.extensions["scheduler"] = None
+
+    # 2. Per-site adapters — push current config intervals into APScheduler.
     from services.wanted_scanner import get_scanner
 
     scanner = get_scanner()
@@ -60,12 +77,3 @@ def _start_schedulers(settings, app=None):
             start_anidb_sync_scheduler(app)
         except Exception as e:
             logging.getLogger(__name__).warning("AniDB sync scheduler start failed: %s", e)
-
-    if app is not None:
-        from services.scheduler import bootstrap_scheduler
-
-        try:
-            bootstrap_scheduler(app)
-        except Exception:
-            logger.error("scheduler: bootstrap failed", exc_info=True)
-            app.extensions["scheduler"] = None

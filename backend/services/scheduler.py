@@ -645,8 +645,53 @@ SCHEDULED_JOBS: list[JobSpec] = []
 
 def _build_default_jobs() -> list[JobSpec]:
     """Build the canonical JobSpec list. Imports are lazy to avoid
-    import-time cycles against modules that themselves import scheduler."""
+    import-time cycles against modules that themselves import scheduler.
+
+    Phase 5 / P4: also registers the four migrated sites (5 JobSpecs) that
+    used to be driven by threading.Timer chains. Default intervals are read
+    lazily from config so subsequent settings-save calls can adjust them
+    via the per-site adapter (``start_cleanup_scheduler``, etc.).
+    """
+    from anidb_sync import anidb_sync_tick
+    from cleanup_scheduler import DEFAULT_INTERVAL_HOURS as CLEANUP_DEFAULT
+    from cleanup_scheduler import cleanup_tick
+    from services.wanted_scanner_scheduler import (
+        wanted_scanner_tick,
+        wanted_search_tick,
+    )
+    from upgrade_scheduler import upgrade_tick
     from utils.scheduler_retention import delete_old_job_runs
+
+    # Read wanted scan/search intervals at build time, falling back to
+    # conservative defaults. _build_default_jobs runs once per process so
+    # later settings saves flow through the adapter's modify_trigger path.
+    scan_interval_hours = 6
+    search_interval_hours = 24
+    upgrade_interval_hours = 168  # trigger floor; adapter pauses when 0
+    try:
+        from config import get_settings
+
+        settings = get_settings()
+        scan_interval_hours = max(1, int(settings.wanted_scan_interval_hours or 6))
+        search_interval_hours = max(1, int(settings.wanted_search_interval_hours or 24))
+        upgrade_cfg = int(getattr(settings, "upgrade_scan_interval_hours", 0) or 0)
+        if upgrade_cfg > 0:
+            upgrade_interval_hours = upgrade_cfg
+    except Exception:
+        logger.debug("scheduler: settings unavailable during _build_default_jobs", exc_info=True)
+
+    cleanup_interval_hours = CLEANUP_DEFAULT
+    try:
+        from db.repositories.config import ConfigRepository
+
+        val = ConfigRepository().get_config_entry("cleanup_schedule_interval_hours")
+        if val is not None:
+            cleanup_interval_hours = max(1, int(val))
+    except Exception:
+        logger.debug(
+            "scheduler: cleanup interval unavailable during _build_default_jobs",
+            exc_info=True,
+        )
 
     return [
         JobSpec(
@@ -656,6 +701,46 @@ def _build_default_jobs() -> list[JobSpec]:
             timeout_s=60,
             owner_module="services.scheduler",
             description="Delete old scheduler_job_runs rows per retention policy.",
+        ),
+        JobSpec(
+            id="cleanup",
+            func=cleanup_tick,
+            default_trigger=IntervalTrigger(hours=max(1, cleanup_interval_hours)),
+            timeout_s=3600,
+            owner_module="cleanup_scheduler",
+            description=("Run enabled cleanup rules (dedup, orphan files, format upgrade, ...)."),
+        ),
+        JobSpec(
+            id="upgrade_scan",
+            func=upgrade_tick,
+            default_trigger=IntervalTrigger(hours=max(1, upgrade_interval_hours)),
+            timeout_s=3600,
+            owner_module="upgrade_scheduler",
+            description="Scan subtitle_downloads for re-queue eligible upgrade candidates.",
+        ),
+        JobSpec(
+            id="anidb_sync",
+            func=anidb_sync_tick,
+            default_trigger=IntervalTrigger(hours=168),
+            timeout_s=1800,
+            owner_module="anidb_sync",
+            description="Weekly sync of AniDB absolute-episode mappings.",
+        ),
+        JobSpec(
+            id="wanted_scanner",
+            func=wanted_scanner_tick,
+            default_trigger=IntervalTrigger(hours=scan_interval_hours),
+            timeout_s=600,
+            owner_module="services.wanted_scanner",
+            description="Scan Sonarr/Radarr/standalone for episodes missing subtitles.",
+        ),
+        JobSpec(
+            id="wanted_search",
+            func=wanted_search_tick,
+            default_trigger=IntervalTrigger(hours=search_interval_hours),
+            timeout_s=900,
+            owner_module="services.wanted_scanner",
+            description="Search providers for all wanted items.",
         ),
     ]
 
