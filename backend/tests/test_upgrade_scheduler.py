@@ -197,6 +197,11 @@ class TestUpgradeSchedulerScanLogic:
         assert result["queued"] == 1
 
     def test_last_run_at_updated_after_scan(self):
+        # Reset the module-level state — previous tests may have populated it.
+        import upgrade_scheduler as _us
+
+        _us._state["last_run_at"] = None
+
         mock_app = MagicMock()
         scheduler = UpgradeScheduler(mock_app)
         assert scheduler.last_run_at is None
