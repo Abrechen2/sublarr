@@ -208,3 +208,37 @@ def test_legacy_sync_with_alass_preserves_dict_shape(tmp_path, monkeypatch):
     assert result_dict["engine"] == "alass"
     assert "output_path" in result_dict
     assert "backup_path" in result_dict
+
+
+# ─── API endpoint tests ──────────────────────────────────────────────────────
+
+
+def test_api_list_engines(client):
+    resp = client.get("/api/v1/sync/engines")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    names = [e["name"] for e in body["engines"]]
+    assert "ffsubsync" in names
+    assert "alass" in names
+    assert body["sanity_threshold_ms"] == 60_000
+    # Each engine entry carries the availability bool + timeout.
+    for entry in body["engines"]:
+        assert "available" in entry
+        assert isinstance(entry["available"], bool)
+        assert isinstance(entry["timeout_s"], int)
+
+
+def test_api_list_runs(client):
+    resp = client.get("/api/v1/sync/runs")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert "runs" in body
+    assert isinstance(body["runs"], list)
+
+
+def test_api_list_runs_respects_limit_cap(client):
+    # Limit above the cap (500) should be clamped without erroring.
+    resp = client.get("/api/v1/sync/runs?limit=9999")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert "runs" in body

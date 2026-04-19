@@ -40,6 +40,7 @@ def register_blueprints(app):
     from routes.subtitle_processor import bp as subtitle_processor_bp
     from routes.subtitles import bp as subtitles_bp
     from routes.sync import bp as sync_bp
+    from routes.sync_engines import bp as sync_engines_bp
     from routes.system import bp as system_bp
     from routes.system.scheduler import bp as scheduler_admin_bp
     from routes.tools import bp as tools_bp
@@ -103,5 +104,6 @@ def register_blueprints(app):
         translation_concurrency_bp,
         translation_queue_bp,
         post_processing_bp,
+        sync_engines_bp,
     ]:
         app.register_blueprint(blueprint)

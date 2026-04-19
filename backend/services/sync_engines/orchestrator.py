@@ -21,9 +21,7 @@ class SyncOrchestrator:
       - result.ok is False
     """
 
-    def __init__(
-        self, engines: list[BaseSyncEngine], sanity_threshold_ms: int = 60_000
-    ) -> None:
+    def __init__(self, engines: list[BaseSyncEngine], sanity_threshold_ms: int = 60_000) -> None:
         self.engines = engines
         self.sanity_threshold_ms = sanity_threshold_ms
 

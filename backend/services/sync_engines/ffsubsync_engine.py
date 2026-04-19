@@ -95,9 +95,7 @@ class FfsubsyncEngine(BaseSyncEngine):
         logger.info("ffsubsync: syncing %s against %s", subtitle_path, video_path)
 
         try:
-            proc = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=self.timeout_s
-            )
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout_s)
         except subprocess.TimeoutExpired:
             return SyncResult(
                 engine=self.name,

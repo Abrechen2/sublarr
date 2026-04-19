@@ -71,9 +71,7 @@ class AlassEngine(BaseSyncEngine):
         logger.info("alass: syncing %s against %s", subtitle_path, reference_path)
 
         try:
-            proc = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=self.timeout_s
-            )
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout_s)
         except subprocess.TimeoutExpired:
             return SyncResult(
                 engine=self.name,
