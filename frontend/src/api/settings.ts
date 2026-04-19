@@ -84,6 +84,22 @@ export const getScoringPresets = () => api.get('/scoring/presets').then(r => r.d
 export const getScoringPreset = (name: string) => api.get(`/scoring/presets/${encodeURIComponent(name)}`).then(r => r.data)
 export const importScoringPreset = (data: Record<string, unknown>) => api.post('/scoring/presets/import', data).then(r => r.data)
 
+// ─── Penalty rules (Plan B4) ────────────────────────────────────────────────
+
+export interface PenaltyRule {
+  rule_id: string
+  label: string
+  description: string
+  default_weight: number
+  current_weight: number
+}
+
+export const getPenaltyRules = (): Promise<{ rules: PenaltyRule[] }> =>
+  api.get('/scoring/penalty-rules').then(r => r.data)
+
+export const updatePenaltyRule = (rule_id: string, weight: number): Promise<{ rule_id: string; weight: number }> =>
+  api.put(`/scoring/penalty-rules/${encodeURIComponent(rule_id)}`, { weight }).then(r => r.data)
+
 // ─── Media Servers ──────────────────────────────────────────────────────────
 
 export async function getMediaServerTypes(): Promise<MediaServerType[]> {

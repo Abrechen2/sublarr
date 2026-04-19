@@ -52,6 +52,9 @@ vi.mock('@/hooks/useApi', () => ({
     },
   }),
   useUpdateConfig: () => ({ mutate: mockUpdateConfig, isPending: false }),
+  // Plan B4 — penalty rules hooks consumed by ScoringPenaltyRules section
+  usePenaltyRules: () => ({ data: { rules: [] }, isLoading: false }),
+  useUpdatePenaltyRule: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
 vi.mock('@/components/shared/Toast', () => ({ toast: vi.fn() }))

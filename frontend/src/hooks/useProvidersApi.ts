@@ -4,6 +4,7 @@ import {
   getScoringWeights, updateScoringWeights, resetScoringWeights,
   getProviderModifiers, updateProviderModifiers,
   getScoringPresets, importScoringPreset,
+  getPenaltyRules, updatePenaltyRule,
   getBlacklist, addToBlacklist, removeFromBlacklist, clearBlacklist,
   getLanguageProfiles, createLanguageProfile, updateLanguageProfile,
   deleteLanguageProfile, assignProfile, setProfileAsDefaultForAll,
@@ -104,6 +105,21 @@ export function useImportScoringPreset() {
       void qc.invalidateQueries({ queryKey: ['scoringWeights'] })
       void qc.invalidateQueries({ queryKey: ['providerModifiers'] })
     },
+  })
+}
+
+// ─── Penalty rules (Plan B4) ─────────────────────────────────────────────────
+
+export function usePenaltyRules() {
+  return useQuery({ queryKey: ['penaltyRules'], queryFn: getPenaltyRules })
+}
+
+export function useUpdatePenaltyRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ ruleId, weight }: { ruleId: string; weight: number }) =>
+      updatePenaltyRule(ruleId, weight),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['penaltyRules'] }) },
   })
 }
 

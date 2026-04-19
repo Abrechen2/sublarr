@@ -23,6 +23,7 @@ import { Toggle } from '@/components/shared/Toggle'
 import { toast } from '@/components/shared/Toast'
 import type { ScoringWeights, ScoringPreset } from '@/lib/types'
 import { settingsInputStyle } from '@/styles/settingsShared'
+import { ScoringPenaltyRules } from './ScoringPenaltyRules'
 
 const inputStyle: React.CSSProperties = { ...settingsInputStyle, outline: 'none' }
 
@@ -437,7 +438,10 @@ export function ScoringTab() {
         )}
       </SettingsSection>
 
-      {/* ── 4. Advanced ────────────────────────────────────────────────── */}
+      {/* ── 4. Penalty Rules (Plan B4) ─────────────────────────────────── */}
+      <ScoringPenaltyRules />
+
+      {/* ── 5. Advanced ────────────────────────────────────────────────── */}
       <div
         data-testid="advanced-scoring"
         style={{
