@@ -188,17 +188,14 @@ class TranslationEvent(db.Model):
     error_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
     error_msg: Mapped[str | None] = mapped_column(Text, nullable=True)
     job_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    started_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    finished_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         Index(
             "ix_translation_events_backend_started_at",
-            "backend", "started_at",
+            "backend",
+            "started_at",
         ),
         Index("ix_translation_events_started_at", "started_at"),
         Index("ix_translation_events_status", "status"),

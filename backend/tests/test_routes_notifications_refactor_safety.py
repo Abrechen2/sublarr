@@ -82,6 +82,5 @@ def test_package_init_stays_small_after_split() -> None:
         pytest.skip("pre-split: routes/notifications_mgmt is still a single file")
     loc = sum(1 for _ in init_path.open(encoding="utf-8"))
     assert loc < 60, (
-        f"routes/notifications_mgmt/__init__.py grew to {loc} LOC. "
-        f"Move new code into a submodule."
+        f"routes/notifications_mgmt/__init__.py grew to {loc} LOC. Move new code into a submodule."
     )

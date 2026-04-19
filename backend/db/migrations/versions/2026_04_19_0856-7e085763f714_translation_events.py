@@ -77,15 +77,9 @@ def upgrade():
 
 def downgrade():
     op.drop_column("translation_memory", "backend")
-    op.drop_index(
-        "ix_translation_events_job_id", table_name="translation_events"
-    )
-    op.drop_index(
-        "ix_translation_events_status", table_name="translation_events"
-    )
-    op.drop_index(
-        "ix_translation_events_started_at", table_name="translation_events"
-    )
+    op.drop_index("ix_translation_events_job_id", table_name="translation_events")
+    op.drop_index("ix_translation_events_status", table_name="translation_events")
+    op.drop_index("ix_translation_events_started_at", table_name="translation_events")
     op.drop_index(
         "ix_translation_events_backend_started_at",
         table_name="translation_events",

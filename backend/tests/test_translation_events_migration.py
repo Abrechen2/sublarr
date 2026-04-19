@@ -86,12 +86,24 @@ def test_upgrade_creates_table_and_indexes(migrated_db_engine):
 
     cols = {c["name"] for c in insp.get_columns("translation_events")}
     assert cols == {
-        "id", "backend", "source_lang", "target_lang",
-        "lines_count", "chars_in", "chars_out",
-        "tokens_in", "tokens_out",
-        "cost_estimate_micro_usd", "cache_hit",
-        "latency_ms", "status", "error_type", "error_msg",
-        "job_id", "started_at", "finished_at",
+        "id",
+        "backend",
+        "source_lang",
+        "target_lang",
+        "lines_count",
+        "chars_in",
+        "chars_out",
+        "tokens_in",
+        "tokens_out",
+        "cost_estimate_micro_usd",
+        "cache_hit",
+        "latency_ms",
+        "status",
+        "error_type",
+        "error_msg",
+        "job_id",
+        "started_at",
+        "finished_at",
     }
 
     ix = {i["name"] for i in insp.get_indexes("translation_events")}
