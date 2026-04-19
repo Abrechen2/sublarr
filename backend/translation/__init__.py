@@ -30,9 +30,35 @@ class TranslationManager:
         self._backends_lock = threading.Lock()
 
     def register_backend(self, cls: type[TranslationBackend]) -> None:
-        """Register a backend class by its name attribute."""
+        """Register a backend class by its name attribute.
+
+        Also registers the backend with ``BackendConcurrency`` (Phase A1),
+        reading the per-backend slot limit from ``config_entries`` with key
+        ``translation_concurrency_<name>`` (default 3).
+        """
         self._backend_classes[cls.name] = cls
-        logger.debug("Registered translation backend: %s", cls.name)
+
+        # Phase A1: register with per-backend concurrency limiter.
+        # Failures must never break backend registration -- log and continue.
+        try:
+            from db.config import get_config_entry
+            from translation.concurrency import get_concurrency
+
+            limit_raw = get_config_entry(f"translation_concurrency_{cls.name}")
+            limit = int(limit_raw) if limit_raw else 3
+            if limit < 1:
+                limit = 3
+            get_concurrency().register(cls.name, limit)
+            logger.debug(
+                "Registered translation backend: %s (concurrency=%d)", cls.name, limit
+            )
+        except Exception:
+            logger.warning(
+                "Failed to register concurrency limit for %s", cls.name, exc_info=True
+            )
+            logger.debug(
+                "Registered translation backend: %s (concurrency default)", cls.name
+            )
 
     def get_backend(self, name: str) -> TranslationBackend | None:
         """Get or create a backend instance by name (lazy, thread-safe creation).
