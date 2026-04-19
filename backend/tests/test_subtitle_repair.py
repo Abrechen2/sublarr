@@ -55,3 +55,19 @@ def test_repair_pads_invalid_decimals():
     # Valid ones untouched
     assert "00:00:03,123" in fixed
     assert "00:00:04,567" in fixed
+
+
+def test_repair_clamps_overlapping_cues():
+    from subtitle_repair import repair_bytes
+
+    raw = (FIXTURES / "overlapping_cues.srt").read_bytes()
+    fixed = repair_bytes(raw, fmt="srt").decode("utf-8")
+
+    # Cue 1's end should be clamped to 00:00:02,999 (cue 2 starts at 03,000)
+    # The 5,000 original end must be gone
+    assert "00:00:05,000" not in fixed
+    # The clamped end — one of 02,999 / 02,998 is acceptable (implementation choice)
+    assert "00:00:02,999" in fixed or "00:00:02,998" in fixed
+    # Cue 2 and 3 are untouched
+    assert "00:00:03,000 --> 00:00:07,000" in fixed
+    assert "00:00:10,000 --> 00:00:12,000" in fixed
