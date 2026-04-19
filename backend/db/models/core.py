@@ -284,6 +284,27 @@ class PostProcessingRun(db.Model):
     )
 
 
+class SyncJobRun(db.Model):
+    """Audit row for one sync engine attempt (Plan B7)."""
+
+    __tablename__ = "sync_job_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    engine: Mapped[str] = mapped_column(String(32), nullable=False)
+    offset_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    duration_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    subtitle_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    video_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        Index("idx_sync_runs_created_at", "created_at"),
+        Index("idx_sync_runs_engine", "engine"),
+    )
+
+
 class FilterPreset(db.Model):
     """Saved filter configurations per page scope."""
 
