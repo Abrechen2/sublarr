@@ -202,3 +202,58 @@ def test_cancel_flag_respected(app):
                 target_lang="de",
                 job_id="test_cancel",
             )
+
+
+def test_assemble_messages_includes_lookback(app):
+    """When lookback is provided, system prompt must include those lines."""
+    with app.app_context():
+        backend = _build_backend()
+        messages = backend._assemble_messages(
+            lines=["target 1", "target 2"],
+            source_lang="en",
+            target_lang="de",
+            glossary_entries=None,
+            strict=False,
+            lookback=["prev 1", "prev 2"],
+            lookahead=None,
+        )
+    system = messages[0]["content"]
+    assert "prev 1" in system
+    assert "prev 2" in system
+    # Must NOT include them in the user message to translate
+    user = messages[1]["content"]
+    assert "prev 1" not in user
+
+
+def test_assemble_messages_includes_lookahead(app):
+    with app.app_context():
+        backend = _build_backend()
+        messages = backend._assemble_messages(
+            lines=["target 1"],
+            source_lang="en",
+            target_lang="de",
+            glossary_entries=None,
+            strict=False,
+            lookback=None,
+            lookahead=["next 1", "next 2"],
+        )
+    system = messages[0]["content"]
+    assert "next 1" in system
+    assert "next 2" in system
+
+
+def test_assemble_messages_no_context_when_both_none(app):
+    """Backward compat: when both lookback+lookahead are None, prompt matches old behavior."""
+    with app.app_context():
+        backend = _build_backend()
+        messages = backend._assemble_messages(
+            lines=["target 1"],
+            source_lang="en",
+            target_lang="de",
+            glossary_entries=None,
+            strict=False,
+        )
+    system = messages[0]["content"]
+    # System should NOT mention "for context only" or similar if no context provided
+    assert "for context only" not in system.lower()
+    assert "previous lines" not in system.lower()

@@ -284,11 +284,20 @@ class LLMBackend(TranslationBackend):
         glossary_entries: list[dict] | None,
         series_context: str | None = None,
         strict: bool = False,
+        *,
+        lookback: list[str] | None = None,
+        lookahead: list[str] | None = None,
     ) -> list[dict]:
         """Build OpenAI-style messages list.
 
         Subclasses may override for provider quirks (e.g. Anthropic's
         separate ``system`` parameter).
+
+        The optional keyword-only ``lookback`` and ``lookahead`` arguments
+        (Phase A4) attach surrounding context to the system prompt so LLMs
+        can resolve pronouns and keep terminology consistent across batch
+        boundaries. The lines are explicitly marked as context-only — the
+        model must not translate or repeat them.
         """
         system_parts = [
             f"You translate subtitles from {source_lang} to {target_lang}.",
@@ -309,6 +318,21 @@ class LLMBackend(TranslationBackend):
                 for e in glossary_entries
             )
             system_parts.append(f"Glossary: {terms}")
+
+        # Add context window (Phase A4) — for LLMs to see surrounding lines
+        context_parts = []
+        if lookback:
+            context_parts.append(
+                "Previous lines (for context only, do NOT translate or repeat):\n"
+                + "\n".join(lookback)
+            )
+        if lookahead:
+            context_parts.append(
+                "Following lines (for context only, do NOT translate or repeat):\n"
+                + "\n".join(lookahead)
+            )
+        if context_parts:
+            system_parts.append("\n\n".join(context_parts))
 
         user_text = "\n".join(lines)
 
