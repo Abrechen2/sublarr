@@ -5,6 +5,15 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.58.1-beta] - 2026-04-19
+
+### Changed
+- **Filesystem watchers now use the shared debouncer utility** — Extracted the `threading.Timer`-based debounce machinery from `PluginFileWatcher` (plugin hot-reload) and `MediaFileWatcher` (standalone media directory scanning) into a new `utils/debouncer.py` module. Provides `DebouncedCallback` (single trailing-edge timer) and `KeyedDebouncedCallback` (per-path independent timers), both with correct cancel-before-reassign semantics and idempotent `shutdown()`. This eliminates the last Timer-leak bug class from Sublarr's codebase and closes the related regression pattern documented in the team's memory.
+
+### Tests
+- +13 new tests for the debouncer utility (cancellation, shutdown idempotency, concurrent thread safety across 500 triggers, per-key independence).
+- 148/148 scheduler + watcher tests green across all suites.
+
 ## [0.58.0-beta] - 2026-04-19
 
 ### Changed
