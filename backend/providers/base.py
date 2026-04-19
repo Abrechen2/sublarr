@@ -337,6 +337,22 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
     elif forced_pref == "exclude" and result.forced or forced_pref == "only" and not result.forced:
         breakdown["forced_preference"] = -999
 
+    # Plan B4 — additive penalty rule pipeline. The driver is pure (returns
+    # a {rule_id: weight} dict without mutating candidate.score). We merge
+    # its entries into the breakdown under ``rule:<id>`` keys before the
+    # final sum so pipeline contributions are visible in the UI breakdown
+    # and participate in the final score.
+    try:
+        from wanted_search.penalty_rules import apply_penalty_pipeline
+
+        pipeline_breakdown = apply_penalty_pipeline(result, query)
+        for rule_id, applied in pipeline_breakdown.items():
+            breakdown[f"rule:{rule_id}"] = int(applied)
+    except Exception:
+        # Never let the pipeline break scoring; legacy weight-map path is
+        # sufficient on its own.
+        pass
+
     result.score_breakdown = breakdown
     result.score = sum(breakdown.values())
     return result.score
