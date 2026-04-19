@@ -44,6 +44,7 @@ def register_blueprints(app):
     from routes.tools import bp as tools_bp
     from routes.tracks import bp as tracks_bp
     from routes.translate import bp as translate_bp
+    from routes.translation import events_bp as translation_events_bp
     from routes.trash import bp as trash_bp
     from routes.video import bp as video_bp
     from routes.video_sync import bp as video_sync_bp
@@ -95,5 +96,6 @@ def register_blueprints(app):
         media_bp,
         subtitle_processor_bp,
         trash_bp,
+        translation_events_bp,
     ]:
         app.register_blueprint(blueprint)
