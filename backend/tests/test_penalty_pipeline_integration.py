@@ -85,3 +85,23 @@ def test_compute_score_no_double_count_when_matches_set_overlaps():
     compute_score(result, query)
     # Lower bound: at minimum the pipeline value (14) is credited
     assert result.score >= 14
+
+
+def test_penalty_rule_weights_db_roundtrip(app_ctx):
+    """set_penalty_rule_weight persists, get_penalty_rule_weights reads back."""
+    from db.scoring import get_penalty_rule_weights, set_penalty_rule_weight
+
+    # Set weight override
+    set_penalty_rule_weight("machine_translation_penalty", -25)
+    weights = get_penalty_rule_weights()
+    assert weights.get("machine_translation_penalty") == -25
+
+    # Update to a different value
+    set_penalty_rule_weight("machine_translation_penalty", -40)
+    weights = get_penalty_rule_weights()
+    assert weights.get("machine_translation_penalty") == -40
+
+    # Setting to 0 persists the row (pipeline treats 0 as disabled)
+    set_penalty_rule_weight("machine_translation_penalty", 0)
+    weights = get_penalty_rule_weights()
+    assert weights.get("machine_translation_penalty", None) == 0

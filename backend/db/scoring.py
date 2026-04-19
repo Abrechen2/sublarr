@@ -18,6 +18,8 @@ __all__ = [
     "get_all_provider_modifiers",
     "set_provider_modifier",
     "delete_provider_modifier",
+    "get_penalty_rule_weights",
+    "set_penalty_rule_weight",
 ]
 
 _repo = None
@@ -79,3 +81,22 @@ def set_provider_modifier(provider_name: str, modifier: int) -> None:
 def delete_provider_modifier(provider_name: str) -> None:
     """Delete the score modifier for a provider."""
     return _get_repo().delete_provider_modifier(provider_name)
+
+
+# --- Penalty rule weight overrides (Plan B4) --------------------------------
+#
+# NOTE: the provider scoring cache (see providers.base._get_cached_weights)
+# is deliberately NOT shared with penalty rules. The pipeline reads the DB
+# directly on each compute_score() call because rule lookups are cheap
+# (<= a dozen rows). If scoring becomes hot, wrap this with the same
+# TTL-cache pattern.
+
+
+def get_penalty_rule_weights() -> dict[str, int]:
+    """Return ``{rule_id: weight}`` overrides for penalty rules."""
+    return _get_repo().get_penalty_rule_weights()
+
+
+def set_penalty_rule_weight(rule_id: str, weight: int) -> None:
+    """Upsert a weight override for a single penalty rule."""
+    return _get_repo().set_penalty_rule_weight(rule_id, weight)

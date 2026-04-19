@@ -156,3 +156,49 @@ class ScoringRepository(BaseRepository):
         if entry:
             self.session.delete(entry)
             self._commit()
+
+    # ---- Penalty rule weight overrides (Plan B4) ------------------------------
+    #
+    # Penalty rule weights live in ``scoring_weights`` under a dedicated
+    # ``score_type="penalty_rule"`` discriminator so they share schema with
+    # the existing episode/movie weight maps without colliding by key.
+
+    def get_penalty_rule_weights(self) -> dict[str, int]:
+        """Return ``{rule_id: weight}`` overrides for penalty rules.
+
+        Empty dict on any error or when no overrides exist (caller then
+        falls back to each rule's ``default_weight``).
+        """
+        try:
+            stmt = select(ScoringWeights).where(ScoringWeights.score_type == "penalty_rule")
+            entries = self.session.execute(stmt).scalars().all()
+            return {e.weight_key: int(e.weight_value) for e in entries}
+        except Exception:
+            logger.debug("get_penalty_rule_weights failed", exc_info=True)
+            return {}
+
+    def set_penalty_rule_weight(self, rule_id: str, weight: int) -> None:
+        """Upsert a weight override for a single penalty rule.
+
+        Writing 0 keeps the row (the pipeline interprets 0 as disabled).
+        """
+        now = self._now()
+        existing = self.session.execute(
+            select(ScoringWeights).where(
+                ScoringWeights.score_type == "penalty_rule",
+                ScoringWeights.weight_key == rule_id,
+            )
+        ).scalar_one_or_none()
+
+        if existing:
+            existing.weight_value = int(weight)
+            existing.updated_at = now
+        else:
+            entry = ScoringWeights(
+                score_type="penalty_rule",
+                weight_key=rule_id,
+                weight_value=int(weight),
+                updated_at=now,
+            )
+            self.session.add(entry)
+        self._commit()
