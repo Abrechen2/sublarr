@@ -1,17 +1,23 @@
 """OpenAI-compatible translation backend.
 
+Inherits from LLMBackend (Phase A1 telemetry) — the shared orchestration
+(concurrency, retry on line-count mismatch, cost+event write) lives in
+:mod:`translation.llm_base`. This module supplies the three provider hooks.
+
 Supports any OpenAI-compatible endpoint via configurable base_url:
 OpenAI, Azure OpenAI, LM Studio, vLLM, and other compatible services.
-
-Shares LLM utilities (prompt building, response parsing, CJK hallucination
-detection) with OllamaBackend via translation.llm_utils.
 """
 
-import logging
-import threading
-import time
+from __future__ import annotations
 
-from translation.base import TranslationBackend, TranslationResult
+import logging
+import re
+import threading
+from decimal import Decimal
+
+from translation.llm_base import LLMBackend, LLMResponse
+from translation.llm_utils import build_translation_prompt
+from translation.price_sheet import get_llm_price
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +34,7 @@ except ImportError:
     )
 
 
-class OpenAICompatBackend(TranslationBackend):
+class OpenAICompatBackend(LLMBackend):
     """OpenAI-compatible LLM translation backend.
 
     Uses the OpenAI Python SDK with configurable base_url to support
@@ -43,6 +49,13 @@ class OpenAICompatBackend(TranslationBackend):
     supports_glossary = True  # Via prompt injection (same as Ollama)
     supports_batch = True
     max_batch_size = 25
+
+    # LLMBackend class-level contract. Prices are overridden per-instance in
+    # __init__ via the price sheet (depends on the selected model).
+    default_model = "gpt-4o-mini"
+    cost_per_1m_tokens_in = Decimal("0")
+    cost_per_1m_tokens_out = Decimal("0")
+    timeout_s = 120
 
     config_fields = [
         {
@@ -99,6 +112,11 @@ class OpenAICompatBackend(TranslationBackend):
         super().__init__(**config)
         self._client = None
         self._client_lock = threading.Lock()
+        # Look up instance-level prices from the price sheet. Overrides the
+        # class defaults (0, 0) so cost_tracker produces real numbers.
+        self.cost_per_1m_tokens_in, self.cost_per_1m_tokens_out = get_llm_price(
+            self.name, self._model
+        )
 
     @property
     def _api_key(self) -> str:
@@ -111,6 +129,10 @@ class OpenAICompatBackend(TranslationBackend):
     @property
     def _model(self) -> str:
         return self.config.get("model", "gpt-4o-mini")
+
+    @property
+    def model(self) -> str:
+        return self._model
 
     @property
     def _temperature(self) -> float:
@@ -133,7 +155,7 @@ class OpenAICompatBackend(TranslationBackend):
         except (ValueError, TypeError):
             return 3
 
-    def _get_client(self) -> "OpenAI":
+    def _get_client(self) -> OpenAI:
         """Get or create the OpenAI client (lazy initialization, thread-safe)."""
         if not _HAS_OPENAI:
             raise RuntimeError(
@@ -150,99 +172,111 @@ class OpenAICompatBackend(TranslationBackend):
                     )
         return self._client
 
-    def translate_batch(
+    # ------------------------------------------------------------------ #
+    # LLMBackend hooks
+    # ------------------------------------------------------------------ #
+
+    def _assemble_messages(
         self,
         lines: list[str],
         source_lang: str,
         target_lang: str,
-        glossary_entries: list[dict] | None = None,
-    ) -> TranslationResult:
-        """Translate a batch of subtitle lines via OpenAI-compatible API.
+        glossary_entries: list[dict] | None,
+        series_context: str | None = None,
+        strict: bool = False,
+    ) -> list[dict]:
+        """Build the OpenAI-style messages list.
 
-        Uses shared LLM utilities for prompt building, response parsing,
-        and CJK hallucination detection (same as OllamaBackend).
+        Uses the same numbered/glossary prompt format as Ollama
+        (via :func:`build_translation_prompt`) so LLMs trained on that
+        shape behave consistently. We put the full prompt in a single user
+        message — the system-vs-user split doesn't add value here and keeps
+        parity with Ollama's generate-mode.
         """
-        if not lines:
-            return TranslationResult(
-                translated_lines=[],
-                backend_name=self.name,
-                success=True,
-            )
-
-        from translation.llm_utils import (
-            build_translation_prompt,
-            has_cjk_hallucination,
-            parse_llm_response,
-        )
-
-        start_time = time.time()
         prompt = build_translation_prompt(lines, source_lang, target_lang, glossary_entries)
-
-        try:
-            client = self._get_client()
-        except RuntimeError as e:
-            return TranslationResult(
-                translated_lines=[],
-                backend_name=self.name,
-                error=str(e),
-                success=False,
+        if series_context:
+            prompt = f"Context: {series_context}\n\n{prompt}"
+        if strict:
+            prompt = (
+                f"STRICT: return exactly {len(lines)} numbered lines, "
+                f"no commentary, no extra lines.\n\n{prompt}"
             )
+        return [{"role": "user", "content": prompt}]
 
-        last_error = None
-        for attempt in range(1, self._max_retries + 1):
-            try:
-                completion = client.chat.completions.create(
-                    model=self._model,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=self._temperature,
-                )
-                response_text = completion.choices[0].message.content.strip()
+    def _build_request(self, messages: list[dict], max_tokens: int) -> dict:
+        """Build the chat/completions payload."""
+        return {
+            "model": self._model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": self._temperature,
+        }
 
-                parsed = parse_llm_response(response_text, len(lines))
-                if parsed is None:
-                    logger.warning("Attempt %d: line count mismatch, retrying...", attempt)
-                    last_error = f"Expected {len(lines)} lines, got different count"
-                    continue
+    def _call_api(self, payload: dict, timeout_s: int) -> dict:
+        """Execute chat/completions via the OpenAI SDK.
 
-                # Check for CJK hallucination in any line
-                tainted = [i for i, t in enumerate(parsed) if has_cjk_hallucination(t)]
-                if tainted:
-                    logger.warning(
-                        "Attempt %d: CJK hallucination in %d lines (indices %s), retrying...",
-                        attempt,
-                        len(tainted),
-                        tainted,
-                    )
-                    last_error = "CJK hallucination detected"
-                    continue
+        Uses the SDK's ``model_dump`` helper so we return a plain dict
+        that :meth:`_parse_response` can consume in the same shape as
+        the raw HTTP response.
+        """
+        client = self._get_client()
+        completion = client.chat.completions.create(**payload)
+        # The SDK returns a pydantic model; convert to dict for parse step.
+        if hasattr(completion, "model_dump"):
+            return completion.model_dump()
+        # Fallback for MagicMock-based tests: build a shape-compatible dict.
+        choice = completion.choices[0]
+        return {
+            "choices": [
+                {
+                    "message": {"content": choice.message.content},
+                    "finish_reason": getattr(choice, "finish_reason", None),
+                }
+            ],
+            "usage": getattr(completion, "usage", None),
+            "model": getattr(completion, "model", self._model),
+        }
 
-                elapsed_ms = (time.time() - start_time) * 1000
-                return TranslationResult(
-                    translated_lines=parsed,
-                    backend_name=self.name,
-                    response_time_ms=elapsed_ms,
-                    characters_used=sum(len(l) for l in lines),
-                    success=True,
-                )
+    def _parse_response(self, raw: dict) -> LLMResponse:
+        """Extract translations + usage stats from the completion response."""
+        try:
+            choice = raw["choices"][0]
+        except (KeyError, IndexError, TypeError) as e:
+            raise RuntimeError(f"OpenAI response missing 'choices': {raw!r}") from e
 
-            except Exception as e:
-                logger.warning("Attempt %d failed: %s", attempt, e)
-                last_error = str(e)
+        message = choice.get("message") or {}
+        content = message.get("content")
+        if content is None:
+            raise RuntimeError(f"OpenAI response missing 'message.content': {raw!r}")
 
-            # Backoff between retries
-            if attempt < self._max_retries:
-                wait = 2 ** (attempt - 1)
-                logger.info("Waiting %ds before retry...", wait)
-                time.sleep(wait)
+        text = content.strip()
+        raw_lines = [ln for ln in text.split("\n") if ln.strip()]
+        cleaned = [re.sub(r"^\d+[\.:]\s*", "", ln) for ln in raw_lines]
+        translations = cleaned or [text]
 
-        elapsed_ms = (time.time() - start_time) * 1000
-        return TranslationResult(
-            translated_lines=[],
-            backend_name=self.name,
-            response_time_ms=elapsed_ms,
-            error=f"All {self._max_retries} attempts failed. Last error: {last_error}",
-            success=False,
+        usage = raw.get("usage") or {}
+        # usage may be a pydantic-ish object; accommodate both shapes.
+        if isinstance(usage, dict):
+            tokens_in = int(usage.get("prompt_tokens") or 0)
+            tokens_out = int(usage.get("completion_tokens") or 0)
+        else:
+            tokens_in = int(getattr(usage, "prompt_tokens", 0) or 0)
+            tokens_out = int(getattr(usage, "completion_tokens", 0) or 0)
+
+        finish_reason = choice.get("finish_reason") if isinstance(choice, dict) else None
+
+        return LLMResponse(
+            translations=translations,
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+            model=raw.get("model", self._model),
+            finish_reason=finish_reason,
+            raw_latency_ms=0,  # OpenAI doesn't report server-side latency
         )
+
+    # ------------------------------------------------------------------ #
+    # Introspection
+    # ------------------------------------------------------------------ #
 
     def health_check(self) -> tuple[bool, str]:
         """Check if the OpenAI-compatible service is reachable and model available."""
