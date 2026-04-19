@@ -174,3 +174,31 @@ def test_semaphore_released_on_exception(app):
         # Slot must be free — acquire should not block
         with get_concurrency().slot("fake_llm", timeout_s=0.1):
             pass  # if slot leaked, this would timeout
+
+
+def test_cancel_flag_respected(app):
+    """If cancel is requested, translate_batch raises JobCancelledError."""
+    from translation.llm_base import JobCancelledError
+    from translation.queue_state import get_queue_state, reset_for_tests
+
+    reset_for_tests()
+    qs = get_queue_state()
+    qs.register_job(
+        job_id="test_cancel",
+        file_path="/x/a.mkv",
+        source_lang="en",
+        target_lang="de",
+        backend="fake_llm",
+        total_lines=10,
+    )
+    qs.cancel("test_cancel")
+
+    with app.app_context():
+        backend = _build_backend()
+        with pytest.raises(JobCancelledError):
+            backend.translate_batch(
+                ["a"] * 10,
+                source_lang="en",
+                target_lang="de",
+                job_id="test_cancel",
+            )

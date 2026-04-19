@@ -33,6 +33,10 @@ class ContentFilterError(RuntimeError):
     """LLM refused the request (finish_reason == 'content_filter')."""
 
 
+class JobCancelledError(RuntimeError):
+    """Raised when a batch is skipped due to a cancel request on its job."""
+
+
 @dataclass
 class LLMResponse:
     """Parsed response from an LLM backend's _parse_response hook."""
@@ -92,6 +96,7 @@ class LLMBackend(TranslationBackend):
         target_lang: str,
         glossary_entries: list[dict] | None = None,
         series_context: str | None = None,
+        job_id: str | None = None,
     ) -> TranslationResult:
         """Orchestrate: concurrency + API call + cost tracking + event write.
 
@@ -110,6 +115,12 @@ class LLMBackend(TranslationBackend):
 
         try:
             with get_concurrency().slot(self.name, timeout_s=self.timeout_s):
+                # Check cancel flag before spending API budget
+                if job_id:
+                    from translation.queue_state import get_queue_state
+
+                    if get_queue_state().is_cancelled(job_id):
+                        raise JobCancelledError(f"Job {job_id} was cancelled")
                 resp = self._attempt(
                     lines, source_lang, target_lang, glossary_entries, series_context
                 )
@@ -129,6 +140,11 @@ class LLMBackend(TranslationBackend):
         except LineCountMismatchError as exc:
             status = "error"
             error_type = "LineCountMismatchError"
+            error_msg = str(exc)
+            raise
+        except JobCancelledError as exc:
+            status = "cancelled"
+            error_type = "JobCancelledError"
             error_msg = str(exc)
             raise
         except Exception as exc:
