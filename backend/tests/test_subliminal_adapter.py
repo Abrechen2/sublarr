@@ -75,3 +75,32 @@ def test_convert_movie_query_to_subliminal_movie():
     assert v.title == "Frozen"
     assert v.year == 2013
     assert v.release_group == "DON"
+
+
+def test_convert_subliminal_subtitle_to_sublarr_result():
+    """A subliminal Subtitle becomes a SubtitleResult with mapped fields."""
+    from babelfish import Language
+    from providers.subliminal_adapter import _to_sublarr_result
+
+    class _FakeSubtitle:
+        """Stand-in for a Subliminal Subtitle (duck-typed)."""
+
+        provider_name = "opensubtitles"
+        id = "12345"
+        language = Language("eng")
+        hearing_impaired = True
+        foreign_only = False
+        release_group = "GROUP"
+        fps = 23.976
+        page_link = "https://example.com/12345"
+
+    sub = _FakeSubtitle()
+    result = _to_sublarr_result(sub, registered_name="opensubtitles_subliminal")
+
+    assert result.provider_name == "opensubtitles_subliminal"
+    assert result.subtitle_id == "12345"
+    assert result.language == "en"
+    assert result.hearing_impaired is True
+    assert result.release_info == "GROUP"
+    assert result.fps == 23.976
+    assert result.download_url == "https://example.com/12345"

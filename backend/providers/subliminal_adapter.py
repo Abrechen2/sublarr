@@ -24,11 +24,36 @@ import logging
 
 import providers._vendor  # noqa: F401 — side-effect import adds vendor to sys.path
 
-from providers.base import SubtitleProvider, SubtitleResult, VideoQuery
+from providers.base import SubtitleFormat, SubtitleProvider, SubtitleResult, VideoQuery
 
 from subliminal.video import Episode, Movie, Video
 
 logger = logging.getLogger(__name__)
+
+
+def _to_sublarr_result(subliminal_subtitle, registered_name: str) -> SubtitleResult:
+    """Convert a Subliminal Subtitle into a Sublarr SubtitleResult.
+
+    `registered_name` is the name under which the adapter is registered with
+    Sublarr's provider registry (e.g. "opensubtitles_subliminal") — not the
+    Subliminal-internal provider_name attribute. We use our own name so that
+    circuit-breaker + scoring + rate-limit state stays scoped to the adapter.
+    """
+    s = subliminal_subtitle
+    language_code = getattr(s.language, "alpha2", "") or str(getattr(s.language, "alpha3", ""))
+    return SubtitleResult(
+        provider_name=registered_name,
+        subtitle_id=str(getattr(s, "id", "")),
+        language=language_code,
+        format=SubtitleFormat.UNKNOWN,  # Subliminal determines format on download
+        filename=getattr(s, "filename", "") or "",
+        download_url=getattr(s, "page_link", "") or "",
+        hearing_impaired=bool(getattr(s, "hearing_impaired", False)),
+        forced=bool(getattr(s, "foreign_only", False)),
+        fps=getattr(s, "fps", None),
+        release_info=str(getattr(s, "release_group", "") or ""),
+        provider_data={"subliminal_subtitle": s},  # keep reference for download()
+    )
 
 
 def _to_subliminal_video(query: VideoQuery) -> Video:
