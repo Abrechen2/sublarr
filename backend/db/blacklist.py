@@ -24,10 +24,17 @@ def add_blacklist_entry(
     file_path: str = "",
     title: str = "",
     reason: str = "",
+    file_hash: str | None = None,
 ) -> int:
     """Add a subtitle to the blacklist. Returns the entry ID."""
     return _get_repo().add_blacklist_entry(
-        provider_name, subtitle_id, language, file_path, title, reason
+        provider_name,
+        subtitle_id,
+        language,
+        file_path,
+        title,
+        reason,
+        file_hash=file_hash,
     )
 
 
@@ -41,9 +48,20 @@ def clear_blacklist() -> int:
     return _get_repo().clear_blacklist()
 
 
-def is_blacklisted(provider_name: str, subtitle_id: str) -> bool:
-    """Check if a subtitle is blacklisted."""
-    return _get_repo().is_blacklisted(provider_name, subtitle_id)
+def is_blacklisted(
+    provider_name: str,
+    subtitle_id: str | None = None,
+    file_hash: str | None = None,
+) -> bool:
+    """Check if a subtitle is blacklisted (by subtitle_id or file_hash)."""
+    return _get_repo().is_blacklisted(
+        provider_name, subtitle_id=subtitle_id, file_hash=file_hash
+    )
+
+
+def is_blacklisted_by_hash(provider_name: str, file_hash: str) -> bool:
+    """Check if a ``(provider, file_hash)`` pair is blacklisted."""
+    return _get_repo().is_blacklisted_by_hash(provider_name, file_hash)
 
 
 def get_blacklist_entries(page: int = 1, per_page: int = 50) -> dict:

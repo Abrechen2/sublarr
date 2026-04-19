@@ -82,3 +82,18 @@ def test_is_blacklisted_accepts_hash_alternative(app_ctx):
     # Check by file_hash (new)
     assert repo.is_blacklisted("opensubtitles", file_hash="c" * 64) is True
     repo.remove_blacklist_entry(entry_id)
+
+
+def test_db_blacklist_wrapper_forwards_file_hash():
+    """The db.blacklist wrapper module exposes hash-aware functions."""
+    import db.blacklist as bl
+
+    # The wrapper must expose the new function
+    assert hasattr(bl, "is_blacklisted_by_hash"), (
+        "Expected db.blacklist.is_blacklisted_by_hash to be exposed"
+    )
+    # And the existing add function should accept file_hash kwarg
+    import inspect
+
+    sig = inspect.signature(bl.add_blacklist_entry)
+    assert "file_hash" in sig.parameters
