@@ -49,16 +49,10 @@ class TranslationManager:
             if limit < 1:
                 limit = 3
             get_concurrency().register(cls.name, limit)
-            logger.debug(
-                "Registered translation backend: %s (concurrency=%d)", cls.name, limit
-            )
+            logger.debug("Registered translation backend: %s (concurrency=%d)", cls.name, limit)
         except Exception:
-            logger.warning(
-                "Failed to register concurrency limit for %s", cls.name, exc_info=True
-            )
-            logger.debug(
-                "Registered translation backend: %s (concurrency default)", cls.name
-            )
+            logger.warning("Failed to register concurrency limit for %s", cls.name, exc_info=True)
+            logger.debug("Registered translation backend: %s (concurrency default)", cls.name)
 
     def get_backend(self, name: str) -> TranslationBackend | None:
         """Get or create a backend instance by name (lazy, thread-safe creation).
@@ -419,3 +413,27 @@ def _register_builtin_backends(manager: TranslationManager) -> None:
         logger.info(
             "Google Translation backend not available (google-cloud-translate package not installed)"
         )
+
+    # Claude: optional dependency (anthropic package may not be installed)
+    try:
+        from translation.claude import ClaudeBackend
+
+        manager.register_backend(ClaudeBackend)
+    except ImportError:
+        logger.info("Claude backend not available (anthropic package not installed)")
+
+    # Gemini: optional dependency (google-generativeai package may not be installed)
+    try:
+        from translation.gemini import GeminiBackend
+
+        manager.register_backend(GeminiBackend)
+    except ImportError:
+        logger.info("Gemini backend not available (google-generativeai package not installed)")
+
+    # DeepSeek: optional dependency (openai package may not be installed)
+    try:
+        from translation.deepseek import DeepSeekBackend
+
+        manager.register_backend(DeepSeekBackend)
+    except ImportError:
+        logger.info("DeepSeek backend not available (openai package not installed)")
