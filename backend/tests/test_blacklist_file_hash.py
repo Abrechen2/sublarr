@@ -14,13 +14,13 @@ def test_blacklist_entry_has_file_hash_column():
 
 def test_blacklist_entry_file_hash_default_is_none():
     """Creating a BlacklistEntry without file_hash leaves it as None."""
-    from datetime import datetime, timezone
+    from datetime import UTC, datetime
 
     entry = BlacklistEntry(
         provider_name="opensubtitles",
         subtitle_id="12345",
         language="en",
-        added_at=datetime.now(timezone.utc),
+        added_at=datetime.now(UTC),
     )
     assert entry.file_hash is None
 

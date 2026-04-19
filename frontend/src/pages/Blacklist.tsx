@@ -98,6 +98,7 @@ export function BlacklistPage() {
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('blacklist.table.provider')}</th>
                 <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('blacklist.table.subtitle_id')}</th>
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>{t('blacklist.table.hash')}</th>
                 <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t('blacklist.table.lang')}</th>
                 <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>{t('blacklist.table.title_path')}</th>
                 <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>{t('blacklist.table.reason')}</th>
@@ -111,6 +112,7 @@ export function BlacklistPage() {
                   <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td className="px-4 py-3"><div className="skeleton h-4 w-24 rounded" /></td>
                     <td className="px-3 py-3"><div className="skeleton h-4 w-32 rounded" /></td>
+                    <td className="px-3 py-3 hidden md:table-cell"><div className="skeleton h-4 w-24 rounded" /></td>
                     <td className="px-3 py-3"><div className="skeleton h-4 w-8 rounded" /></td>
                     <td className="px-3 py-3 hidden sm:table-cell"><div className="skeleton h-4 w-40 rounded" /></td>
                     <td className="px-3 py-3 hidden md:table-cell"><div className="skeleton h-4 w-20 rounded" /></td>
@@ -143,6 +145,19 @@ export function BlacklistPage() {
                       >
                         {entry.subtitle_id}
                       </span>
+                    </td>
+                    <td className="px-3 py-2.5 hidden md:table-cell">
+                      {entry.file_hash ? (
+                        <code
+                          className="text-xs"
+                          style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}
+                          title={entry.file_hash}
+                        >
+                          {entry.file_hash.slice(0, 10)}…
+                        </code>
+                      ) : (
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>—</span>
+                      )}
                     </td>
                     <td className="px-3 py-2.5">
                       <span
@@ -189,7 +204,7 @@ export function BlacklistPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
                     <div className="flex flex-col items-center gap-2">
                       <AlertTriangle size={20} style={{ color: 'var(--text-muted)' }} />
                       {t('blacklist.no_items')}

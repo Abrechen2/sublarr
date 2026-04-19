@@ -13,6 +13,8 @@ export interface BlacklistEntry {
   title: string
   reason: string
   added_at: string
+  /** Plan B3 — optional SHA-256 or OpenSubtitles hash for provider-agnostic retry suppression */
+  file_hash?: string | null
 }
 
 export interface PaginatedBlacklist {

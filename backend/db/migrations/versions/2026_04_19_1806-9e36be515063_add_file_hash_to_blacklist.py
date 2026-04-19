@@ -14,9 +14,8 @@ no-duplicates for hash-based entries while allowing multiple NULLs for
 traditional subtitle_id-based entries.
 """
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision = "9e36be515063"
 down_revision = "7e085763f714"

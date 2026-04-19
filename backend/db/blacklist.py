@@ -54,9 +54,7 @@ def is_blacklisted(
     file_hash: str | None = None,
 ) -> bool:
     """Check if a subtitle is blacklisted (by subtitle_id or file_hash)."""
-    return _get_repo().is_blacklisted(
-        provider_name, subtitle_id=subtitle_id, file_hash=file_hash
-    )
+    return _get_repo().is_blacklisted(provider_name, subtitle_id=subtitle_id, file_hash=file_hash)
 
 
 def is_blacklisted_by_hash(provider_name: str, file_hash: str) -> bool:
