@@ -451,3 +451,37 @@ def _register_builtin_backends(manager: TranslationManager) -> None:
         manager.register_backend(DeepSeekBackend)
     except ImportError:
         logger.info("DeepSeek backend not available (openai package not installed)")
+
+    # Mistral: optional dependency (mistralai package may not be installed)
+    try:
+        from translation.mistral import MistralBackend
+
+        manager.register_backend(MistralBackend)
+    except ImportError:
+        logger.info("Mistral backend not available (mistralai package not installed)")
+
+    # ChatGPT: optional dependency (openai package may not be installed)
+    try:
+        from translation.chatgpt import ChatGPTBackend
+
+        manager.register_backend(ChatGPTBackend)
+    except ImportError:
+        logger.info("ChatGPT backend not available (openai package not installed)")
+
+    # Azure Translator: optional dependency (azure-cognitiveservices-language-translator may not be installed)
+    try:
+        from translation.azure_translator import AzureTranslatorBackend
+
+        manager.register_backend(AzureTranslatorBackend)
+    except ImportError:
+        logger.info(
+            "Azure Translator backend not available (azure-cognitiveservices-language-translator package not installed)"
+        )
+
+    # MyMemory: uses stdlib requests (always available)
+    try:
+        from translation.mymemory import MyMemoryBackend
+
+        manager.register_backend(MyMemoryBackend)
+    except ImportError:
+        logger.info("MyMemory backend not available")
