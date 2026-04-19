@@ -33,3 +33,27 @@ def test_vendored_subliminal_providers_discoverable():
     from subliminal.providers import Provider  # base class
 
     assert Provider is not None, "subliminal.providers.Provider not importable"
+
+
+def test_vendored_babelfish_importable():
+    """The vendored babelfish must be importable as a top-level package."""
+    import providers._vendor  # noqa: F401
+
+    import babelfish
+
+    assert hasattr(babelfish, "Language"), "babelfish.Language class missing"
+    de = babelfish.Language("deu")
+    assert de.alpha2 == "de"
+
+
+def test_subliminal_can_use_babelfish():
+    """Subliminal's internal babelfish usage must work with our vendored copy."""
+    import providers._vendor  # noqa: F401
+
+    from babelfish import Language
+    from subliminal.video import Video
+
+    v = Video.fromname("Frozen.2013.720p.BluRay.x264-DON.mkv")
+    assert v.title.lower() == "frozen"
+    # Basic smoke — don't assert specifics, just ensure no import-time crash
+    assert Language("eng") is not None

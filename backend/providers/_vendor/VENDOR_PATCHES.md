@@ -15,6 +15,6 @@ and any patches applied after import.
 
 - **Source:** https://github.com/Diaoul/babelfish
 - **Version:** 0.6.1
-- **Commit:** <fill in during Task 4>
+- **Commit:** 1d7d414abfa2c4bb924b4f3762ae12b33165c324
 - **License:** BSD-3-Clause (see `LICENSE_babelfish`)
 - **Patches applied:** none
