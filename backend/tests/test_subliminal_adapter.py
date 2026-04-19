@@ -104,3 +104,72 @@ def test_convert_subliminal_subtitle_to_sublarr_result():
     assert result.release_info == "GROUP"
     assert result.fps == 23.976
     assert result.download_url == "https://example.com/12345"
+
+
+def test_adapter_search_delegates_to_subliminal_and_converts_results():
+    """adapter.search() invokes the wrapped provider and converts each Subtitle."""
+    from unittest.mock import MagicMock
+    from babelfish import Language
+    from providers.base import VideoQuery
+    from providers.subliminal_adapter import SubliminalProviderAdapter
+
+    class _FakeSubtitle:
+        provider_name = "opensubtitles"
+        id = "sub1"
+        language = Language("eng")
+        hearing_impaired = False
+        foreign_only = False
+        release_group = "GRP"
+        fps = None
+        page_link = "url"
+        filename = "f.srt"
+
+    fake_impl = MagicMock()
+    fake_impl.list_subtitles.return_value = [_FakeSubtitle(), _FakeSubtitle()]
+
+    FakeProviderCls = MagicMock(return_value=fake_impl)
+
+    adapter = SubliminalProviderAdapter(
+        subliminal_provider_cls=FakeProviderCls,
+        provider_name="opensubtitles_subliminal",
+    )
+    adapter.initialize()
+
+    query = VideoQuery(
+        file_path="/media/Show/S01E01.mkv",
+        series_title="Show",
+        season=1,
+        episode=1,
+        languages=["en"],
+    )
+    results = adapter.search(query)
+
+    assert len(results) == 2
+    assert all(r.provider_name == "opensubtitles_subliminal" for r in results)
+    assert fake_impl.list_subtitles.called
+    # First positional arg must be a subliminal.video.Video
+    from subliminal.video import Video as _Video
+
+    video_arg = fake_impl.list_subtitles.call_args.args[0]
+    assert isinstance(video_arg, _Video)
+    # Second positional arg must be a set of Language objects
+    langs_arg = fake_impl.list_subtitles.call_args.args[1]
+    assert Language("eng") in langs_arg
+
+
+def test_adapter_search_empty_languages_returns_empty_list():
+    """If the query requests no languages we return [] without calling Subliminal."""
+    from unittest.mock import MagicMock
+    from providers.base import VideoQuery
+    from providers.subliminal_adapter import SubliminalProviderAdapter
+
+    fake_impl = MagicMock()
+    adapter = SubliminalProviderAdapter(
+        subliminal_provider_cls=MagicMock(return_value=fake_impl),
+        provider_name="opensubtitles_subliminal",
+    )
+    adapter.initialize()
+
+    results = adapter.search(VideoQuery(file_path="/x.mkv", title="X", languages=[]))
+    assert results == []
+    fake_impl.list_subtitles.assert_not_called()

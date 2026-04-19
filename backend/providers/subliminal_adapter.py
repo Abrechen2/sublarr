@@ -132,8 +132,28 @@ class SubliminalProviderAdapter(SubtitleProvider):
         return {k: v for k, v in self.config.items() if v not in (None, "")}
 
     def search(self, query: VideoQuery) -> list[SubtitleResult]:
-        """Not yet implemented — filled in by Task 8."""
-        raise NotImplementedError("search() wired up in Task 8")
+        """Search the wrapped Subliminal provider for subtitles matching query."""
+        from babelfish import Language
+
+        if not query.languages:
+            return []
+
+        # Convert ISO 639-1 codes in query.languages into babelfish Language objects.
+        try:
+            lang_set = {Language.fromalpha2(code) for code in query.languages}
+        except ValueError as e:
+            logger.warning("Invalid language code in query for %s: %s", self.name, e)
+            return []
+
+        video = _to_subliminal_video(query)
+
+        try:
+            subliminal_subtitles = self._impl.list_subtitles(video, lang_set)
+        except Exception as e:
+            logger.warning("Subliminal provider %s failed search: %s", self.name, e)
+            return []
+
+        return [_to_sublarr_result(s, self.name) for s in subliminal_subtitles]
 
     def download(self, result: SubtitleResult) -> bytes:
         """Not yet implemented — filled in by Task 9."""
