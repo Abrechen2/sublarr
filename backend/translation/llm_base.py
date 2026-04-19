@@ -96,6 +96,9 @@ class LLMBackend(TranslationBackend):
         target_lang: str,
         glossary_entries: list[dict] | None = None,
         series_context: str | None = None,
+        *,
+        lookback: list[str] | None = None,
+        lookahead: list[str] | None = None,
         job_id: str | None = None,
     ) -> TranslationResult:
         """Orchestrate: concurrency + API call + cost tracking + event write.
@@ -104,6 +107,11 @@ class LLMBackend(TranslationBackend):
         falling back to a different backend. The ``TranslationResult`` returned
         on success always has ``success=True``; partial failures surface as
         exceptions so the manager can route the batch to a fallback backend.
+
+        The keyword-only ``lookback`` and ``lookahead`` arguments (Phase A4)
+        attach surrounding subtitle lines as context for pronoun resolution
+        and narrative coherence across batch boundaries. They are forwarded
+        to :meth:`_attempt` → :meth:`_assemble_messages`.
         """
         started_at = datetime.now(UTC)
         started_mono = time.monotonic()
@@ -122,10 +130,23 @@ class LLMBackend(TranslationBackend):
                     if get_queue_state().is_cancelled(job_id):
                         raise JobCancelledError(f"Job {job_id} was cancelled")
                 resp = self._attempt(
-                    lines, source_lang, target_lang, glossary_entries, series_context
+                    lines,
+                    source_lang,
+                    target_lang,
+                    glossary_entries,
+                    series_context,
+                    lookback=lookback,
+                    lookahead=lookahead,
                 )
                 resp = self._verify_line_count(
-                    resp, lines, source_lang, target_lang, glossary_entries, series_context
+                    resp,
+                    lines,
+                    source_lang,
+                    target_lang,
+                    glossary_entries,
+                    series_context,
+                    lookback=lookback,
+                    lookahead=lookahead,
                 )
         except ConcurrencyTimeoutError as exc:
             status = "timeout"
@@ -213,6 +234,9 @@ class LLMBackend(TranslationBackend):
         glossary_entries: list[dict] | None,
         series_context: str | None = None,
         is_retry: bool = False,
+        *,
+        lookback: list[str] | None = None,
+        lookahead: list[str] | None = None,
     ) -> LLMResponse:
         """Build + call + parse once. Used by :meth:`translate_batch`."""
         messages = self._assemble_messages(
@@ -222,6 +246,8 @@ class LLMBackend(TranslationBackend):
             glossary_entries,
             series_context=series_context,
             strict=is_retry,
+            lookback=lookback,
+            lookahead=lookahead,
         )
         payload = self._build_request(messages, max_tokens=self._estimate_max_tokens(lines))
         raw = self._call_api(payload, timeout_s=self.timeout_s)
@@ -238,6 +264,9 @@ class LLMBackend(TranslationBackend):
         target_lang: str,
         glossary_entries: list[dict] | None,
         series_context: str | None = None,
+        *,
+        lookback: list[str] | None = None,
+        lookahead: list[str] | None = None,
     ) -> LLMResponse:
         """Retry once on line-count mismatch; raise if still wrong.
 
@@ -261,6 +290,8 @@ class LLMBackend(TranslationBackend):
             glossary_entries,
             series_context=series_context,
             is_retry=True,
+            lookback=lookback,
+            lookahead=lookahead,
         )
         if len(resp_retry.translations) != len(lines):
             # Sum tokens so the error-case event captures full spend

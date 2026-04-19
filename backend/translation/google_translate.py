@@ -112,12 +112,22 @@ class GoogleTranslateBackend(TranslationBackend):
         source_lang: str,
         target_lang: str,
         glossary_entries: list[dict] | None = None,
+        series_context: str | None = None,
+        *,
+        lookback: list[str] | None = None,
+        lookahead: list[str] | None = None,
     ) -> TranslationResult:
         """Translate a batch of subtitle lines via Google Cloud Translation API.
 
         Uses the v3 translate_text endpoint which supports batch translation
         natively (up to 1024 segments per request).
+
+        ``series_context``, ``lookback`` and ``lookahead`` are accepted for a
+        uniform backend interface but IGNORED — Google Translation v3 is a
+        rule-/statistics-based REST API with no prompt concept.
         """
+        # Non-LLM backend: drop prompt-only arguments.
+        del series_context, lookback, lookahead
         if not lines:
             return TranslationResult(
                 translated_lines=[],

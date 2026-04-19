@@ -59,6 +59,10 @@ class LibreTranslateBackend(TranslationBackend):
         source_lang: str,
         target_lang: str,
         glossary_entries: list[dict] | None = None,
+        series_context: str | None = None,
+        *,
+        lookback: list[str] | None = None,
+        lookahead: list[str] | None = None,
     ) -> TranslationResult:
         """Translate lines one-by-one via LibreTranslate REST API.
 
@@ -67,10 +71,15 @@ class LibreTranslateBackend(TranslationBackend):
             source_lang: ISO 639-1 source language code
             target_lang: ISO 639-1 target language code
             glossary_entries: Ignored (LibreTranslate has no glossary support)
+            series_context: Ignored (LibreTranslate has no prompt concept)
+            lookback: Ignored (LibreTranslate has no prompt concept)
+            lookahead: Ignored (LibreTranslate has no prompt concept)
 
         Returns:
             TranslationResult with translated lines
         """
+        # Non-LLM backend: accept context kwargs for uniform interface but drop them.
+        del series_context, lookback, lookahead
         url = self.config.get("url", "http://libretranslate:5000").rstrip("/")
         api_key = self.config.get("api_key", "")
         timeout = int(self.config.get("request_timeout", 30))

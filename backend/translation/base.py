@@ -56,6 +56,9 @@ class TranslationBackend(ABC):
         target_lang: str,
         glossary_entries: list[dict] | None = None,
         series_context: str | None = None,
+        *,
+        lookback: list[str] | None = None,
+        lookahead: list[str] | None = None,
     ) -> TranslationResult:
         """Translate a batch of subtitle lines.
 
@@ -65,6 +68,13 @@ class TranslationBackend(ABC):
             target_lang: ISO 639-1 target language code
             glossary_entries: Optional list of {source_term, target_term} dicts
             series_context: Optional series/show context for the system prompt
+            lookback: Optional lines BEFORE the batch, provided as context
+                only. LLM backends may attach these to the prompt to resolve
+                pronouns and maintain consistency across batch boundaries.
+                Non-LLM backends (DeepL, Google, LibreTranslate) accept and
+                IGNORE this argument — the context is LLM-specific.
+            lookahead: Optional lines AFTER the batch, same semantics as
+                ``lookback`` (context only, never translated).
 
         Returns:
             TranslationResult with translated_lines in same order as input

@@ -433,6 +433,29 @@ class Settings(BaseSettings):
     translation_context_episodes: int = 1
     translation_series_glossary_auto: bool = False
 
+    # Translation Context Window (Phase A4 — lookback/lookahead for LLM backends)
+    translation_context_enabled: bool = Field(
+        default=True,
+        description=(
+            "Include lookback/lookahead subtitle lines as context when "
+            "translating via LLM backends. Improves narrative coherence "
+            "and pronoun resolution. Token cost: ~300 extra tokens per "
+            "batch of 50 lines."
+        ),
+    )
+    translation_context_lookback_lines: int = Field(
+        default=10,
+        ge=0,
+        le=50,
+        description="Lines BEFORE each batch included as context (LLM-only).",
+    )
+    translation_context_lookahead_lines: int = Field(
+        default=5,
+        ge=0,
+        le=50,
+        description="Lines AFTER each batch included as context (LLM-only).",
+    )
+
     # Extended Security (Step 46)
     session_timeout_minutes: int = 0  # 0 = no timeout
     max_login_attempts: int = 20

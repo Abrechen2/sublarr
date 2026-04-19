@@ -4,6 +4,7 @@ import logging
 import sys
 
 from translation import get_translation_manager
+from translation.context_windower import build_chunks
 from translator._helpers import (
     _get_cache_config,
     _resolve_backend_for_context,
@@ -171,6 +172,7 @@ def _translate_in_batches(
         tuple[list[str], TranslationResult]: All translated lines and last result
     """
     if len(lines) <= batch_size:
+        # Single batch path: no surrounding lines to provide as context.
         result = manager.translate_with_fallback(
             lines, source_lang, target_lang, fallback_chain, glossary_entries
         )
@@ -178,23 +180,55 @@ def _translate_in_batches(
             raise RuntimeError(f"Translation failed: {result.error}")
         return result.translated_lines, result
 
-    logger.debug("Chunking %d lines into batches of %d", len(lines), batch_size)
+    # Multi-batch path: pre-chunk the file with lookback/lookahead context so
+    # LLM backends can resolve pronouns and keep terminology consistent across
+    # batch boundaries. See translation.context_windower.build_chunks.
+    _get_settings = _pkg().get_settings
+    settings = _get_settings()
+    if getattr(settings, "translation_context_enabled", True):
+        lookback_n = getattr(settings, "translation_context_lookback_lines", 10)
+        lookahead_n = getattr(settings, "translation_context_lookahead_lines", 5)
+    else:
+        lookback_n = 0
+        lookahead_n = 0
+
+    chunks = build_chunks(
+        lines,
+        batch_size=batch_size,
+        lookback=lookback_n,
+        lookahead=lookahead_n,
+    )
+
+    logger.debug(
+        "Translating %d lines in %d chunks (batch_size=%d, lookback=%d, lookahead=%d)",
+        len(lines),
+        len(chunks),
+        batch_size,
+        lookback_n,
+        lookahead_n,
+    )
+
     all_translated: list[str] = []
     last_result = None
 
-    for chunk_start in range(0, len(lines), batch_size):
-        chunk = lines[chunk_start : chunk_start + batch_size]
+    for i, chunk in enumerate(chunks):
         chunk_result = manager.translate_with_fallback(
-            chunk, source_lang, target_lang, fallback_chain, glossary_entries
+            chunk.batch,
+            source_lang,
+            target_lang,
+            fallback_chain,
+            glossary_entries,
+            # Empty list -> None so LLM prompt assembly skips context sections
+            # entirely for the first (no lookback) and last (no lookahead) chunks.
+            lookback=chunk.lookback or None,
+            lookahead=chunk.lookahead or None,
         )
         if not chunk_result.success:
-            raise RuntimeError(
-                f"Translation failed on batch {chunk_start // batch_size + 1}: {chunk_result.error}"
-            )
-        if len(chunk_result.translated_lines) != len(chunk):
+            raise RuntimeError(f"Translation failed on batch {i + 1}: {chunk_result.error}")
+        if len(chunk_result.translated_lines) != len(chunk.batch):
             raise RuntimeError(
                 f"Chunk translation returned {len(chunk_result.translated_lines)} lines, "
-                f"expected {len(chunk)}. Aborting to prevent cache pollution."
+                f"expected {len(chunk.batch)}. Aborting to prevent cache pollution."
             )
         all_translated.extend(chunk_result.translated_lines)
         last_result = chunk_result

@@ -113,6 +113,9 @@ class TranslationManager:
         target_lang: str,
         fallback_chain: list[str],
         glossary_entries: list[dict] | None = None,
+        *,
+        lookback: list[str] | None = None,
+        lookahead: list[str] | None = None,
     ) -> TranslationResult:
         """Try each backend in the fallback chain until one succeeds.
 
@@ -125,6 +128,10 @@ class TranslationManager:
             target_lang: ISO 639-1 target language code
             fallback_chain: Ordered list of backend names to try
             glossary_entries: Optional glossary terms
+            lookback: Optional lookback lines forwarded to backends as
+                context-only (LLM backends consume; rule-based backends
+                ignore). See :meth:`TranslationBackend.translate_batch`.
+            lookahead: Optional lookahead lines, same semantics as lookback.
 
         Returns:
             TranslationResult from the first successful backend,
@@ -145,7 +152,14 @@ class TranslationManager:
 
             try:
                 start_time = time.time()
-                result = backend.translate_batch(lines, source_lang, target_lang, glossary_entries)
+                result = backend.translate_batch(
+                    lines,
+                    source_lang,
+                    target_lang,
+                    glossary_entries,
+                    lookback=lookback,
+                    lookahead=lookahead,
+                )
                 elapsed_ms = (time.time() - start_time) * 1000
 
                 if result.success:

@@ -115,6 +115,10 @@ class DeepLBackend(TranslationBackend):
         source_lang: str,
         target_lang: str,
         glossary_entries: list[dict] | None = None,
+        series_context: str | None = None,
+        *,
+        lookback: list[str] | None = None,
+        lookahead: list[str] | None = None,
     ) -> TranslationResult:
         """Translate a batch of lines using DeepL API.
 
@@ -123,10 +127,16 @@ class DeepLBackend(TranslationBackend):
             source_lang: ISO 639-1 source language code
             target_lang: ISO 639-1 target language code
             glossary_entries: Optional glossary terms for consistent terminology
+            series_context: Ignored (DeepL has no system-prompt concept)
+            lookback: Ignored (DeepL has no system-prompt concept)
+            lookahead: Ignored (DeepL has no system-prompt concept)
 
         Returns:
             TranslationResult with translated lines
         """
+        # Non-LLM backends accept context kwargs for a uniform interface,
+        # but DeepL's REST contract has no prompt/system concept — drop them.
+        del series_context, lookback, lookahead
         if not _DEEPL_AVAILABLE:
             raise RuntimeError("deepl package not installed. Install with: pip install deepl")
 

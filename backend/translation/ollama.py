@@ -218,6 +218,9 @@ class OllamaBackend(LLMBackend):
         glossary_entries: list[dict] | None,
         series_context: str | None = None,
         strict: bool = False,
+        *,
+        lookback: list[str] | None = None,
+        lookahead: list[str] | None = None,
     ) -> list[dict]:
         """Build OpenAI-style messages using the V8/V9-trained prompt format.
 
@@ -228,7 +231,14 @@ class OllamaBackend(LLMBackend):
 
         Chat-API mode (V9+): a separate system message carries role/tone;
         the user message still uses the trained numbered format.
+
+        Note: ``lookback`` and ``lookahead`` are accepted but IGNORED here —
+        the trained prompt format has a fixed shape and any extra context
+        would drift from the fine-tune distribution. Surrounding-line
+        context is only consumed by generic LLMBackend subclasses.
         """
+        # Explicit no-op to silence unused-argument lints; drift-prevention note above.
+        del lookback, lookahead
         user_content = build_translation_prompt(lines, source_lang, target_lang, glossary_entries)
         if self._use_chat_api:
             system_content = self._build_system_prompt(series_context)

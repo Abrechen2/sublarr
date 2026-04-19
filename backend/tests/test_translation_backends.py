@@ -68,7 +68,17 @@ class MockBackend(TranslationBackend):
         super().__init__(**config)
         self.should_fail = should_fail
 
-    def translate_batch(self, lines, source_lang, target_lang, glossary_entries=None):
+    def translate_batch(
+        self,
+        lines,
+        source_lang,
+        target_lang,
+        glossary_entries=None,
+        series_context=None,
+        *,
+        lookback=None,
+        lookahead=None,
+    ):
         if self.should_fail:
             return TranslationResult(
                 translated_lines=[],

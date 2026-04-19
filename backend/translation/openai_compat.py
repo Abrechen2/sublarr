@@ -184,6 +184,9 @@ class OpenAICompatBackend(LLMBackend):
         glossary_entries: list[dict] | None,
         series_context: str | None = None,
         strict: bool = False,
+        *,
+        lookback: list[str] | None = None,
+        lookahead: list[str] | None = None,
     ) -> list[dict]:
         """Build the OpenAI-style messages list.
 
@@ -192,6 +195,11 @@ class OpenAICompatBackend(LLMBackend):
         shape behave consistently. We put the full prompt in a single user
         message — the system-vs-user split doesn't add value here and keeps
         parity with Ollama's generate-mode.
+
+        Lookback/lookahead context (Phase A4) is prepended to the prompt as
+        a clearly marked "context only" block when provided, so generic
+        OpenAI-compatible endpoints benefit from narrative context even
+        though the main prompt shape stays compatible with Ollama's format.
         """
         prompt = build_translation_prompt(lines, source_lang, target_lang, glossary_entries)
         if series_context:
@@ -201,6 +209,19 @@ class OpenAICompatBackend(LLMBackend):
                 f"STRICT: return exactly {len(lines)} numbered lines, "
                 f"no commentary, no extra lines.\n\n{prompt}"
             )
+        context_parts = []
+        if lookback:
+            context_parts.append(
+                "Previous lines (for context only, do NOT translate or repeat):\n"
+                + "\n".join(lookback)
+            )
+        if lookahead:
+            context_parts.append(
+                "Following lines (for context only, do NOT translate or repeat):\n"
+                + "\n".join(lookahead)
+            )
+        if context_parts:
+            prompt = "\n\n".join(context_parts) + "\n\n" + prompt
         return [{"role": "user", "content": prompt}]
 
     def _build_request(self, messages: list[dict], max_tokens: int) -> dict:
