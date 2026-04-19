@@ -7,10 +7,11 @@ degradation handled in app.py).
 """
 
 import logging
-import threading
 
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
+
+from utils.debouncer import DebouncedCallback
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +33,11 @@ class PluginFileWatcher(FileSystemEventHandler):
         super().__init__()
         self.plugin_manager = plugin_manager
         self.debounce_seconds = debounce_seconds
-        self._timer: threading.Timer | None = None
-        self._lock = threading.Lock()
+        self._debouncer = DebouncedCallback(
+            delay_s=debounce_seconds,
+            callback=self._debounced_reload,
+            name="plugin_reload",
+        )
 
     def _is_plugin_file(self, path: str) -> bool:
         """Check if a path is a plugin Python file (not private/hidden)."""
@@ -72,15 +76,11 @@ class PluginFileWatcher(FileSystemEventHandler):
     def _schedule_reload(self) -> None:
         """Schedule a debounced reload.
 
-        Cancels any pending timer and starts a new one. Only the last
-        event within the debounce window triggers a reload.
+        Delegates to the internal DebouncedCallback which cancels any
+        pending timer and starts a new one. Only the last event within
+        the debounce window triggers a reload.
         """
-        with self._lock:
-            if self._timer is not None:
-                self._timer.cancel()
-            self._timer = threading.Timer(self.debounce_seconds, self._debounced_reload)
-            self._timer.daemon = True
-            self._timer.start()
+        self._debouncer.trigger()
 
     def _debounced_reload(self) -> None:
         """Perform the actual plugin reload after debounce period.
@@ -108,6 +108,14 @@ class PluginFileWatcher(FileSystemEventHandler):
 
         except Exception as e:
             logger.error("Hot-reload failed: %s", e, exc_info=True)
+
+    def shutdown(self) -> None:
+        """Cancel any pending debounced reload.
+
+        Called during application shutdown to prevent the debouncer's
+        daemon timer from firing after the plugin manager is gone.
+        """
+        self._debouncer.shutdown()
 
 
 def start_plugin_watcher(plugin_manager, plugins_dir: str) -> Observer:
