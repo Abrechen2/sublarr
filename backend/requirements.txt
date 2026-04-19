@@ -5,6 +5,7 @@ Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.1.0
 SQLAlchemy==2.0.46
 alembic==1.18.4
+anthropic>=0.39,<1.0
 apispec>=6.9.0
 apispec-webframeworks>=1.0.0
 flask-swagger-ui>=4.0.0
