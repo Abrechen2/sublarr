@@ -1,12 +1,16 @@
 """Scheduled cleanup runner for automated deduplication and rule execution.
 
-Follows the same threading.Timer pattern as wanted_scanner scheduler.
-Reads cleanup_schedule_interval_hours from config_entries (default: 168 = weekly).
-Runs enabled cleanup rules in order: dedup scan then rule execution.
+Migrated from threading.Timer to APScheduler SublarrScheduler in Phase 5 / P4.
+The actual cleanup body lives in ``cleanup_tick()`` which is invoked via
+a JobSpec registered by ``services.scheduler._build_default_jobs``.
+
+``start_cleanup_scheduler`` is retained as an adapter that updates the
+APScheduler interval in response to settings-save calls from the config
+routes. ``stop_cleanup_scheduler`` is now a no-op because APScheduler owns
+lifecycle.
 """
 
 import logging
-import threading
 from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
@@ -14,334 +18,307 @@ logger = logging.getLogger(__name__)
 # Default: run weekly (168 hours)
 DEFAULT_INTERVAL_HOURS = 168
 
-_scheduler = None
-_scheduler_lock = threading.Lock()
+
+# Lightweight state tracked purely for the /api/v1/system/tasks snapshot.
+# APScheduler owns scheduling; this only keeps last_run / is_executing flags
+# so the existing System Tasks UI continues to render.
+_state = {
+    "executing": False,
+    "last_run_at": None,
+    "interval_hours": DEFAULT_INTERVAL_HOURS,
+}
 
 
 def get_cleanup_scheduler():
-    """Return the current CleanupScheduler singleton, or None if not started."""
-    return _scheduler
+    """Return a thin adapter for routes/system/tasks.py.
 
-
-def start_cleanup_scheduler(app, socketio):
-    """Start the cleanup scheduler if not already running.
-
-    Reads interval from config_entries. Runs enabled rules on schedule.
-
-    Args:
-        app: Flask application instance.
-        socketio: SocketIO instance for WebSocket progress events.
+    Legacy callers expected an object with ``_running`` / ``is_executing`` /
+    ``last_run_at`` / ``next_run_at``. APScheduler owns scheduling now;
+    this returns a small adapter that exposes those fields from the
+    APScheduler job state + local execution flag.
     """
-    global _scheduler
-    with _scheduler_lock:
-        if _scheduler is not None:
-            return  # Already running
-
-        _scheduler = CleanupScheduler(app, socketio)
-        _scheduler.start()
+    return _CleanupSchedulerProxy()
 
 
-def stop_cleanup_scheduler():
-    """Stop the cleanup scheduler if running."""
-    global _scheduler
-    with _scheduler_lock:
-        if _scheduler:
-            _scheduler.stop()
-            _scheduler = None
+class _CleanupSchedulerProxy:
+    """Backwards-compatible shim exposing the attributes routes read."""
 
-
-class CleanupScheduler:
-    """Periodic cleanup task runner using threading.Timer."""
-
-    def __init__(self, app, socketio):
-        self._app = app
-        self._socketio = socketio
-        self._timer = None
-        self._running = False
-        self._executing = False
-        self._last_run_at = None
-        self._interval_hours = DEFAULT_INTERVAL_HOURS
+    @property
+    def _running(self) -> bool:
+        return _get_interval_hours() > 0
 
     @property
     def is_executing(self) -> bool:
-        return self._executing
+        return _state["executing"]
 
     @property
     def last_run_at(self):
-        return self._last_run_at
+        return _state["last_run_at"]
 
     @property
     def next_run_at(self):
-        if not self._last_run_at or not self._interval_hours:
+        last = _state["last_run_at"]
+        interval = _state["interval_hours"]
+        if not last or not interval:
             return None
         try:
             from datetime import timedelta
 
-            return (self._last_run_at + timedelta(hours=self._interval_hours)).isoformat()
+            return (last + timedelta(hours=interval)).isoformat()
         except Exception:
             return None
 
-    def start(self):
-        """Start the scheduler."""
-        interval = self._get_interval_hours()
-        if interval <= 0:
-            logger.info("Cleanup scheduler disabled (interval=0)")
-            return
-
-        self._running = True
-        self._interval_hours = interval
-        self._schedule_next(interval)
-        logger.info("Cleanup scheduler started (every %dh)", interval)
-
-    def stop(self):
-        """Cancel the scheduled timer."""
-        self._running = False
-        if self._timer:
-            self._timer.cancel()
-            self._timer = None
-        logger.info("Cleanup scheduler stopped")
-
-    def _get_interval_hours(self) -> int:
-        """Read cleanup schedule interval from config."""
-        try:
-            from db.repositories.config import ConfigRepository
-
-            repo = ConfigRepository()
-            value = repo.get_config_entry("cleanup_schedule_interval_hours")
-            if value is not None:
-                return int(value)
-        except Exception as e:
-            logger.debug("Could not read cleanup interval from config: %s", e)
-
-        return DEFAULT_INTERVAL_HOURS
-
-    def _schedule_next(self, interval_hours: int):
-        """Schedule the next cleanup run."""
-        if not self._running:
-            return
-
-        self._timer = threading.Timer(
-            interval_hours * 3600,
-            self._run_scheduled,
-            args=(interval_hours,),
-        )
-        self._timer.daemon = True
-        self._timer.start()
-
-    def _run_scheduled(self, interval_hours: int):
-        """Execute scheduled cleanup and reschedule."""
-        logger.info("Scheduled cleanup starting")
-
-        with self._app.app_context():
-            try:
-                self._execute_cleanup()
-            except Exception as e:
-                logger.error("Scheduled cleanup failed: %s", e)
-
-        # Re-read interval (may have been updated via UI)
-        new_interval = self._get_interval_hours()
-        self._interval_hours = new_interval
-        if new_interval > 0:
-            self._schedule_next(new_interval)
-        else:
-            logger.info("Cleanup scheduler disabled after run (interval set to 0)")
-            self._running = False
-
-    def _expire_zombie_jobs(self):
-        """Mark jobs stuck in 'running' state for more than 2 hours as failed.
-
-        Handles threads that die mid-job without updating the DB (distinct from
-        startup cleanup which only catches jobs interrupted by a restart).
-        """
-        from datetime import datetime, timedelta
-
-        from db.jobs import get_jobs, update_job
-
-        cutoff = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
-        try:
-            page = get_jobs(status="running", per_page=500)
-            expired = 0
-            for job in page.get("data", []):
-                created = job.get("created_at", "")
-                # Only expire if the job has been running longer than the cutoff
-                if created and created < cutoff:
-                    update_job(
-                        job["id"], "failed", error="Job timed out — running for more than 2 hours"
-                    )
-                    logger.warning("Expired zombie job %s (created_at=%s)", job["id"], created)
-                    expired += 1
-            if expired:
-                logger.info("Zombie job expiry: marked %d stale running jobs as failed", expired)
-        except Exception as e:
-            logger.warning("Zombie job expiry check failed: %s", e)
-
     def _execute_cleanup(self):
-        """Run all enabled scheduled cleanup rules in order."""
-        from config import get_settings
-        from db.repositories.cleanup import CleanupRepository
-        from dedup_engine import scan_for_duplicates, scan_orphaned_subtitles
-        from services.cleanup_executors import (
-            execute_format_upgrade,
-            execute_language_filter,
-            execute_orphan_db,
-            execute_orphan_files,
-        )
+        """Legacy hook used by /api/v1/system/tasks/cleanup/trigger."""
+        _execute_cleanup()
 
-        self._executing = True
-        try:
-            # Always run zombie-job expiry regardless of user-configured cleanup rules
-            self._expire_zombie_jobs()
 
-            repo = CleanupRepository()
-            rules = repo.get_rules()
-            settings = get_settings()
-            media_path = settings.media_path
+def start_cleanup_scheduler(app, socketio=None):
+    """Adapter that updates the APScheduler cleanup job's interval.
 
-            scheduled_rules = [
-                r
-                for r in rules
-                if r.get("enabled") and r.get("schedule") in ("daily", "weekly", "after_scan")
-            ]
+    Called by app_schedulers._start_schedulers and by settings-save paths.
+    Reads ``cleanup_schedule_interval_hours`` from config and reschedules
+    the registered ``cleanup`` JobSpec. Safe to call before the scheduler
+    is available — logs a warning and returns.
+    """
+    from apscheduler.triggers.interval import IntervalTrigger
 
-            if not scheduled_rules:
-                logger.info("No scheduled cleanup rules to execute")
-                return
+    scheduler = app.extensions.get("scheduler") if app is not None else None
+    interval = _get_interval_hours()
+    _state["interval_hours"] = interval
 
-            logger.info("Executing %d scheduled cleanup rules", len(scheduled_rules))
+    if scheduler is None:
+        logger.debug("cleanup_scheduler: SublarrScheduler not available yet")
+        return
+    try:
+        scheduler.modify_trigger("cleanup", IntervalTrigger(hours=max(1, interval)))
+        logger.info("cleanup: interval set to %dh via adapter", interval)
+    except Exception:
+        logger.error("cleanup: adapter failed", exc_info=True)
 
-            for rule in scheduled_rules:
-                try:
-                    rule_type = rule["rule_type"]
-                    rule_id = rule["id"]
-                    config = rule.get("config_json", {})
 
-                    if rule_type == "language_filter":
-                        result = execute_language_filter(media_path, config, dry_run=False)
-                        repo.update_rule_last_run(rule_id)
-                        repo.log_cleanup(
-                            action_type="scheduled_language_filter",
-                            files_deleted=result.get("deleted", 0),
-                            bytes_freed=result.get("bytes_freed", 0),
-                            rule_id=rule_id,
-                        )
-                        logger.info(
-                            "Scheduled language_filter: %d deleted, %d bytes freed",
-                            result.get("deleted", 0),
-                            result.get("bytes_freed", 0),
-                        )
+def stop_cleanup_scheduler():
+    """No-op — APScheduler handles shutdown via SublarrScheduler.shutdown()."""
+    return None
 
-                    elif rule_type == "format_upgrade":
-                        result = execute_format_upgrade(media_path, config, dry_run=False)
-                        repo.update_rule_last_run(rule_id)
-                        repo.log_cleanup(
-                            action_type="scheduled_format_upgrade",
-                            files_deleted=result.get("deleted", 0),
-                            bytes_freed=result.get("bytes_freed", 0),
-                            rule_id=rule_id,
-                        )
-                        logger.info(
-                            "Scheduled format_upgrade: %d deleted, %d bytes freed",
-                            result.get("deleted", 0),
-                            result.get("bytes_freed", 0),
-                        )
 
-                    elif rule_type == "orphan_files":
-                        result = execute_orphan_files(media_path, config, dry_run=False)
-                        repo.update_rule_last_run(rule_id)
-                        repo.log_cleanup(
-                            action_type="scheduled_orphan_files",
-                            files_deleted=result.get("deleted", 0),
-                            bytes_freed=result.get("bytes_freed", 0),
-                            rule_id=rule_id,
-                        )
-                        logger.info(
-                            "Scheduled orphan_files: %d deleted, %d bytes freed",
-                            result.get("deleted", 0),
-                            result.get("bytes_freed", 0),
-                        )
+def _get_interval_hours() -> int:
+    """Read cleanup schedule interval from config (config_entries table)."""
+    try:
+        from db.repositories.config import ConfigRepository
 
-                    elif rule_type == "orphan_db":
-                        result = execute_orphan_db(config, dry_run=False)
-                        repo.update_rule_last_run(rule_id)
-                        repo.log_cleanup(
-                            action_type="scheduled_orphan_db",
-                            files_deleted=result.get("deleted", 0),
-                            rule_id=rule_id,
-                        )
-                        logger.info(
-                            "Scheduled orphan_db: %d DB entries removed",
-                            result.get("deleted", 0),
-                        )
+        repo = ConfigRepository()
+        value = repo.get_config_entry("cleanup_schedule_interval_hours")
+        if value is not None:
+            return int(value)
+    except Exception as e:
+        logger.debug("Could not read cleanup interval from config: %s", e)
+    return DEFAULT_INTERVAL_HOURS
 
-                    elif rule_type == "dedup":
-                        result = scan_for_duplicates(media_path, socketio=self._socketio)
-                        repo.update_rule_last_run(rule_id)
-                        repo.log_cleanup(
-                            action_type="scheduled_dedup",
-                            files_processed=result.get("total_scanned", 0),
-                            rule_id=rule_id,
-                        )
-                        logger.info(
-                            "Scheduled dedup scan: %d files, %d duplicates",
-                            result.get("total_scanned", 0),
-                            result.get("duplicates_found", 0),
-                        )
 
-                    elif rule_type == "orphaned":
-                        result = scan_orphaned_subtitles(media_path)
-                        repo.update_rule_last_run(rule_id)
-                        repo.log_cleanup(
-                            action_type="scheduled_orphan_scan",
-                            files_processed=len(result),
-                            rule_id=rule_id,
-                        )
-                        logger.info("Scheduled orphan scan: %d orphaned files found", len(result))
+def cleanup_tick() -> None:
+    """Module-level tick function invoked by APScheduler.
 
-                    elif rule_type == "old_backups":
-                        from remux.backup_cleanup import cleanup_old_backups
-                        from routes.remux import _trash_paths
+    Wraps ``_execute_cleanup`` with tracking flags so the tasks-list UI
+    can show the ``running`` / ``last_run_at`` state.
+    """
+    _execute_cleanup()
 
-                        retention_days = getattr(settings, "remux_backup_retention_days", 7)
-                        with self._app.app_context():
-                            trash_dirs = _trash_paths()
-                        result = cleanup_old_backups(trash_dirs, retention_days)
-                        deleted_count = len(result.get("deleted", []))
 
-                        repo.update_rule_last_run(rule_id)
-                        repo.log_cleanup(
-                            action_type="scheduled_backup_cleanup",
-                            files_deleted=deleted_count,
-                            rule_id=rule_id,
-                        )
-                        logger.info(
-                            "Scheduled backup cleanup: %d .bak files deleted (retention=%dd)",
-                            deleted_count,
-                            retention_days,
-                        )
+def _expire_zombie_jobs():
+    """Mark jobs stuck in 'running' state for more than 2 hours as failed."""
+    from datetime import datetime, timedelta
 
-                    elif rule_type == "old_sidecar_trash":
-                        from routes.subtitles import _auto_purge_old_trash
+    from db.jobs import get_jobs, update_job
 
-                        retention_days = getattr(settings, "subtitle_trash_retention_days", 30)
-                        purged = _auto_purge_old_trash(media_path, retention_days)
+    cutoff = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
+    try:
+        page = get_jobs(status="running", per_page=500)
+        expired = 0
+        for job in page.get("data", []):
+            created = job.get("created_at", "")
+            if created and created < cutoff:
+                update_job(
+                    job["id"], "failed", error="Job timed out — running for more than 2 hours"
+                )
+                logger.warning("Expired zombie job %s (created_at=%s)", job["id"], created)
+                expired += 1
+        if expired:
+            logger.info("Zombie job expiry: marked %d stale running jobs as failed", expired)
+    except Exception as e:
+        logger.warning("Zombie job expiry check failed: %s", e)
 
-                        repo.update_rule_last_run(rule_id)
-                        repo.log_cleanup(
-                            action_type="scheduled_sidecar_trash_purge",
-                            files_deleted=purged,
-                            rule_id=rule_id,
-                        )
-                        logger.info(
-                            "Scheduled sidecar trash purge: %d batches removed (retention=%dd)",
-                            purged,
-                            retention_days,
-                        )
 
-                    else:
-                        logger.warning("Unknown rule type in scheduler: %s", rule_type)
+def _execute_cleanup():
+    """Run all enabled scheduled cleanup rules in order."""
+    from config import get_settings
+    from db.repositories.cleanup import CleanupRepository
+    from dedup_engine import scan_for_duplicates, scan_orphaned_subtitles
+    from services.cleanup_executors import (
+        execute_format_upgrade,
+        execute_language_filter,
+        execute_orphan_db,
+        execute_orphan_files,
+    )
 
-                except Exception as e:
-                    logger.error("Failed to execute rule %d (%s): %s", rule["id"], rule["name"], e)
-        finally:
-            self._executing = False
-            self._last_run_at = datetime.now(UTC)
+    _state["executing"] = True
+    try:
+        # Always run zombie-job expiry regardless of user-configured cleanup rules
+        _expire_zombie_jobs()
+
+        repo = CleanupRepository()
+        rules = repo.get_rules()
+        settings = get_settings()
+        media_path = settings.media_path
+
+        scheduled_rules = [
+            r
+            for r in rules
+            if r.get("enabled") and r.get("schedule") in ("daily", "weekly", "after_scan")
+        ]
+
+        if not scheduled_rules:
+            logger.info("No scheduled cleanup rules to execute")
+            return
+
+        logger.info("Executing %d scheduled cleanup rules", len(scheduled_rules))
+
+        for rule in scheduled_rules:
+            try:
+                rule_type = rule["rule_type"]
+                rule_id = rule["id"]
+                config = rule.get("config_json", {})
+
+                if rule_type == "language_filter":
+                    result = execute_language_filter(media_path, config, dry_run=False)
+                    repo.update_rule_last_run(rule_id)
+                    repo.log_cleanup(
+                        action_type="scheduled_language_filter",
+                        files_deleted=result.get("deleted", 0),
+                        bytes_freed=result.get("bytes_freed", 0),
+                        rule_id=rule_id,
+                    )
+                    logger.info(
+                        "Scheduled language_filter: %d deleted, %d bytes freed",
+                        result.get("deleted", 0),
+                        result.get("bytes_freed", 0),
+                    )
+
+                elif rule_type == "format_upgrade":
+                    result = execute_format_upgrade(media_path, config, dry_run=False)
+                    repo.update_rule_last_run(rule_id)
+                    repo.log_cleanup(
+                        action_type="scheduled_format_upgrade",
+                        files_deleted=result.get("deleted", 0),
+                        bytes_freed=result.get("bytes_freed", 0),
+                        rule_id=rule_id,
+                    )
+                    logger.info(
+                        "Scheduled format_upgrade: %d deleted, %d bytes freed",
+                        result.get("deleted", 0),
+                        result.get("bytes_freed", 0),
+                    )
+
+                elif rule_type == "orphan_files":
+                    result = execute_orphan_files(media_path, config, dry_run=False)
+                    repo.update_rule_last_run(rule_id)
+                    repo.log_cleanup(
+                        action_type="scheduled_orphan_files",
+                        files_deleted=result.get("deleted", 0),
+                        bytes_freed=result.get("bytes_freed", 0),
+                        rule_id=rule_id,
+                    )
+                    logger.info(
+                        "Scheduled orphan_files: %d deleted, %d bytes freed",
+                        result.get("deleted", 0),
+                        result.get("bytes_freed", 0),
+                    )
+
+                elif rule_type == "orphan_db":
+                    result = execute_orphan_db(config, dry_run=False)
+                    repo.update_rule_last_run(rule_id)
+                    repo.log_cleanup(
+                        action_type="scheduled_orphan_db",
+                        files_deleted=result.get("deleted", 0),
+                        rule_id=rule_id,
+                    )
+                    logger.info(
+                        "Scheduled orphan_db: %d DB entries removed",
+                        result.get("deleted", 0),
+                    )
+
+                elif rule_type == "dedup":
+                    result = scan_for_duplicates(media_path, socketio=None)
+                    repo.update_rule_last_run(rule_id)
+                    repo.log_cleanup(
+                        action_type="scheduled_dedup",
+                        files_processed=result.get("total_scanned", 0),
+                        rule_id=rule_id,
+                    )
+                    logger.info(
+                        "Scheduled dedup scan: %d files, %d duplicates",
+                        result.get("total_scanned", 0),
+                        result.get("duplicates_found", 0),
+                    )
+
+                elif rule_type == "orphaned":
+                    result = scan_orphaned_subtitles(media_path)
+                    repo.update_rule_last_run(rule_id)
+                    repo.log_cleanup(
+                        action_type="scheduled_orphan_scan",
+                        files_processed=len(result),
+                        rule_id=rule_id,
+                    )
+                    logger.info("Scheduled orphan scan: %d orphaned files found", len(result))
+
+                elif rule_type == "old_backups":
+                    from flask import current_app
+
+                    from remux.backup_cleanup import cleanup_old_backups
+                    from routes.remux import _trash_paths
+
+                    retention_days = getattr(settings, "remux_backup_retention_days", 7)
+                    app = current_app._get_current_object()
+                    with app.app_context():
+                        trash_dirs = _trash_paths()
+                    result = cleanup_old_backups(trash_dirs, retention_days)
+                    deleted_count = len(result.get("deleted", []))
+
+                    repo.update_rule_last_run(rule_id)
+                    repo.log_cleanup(
+                        action_type="scheduled_backup_cleanup",
+                        files_deleted=deleted_count,
+                        rule_id=rule_id,
+                    )
+                    logger.info(
+                        "Scheduled backup cleanup: %d .bak files deleted (retention=%dd)",
+                        deleted_count,
+                        retention_days,
+                    )
+
+                elif rule_type == "old_sidecar_trash":
+                    from routes.subtitles import _auto_purge_old_trash
+
+                    retention_days = getattr(settings, "subtitle_trash_retention_days", 30)
+                    purged = _auto_purge_old_trash(media_path, retention_days)
+
+                    repo.update_rule_last_run(rule_id)
+                    repo.log_cleanup(
+                        action_type="scheduled_sidecar_trash_purge",
+                        files_deleted=purged,
+                        rule_id=rule_id,
+                    )
+                    logger.info(
+                        "Scheduled sidecar trash purge: %d batches removed (retention=%dd)",
+                        purged,
+                        retention_days,
+                    )
+
+                else:
+                    logger.warning("Unknown rule type in scheduler: %s", rule_type)
+
+            except Exception as e:
+                logger.error("Failed to execute rule %d (%s): %s", rule["id"], rule["name"], e)
+    finally:
+        _state["executing"] = False
+        _state["last_run_at"] = datetime.now(UTC)
