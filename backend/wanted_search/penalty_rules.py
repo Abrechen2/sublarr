@@ -24,6 +24,7 @@ returned entries into the overall breakdown and recompute the sum.
 from __future__ import annotations
 
 import logging
+import re
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, ClassVar
 
@@ -33,7 +34,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-_RULE_REGISTRY: list[type["PenaltyRule"]] = []
+_RULE_REGISTRY: list[type[PenaltyRule]] = []
 
 
 class PenaltyRule(ABC):
@@ -45,11 +46,11 @@ class PenaltyRule(ABC):
     description: ClassVar[str] = ""
 
     @abstractmethod
-    def applies(self, candidate: "SubtitleResult", query: "VideoQuery") -> bool:
+    def applies(self, candidate: SubtitleResult, query: VideoQuery) -> bool:
         """Return True if this rule should apply to the candidate."""
 
     @abstractmethod
-    def weight(self, candidate: "SubtitleResult", query: "VideoQuery") -> int:
+    def weight(self, candidate: SubtitleResult, query: VideoQuery) -> int:
         """Return the signed weight to add to the candidate's score.
 
         Most rules return ``self.default_weight``; dynamic rules can scale
@@ -68,8 +69,8 @@ def register_penalty(cls: type[PenaltyRule]) -> type[PenaltyRule]:
 
 
 def apply_penalty_pipeline(
-    candidate: "SubtitleResult",
-    query: "VideoQuery",
+    candidate: SubtitleResult,
+    query: VideoQuery,
 ) -> dict[str, int]:
     """Run all registered penalty rules against the candidate.
 
@@ -114,3 +115,351 @@ def apply_penalty_pipeline(
             logger.warning("Penalty rule %s raised: %s", rule_cls.rule_id, e)
 
     return breakdown
+
+
+# ─── Port group — reproduce existing Sublarr scoring as named rules ──────────
+
+
+@register_penalty
+class ReleaseGroupMatchRule(PenaltyRule):
+    rule_id = "release_group_match"
+    default_weight = 14  # matches EPISODE_SCORES["release_group"]
+    label = "Release Group Match"
+    description = (
+        "Candidate release_info contains the query release_group (case-insensitive substring)."
+    )
+
+    def applies(self, candidate, query) -> bool:
+        rg = (query.release_group or "").strip().lower()
+        if not rg:
+            return False
+        return rg in (candidate.release_info or "").lower()
+
+    def weight(self, candidate, query) -> int:
+        return self.default_weight
+
+
+@register_penalty
+class SourceMatchRule(PenaltyRule):
+    rule_id = "source_match"
+    default_weight = 7
+    label = "Source Match"
+    description = "Candidate release_info mentions query source (BluRay/WEB-DL/HDTV)."
+
+    def applies(self, candidate, query) -> bool:
+        src = (query.source or "").strip().lower()
+        if not src:
+            return False
+        return src in (candidate.release_info or "").lower()
+
+    def weight(self, candidate, query) -> int:
+        return self.default_weight
+
+
+_AUDIO_CODECS: tuple[str, ...] = ("dts", "ac3", "aac", "eac3", "truehd", "flac", "opus")
+
+
+@register_penalty
+class AudioCodecMatchRule(PenaltyRule):
+    rule_id = "audio_codec_match"
+    default_weight = 3
+    label = "Audio Codec Match"
+    description = "Candidate release_info names a common audio codec (DTS, AC3, AAC, etc.)."
+
+    def applies(self, candidate, query) -> bool:
+        info = (candidate.release_info or "").lower()
+        return any(c in info for c in _AUDIO_CODECS)
+
+    def weight(self, candidate, query) -> int:
+        return self.default_weight
+
+
+@register_penalty
+class ResolutionMatchRule(PenaltyRule):
+    rule_id = "resolution_match"
+    default_weight = 2
+    label = "Resolution Match"
+    description = "Candidate release_info contains the query resolution (e.g. 1080p)."
+
+    def applies(self, candidate, query) -> bool:
+        res = (query.resolution or "").strip().lower()
+        if not res:
+            return False
+        return res in (candidate.release_info or "").lower()
+
+    def weight(self, candidate, query) -> int:
+        return self.default_weight
+
+
+_CODEC_TAGS: dict[str, tuple[str, ...]] = {
+    "x265": ("x265", "hevc", "h265"),
+    "hevc": ("x265", "hevc", "h265"),
+    "h265": ("x265", "hevc", "h265"),
+    "x264": ("x264", "h264", "avc"),
+    "h264": ("x264", "h264", "avc"),
+    "avc": ("x264", "h264", "avc"),
+    "av1": ("av1",),
+}
+
+
+@register_penalty
+class VideoCodecMatchRule(PenaltyRule):
+    rule_id = "video_codec_match"
+    default_weight = 2
+    label = "Video Codec Match"
+    description = "Candidate release_info contains a tag from the query video_codec family."
+
+    def applies(self, candidate, query) -> bool:
+        vc = (query.video_codec or "").strip().lower()
+        if not vc:
+            return False
+        tags = _CODEC_TAGS.get(vc, (vc,))
+        info = (candidate.release_info or "").lower()
+        return any(tag in info for tag in tags)
+
+    def weight(self, candidate, query) -> int:
+        return self.default_weight
+
+
+@register_penalty
+class FormatBonusAssRule(PenaltyRule):
+    rule_id = "format_bonus_ass"
+    default_weight = 50
+    label = "ASS Format Bonus"
+    description = "Candidate format is ASS or SSA (Sublarr prefers styled subs)."
+
+    def applies(self, candidate, query) -> bool:
+        from providers.base import SubtitleFormat
+
+        return candidate.format in (SubtitleFormat.ASS, SubtitleFormat.SSA)
+
+    def weight(self, candidate, query) -> int:
+        return self.default_weight
+
+
+@register_penalty
+class HiPreferencePreferRule(PenaltyRule):
+    rule_id = "hi_preference_prefer"
+    default_weight = 30
+    label = "HI Preference — Prefer"
+    description = "Query asks for HI-preferred and candidate is HI."
+
+    def applies(self, candidate, query) -> bool:
+        return getattr(query, "hi_preference", "include") == "prefer" and candidate.hearing_impaired
+
+    def weight(self, candidate, query) -> int:
+        return self.default_weight
+
+
+@register_penalty
+class HiPreferenceExcludeOrOnlyRule(PenaltyRule):
+    rule_id = "hi_preference_exclude_or_only"
+    default_weight = -999
+    label = "HI Preference — Exclude / Only Kill"
+    description = (
+        "Query says exclude-HI and candidate is HI, or says only-HI and candidate isn't. "
+        "Kills the candidate."
+    )
+
+    def applies(self, candidate, query) -> bool:
+        pref = getattr(query, "hi_preference", "include")
+        if pref == "exclude" and candidate.hearing_impaired:
+            return True
+        if pref == "only" and not candidate.hearing_impaired:  # noqa: SIM103 - clarity
+            return True
+        return False
+
+    def weight(self, candidate, query) -> int:
+        return self.default_weight
+
+
+@register_penalty
+class ForcedPreferencePreferRule(PenaltyRule):
+    rule_id = "forced_preference_prefer"
+    default_weight = 30
+    label = "Forced Preference — Prefer"
+    description = "Query prefers forced subs and candidate is forced."
+
+    def applies(self, candidate, query) -> bool:
+        return getattr(query, "forced_scoring", "include") == "prefer" and candidate.forced
+
+    def weight(self, candidate, query) -> int:
+        return self.default_weight
+
+
+@register_penalty
+class ForcedPreferenceExcludeOrOnlyRule(PenaltyRule):
+    rule_id = "forced_preference_exclude_or_only"
+    default_weight = -999
+    label = "Forced Preference — Exclude / Only Kill"
+    description = (
+        "Query says exclude-forced and candidate is forced, or says only-forced and candidate "
+        "isn't. Kills the candidate."
+    )
+
+    def applies(self, candidate, query) -> bool:
+        pref = getattr(query, "forced_scoring", "include")
+        if pref == "exclude" and candidate.forced:
+            return True
+        if pref == "only" and not candidate.forced:  # noqa: SIM103 - clarity
+            return True
+        return False
+
+    def weight(self, candidate, query) -> int:
+        return self.default_weight
+
+
+# ─── Add group — new Bazarr-equivalent opt-in rules (default_weight=0) ───────
+
+
+@register_penalty
+class ReleaseGroupSubstringLooseRule(PenaltyRule):
+    rule_id = "release_group_substring_loose"
+    default_weight = 0  # opt-in; suggested +5 when enabled
+    label = "Release Group Substring (Loose)"
+    description = (
+        "Release_info contains the first 3 chars of the query release_group. "
+        "Catches abbreviated group names."
+    )
+
+    def applies(self, candidate, query) -> bool:
+        rg = (query.release_group or "").strip().lower()
+        if len(rg) < 3:
+            return False
+        prefix = rg[:3]
+        info = (candidate.release_info or "").lower()
+        # Skip if the strict match would already fire to avoid double-counting.
+        if rg in info:
+            return False
+        return prefix in info
+
+    def weight(self, candidate, query) -> int:
+        return self.default_weight
+
+
+_SOURCE_HIERARCHY: dict[str, int] = {
+    "bluray": 3,
+    "web-dl": 2,
+    "webdl": 2,
+    "webrip": 1,
+    "hdtv": 0,
+}
+
+
+@register_penalty
+class SourceHierarchyPenaltyRule(PenaltyRule):
+    rule_id = "source_hierarchy_penalty"
+    default_weight = 0  # opt-in; suggested -10
+    label = "Source Hierarchy Penalty"
+    description = (
+        "Candidate source is lower-tier than the query source "
+        "(WEB-DL candidate for BluRay query, etc.)."
+    )
+
+    @staticmethod
+    def _tier(info_or_src: str) -> int:
+        s = (info_or_src or "").lower()
+        for key, tier in _SOURCE_HIERARCHY.items():
+            if key in s:
+                return tier
+        return -1
+
+    def applies(self, candidate, query) -> bool:
+        q_src = (query.source or "").strip()
+        if not q_src:
+            return False
+        q_tier = self._tier(q_src)
+        if q_tier < 0:
+            return False
+        c_tier = self._tier(candidate.release_info or "")
+        if c_tier < 0:
+            return False
+        return c_tier < q_tier
+
+    def weight(self, candidate, query) -> int:
+        return self.default_weight
+
+
+_YEAR_RE = re.compile(r"\b(?:19|20)\d{2}\b")
+
+
+@register_penalty
+class YearOffByOneToleranceRule(PenaltyRule):
+    rule_id = "year_off_by_one_tolerance"
+    default_weight = 0  # opt-in; suggested +5
+    label = "Year Off-By-One Tolerance"
+    description = (
+        "Candidate mentions a year within +/-1 of the query year "
+        "(common when release-year differs from production-year)."
+    )
+
+    def applies(self, candidate, query) -> bool:
+        if query.year is None:
+            return False
+        info = candidate.release_info or ""
+        for match in _YEAR_RE.finditer(info):
+            cy = int(match.group(0))
+            if abs(cy - query.year) == 1:
+                return True
+        return False
+
+    def weight(self, candidate, query) -> int:
+        return self.default_weight
+
+
+@register_penalty
+class CodecUpgradePenaltyRule(PenaltyRule):
+    rule_id = "codec_upgrade_penalty"
+    default_weight = 0  # opt-in; suggested -3
+    label = "Codec Upgrade Mismatch Penalty"
+    description = (
+        "Query video uses a more efficient codec than the candidate "
+        "(e.g. file is x265 but candidate says x264)."
+    )
+
+    _RANK: ClassVar[dict[str, int]] = {
+        "av1": 3,
+        "x265": 2,
+        "hevc": 2,
+        "h265": 2,
+        "x264": 1,
+        "h264": 1,
+        "avc": 1,
+    }
+
+    def _rank(self, s: str) -> int:
+        s = (s or "").lower()
+        best = -1
+        for key, rank in self._RANK.items():
+            if key in s and rank > best:
+                best = rank
+        return best
+
+    def applies(self, candidate, query) -> bool:
+        vc = (query.video_codec or "").strip()
+        if not vc:
+            return False
+        q_rank = self._rank(vc)
+        c_rank = self._rank(candidate.release_info or "")
+        if q_rank < 0 or c_rank < 0:
+            return False
+        return c_rank < q_rank
+
+    def weight(self, candidate, query) -> int:
+        return self.default_weight
+
+
+@register_penalty
+class MachineTranslationPenaltyRule(PenaltyRule):
+    rule_id = "machine_translation_penalty"
+    default_weight = 0  # opt-in; suggested -50
+    label = "Machine-Translation Penalty"
+    description = "Candidate is flagged as machine-translated or has high MT confidence (>=80)."
+
+    def applies(self, candidate, query) -> bool:
+        if candidate.machine_translated:
+            return True
+        return (candidate.mt_confidence or 0.0) >= 80.0
+
+    def weight(self, candidate, query) -> int:
+        return self.default_weight
