@@ -5,6 +5,26 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.70.0-beta] - 2026-04-19
+
+### Added
+- **Plan B Phase 7 — Multi-engine sync orchestrator** — New `backend/services/sync_engines/` package with `BaseSyncEngine` ABC + `SyncOrchestrator` fallback chain + per-engine timeout + sanity threshold (60 s default). Existing ffsubsync + alass logic refactored into named engine classes (`FfsubsyncEngine`, `AlassEngine`); legacy `sync_with_ffsubsync` / `sync_with_alass` functions preserved unchanged for backward compat with CLI + existing routes (dict shape + `shift_ms` key stay stable). New `sync_job_runs` audit table records every orchestrated engine attempt (engine, status, offset_ms, duration_ms, subtitle_path, video_path, reason, created_at) — queryable via `/api/v1/sync/runs`. New Settings → Sync Engines informational tab shows engine availability + sanity threshold. Opens the door for dropping in new engines (nanosync, LLM-assisted) without changing the orchestrator. 16 new backend tests + 68 regression tests green.
+
+### Changed — Plan B scope notes
+- **B7 engines scope reduced** — Spec listed 4 engines (ffsubsync, alass, nanosync, LLM-assisted). `nanosync` and LLM-assisted sync require research-grade algorithm development; B7 ships the architecture + the 2 existing engines refactored into the pattern. Future phases can drop in new engines without touching the orchestrator.
+- **Legacy sync-function routes not migrated** — The HTTP routes `/tools/auto-sync` + `/video-sync` still call the legacy `sync_with_ffsubsync` / `sync_with_alass` functions directly (bypassing the orchestrator). A follow-up B7.1 can migrate these callers to `get_default_orchestrator().sync(...)` — no urgency since behavior is identical.
+
+### Plan B Progress — COMPLETE 🎉
+- Phase B1 — Subliminal vendor foundation: **shipped (0.64.0-beta)**
+- Phase B2 — Full Subliminal provider adoption: **shipped (0.65.0-beta)**
+- Phase B3 — Granular blacklist: **shipped (0.66.0-beta)** (Subzero merge deferred)
+- Phase B4 — Scoring penalty rule pipeline: **shipped (0.67.0-beta)**
+- Phase B5 — SRT repair + embedded hardening: **shipped (0.68.0-beta)**
+- Phase B6 — Post-processing pipeline: **shipped (0.69.0-beta)**
+- Phase B7 — Multi-engine sync orchestrator: **shipped (0.70.0-beta)** — **Plan B complete.**
+
+After this phase, Sublarr has Bazarr-grade delivery quality: 29 subtitle providers, named-class penalty scoring pipeline, SRT repair on every save path, embedded track-selection hardening, post-processing pipeline with 8 ops + opt-in shell escape, multi-engine sync orchestrator with fallback + audit.
+
 ## [0.69.0-beta] - 2026-04-19
 
 ### Added
