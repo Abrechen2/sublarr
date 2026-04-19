@@ -5,6 +5,21 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.61.0-beta] - 2026-04-19
+
+### Added
+- **Anthropic Claude translation backend** — New `ClaudeBackend` integrates Anthropic's Claude models (sonnet-4-6, opus-4-7, haiku-4-5). Uses the official `anthropic` Python SDK. System prompts are wrapped with `cache_control: {type: "ephemeral"}` to enable Anthropic's prompt-caching feature — for Sublarr's use case (identical system prompt across every batch) this produces a ~90% cost reduction on the system portion of the token bill after the first request warms the cache. Subtitle refusals via `stop_reason=refusal` surface as the standard `ContentFilterError`.
+- **Google Gemini translation backend** — New `GeminiBackend` integrates Gemini 2.5 Pro / Flash via REST (no SDK dependency). Converts OpenAI-style messages to Gemini's `systemInstruction` + `contents[].parts[]` shape, passes the API key as `?key=...` query param, and maps `finishReason=SAFETY` to the standard `ContentFilterError`.
+- **DeepSeek translation backend** — New `DeepSeekBackend` integrates DeepSeek Chat + Coder models via OpenAI-compatible API. Lowest-cost LLM in the stack at $0.14/$0.28 per 1M tokens (in/out) — useful default for high-volume translation where Claude/Gemini cost becomes significant.
+- **Registered out of the box** — All three backends are auto-registered with `TranslationManager` at startup (graceful degradation if the `anthropic` SDK is missing). They appear in **Settings → Translation → Backends** with API-key + model fields; `/api/v1/translation/concurrency` now lists 8 backends (5 LLM + 3 char-priced).
+
+### Tests
+- +27 new tests (9 per new backend) covering construction, request shape, response parsing, token counting, content-filter/refusal mapping, auth style, cost calculation, and end-to-end translate_batch via mocked clients.
+- Full scheduler + translation suite: 241 tests green.
+
+### Dependencies
+- `anthropic>=0.39,<1.0` added to `backend/requirements.txt` (required for `ClaudeBackend`).
+
 ## [0.60.0-beta] - 2026-04-19
 
 ### Added
