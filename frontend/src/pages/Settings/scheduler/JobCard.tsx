@@ -1,6 +1,10 @@
-import type { SchedulerJob } from '@/lib/types'
+import { useState } from 'react'
+import type { SchedulerJob, Trigger } from '@/lib/types'
 import { useTranslation } from 'react-i18next'
 import { StatusBadge } from './StatusBadge'
+import { TriggerEditModal } from './TriggerEditModal'
+import { useSchedulerMutations } from '@/hooks/useSchedulerMutations'
+import { toast } from '@/components/shared/Toast'
 import { Play, Pause, Edit3, History, RotateCcw } from 'lucide-react'
 
 function triggerLabel(
@@ -41,6 +45,50 @@ export function JobCard({
   onOpenHistory: () => void
 }) {
   const { t } = useTranslation('settings')
+  const [editOpen, setEditOpen] = useState(false)
+  const mut = useSchedulerMutations(job.id)
+
+  const errMsg = (e: unknown, fallback: string): string =>
+    e instanceof Error ? e.message : fallback
+
+  const handleRunNow = () => {
+    mut.runNow.mutate(undefined, {
+      onSuccess: () => toast(t('scheduler.toast.queued')),
+      onError: (e: unknown) => toast(errMsg(e, 'Failed'), 'error'),
+    })
+  }
+
+  const handlePauseResume = () => {
+    if (job.paused) {
+      mut.resume.mutate(undefined, {
+        onSuccess: () => toast(t('scheduler.toast.resumed')),
+        onError: (e: unknown) => toast(errMsg(e, 'Failed'), 'error'),
+      })
+    } else {
+      mut.pause.mutate(undefined, {
+        onSuccess: () => toast(t('scheduler.toast.paused')),
+        onError: (e: unknown) => toast(errMsg(e, 'Failed'), 'error'),
+      })
+    }
+  }
+
+  const handleReset = () => {
+    if (!confirm(t('scheduler.confirm_reset'))) return
+    mut.resetDefault.mutate(undefined, {
+      onSuccess: () => toast(t('scheduler.toast.reset')),
+      onError: (e: unknown) => toast(errMsg(e, 'Failed'), 'error'),
+    })
+  }
+
+  const handleSaveTrigger = (trigger: Trigger) => {
+    mut.patchTrigger.mutate(trigger, {
+      onSuccess: () => {
+        toast(t('scheduler.toast.updated'))
+        setEditOpen(false)
+      },
+      // On error: keep modal open; error message surfaces via mut.patchTrigger.error
+    })
+  }
 
   return (
     <div className="rounded-lg border border-border bg-surface p-4">
@@ -87,40 +135,53 @@ export function JobCard({
 
       <div className="mt-3 flex flex-wrap gap-2">
         <button
-          disabled
-          title={t('scheduler.phase3_coming')}
-          className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1 text-sm text-muted opacity-50 cursor-not-allowed"
+          onClick={handleRunNow}
+          disabled={mut.runNow.isPending}
+          className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1 text-sm hover:bg-elevated disabled:opacity-50"
         >
           <Play size={14} /> {t('scheduler.run_now')}
         </button>
         <button
-          disabled
-          title={t('scheduler.phase3_coming')}
-          className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1 text-sm text-muted opacity-50 cursor-not-allowed"
+          onClick={handlePauseResume}
+          disabled={mut.pause.isPending || mut.resume.isPending}
+          className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1 text-sm hover:bg-elevated disabled:opacity-50"
         >
-          <Pause size={14} /> {t('scheduler.pause')}
+          {job.paused ? <Play size={14} /> : <Pause size={14} />}
+          {job.paused ? t('scheduler.resume') : t('scheduler.pause')}
         </button>
         <button
-          disabled
-          title={t('scheduler.phase3_coming')}
-          className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1 text-sm text-muted opacity-50 cursor-not-allowed"
+          onClick={() => setEditOpen(true)}
+          className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1 text-sm hover:bg-elevated"
         >
           <Edit3 size={14} /> {t('scheduler.edit_trigger')}
         </button>
         <button
           onClick={onOpenHistory}
-          className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1 text-sm hover:bg-surface-hover"
+          className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1 text-sm hover:bg-elevated"
         >
           <History size={14} /> {t('scheduler.history')}
         </button>
         <button
-          disabled
-          title={t('scheduler.phase3_coming')}
-          className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1 text-sm text-muted opacity-50 cursor-not-allowed"
+          onClick={handleReset}
+          disabled={job.trigger_is_default || mut.resetDefault.isPending}
+          className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1 text-sm hover:bg-elevated disabled:opacity-50"
         >
           <RotateCcw size={14} /> {t('scheduler.reset_default')}
         </button>
       </div>
+
+      <TriggerEditModal
+        job={job}
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSubmit={handleSaveTrigger}
+        isSubmitting={mut.patchTrigger.isPending}
+        error={
+          mut.patchTrigger.error instanceof Error
+            ? mut.patchTrigger.error.message
+            : null
+        }
+      />
     </div>
   )
 }
