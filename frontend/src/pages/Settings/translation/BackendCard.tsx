@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Save, Loader2, TestTube, ChevronUp, ChevronDown, Activity, Eye, EyeOff } from 'lucide-react'
 import { toast } from '@/components/shared/Toast'
 import { SettingRow } from '@/components/shared/SettingRow'
 import { useBackendConfig, useSaveBackendConfig } from '@/hooks/useApi'
+import { useTranslationConcurrency } from '@/hooks/useTranslationCost'
+import { useTranslationMutations } from '@/hooks/useTranslationMutations'
 import type { TranslationBackendInfo, BackendStats, BackendHealthResult } from '@/lib/types'
 
 // ─── Translation Backend Card ────────────────────────────────────────────────
@@ -18,11 +21,38 @@ export function BackendCard({
   onTest: () => void
   testResult?: BackendHealthResult | 'testing'
 }) {
+  const { t } = useTranslation('settings')
   const [expanded, setExpanded] = useState(false)
   const [formValues, setFormValues] = useState<Record<string, string>>({})
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({})
   const { data: configData } = useBackendConfig(expanded ? backend.name : '')
   const saveConfigMut = useSaveBackendConfig()
+
+  // Phase A1: concurrency slider (persisted per-backend).
+  const { data: conc } = useTranslationConcurrency()
+  const { setConcurrency: setConcMut } = useTranslationMutations()
+  const currentLimit =
+    conc?.backends.find((b) => b.backend === backend.name)?.limit ?? 3
+  const [draftLimit, setDraftLimit] = useState(currentLimit)
+
+  useEffect(() => {
+    setDraftLimit(currentLimit)
+  }, [currentLimit])
+
+  // Debounce slider saves (500 ms) so rapid drags emit a single PATCH.
+  useEffect(() => {
+    const h = setTimeout(() => {
+      if (
+        draftLimit !== currentLimit &&
+        draftLimit >= 1 &&
+        draftLimit <= 50
+      ) {
+        setConcMut.mutate({ backend: backend.name, limit: draftLimit })
+      }
+    }, 500)
+    return () => clearTimeout(h)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftLimit])
 
   // Load config values when expanded
   useEffect(() => {
@@ -262,6 +292,26 @@ export function BackendCard({
                 {testResult.healthy ? 'Healthy' : 'Error'}: {testResult.message}
               </span>
             )}
+          </div>
+
+          {/* Concurrency slider (Phase A1) */}
+          <div className="pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+            <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              {t('translation.concurrency.limit')}:{' '}
+              <strong>{draftLimit}</strong>
+            </label>
+            <input
+              type="range"
+              min={1}
+              max={20}
+              value={draftLimit}
+              onChange={(e) => setDraftLimit(Number(e.target.value))}
+              className="w-full"
+              aria-label={t('translation.concurrency.limit')}
+            />
+            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              {t('translation.concurrency.hint')}
+            </div>
           </div>
 
           {/* Backend info */}
