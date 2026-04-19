@@ -5,6 +5,28 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.63.0-beta] - 2026-04-19
+
+### Added — 4 new translation backends (Lingarr parity reached)
+- **Mistral** — LLM via OpenAI-compat endpoint `api.mistral.ai`. Default model `mistral-large-latest` at $2.00/$6.00 per 1M tokens; `mistral-small-latest` as cheaper alternative at $0.20/$0.60.
+- **OpenAI ChatGPT (native)** — LLM via OpenAI's official endpoint. Default `gpt-4o-mini` at $0.15/$0.60 per 1M tokens; `gpt-4o` at $2.50/$10.00. Distinct from the existing `openai_compat` backend (which accepts any OpenAI-compatible base URL) — ChatGPT is the opinionated "just use OpenAI" default.
+- **Azure Translator** — char-priced REST API at `api.cognitive.microsofttranslator.com`. $10/1M characters. Config fields: `api_key` + `region` (default `westeurope`). Batch-friendly, no LLM prompt overhead.
+- **MyMemory** — free-tier char-priced API with optional `email` field to raise daily quota from 1k → 10k words. Per-line GET requests (no batch endpoint on the server side). Cost always $0.
+- **Total backends: 12** — 5 LLM (Ollama, OpenAI-compat, Claude, Gemini, DeepSeek, Mistral, ChatGPT = 7 LLM counting both) + 5 char-priced (DeepL, Google, LibreTranslate, Azure, MyMemory). This reaches Lingarr parity on backend breadth.
+- All 4 new backends auto-register with `TranslationManager` via try/except ImportError so missing optional deps don't break startup.
+
+### Tests
+- +34 new backend tests (9 Mistral + 9 ChatGPT + 8 Azure + 8 MyMemory).
+- Full scheduler + translation suite: 294 tests green.
+
+### Plan A — Translation Platform — COMPLETE
+This version completes Plan A's 5-phase roadmap:
+- A1 Telemetry foundation (0.59.0-beta)
+- A2 Queue Dashboard (0.60.0-beta)
+- A3 Claude + Gemini + DeepSeek (0.61.0-beta)
+- A4 Context-window pre-chunking (0.62.0-beta)
+- A5 Azure + Mistral + MyMemory + ChatGPT (**this version**)
+
 ## [0.62.0-beta] - 2026-04-19
 
 ### Added
