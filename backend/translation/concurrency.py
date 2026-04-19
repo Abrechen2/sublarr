@@ -45,6 +45,9 @@ _limit_gauge = _NoopGauge()
 def _wire_prometheus_gauges():
     """Called lazily on first register; tolerates missing metrics module."""
     global _in_use_gauge, _limit_gauge
+    # Skip wiring if already patched by tests (monkeypatch sets them to non-NoopGauge)
+    if not isinstance(_in_use_gauge, _NoopGauge):
+        return
     try:
         from monitoring.metrics import (
             translation_concurrency_in_use,

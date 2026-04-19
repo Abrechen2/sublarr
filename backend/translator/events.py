@@ -72,6 +72,28 @@ def write_translation_event(
     )
     try:
         _commit(row)
+        # Emit Prometheus metrics
+        try:
+            from monitoring.metrics import (
+                translation_cache_hits_total,
+                translation_cost_micro_usd_total,
+                translation_latency_seconds,
+                translation_tokens_total,
+            )
+
+            translation_cost_micro_usd_total.labels(backend=backend, status=status).inc(
+                cost_micro_usd
+            )
+            if tokens_in:
+                translation_tokens_total.labels(backend=backend, direction="in").inc(tokens_in)
+            if tokens_out:
+                translation_tokens_total.labels(backend=backend, direction="out").inc(tokens_out)
+            if cache_hit:
+                translation_cache_hits_total.labels(backend=backend).inc()
+            if latency_ms is not None:
+                translation_latency_seconds.labels(backend=backend).observe(latency_ms / 1000)
+        except Exception:
+            logger.warning("translation metrics emit failed", exc_info=True)
     except Exception:
         logger.error("translation event write failed", exc_info=True)
         try:
