@@ -5,6 +5,18 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.57.0-beta] - 2026-04-19
+
+### Added
+- **Full scheduler control from the UI** — The action buttons on **Settings → System → Scheduler** are now live. Operators can **Run now** (queues a one-shot execution), **Pause** / **Resume** the recurring job, **Edit trigger** (interval or cron editor with a live "next 3 fires" preview), and **Reset** the trigger back to the code default. Every successful action shows a toast notification.
+- **Trigger edit modal** — New modal with two tabs (Interval / Cron). Interval editor accepts seconds/minutes/hours. Cron editor offers three modes: Daily (hour + minute), Weekly (day-of-week chips + hour + minute), and Advanced (raw 5-field cron expression). The next 3 fire times are computed client-side via `cron-parser` and updated as the editor's inputs change.
+- **Write endpoints for the scheduler API** — `POST /api/v1/scheduler/jobs/<id>/run-now` (202 on success, 409 if a oneshot is already pending), `POST .../pause`, `POST .../resume`, `PATCH /jobs/<id>` with Pydantic-validated trigger payloads (400 on invalid / unreachable cron), `POST .../reset-default`. Every mutation logs a `scheduler_admin_action` line to the app log with the caller's API-key fingerprint for audit purposes.
+
+### Tests
+- +18 new tests across the backend write routes, serializer converter, and frontend `TriggerEditModal` component.
+- Playwright E2E spec added for the golden-path user flow (render → run now → toast → edit trigger → edited pill → reset).
+- Full scheduler test suite now at 98 tests (80 Phase 2 + 18 Phase 3), all green.
+
 ## [0.56.0-beta] - 2026-04-19
 
 ### Added
