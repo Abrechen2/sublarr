@@ -5,6 +5,20 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.60.0-beta] - 2026-04-19
+
+### Added
+- **Live Translation Queue dashboard** — New **Settings → Translation → Queue** page shows active translation jobs with per-batch progress bars, ETA, live cost accrual, and a Cancel button. A "Recent" section lists the last 20 finished jobs from this process's memory with status/duration/cost. Polls every 3 seconds.
+- **`QueueState` in-memory tracker** — New thread-safe registry (`backend/translation/queue_state.py`) populated by the translation pipeline as jobs start/progress/finish. Active snapshot includes progress (`done`/`total`/`pct`), ETA (computed from observed lines/second), cost-so-far in micro-USD, and a `cancel_requested` flag. Recent buffer caps at 20 jobs via `deque(maxlen=20)`.
+- **Best-effort job cancellation** — `POST /api/v1/translation/queue/<job_id>/cancel` sets a flag that `LLMBackend.translate_batch` checks before acquiring the concurrency slot. In-flight batches are not interrupted (the current API call completes), but subsequent batches are skipped — translation ends with `status="cancelled"` and full partial cost is logged. Returns 202 on first call, 409 on double-cancel, 404 on unknown job.
+- **`JobCancelledError` in LLMBackend** — new exception class; `translate_batch` now accepts a `job_id: str | None` parameter and raises `JobCancelledError` if the corresponding `QueueState` entry is cancelled. Event is written with `status="cancelled"` before re-raising.
+- **Admin audit logging for cancels** — same `translation_admin_action` pattern as A1's purge/concurrency mutations; `action=cancel-job job_id=<id> actor=<api-key-fp>`.
+
+### Tests
+- +16 new backend tests (QueueState tracker + /queue + /cancel routes + LLMBackend cancel integration).
+- +3 new frontend component tests for QueueDashboard.
+- Full scheduler + translation suite: 246 tests green.
+
 ## [0.59.0-beta] - 2026-04-19
 
 ### Added
