@@ -153,6 +153,11 @@ def translate_ass(
         subs.save(output_path)
         logger.info("Saved ASS translation: %s", output_path)
 
+        # Plan B5 — subtitle repair pass on translated output
+        from translator._helpers import run_subtitle_repair
+
+        run_subtitle_repair(output_path)
+
         _core._write_quality_sidecar(output_path, quality_scores)
         from nfo_export import maybe_write_nfo
 
@@ -329,6 +334,11 @@ def _translate_external_ass(
         _core.check_disk_space(output_path)
         subs.save(output_path)
         logger.info("Saved ASS translation from external source: %s", output_path)
+
+        # Plan B5 — subtitle repair pass on translated output
+        from translator._helpers import run_subtitle_repair
+
+        run_subtitle_repair(output_path)
 
         _core._write_quality_sidecar(output_path, quality_scores)
         from nfo_export import maybe_write_nfo

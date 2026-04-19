@@ -91,3 +91,20 @@ def test_repair_recovers_windows1252_mislabeled_bytes():
     # The exact choice depends on chardet's decision; accept either.
     assert "test" in fixed
     assert "Hello world" in fixed
+
+
+def test_repair_handles_ass_format():
+    """repair_bytes with fmt='ass' byte-level normalizes but doesn't touch timestamps."""
+    from subtitle_repair import repair_bytes
+
+    # BOM + CRLF inside an ASS file
+    dirty = (
+        b"\xef\xbb\xbf[Script Info]\r\nTitle: Test\r\n\r\n"
+        b"[Events]\r\nFormat: Start, End, Text\r\n"
+        b"Dialogue: 0:00:01.00,0:00:02.00,Hi\r\n"
+    )
+    fixed = repair_bytes(dirty, fmt="ass")
+    assert not fixed.startswith(b"\xef\xbb\xbf")
+    assert b"\r\n" not in fixed
+    # ASS timestamps use dots, not commas — must NOT be touched by SRT repair
+    assert b"0:00:01.00,0:00:02.00" in fixed

@@ -181,6 +181,11 @@ def _translate_srt(srt_path, output_path, source="srt", target_language=None, ar
     subs.save(output_path, format_="srt")
     logger.info("Saved SRT translation: %s", output_path)
 
+    # Plan B5 — subtitle repair pass on translated output
+    from translator._helpers import run_subtitle_repair
+
+    run_subtitle_repair(output_path)
+
     _core._write_quality_sidecar(output_path, quality_scores)
     from nfo_export import maybe_write_nfo
 

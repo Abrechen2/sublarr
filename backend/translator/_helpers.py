@@ -3,12 +3,33 @@
 import logging
 import os
 import shutil
+from pathlib import Path
 
 from config import get_settings
 
 logger = logging.getLogger(__name__)
 
 MIN_FREE_SPACE_MB = 100
+
+
+def run_subtitle_repair(output_path: str) -> None:
+    """Plan B5 — run subtitle repair on a freshly translated output file.
+
+    Opt-outable via `enable_subtitle_repair` setting. Must never abort the
+    translation — fall through on any error.
+    """
+    try:
+        if not getattr(get_settings(), "enable_subtitle_repair", True):
+            return
+        from subtitle_repair import repair_bytes
+
+        ext = Path(output_path).suffix.lstrip(".") or "srt"
+        data = Path(output_path).read_bytes()
+        repaired = repair_bytes(data, fmt=ext)
+        if repaired != data:
+            Path(output_path).write_bytes(repaired)
+    except Exception as exc:
+        logger.warning("subtitle_repair on translate output skipped for %s: %s", output_path, exc)
 
 # Common English words that indicate a subtitle was not actually translated
 ENGLISH_MARKER_WORDS = {

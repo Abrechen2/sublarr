@@ -90,6 +90,27 @@ def _extract_embedded_sub(item_id: int, file_path: str, auto_translate: bool = F
     output_path = get_output_path_for_lang(file_path, stream_info["format"], target_language)
     extract_subtitle_stream(file_path, stream_info, output_path)
 
+    # Plan B5 — run repair on the extracted track (opt-outable).
+    # Fixes BOM, newlines, invalid decimals, overlapping cues, encoding
+    # mis-detection. Must never abort extraction — fall through on any error.
+    try:
+        if getattr(settings, "enable_subtitle_repair", True):
+            from pathlib import Path as _RepairPath
+
+            from subtitle_repair import repair_bytes as _repair_bytes
+
+            _ext = _RepairPath(output_path).suffix.lstrip(".") or "srt"
+            _data = _RepairPath(output_path).read_bytes()
+            _repaired = _repair_bytes(_data, fmt=_ext)
+            if _repaired != _data:
+                _RepairPath(output_path).write_bytes(_repaired)
+    except Exception as _repair_err:
+        logger.warning(
+            "subtitle_repair on embedded extract skipped for %s: %s",
+            output_path,
+            _repair_err,
+        )
+
     # Remove the extracted stream from the video container
     _remove_stream_from_container(file_path, stream_info)
 
