@@ -5,6 +5,16 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.58.0-beta] - 2026-04-19
+
+### Changed
+- **All recurring background jobs migrated to APScheduler** — The four legacy `threading.Timer`-based schedulers (`cleanup_scheduler`, `upgrade_scheduler`, `anidb_sync`, `wanted_scanner_scheduler`) have been replaced by APScheduler `JobSpec`s registered at startup. The **Settings → System → Scheduler** page now shows all six recurring jobs (`anidb_sync`, `cleanup`, `scheduler_history_cleanup`, `upgrade_scan`, `wanted_scanner`, `wanted_search`), each with its live state, trigger, and run history. Scheduled work now survives container restarts with its next-fire-time intact, and operators can run-now / pause / resume / edit-trigger / reset every one of them from the UI.
+- **Legacy scheduler entry points are now thin adapters** — `start_cleanup_scheduler(app, socketio)`, `start_upgrade_scheduler(app)`, and `WantedScanner.start_scheduler(app, socketio)` no longer spawn their own `threading.Timer` chains. When called by the settings-save path, each function now re-applies the current config interval to the corresponding APScheduler job via `modify_trigger`, so operator edits in the existing settings UI continue to work unchanged.
+- **System Tasks page continues to work** — thin proxy objects for `get_cleanup_scheduler()` / `get_upgrade_scheduler()` preserve the `is_executing` / `last_run_at` / `next_run_at` / `_running` surface that `routes/system/tasks.py` reads, so the legacy tasks view is unaffected.
+
+### Tests
+- 131 scheduler-related tests green (98 Phase 1–3 + 17 upgrade + 11 anidb + 5 wanted_scanner_split). No regressions.
+
 ## [0.57.0-beta] - 2026-04-19
 
 ### Added
