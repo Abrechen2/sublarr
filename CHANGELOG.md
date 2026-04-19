@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.65.0-beta] - 2026-04-19
+
+### Added
+- **Plan B Phase 2 — Full Subliminal provider adoption** — Registered the remaining 6 Subliminal providers via the B1 adapter: `addic7ed_subliminal`, `gestdown_subliminal`, `napiprojekt_subliminal`, `opensubtitlescom_subliminal`, `podnapisi_subliminal`, `tvsubtitles_subliminal`. Two are net-new to Sublarr (napiprojekt, opensubtitlescom REST API), four are alternative Subliminal-flavor implementations of existing native providers (addic7ed, gestdown, podnapisi, tvsubtitles). Provider count: 17 → 23. 13 new parametrized tests green. Scope note: vanilla Subliminal 2.2.0 vendors 7 providers (not the ~20 the Plan B spec estimated — that number was Bazarr post-Subzero). The "≥35 providers after Plan B" target depends on B3's Subzero selective merge.
+
+### Plan B Progress
+- Phase B2 — Full Subliminal provider adoption: **shipped**
+
 ## [0.64.0-beta] - 2026-04-19
 
 ### Added
