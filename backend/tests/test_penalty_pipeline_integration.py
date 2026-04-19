@@ -105,3 +105,62 @@ def test_penalty_rule_weights_db_roundtrip(app_ctx):
     set_penalty_rule_weight("machine_translation_penalty", 0)
     weights = get_penalty_rule_weights()
     assert weights.get("machine_translation_penalty", None) == 0
+
+
+# --- API tests (Task 5) ------------------------------------------------------
+
+
+def test_api_list_penalty_rules(client):
+    resp = client.get("/api/v1/scoring/penalty-rules")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert "rules" in body
+    rule_ids = [r["rule_id"] for r in body["rules"]]
+    assert "release_group_match" in rule_ids
+    assert "machine_translation_penalty" in rule_ids
+    # Each rule carries its metadata
+    sample = next(r for r in body["rules"] if r["rule_id"] == "release_group_match")
+    assert "label" in sample
+    assert "description" in sample
+    assert sample["default_weight"] == 14
+    assert sample["current_weight"] == 14  # no override yet
+
+
+def test_api_update_penalty_rule_weight(client):
+    resp = client.put(
+        "/api/v1/scoring/penalty-rules/machine_translation_penalty",
+        json={"weight": -30},
+    )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["rule_id"] == "machine_translation_penalty"
+    assert body["weight"] == -30
+
+    # Verify list endpoint reflects the new weight
+    resp2 = client.get("/api/v1/scoring/penalty-rules")
+    rule = next(
+        r for r in resp2.get_json()["rules"] if r["rule_id"] == "machine_translation_penalty"
+    )
+    assert rule["current_weight"] == -30
+
+    # Reset for cleanliness
+    client.put(
+        "/api/v1/scoring/penalty-rules/machine_translation_penalty",
+        json={"weight": 0},
+    )
+
+
+def test_api_update_unknown_rule_returns_404(client):
+    resp = client.put(
+        "/api/v1/scoring/penalty-rules/not_a_real_rule",
+        json={"weight": 10},
+    )
+    assert resp.status_code == 404
+
+
+def test_api_update_non_integer_weight_returns_400(client):
+    resp = client.put(
+        "/api/v1/scoring/penalty-rules/machine_translation_penalty",
+        json={"weight": "not-a-number"},
+    )
+    assert resp.status_code == 400

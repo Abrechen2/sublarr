@@ -359,3 +359,112 @@ def import_preset():
     invalidate_scoring_cache()
 
     return jsonify({"status": "ok", "preset": data.get("name", "custom"), "applied": applied})
+
+
+# ---- Penalty Rule endpoints (Plan B4) ----------------------------------------
+
+
+@bp.route("/scoring/penalty-rules", methods=["GET"])
+def list_penalty_rules():
+    """Return all registered penalty rules with their metadata and current weight.
+    ---
+    get:
+      security:
+        - apiKeyAuth: []
+      tags:
+        - Events
+      summary: List penalty rules
+      description: >-
+        Returns every registered penalty rule (15 in the default registry)
+        together with its stable ``rule_id``, ``label``, ``description``,
+        ``default_weight`` and ``current_weight``. The current weight is the
+        DB override when present, otherwise the rule's default.
+      responses:
+        200:
+          description: Penalty rules list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rules:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        rule_id: { type: string }
+                        label: { type: string }
+                        description: { type: string }
+                        default_weight: { type: integer }
+                        current_weight: { type: integer }
+    """
+    from db.scoring import get_penalty_rule_weights
+    from wanted_search.penalty_rules import _RULE_REGISTRY
+
+    overrides = get_penalty_rule_weights()
+    rules = [
+        {
+            "rule_id": cls.rule_id,
+            "label": cls.label,
+            "description": cls.description,
+            "default_weight": cls.default_weight,
+            "current_weight": overrides.get(cls.rule_id, cls.default_weight),
+        }
+        for cls in _RULE_REGISTRY
+    ]
+    return jsonify({"rules": rules})
+
+
+@bp.route("/scoring/penalty-rules/<rule_id>", methods=["PUT"])
+def update_penalty_rule(rule_id):
+    """Update a penalty rule's weight override.
+    ---
+    put:
+      security:
+        - apiKeyAuth: []
+      tags:
+        - Events
+      summary: Update a penalty rule weight
+      description: >-
+        Sets the weight override for a single penalty rule. Writing 0
+        persists the row but disables the rule (the pipeline skips
+        zero-weight rules). Invalidates the scoring cache.
+      parameters:
+        - in: path
+          name: rule_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                weight:
+                  type: integer
+      responses:
+        200:
+          description: Weight updated
+        400:
+          description: Weight is not an integer
+        404:
+          description: Unknown rule_id
+    """
+    from db.scoring import set_penalty_rule_weight
+    from providers.base import invalidate_scoring_cache
+    from wanted_search.penalty_rules import _RULE_REGISTRY
+
+    if not any(cls.rule_id == rule_id for cls in _RULE_REGISTRY):
+        return jsonify({"error": "unknown rule_id", "rule_id": rule_id}), 404
+
+    data = request.get_json(silent=True) or {}
+    try:
+        weight = int(data.get("weight", 0))
+    except (TypeError, ValueError):
+        return jsonify({"error": "weight must be an integer"}), 400
+
+    set_penalty_rule_weight(rule_id, weight)
+    invalidate_scoring_cache()
+    return jsonify({"rule_id": rule_id, "weight": weight})
