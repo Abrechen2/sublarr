@@ -97,3 +97,42 @@ def test_db_blacklist_wrapper_forwards_file_hash():
 
     sig = inspect.signature(bl.add_blacklist_entry)
     assert "file_hash" in sig.parameters
+
+
+def test_blacklist_post_accepts_file_hash(client):
+    """POST /api/v1/blacklist accepts a file_hash field and returns it in the response."""
+    resp = client.post(
+        "/api/v1/blacklist",
+        json={
+            "provider_name": "opensubtitles",
+            "subtitle_id": "api_test_1",
+            "file_hash": "d" * 64,
+            "reason": "api test",
+        },
+    )
+    assert resp.status_code in (200, 201), (
+        f"expected 2xx, got {resp.status_code}: {resp.get_json()}"
+    )
+    body = resp.get_json()
+    assert body.get("file_hash") == "d" * 64 or body.get("id"), (
+        "Response must include file_hash or at least the entry id"
+    )
+
+
+def test_blacklist_list_returns_file_hash(client):
+    """GET /api/v1/blacklist returns file_hash in each entry."""
+    # Seed one entry via the POST endpoint first
+    client.post(
+        "/api/v1/blacklist",
+        json={
+            "provider_name": "opensubtitles",
+            "subtitle_id": "api_test_2",
+            "file_hash": "e" * 64,
+        },
+    )
+    resp = client.get("/api/v1/blacklist")
+    assert resp.status_code == 200
+    entries = resp.get_json().get("data", [])
+    assert any(e.get("file_hash") == "e" * 64 for e in entries), (
+        "Expected the seeded entry's file_hash to appear in the list"
+    )

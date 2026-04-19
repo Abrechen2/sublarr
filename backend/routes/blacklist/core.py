@@ -94,6 +94,9 @@ def add_to_blacklist():
                   type: string
                 reason:
                   type: string
+                file_hash:
+                  type: string
+                  description: Optional SHA-256 or OpenSubtitles hash (max 64 chars). When set, suppresses retries for any subtitle with the same hash from this provider.
       responses:
         201:
           description: Entry added
@@ -106,6 +109,9 @@ def add_to_blacklist():
                     type: string
                   id:
                     type: integer
+                  file_hash:
+                    type: string
+                    nullable: true
         400:
           description: Missing provider_name or subtitle_id
     """
@@ -114,6 +120,7 @@ def add_to_blacklist():
     data = request.get_json() or {}
     provider_name = data.get("provider_name", "")
     subtitle_id = data.get("subtitle_id", "")
+    file_hash = data.get("file_hash") or None
 
     if not provider_name or not subtitle_id:
         return jsonify({"error": "provider_name and subtitle_id are required"}), 400
@@ -125,9 +132,10 @@ def add_to_blacklist():
         file_path=data.get("file_path", ""),
         title=data.get("title", ""),
         reason=data.get("reason", ""),
+        file_hash=file_hash,
     )
 
-    return jsonify({"status": "added", "id": entry_id}), 201
+    return jsonify({"status": "added", "id": entry_id, "file_hash": file_hash}), 201
 
 
 @bp.route("/blacklist/<int:entry_id>", methods=["DELETE"])
