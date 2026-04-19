@@ -80,6 +80,7 @@ function useNavGroups(translationEnabled: boolean): readonly NavGroup[] {
       pages: [
         { label: t('settings.nav.security_backup', 'Sicherheit, Backup & Logs'), href: '/settings/system' },
         { label: t('settings.nav.hooks_webhooks', 'Hooks & Webhooks'), href: '/settings/system/hooks' },
+        { label: t('settings.nav.scheduler', 'Scheduler'), href: '/settings/system/scheduler' },
       ],
     },
     {

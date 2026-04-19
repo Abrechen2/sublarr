@@ -18,6 +18,7 @@
  * /settings/notifications                 → NotificationsSettings
  * /settings/system                        → SystemSettings
  * /settings/system/hooks                  → SystemHooksPage
+ * /settings/system/scheduler              → SchedulerPage
  * /settings/hooks                         → redirect → /settings/system/hooks
  * /settings/webhooks                      → redirect → /settings/system/hooks
  */
@@ -77,6 +78,9 @@ const SystemSettings = lazy(() =>
 const SystemHooksPage = lazy(() =>
   import('./SystemHooksPage').then((m) => ({ default: m.SystemHooksPage })),
 )
+const SchedulerPage = lazy(() =>
+  import('./SchedulerPage').then((m) => ({ default: m.SchedulerPage })),
+)
 const AboutSettings = lazy(() =>
   import('./AboutSettings').then((m) => ({ default: m.AboutSettings })),
 )
@@ -107,6 +111,7 @@ export function SettingsPage() {
             <Route path="notifications" element={<NotificationsSettings />} />
             <Route path="system" element={<SystemSettings />} />
             <Route path="system/hooks" element={<SystemHooksPage />} />
+            <Route path="system/scheduler" element={<SchedulerPage />} />
             <Route path="about" element={<AboutSettings />} />
             <Route path="cleanup" element={<Suspense fallback={<FormSkeleton />}><CleanupSettings /></Suspense>} />
             <Route path="hooks" element={<Navigate to="/settings/system/hooks" replace />} />
