@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.68.0-beta] - 2026-04-19
+
+### Added
+- **Plan B Phase 5 — Subtitle repair + embedded track-selection** — New `backend/subtitle_repair.py` module with pure repair functions that run on every save path (provider download via `save_subtitle()`, embedded extract, post-translate save in SRT/ASS flows). Five defect classes handled: UTF-8 BOM at file start; wrong newline encoding (CRLFCRLF, lone CR); invalid millisecond decimals in SRT timestamps (e.g. `00:00:01,4` → `00:00:01,400`); overlapping cues (clamps earlier cue's end to next start minus 1ms, drops if clamp produces zero-duration); encoding mis-detection (Windows-1252 mislabeled UTF-8 recovered via chardet fallback). Embedded-extraction now ranks candidate tracks by `(language, forced, HI)` flags — forced query boosts forced tracks (+15) and penalizes mismatches (-5); HI-preferred boosts SDH/CC tracks (+10); HI-excluded kills them (-999). Opt-outable via new `enable_subtitle_repair=True` setting. 11 new backend tests + 182 regression tests green.
+
+### Plan B Progress
+- Phase B5 — SRT repair + embedded hardening: **shipped**
+
 ## [0.67.0-beta] - 2026-04-19
 
 ### Added
