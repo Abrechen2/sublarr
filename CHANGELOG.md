@@ -5,6 +5,17 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.67.0-beta] - 2026-04-19
+
+### Added
+- **Plan B Phase 4 — Scoring penalty rule pipeline** — Introduced a named-class `PenaltyRule` pipeline into subtitle scoring. 15 rules total: 10 ports of existing Sublarr behaviour (release_group / source / audio_codec / resolution / video_codec match; ASS format bonus; HI + forced preferences prefer / exclude-or-only kills) + 5 new Bazarr-equivalent opt-in rules (loose release-group substring match; source-hierarchy penalty for WEB-DL-for-BluRay-request; year off-by-one tolerance; codec-upgrade mismatch penalty; machine-translation penalty). Weights persist in `scoring_weights` via a new `score_type="penalty_rule"` discriminator with default-preserving merge. New opt-in rules default to weight=0 so existing scoring output is unchanged on deploy — operators toggle rules in Settings → Scoring → Penalty Rules. Exposes `/api/v1/scoring/penalty-rules` (GET + PUT per rule). 26 new backend tests + 85 regression tests green.
+
+### Changed — Plan B scope note
+- **B4 rescoped from "~30 rules" to 15 rules** — Sublarr's existing `compute_score()` already implemented most Bazarr-equivalent matching behaviour via the EPISODE_SCORES / MOVIE_SCORES weight maps. The real gap was naming + introspection + a handful of missing edge-case rules (codec-upgrade detection, source hierarchy, loose release-group matching, MT penalty, year off-by-one). The 15 shipped rules cover that gap honestly.
+
+### Plan B Progress
+- Phase B4 — Scoring penalty rule pipeline: **shipped**
+
 ## [0.66.0-beta] - 2026-04-19
 
 ### Added
