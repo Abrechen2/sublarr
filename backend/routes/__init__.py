@@ -40,6 +40,7 @@ def register_blueprints(app):
     from routes.subtitles import bp as subtitles_bp
     from routes.sync import bp as sync_bp
     from routes.system import bp as system_bp
+    from routes.system.scheduler import bp as scheduler_admin_bp
     from routes.tools import bp as tools_bp
     from routes.tracks import bp as tracks_bp
     from routes.translate import bp as translate_bp
@@ -60,6 +61,7 @@ def register_blueprints(app):
         config_bp,
         webhooks_bp,
         system_bp,
+        scheduler_admin_bp,
         profiles_bp,
         blacklist_bp,
         plugins_bp,
