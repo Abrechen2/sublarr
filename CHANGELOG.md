@@ -5,6 +5,23 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.59.0-beta] - 2026-04-19
+
+### Added
+- **Translation Cost & Memory page** — New **Settings → Translation → Cost & Memory** surfaces per-backend cost aggregation (today / 7d / 30d), a per-backend breakdown table with event count, average latency and error rate, and Translation Memory statistics (row count, disk size, 7-day cache hit-rate). Operators can purge TM entries older than N days directly from the page with a confirmation and toast feedback. First phase (A1) of the Lingarr-parity translation-platform roadmap.
+- **Per-backend concurrency control** — Each translation backend card now exposes a concurrency slider (1–20 slots) that takes effect immediately. Backend-specific rate-limit or throughput characteristics (OpenAI: higher; MyMemory: 1) can now be tuned per backend without redeploying.
+- **Integer micro-USD cost tracking** — Every `translate_batch` call now writes a row to the new `translation_events` table (populated by the `LLMBackend` base class and the `write_translation_event` helper). Costs are stored as integer micro-USD (1 USD = 1,000,000 micro-USD) to avoid float drift across aggregation of millions of events. Price sheet is code-owned (`backend/translation/price_sheet.py`) and covers Claude, Gemini, DeepSeek, OpenAI, Mistral, ChatGPT, plus char-priced DeepL / Google / Azure / LibreTranslate / MyMemory.
+- **LLMBackend base class** — New shared base for LLM-based translation backends (`backend/translation/llm_base.py`). Concentrates concurrency acquisition, prompt assembly, line-count retry, cost calculation, and event logging in one place. OllamaBackend and OpenAICompatBackend now inherit from it; subsequent phases (A3) will add Claude / Gemini / DeepSeek on top with ~120 LOC each.
+- **Prometheus translation metrics** — `/api/v1/metrics` now exposes `translation_cost_micro_usd_total{backend,status}`, `translation_tokens_total{backend,direction}`, `translation_cache_hits_total{backend}`, `translation_latency_seconds{backend}`, `translation_concurrency_in_use{backend}`, and `translation_concurrency_limit{backend}`.
+- **Nightly translation_events retention** — New `translation_events_cleanup` JobSpec runs daily at 03:30 UTC and deletes rows older than `translation_events_retention_days` (default 90, range 7–365). Surfaces on the existing Scheduler page alongside the other 7 cron jobs.
+- **Read-only translation admin API** — Three new GET endpoints: `/api/v1/translation/cost`, `/cost/by-backend?window=7d`, `/memory/stats` — plus `POST /memory/purge` and `GET/PATCH /concurrency/<backend>` for mutations. Every mutation writes a `translation_admin_action` audit log line with the API-key fingerprint.
+
+### Tests
+- +33 new backend tests (price_sheet, cost_tracker, TranslationEvent model + migration, BackendConcurrency, write_translation_event, LLMBackend base class, retention cron, cost + memory routes).
+- +3 frontend component tests for CostMemoryPage.
+- Fixed pre-existing Phase 5 scheduler migration test isolation issue caused by new ORM tables (test fixture now drops translation tables before the stamp).
+- Full scheduler + translation suite: 233 tests green.
+
 ## [0.58.1-beta] - 2026-04-19
 
 ### Changed
