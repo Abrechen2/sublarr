@@ -71,6 +71,7 @@ _BUILTIN_PROVIDERS: tuple[str, ...] = (
     "betaseries",
     "titlovi",
     "embedded",
+    "subliminal_opensubtitles",  # Subliminal-flavored pilot (Plan B1)
 )
 
 
