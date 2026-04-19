@@ -173,3 +173,60 @@ def test_adapter_search_empty_languages_returns_empty_list():
     results = adapter.search(VideoQuery(file_path="/x.mkv", title="X", languages=[]))
     assert results == []
     fake_impl.list_subtitles.assert_not_called()
+
+
+def test_adapter_download_invokes_subliminal_and_returns_bytes():
+    """adapter.download() mutates the stored subtitle via Subliminal then returns bytes."""
+    from unittest.mock import MagicMock
+    from providers.base import SubtitleResult
+    from providers.subliminal_adapter import SubliminalProviderAdapter
+
+    class _FakeSubtitle:
+        content = None  # Subliminal sets this during download_subtitle()
+
+    fake_sub = _FakeSubtitle()
+
+    def _side_effect(subtitle):
+        subtitle.content = b"1\n00:00:01,000 --> 00:00:02,000\nHello\n"
+
+    fake_impl = MagicMock()
+    fake_impl.download_subtitle.side_effect = _side_effect
+
+    adapter = SubliminalProviderAdapter(
+        subliminal_provider_cls=MagicMock(return_value=fake_impl),
+        provider_name="opensubtitles_subliminal",
+    )
+    adapter.initialize()
+
+    result = SubtitleResult(
+        provider_name="opensubtitles_subliminal",
+        subtitle_id="1",
+        language="en",
+        provider_data={"subliminal_subtitle": fake_sub},
+    )
+    content = adapter.download(result)
+
+    assert content == b"1\n00:00:01,000 --> 00:00:02,000\nHello\n"
+    fake_impl.download_subtitle.assert_called_once_with(fake_sub)
+
+
+def test_adapter_download_missing_stored_subtitle_raises():
+    """If the stored Subliminal Subtitle reference is missing we raise clearly."""
+    from providers.base import SubtitleResult
+    from providers.subliminal_adapter import SubliminalProviderAdapter
+    from unittest.mock import MagicMock
+
+    adapter = SubliminalProviderAdapter(
+        subliminal_provider_cls=MagicMock(),
+        provider_name="opensubtitles_subliminal",
+    )
+    adapter.initialize()
+
+    result = SubtitleResult(
+        provider_name="opensubtitles_subliminal",
+        subtitle_id="x",
+        language="en",
+        provider_data={},
+    )
+    with pytest.raises(ValueError, match="subliminal_subtitle"):
+        adapter.download(result)

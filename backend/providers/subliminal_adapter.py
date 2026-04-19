@@ -156,5 +156,13 @@ class SubliminalProviderAdapter(SubtitleProvider):
         return [_to_sublarr_result(s, self.name) for s in subliminal_subtitles]
 
     def download(self, result: SubtitleResult) -> bytes:
-        """Not yet implemented — filled in by Task 9."""
-        raise NotImplementedError("download() wired up in Task 9")
+        """Download subtitle content via the wrapped Subliminal provider."""
+        subliminal_sub = result.provider_data.get("subliminal_subtitle")
+        if subliminal_sub is None:
+            raise ValueError(
+                "SubtitleResult from SubliminalProviderAdapter missing "
+                "provider_data['subliminal_subtitle'] — results must come "
+                "from the same adapter instance that produced them."
+            )
+        self._impl.download_subtitle(subliminal_sub)
+        return subliminal_sub.content or b""
