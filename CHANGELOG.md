@@ -5,6 +5,17 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.62.0-beta] - 2026-04-19
+
+### Added
+- **Context-aware LLM translation** — New `context_windower` module produces `ContextChunk(lookback, batch, lookahead, batch_start_index)` tuples. When translating subtitles in multiple chunks, the LLM now sees up to 10 surrounding lines **before** and 5 lines **after** its current batch (defaults) as context in the system prompt, with an explicit instruction "do NOT translate or repeat". Resolves pronoun ambiguity ("he said"), terminology drift (character names re-transliterated across batches), and narrative coherence across batch boundaries. Token overhead: ~300 extra input tokens per 50-line batch — acceptable for the quality gain, and free when Anthropic's prompt caching is active.
+- **Three new config fields** — `translation_context_enabled` (default `true`), `translation_context_lookback_lines` (default `10`, range 0–50), `translation_context_lookahead_lines` (default `5`, range 0–50).
+- **LLMBackend + TranslationBackend accept keyword-only `lookback`/`lookahead`** — threaded through `translate_with_fallback` → `translate_batch` → `_assemble_messages`. Non-LLM backends (DeepL, Google, LibreTranslate) accept but ignore the kwargs; only LLMBackend subclasses (Claude, Gemini, DeepSeek, plus Ollama/OpenAI-compat if their overridden `_assemble_messages` is later updated) actually consume the context.
+
+### Tests
+- +15 new tests (12 for context_windower, 3 for translator/manager integration).
+- Full suite: 174 tests green, no regressions in existing translation / scheduler tests.
+
 ## [0.61.0-beta] - 2026-04-19
 
 ### Added
