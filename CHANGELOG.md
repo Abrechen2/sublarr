@@ -5,6 +5,22 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.55.0-beta] - 2026-04-19
+
+### Added
+- **APScheduler-backed scheduler infrastructure** — Introduces a new `SublarrScheduler` service alongside the legacy `threading.Timer` schedulers. Persists jobs to a new `apscheduler_jobs` table backed by `SQLAlchemyJobStore`, so scheduled work survives container restarts with its next-fire-time intact. First shippable phase of the V1 competitive-parity Phase 5 roadmap; user-visible scheduler UI and migration of the 6 Timer sites land in the next rollout phases.
+- **Scheduler job run history** — New `scheduler_job_runs` table captures per-execution metadata (started/finished timestamps, duration, status, triggered_by, error type/message). Populated by the tick wrapper on happy path and by event listeners on missed / overlapping fires.
+- **Automatic history retention** — New `scheduler_history_cleanup` cron job runs nightly at 03:15 UTC and deletes history rows older than `scheduler_history_retention_days` (default 30, range 1–365).
+- **Bounded scheduler shutdown** — On SIGTERM, the scheduler waits up to 25 seconds for in-flight ticks before the container exits, leaving 5 seconds of buffer before Docker's 30-second grace period. Abandoned rows are reconciled to `error/InterruptedByShutdown` on the next startup.
+- **Single-instance guard** — New `SUBLARR_SCHEDULER_ROLE` env var (default `primary`) gates scheduler startup. Setting it to `disabled` on additional replicas prevents duplicate firing when horizontally scaling.
+- **Prometheus scheduler metrics** — `/api/v1/metrics` now exposes `scheduler_job_runs_total{job_id,status}`, `scheduler_job_duration_seconds{job_id}`, and `scheduler_interrupted_runs_total` for dashboards and alerting.
+
+### Tests
+- +68 new scheduler tests across 10 test files covering the facade lifecycle, tick wrapper timeout and error paths, event listeners, migration upgrade/downgrade roundtrip, retention, stale-run reconciliation, run-now one-shot handling, and a full end-to-end bootstrap smoke test.
+
+### Docs
+- Phase 5 scheduler-hardening design spec and phase-1 implementation plan added under `docs/superpowers/`.
+
 ## [0.54.1-beta] - 2026-04-18
 
 ### Changed
