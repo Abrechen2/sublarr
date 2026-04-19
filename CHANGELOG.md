@@ -5,6 +5,14 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.64.0-beta] - 2026-04-19
+
+### Added
+- **Plan B Phase 1 — Subliminal vendor foundation** — Vendored Subliminal 2.2.0 and babelfish 0.6.1 into `backend/providers/_vendor/`. Added `SubliminalProviderAdapter` shim that wraps any Subliminal provider as a native Sublarr `SubtitleProvider`, converting between Sublarr's `VideoQuery` / `SubtitleResult` dataclasses and Subliminal's `Video` / `Subtitle` types. Registered `opensubtitles_subliminal` as the pilot flavor (XML-RPC, distinct from Sublarr's native `opensubtitles_fetch` REST implementation). New pip deps: `chardet`, `dogpile.cache`, `pysrt`, `stevedore`. 17 new tests green. First step toward Bazarr-grade provider coverage — the remaining ~19 Subliminal providers come online in Phase B2.
+
+### Plan B Progress
+- Phase B1 — Subliminal vendor foundation: **shipped**
+
 ## [0.63.0-beta] - 2026-04-19
 
 ### Added — 4 new translation backends (Lingarr parity reached)
