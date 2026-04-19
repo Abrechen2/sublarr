@@ -279,6 +279,14 @@ class Settings(BaseSettings):
             "the scheduler_history_cleanup cron deletes old rows."
         ),
     )
+    # Translation telemetry retention — days of translation_events rows kept
+    # before the translation_events_cleanup cron deletes them.
+    translation_events_retention_days: int = Field(
+        default=90,
+        ge=7,
+        le=365,
+        description="Keep translation_events rows for this many days.",
+    )
     # First-run wizard completion flag — persisted by the wizard endpoints so
     # the UI shows the wizard at most once per installation.
     setup_wizard_completed: bool = False

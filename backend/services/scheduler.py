@@ -661,6 +661,7 @@ def _build_default_jobs() -> list[JobSpec]:
     )
     from upgrade_scheduler import upgrade_tick
     from utils.scheduler_retention import delete_old_job_runs
+    from utils.scheduler_retention_translation import delete_old_translation_events
 
     # Read wanted scan/search intervals at build time, falling back to
     # conservative defaults. _build_default_jobs runs once per process so
@@ -701,6 +702,14 @@ def _build_default_jobs() -> list[JobSpec]:
             timeout_s=60,
             owner_module="services.scheduler",
             description="Delete old scheduler_job_runs rows per retention policy.",
+        ),
+        JobSpec(
+            id="translation_events_cleanup",
+            func=delete_old_translation_events,
+            default_trigger=CronTrigger(hour=3, minute=30),
+            timeout_s=120,
+            owner_module="utils.scheduler_retention_translation",
+            description="Delete old translation_events rows per retention policy.",
         ),
         JobSpec(
             id="cleanup",
