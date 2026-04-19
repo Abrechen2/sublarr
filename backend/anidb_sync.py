@@ -5,7 +5,13 @@ AniDB absolute episode mappings into the anidb_absolute_mappings table.
 
 Sync is triggered:
   - Manually via POST /api/v1/anidb-mapping/refresh
-  - Weekly by the background scheduler (started from app.py -> _start_schedulers)
+  - Weekly by the APScheduler SublarrScheduler (JobSpec ``anidb_sync``
+    registered in services/scheduler.py)
+
+Migrated from threading.Timer to APScheduler in Phase 5 / P4 — only the
+module-level ``run_sync`` function and the new ``anidb_sync_tick`` wrapper
+remain. ``start_anidb_sync_scheduler`` / ``stop_anidb_sync_scheduler`` are
+kept as no-op adapters for backwards compatibility with app_schedulers.
 
 XML source:
   https://raw.githubusercontent.com/Anime-Lists/anime-lists/master/anime-list.xml
@@ -16,7 +22,6 @@ import threading
 import time
 import xml.etree.ElementTree as ET
 from datetime import UTC
-from typing import Optional
 
 import requests
 
@@ -25,9 +30,6 @@ logger = logging.getLogger(__name__)
 ANIME_LIST_URL = "https://raw.githubusercontent.com/Anime-Lists/anime-lists/master/anime-list.xml"
 REQUEST_TIMEOUT_SECONDS = 30
 DEFAULT_INTERVAL_HOURS = 168  # weekly
-
-_scheduler_lock = threading.Lock()
-_scheduler: Optional["AnidbSyncScheduler"] = None
 
 sync_state = {
     "running": False,
@@ -196,60 +198,31 @@ def _now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
-class AnidbSyncScheduler:
-    """Periodic AniDB sync runner using threading.Timer."""
+def anidb_sync_tick() -> None:
+    """Module-level tick function invoked by APScheduler.
 
-    def __init__(self, app, interval_hours: int = DEFAULT_INTERVAL_HOURS):
-        self._app = app
-        self._interval_hours = interval_hours
-        self._timer: threading.Timer | None = None
-        self._running = False
+    Resolves the Flask app via ``current_app`` (bound by _tick_wrapper's
+    ``app.app_context()`` at dispatch time) and delegates to run_sync.
+    """
+    from flask import current_app
 
-    def start(self) -> None:
-        """Schedule the first run after one full interval."""
-        self._running = True
-        self._schedule_next()
-        logger.info("AniDB sync scheduler started (every %dh)", self._interval_hours)
-
-    def stop(self) -> None:
-        """Cancel any pending timer."""
-        self._running = False
-        if self._timer:
-            self._timer.cancel()
-            self._timer = None
-        logger.info("AniDB sync scheduler stopped")
-
-    def _schedule_next(self) -> None:
-        if not self._running:
-            return
-        interval_seconds = self._interval_hours * 3600
-        self._timer = threading.Timer(interval_seconds, self._run_and_reschedule)
-        self._timer.daemon = True
-        self._timer.start()
-
-    def _run_and_reschedule(self) -> None:
-        try:
-            run_sync(self._app)
-        except Exception as exc:
-            logger.error("AniDB scheduled sync error: %s", exc)
-        finally:
-            self._schedule_next()
+    app = current_app._get_current_object()
+    run_sync(app)
 
 
 def start_anidb_sync_scheduler(app, interval_hours: int = DEFAULT_INTERVAL_HOURS) -> None:
-    """Start the weekly AniDB sync scheduler (idempotent)."""
-    global _scheduler
-    with _scheduler_lock:
-        if _scheduler is not None:
-            return
-        _scheduler = AnidbSyncScheduler(app, interval_hours)
-        _scheduler.start()
+    """Adapter retained for app_schedulers compatibility.
+
+    Scheduling is now owned by the APScheduler ``anidb_sync`` JobSpec
+    (default trigger IntervalTrigger(hours=168), registered in
+    services/scheduler.py). This function is a no-op at the scheduling
+    layer — interval is not currently exposed as a user setting.
+    """
+    logger.debug(
+        "anidb_sync: start_anidb_sync_scheduler called — scheduling handled by APScheduler"
+    )
 
 
 def stop_anidb_sync_scheduler() -> None:
-    """Stop the AniDB sync scheduler if running."""
-    global _scheduler
-    with _scheduler_lock:
-        if _scheduler:
-            _scheduler.stop()
-            _scheduler = None
+    """No-op — APScheduler handles shutdown via SublarrScheduler.shutdown()."""
+    return None
