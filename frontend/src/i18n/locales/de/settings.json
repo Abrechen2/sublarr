@@ -51,7 +51,37 @@
     "target_language_code": "Zielsprache (Code)",
     "source_language_name": "Quellsprache (Name)",
     "target_language_name": "Zielsprache (Name)",
-    "hi_removal": "Untertitel für Hörgeschädigte entfernen"
+    "hi_removal": "Untertitel für Hörgeschädigte entfernen",
+    "cost": {
+      "title": "Übersetzungs-Kosten",
+      "subtitle": "Kosten pro Backend und Zeitraum",
+      "today": "Heute",
+      "last_7d": "Letzte 7 Tage",
+      "last_30d": "Letzte 30 Tage",
+      "events": "Events",
+      "cache_hits": "Cache-Hits",
+      "per_backend": "Pro Backend (7 Tage)",
+      "backend": "Backend",
+      "cost": "Kosten",
+      "avg_latency": "Ø Latenz",
+      "error_rate": "Fehlerrate",
+      "no_events_yet": "Noch keine Übersetzungen."
+    },
+    "memory": {
+      "title": "Translation Memory",
+      "rows": "Einträge",
+      "size": "Größe",
+      "hit_rate_7d": "Hit-Rate (7d)",
+      "purge_older_than": "Lösche älter als",
+      "days": "Tage",
+      "purge": "Löschen",
+      "confirm_purge": "Einträge älter als {{days}} Tage löschen?",
+      "purged": "{{n}} Einträge gelöscht"
+    },
+    "concurrency": {
+      "limit": "Gleichzeitige Anfragen",
+      "hint": "Anzahl paralleler Aufrufe an dieses Backend. Höher = schneller bei großen Batches, niedriger = schonender bei Rate-Limits."
+    }
   },
   "automation": {
     "upgrade_enabled": "Upgrade aktiviert",

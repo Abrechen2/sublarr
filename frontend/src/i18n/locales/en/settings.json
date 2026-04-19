@@ -51,7 +51,37 @@
     "target_language_code": "Target Language Code",
     "source_language_name": "Source Language Name",
     "target_language_name": "Target Language Name",
-    "hi_removal": "Remove Hearing Impaired Tags"
+    "hi_removal": "Remove Hearing Impaired Tags",
+    "cost": {
+      "title": "Translation Costs",
+      "subtitle": "Cost per backend and time window",
+      "today": "Today",
+      "last_7d": "Last 7 days",
+      "last_30d": "Last 30 days",
+      "events": "events",
+      "cache_hits": "cache hits",
+      "per_backend": "Per backend (7 days)",
+      "backend": "Backend",
+      "cost": "Cost",
+      "avg_latency": "Avg latency",
+      "error_rate": "Error rate",
+      "no_events_yet": "No translations yet."
+    },
+    "memory": {
+      "title": "Translation Memory",
+      "rows": "Entries",
+      "size": "Size",
+      "hit_rate_7d": "Hit rate (7d)",
+      "purge_older_than": "Purge older than",
+      "days": "days",
+      "purge": "Purge",
+      "confirm_purge": "Purge entries older than {{days}} days?",
+      "purged": "{{n}} entries purged"
+    },
+    "concurrency": {
+      "limit": "Concurrent requests",
+      "hint": "Number of parallel requests to this backend. Higher = faster for large batches; lower = gentler on rate-limited APIs."
+    }
   },
   "automation": {
     "upgrade_enabled": "Upgrade Enabled",

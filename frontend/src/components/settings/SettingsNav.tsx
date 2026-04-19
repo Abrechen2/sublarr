@@ -64,6 +64,7 @@ function useNavGroups(translationEnabled: boolean): readonly NavGroup[] {
       label: t('settings.categories.translation.title', 'Übersetzung'),
       pages: [
         { label: t('settings.nav.translation_backends', 'Backends & Glossar'), href: '/settings/translation' },
+        { label: t('settings.nav.translation_cost', 'Kosten & Memory'), href: '/settings/translation/cost-memory' },
       ],
     })
   }

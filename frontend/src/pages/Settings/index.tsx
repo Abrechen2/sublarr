@@ -15,6 +15,7 @@
  * /settings/automation                    → AutomationSettings
  * /settings/automation/post-processing    → AutomationPostProcessingPage
  * /settings/translation                   → TranslationSettings
+ * /settings/translation/cost-memory        → CostMemoryPage
  * /settings/notifications                 → NotificationsSettings
  * /settings/system                        → SystemSettings
  * /settings/system/hooks                  → SystemHooksPage
@@ -69,6 +70,11 @@ const AutomationPostProcessingPage = lazy(() =>
 const TranslationSettings = lazy(() =>
   import('./TranslationSettings').then((m) => ({ default: m.TranslationSettings })),
 )
+const CostMemoryPage = lazy(() =>
+  import('./translation/CostMemoryPage').then((m) => ({
+    default: m.CostMemoryPage,
+  })),
+)
 const NotificationsSettings = lazy(() =>
   import('./NotificationsSettings').then((m) => ({ default: m.NotificationsSettings })),
 )
@@ -108,6 +114,14 @@ export function SettingsPage() {
             <Route path="automation" element={<AutomationSettings />} />
             <Route path="automation/post-processing" element={<AutomationPostProcessingPage />} />
             <Route path="translation" element={<TranslationSettings />} />
+            <Route
+              path="translation/cost-memory"
+              element={
+                <Suspense fallback={<FormSkeleton />}>
+                  <CostMemoryPage />
+                </Suspense>
+              }
+            />
             <Route path="notifications" element={<NotificationsSettings />} />
             <Route path="system" element={<SystemSettings />} />
             <Route path="system/hooks" element={<SystemHooksPage />} />
