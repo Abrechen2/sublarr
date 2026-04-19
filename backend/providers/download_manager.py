@@ -12,6 +12,10 @@ import os
 
 from providers.base import SubtitleFormat, SubtitleResult
 
+# Plan B6 — post-processing pipeline trigger (module-level import so tests can
+# patch("providers.download_manager.run_trigger")).
+from post_processing.pipeline import run_trigger
+
 logger = logging.getLogger(__name__)
 
 _MAX_SUBTITLE_SIZE = 50 * 1024 * 1024  # 50 MB
@@ -236,12 +240,14 @@ def save_subtitle(
 
     # Validate output path is within allowed media directory (path traversal guard)
     try:
+        import security_utils as _security_utils
         from config import get_settings as _get_settings
-        from security_utils import is_safe_path as _is_safe_path
 
         _settings = _get_settings()
         _media_path = getattr(_settings, "media_path", "/media")
-        if not _is_safe_path(output_path, _media_path):
+        # Resolve is_safe_path from the source module at call time so
+        # monkeypatch("security_utils.is_safe_path") (legacy + B6 tests) works.
+        if not _security_utils.is_safe_path(output_path, _media_path):
             raise ValueError(f"save_subtitle: output_path {output_path!r} is outside media_path")
     except ValueError:
         raise
@@ -413,5 +419,27 @@ def save_subtitle(
             )
         except Exception as _pd_err:
             logger.warning("post_download_command hook failed: %s", _pd_err)
+
+    # Plan B6 — fire after_download post-processing trigger.
+    # The pipeline runs on a dedicated thread pool so this returns immediately;
+    # an empty op list is a no-op in run_trigger itself.
+    try:
+        from post_processing.config_store import get_trigger_ops
+
+        op_ids = get_trigger_ops("after_download")
+        if op_ids:
+            run_trigger(
+                trigger="after_download",
+                op_ids=op_ids,
+                context={
+                    "subtitle_path": output_path,
+                    "video_path": "",
+                    "lang": result.language or "",
+                    "score": result.score or 0,
+                    "trigger": "after_download",
+                },
+            )
+    except Exception as _pp_err:
+        logger.warning("post_processing after_download skipped: %s", _pp_err)
 
     return output_path

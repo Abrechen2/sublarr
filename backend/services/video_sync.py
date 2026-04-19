@@ -14,7 +14,34 @@ import subprocess
 import sys
 import tempfile
 
+# Plan B6 — post-processing pipeline trigger (module-level import so tests can
+# patch("services.video_sync.run_trigger")).
+from post_processing.pipeline import run_trigger
+
 logger = logging.getLogger(__name__)
+
+
+def _fire_after_sync_trigger(subtitle_path: str, video_or_ref: str, engine: str) -> None:
+    """Fire the after_sync post-processing trigger. Never raises."""
+    try:
+        from post_processing.config_store import get_trigger_ops
+
+        op_ids = get_trigger_ops("after_sync")
+        if op_ids:
+            run_trigger(
+                trigger="after_sync",
+                op_ids=op_ids,
+                context={
+                    "subtitle_path": subtitle_path,
+                    "video_path": video_or_ref,
+                    "lang": "",
+                    "score": 0,
+                    "trigger": "after_sync",
+                    "engine": engine,
+                },
+            )
+    except Exception as exc:  # pragma: no cover — defensive
+        logger.warning("post_processing after_sync skipped: %s", exc)
 
 
 def _check_module(name: str) -> bool:
@@ -68,6 +95,9 @@ def sync_with_ffsubsync(subtitle_path: str, video_path: str) -> dict:
     shift_ms = _parse_ffsubsync_shift(result.stderr + result.stdout)
     logger.info("ffsubsync: done, estimated shift %dms", shift_ms)
 
+    # Plan B6 — fire after_sync post-processing trigger on the happy path.
+    _fire_after_sync_trigger(subtitle_path, video_path, "ffsubsync")
+
     return {
         "output_path": subtitle_path,
         "shift_ms": shift_ms,
@@ -113,6 +143,9 @@ def sync_with_alass(subtitle_path: str, reference_path: str) -> dict:
 
     shutil.move(out_path, subtitle_path)
     logger.info("alass: sync complete")
+
+    # Plan B6 — fire after_sync post-processing trigger on the happy path.
+    _fire_after_sync_trigger(subtitle_path, reference_path, "alass")
 
     return {
         "output_path": subtitle_path,

@@ -7,6 +7,10 @@ from pathlib import Path
 
 from config import get_settings
 
+# Plan B6 — post-processing pipeline trigger (module-level import so tests can
+# patch("translator._helpers.run_trigger")).
+from post_processing.pipeline import run_trigger
+
 logger = logging.getLogger(__name__)
 
 MIN_FREE_SPACE_MB = 100
@@ -17,6 +21,12 @@ def run_subtitle_repair(output_path: str) -> None:
 
     Opt-outable via `enable_subtitle_repair` setting. Must never abort the
     translation — fall through on any error.
+
+    Plan B6 — also fires the ``after_translate`` post-processing trigger
+    once per translation. Because all three translator flows
+    (srt_flow, ass_flow internal, ass_flow external) call this helper,
+    placing the trigger here guarantees exactly one firing per translation
+    regardless of which flow ran.
     """
     try:
         if not getattr(get_settings(), "enable_subtitle_repair", True):
@@ -30,6 +40,27 @@ def run_subtitle_repair(output_path: str) -> None:
             Path(output_path).write_bytes(repaired)
     except Exception as exc:
         logger.warning("subtitle_repair on translate output skipped for %s: %s", output_path, exc)
+
+    # Plan B6 — after_translate post-processing trigger.
+    # Fires on the shared thread pool; empty op list is a no-op.
+    try:
+        from post_processing.config_store import get_trigger_ops
+
+        op_ids = get_trigger_ops("after_translate")
+        if op_ids:
+            run_trigger(
+                trigger="after_translate",
+                op_ids=op_ids,
+                context={
+                    "subtitle_path": output_path,
+                    "video_path": "",
+                    "lang": "",
+                    "score": 0,
+                    "trigger": "after_translate",
+                },
+            )
+    except Exception as exc:
+        logger.warning("post_processing after_translate skipped for %s: %s", output_path, exc)
 
 
 # Common English words that indicate a subtitle was not actually translated
