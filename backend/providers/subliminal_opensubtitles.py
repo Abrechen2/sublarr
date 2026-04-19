@@ -8,7 +8,6 @@ rate-limit state per-flavor.
 from __future__ import annotations
 
 import providers._vendor  # noqa: F401 — side-effect import
-
 from providers.registry import register_provider
 from providers.subliminal_adapter import SubliminalProviderAdapter
 

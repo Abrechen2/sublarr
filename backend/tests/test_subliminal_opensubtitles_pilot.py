@@ -22,3 +22,19 @@ def test_pilot_provider_instantiates_via_adapter():
     cls = _PROVIDER_CLASSES["opensubtitles_subliminal"]
     instance = cls(username="u", password="p")
     assert isinstance(instance, SubliminalProviderAdapter)
+
+
+def test_provider_manager_lists_subliminal_provider():
+    """After the builtin import pass, 'opensubtitles_subliminal' is discoverable.
+
+    ProviderManager does not expose a public available-provider list;
+    per the plan's fallback guidance we assert against _PROVIDER_CLASSES
+    directly — the same registry the ProviderManager reads from.
+    """
+    from providers.registry import _PROVIDER_CLASSES, import_builtin_providers
+
+    import_builtin_providers()
+    assert "opensubtitles_subliminal" in _PROVIDER_CLASSES, (
+        f"Expected 'opensubtitles_subliminal' in registered providers, "
+        f"got {sorted(_PROVIDER_CLASSES)}"
+    )

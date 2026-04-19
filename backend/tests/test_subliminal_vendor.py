@@ -3,11 +3,13 @@
 import sys
 from pathlib import Path
 
+# Trigger the sys.path shim at module-collection time so every test — even
+# when run standalone — sees the vendored packages as top-level importable.
+import providers._vendor  # noqa: F401,I001
+
 
 def test_vendor_directory_added_to_sys_path():
     """Importing providers._vendor must inject the vendor dir into sys.path."""
-    import providers._vendor  # noqa: F401  (side-effect import)
-
     vendor_dir = str(Path(providers._vendor.__file__).parent)
     assert vendor_dir in sys.path, (
         f"Expected {vendor_dir} in sys.path after import; got {sys.path[:5]}..."
@@ -16,8 +18,6 @@ def test_vendor_directory_added_to_sys_path():
 
 def test_vendored_subliminal_importable():
     """The vendored Subliminal must be importable as a top-level package."""
-    import providers._vendor  # noqa: F401  (trigger sys.path shim)
-
     import subliminal
 
     assert hasattr(subliminal, "__version__"), "subliminal.__version__ attribute missing"
@@ -28,8 +28,6 @@ def test_vendored_subliminal_importable():
 
 def test_vendored_subliminal_providers_discoverable():
     """Subliminal's provider entry points must be discoverable via stevedore."""
-    import providers._vendor  # noqa: F401
-
     from subliminal.providers import Provider  # base class
 
     assert Provider is not None, "subliminal.providers.Provider not importable"
@@ -37,8 +35,6 @@ def test_vendored_subliminal_providers_discoverable():
 
 def test_vendored_babelfish_importable():
     """The vendored babelfish must be importable as a top-level package."""
-    import providers._vendor  # noqa: F401
-
     import babelfish
 
     assert hasattr(babelfish, "Language"), "babelfish.Language class missing"
@@ -48,8 +44,6 @@ def test_vendored_babelfish_importable():
 
 def test_subliminal_can_use_babelfish():
     """Subliminal's internal babelfish usage must work with our vendored copy."""
-    import providers._vendor  # noqa: F401
-
     from babelfish import Language
     from subliminal.video import Video
 

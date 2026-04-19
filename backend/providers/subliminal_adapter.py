@@ -22,11 +22,10 @@ from __future__ import annotations
 
 import logging
 
-import providers._vendor  # noqa: F401 — side-effect import adds vendor to sys.path
-
-from providers.base import SubtitleFormat, SubtitleProvider, SubtitleResult, VideoQuery
-
 from subliminal.video import Episode, Movie, Video
+
+import providers._vendor  # noqa: F401 — side-effect import adds vendor to sys.path
+from providers.base import SubtitleFormat, SubtitleProvider, SubtitleResult, VideoQuery
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +62,7 @@ def _to_subliminal_video(query: VideoQuery) -> Video:
     Missing fields are left as Subliminal's defaults (usually None/empty).
     """
     if query.is_episode:
-        default_name = (
-            f"{query.series_title}.S{query.season:02d}E{query.episode:02d}.mkv"
-        )
+        default_name = f"{query.series_title}.S{query.season:02d}E{query.episode:02d}.mkv"
         return Episode(
             name=query.file_path or default_name,
             series=query.series_title,

@@ -3,7 +3,6 @@
 import pytest
 
 import providers._vendor  # noqa: F401 — trigger sys.path shim at test-collection time
-
 from providers.base import SubtitleProvider
 
 
@@ -17,6 +16,7 @@ def test_adapter_is_a_sublarr_provider():
 def test_adapter_constructor_accepts_provider_class():
     """Constructor takes a Subliminal Provider class + Sublarr config kwargs."""
     from subliminal.providers.opensubtitles import OpenSubtitlesProvider
+
     from providers.subliminal_adapter import SubliminalProviderAdapter
 
     adapter = SubliminalProviderAdapter(
@@ -31,9 +31,10 @@ def test_adapter_constructor_accepts_provider_class():
 
 def test_convert_episode_query_to_subliminal_episode():
     """A Sublarr VideoQuery for an episode becomes a subliminal.video.Episode."""
+    from subliminal.video import Episode
+
     from providers.base import VideoQuery
     from providers.subliminal_adapter import _to_subliminal_video
-    from subliminal.video import Episode
 
     q = VideoQuery(
         file_path="/media/Show/S01E05.mkv",
@@ -58,9 +59,10 @@ def test_convert_episode_query_to_subliminal_episode():
 
 def test_convert_movie_query_to_subliminal_movie():
     """A Sublarr VideoQuery for a movie becomes a subliminal.video.Movie."""
+    from subliminal.video import Movie
+
     from providers.base import VideoQuery
     from providers.subliminal_adapter import _to_subliminal_video
-    from subliminal.video import Movie
 
     q = VideoQuery(
         file_path="/media/Frozen.2013.mkv",
@@ -80,6 +82,7 @@ def test_convert_movie_query_to_subliminal_movie():
 def test_convert_subliminal_subtitle_to_sublarr_result():
     """A subliminal Subtitle becomes a SubtitleResult with mapped fields."""
     from babelfish import Language
+
     from providers.subliminal_adapter import _to_sublarr_result
 
     class _FakeSubtitle:
@@ -109,7 +112,9 @@ def test_convert_subliminal_subtitle_to_sublarr_result():
 def test_adapter_search_delegates_to_subliminal_and_converts_results():
     """adapter.search() invokes the wrapped provider and converts each Subtitle."""
     from unittest.mock import MagicMock
+
     from babelfish import Language
+
     from providers.base import VideoQuery
     from providers.subliminal_adapter import SubliminalProviderAdapter
 
@@ -160,6 +165,7 @@ def test_adapter_search_delegates_to_subliminal_and_converts_results():
 def test_adapter_search_empty_languages_returns_empty_list():
     """If the query requests no languages we return [] without calling Subliminal."""
     from unittest.mock import MagicMock
+
     from providers.base import VideoQuery
     from providers.subliminal_adapter import SubliminalProviderAdapter
 
@@ -178,6 +184,7 @@ def test_adapter_search_empty_languages_returns_empty_list():
 def test_adapter_download_invokes_subliminal_and_returns_bytes():
     """adapter.download() mutates the stored subtitle via Subliminal then returns bytes."""
     from unittest.mock import MagicMock
+
     from providers.base import SubtitleResult
     from providers.subliminal_adapter import SubliminalProviderAdapter
 
@@ -212,9 +219,10 @@ def test_adapter_download_invokes_subliminal_and_returns_bytes():
 
 def test_adapter_download_missing_stored_subtitle_raises():
     """If the stored Subliminal Subtitle reference is missing we raise clearly."""
+    from unittest.mock import MagicMock
+
     from providers.base import SubtitleResult
     from providers.subliminal_adapter import SubliminalProviderAdapter
-    from unittest.mock import MagicMock
 
     adapter = SubliminalProviderAdapter(
         subliminal_provider_cls=MagicMock(),
