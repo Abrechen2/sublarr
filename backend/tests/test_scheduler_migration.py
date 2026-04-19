@@ -68,10 +68,13 @@ def migrated_db_engine(tmp_path, monkeypatch):
         from extensions import db as sa_db
 
         # Clear anything create_all() may have seeded for our new tables,
-        # so upgrade() runs CREATE TABLE cleanly.
+        # so upgrade() runs CREATE TABLE cleanly. Phase A1 added translation_events
+        # to the ORM, so create_all() creates it; we must drop it before stamping
+        # at the pre-scheduler head, then let the migration rebuild it.
         with sa_db.engine.begin() as conn:
             conn.execute(sa.text("DROP TABLE IF EXISTS scheduler_job_runs"))
             conn.execute(sa.text("DROP TABLE IF EXISTS apscheduler_jobs"))
+            conn.execute(sa.text("DROP TABLE IF EXISTS translation_events"))
             conn.execute(sa.text("DROP TABLE IF EXISTS alembic_version"))
 
         cfg = _alembic_config(url)
@@ -119,11 +122,17 @@ def test_upgrade_creates_both_tables(migrated_db_engine):
 
 
 def test_downgrade_drops_both_tables(migrated_db_engine):
-    """Downgrade -1 drops the scheduler tables; upgrade head re-creates them."""
+    """Downgrade past scheduler migration drops the scheduler tables; upgrade re-creates them.
+
+    After upgrade to head, we're at the A1 translation_events migration. To verify
+    the scheduler migration's downgrade works, we must downgrade twice: once past
+    the A1 migration, then past the scheduler migration itself.
+    """
     from alembic import command
 
     cfg = _alembic_config(str(migrated_db_engine.url))
-    command.downgrade(cfg, "-1")
+    # Downgrade -2 to drop both A1 + scheduler migrations
+    command.downgrade(cfg, "-2")
     insp = sa.inspect(migrated_db_engine)
     assert "scheduler_job_runs" not in insp.get_table_names()
     assert "apscheduler_jobs" not in insp.get_table_names()
