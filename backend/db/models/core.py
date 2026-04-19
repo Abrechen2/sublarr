@@ -7,6 +7,7 @@ Timestamp columns use DateTime(timezone=True) for proper datetime handling.
 from datetime import UTC, datetime
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     DateTime,
     Float,
@@ -265,6 +266,26 @@ class BlacklistEntry(db.Model):
     )
 
 
+class PostProcessingRun(db.Model):
+    """Audit row for one post-processing pipeline run (Plan B6)."""
+
+    __tablename__ = "post_processing_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    trigger: Mapped[str] = mapped_column(String(32), nullable=False)
+    ops_executed: Mapped[dict] = mapped_column(JSON, nullable=False)
+    duration_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    outcome: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    __table_args__ = (
+        Index("idx_pp_runs_created_at", "created_at"),
+        Index("idx_pp_runs_trigger", "trigger"),
+    )
+
+
 class FilterPreset(db.Model):
     """Saved filter configurations per page scope."""
 
@@ -404,6 +425,7 @@ __all__ = [
     "FfprobeCache",
     "ChapterCache",
     "BlacklistEntry",
+    "PostProcessingRun",
     "FilterPreset",
     "AnidbAbsoluteMapping",
     "SeriesSettings",
