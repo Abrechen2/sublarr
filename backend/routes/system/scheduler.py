@@ -11,10 +11,18 @@ from datetime import UTC, datetime, timedelta
 
 import sqlalchemy as sa
 from flask import Blueprint, current_app, jsonify, request
+from pydantic import ValidationError
 
 from db.models.scheduler import JobRun
 from extensions import db
-from routes.system.scheduler_serializers import serialize_trigger
+from routes.system.scheduler_serializers import (
+    CronTriggerModel,
+    IntervalTriggerModel,
+    InvalidTriggerError,
+    serialize_trigger,
+    trigger_model_to_apscheduler,
+)
+from services.scheduler import OneshotAlreadyPendingError
 
 logger = logging.getLogger(__name__)
 
@@ -201,3 +209,182 @@ def list_runs(job_id: str):
         ),
         200,
     )
+
+
+def _audit_log(job_id: str, action: str) -> None:
+    """Log admin action for audit trail."""
+    api_key = request.headers.get("X-Api-Key", "")
+    fp = api_key[:6] if api_key else "anon"
+    logger.info(
+        "scheduler_admin_action job_id=%s action=%s actor=%s",
+        job_id,
+        action,
+        fp,
+    )
+
+
+def _parse_trigger_model(data: dict):
+    t = (data or {}).get("type")
+    if t == "interval":
+        return IntervalTriggerModel.model_validate(data)
+    if t == "cron":
+        return CronTriggerModel.model_validate(data)
+    raise ValueError(f"unknown trigger type: {t!r}")
+
+
+@bp.route("/jobs/<job_id>/run-now", methods=["POST"])
+def run_now(job_id: str):
+    s = _get_scheduler()
+    if s is None:
+        return _scheduler_down_response()
+    if job_id not in s._registered_ids:
+        return (
+            jsonify(
+                {
+                    "error": f"Job {job_id!r} not found",
+                    "error_type": "NotFoundError",
+                }
+            ),
+            404,
+        )
+    try:
+        oneshot_id = s.run_now(job_id)
+    except OneshotAlreadyPendingError as exc:
+        return (
+            jsonify(
+                {
+                    "error": str(exc),
+                    "error_type": "OneshotAlreadyPendingError",
+                }
+            ),
+            409,
+        )
+    _audit_log(job_id, "run-now")
+    return jsonify({"status": "queued", "oneshot_id": oneshot_id}), 202
+
+
+@bp.route("/jobs/<job_id>/pause", methods=["POST"])
+def pause(job_id: str):
+    s = _get_scheduler()
+    if s is None:
+        return _scheduler_down_response()
+    if job_id not in s._registered_ids:
+        return (
+            jsonify(
+                {
+                    "error": f"Job {job_id!r} not found",
+                    "error_type": "NotFoundError",
+                }
+            ),
+            404,
+        )
+    job = s._scheduler.get_job(job_id)
+    if job is not None and job.next_run_time is None:
+        return (
+            jsonify(
+                {
+                    "error": f"{job_id} is already paused",
+                    "error_type": "ConflictError",
+                }
+            ),
+            409,
+        )
+    s.pause_job(job_id)
+    _audit_log(job_id, "pause")
+    return jsonify({"status": "paused"}), 200
+
+
+@bp.route("/jobs/<job_id>/resume", methods=["POST"])
+def resume(job_id: str):
+    s = _get_scheduler()
+    if s is None:
+        return _scheduler_down_response()
+    if job_id not in s._registered_ids:
+        return (
+            jsonify(
+                {
+                    "error": f"Job {job_id!r} not found",
+                    "error_type": "NotFoundError",
+                }
+            ),
+            404,
+        )
+    job = s._scheduler.get_job(job_id)
+    if job is not None and job.next_run_time is not None:
+        return (
+            jsonify(
+                {
+                    "error": f"{job_id} is not paused",
+                    "error_type": "ConflictError",
+                }
+            ),
+            409,
+        )
+    s.resume_job(job_id)
+    _audit_log(job_id, "resume")
+    return jsonify({"status": "running"}), 200
+
+
+@bp.route("/jobs/<job_id>", methods=["PATCH"])
+def modify(job_id: str):
+    s = _get_scheduler()
+    if s is None:
+        return _scheduler_down_response()
+    if job_id not in s._registered_ids:
+        return (
+            jsonify(
+                {
+                    "error": f"Job {job_id!r} not found",
+                    "error_type": "NotFoundError",
+                }
+            ),
+            404,
+        )
+    body = request.get_json(silent=True) or {}
+    trigger_payload = body.get("trigger")
+    if not isinstance(trigger_payload, dict):
+        return (
+            jsonify(
+                {
+                    "error": "body must include {trigger: {...}}",
+                    "error_type": "ValidationError",
+                }
+            ),
+            400,
+        )
+    try:
+        model = _parse_trigger_model(trigger_payload)
+        aps_trigger = trigger_model_to_apscheduler(model)
+    except (ValidationError, ValueError, InvalidTriggerError) as exc:
+        return (
+            jsonify(
+                {
+                    "error": str(exc),
+                    "error_type": "ValidationError",
+                }
+            ),
+            400,
+        )
+    s.modify_trigger(job_id, aps_trigger)
+    _audit_log(job_id, "patch-trigger")
+    return jsonify(_job_to_dict(s, job_id)), 200
+
+
+@bp.route("/jobs/<job_id>/reset-default", methods=["POST"])
+def reset_default(job_id: str):
+    s = _get_scheduler()
+    if s is None:
+        return _scheduler_down_response()
+    if job_id not in s._registered_ids:
+        return (
+            jsonify(
+                {
+                    "error": f"Job {job_id!r} not found",
+                    "error_type": "NotFoundError",
+                }
+            ),
+            404,
+        )
+    s.reset_to_default(job_id)
+    _audit_log(job_id, "reset-default")
+    return jsonify(_job_to_dict(s, job_id)), 200
