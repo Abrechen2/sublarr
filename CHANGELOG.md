@@ -5,6 +5,11 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.70.4-beta] - 2026-04-20
+
+### Fixed
+- **Plan A3 follow-up — Ollama CJK-hallucination retry reintroduced.** The A1 LLMBackend consolidation dropped Ollama's CJK-specific retry. Qwen2.5 and similar multilingual LLMs occasionally drift into Chinese characters when translating between non-CJK languages. `OllamaBackend._verify_line_count` now overrides the base-class retry to add a post-line-count CJK scan via `has_cjk_hallucination()`. On detection, one retry fires with `is_retry=True` (strict prompt). Retry result accepted if clean; otherwise keep original as best-effort — a partially-tainted translation is more useful than failing the job outright. Token counters sum across both attempts regardless of outcome. 3 new tests.
+
 ## [0.70.3-beta] - 2026-04-20
 
 ### Fixed
